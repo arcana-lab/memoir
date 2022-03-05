@@ -7,28 +7,24 @@
 namespace objectir {
 
 struct Field {
+  virtual std::string toString() = 0;
+};
+
+template <typename T>
+struct ScalarField : public Field {
+  T value;
   uint64_t bitwidth;
-  bool isPointer;
+  bool isSigned;
+
+  ScalarField(T init);
 
   std::string toString();
 };
 
-struct NullField {
-  NullField();
-  
-  std::string toString();
-};
+template <typename T>
+struct PointerField : public PointerField {
+  static_assert(std::is_base_of<Object, T>::value);
 
-struct IntegerField : public Field {
-  uint64_t value;
-  uint64_t bitwidth;
-
-  IntegerField(uint64_t value, uint64_t bitwidth);
-
-  std::string toString();
-};
-
-template <class T : Object> struct PointerField : public PointerField {
   T *obj;
 
   PointerField(T *obj);
