@@ -20,6 +20,8 @@ struct Field {
 
   Type *getType();
 
+  static Field *createField(Type *type);
+
   virtual std::string toString() = 0;
 };
 
@@ -67,7 +69,7 @@ struct Object {
   Type *type;
   std::vector<Field *> fields;
 
-  Object(std::vector<Field *> fields);
+  Object(Type *type);
 
   // Access
   Field *readField(uint64_t fieldNo);
@@ -82,8 +84,8 @@ struct Object {
 struct Array : public Object {
   uint64_t length;
 
-  Array(uint64_t length);
-  Array(uint64_t length, Field *init);
+  Array(Type *t, uint64_t length);
+  Array(Type *t, uint64_t length, Field *init);
 
   // Access
   Field *getElement(uint64_t index);

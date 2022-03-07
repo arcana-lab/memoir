@@ -1,12 +1,12 @@
 #include "builder.hpp"
 
-namespace objectir {
+using namespace objectir;
 extern "C" {
 
 /*
  * Type construction
  */
-Type *buildObjectType(int numFields, ...) {
+Type *objectir::buildObjectType(int numFields, ...) {
   auto type = new Object();
 
   va_list args;
@@ -23,58 +23,75 @@ Type *buildObjectType(int numFields, ...) {
   return type;
 }
 
-Type *buildIntegerType(uint64_t bitwidth, bool isSigned) {
+Type *objectir::buildIntegerType(uint64_t bitwidth, bool isSigned) {
   return new IntegerType(bitwidth, isSigned);
 }
 
-Type *buildUInt64Type() {
+Type *objectir::buildUInt64Type() {
   return new IntegerType(64, false);
 }
 
-Type *buildUInt32Type() {
+Type *objectir::buildUInt32Type() {
   return new IntegerType(32, false);
 }
 
-Type *buildUInt16Type() {
+Type *objectir::buildUInt16Type() {
   return new IntegerType(16, false);
 }
 
-Type *buildUInt8Type() {
+Type *objectir::buildUInt8Type() {
   return new IntegerType(8, false);
 }
 
-Type *buildInt64Type() {
+Type *objectir::buildInt64Type() {
   return new IntegerType(64, true);
 }
 
-Type *buildInt32Type() {
+Type *objectir::buildInt32Type() {
   return new IntegerType(32, true);
 }
 
-Type *buildInt16Type() {
+Type *objectir::buildInt16Type() {
   return new IntegerType(16, true);
 }
 
-Type *buildInt8Type() {
+Type *objectir::buildInt8Type() {
   return new IntegerType(8, true);
 }
 
-Type *buildBooleanType() {
+Type *objectir::buildBooleanType() {
   return new IntegerType(1, false);
 }
 
-Type *buildFloatType() {
+Type *objectir::buildFloatType() {
   return new IntegerType(bitwidth, isSigned);
 }
 
-Type *buildDoubleType() {
+Type *objectir::buildDoubleType() {
   return new IntegerType(bitwidth, isSigned);
 }
 
 /*
  * Object construction
  */
-Object *buildObject(Type *type) {}
-Object *buildArray(Type *type, uint64_t length) {}
+Object *objectir::buildObject(Type *type) {
+  auto obj = new Object(type);
+
+  for (auto t : type->fields) {
+    auto field = Field::createField(type);
+  }
+}
+
+Object *objectir::buildArray(Type *type, uint64_t length) {
+  auto array = new Array(type, length);
+  std::vector<Field *> fields;
+
+  for (int i = 0; i < length; i++) {
+    auto elem = Field::createField(type);
+
+    array->fields.push_back(elem);
+  }
+}
+
 } // extern "C"
 } // namespace objectir
