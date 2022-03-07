@@ -1,94 +1,93 @@
+#pragma once
+
 /*
  * Object representation recognizable by LLVM IR
+ * This file describes the Object and Field representation
+ * for the object-ir library
+ *
  * Author(s): Tommy McMichen
  * Created: Mar 4, 2022
  */
 
+#include "types.h"
+
 namespace objectir {
 
 struct Field {
+  Type *type;
+
+  Field(Type *type);
+
+  Type *getType();
+
   virtual std::string toString() = 0;
 };
 
-template <typename T>
-struct ScalarField : public Field {
-  T value;
-  uint64_t bitwidth;
-  bool isSigned;
+struct IntegerField : public Field {
+  uint64_t value;
 
-  ScalarField(T init);
+  IntegerField(uint64_t init, uint64_t bitwidth, bool isSigned);
+  IntegerField(uint8_t init);
+  IntegerField(uint16_t init);
+  IntegerField(uint32_t init);
+  IntegerField(uint64_t init);
+  IntegerField(int8_t init);
+  IntegerField(int16_t init);
+  IntegerField(int32_t init);
+  IntegerField(int64_t init);
 
   std::string toString();
 };
 
-template <typename T>
-struct PointerField : public PointerField {
-  static_assert(std::is_base_of<Object, T>::value);
+struct FloatField : public Field {
+  float value;
 
-  T *obj;
+  FloatField(float init);
 
-  PointerField(T *obj);
+  std::string toString();
+};
+
+struct DoubleField : public Field {
+  double value;
+
+  DoubleField(double init);
 
   std::string toString();
 }
 
+struct PointerField : public PointerField {
+  Object *obj;
+
+  PointerField(Object *obj);
+
+  std::string toString();
+};
+
 struct Object {
+  Type *type;
   std::vector<Field *> fields;
 
   Object(std::vector<Field *> fields);
 
+  // Access
   Field *readField(uint64_t fieldNo);
   Field *writeField(uint64_t fieldNo);
+
+  // Typing
+  Type *getType();
 
   virtual std::string toString() = 0;
 };
 
 struct Array : public Object {
-  std::vector<Field *> elements;
   uint64_t length;
 
   Array(uint64_t length);
+  Array(uint64_t length, Field *init);
 
-  std::string toString();
-};
-
-struct LinkedList : public Object {
-  PointerField *next;
-
-  LinkedList(PointerField *next);
-
-  void setNext(PointerField *prev);
-
-  std::string toString();
-};
-
-struct DoublyLinkedList : public LinkedList {
-  PointerField *prev;
-
-  DoublyLinkedList(PointerField *next, PointerField *prev);
-
-  void setPrev(PointerField *prev);
-
-  std::string toString();
-};
-
-struct Tree : public Object {
-  std::vector<Tree *> children;
-
-  Tree(std::vector<Field *> children);
-
-  void addChild(Tree *child);
-  void getChild(uint64_t childNo);
-
-  std::string toString();
-};
-
-struct Graph : public Object {
-  std::unordered_set<Graph *> outgoing;
-
-  Graph(std::vector<Graph *> outgoing);
-
-  void addEdge(Graph *to);
+  // Access
+  Field *getElement(uint64_t index);
+  Field *setElement(uint64_t index);
 
   std::string toString();
 };
