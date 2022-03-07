@@ -22,7 +22,9 @@ namespace objectir {
  */
 extern "C" Type *buildObjectType(int numFields, ...);
 extern "C" Type *buildIntegerType(uint64_t bitwidth, bool isSigned);
-extern "C" Type *buildUInt64Type();
+extern "C" Type *buildUInt64Type(
+
+);
 extern "C" Type *buildUInt32Type();
 extern "C" Type *buildUInt16Type();
 extern "C" Type *buildUInt8Type();
