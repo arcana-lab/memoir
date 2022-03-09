@@ -9,15 +9,21 @@
  * Created: Mar 4, 2022
  */
 
-#include "types.h"
+#include <cstdint>
+#include <string>
+#include <vector>
+
+#include "types.hpp"
 
 namespace objectir {
 
 struct Field {
+protected:
   Type *type;
 
   Field(Type *type);
 
+public:
   Type *getType();
 
   static Field *createField(Type *type);
@@ -25,7 +31,41 @@ struct Field {
   virtual std::string toString() = 0;
 };
 
+struct Object {
+protected:
+  Type *type;
+  std::vector<Field *> fields;
+
+  Object(Type *type);
+
+public:
+  // Access
+  Field *readField(uint64_t fieldNo);
+  Field *writeField(uint64_t fieldNo);
+
+  // Typing
+  Type *getType();
+
+  virtual std::string toString();
+};
+
+struct Array : public Object {
+protected:
+  uint64_t length;
+
+  Array(Type *t, uint64_t length);
+  Array(Type *t, uint64_t length, Field *init);
+
+public:
+  // Access
+  Field *getElement(uint64_t index);
+  Field *setElement(uint64_t index);
+
+  std::string toString();
+};
+
 struct IntegerField : public Field {
+protected:
   uint64_t value;
 
   IntegerField(uint64_t init, uint64_t bitwidth, bool isSigned);
@@ -38,60 +78,37 @@ struct IntegerField : public Field {
   IntegerField(int32_t init);
   IntegerField(int64_t init);
 
+public:
   std::string toString();
 };
 
 struct FloatField : public Field {
+protected:
   float value;
 
   FloatField(float init);
 
+public:
   std::string toString();
 };
 
 struct DoubleField : public Field {
+protected:
   double value;
 
   DoubleField(double init);
 
+public:
   std::string toString();
-}
+};
 
-struct PointerField : public PointerField {
-  Object *obj;
+struct PointerField : public Field {
+protected:
+  Object *value;
 
   PointerField(Object *obj);
 
+public:
   std::string toString();
 };
-
-struct Object {
-  Type *type;
-  std::vector<Field *> fields;
-
-  Object(Type *type);
-
-  // Access
-  Field *readField(uint64_t fieldNo);
-  Field *writeField(uint64_t fieldNo);
-
-  // Typing
-  Type *getType();
-
-  virtual std::string toString() = 0;
-};
-
-struct Array : public Object {
-  uint64_t length;
-
-  Array(Type *t, uint64_t length);
-  Array(Type *t, uint64_t length, Field *init);
-
-  // Access
-  Field *getElement(uint64_t index);
-  Field *setElement(uint64_t index);
-
-  std::string toString();
-};
-
 } // namespace objectir

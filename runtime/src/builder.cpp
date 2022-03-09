@@ -1,13 +1,14 @@
 #include "builder.hpp"
 
 using namespace objectir;
+
 extern "C" {
 
 /*
  * Type construction
  */
-Type *objectir::buildObjectType(int numFields, ...) {
-  auto type = new Object();
+Type *objectir::getObjectType(int numFields, ...) {
+  auto type = new ObjectType();
 
   va_list args;
 
@@ -23,52 +24,56 @@ Type *objectir::buildObjectType(int numFields, ...) {
   return type;
 }
 
-Type *objectir::buildIntegerType(uint64_t bitwidth, bool isSigned) {
+Type *objectir::getArrayType(Type *type) {
+  return new ArrayType(type);
+}
+
+Type *objectir::getIntegerType(uint64_t bitwidth, bool isSigned) {
   return new IntegerType(bitwidth, isSigned);
 }
 
-Type *objectir::buildUInt64Type() {
+Type *objectir::getUInt64Type() {
   return new IntegerType(64, false);
 }
 
-Type *objectir::buildUInt32Type() {
+Type *objectir::getUInt32Type() {
   return new IntegerType(32, false);
 }
 
-Type *objectir::buildUInt16Type() {
+Type *objectir::getUInt16Type() {
   return new IntegerType(16, false);
 }
 
-Type *objectir::buildUInt8Type() {
+Type *objectir::getUInt8Type() {
   return new IntegerType(8, false);
 }
 
-Type *objectir::buildInt64Type() {
+Type *objectir::getInt64Type() {
   return new IntegerType(64, true);
 }
 
-Type *objectir::buildInt32Type() {
+Type *objectir::getInt32Type() {
   return new IntegerType(32, true);
 }
 
-Type *objectir::buildInt16Type() {
+Type *objectir::getInt16Type() {
   return new IntegerType(16, true);
 }
 
-Type *objectir::buildInt8Type() {
+Type *objectir::getInt8Type() {
   return new IntegerType(8, true);
 }
 
-Type *objectir::buildBooleanType() {
+Type *objectir::getBooleanType() {
   return new IntegerType(1, false);
 }
 
-Type *objectir::buildFloatType() {
-  return new IntegerType(bitwidth, isSigned);
+Type *objectir::getFloatType() {
+  return new FloatType();
 }
 
-Type *objectir::buildDoubleType() {
-  return new IntegerType(bitwidth, isSigned);
+Type *objectir::getDoubleType() {
+  return new DoubleType();
 }
 
 /*
@@ -77,9 +82,11 @@ Type *objectir::buildDoubleType() {
 Object *objectir::buildObject(Type *type) {
   auto obj = new Object(type);
 
-  for (auto t : type->fields) {
+  for (auto t : obj->fields) {
     auto field = Field::createField(type);
   }
+
+  return obj;
 }
 
 Object *objectir::buildArray(Type *type, uint64_t length) {
@@ -91,7 +98,8 @@ Object *objectir::buildArray(Type *type, uint64_t length) {
 
     array->fields.push_back(elem);
   }
+
+  return array;
 }
 
 } // extern "C"
-} // namespace objectir
