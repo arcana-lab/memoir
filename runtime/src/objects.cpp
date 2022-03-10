@@ -24,12 +24,3 @@ Array::Array(Type *type, uint64_t length)
     this->fields.push_back(nullptr)
   }
 }
-
-Array::Array(Type *type, uint64_t length, Field *init)
-  : Object(buildArrayType(type)),
-    length(length) {
-
-  for (auto i = 0; i < length; i++) {
-    this->fields.push_back(init)
-  }
-}

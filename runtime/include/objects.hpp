@@ -21,12 +21,10 @@ struct Field {
 protected:
   Type *type;
 
-  Field(Type *type);
-
 public:
+  Field(Type *type);
+  
   Type *getType();
-
-  static Field *createField(Type *type);
 
   virtual std::string toString() = 0;
 };
@@ -41,12 +39,12 @@ protected:
 public:
   // Access
   Field *readField(uint64_t fieldNo);
-  Field *writeField(uint64_t fieldNo);
+  void writeField(uint64_t fieldNo, Field *field);
 
   // Typing
   Type *getType();
 
-  virtual std::string toString();
+  std::string toString();
 };
 
 struct Array : public Object {
@@ -54,7 +52,6 @@ protected:
   uint64_t length;
 
   Array(Type *t, uint64_t length);
-  Array(Type *t, uint64_t length, Field *init);
 
 public:
   // Access
@@ -68,7 +65,9 @@ struct IntegerField : public Field {
 protected:
   uint64_t value;
 
-  IntegerField(uint64_t init, uint64_t bitwidth, bool isSigned);
+  IntegerField(uint64_t init,
+               uint64_t bitwidth,
+               bool isSigned);
   IntegerField(uint8_t init);
   IntegerField(uint16_t init);
   IntegerField(uint32_t init);

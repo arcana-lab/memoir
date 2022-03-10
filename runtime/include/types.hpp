@@ -9,6 +9,9 @@
  * Created: Mar 7, 2022
  */
 
+#include <vector>
+#include <string>
+
 namespace objectir {
 
 struct Type {
@@ -36,6 +39,9 @@ struct ObjectType : public Type {
 struct ArrayType : public Type {
   Type *elementType;
 
+  ArrayType(Type *elementType);
+  ~ArrayType();
+
   std::string toString();
 };
 
@@ -49,10 +55,14 @@ struct IntegerType : public Type {
 };
 
 struct FloatType : public Type {
+  FloatType();
+  
   std::string toString();
 };
 
 struct DoubleType : public Type {
+  DoubleType();
+  
   std::string toString();
 };
 

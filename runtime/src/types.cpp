@@ -2,6 +2,9 @@
 
 using namespace objectir;
 
+/*
+ * Type base class
+ */
 Type::Type()
   : isObject(false),
     isArray(false),
@@ -11,6 +14,9 @@ Type::Type()
   // Do nothing.
 }
 
+/*
+ * Object Type
+ */
 ObjectType::ObjectType() : Type() {
   this->isObject = true;
 }
@@ -21,12 +27,22 @@ ObjectType::~ObjectType() {
   }
 }
 
+/*
+ * Array Type
+ */
 ArrayType::ArrayType(Type *type)
   : Type(),
     elementType(type) {
   this->isArray = true;
 }
 
+ArrayType::~ArrayType() {
+  delete elementType;
+}
+
+/*
+ * Integer Type
+ */
 IntegerType::IntegerType(uint64_t bitwidth, bool isSigned)
   : Type(),
     bitwidth(bitwidth),
@@ -34,10 +50,16 @@ IntegerType::IntegerType(uint64_t bitwidth, bool isSigned)
   this->isInteger = true;
 }
 
+/*
+ * Float Type
+ */
 FloatType::FloatType() : Type() {
   this->isFloat = true;
 }
 
+/*
+ * Double Type
+ */
 DoubleType::DoubleType() : Type() {
   this->isDouble = true;
 }
