@@ -9,8 +9,8 @@
  * Created: Mar 7, 2022
  */
 
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace objectir {
 
@@ -32,7 +32,7 @@ struct ObjectType : public Type {
   std::vector<Type *> fields;
   ObjectType();
   ~ObjectType();
-  
+
   std::string toString();
 };
 
@@ -41,6 +41,15 @@ struct ArrayType : public Type {
 
   ArrayType(Type *elementType);
   ~ArrayType();
+
+  std::string toString();
+};
+
+struct UnionType : public Type {
+  std::vector<Type *> members;
+
+  UnionType();
+  ~UnionType();
 
   std::string toString();
 };
@@ -56,13 +65,13 @@ struct IntegerType : public Type {
 
 struct FloatType : public Type {
   FloatType();
-  
+
   std::string toString();
 };
 
 struct DoubleType : public Type {
   DoubleType();
-  
+
   std::string toString();
 };
 
