@@ -18,6 +18,7 @@ struct Type {
 protected:
   bool isObject;
   bool isArray;
+  bool isUnion;
   bool isInteger;
   bool isFloat;
   bool isDouble;
@@ -30,8 +31,18 @@ public:
 
 struct ObjectType : public Type {
   std::vector<Type *> fields;
+
   ObjectType();
   ~ObjectType();
+
+  std::string toString();
+};
+
+struct PointerType : public Type {
+  Type *pointedType;
+
+  PointerType();
+  ~PointerType();
 
   std::string toString();
 };

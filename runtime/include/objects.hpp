@@ -21,12 +21,14 @@ struct Field {
 protected:
   Type *type;
 
-public:
   Field(Type *type);
-  
+
+public:
   Type *getType();
 
   virtual std::string toString() = 0;
+
+  friend class FieldAccessor;
 };
 
 struct Object {
@@ -34,7 +36,9 @@ protected:
   Type *type;
   std::vector<Field *> fields;
 
+  // Construction
   Object(Type *type);
+  ~Object();
 
 public:
   // Access
@@ -45,13 +49,17 @@ public:
   Type *getType();
 
   std::string toString();
+
+  friend class ObjectBuilder;
 };
 
 struct Array : public Object {
 protected:
   uint64_t length;
 
+  // Construction
   Array(Type *t, uint64_t length);
+  ~Array();
 
 public:
   // Access
@@ -59,8 +67,32 @@ public:
   Field *setElement(uint64_t index);
 
   std::string toString();
+
+  friend class ObjectBuilder;
 };
 
+// Union
+struct Union : public Object {
+protected:
+  std::vector<Field *> members;
+
+  Union(Type *t);
+  ~Union();
+
+public:
+  // Access
+  Field *readField(uint64_t fieldNo);
+  void writeField(uint64_t fieldNo, Field *field);
+
+  // Typing
+  Type *getType();
+
+  std::string toString();
+
+  friend class ObjectBuilder;
+}
+
+// Integer
 struct IntegerField : public Field {
 protected:
   uint64_t value;
@@ -79,8 +111,11 @@ protected:
 
 public:
   std::string toString();
+
+  friend class ObjectBuilder;
 };
 
+// Floating point
 struct FloatField : public Field {
 protected:
   float value;
@@ -89,8 +124,11 @@ protected:
 
 public:
   std::string toString();
+
+  friend class ObjectBuilder;
 };
 
+// Double-precision floating point
 struct DoubleField : public Field {
 protected:
   double value;
@@ -99,8 +137,11 @@ protected:
 
 public:
   std::string toString();
+
+  friend class ObjectBuilder;
 };
 
+// Indirect object
 struct PointerField : public Field {
 protected:
   Object *value;
@@ -109,5 +150,21 @@ protected:
 
 public:
   std::string toString();
+
+  friend class ObjectBuilder;
 };
+
+// Nested object
+struct ObjectField : public Field {
+protected:
+  Object *value;
+
+  ObjectField(Object *obj);
+
+public:
+  std::string toString();
+
+  friend class ObjectBuilder;
+};
+
 } // namespace objectir

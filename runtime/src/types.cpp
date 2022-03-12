@@ -41,6 +41,19 @@ ArrayType::~ArrayType() {
 }
 
 /*
+ * Union Type
+ */
+UnionType::UnionType() : Type() {
+  this->isUnion = true;
+}
+
+UnionType::~UnionType() {
+  for (auto member : this->members) {
+    delete member;
+  }
+}
+
+/*
  * Integer Type
  */
 IntegerType::IntegerType(uint64_t bitwidth, bool isSigned)

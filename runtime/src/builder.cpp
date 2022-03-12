@@ -28,6 +28,23 @@ Type *objectir::getArrayType(Type *type) {
   return new ArrayType(type);
 }
 
+Type *objectir::getUnionType(int numMembers, ...) {
+  auto type = new UnionType();
+
+  va_list args;
+
+  va_start(args, numMembers);
+
+  for (int i = 0; i < numMembers; i++) {
+    auto arg = va_arg(args, Type *);
+    type->members.push_back(arg);
+  }
+
+  va_end(args);
+
+  return type;
+}
+
 Type *objectir::getIntegerType(uint64_t bitwidth,
                                bool isSigned) {
   return new IntegerType(bitwidth, isSigned);
