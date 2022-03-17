@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include "objects.hpp"
 #include "types.hpp"
 
 namespace objectir {
@@ -25,6 +26,8 @@ protected:
 
 public:
   Type *getType();
+
+  static Field *createField(Type *type);
 
   virtual std::string toString() = 0;
 
@@ -51,6 +54,7 @@ public:
   std::string toString();
 
   friend class ObjectBuilder;
+  friend class ObjectAccessor;
 };
 
 struct Array : public Object {
@@ -69,6 +73,7 @@ public:
   std::string toString();
 
   friend class ObjectBuilder;
+  friend class ArrayAccessor;
 };
 
 // Union
@@ -90,29 +95,26 @@ public:
   std::string toString();
 
   friend class ObjectBuilder;
-}
+  friend class UnionAccessor;
+};
 
 // Integer
 struct IntegerField : public Field {
 protected:
   uint64_t value;
 
+  IntegerField(Type *t);
+  IntegerField(Type *t, uint64_t init);
   IntegerField(uint64_t init,
                uint64_t bitwidth,
                bool isSigned);
-  IntegerField(uint8_t init);
-  IntegerField(uint16_t init);
-  IntegerField(uint32_t init);
-  IntegerField(uint64_t init);
-  IntegerField(int8_t init);
-  IntegerField(int16_t init);
-  IntegerField(int32_t init);
-  IntegerField(int64_t init);
 
 public:
   std::string toString();
 
   friend class ObjectBuilder;
+  friend class Field;
+  friend class FieldAccessor;
 };
 
 // Floating point
@@ -120,12 +122,15 @@ struct FloatField : public Field {
 protected:
   float value;
 
-  FloatField(float init);
+  FloatField(Type *type);
+  FloatField(Type *type, float init);
 
 public:
   std::string toString();
 
   friend class ObjectBuilder;
+  friend class Field;
+  friend class FieldAccessor;
 };
 
 // Double-precision floating point
@@ -133,25 +138,15 @@ struct DoubleField : public Field {
 protected:
   double value;
 
-  DoubleField(double init);
+  DoubleField(Type *type);
+  DoubleField(Type *type, double init);
 
 public:
   std::string toString();
 
   friend class ObjectBuilder;
-};
-
-// Indirect object
-struct PointerField : public Field {
-protected:
-  Object *value;
-
-  PointerField(Object *obj);
-
-public:
-  std::string toString();
-
-  friend class ObjectBuilder;
+  friend class Field;
+  friend class FieldAccessor;
 };
 
 // Nested object
@@ -159,12 +154,15 @@ struct ObjectField : public Field {
 protected:
   Object *value;
 
-  ObjectField(Object *obj);
+  ObjectField(Type *type);
+  ObjectField(Object *init);
 
 public:
   std::string toString();
 
   friend class ObjectBuilder;
+  friend class Field;
+  friend class FieldAccessor;
 };
 
 } // namespace objectir

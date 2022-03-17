@@ -7,7 +7,7 @@ extern "C" {
 /*
  * Type construction
  */
-Type *objectir::getObjectType(int numFields, ...) {
+Type *getObjectType(int numFields, ...) {
   auto type = new ObjectType();
 
   va_list args;
@@ -24,11 +24,11 @@ Type *objectir::getObjectType(int numFields, ...) {
   return type;
 }
 
-Type *objectir::getArrayType(Type *type) {
+Type *getArrayType(Type *type) {
   return new ArrayType(type);
 }
 
-Type *objectir::getUnionType(int numMembers, ...) {
+Type *getUnionType(int numMembers, ...) {
   auto type = new UnionType();
 
   va_list args;
@@ -45,68 +45,74 @@ Type *objectir::getUnionType(int numMembers, ...) {
   return type;
 }
 
-Type *objectir::getIntegerType(uint64_t bitwidth,
+Type *getIntegerType(uint64_t bitwidth,
                                bool isSigned) {
   return new IntegerType(bitwidth, isSigned);
 }
 
-Type *objectir::getUInt64Type() {
+Type *getUInt64Type() {
   return new IntegerType(64, false);
 }
 
-Type *objectir::getUInt32Type() {
+Type *getUInt32Type() {
   return new IntegerType(32, false);
 }
 
-Type *objectir::getUInt16Type() {
+Type *getUInt16Type() {
   return new IntegerType(16, false);
 }
 
-Type *objectir::getUInt8Type() {
+Type *getUInt8Type() {
   return new IntegerType(8, false);
 }
 
-Type *objectir::getInt64Type() {
+Type *getInt64Type() {
   return new IntegerType(64, true);
 }
 
-Type *objectir::getInt32Type() {
+Type *getInt32Type() {
   return new IntegerType(32, true);
 }
 
-Type *objectir::getInt16Type() {
+Type *getInt16Type() {
   return new IntegerType(16, true);
 }
 
-Type *objectir::getInt8Type() {
+Type *getInt8Type() {
   return new IntegerType(8, true);
 }
 
-Type *objectir::getBooleanType() {
+Type *getBooleanType() {
   return new IntegerType(1, false);
 }
 
-Type *objectir::getFloatType() {
+Type *getFloatType() {
   return new FloatType();
 }
 
-Type *objectir::getDoubleType() {
+Type *getDoubleType() {
   return new DoubleType();
 }
 
 /*
  * Object construction
  */
-Object *objectir::buildObject(Type *type) {
+Object *ObjectBuilder::buildObject(Type *type) {
   auto obj = new Object(type);
 
   return obj;
 }
 
-Object *objectir::buildArray(Type *type, uint64_t length) {
+Object *ObjectBuilder::buildArray(Type *type, uint64_t length) {
   auto array = new Array(type, length);
 
   return array;
+}
+
+Object *ObjectBuilder::buildUnion(Type *type) {
+  auto unionObj = new Union(type);
+  
+  return unionObj;
 }
 
 } // extern "C"

@@ -43,7 +43,7 @@ class TypeBuilder {
   __attribute__((noinline)) Type *getBooleanType();
   __attribute__((noinline)) Type *getFloatType();
   __attribute__((noinline)) Type *getDoubleType();
-  }
+  } // extern "C"
 };
 
 /*
@@ -56,7 +56,7 @@ class ObjectBuilder {
       Type *type,
       uint64_t length);
   __attribute__((noinline)) Object *buildUnion(Type *type);
-  }
+  } // extern "C"
 };
 
 } // namespace objectir

@@ -1,58 +1,65 @@
-#include "objects.hpp"
+#include "objects.hpp"  
 
 using namespace objectir;
 
 Field::Field(Type *type)
   : type(type) {}
 
+IntegerField::IntegerField(Type *type)
+  : Field(type)
+  , value(0) {}
+
+IntegerField::IntegerField(Type *type, uint64_t init)
+  : Field(type)
+  , value(init) {}
+
 IntegerField::IntegerField(uint64_t init, uint64_t bitwidth, bool isSigned)
-  : Field(buildIntegerType(bitwidth, isSigned))
+  : Field(new IntegerType(bitwidth, isSigned))
   , value(init) {}
 
-IntegerField::IntegerField(uint8_t init)
-  : Field(buildUInt8Type())
+FloatField::FloatField(Type *type)
+  : Field(type)
+  , value(0.0) {}
+
+FloatField::FloatField(Type *type, float init)
+  : Field(type)
   , value(init) {}
 
-IntegerField::IntegerField(uint16_t init)
-  : Field(buildUInt16Type())
+DoubleField::DoubleField(Type *type)
+  : Field(type)
+  , value(0.0) {}
+
+DoubleField::DoubleField(Type *type, double init)
+  : Field(type)
   , value(init) {}
 
-IntegerField::IntegerField(uint32_t init)
-  : Field(buildUInt32Type())
-  , value(init) {}
+ObjectField::ObjectField(Type *type)
+  : Field(type)
+  , value(nullptr) {}
 
-IntegerField::IntegerField(uint64_t init)
-  : Field(buildUInt64Type())
-  , value(init) {}
-
-IntegerField::IntegerField(int8_t init)
-  : Field(buildInt8Type())
-  , value(init) {}
-
-IntegerField::IntegerField(int16_t init)
-  : Field(buildInt16Type())
-  , value(init) {}
-
-IntegerField::IntegerField(int32_t init)
-  : Field(buildInt32Type())
-  , value(init) {}
-
-IntegerField::IntegerField(int64_t init)
-  : Field(buildInt64Type())
-  , value(init) {}
-
-FloatField::FloatField(float init)
-  : Field(buildFloatType())
-  , value(init) {}
-
-DoubleField::DoubleField(double init)
-  : Field(buildDoubleType())
-  , value(init) {}
-
-PointerField::PointerField(Object *obj)
+ObjectField::ObjectField(Object *obj)
   : Field(obj->getType())
   , value(obj) {}
 
 Type *Field::getType() {
   return this->type;
+}
+
+Field *Field::createField(Type *type) {
+  switch(type->getCode()) {
+  case TypeCode::ObjectTy:
+  case TypeCode::ArrayTy:
+  case TypeCode::UnionTy:
+    return new ObjectField(type);
+  case TypeCode::IntegerTy:
+    return new IntegerField(type);
+  case TypeCode::FloatTy:
+    return new FloatField(type);
+  case TypeCode::DoubleTy:
+    return new DoubleField(type);
+  default:
+    // Error
+    break;
+  }
+
 }

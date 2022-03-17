@@ -14,19 +14,28 @@
 
 namespace objectir {
 
+enum TypeCode {
+  ObjectTy,
+  ArrayTy,
+  UnionTy,
+  IntegerTy,
+  FloatTy,
+  DoubleTy,
+};
+
 struct Type {
 protected:
-  bool isObject;
-  bool isArray;
-  bool isUnion;
-  bool isInteger;
-  bool isFloat;
-  bool isDouble;
-
+  TypeCode code;
+  
   Type();
 
-public:
-  virtual std::string toString() = 0;
+public:  
+  TypeCode getCode();
+  
+  virtual std::string toString() = 0;  
+
+  friend class Object;
+  friend class Field;
 };
 
 struct ObjectType : public Type {

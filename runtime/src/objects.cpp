@@ -3,24 +3,30 @@
 using namespace objectir;
 
 Object::Object(Type *type) : type(type) {
-  if (type->isObject) {
-    // Initialize the fields
-    auto objectType = (ObjectType *)type;
-    for (auto fieldType : objectType->fields) {
-      this->fields = Field::createField(fieldType);
+  switch (type->getCode()) {
+    case TypeCode::ObjectTy: {
+      // Initialize the fields
+      auto objectType = (ObjectType *)type;
+      for (auto fieldType : objectType->fields) {
+        this->fields.push_back(
+            Field::createField(fieldType));
+      }
+      break;
     }
-  } else if (type->isArray) {
-    // Do nothing.
-  } else {
-    // ERROR: object is not of object type
+    case TypeCode::ArrayTy:
+      // Do nothing.
+      break;
+    default:
+      // ERROR: object is not of object type
+      break;
   }
 }
 
 Array::Array(Type *type, uint64_t length)
-  : Object(buildArrayType(type)),
+  : Object(new ArrayType(type)),
     length(length) {
 
   for (auto i = 0; i < length; i++) {
-    this->fields.push_back(nullptr)
+    this->fields.push_back(nullptr);
   }
 }
