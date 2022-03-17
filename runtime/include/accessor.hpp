@@ -3,7 +3,7 @@
 /*
  * Object representation recognizable by LLVM IR
  * This file contains methods to access object-ir
- * objects, fields and types for the objecy-ir library.
+ * objects, fields and types for the object-ir library.
  *
  * Author(s): Tommy McMichen
  * Created: Mar 11, 2022
@@ -18,46 +18,81 @@ namespace objectir {
  * Object accesses
  */
 class ObjectAccessor {
-  extern "C" {
-  __attribute__((noinline)) Field *readField(
+  //  extern "C" {
+  __attribute__((noinline)) Field *getObjectField(
+      Object *object,
       uint64_t fieldNo);
-  __attribute__((noinline)) Field *writeField(
-      uint64_t fieldNo,
-      Field *field);
-  }
-}
+  //  }
+};
 
 /*
  * Array accesses
  */
 class ArrayAccessor {
-  extern "C" {
-  __attribute__((noinline)) Field *readElement(
+  //  extern "C" {
+  __attribute__((noinline)) Field *getArrayElement(
+      Array *array,
       uint64_t index);
-  __attribute__((noinline)) Field *writeElement(
-      uint64_t index,
-      Field *element);
-  }
-}
+  //}
+};
 
 /*
  * Union accesses
  */
 class UnionAccessor {
-  extern "C" {
-  __attribute__((noinline)) Field *readMember(
+  //  extern "C" {
+  __attribute__((noinline)) Field *getUnionMember(
+      Union *unionObj,
       uint64_t index);
-  __attribute__((noinline)) Field *writeMember(
-      uint64_t index,
-      Field *element);
-  }
-}
+  //  }
+};
 
 /*
  * Field accesses
  */
 class FieldAccessor {
-  extern "C" {
+  //  extern "C" {
+  // Unsigned integer access
+  __attribute__((noinline)) void writeUInt64(
+      IntegerField *field,
+      uint64_t value);
+  __attribute__((noinline)) void writeUInt32(
+      IntegerField *field,
+      uint32_t value);
+  __attribute__((noinline)) void writeUInt16(
+      IntegerField *field,
+      uint16_t value);
+  __attribute__((noinline)) void writeUInt8(
+      IntegerField *field,
+      uint8_t value);
+
+  // Signed integer access
+  __attribute__((noinline)) void writeInt64(
+      IntegerField *field,
+      int64_t value);
+  __attribute__((noinline)) void writeInt32(
+      IntegerField *field,
+      int32_t value);
+  __attribute__((noinline)) void writeInt16(
+      IntegerField *field,
+      int16_t value);
+  __attribute__((noinline)) void writeInt8(
+      IntegerField *field,
+      int8_t value);
+
+  // Floating point access
+  __attribute__((noinline)) void writeFloat(
+      FloatField *field,
+      float value);
+  __attribute__((noinline)) void writeDouble(
+      DoubleField *field,
+      double value);
+
+  // Pointer access
+  __attribute__((noinline)) void writeObject(
+      ObjectField *field,
+      Object *object);
+
   // Unsigned integer access
   __attribute__((noinline)) uint64_t getUInt64(
       IntegerField *field);
@@ -75,17 +110,19 @@ class FieldAccessor {
       IntegerField *field);
   __attribute__((noinline)) int16_t getInt16(
       IntegerField *field);
-  __attribute__((noinline)) int8_t getInt8(IntegerField *field);
+  __attribute__((noinline)) int8_t getInt8(
+      IntegerField *field);
 
   // Floating point access
-  __attribute__((noinline)) float getFloat(FloatField *field);
+  __attribute__((noinline)) float getFloat(
+      FloatField *field);
   __attribute__((noinline)) double getDouble(
       DoubleField *field);
 
   // Pointer access
   __attribute__((noinline)) Object *getObject(
       ObjectField *field);
-  }
-}
+  //  }
+};
 
 } // namespace objectir
