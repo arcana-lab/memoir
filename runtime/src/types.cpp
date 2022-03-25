@@ -5,20 +5,15 @@ using namespace objectir;
 /*
  * Type base class
  */
-Type::Type()
-  : isObject(false),
-    isArray(false),
-    isInteger(false),
-    isFloat(false),
-    isDouble(false) {
+Type::Type(TypeCode code) {
   // Do nothing.
 }
 
 /*
  * Object Type
  */
-ObjectType::ObjectType() : Type() {
-  this->isObject = true;
+ObjectType::ObjectType() : Type(TypeCode::ObjectTy) {
+  // Do nothing.
 }
 
 ObjectType::~ObjectType() {
@@ -31,9 +26,9 @@ ObjectType::~ObjectType() {
  * Array Type
  */
 ArrayType::ArrayType(Type *type)
-  : Type(),
+  : Type(TypeCode::ArrayTy),
     elementType(type) {
-  this->isArray = true;
+  // Do nothing.
 }
 
 ArrayType::~ArrayType() {
@@ -43,8 +38,8 @@ ArrayType::~ArrayType() {
 /*
  * Union Type
  */
-UnionType::UnionType() : Type() {
-  this->isUnion = true;
+UnionType::UnionType() : Type(TypeCode::UnionTy) {
+  // Do nothing.
 }
 
 UnionType::~UnionType() {
@@ -57,22 +52,31 @@ UnionType::~UnionType() {
  * Integer Type
  */
 IntegerType::IntegerType(uint64_t bitwidth, bool isSigned)
-  : Type(),
+  : Type(TypeCode::IntegerTy),
     bitwidth(bitwidth),
     isSigned(isSigned) {
-  this->isInteger = true;
+  // Do nothing.
 }
 
 /*
  * Float Type
  */
-FloatType::FloatType() : Type() {
-  this->isFloat = true;
+FloatType::FloatType() : Type(TypeCode::FloatTy) {
+  // Do nothing.
 }
+
+FloatType::~FloatType() {
+  // Do nothing;
+}
+
 
 /*
  * Double Type
  */
-DoubleType::DoubleType() : Type() {
-  this->isDouble = true;
+DoubleType::DoubleType() : Type(TypeCode::DoubleTy) {
+  // Do nothing.
+}
+
+DoubleType::~DoubleType() {
+  // Do nothing.
 }

@@ -19,23 +19,20 @@
 namespace objectir {
 
 struct Field {
-protected:
+public:
   Type *type;
+  
+  Type *getType();
 
   Field(Type *type);
-
-public:
-  Type *getType();
 
   static Field *createField(Type *type);
 
   virtual std::string toString() = 0;
-
-  friend class FieldAccessor;
 };
 
 struct Object {
-protected:
+public:
   Type *type;
   std::vector<Field *> fields;
 
@@ -43,7 +40,6 @@ protected:
   Object(Type *type);
   ~Object();
 
-public:
   // Access
   Field *readField(uint64_t fieldNo);
   void writeField(uint64_t fieldNo, Field *field);
@@ -52,39 +48,32 @@ public:
   Type *getType();
 
   std::string toString();
-
-  friend class ObjectBuilder;
-  friend class ObjectAccessor;
 };
 
 struct Array : public Object {
-protected:
+public:
   uint64_t length;
-
+  
   // Construction
   Array(Type *t, uint64_t length);
   ~Array();
 
-public:
   // Access
   Field *getElement(uint64_t index);
   Field *setElement(uint64_t index);
 
   std::string toString();
-
-  friend class ObjectBuilder;
-  friend class ArrayAccessor;
 };
 
 // Union
 struct Union : public Object {
-protected:
+public:
   std::vector<Field *> members;
-
+  
+  // Construction
   Union(Type *t);
   ~Union();
 
-public:
   // Access
   Field *readField(uint64_t fieldNo);
   void writeField(uint64_t fieldNo, Field *field);
@@ -94,75 +83,69 @@ public:
 
   std::string toString();
 
-  friend class ObjectBuilder;
-  friend class UnionAccessor;
 };
 
 // Integer
 struct IntegerField : public Field {
-protected:
+public:
   uint64_t value;
-
+  
+  // Construction
   IntegerField(Type *t);
   IntegerField(Type *t, uint64_t init);
   IntegerField(uint64_t init,
                uint64_t bitwidth,
                bool isSigned);
 
-public:
-  std::string toString();
+  // Access
+  uint64_t readValue();
+  void writeValue(uint64_t);
 
-  friend class ObjectBuilder;
-  friend class Field;
-  friend class FieldAccessor;
+  std::string toString();
 };
 
 // Floating point
 struct FloatField : public Field {
-protected:
+public:
   float value;
-
+  
+  // Construction
   FloatField(Type *type);
   FloatField(Type *type, float init);
 
-public:
-  std::string toString();
+  // Access
+  float readValue();
+  void writeValue(float value);
 
-  friend class ObjectBuilder;
-  friend class Field;
-  friend class FieldAccessor;
+  std::string toString();
 };
 
 // Double-precision floating point
 struct DoubleField : public Field {
-protected:
+public:
   double value;
-
+  
+  // Construction
   DoubleField(Type *type);
   DoubleField(Type *type, double init);
 
-public:
-  std::string toString();
+  // Access
+  double readField();
+  void writeField(double value);
 
-  friend class ObjectBuilder;
-  friend class Field;
-  friend class FieldAccessor;
+  std::string toString();
 };
 
 // Nested object
 struct ObjectField : public Field {
-protected:
+public:
   Object *value;
 
+  // Construction
   ObjectField(Type *type);
   ObjectField(Object *init);
 
-public:
   std::string toString();
-
-  friend class ObjectBuilder;
-  friend class Field;
-  friend class FieldAccessor;
 };
 
 } // namespace objectir

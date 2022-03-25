@@ -45,8 +45,7 @@ Type *getUnionType(int numMembers, ...) {
   return type;
 }
 
-Type *getIntegerType(uint64_t bitwidth,
-                               bool isSigned) {
+Type *getIntegerType(uint64_t bitwidth, bool isSigned) {
   return new IntegerType(bitwidth, isSigned);
 }
 
@@ -97,21 +96,21 @@ Type *getDoubleType() {
 /*
  * Object construction
  */
-Object *ObjectBuilder::buildObject(Type *type) {
+Object *buildObject(Type *type) {
   auto obj = new Object(type);
 
   return obj;
 }
 
-Object *ObjectBuilder::buildArray(Type *type, uint64_t length) {
+Object *buildArray(Type *type, uint64_t length) {
   auto array = new Array(type, length);
 
   return array;
 }
 
-Object *ObjectBuilder::buildUnion(Type *type) {
+Object *buildUnion(Type *type) {
   auto unionObj = new Union(type);
-  
+
   return unionObj;
 }
 

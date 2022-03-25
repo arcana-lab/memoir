@@ -14,7 +14,7 @@ std::string DoubleField::toString() {
   return "Double Field";
 }
 
-std::string PointerField::toString() {
+std::string ObjectField::toString() {
   return "Pointer Field";
 }
 

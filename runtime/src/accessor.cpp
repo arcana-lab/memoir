@@ -17,122 +17,85 @@ extern "C" {
  * Object accesses
  */
 Field *getObjectField(Object *object, uint64_t fieldNo) {
-  // TODO
-  return nullptr;
+  return object->fields.at(fieldNo);
 }
 
 /*
  * Array accesses
  */
 Field *getArrayElement(Array *array, uint64_t index) {
-  // TODO
-  return nullptr;
+  return array->fields.at(index);
 }
 
 /*
  * Union accesses
  */
 Field *getUnionMember(Union *unionObj, uint64_t index) {
-  // TODO
-  return nullptr;
+  return unionObj->members.at(index);
 }
+
+} // extern "C"
 
 /*
  * Field accesses
  */
 // Unsigned integer access
-void writeUInt64(IntegerField *field, uint64_t value) {
-  // TODO
+void write(IntegerField *field, uint64_t value) {
+  field->value = value;
 }
-void writeUInt32(IntegerField *field, uint32_t value) {
-  // TODO
+void write(IntegerField *field, uint32_t value) {
+  field->value = (uint64_t)value;
 }
-void writeUInt16(IntegerField *field, uint16_t value) {
-  // TODO
+void write(IntegerField *field, uint16_t value) {
+  field->value = (uint64_t)value;
 }
-void writeUInt8(IntegerField *field, uint8_t value) {
-  // TODO
+void write(IntegerField *field, uint8_t value) {
+  field->value = (uint64_t)value;
 }
 
 // Signed integer access
-void writeInt64(IntegerField *field, int64_t value) {
-  // TODO
+void write(IntegerField *field, int64_t value) {
+  field->value = (uint64_t)value;
 }
-void writeInt32(IntegerField *field, int32_t value) {
-  // TODO
+void write(IntegerField *field, int32_t value) {
+  field->value = (uint64_t)value;
 }
-void writeInt16(IntegerField *field, int16_t value) {
-  // TODO
+void write(IntegerField *field, int16_t value) {
+  field->value = (uint64_t)value;
 }
-void writeInt8(IntegerField *field, int8_t value) {
-  // TODO
+void write(IntegerField *field, int8_t value) {
+  field->value = (uint64_t)value;
 }
 
 // Floating point access
-void writeFloat(FloatField *field, float value) {
-  // TODO
+void write(FloatField *field, float value) {
+  field->value = value;
 }
-void writeDouble(DoubleField *field, double value) {
-  // TODO
+void write(DoubleField *field, double value) {
+  field->value = value;
 }
 
 // Pointer access
 __attribute__((noinline)) void writeObject(
     ObjectField *field,
     Object *object) {
-  // TODO
+  field->value = object;
 }
 
-// Unsigned integer access
-uint64_t getUInt64(IntegerField *field) {
-  // TODO
-  return (uint64_t)field->value;
-}
-uint32_t getUInt32(IntegerField *field) {
-  // TODO
-  return (uint32_t)field->value;
-}
-uint16_t getUInt16(IntegerField *field) {
-  // TODO
-  return (uint16_t)field->value;
-}
-uint8_t getUInt8(IntegerField *field) {
-  // TODO
-  return (uint64_t)field->value;
-}
-
-// Signed integer access
-int64_t getInt64(IntegerField *field) {
-  // TODO
-  return (int64_t)field->value;
-}
-int32_t getInt32(IntegerField *field) {
-  // TODO
-  return (int32_t)field->value;
-}
-int16_t getInt16(IntegerField *field) {
-  // TODO
-  return (int16_t)field->value;
-}
-int8_t getInt8(IntegerField *field) {
-  // TODO
-  return (int8_t)field->value;
+// Integer access
+uint64_t read(IntegerField *field) {
+  return field->value;
 }
 
 // Floating point access
-float getFloat(FloatField *field) {
-  // TODO
+float read(FloatField *field) {
   return field->value;
 }
-double getDouble(DoubleField *field) {
-  // TODO
+double read(DoubleField *field) {
   return field->value;
 }
 
 // Pointer access
-Object *getObject(ObjectField *field) {
-  // TODO
-  return nullptr;
+Object *read(ObjectField *field) {
+  return field->value;
 }
-
-} // extern "C"

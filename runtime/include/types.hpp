@@ -27,11 +27,12 @@ struct Type {
 protected:
   TypeCode code;
   
-  Type();
+  Type(TypeCode code);
 
 public:  
   TypeCode getCode();
-  
+
+  virtual ~Type() = 0;
   virtual std::string toString() = 0;  
 
   friend class Object;
@@ -79,18 +80,21 @@ struct IntegerType : public Type {
   bool isSigned;
 
   IntegerType(uint64_t bitwidth, bool isSigned);
+  ~IntegerType();
 
   std::string toString();
 };
 
 struct FloatType : public Type {
   FloatType();
+  ~FloatType();
 
   std::string toString();
 };
 
 struct DoubleType : public Type {
   DoubleType();
+  ~DoubleType();
 
   std::string toString();
 };
