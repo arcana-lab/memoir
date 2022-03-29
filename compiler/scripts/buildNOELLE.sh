@@ -8,7 +8,7 @@ if test -e $1 ; then
   exit 1;
 fi
 
-git clone /project/parallelizing_compiler/repositories/noelle $1 ;
+git clone git@github.com:scampanoni/noelle.git $1 ;
 cd $1 ; 
 
 make ;
