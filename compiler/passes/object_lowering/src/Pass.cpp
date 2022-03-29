@@ -6,14 +6,16 @@
 
 #include "noelle/core/Noelle.hpp"
 
+#include "ObjectLowering.hpp"
+
 using namespace llvm::noelle ;
 
 namespace {
 
-  struct CAT : public ModulePass {
+  struct ObjectLowering : public ModulePass {
     static char ID; 
 
-    CAT() : ModulePass(ID) {}
+    ObjectLowering() : ModulePass(ID) {}
 
     bool doInitialization (Module &M) override {
       return false;
@@ -32,6 +34,18 @@ namespace {
       auto insts = noelle.numberOfProgramInstructions();
       errs() << "The program has " << insts << " instructions\n";
 
+      /*
+       * Find calls to object-ir API
+       */
+      for (auto &F : M) {
+        for (auto &I : F) {
+          if (auto callInst = dyn_cast<CallInst>(&I)) {
+            auto calleeName = callInst->getCallee->getName();
+            errs() << calleeName << "\n";
+          }
+        }
+      }
+
       return false;
     }
 
@@ -44,13 +58,13 @@ namespace {
 
 // Next there is code to register your pass to "opt"
 char CAT::ID = 0;
-static RegisterPass<CAT> X("CAT", "Simple user of the Noelle framework");
+static RegisterPass<ObjectLowering> X("ObjectLowering", "Lowers the object-ir language to LLVM IR");
 
 // Next there is code to register your pass to "clang"
-static CAT * _PassMaker = NULL;
+static ObjectLowering * _PassMaker = NULL;
 static RegisterStandardPasses _RegPass1(PassManagerBuilder::EP_OptimizerLast,
     [](const PassManagerBuilder&, legacy::PassManagerBase& PM) {
-        if(!_PassMaker){ PM.add(_PassMaker = new CAT());}}); // ** for -Ox
+        if(!_PassMaker){ PM.add(_PassMaker = new ObjectLowering());}}); // ** for -Ox
 static RegisterStandardPasses _RegPass2(PassManagerBuilder::EP_EnabledOnOptLevel0,
     [](const PassManagerBuilder&, legacy::PassManagerBase& PM) {
-        if(!_PassMaker){ PM.add(_PassMaker = new CAT()); }}); // ** for -O0
+        if(!_PassMaker){ PM.add(_PassMaker = new ObjectLowering()); }}); // ** for -O0
