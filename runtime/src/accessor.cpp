@@ -7,7 +7,7 @@
  * Created: Mar 17, 2022
  */
 
-#include "accessor.hpp"
+#include "accessor.h"
 
 using namespace objectir;
 
