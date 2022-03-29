@@ -12,8 +12,10 @@
 #include "objects.hpp"
 #include "types.hpp"
 
+#ifdef __cplusplus
 namespace objectir {
 extern "C" {
+#endif
 
 /*
  * Object accesses
@@ -109,5 +111,7 @@ __attribute__((noinline)) double readDouble(
 __attribute__((noinline)) Object *readObject(
     ObjectField *field);
 
+#ifdef __cplusplus
 } // extern "C"
 } // namespace objectir
+_endif

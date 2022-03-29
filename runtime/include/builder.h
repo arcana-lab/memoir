@@ -15,8 +15,10 @@
 #include "objects.hpp"
 #include "types.hpp"
 
+#ifdef __cplusplus
 namespace objectir {
 extern "C" {
+#endif
 
 /*
  * Type construction
@@ -50,5 +52,7 @@ __attribute__((noinline)) Object *buildArray(
     uint64_t length);
 __attribute__((noinline)) Object *buildUnion(Type *type);
 
+#ifdef __cplusplus
 } // extern "C"
 } // namespace objectir
+#endif
