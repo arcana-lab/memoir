@@ -2,11 +2,19 @@
 
 using namespace objectir;
 
+TypeCode Type::getCode() {
+  return this->code;
+}
+
 /*
  * Type base class
  */
-Type::Type(TypeCode code) {
-  // Do nothing.
+Type::Type(TypeCode code) : code(code) {
+  // Do nothing
+}
+
+Type::~Type() {
+  // Do nothing
 }
 
 /*
@@ -56,6 +64,9 @@ IntegerType::IntegerType(uint64_t bitwidth, bool isSigned)
     bitwidth(bitwidth),
     isSigned(isSigned) {
   // Do nothing.
+}
+IntegerType::~IntegerType() {
+  // Do nothing
 }
 
 /*

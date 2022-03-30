@@ -15,10 +15,10 @@
 #include "objects.h"
 #include "types.h"
 
-#ifdef __cplusplus
+//#ifdef __cplusplus
 namespace objectir {
 extern "C" {
-#endif
+  //#endif
 
 /*
  * Type construction
@@ -52,7 +52,7 @@ __attribute__((noinline)) Object *buildArray(
     uint64_t length);
 __attribute__((noinline)) Object *buildUnion(Type *type);
 
-#ifdef __cplusplus
+  //#ifdef __cplusplus
 } // extern "C"
 } // namespace objectir
-#endif
+//#endif

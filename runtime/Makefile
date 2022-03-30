@@ -21,6 +21,9 @@ $(BITCODES): $(BUILD_DIR)/%.bc : $(SRC_DIR)/%.cpp
 $(BUILD_DIR)/$(IR_FILE): $(BITCODES)
 	$(LL) $^ -o $@
 
+$(BUILD_DIR):
+	mkdir $(BUILD_DIR)
+
 .PHONY: clean
 
 clean:

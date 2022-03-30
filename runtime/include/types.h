@@ -26,13 +26,13 @@ enum TypeCode {
 struct Type {
 protected:
   TypeCode code;
-  
-  Type(TypeCode code);
 
 public:  
   TypeCode getCode();
 
-  virtual ~Type() = 0;
+  Type(TypeCode code);
+  ~Type();
+  
   virtual std::string toString() = 0;  
 
   friend class Object;
@@ -44,15 +44,6 @@ struct ObjectType : public Type {
 
   ObjectType();
   ~ObjectType();
-
-  std::string toString();
-};
-
-struct PointerType : public Type {
-  Type *pointedType;
-
-  PointerType();
-  ~PointerType();
 
   std::string toString();
 };

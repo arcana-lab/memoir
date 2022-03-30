@@ -16,7 +16,9 @@
 #include "objects.h"
 #include "types.h"
 
+#ifdef __cplusplus
 namespace objectir {
+#endif
 
 struct Field {
 public:
@@ -56,7 +58,6 @@ public:
   
   // Construction
   Array(Type *t, uint64_t length);
-  ~Array();
 
   // Access
   Field *getElement(uint64_t index);
@@ -148,4 +149,6 @@ public:
   std::string toString();
 };
 
+#ifdef __cplusplus
 } // namespace objectir
+#endif

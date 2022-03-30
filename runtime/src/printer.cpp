@@ -3,25 +3,69 @@
 using namespace objectir;
 
 std::string IntegerField::toString() {
-  return "Integer Field";
+  return "integer";
 }
 
 std::string FloatField::toString() {
-  return "Float Field";
+  return "float";
 }
 
 std::string DoubleField::toString() {
-  return "Double Field";
+  return "double";
 }
 
 std::string ObjectField::toString() {
-  return "Pointer Field";
+  return "object";
 }
 
 std::string Object::toString() {
-  return "Object";
+  std::string str = "(Object: \n";
+  for (auto field : fields) {
+    str += "  (Field: ";
+    str += field->toString();
+    str += ")\n";
+  }
+  str += ")\n";
+  return str;
 }
 
 std::string Array::toString() {
-  return "Array";
+  std::string str = "(Array: ";
+  str += "(type: ";
+  str += type->toString();
+  str += ") (length: ";
+  str += length;
+  str += "))\n";
+  return str;
+}
+
+std::string ObjectType::toString() {
+  std::string str = "(Object: \n";
+  for (auto field : this->fields) {
+    str += "  (Field: ";
+    str += field->toString();
+    str += ")\n";
+  }
+  str += ")\n";
+  return str;
+}
+
+std::string ArrayType::toString() {
+  return "Type: array";
+}
+
+std::string UnionType::toString() {
+  return "Type: union";
+}
+
+std::string IntegerType::toString() {
+  return "Type: integer";
+}
+
+std::string FloatType::toString() {
+  return "Type: float";
+}
+
+std::string DoubleType::toString() {
+  return "Type: double";
 }

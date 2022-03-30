@@ -13,6 +13,8 @@
 
 using namespace objectir;
 
+extern "C" {
+
 /*
  * Object accesses
  */
@@ -319,3 +321,5 @@ Object *readObject(Field *field) {
     exit(1);
   }
 }
+
+} // extern "C"
