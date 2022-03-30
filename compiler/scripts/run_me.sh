@@ -13,4 +13,4 @@ make ;
 make install ;
 cd ../ 
 
-cp build/compile_commands.json ./ ;
+# cp build/compile_commands.json ./ ;
