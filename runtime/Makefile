@@ -19,7 +19,7 @@ $(BITCODES): $(BUILD_DIR)/%.bc : $(SRC_DIR)/%.cpp
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
 
 $(BUILD_DIR)/$(IR_FILE): $(BITCODES)
-	$(LL) $< -o $@
+	$(LL) $^ -o $@
 
 .PHONY: clean
 
