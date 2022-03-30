@@ -13,8 +13,8 @@
 #include <string>
 #include <vector>
 
-#include "objects.hpp"
-#include "types.hpp"
+#include "objects.h"
+#include "types.h"
 
 namespace objectir {
 
