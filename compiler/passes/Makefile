@@ -1,5 +1,8 @@
 all: links
-	cd object_lowering ; ../../scripts/compile.sh
+	cd object_lowering ; ./scripts/run_me.sh
+
+links:
+	../scripts/links.sh
 
 clean: links
 	cd object_lowering ; ../../scripts/clean.sh

@@ -1,20 +1,20 @@
 #!/bin/bash
 
-for i in `ls` ; do
-  if ! test -d "$i" ; then
+GIT_ROOT=`git rev-parse --show-toplevel` ;
+
+for DIR in `ls` ; do
+
+  if ! test -d ${DIR} ; then
+    continue
+  fi
+    
+  if [[ "${DIR}" == "build" ]] ; then
     continue ;
   fi
-  pushd ./ ;
-
-  cd $i ;
-
+  
   # Prepare the links
-  if ! test -e scripts ; then
-    ln -s ../../template/scripts 
-  fi
-  if ! test -e CMakeLists.txt ; then
-    ln -s ../../template/CMakeLists.txt ;
+  if ! test -e ${DIR}/run_me.sh ; then
+    ln -s ${GIT_ROOT}/compiler/scripts/run_me.sh ${DIR}/run_me.sh; 
   fi
 
-  popd ;
 done
