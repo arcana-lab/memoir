@@ -12,8 +12,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "objects.hpp"
-#include "types.hpp"
+#include "objects.h"
+#include "types.h"
 
 #ifdef __cplusplus
 namespace objectir {

@@ -9,8 +9,8 @@
  * Created: Mar 11, 2022
  */
 
-#include "objects.hpp"
-#include "types.hpp"
+#include "objects.h"
+#include "types.h"
 
 #ifdef __cplusplus
 namespace objectir {
@@ -114,4 +114,4 @@ __attribute__((noinline)) Object *readObject(
 #ifdef __cplusplus
 } // extern "C"
 } // namespace objectir
-_endif
+#endif

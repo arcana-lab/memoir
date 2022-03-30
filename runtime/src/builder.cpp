@@ -2,7 +2,6 @@
 
 using namespace objectir;
 
-extern "C" {
 
 /*
  * Type construction
@@ -114,4 +113,3 @@ Object *buildUnion(Type *type) {
   return unionObj;
 }
 
-} // extern "C"
