@@ -40,7 +40,12 @@ namespace {
       for (auto &F : M) {
         for (auto &I : F) {
           if (auto callInst = dyn_cast<CallInst>(&I)) {
-            auto calleeName = callInst->getCallee->getName();
+            auto callee = callInst->getCalledFunction();
+            if (!callee) {
+              continue;
+            }
+            
+            auto calleeName = callee->getName();
             errs() << calleeName << "\n";
           }
         }
@@ -57,7 +62,7 @@ namespace {
 }
 
 // Next there is code to register your pass to "opt"
-char CAT::ID = 0;
+char ObjectLowering::ID = 0;
 static RegisterPass<ObjectLowering> X("ObjectLowering", "Lowers the object-ir language to LLVM IR");
 
 // Next there is code to register your pass to "clang"
