@@ -9,48 +9,32 @@
 #include "ObjectLowering.hpp"
 
 using namespace llvm::noelle ;
+using namespace object_lowering;
 
 namespace {
 
-  struct ObjectLowering : public ModulePass {
+  struct ObjectLoweringPass : public ModulePass {
     static char ID; 
 
-    ObjectLowering() : ModulePass(ID) {}
+    ObjectLoweringPass() : ModulePass(ID) {}
 
     bool doInitialization (Module &M) override {
       return false;
     }
 
     bool runOnModule (Module &M) override {
-
+            
       /*
        * Fetch NOELLE
        */
-      auto& noelle = getAnalysis<Noelle>();
+      auto &noelle = getAnalysis<Noelle>();
 
-      /*
-       * Use NOELLE
-       */
-      auto insts = noelle.numberOfProgramInstructions();
-      errs() << "The program has " << insts << " instructions\n";
+      auto objectLowering = new object_lowering::ObjectLowering(M, &noelle);
 
-      /*
-       * Find calls to object-ir API
-       */
-      for (auto &F : M) {
-        for (auto &I : F) {
-          if (auto callInst = dyn_cast<CallInst>(&I)) {
-            auto callee = callInst->getCalledFunction();
-            if (!callee) {
-              continue;
-            }
-            
-            auto calleeName = callee->getName();
-            errs() << calleeName << "\n";
-          }
-        }
-      }
+      objectLowering->analyze();
 
+      objectLowering->transform();
+      
       return false;
     }
 
@@ -62,14 +46,14 @@ namespace {
 }
 
 // Next there is code to register your pass to "opt"
-char ObjectLowering::ID = 0;
-static RegisterPass<ObjectLowering> X("ObjectLowering", "Lowers the object-ir language to LLVM IR");
+char ObjectLoweringPass::ID = 0;
+static RegisterPass<ObjectLoweringPass> X("ObjectLoweringPass", "Lowers the object-ir language to LLVM IR");
 
 // Next there is code to register your pass to "clang"
-static ObjectLowering * _PassMaker = NULL;
+static ObjectLoweringPass * _PassMaker = NULL;
 static RegisterStandardPasses _RegPass1(PassManagerBuilder::EP_OptimizerLast,
     [](const PassManagerBuilder&, legacy::PassManagerBase& PM) {
-        if(!_PassMaker){ PM.add(_PassMaker = new ObjectLowering());}}); // ** for -Ox
+        if(!_PassMaker){ PM.add(_PassMaker = new ObjectLoweringPass());}}); // ** for -Ox
 static RegisterStandardPasses _RegPass2(PassManagerBuilder::EP_EnabledOnOptLevel0,
     [](const PassManagerBuilder&, legacy::PassManagerBase& PM) {
-        if(!_PassMaker){ PM.add(_PassMaker = new ObjectLowering()); }}); // ** for -O0
+        if(!_PassMaker){ PM.add(_PassMaker = new ObjectLoweringPass()); }}); // ** for -O0
