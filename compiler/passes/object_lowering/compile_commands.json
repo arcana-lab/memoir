@@ -1,7 +1,0 @@
-[
-{
-  "directory": "/home/tommy/workspace/object-ir/compiler/passes/object_lowering/build/src",
-  "command": "/usr/bin/clang++  -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -I/usr/lib/llvm-9/include -I/home/tommy/workspace/object-ir/compiler/passes/object_lowering/src/../../../noelle/install/include -I/home/tommy/workspace/object-ir/compiler/passes/object_lowering/src/../../../noelle/install/include/svf   -fPIC -fvisibility-inlines-hidden -Werror=date-time -Werror=unguarded-availability-new -std=c++11 -w -g -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS  -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables  -std=c++17 -o CMakeFiles/ObjectLowering.dir/CatPass.cpp.o -c /home/tommy/workspace/object-ir/compiler/passes/object_lowering/src/CatPass.cpp",
-  "file": "/home/tommy/workspace/object-ir/compiler/passes/object_lowering/src/CatPass.cpp"
-}
-]
