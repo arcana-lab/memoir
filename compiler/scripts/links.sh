@@ -13,8 +13,6 @@ for DIR in `ls` ; do
   fi
   
   # Prepare the links
-  if ! test -e ${DIR}/run_me.sh ; then
-    ln -s ${GIT_ROOT}/compiler/scripts/run_me.sh ${DIR}/run_me.sh; 
-  fi
+  ln -sfn ${GIT_ROOT}/compiler/scripts/run_me.sh ${DIR}/run_me.sh; 
 
 done

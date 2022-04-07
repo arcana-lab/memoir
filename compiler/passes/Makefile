@@ -1,5 +1,5 @@
 all: links
-	cd object_lowering ; ./scripts/run_me.sh
+	cd object_lowering ; ./run_me.sh
 
 links:
 	../scripts/links.sh

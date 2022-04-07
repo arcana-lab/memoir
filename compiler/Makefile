@@ -1,6 +1,4 @@
-.PHONY: all passes noelle clean
-
-all: passes noelle
+all: noelle passes
 
 passes:
 	make -C ./passes ;
@@ -11,3 +9,5 @@ noelle:
 clean:
 	make -C ./passes clean ;
 	make -C ./noelle clean ;
+
+.PHONY: all passes clean
