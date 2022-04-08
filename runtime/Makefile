@@ -13,7 +13,7 @@ IR_FILE=objectir.bc
 SOURCES := $(wildcard $(SRC_DIR)/*.cpp)
 BITCODES := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.bc,$(SOURCES))
 
-all: $(BUILD_DIR)/$(IR_FILE)
+all: $(BUILD_DIR) $(BUILD_DIR)/$(IR_FILE)
 
 $(BITCODES): $(BUILD_DIR)/%.bc : $(SRC_DIR)/%.cpp
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
