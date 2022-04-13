@@ -47,7 +47,7 @@ namespace {
 
 // Next there is code to register your pass to "opt"
 char ObjectLoweringPass::ID = 0;
-static RegisterPass<ObjectLoweringPass> X("ObjectLoweringPass", "Lowers the object-ir language to LLVM IR");
+static RegisterPass<ObjectLoweringPass> X("ObjectLowering", "Lowers the object-ir language to LLVM IR");
 
 // Next there is code to register your pass to "clang"
 static ObjectLoweringPass * _PassMaker = NULL;
