@@ -18,15 +18,15 @@ do
 
 
 
-		echo "Object Inlining O0" ;
+		echo "Optimized O0" ;
 		${PERF} ./optimized_O0 ${ITERS} ;
 
-		echo "Object Inlining O1" ;
+		echo "Optimized O1" ;
 		${PERF} ./optimized_O1 ${ITERS} ;
 
-		echo "Object Inlining O2" ;
+		echo "Optimized O2" ;
 		${PERF} ./optimized_O2 ${ITERS} ;
 
-		echo "Object Inlining O3" ;
+		echo "Optimized O3" ;
 		${PERF} ./optimized_O3 ${ITERS} ;
 done

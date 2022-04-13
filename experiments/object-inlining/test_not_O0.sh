@@ -15,11 +15,11 @@ do
 
 		
 		echo "Object Inlining O1" ;
-		./obj_inlining_O1 ${ITERS} ;
+		./optimized_O1 ${ITERS} ;
 
 		echo "Object Inlining O2" ;
-		./obj_inlining_O2 ${ITERS} ;
+		./optimized_O2 ${ITERS} ;
 
 		echo "Object Inlining O3" ;
-		./obj_inlining_O3 ${ITERS} ;
+		./optimized_O3 ${ITERS} ;
 done

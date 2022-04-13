@@ -24,4 +24,4 @@ test: optimized baseline
 	./test.sh
 
 clean:
-	rm -f optimized baseline
+	rm -f optimized* baseline* *.bc *.ll *.txt
