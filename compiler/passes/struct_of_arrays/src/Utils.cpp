@@ -1,7 +1,15 @@
 #include "Utils.hpp"
 
-using namespace object_lowering;
-
 bool isObjectIRCall(std::string functionName) {
-  return false;
+  return FunctionNamesToObjectIR.find(functionName)
+         != FunctionNamesToObjectIR.end();
+}
+
+ObjectIRFunc getObjectIRCall(std::string functionName) {
+  auto IT = FunctionNamesToObjectIR.find(functionName);
+  if (IT == FunctionNamesToObjectIR.end()) {
+    return ObjectIRFunc::NONE;
+  }
+
+  return *IT;
 }

@@ -4,17 +4,13 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace object_lowering {
-
-/*
- * Utility functions
- */
-bool isObjectIRCall(std::string functionName);
+namespace {
 
 /*
  * Enum of object ir functions
  */
 enum ObjectIRFunc {
+  NONE = 0,
   OBJECT_TYPE,
   ARRAY_TYPE,
   UNION_TYPE,
@@ -80,4 +76,11 @@ static std::unordered_map<std::string, ObjectIRFunc>
       { "buildUnion", BUILD_UNION }
     };
 
-} // namespace object_lowering
+/*
+ * Utility functions
+ */
+bool isObjectIRCall(std::string functionName);
+
+ObjectIRFunc getObjectIRCall(std::string functionName);
+
+} // namespace

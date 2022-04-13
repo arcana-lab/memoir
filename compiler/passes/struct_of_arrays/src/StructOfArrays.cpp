@@ -1,14 +1,12 @@
-#include "ObjectLowering.hpp"
+#include "StructOfArrays.hpp"
 
-using namespace object_lowering;
-
-ObjectLowering::ObjectLowering(Module &M, Noelle *noelle)
+StructOfArrays::StructOfArrays(Module &M, Noelle *noelle)
   : M(M),
     noelle(noelle) {
   // Do initialization.
 }
 
-void ObjectLowering::analyze() {
+void StructOfArrays::analyze() {
   // Analyze the program
 
   for (auto &F : M) {
@@ -32,6 +30,6 @@ void ObjectLowering::analyze() {
   }
 }
 
-void ObjectLowering::transform() {
+void StructOfArrays::transform() {
   // Transform the program
 }

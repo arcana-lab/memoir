@@ -5,15 +5,15 @@
 #include "Utils.hpp"
 
 /*
- * Pass to perform lowering from object-ir to LLVM IR
+ * Pass to transform array of structs -> struct of arrays
  *
  * Author: Tommy McMichen
- * Created: March 29, 2022
+ * Created: April 12, 2022
  */
 
-namespace object_lowering {
+namespace {
 
-class ObjectLowering {
+class StructOfArrays {
 private:
   Module &M;
 
@@ -22,11 +22,11 @@ private:
   std::unordered_set<CallInst *> callsToObjectIR;
 
 public:
-  ObjectLowering(Module &M, Noelle *noelle);
+  StructOfArrays(Module &M, Noelle *noelle);
 
   void analyze();
 
   void transform();
 };
 
-} // namespace object_lowering
+} // namespace
