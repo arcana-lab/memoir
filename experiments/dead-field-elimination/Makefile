@@ -13,4 +13,4 @@ test: optimized baseline
 	./optimized 100000000
 
 clean:
-	rm -f optimized baseline
+	rm -f optimized* baseline* *.bc *.ll *.txt

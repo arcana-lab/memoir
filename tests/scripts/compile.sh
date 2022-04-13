@@ -16,6 +16,8 @@ function compile_benchmark {
     make ;
 }
 
+source ${GIT_ROOT}/compiler/noelle/enable ;
+
 for arg; do
     compile_benchmark "$arg" ;
 done
