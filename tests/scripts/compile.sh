@@ -13,7 +13,7 @@ function compile_benchmark {
 
     sed -i "s|GIT_ROOT=|GIT_ROOT=${GIT_ROOT}|" ./Makefile ;
     
-    make ;
+    make compile ;
 
     popd ;
 }

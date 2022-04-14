@@ -19,7 +19,12 @@ CPPFILES := $(wildcard *.cpp)
 C_BITCODES := $(patsubst %.c,$(BUILD_DIR)/%.bc,$(CFILES))
 CPP_BITCODES :=  $(patsubst %.cpp,$(BUILD_DIR)/%.bc,$(CPPFILES))
 
-all: $(BUILD_DIR) $(BINARY)
+all: build test
+
+compile: $(BUILD_DIR) $(BINARY)
+
+test: build
+	$(BUILD_DIR)/all_in_one &> out.txt
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -40,7 +45,7 @@ $(OBJ_FILE): $(IR_FILE)
 $(BINARY): $(OBJ_FILE)
 	$(CC) $< -o $@
 
-.PHONY: clean
+.PHONY: clean all test compile
 
 clean:
 	rm -f *~ *.bc
