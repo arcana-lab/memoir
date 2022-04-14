@@ -5,7 +5,7 @@ GIT_ROOT=`git rev-parse --show-toplevel` ;
 function compile_benchmark {
     TEST_DIR="$1" ;
 
-    cd ${TEST_DIR} ;
+    pushd ${TEST_DIR} ;
 
     echo "Building test: ${TEST_DIR}"
 
@@ -14,6 +14,8 @@ function compile_benchmark {
     sed -i "s|GIT_ROOT=|GIT_ROOT=${GIT_ROOT}|" ./Makefile ;
     
     make ;
+
+    popd ;
 }
 
 source ${GIT_ROOT}/compiler/noelle/enable ;
