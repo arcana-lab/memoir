@@ -18,7 +18,7 @@
 //#ifdef __cplusplus
 namespace objectir {
 extern "C" {
-  //#endif
+//#endif
 
 /*
  * Type construction
@@ -47,12 +47,12 @@ __attribute__((noinline)) Type *getDoubleType();
  * Object construction
  */
 __attribute__((noinline)) Object *buildObject(Type *type);
-__attribute__((noinline)) Object *buildArray(
+__attribute__((noinline)) Array *buildArray(
     Type *type,
     uint64_t length);
-__attribute__((noinline)) Object *buildUnion(Type *type);
+__attribute__((noinline)) Union *buildUnion(Type *type);
 
-  //#ifdef __cplusplus
+//#ifdef __cplusplus
 } // extern "C"
 } // namespace objectir
 //#endif

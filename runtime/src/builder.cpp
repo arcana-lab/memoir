@@ -3,7 +3,7 @@
 using namespace objectir;
 
 extern "C" {
-  
+
 /*
  * Type construction
  */
@@ -102,13 +102,13 @@ Object *buildObject(Type *type) {
   return obj;
 }
 
-Object *buildArray(Type *type, uint64_t length) {
+Array *buildArray(Type *type, uint64_t length) {
   auto array = new Array(type, length);
 
   return array;
 }
 
-Object *buildUnion(Type *type) {
+Union *buildUnion(Type *type) {
   auto unionObj = new Union(type);
 
   return unionObj;
