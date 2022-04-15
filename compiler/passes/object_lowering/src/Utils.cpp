@@ -2,6 +2,7 @@
 
 using namespace object_lowering;
 
-bool isObjectIRCall(std::string functionName) {
+bool object_lowering::isObjectIRCall(
+    std::string functionName) {
   return false;
 }
