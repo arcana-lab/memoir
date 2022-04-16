@@ -31,7 +31,7 @@ void ObjectLowering::analyze() {
           continue;
         }
 
-        auto n = callee->getName();
+        auto n = callee->getName().str();
 
         errs() << "name is " << n << "\n";
 

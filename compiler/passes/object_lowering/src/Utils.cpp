@@ -2,6 +2,6 @@
 
 using namespace object_lowering;
 
-bool isObjectIRCall(std::string const& functionName) {
+bool object_lowering::isObjectIRCall(std::string functionName) {
   return FunctionNamesToObjectIR.find(functionName) != FunctionNamesToObjectIR.end();
 }
