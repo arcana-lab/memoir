@@ -1,4 +1,5 @@
 #include "ObjectLowering.hpp"
+#include "types.hpp"
 
 using namespace object_lowering;
 
@@ -23,7 +24,7 @@ void ObjectLowering::analyze() {
 
       if (auto callInst = dyn_cast<CallInst>(&I)) {
         auto callee = callInst->getCalledFunction();
-
+        callee->getName().str();
         errs() << I << "\n\n";
 
         if (!callee) {
@@ -36,17 +37,45 @@ void ObjectLowering::analyze() {
         errs() << "name is " << n << "\n";
 
 
-        if (isObjectIRCall(n)) {
-          errs() << "Found ObjectIR Call!\n";
+        if (isObjectIRCall(n) && FunctionNamesToObjectIR[n] == BUILD_OBJECT) {
+          errs() << "Found ObjectIR for build object!\n";
           errs() << "  " << I << "\n\n";
           
-          this->callsToObjectIR.insert(callInst);
+          this->buildObjects.insert(callInst);
         }
       }
     }
   }
 }
 
+
 void ObjectLowering::transform() {
   // Transform the program
 }
+
+ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i) {
+    return nullptr;
+}
+
+object_lowering::Type *ObjectLowering::parseType(Instruction *ins) {
+    // dispatch based on the types
+    return nullptr;
+}
+
+object_lowering::Type *ObjectLowering::parseTypeCallInst(CallInst *ins) {
+    return nullptr;
+}
+
+object_lowering::Type *ObjectLowering::parseTypeStoreInst(StoreInst *ins) {
+    return nullptr;
+}
+
+object_lowering::Type *ObjectLowering::parseTypeLoadInst(LoadInst *ins) {
+    return nullptr;
+}
+
+object_lowering::Type *ObjectLowering::parseTypeAllocaInst(AllocaInst *ins) {
+    return nullptr;
+}
+
+
