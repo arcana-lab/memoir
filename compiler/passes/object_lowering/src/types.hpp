@@ -105,6 +105,7 @@ namespace object_lowering {
 
 
     struct ObjectWrapper{
+        explicit ObjectWrapper(ObjectType*);
         ObjectType* innerType;
     };
 
@@ -112,7 +113,9 @@ namespace object_lowering {
         int fieldIndex;
         ObjectType* objectType;
     };
-
+    
 } // namespace objectir
+
+
 
 #endif //OBJECTLOWERING_TYPES_H

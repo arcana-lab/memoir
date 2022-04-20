@@ -95,3 +95,40 @@ DoubleType::DoubleType() : Type(TypeCode::DoubleTy) {
 DoubleType::~DoubleType() {
     // Do nothing.
 }
+
+ObjectWrapper::ObjectWrapper(ObjectType * it) {
+    innerType = it;
+}
+
+
+std::string ObjectType::toString() {
+    std::string str = "(Object: \n";
+    for (auto field : this->fields) {
+        str += "  (Field: ";
+        str += field->toString();
+        str += ")\n";
+    }
+    str += ")\n";
+    return str;
+}
+
+std::string ArrayType::toString() {
+    return "Type: array";
+}
+
+std::string UnionType::toString() {
+    return "Type: union";
+}
+
+std::string IntegerType::toString() {
+    return "Type: integer";
+}
+
+std::string FloatType::toString() {
+    return "Type: float";
+}
+
+std::string DoubleType::toString() {
+    return "Type: double";
+}
+

@@ -43,8 +43,17 @@ void ObjectLowering::analyze() {
           
           this->buildObjects.insert(callInst);
         }
+
+
       }
     }
+
+    for(auto ins : this->buildObjects)
+    {
+        auto objT = parseObjectWrapperInstruction(ins);
+        errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
+    }
+
   }
 }
 
@@ -54,7 +63,8 @@ void ObjectLowering::transform() {
 }
 
 ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i) {
-    return nullptr;
+    auto arg = i->arg_begin()->get();
+    return new ObjectWrapper(dynamic_cast<ObjectType*>(parseType(dyn_cast<Instruction>(arg))));
 }
 
 object_lowering::Type *ObjectLowering::parseType(Instruction *ins) {
@@ -96,38 +106,56 @@ object_lowering::Type *ObjectLowering::parseTypeCallInst(CallInst *ins) {
     switch (FunctionNamesToObjectIR[n])
     {
         case OBJECT_TYPE:
-            break;
+            {std::vector<Type*> typeVec;
+                auto firstArg = ins->arg_begin();
+                auto firstArgVal = firstArg->get();
+                int64_t numTypeInt = dyn_cast<ConstantInt>(firstArgVal)->getSExtValue();
+                for(auto arg = firstArg + 1; arg != ins->arg_end(); ++arg)
+                {
+                    auto ins = arg->get();
+                    typeVec.push_back(parseType(dyn_cast<Instruction>(ins)));
+                }
+                auto objType = new ObjectType();
+                objType->fields = typeVec;
+                return objType;}
         case ARRAY_TYPE:
+            assert(false);
             break;
         case UNION_TYPE:
+            assert(false);
             break;
         case INTEGER_TYPE:
-            break;
+            assert(false);
+//            break;
         case UINT64_TYPE:
-            break;
+            return new IntegerType(64, false);
         case UINT32_TYPE:
-            break;
+            return new IntegerType(32, true);
         case UINT16_TYPE:
-            break;
+            return new IntegerType(16, true);
         case UINT8_TYPE:
-            break;
+            return new IntegerType(8, true);;
         case INT64_TYPE:
-            break;
+            return new IntegerType(64, false);
         case INT32_TYPE:
-            break;
+            return new IntegerType(32, false);
         case INT16_TYPE:
-            break;
+            return new IntegerType(16, false);
         case INT8_TYPE:
-            break;
+            return new IntegerType(8, false);
         case FLOAT_TYPE:
-            break;
+            return new FloatType();
         case DOUBLE_TYPE:
-            break;
+            return new DoubleType();
         case BUILD_OBJECT:
+            errs() << "There shouldn't be a build object in this chain \n";
+            assert(false);
             break;
         case BUILD_ARRAY:
+            assert(false);
             break;
         case BUILD_UNION:
+            assert(false);
             break;
         default:
             errs() <<"the switch should cover everything this is wrong\n";
@@ -138,15 +166,25 @@ object_lowering::Type *ObjectLowering::parseTypeCallInst(CallInst *ins) {
 }
 
 object_lowering::Type *ObjectLowering::parseTypeStoreInst(StoreInst *ins) {
-    return nullptr;
+    auto valOp = ins->getValueOperand();
+    return parseType(dyn_cast<Instruction>(valOp));
 }
 
 object_lowering::Type *ObjectLowering::parseTypeLoadInst(LoadInst *ins) {
-    return nullptr;
+    auto ptrOp = ins->getPointerOperand();
+    return parseType(dyn_cast<Instruction>(ptrOp));
 }
 
 object_lowering::Type *ObjectLowering::parseTypeAllocaInst(AllocaInst *ins) {
-    return nullptr;
+    for(auto u: ins->users())
+    {
+        if(auto i = dyn_cast<StoreInst>(u))
+        {
+            return parseType(i);
+        }
+    }
+    errs() << "Didn't find any store insturction uses for the instruction" <<*ins;
+    assert(false);
 }
 
 
