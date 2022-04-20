@@ -24,7 +24,6 @@ void ObjectLowering::analyze() {
 
       if (auto callInst = dyn_cast<CallInst>(&I)) {
         auto callee = callInst->getCalledFunction();
-        callee->getName().str();
         errs() << I << "\n\n";
 
         if (callee == nullptr) {
@@ -34,7 +33,7 @@ void ObjectLowering::analyze() {
 
         auto n = callee->getName().str();
 
-        errs() << "name is " << n << "\n";
+        errs() << "name is " << n;
 
 
         if (isObjectIRCall(n) && FunctionNamesToObjectIR[n] == BUILD_OBJECT) {
@@ -43,6 +42,8 @@ void ObjectLowering::analyze() {
           
           this->buildObjects.insert(callInst);
         }
+
+        errs() << "got here\n";
 
 
       }
@@ -64,7 +65,14 @@ void ObjectLowering::transform() {
 
 ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i) {
     auto arg = i->arg_begin()->get();
-    return new ObjectWrapper(dynamic_cast<ObjectType*>(parseType(dyn_cast<Instruction>(arg))));
+    auto type = parseType(dyn_cast<Instruction>(arg));
+    if(type->getCode() != ObjectTy)
+    {
+        errs() << "It's not an object";
+        assert(false);
+    }
+    auto* objt = (ObjectType*) type;
+    return new ObjectWrapper(objt);
 }
 
 object_lowering::Type *ObjectLowering::parseType(Instruction *ins) {

@@ -113,7 +113,7 @@ namespace object_lowering {
         int fieldIndex;
         ObjectType* objectType;
     };
-    
+
 } // namespace objectir
 
 
