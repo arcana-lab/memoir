@@ -39,6 +39,12 @@ __attribute__((noinline)) Field *getUnionMember(
     uint64_t index);
 
 /*
+ * Type checking
+ */
+__attribute__((noinline)) bool assertType(Type *type,
+                                          Object *object);
+
+/*
  * Field accesses
  */
 // Unsigned integer access
