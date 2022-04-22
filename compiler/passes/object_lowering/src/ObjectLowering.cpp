@@ -31,7 +31,7 @@ void ObjectLowering::analyze() {
         auto n = callee->getName().str();
 
         if (isObjectIRCall(n)) {
-            switch (FunctionNamesToObjectIR[n])) {
+            switch (FunctionNamesToObjectIR[n]) {
                 case BUILD_OBJECT: this->buildObjects.insert(callInst); continue;
                 case READ_UINT64: this->readUINT64.insert(callInst); continue;
                 case WRITE_UINT64: this->writeUINT64.insert(callInst); continue;
