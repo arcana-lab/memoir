@@ -11,10 +11,13 @@ int main() {
   Object *b1 = buildObject(objTy);
   Object *b2 = buildObject(objTy);
 
-  writeUInt64(getObjectField(b1, 0), 42);
-  writeUInt64(getObjectField(b2, 0), 73);
+  Field* f1 = getObjectField(b1, 0);
+  Field* f2 = getObjectField(b1, 0);
+  
+  writeUInt64(f1, 42);
+  writeUInt64(f2, 73);
 
-  if (true) {
+  if (readUInt64(f1) == readUInt64(f2)) {
     the_phi = b1;
   } else {
     the_phi = b2;
