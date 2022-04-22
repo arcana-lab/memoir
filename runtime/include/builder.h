@@ -52,6 +52,11 @@ __attribute__((noinline)) Array *buildArray(
     uint64_t length);
 __attribute__((noinline)) Union *buildUnion(Type *type);
 
+/*
+ * Object destruction
+ */
+__attribute__((noinline)) void deleteObject(Object *obj);
+
 //#ifdef __cplusplus
 } // extern "C"
 } // namespace objectir

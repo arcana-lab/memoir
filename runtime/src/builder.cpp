@@ -114,4 +114,8 @@ Union *buildUnion(Type *type) {
   return unionObj;
 }
 
+void deleteObject(Object *obj) {
+  delete obj;
+}
+
 } // extern "C"

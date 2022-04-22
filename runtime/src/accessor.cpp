@@ -37,6 +37,18 @@ Field *getUnionMember(Union *unionObj, uint64_t index) {
 }
 
 /*
+ * Type checking
+ */
+bool assertType(Type *type, Object *object) {
+  if (type != object->getType()) {
+    std::cerr
+        << "assertType: Object is not the correct type\n";
+    exit(1);
+  }
+  return true;
+}
+
+/*
  * Field accesses
  */
 // Unsigned integer access

@@ -4,11 +4,15 @@
 
 using namespace objectir;
 
+Type *objTy = getObjectType(3,
+                            getUInt64Type(),
+                            getUInt64Type(),
+                            getUInt64Type());
+
 int main() {
-  Type *objTy = getObjectType(3, getUInt64Type(), getUInt64Type(), getUInt64Type());
 
   std::cerr << objTy->toString() << "\n";
-    
+
   Object *myObj = buildObject(objTy);
 
   std::cerr << myObj->toString() << "\n";
@@ -32,7 +36,7 @@ int main() {
   writeUInt64(field1, read1 + read2);
   writeUInt64(field2, read2 + read3);
   writeUInt64(field3, read3 + read1);
-  
+
   read1 = readUInt64(field1);
   read2 = readUInt64(field2);
   read3 = readUInt64(field3);
