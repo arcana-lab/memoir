@@ -18,13 +18,10 @@ void ObjectLowering::analyze() {
 
     if (F.getName().str() != "main") continue;
 
-    errs() << "Found function main\n";
-
     for (auto &I : instructions(F)) {
 
-      if (auto callInst = dyn_cast<CallInst>(&I)) {
+      if (auto callInst = dyn_cast_or_null<CallInst>(&I)) {
         auto callee = callInst->getCalledFunction();
-        errs() << I << "\n\n";
 
         if (callee == nullptr) {
           // This is an indirect call, ignore for now
@@ -33,24 +30,17 @@ void ObjectLowering::analyze() {
 
         auto n = callee->getName().str();
 
-        errs() << "name is " << n;
-
-
         if (isObjectIRCall(n) && FunctionNamesToObjectIR[n] == BUILD_OBJECT) {
-          errs() << "Found ObjectIR for build object!\n";
-          errs() << "  " << I << "\n\n";
           
           this->buildObjects.insert(callInst);
         }
-
-        errs() << "got here\n";
-
 
       }
     }
 
     for(auto ins : this->buildObjects)
     {
+        errs() << "Parsing: " << *ins << "\n\n";
         auto objT = parseObjectWrapperInstruction(ins);
         errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
@@ -65,7 +55,7 @@ void ObjectLowering::transform() {
 
 ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i) {
     auto arg = i->arg_begin()->get();
-    auto type = parseType(dyn_cast<Instruction>(arg));
+    auto type = parseType(dyn_cast_or_null<Instruction>(arg));
     if(type->getCode() != ObjectTy)
     {
         errs() << "It's not an object";
@@ -77,21 +67,29 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i) {
 
 object_lowering::Type *ObjectLowering::parseType(Instruction *ins) {
     // dispatch on the dynamic type of ins
-    if(auto callins = dyn_cast<CallInst>(ins))
+    if (auto callins = dyn_cast_or_null<CallInst>(ins))
     {
+        errs() << "parseType: " << *ins << "\n";
         return parseTypeCallInst(callins);
     }
-    else if (auto storeIns = dyn_cast<StoreInst>(ins))
+    else if (auto storeIns = dyn_cast_or_null<StoreInst>(ins))
     {
+        errs() << "parseType: " << *ins << "\n";
         return parseTypeStoreInst(storeIns);
     }
-    else if(auto loadIns = dyn_cast<LoadInst>(ins))
+    else if(auto loadIns = dyn_cast_or_null<LoadInst>(ins))
     {
+        errs() << "parseType: " << *ins << "\n";
         return parseTypeLoadInst(loadIns);
     }
-    else if (auto allocaIns = dyn_cast<AllocaInst>(ins))
+    else if (auto allocaIns = dyn_cast_or_null<AllocaInst>(ins))
     {
+        errs() << "parseType: " << *ins << "\n";
         return parseTypeAllocaInst(allocaIns);
+    }
+    else if (!ins) {
+        errs() << "i think this is a nullptr\n";
+        assert(false); 
     }
     // we can't handle this so we just like low key give up
     errs() << "Unrecognized Instruction" << *ins <<"\n";
@@ -117,11 +115,11 @@ object_lowering::Type *ObjectLowering::parseTypeCallInst(CallInst *ins) {
             {std::vector<Type*> typeVec;
                 auto firstArg = ins->arg_begin();
                 auto firstArgVal = firstArg->get();
-                int64_t numTypeInt = dyn_cast<ConstantInt>(firstArgVal)->getSExtValue();
+                int64_t numTypeInt = dyn_cast_or_null<ConstantInt>(firstArgVal)->getSExtValue();
                 for(auto arg = firstArg + 1; arg != ins->arg_end(); ++arg)
                 {
                     auto ins = arg->get();
-                    typeVec.push_back(parseType(dyn_cast<Instruction>(ins)));
+                    typeVec.push_back(parseType(dyn_cast_or_null<Instruction>(ins)));
                 }
                 auto objType = new ObjectType();
                 objType->fields = typeVec;
@@ -175,18 +173,18 @@ object_lowering::Type *ObjectLowering::parseTypeCallInst(CallInst *ins) {
 
 object_lowering::Type *ObjectLowering::parseTypeStoreInst(StoreInst *ins) {
     auto valOp = ins->getValueOperand();
-    return parseType(dyn_cast<Instruction>(valOp));
+    return parseType(dyn_cast_or_null<Instruction>(valOp));
 }
 
 object_lowering::Type *ObjectLowering::parseTypeLoadInst(LoadInst *ins) {
     auto ptrOp = ins->getPointerOperand();
-    return parseType(dyn_cast<Instruction>(ptrOp));
+    return parseType(dyn_cast_or_null<Instruction>(ptrOp));
 }
 
 object_lowering::Type *ObjectLowering::parseTypeAllocaInst(AllocaInst *ins) {
     for(auto u: ins->users())
     {
-        if(auto i = dyn_cast<StoreInst>(u))
+        if(auto i = dyn_cast_or_null<StoreInst>(u))
         {
             return parseType(i);
         }
