@@ -23,7 +23,44 @@ to debug - invoke a different bash script:
 noelle-load-gdb -load ../../../compiler/passes/build/lib/ObjectLowering.so -ObjectLowering build/all_in_one.bc -o build/all_in_one.bc
 ```
 
-# Algos
+# Code notes
+
+## overall
+```
+analysis
+
+parse buildObject => {`%4 = alloca %"struct.objectir::Object"*, align 8` ->  Type* C++ }
+parse readInt => <`%4 = alloca %"struct.objectir::Object"*, align 8`, field number>
+
+
+transform
+for o : objects:
+  malloc_map = {`%4 = alloca %"struct.objectir::Object"*, align 8` -> `malloc` }
+
+for r : read:
+    build GEP(malloc_map[r[obj]], calculate(field number, obj type))
+```
+
+## phis
+```
+source code -----------
+Obj X
+if ...:
+    x = y
+else:
+    x = z
+read(getField(x)) // need to re-load fields after a phi
+
+
+output IR from obj lowering ===========
+x = malloc
+y = malloc
+x = malloc
+...
+x' = phi{y, z}
+```
+
+## Algo for parseType
 0. collect all of the buildObject insts
 1. call buildObject inst => parameter is load inst
 2. load inst => memory location is type\*
@@ -32,23 +69,19 @@ look @ uses of Type\*
 4. the value of the store will be the getType callInst
 
 goal: %0 => Object{int64, int64, int64}
- 
-implementation
-- process getObjectfield
-- collect writes and reads
-
-- replace call BuildObject with malloc ; rm subsequent store
-- rm everything with fields
-- turn writes and reads into geps
-
 
 # tests to write
 - instantiate multiple objects of the same type (might have mutliple stores and loads to the Type\*)
 - conditional branches w/ object\* assignment
 - printing objects (and types)
-- global type defs -  from tommy
 
-# questions
+# Meeting notes
+
+## 04-25
+- recursive types? for linekd list
+- if fields escape func, then we need assertType for fields
+
+## 04-20
 - best practice for casts of non-llvm classes (use dynamic_cast for non-llvm classes). always use object_lowering::Type
 - automatic DCE after our pass (yes by invoking noelle fixed point -dce)
 - best practice for deleting and reinserting tons of instructions: try noelle first ; then remove uses
@@ -70,15 +103,10 @@ uint64 val = readUnit64(getObjField(Inobj, 0));
 
 - we will need to analyze whether an Obj escapes a function. if it does not, then it can be alloca'd on stack. o.w., malloc'd on the heap
 
-
-
-- recur types for linekd list
-- fields escape func => need assertType for fields
-
 # other
 You can build a single test by running `tests/scripts/compile.sh <path to test>` (a directory like test_0) and then run it by executing the all_in_one binary in the build/ dir of a given test. They are meant to test different functions of the ObjectIR API and/or the passes. Right now it just has a simple object test and an array of structs test (for the array of structs -> struct of arrays pass)
 
-# running test_0
+## running test_0
 ```
 [pjp2292@moore unit]$ make clean ; make
 rm -rf */build
