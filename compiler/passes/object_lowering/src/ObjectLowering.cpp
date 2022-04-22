@@ -65,7 +65,7 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i) {
     return new ObjectWrapper(objt);
 }
 
-object_lowering::Type *ObjectLowering::parseType(Instruction *ins) {
+object_lowering::Type *ObjectLowering::parseType(Value *ins) {
     // dispatch on the dynamic type of ins
     if (auto callins = dyn_cast_or_null<CallInst>(ins))
     {
@@ -86,6 +86,9 @@ object_lowering::Type *ObjectLowering::parseType(Instruction *ins) {
     {
         errs() << "parseType: " << *ins << "\n";
         return parseTypeAllocaInst(allocaIns);
+    } else if (auto gv = dyn_cast_or_null<GlobalValue>(ins)) {
+        errs() << "parseType: " << *ins << "\n";
+        return parseTypeGlobalValue(gv);
     }
     else if (!ins) {
         errs() << "i think this is a nullptr\n";
@@ -179,18 +182,16 @@ object_lowering::Type *ObjectLowering::parseTypeStoreInst(StoreInst *ins) {
 object_lowering::Type *ObjectLowering::parseTypeLoadInst(LoadInst *ins) {
     auto ptrOp = ins->getPointerOperand();
 
-    if (auto gv = dyn_cast<GlobalValue>(ptrOp)) {
+    /*if (auto gv = dyn_cast<GlobalValue>(ptrOp)) {
         errs() << *gv << " is a global value\n";
         for(auto u : gv->users())
         {
             errs() << "\t" << *u << "\n";
         }
-
     }
+    assert(false);*/
 
-    assert(false);
-
-    return parseType(dyn_cast_or_null<Instruction>(ptrOp));
+    return parseType(ptrOp);
 }
 
 object_lowering::Type *ObjectLowering::parseTypeAllocaInst(AllocaInst *ins) {
@@ -201,7 +202,19 @@ object_lowering::Type *ObjectLowering::parseTypeAllocaInst(AllocaInst *ins) {
             return parseType(i);
         }
     }
-    errs() << "Didn't find any store insturction uses for the instruction" <<*ins;
+    errs() << "Didn't find any store instruction uses for the instruction" <<*ins;
+    assert(false);
+}
+
+object_lowering::Type *ObjectLowering::parseTypeGlobalVal(GlobalValue *gv) {
+    for(auto u: ins->users())
+    {
+        if(auto i = dyn_cast_or_null<StoreInst>(u))
+        {
+            return parseType(i);
+        }
+    }
+    errs() << "Didn't find any store instruction uses for the gv" << *gv;
     assert(false);
 }
 
