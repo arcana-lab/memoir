@@ -77,6 +77,7 @@ enum ObjectIRFunc {
  */
 static std::unordered_map<ObjectIRFunc, std::string>
     ObjectIRToFunctionNames = {
+      // types
       { OBJECT_TYPE, "getObjectType" },
       { ARRAY_TYPE, "getArrayType" },
       { UNION_TYPE, "getUnionType" },
@@ -91,9 +92,18 @@ static std::unordered_map<ObjectIRFunc, std::string>
       { INT8_TYPE, "getInt8Type" },
       { FLOAT_TYPE, "getFloatType" },
       { DOUBLE_TYPE, "getDoubleType" },
+      // builds
       { BUILD_OBJECT, "buildObject" },
       { BUILD_ARRAY, "buildArray" },
-      { BUILD_UNION, "buildUnion" }
+      { BUILD_UNION, "buildUnion" },
+      // INCOMPLETE
+      // geps
+      { GETOBJECTFIELD, "getObjectField" },
+      // asserts
+      { ASSERT_TYPE, "assertType" },
+      // accessors
+      { READ_UINT64, "readUInt64" },
+      { WRITE_UINT64, "writeUInt64" }
     };
 
 static std::unordered_map<std::string, ObjectIRFunc>
@@ -115,6 +125,14 @@ static std::unordered_map<std::string, ObjectIRFunc>
       { "buildObject", BUILD_OBJECT },
       { "buildArray", BUILD_ARRAY },
       { "buildUnion", BUILD_UNION }
+      // INCOMPLETE
+      // geps
+      { "getObjectField", GETOBJECTFIELD },
+      // asserts
+      { "assertType", ASSERT_TYPE },
+      // accessors
+      { "readUInt64", READ_UINT64 },
+      { "writeUInt64", WRITE_UINT64 }
     };
 
 } // namespace object_lowering
