@@ -34,7 +34,7 @@ public:
 
   ObjectWrapper* parseObjectWrapperInstruction(CallInst* i);
 
-  Type* parseType(Instruction* ins);
+  Type* parseType(Value* ins);
 
   Type* parseTypeCallInst(CallInst* ins);
 
@@ -43,6 +43,8 @@ public:
   Type* parseTypeLoadInst(LoadInst* ins);
 
   Type* parseTypeAllocaInst(AllocaInst* ins);
+
+  Type* parseTypeGlobalValue(GlobalValue* ins);
 
 
 
