@@ -30,19 +30,33 @@ void ObjectLowering::analyze() {
 
         auto n = callee->getName().str();
 
-        if (isObjectIRCall(n) && FunctionNamesToObjectIR[n] == BUILD_OBJECT) {
-          
-          this->buildObjects.insert(callInst);
+        if (isObjectIRCall(n)) {
+            switch (FunctionNamesToObjectIR[n])) {
+                case BUILD_OBJECT: this->buildObjects.insert(callInst); continue;
+                case READ_UINT64: this->readUINT64.insert(callInst); continue;
+                case WRITE_UINT64: this->writeUINT64.insert(callInst); continue;
+                default: continue;
+            }         
         }
-
       }
     }
 
-    for(auto ins : this->buildObjects)
-    {
-        errs() << "Parsing: " << *ins << "\n\n";
+    for(auto ins : this->buildObjects) {
+        //errs() << "Parsing: " << *ins << "\n\n";
         auto objT = parseObjectWrapperInstruction(ins);
         errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
+    }
+    errs() << "READS\n\n";
+    for(auto ins : this->readUINT64) {
+        errs() << "Parsing: " << *ins << "\n\n";
+        //auto objT = parseObjectWrapperInstruction(ins);
+        //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
+    }
+    errs() << "WRITES\n\n";
+    for(auto ins : this->writeUINT64) {
+        errs() << "Parsing: " << *ins << "\n\n";
+        //auto objT = parseObjectWrapperInstruction(ins);
+        //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
 
   }
@@ -69,25 +83,21 @@ object_lowering::Type *ObjectLowering::parseType(Value *ins) {
     // dispatch on the dynamic type of ins
     if (auto callins = dyn_cast_or_null<CallInst>(ins))
     {
-        errs() << "parseType: " << *ins << "\n";
         return parseTypeCallInst(callins);
     }
     else if (auto storeIns = dyn_cast_or_null<StoreInst>(ins))
     {
-        errs() << "parseType: " << *ins << "\n";
         return parseTypeStoreInst(storeIns);
     }
     else if(auto loadIns = dyn_cast_or_null<LoadInst>(ins))
     {
-        errs() << "parseType: " << *ins << "\n";
         return parseTypeLoadInst(loadIns);
     }
     else if (auto allocaIns = dyn_cast_or_null<AllocaInst>(ins))
     {
-        errs() << "parseType: " << *ins << "\n";
         return parseTypeAllocaInst(allocaIns);
     } else if (auto gv = dyn_cast_or_null<GlobalValue>(ins)) {
-        errs() << "parseType: " << *ins << "\n";
+        
         return parseTypeGlobalValue(gv);
     }
     else if (!ins) {

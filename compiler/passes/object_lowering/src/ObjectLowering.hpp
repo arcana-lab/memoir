@@ -21,9 +21,10 @@ private:
 
   Noelle *noelle;
 
-  std::unordered_set<CallInst *> callsToObjectIR;
-
+  //std::unordered_set<CallInst *> callsToObjectIR;
   std::unordered_set<CallInst *> buildObjects;
+  std::unordered_set<CallInst *> readUINT64;
+  std::unordered_set<CallInst *> writeUINT64;
 
 public:
   ObjectLowering(Module &M, Noelle *noelle);
