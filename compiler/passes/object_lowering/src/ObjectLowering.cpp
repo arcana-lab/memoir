@@ -179,9 +179,9 @@ object_lowering::Type *ObjectLowering::parseTypeStoreInst(StoreInst *ins) {
 object_lowering::Type *ObjectLowering::parseTypeLoadInst(LoadInst *ins) {
     auto ptrOp = ins->getPointerOperand();
 
-    if (dyn_cast<GlobalValue>(ptrOp)) {
-        errs() << *ins << " is a global value\n";
-        for(auto u : ins->users())
+    if (auto gv = dyn_cast<GlobalValue>(ptrOp)) {
+        errs() << *gv << " is a global value\n";
+        for(auto u : gv->users())
         {
             errs() << "\t" << *u << "\n";
         }
