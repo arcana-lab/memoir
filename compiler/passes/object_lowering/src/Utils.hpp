@@ -124,7 +124,7 @@ static std::unordered_map<std::string, ObjectIRFunc>
       { "getDoubleType", DOUBLE_TYPE },
       { "buildObject", BUILD_OBJECT },
       { "buildArray", BUILD_ARRAY },
-      { "buildUnion", BUILD_UNION }
+      { "buildUnion", BUILD_UNION },
       // INCOMPLETE
       // geps
       { "getObjectField", GETOBJECTFIELD },
