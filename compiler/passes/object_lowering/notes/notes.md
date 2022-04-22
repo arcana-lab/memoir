@@ -70,6 +70,11 @@ uint64 val = readUnit64(getObjField(Inobj, 0));
 
 - we will need to analyze whether an Obj escapes a function. if it does not, then it can be alloca'd on stack. o.w., malloc'd on the heap
 
+
+
+- recur types for linekd list
+- fields escape func => need assertType for fields
+
 # other
 You can build a single test by running `tests/scripts/compile.sh <path to test>` (a directory like test_0) and then run it by executing the all_in_one binary in the build/ dir of a given test. They are meant to test different functions of the ObjectIR API and/or the passes. Right now it just has a simple object test and an array of structs test (for the array of structs -> struct of arrays pass)
 

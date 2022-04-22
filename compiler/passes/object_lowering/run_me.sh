@@ -1,1 +1,1 @@
-/home/tommy/workspace/object-ir/compiler/scripts/run_me.sh
+/home/pjp2292/object-ir/compiler/scripts/run_me.sh

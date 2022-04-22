@@ -206,7 +206,7 @@ object_lowering::Type *ObjectLowering::parseTypeAllocaInst(AllocaInst *ins) {
     assert(false);
 }
 
-object_lowering::Type *ObjectLowering::parseTypeGlobalVal(GlobalValue *gv) {
+object_lowering::Type *ObjectLowering::parseTypeGlobalValue(GlobalValue *gv) {
     for(auto u: gv->users())
     {
         if(auto i = dyn_cast_or_null<StoreInst>(u))
