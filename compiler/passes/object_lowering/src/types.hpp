@@ -17,6 +17,7 @@
 
 #include <string>
 #include <vector>
+#include <llvm/IR/Value.h>
 
 //  (%0 -> ObjectType(int1,int2,int3))
 // (%buildobject -> Object(ObjectType(int1,int2,int3))
@@ -112,6 +113,7 @@ namespace object_lowering {
     struct FieldWrapper{
         int fieldIndex;
         ObjectType* objectType;
+        llvm::Value* baseObjPtr;
     };
 
 } // namespace objectir

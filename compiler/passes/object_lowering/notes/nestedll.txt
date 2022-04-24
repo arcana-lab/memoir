@@ -433,8 +433,10 @@ define dso_local i32 @main() #4 {
   %2 = alloca %"struct.objectir::Type"*, align 8
   %3 = alloca %"struct.objectir::Type"*, align 8
   %4 = alloca %"struct.objectir::Object"*, align 8
+  %4a = alloca pointer type
   %5 = alloca %"struct.objectir::Field"*, align 8
   %6 = alloca %"struct.objectir::Object"*, align 8
+  %6a 
   %7 = alloca %"struct.objectir::Field"*, align 8
 
   store i32 0, i32* %1, align 4
@@ -452,6 +454,8 @@ define dso_local i32 @main() #4 {
   ; inner obj
   %12 = load %"struct.objectir::Type"*, %"struct.objectir::Type"** %2, align 8
   %13 = call %"struct.objectir::Object"* @buildObject(%"struct.objectir::Type"* %12)
+  %13a = malloc(xxx)
+  
   store %"struct.objectir::Object"* %13, %"struct.objectir::Object"** %4, align 8
   
   ; innerField
@@ -460,7 +464,8 @@ define dso_local i32 @main() #4 {
   store %"struct.objectir::Field"* %15, %"struct.objectir::Field"** %5, align 8
   
   %16 = load %"struct.objectir::Field"*, %"struct.objectir::Field"** %5, align 8
-  call void @writeUInt64(%"struct.objectir::Field"* %16, i64 123)
+  call void @writeUInt64(%"struct.objectir::Field"* %16, i64 123) %14, Type of the object, index of the field
+  GEP %14, xxxxx
   
   ; outerObj
   %17 = load %"struct.objectir::Type"*, %"struct.objectir::Type"** %3, align 8
@@ -474,7 +479,7 @@ define dso_local i32 @main() #4 {
 
   %21 = load %"struct.objectir::Field"*, %"struct.objectir::Field"** %7, align 8
   %22 = load %"struct.objectir::Object"*, %"struct.objectir::Object"** %4, align 8
-  call void @writeObject(%"struct.objectir::Field"* %21, %"struct.objectir::Object"* %22)
+  call void @writeObject(%"struct.objectir::Field"* %21, %"struct.objectir::Object"* %22) 
   ret i32 0
 }
 

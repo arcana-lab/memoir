@@ -23,8 +23,8 @@ private:
 
   //std::unordered_set<CallInst *> callsToObjectIR;
   std::unordered_set<CallInst *> buildObjects;
-  std::unordered_set<CallInst *> readUINT64;
-  std::unordered_set<CallInst *> writeUINT64;
+  std::unordered_set<CallInst *> reads;
+  std::unordered_set<CallInst *> writes;
 
 public:
   ObjectLowering(Module &M, Noelle *noelle);
@@ -35,19 +35,22 @@ public:
 
   ObjectWrapper* parseObjectWrapperInstruction(CallInst* i);
 
-  Type* parseType(Value* ins);
+  void parseType(Value* ins, std::function<void(CallInst*)>);
 
-  Type* parseTypeCallInst(CallInst* ins);
+  void parseTypeStoreInst(StoreInst* ins, std::function<void(CallInst*)>);
 
-  Type* parseTypeStoreInst(StoreInst* ins);
+  void parseTypeLoadInst(LoadInst* ins, std::function<void(CallInst*)>);
 
-  Type* parseTypeLoadInst(LoadInst* ins);
+  void parseTypeAllocaInst(AllocaInst* ins, std::function<void(CallInst*)>);
 
-  Type* parseTypeAllocaInst(AllocaInst* ins);
+  void parseTypeGlobalValue(GlobalValue* ins, std::function<void(CallInst*)>);
 
-  Type* parseTypeGlobalValue(GlobalValue* ins);
+  Type* parseTypeCallInst(CallInst *ins);
+
+  FieldWrapper* parseFieldWrapperIns(CallInst* i);
 
 
+//  void parseTypeCallInst(CallInst* ins);
 
 
   /*

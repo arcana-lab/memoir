@@ -132,7 +132,8 @@ static std::unordered_map<std::string, ObjectIRFunc>
       { "assertType", ASSERT_TYPE },
       // accessors
       { "readUInt64", READ_UINT64 },
-      { "writeUInt64", WRITE_UINT64 }
+      { "writeUInt64", WRITE_UINT64 },
+      { "writeObject", WRITE_OBJECT}
     };
 
 } // namespace object_lowering

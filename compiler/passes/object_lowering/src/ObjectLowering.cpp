@@ -1,5 +1,6 @@
 #include "ObjectLowering.hpp"
 #include "types.hpp"
+#include <functional>
 
 using namespace object_lowering;
 
@@ -33,8 +34,9 @@ void ObjectLowering::analyze() {
         if (isObjectIRCall(n)) {
             switch (FunctionNamesToObjectIR[n]) {
                 case BUILD_OBJECT: this->buildObjects.insert(callInst); continue;
-                case READ_UINT64: this->readUINT64.insert(callInst); continue;
-                case WRITE_UINT64: this->writeUINT64.insert(callInst); continue;
+                case READ_UINT64: this->reads.insert(callInst); continue;
+                case WRITE_OBJECT:
+                case WRITE_UINT64: this->writes.insert(callInst); continue;
                 default: continue;
             }         
         }
@@ -47,14 +49,34 @@ void ObjectLowering::analyze() {
         errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
     errs() << "READS\n\n";
-    for(auto ins : this->readUINT64) {
+    for(auto ins : this->reads) {
         errs() << "Parsing: " << *ins << "\n\n";
+        FieldWrapper* fw;
+        std::function<void(CallInst*)> call_back = [&](CallInst* ci)
+        {
+            fw = parseFieldWrapperIns(ci);
+        };
+        parseType(ins->getArgOperand(0), call_back);
+        errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
+        errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
+        errs() << "The field index is" << fw->fieldIndex << "\n";
+        errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
         //auto objT = parseObjectWrapperInstruction(ins);
         //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
     errs() << "WRITES\n\n";
-    for(auto ins : this->writeUINT64) {
+    for(auto ins : this->writes) {
         errs() << "Parsing: " << *ins << "\n\n";
+        FieldWrapper* fw;
+        std::function<void(CallInst*)> call_back = [&](CallInst* ci)
+        {
+            fw = parseFieldWrapperIns(ci);
+        };
+        parseType(ins->getArgOperand(0), call_back);
+        errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
+        errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
+        errs() << "The field index is" << fw->fieldIndex << "\n";
+        errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
         //auto objT = parseObjectWrapperInstruction(ins);
         //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
@@ -67,50 +89,10 @@ void ObjectLowering::transform() {
   // Transform the program
 }
 
-ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i) {
-    auto arg = i->arg_begin()->get();
-    auto type = parseType(dyn_cast_or_null<Instruction>(arg));
-    if(type->getCode() != ObjectTy)
-    {
-        errs() << "It's not an object";
-        assert(false);
-    }
-    auto* objt = (ObjectType*) type;
-    return new ObjectWrapper(objt);
-}
 
-object_lowering::Type *ObjectLowering::parseType(Value *ins) {
-    // dispatch on the dynamic type of ins
-    if (auto callins = dyn_cast_or_null<CallInst>(ins))
-    {
-        return parseTypeCallInst(callins);
-    }
-    else if (auto storeIns = dyn_cast_or_null<StoreInst>(ins))
-    {
-        return parseTypeStoreInst(storeIns);
-    }
-    else if(auto loadIns = dyn_cast_or_null<LoadInst>(ins))
-    {
-        return parseTypeLoadInst(loadIns);
-    }
-    else if (auto allocaIns = dyn_cast_or_null<AllocaInst>(ins))
-    {
-        return parseTypeAllocaInst(allocaIns);
-    } else if (auto gv = dyn_cast_or_null<GlobalValue>(ins)) {
-        
-        return parseTypeGlobalValue(gv);
-    }
-    else if (!ins) {
-        errs() << "i think this is a nullptr\n";
-        assert(false); 
-    }
-    // we can't handle this so we just like low key give up
-    errs() << "Unrecognized Instruction" << *ins <<"\n";
-    assert(false);
-    return nullptr;
-}
 
-object_lowering::Type *ObjectLowering::parseTypeCallInst(CallInst *ins) {
+
+object_lowering::Type* ObjectLowering::parseTypeCallInst(CallInst *ins) {
     // check to see what sort of call instruction this is dispatch on the name of the function
     auto callee = ins->getCalledFunction();
     if (!callee) {
@@ -125,18 +107,23 @@ object_lowering::Type *ObjectLowering::parseTypeCallInst(CallInst *ins) {
     switch (FunctionNamesToObjectIR[n])
     {
         case OBJECT_TYPE:
-            {std::vector<Type*> typeVec;
-                auto firstArg = ins->arg_begin();
-                auto firstArgVal = firstArg->get();
-                int64_t numTypeInt = dyn_cast_or_null<ConstantInt>(firstArgVal)->getSExtValue();
-                for(auto arg = firstArg + 1; arg != ins->arg_end(); ++arg)
-                {
-                    auto ins = arg->get();
-                    typeVec.push_back(parseType(dyn_cast_or_null<Instruction>(ins)));
-                }
-                auto objType = new ObjectType();
-                objType->fields = typeVec;
-                return objType;}
+        {std::vector<object_lowering::Type*> typeVec;
+            auto firstArg = ins->arg_begin();
+            auto firstArgVal = firstArg->get();
+            int64_t numTypeInt = dyn_cast_or_null<ConstantInt>(firstArgVal)->getSExtValue();
+            for(auto arg = firstArg + 1; arg != ins->arg_end(); ++arg)
+            {
+                auto ins = arg->get();
+                object_lowering::Type* type;
+                std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+                    type = parseTypeCallInst(ci);
+                };
+                parseType(dyn_cast_or_null<Instruction>(ins), call_back);
+                typeVec.push_back(type);
+            }
+            auto objType = new ObjectType();
+            objType->fields = typeVec;
+            return objType;}
         case ARRAY_TYPE:
             assert(false);
             break;
@@ -147,25 +134,25 @@ object_lowering::Type *ObjectLowering::parseTypeCallInst(CallInst *ins) {
             assert(false);
 //            break;
         case UINT64_TYPE:
-            return new IntegerType(64, false);
+            return new object_lowering::IntegerType(64, false);
         case UINT32_TYPE:
-            return new IntegerType(32, true);
+            return new object_lowering::IntegerType(32, true);
         case UINT16_TYPE:
-            return new IntegerType(16, true);
+            return new object_lowering::IntegerType(16, true);
         case UINT8_TYPE:
-            return new IntegerType(8, true);;
+            return new object_lowering::IntegerType(8, true);
         case INT64_TYPE:
-            return new IntegerType(64, false);
+            return new object_lowering::IntegerType(64, false);
         case INT32_TYPE:
-            return new IntegerType(32, false);
+            return new object_lowering::IntegerType(32, false);
         case INT16_TYPE:
-            return new IntegerType(16, false);
+            return new object_lowering::IntegerType(16, false);
         case INT8_TYPE:
-            return new IntegerType(8, false);
+            return new object_lowering::IntegerType(8, false);
         case FLOAT_TYPE:
-            return new FloatType();
+            return new object_lowering::FloatType();
         case DOUBLE_TYPE:
-            return new DoubleType();
+            return new object_lowering::DoubleType();
         case BUILD_OBJECT:
             errs() << "There shouldn't be a build object in this chain \n";
             assert(false);
@@ -184,12 +171,73 @@ object_lowering::Type *ObjectLowering::parseTypeCallInst(CallInst *ins) {
     return nullptr;
 }
 
-object_lowering::Type *ObjectLowering::parseTypeStoreInst(StoreInst *ins) {
-    auto valOp = ins->getValueOperand();
-    return parseType(dyn_cast_or_null<Instruction>(valOp));
+ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i) {
+    auto arg = i->arg_begin()->get();
+    Type* type;
+    std::function<void(CallInst*)> callback = [&](CallInst* ci)
+    {
+        type = parseTypeCallInst(ci);
+    };
+    parseType(dyn_cast_or_null<Instruction>(arg),callback );
+//    errs() << "Obtained ObjectWrapper Type for " << *i <<"\n";
+
+    if(type->getCode() != ObjectTy)
+    {
+        errs() << "It's not an object";
+        assert(false);
+    }
+    auto* objt = (ObjectType*) type;
+    return new ObjectWrapper(objt);
 }
 
-object_lowering::Type *ObjectLowering::parseTypeLoadInst(LoadInst *ins) {
+
+
+
+void ObjectLowering::parseType(Value *ins, std::function<void(CallInst*)> callback) {
+    // dispatch on the dynamic type of ins
+//    errs()<<*ins << "is being called by parseType\n";
+
+    if (auto callins = dyn_cast_or_null<CallInst>(ins))
+    {
+        callback(callins);
+        return;
+        //return parseTypeCallInst(callins);
+    }
+    else if (auto storeIns = dyn_cast_or_null<StoreInst>(ins))
+    {
+        parseTypeStoreInst(storeIns,callback);
+        return;
+    }
+    else if(auto loadIns = dyn_cast_or_null<LoadInst>(ins))
+    {
+        parseTypeLoadInst(loadIns,callback);
+        return;
+    }
+    else if (auto allocaIns = dyn_cast_or_null<AllocaInst>(ins))
+    {
+        parseTypeAllocaInst(allocaIns,callback);
+        return;
+    } else if (auto gv = dyn_cast_or_null<GlobalValue>(ins)) {
+        parseTypeGlobalValue(gv,callback);
+        return;
+    }
+    else if (!ins) {
+        errs() << "i think this is a nullptr\n";
+        assert(false); 
+    }
+    // we can't handle this so we just like low key give up
+    errs() << "Unrecognized Instruction" << *ins <<"\n";
+    assert(false);
+}
+
+
+
+void ObjectLowering::parseTypeStoreInst(StoreInst *ins, std::function<void(CallInst*)> callback) {
+    auto valOp = ins->getValueOperand();
+    parseType(dyn_cast_or_null<Instruction>(valOp), callback);
+}
+
+void ObjectLowering::parseTypeLoadInst(LoadInst *ins, std::function<void(CallInst*)> callback) {
     auto ptrOp = ins->getPointerOperand();
 
     /*if (auto gv = dyn_cast<GlobalValue>(ptrOp)) {
@@ -201,27 +249,27 @@ object_lowering::Type *ObjectLowering::parseTypeLoadInst(LoadInst *ins) {
     }
     assert(false);*/
 
-    return parseType(ptrOp);
+    parseType(ptrOp,callback);
 }
 
-object_lowering::Type *ObjectLowering::parseTypeAllocaInst(AllocaInst *ins) {
+void ObjectLowering::parseTypeAllocaInst(AllocaInst *ins, std::function<void(CallInst*)> callback) {
     for(auto u: ins->users())
     {
         if(auto i = dyn_cast_or_null<StoreInst>(u))
         {
-            return parseType(i);
+            return parseType(i,callback);
         }
     }
     errs() << "Didn't find any store instruction uses for the instruction" <<*ins;
     assert(false);
 }
 
-object_lowering::Type *ObjectLowering::parseTypeGlobalValue(GlobalValue *gv) {
+void ObjectLowering::parseTypeGlobalValue(GlobalValue *gv, std::function<void(CallInst*)> callback) {
     for(auto u: gv->users())
     {
         if(auto i = dyn_cast_or_null<StoreInst>(u))
         {
-            return parseType(i);
+            return parseType(i,callback);
         }
     }
     errs() << "Didn't find any store instruction uses for the gv" << *gv;
@@ -229,3 +277,35 @@ object_lowering::Type *ObjectLowering::parseTypeGlobalValue(GlobalValue *gv) {
 }
 
 
+
+FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i)
+{
+    auto callee = i->getCalledFunction();
+    if (!callee) {
+        errs() << "Unrecognized indirect call" << *i << "\n";
+        assert(false);
+    }
+    auto n = callee->getName().str();
+    if(n != "getObjectField")
+    {
+        errs() << "Def use chain gave us the wrong function?" << *i;
+        assert(false);
+    }
+    auto firstarg = i->getArgOperand(0);
+    auto secondarg =  i->getArgOperand(1);
+    auto CI = dyn_cast_or_null<ConstantInt>(secondarg);
+    assert(CI);
+    int64_t fieldIndex = CI->getSExtValue();
+    ObjectWrapper* objw;
+    std::function<void(CallInst*)> call_back = [&](CallInst* ci)
+    {
+        objw = parseObjectWrapperInstruction(ci);
+    };
+    parseType(firstarg, call_back);
+//    errs() << "Obtained Field Wrapper Type for " << *i <<"\n";
+    auto fieldwrapper = new FieldWrapper();
+    fieldwrapper->baseObjPtr = firstarg;
+    fieldwrapper->fieldIndex = fieldIndex;
+    fieldwrapper->objectType = objw->innerType;
+    return fieldwrapper;
+}

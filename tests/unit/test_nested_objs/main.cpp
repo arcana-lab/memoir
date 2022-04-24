@@ -4,10 +4,10 @@
 
 using namespace objectir;
 
+Type *innerTy = getObjectType(1, getUInt64Type());
+Type *outerTy = getObjectType(1, innerTy);
+
 int main() {
-  Type *innerTy = getObjectType(1, getUInt64Type());  
-  Type *outerTy = getObjectType(1, innerTy);
-    
   Object *innerObj = buildObject(innerTy);
   Field *innerField = getObjectField(innerObj, 0);
   writeUInt64(innerField, 123);

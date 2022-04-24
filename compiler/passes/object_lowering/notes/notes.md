@@ -25,12 +25,24 @@ noelle-load-gdb -load ../../../compiler/passes/build/lib/ObjectLowering.so -Obje
 
 # Code notes
 
+
+
+
 ## overall
 ```
 analysis
 
 parse buildObject => {`%4 = alloca %"struct.objectir::Object"*, align 8` ->  Type* C++ }
-parse readInt => <`%4 = alloca %"struct.objectir::Object"*, align 8`, field number>
+
+parse readField => <`%14 <- load object* from object *** `, object type, field number>
+
+Transform:
+
+Go through dom tree and create copy of relavent instructions
+maintain map between old instruction(ones using the runtime) and new instructions(ones that we create i.e. %4a, %14a ..... )
+delete old instructions
+we are done. 
+
 
 
 transform
