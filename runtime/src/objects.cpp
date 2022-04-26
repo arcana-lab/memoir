@@ -31,11 +31,19 @@ Object::Object(Type *type) : type(type) {
 }
 
 Array::Array(Type *type, uint64_t length)
-  : Object(new ArrayType(type)),
+  : Object(type),
     length(length) {
 
+  if (type->getCode() != TypeCode::ArrayTy) {
+    std::cerr
+        << "Trying to create an array of non-array type\n";
+    exit(1);
+  }
+
+  Type *elementTy = ((ArrayType *)type)->elementType;
   for (auto i = 0; i < length; i++) {
-    this->fields.push_back(nullptr);
+    auto field = Field::createField(elementTy);
+    this->fields.push_back(field);
   }
 }
 
