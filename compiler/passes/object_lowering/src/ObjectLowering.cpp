@@ -224,7 +224,7 @@ void ObjectLowering::parseType(Value *ins, std::function<void(CallInst*)> callba
          *          call call back
          */
 
-        errs() << "parse type phi " << phiInst << "\n";
+        errs() << "parse type phi " << *phiInst << "\n";
         if(visitedPhiNodes.find(phiInst)!= visitedPhiNodes.end())
         {
             return;
@@ -309,12 +309,15 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i)
     auto secondarg =  i->getArgOperand(1);
     auto CI = dyn_cast_or_null<ConstantInt>(secondarg);
     assert(CI);
+    errs() << "The Field instruction is  " << *i <<"\n";
     int64_t fieldIndex = CI->getSExtValue();
     ObjectWrapper* objw;
     std::function<void(CallInst*)> call_back = [&](CallInst* ci)
     {
+        errs() << "Field Wrapper found function " << *ci << "\n";
         if(buildObjMap.find(ci)!=buildObjMap.end())
         {
+            errs() <<" This function has been mapped earlier through buildObjMap\n";s
             objw = buildObjMap[ci];
         }
         else {
