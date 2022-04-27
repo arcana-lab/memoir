@@ -8,10 +8,6 @@ function compile_benchmark {
     pushd ${TEST_DIR} ;
 
     echo "Building test: ${TEST_DIR}"
-
-    cp ../Makefile.template ./Makefile ;
-
-    sed -i "s|GIT_ROOT=|GIT_ROOT=${GIT_ROOT}|" ./Makefile ;
     
     make compile ;
 
