@@ -4,6 +4,7 @@
 
 #include "types.hpp"
 
+
 using namespace object_lowering;
 
 TypeCode Type::getCode() {
@@ -111,6 +112,32 @@ std::string ObjectType::toString() {
     str += ")\n";
     return str;
 }
+
+llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
+    std::vector<llvm::Type *> types;
+
+    for (auto fieldType: this->fields) {
+        switch (fieldType->getCode()) {
+            case IntegerTy: {
+                auto intType = (IntegerType *) fieldType;
+                //TODO: Not every int is 64 bit but for all assume 64 bits
+                types.push_back(llvm::Type::getInt64Ty(M.getContext()));
+                break;
+            }
+            case ObjectTy: {
+                types.push_back(llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8)));
+                break;
+            }
+            //TODO: other cases
+            default:
+                assert(false);
+        }
+    }
+
+    return llvm::StructType::create(M.getContext(), types, "my_struct", false);
+}
+
+
 
 std::string ArrayType::toString() {
     return "Type: array";

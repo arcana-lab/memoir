@@ -213,6 +213,14 @@ void ObjectLowering::parseType(Value *ins, std::function<void(CallInst*)> callba
         parseTypeGlobalValue(gv,callback);
         return;
     } else if (auto phiInst = dyn_cast_or_null<PHINode>(ins)) {
+        /*
+         *  loop through all incoming values
+         *      if the value has been visited
+         *          do nothing
+         *      if not:
+         *          call call back
+         */
+
         errs() << "parse type phi " << phiInst << "\n";
         parseType(phiInst->getIncomingValue(0), callback);
         return;
@@ -312,27 +320,20 @@ void ObjectLowering::transform() {
     DataLayout* TD = new DataLayout(&M);
     auto &context = M.getContext();
     auto int64Ty = llvm::Type::getInt64Ty(context);
-    auto int64size = llvm::ConstantInt::get(int64Ty, M.getDataLayout().getTypeAllocSize(int64Ty));
-
-    errs() << "the size is " << *int64size << "\n";
+//    std::vector<llvm::Type *> types{int64Ty};
+//    auto llvm::StructType::create(M.getContext(), types, "my_struct", false);
+//
+//    auto int64size =
 
     for(auto ins : this->buildObjects) {
-        errs() << "Making IR builder for " << *ins << "\n";
+        auto objT = parseObjectWrapperInstruction(ins);
+        auto llvmType = objT->innerType->getLLVMRepresentation(M);
+        errs() << *llvmType <<"\n";
+        auto llvmTypeSize = llvm::ConstantInt::get(int64Ty, M.getDataLayout().getTypeAllocSize(llvmType));
         IRBuilder<> builder(ins);
-        errs() << "Made the IR builder\n";
-
-        Value *constantVal = builder.getInt32(8);
-        errs() << "make the val\n";
-
-        /*std::vector<Value *> arguments{constantVal};
-        builder.CreateCall(M.getFunction("malloc"), arguments);*/
-llvm::Type* ITy = llvm::Type::getInt32Ty(context);
-        Constant* AllocSize = ConstantExpr::getSizeOf(int64Ty);
-        AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize, ITy);
-        Instruction* Malloc = CallInst::CreateMalloc(ins /*builder.GetInsertBlock()*/,
-                                             ITy, int64Ty, AllocSize,
-                                             nullptr, nullptr, "");
-
+        std::vector<Value *> arguments{llvmTypeSize};
+        auto smallf = M.getFunction("malloc");
+        builder.CreateCall(smallf ,arguments);
     }
 
 

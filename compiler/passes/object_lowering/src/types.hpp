@@ -18,6 +18,9 @@
 #include <string>
 #include <vector>
 #include <llvm/IR/Value.h>
+#include <llvm/IR/DerivedTypes.h>
+#include "llvm/Support/raw_ostream.h"
+#include <llvm/IR/Module.h>
 
 //  (%0 -> ObjectType(int1,int2,int3))
 // (%buildobject -> Object(ObjectType(int1,int2,int3))
@@ -25,8 +28,6 @@
 // (%read1 -> pointer(int1))
 
 namespace object_lowering {
-
-
 
     enum TypeCode {
         ObjectTy,
@@ -60,6 +61,7 @@ namespace object_lowering {
         ~ObjectType();
 
         std::string toString();
+        llvm::StructType* getLLVMRepresentation(llvm::Module& m);
     };
 
     struct ArrayType : public Type {

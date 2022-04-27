@@ -1,0 +1,9 @@
+Type: integer
+Integer type found
+integer
+Type: integer
+Integer type found
+integer
+Type: integer
+Integer type found
+integer

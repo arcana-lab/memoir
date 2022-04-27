@@ -1,4 +1,4 @@
-GIT_ROOT=/home/peter/object-ir
+GIT_ROOT=/home/pjp2292/object-ir
 
 BUILD_DIR=build
 

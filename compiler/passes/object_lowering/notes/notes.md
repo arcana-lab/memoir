@@ -25,8 +25,11 @@ noelle-load-gdb -load ../../../compiler/passes/build/lib/ObjectLowering.so -Obje
 
 # Code notes
 
+obj a;
+obj b;
 
-
+while true
+  a, b = b,a;
 
 ## overall
 ```
@@ -34,7 +37,9 @@ analysis
 
 parse buildObject => {`%4 = alloca %"struct.objectir::Object"*, align 8` ->  Type* C++ }
 
-parse readField => <`%14 <- load object* from object *** `, object type, field number>
+parse readField/writefields => <`%14 <- load object* from object *** `, object type, field number>
+
+set of phi nodes that were traced + use it to check recursive dependence. 
 
 Transform:
 
@@ -42,6 +47,26 @@ Go through dom tree and create copy of relavent instructions
 maintain map between old instruction(ones using the runtime) and new instructions(ones that we create i.e. %4a, %14a ..... )
 delete old instructions
 we are done. 
+
+map_ins = {old_ins -> new_ins}
+
+loop through all build object:
+	copy
+loop through all phi ndoes:
+	copy but leave the incoming values blank
+
+
+loop through basic block b in dominator order:
+  loop through ins in b;
+    if b is alloca of object
+       make copy of it 
+       add to map_ins
+    if b is a buildobject:
+    	create a malloc
+    	add malloc to map_ins
+    if b is a phi node:
+    	create new phi node
+    	the incoming values must be in the map_ins
 
 
 
