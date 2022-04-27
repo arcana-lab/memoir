@@ -317,7 +317,7 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i)
         errs() << "Field Wrapper found function " << *ci << "\n";
         if(buildObjMap.find(ci)!=buildObjMap.end())
         {
-            errs() <<" This function has been mapped earlier through buildObjMap\n";s
+            errs() <<" This function has been mapped earlier through buildObjMap\n";
             objw = buildObjMap[ci];
         }
         else {
