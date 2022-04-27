@@ -6,6 +6,10 @@
 
 #include "types.hpp"
 
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/IRBuilder.h"
+
+
 /*
  * Pass to perform lowering from object-ir to LLVM IR
  *

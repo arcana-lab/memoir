@@ -17,7 +17,7 @@ void ObjectLowering::analyze() {
 
   for (auto &F : M) {
 
-    if (F.getName().str() != "main") continue;
+    if (F.getName().str() != "main") continue; // TODO: don't skip other functions
 
     for (auto &I : instructions(F)) {
 
@@ -83,14 +83,6 @@ void ObjectLowering::analyze() {
 
   }
 }
-
-
-void ObjectLowering::transform() {
-  // Transform the program
-}
-
-
-
 
 object_lowering::Type* ObjectLowering::parseTypeCallInst(CallInst *ins) {
     // check to see what sort of call instruction this is dispatch on the name of the function
@@ -220,8 +212,11 @@ void ObjectLowering::parseType(Value *ins, std::function<void(CallInst*)> callba
     } else if (auto gv = dyn_cast_or_null<GlobalValue>(ins)) {
         parseTypeGlobalValue(gv,callback);
         return;
-    }
-    else if (!ins) {
+    } else if (auto phiInst = dyn_cast_or_null<PHINode>(ins)) {
+        errs() << "parse type phi " << phiInst << "\n";
+        parseType(phiInst->getIncomingValue(0), callback);
+        return;
+    } else if (!ins) {
         errs() << "i think this is a nullptr\n";
         assert(false); 
     }
@@ -308,4 +303,50 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i)
     fieldwrapper->fieldIndex = fieldIndex;
     fieldwrapper->objectType = objw->innerType;
     return fieldwrapper;
+}
+
+
+// ========================================================================
+
+void ObjectLowering::transform() {
+    DataLayout* TD = new DataLayout(&M);
+    auto &context = M.getContext();
+    auto int64Ty = llvm::Type::getInt64Ty(context);
+    auto int64size = llvm::ConstantInt::get(int64Ty, M.getDataLayout().getTypeAllocSize(int64Ty));
+
+    errs() << "the size is " << *int64size << "\n";
+
+    for(auto ins : this->buildObjects) {
+        errs() << "Making IR builder for " << *ins << "\n";
+        IRBuilder<> builder(ins);
+        errs() << "Made the IR builder\n";
+
+        Value *constantVal = builder.getInt32(8);
+        errs() << "make the val\n";
+
+        /*std::vector<Value *> arguments{constantVal};
+        builder.CreateCall(M.getFunction("malloc"), arguments);*/
+llvm::Type* ITy = llvm::Type::getInt32Ty(context);
+        Constant* AllocSize = ConstantExpr::getSizeOf(int64Ty);
+        AllocSize = ConstantExpr::getTruncOrBitCast(AllocSize, ITy);
+        Instruction* Malloc = CallInst::CreateMalloc(ins /*builder.GetInsertBlock()*/,
+                                             ITy, int64Ty, AllocSize,
+                                             nullptr, nullptr, "");
+
+    }
+
+
+
+
+
+
+
+
+
+    // get module ctxt
+    // fetch the first buildObject instruction
+    // get its type
+    // construct the corresponding ArrRef
+    // create the struct type
+    // create alloca inst
 }
