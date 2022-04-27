@@ -8,7 +8,7 @@
 
 /*
  * Object representation recognizable by LLVM IR
- * This file describes the Type interface for the
+ * This file describes the AnalysisType interface for the
  * object-ir library.
  *
  * Author(s): Tommy McMichen
@@ -38,15 +38,15 @@ namespace object_lowering {
         DoubleTy,
     };
 
-    struct Type {
+    struct AnalysisType {
     protected:
         TypeCode code;
 
     public:
         TypeCode getCode();
 
-        Type(TypeCode code);
-        ~Type();
+        AnalysisType(TypeCode code);
+        ~AnalysisType();
 
         virtual std::string toString() = 0;
 
@@ -54,8 +54,8 @@ namespace object_lowering {
         friend class Field;
     };
 
-    struct ObjectType : public Type {
-        std::vector<Type *> fields;
+    struct ObjectType : public AnalysisType {
+        std::vector<AnalysisType *> fields;
 
         ObjectType();
         ~ObjectType();
@@ -64,17 +64,17 @@ namespace object_lowering {
         llvm::StructType* getLLVMRepresentation(llvm::Module& m);
     };
 
-    struct ArrayType : public Type {
-        Type *elementType;
+    struct ArrayType : public AnalysisType {
+        AnalysisType *elementType;
 
-        ArrayType(Type *elementType);
+        ArrayType(AnalysisType *elementType);
         ~ArrayType();
 
         std::string toString();
     };
 
-    struct UnionType : public Type {
-        std::vector<Type *> members;
+    struct UnionType : public AnalysisType {
+        std::vector<AnalysisType *> members;
 
         UnionType();
         ~UnionType();
@@ -82,7 +82,7 @@ namespace object_lowering {
         std::string toString();
     };
 
-    struct IntegerType : public Type {
+    struct IntegerType : public AnalysisType {
         uint64_t bitwidth;
         bool isSigned;
 
@@ -92,14 +92,14 @@ namespace object_lowering {
         std::string toString();
     };
 
-    struct FloatType : public Type {
+    struct FloatType : public AnalysisType {
         FloatType();
         ~FloatType();
 
         std::string toString();
     };
 
-    struct DoubleType : public Type {
+    struct DoubleType : public AnalysisType {
         DoubleType();
         ~DoubleType();
 

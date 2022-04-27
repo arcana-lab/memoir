@@ -46,6 +46,7 @@ void ObjectLowering::analyze() {
     for(auto ins : this->buildObjects) {
         //errs() << "Parsing: " << *ins << "\n\n";
         auto objT = parseObjectWrapperInstruction(ins);
+        buildObjMap[ins] = objT;
         errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
     errs() << "READS\n\n";
@@ -61,6 +62,7 @@ void ObjectLowering::analyze() {
         errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
         errs() << "The field index is" << fw->fieldIndex << "\n";
         errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
+        readWriteFieldMap[ins] = fw;
         //auto objT = parseObjectWrapperInstruction(ins);
         //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
@@ -72,6 +74,7 @@ void ObjectLowering::analyze() {
         {
             fw = parseFieldWrapperIns(ci);
         };
+        readWriteFieldMap[ins] = fw;
         parseType(ins->getArgOperand(0), call_back);
         errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
         errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
@@ -84,7 +87,7 @@ void ObjectLowering::analyze() {
   }
 }
 
-object_lowering::Type* ObjectLowering::parseTypeCallInst(CallInst *ins) {
+object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins) {
     // check to see what sort of call instruction this is dispatch on the name of the function
     auto callee = ins->getCalledFunction();
     if (!callee) {
@@ -99,14 +102,14 @@ object_lowering::Type* ObjectLowering::parseTypeCallInst(CallInst *ins) {
     switch (FunctionNamesToObjectIR[n])
     {
         case OBJECT_TYPE:
-        {std::vector<object_lowering::Type*> typeVec;
+        {std::vector<object_lowering::AnalysisType*> typeVec;
             auto firstArg = ins->arg_begin();
             auto firstArgVal = firstArg->get();
             int64_t numTypeInt = dyn_cast_or_null<ConstantInt>(firstArgVal)->getSExtValue();
             for(auto arg = firstArg + 1; arg != ins->arg_end(); ++arg)
             {
                 auto ins = arg->get();
-                object_lowering::Type* type;
+                object_lowering::AnalysisType* type;
                 std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
                     type = parseTypeCallInst(ci);
                 };
@@ -165,13 +168,13 @@ object_lowering::Type* ObjectLowering::parseTypeCallInst(CallInst *ins) {
 
 ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i) {
     auto arg = i->arg_begin()->get();
-    Type* type;
+    AnalysisType* type;
     std::function<void(CallInst*)> callback = [&](CallInst* ci)
     {
         type = parseTypeCallInst(ci);
     };
     parseType(dyn_cast_or_null<Instruction>(arg),callback );
-//    errs() << "Obtained ObjectWrapper Type for " << *i <<"\n";
+//    errs() << "Obtained ObjectWrapper AnalysisType for " << *i <<"\n";
 
     if(type->getCode() != ObjectTy)
     {
@@ -222,7 +225,15 @@ void ObjectLowering::parseType(Value *ins, std::function<void(CallInst*)> callba
          */
 
         errs() << "parse type phi " << phiInst << "\n";
-        parseType(phiInst->getIncomingValue(0), callback);
+        if(visitedPhiNodes.find(phiInst)!= visitedPhiNodes.end())
+        {
+            return;
+        }
+        visitedPhiNodes.insert(phiInst);
+        for(auto& val: phiInst->incoming_values())
+        {
+            parseType(val.get(), callback);
+        }
         return;
     } else if (!ins) {
         errs() << "i think this is a nullptr\n";
@@ -302,13 +313,19 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i)
     ObjectWrapper* objw;
     std::function<void(CallInst*)> call_back = [&](CallInst* ci)
     {
-        objw = parseObjectWrapperInstruction(ci);
+        if(buildObjMap.find(ci)!=buildObjMap.end())
+        {
+            objw = buildObjMap[ci];
+        }
+        else {
+            objw = parseObjectWrapperInstruction(ci);
+        }
     };
     parseType(firstarg, call_back);
-//    errs() << "Obtained Field Wrapper Type for " << *i <<"\n";
+//    errs() << "Obtained Field Wrapper AnalysisType for " << *i <<"\n";
     auto fieldwrapper = new FieldWrapper();
     fieldwrapper->baseObjPtr = firstarg;
-    fieldwrapper->fieldIndex = fieldIndex;
+    fieldwrapper->fieldIndex = fieldIndex; // NOLINT(cppcoreguidelines-narrowing-conversions)
     fieldwrapper->objectType = objw->innerType;
     return fieldwrapper;
 }
@@ -317,10 +334,10 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i)
 // ========================================================================
 
 void ObjectLowering::transform() {
-    DataLayout* TD = new DataLayout(&M);
+    auto* TD = new DataLayout(&M);
     auto &context = M.getContext();
     auto int64Ty = llvm::Type::getInt64Ty(context);
-//    std::vector<llvm::Type *> types{int64Ty};
+//    std::vector<llvm::AnalysisType *> types{int64Ty};
 //    auto llvm::StructType::create(M.getContext(), types, "my_struct", false);
 //
 //    auto int64size =

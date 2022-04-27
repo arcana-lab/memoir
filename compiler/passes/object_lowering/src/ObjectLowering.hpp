@@ -29,6 +29,9 @@ private:
   std::unordered_set<CallInst *> buildObjects;
   std::unordered_set<CallInst *> reads;
   std::unordered_set<CallInst *> writes;
+  std::map<CallInst*, ObjectWrapper*> buildObjMap;
+  std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
+  std::set<PHINode*> visitedPhiNodes;
 
 public:
   ObjectLowering(Module &M, Noelle *noelle);
@@ -49,7 +52,7 @@ public:
 
   void parseTypeGlobalValue(GlobalValue* ins, std::function<void(CallInst*)>);
 
-  Type* parseTypeCallInst(CallInst *ins);
+  AnalysisType* parseTypeCallInst(CallInst *ins);
 
   FieldWrapper* parseFieldWrapperIns(CallInst* i);
 
@@ -65,8 +68,8 @@ public:
    * parseType(%call = getObjectType(%x, %y))
        * Calls
        * parseType(%x) and parseType(%y)
-       * parseType(%x = getint64) -> Type(int64)
-       * parseType(%y = getint64) -> Type(int64)
+       * parseType(%x = getint64) -> AnalysisType(int64)
+       * parseType(%y = getint64) -> AnalysisType(int64)
    * parseType(%call = getObjectType(%x, %y))
    * ObjectType(int64, int64)
    * r
