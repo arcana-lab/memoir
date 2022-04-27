@@ -5,6 +5,7 @@ COMPILER_DIR=${GIT_ROOT}/compiler ;
 
 IR_FILE="$1" ;
 
+opt -mem2reg -o ${IR_FILE} ${IR_FILE}
 noelle-norm ${IR_FILE} -o ${IR_FILE};
 
 echo "Lower Objects (I: ${IR_FILE}, O: ${IR_FILE})" ;

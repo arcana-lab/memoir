@@ -5,8 +5,7 @@ BUILD_DIR=build
 CC=clang++
 LL=llvm-link
 OPT=$(GIT_ROOT)/compiler/scripts/optimize.sh
-
-CFLAGS=-I$(GIT_ROOT)/runtime/include -std=c++17
+CFLAGS=-I$(GIT_ROOT)/runtime/include -std=c++17 -O1 -Xclang -disable-llvm-passes
 LIBS=-lm
 
 IR_FILE=$(BUILD_DIR)/all_in_one.bc
