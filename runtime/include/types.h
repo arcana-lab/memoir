@@ -21,19 +21,20 @@ enum TypeCode {
   IntegerTy,
   FloatTy,
   DoubleTy,
+  PointerTy,
 };
 
 struct Type {
 protected:
   TypeCode code;
 
-public:  
+public:
   TypeCode getCode();
 
   Type(TypeCode code);
   ~Type();
-  
-  virtual std::string toString() = 0;  
+
+  virtual std::string toString() = 0;
 
   friend class Object;
   friend class Field;
@@ -89,5 +90,21 @@ struct DoubleType : public Type {
 
   std::string toString();
 };
+
+struct PointerType : public Type {
+  Type *containedType;
+
+  PointerType(Type *containedType);
+  ~PointerType();
+
+  std::string toString();
+};
+
+/*
+ * Helper functions
+ */
+bool isObjectType(Type *type);
+
+bool isIntrinsicType(Type *type);
 
 } // namespace objectir

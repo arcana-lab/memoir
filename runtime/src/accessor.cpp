@@ -321,7 +321,7 @@ double readDouble(Field *field) {
   }
 }
 
-// Pointer access
+// Object access
 Object *readObject(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::ObjectTy) {
@@ -330,6 +330,30 @@ Object *readObject(Field *field) {
   } else {
     std::cerr
         << "ERROR: Attempt to read UInt64 from non-integer field\n";
+    exit(1);
+  }
+}
+
+Object *readPointer(Field *field) {
+  TypeCode type = field->getType()->getCode();
+  if (type == TypeCode::PointerTy) {
+    PointerField *ptrField = (PointerField *)field;
+    return ptrField->readField();
+  } else {
+    std::cerr
+        << "ERROR: Trying to read pointer from non-pointer field\n";
+    exit(1);
+  }
+}
+
+void writePointer(Field *field, Object *obj) {
+  TypeCode fieldType = field->getType()->getCode();
+  if (fieldType == TypeCode::PointerTy) {
+    PointerField *ptrField = (PointerField *)field;
+    ptrField->writeField(obj);
+  } else {
+    std::cerr
+        << "ERROR: Trying to write pointer to non-pointer field\n";
     exit(1);
   }
 }

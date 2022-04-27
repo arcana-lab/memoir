@@ -23,7 +23,7 @@ namespace objectir {
 struct Field {
 public:
   Type *type;
-  
+
   Type *getType();
 
   Field(Type *type);
@@ -55,7 +55,7 @@ public:
 struct Array : public Object {
 public:
   uint64_t length;
-  
+
   // Construction
   Array(Type *t, uint64_t length);
 
@@ -70,7 +70,7 @@ public:
 struct Union : public Object {
 public:
   std::vector<Field *> members;
-  
+
   // Construction
   Union(Type *t);
   ~Union();
@@ -83,14 +83,13 @@ public:
   Type *getType();
 
   std::string toString();
-
 };
 
 // Integer
 struct IntegerField : public Field {
 public:
   uint64_t value;
-  
+
   // Construction
   IntegerField(Type *t);
   IntegerField(Type *t, uint64_t init);
@@ -109,7 +108,7 @@ public:
 struct FloatField : public Field {
 public:
   float value;
-  
+
   // Construction
   FloatField(Type *type);
   FloatField(Type *type, float init);
@@ -125,7 +124,7 @@ public:
 struct DoubleField : public Field {
 public:
   double value;
-  
+
   // Construction
   DoubleField(Type *type);
   DoubleField(Type *type, double init);
@@ -145,6 +144,20 @@ public:
   // Construction
   ObjectField(Type *type);
   ObjectField(Object *init);
+
+  std::string toString();
+};
+
+// Indirection pointer
+struct PointerField : public Field {
+public:
+  Object *value;
+
+  // Construction
+  PointerField(Type *type);
+
+  void writeField(Object *value);
+  Object *readField();
 
   std::string toString();
 };

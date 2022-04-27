@@ -1,9 +1,38 @@
+#include <iostream>
+
 #include "types.h"
 
-using namespace objectir;
+namespace objectir {
 
 TypeCode Type::getCode() {
   return this->code;
+}
+
+/*
+ * Helper functions
+ */
+bool isObjectType(Type *type) {
+  TypeCode code = type->getCode();
+  switch (code) {
+    case ObjectTy:
+    case ArrayTy:
+    case UnionTy:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool isIntrinsicType(Type *type) {
+  TypeCode code = type->getCode();
+  switch (code) {
+    case IntegerTy:
+    case FloatTy:
+    case DoubleTy:
+      return true;
+    default:
+      return false;
+  }
 }
 
 /*
@@ -26,7 +55,7 @@ ObjectType::ObjectType() : Type(TypeCode::ObjectTy) {
 
 ObjectType::~ObjectType() {
   for (auto field : this->fields) {
-    delete field;
+    // delete field;
   }
 }
 
@@ -40,7 +69,7 @@ ArrayType::ArrayType(Type *type)
 }
 
 ArrayType::~ArrayType() {
-  delete elementType;
+  // Do nothing.
 }
 
 /*
@@ -52,7 +81,7 @@ UnionType::UnionType() : Type(TypeCode::UnionTy) {
 
 UnionType::~UnionType() {
   for (auto member : this->members) {
-    delete member;
+    // delete member;
   }
 }
 
@@ -80,7 +109,6 @@ FloatType::~FloatType() {
   // Do nothing;
 }
 
-
 /*
  * Double Type
  */
@@ -91,3 +119,22 @@ DoubleType::DoubleType() : Type(TypeCode::DoubleTy) {
 DoubleType::~DoubleType() {
   // Do nothing.
 }
+
+/*
+ * Pointer Type
+ */
+PointerType::PointerType(Type *containedType)
+  : Type(TypeCode::PointerTy),
+    containedType(containedType) {
+  if (!isObjectType(containedType)) {
+    std::cerr
+        << "ERROR: Contained type of pointer is not an object!\n";
+    exit(1);
+  }
+}
+
+PointerType::~PointerType() {
+  // Do nothing.
+}
+
+} // namespace objectir

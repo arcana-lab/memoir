@@ -18,6 +18,10 @@ std::string ObjectField::toString() {
   return "object";
 }
 
+std::string PointerField::toString() {
+  return "pointer";
+}
+
 std::string Object::toString() {
   std::string str = "(Object: \n";
   for (auto field : fields) {
@@ -68,4 +72,9 @@ std::string FloatType::toString() {
 
 std::string DoubleType::toString() {
   return "Type: double";
+}
+
+std::string PointerType::toString() {
+  return "Type: (pointer " + this->containedType->toString()
+         + ")";
 }

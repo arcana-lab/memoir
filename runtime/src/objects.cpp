@@ -52,8 +52,8 @@ Union::Union(Type *type) : Object(type) {
 }
 
 Object::~Object() {
-  delete this->type;
+  // delete this->type;
   for (auto field : this->fields) {
-    delete field;
+    // delete field;
   }
 }

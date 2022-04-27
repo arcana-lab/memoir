@@ -93,6 +93,10 @@ Type *getDoubleType() {
   return new DoubleType();
 }
 
+Type *getPointerType(Type *containedType) {
+  return new PointerType(containedType);
+}
+
 /*
  * Object construction
  */

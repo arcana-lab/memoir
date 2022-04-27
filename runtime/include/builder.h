@@ -42,6 +42,8 @@ __attribute__((noinline)) Type *getInt8Type();
 __attribute__((noinline)) Type *getBooleanType();
 __attribute__((noinline)) Type *getFloatType();
 __attribute__((noinline)) Type *getDoubleType();
+__attribute__((noinline)) Type *getPointerType(
+    Type *containedType);
 
 /*
  * Object construction
