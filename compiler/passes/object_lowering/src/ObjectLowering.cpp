@@ -45,7 +45,8 @@ void ObjectLowering::analyze() {
 
     for(auto ins : this->buildObjects) {
         //errs() << "Parsing: " << *ins << "\n\n";
-        auto objT = parseObjectWrapperInstruction(ins);
+        std::set<PHINode*> visited;
+        auto objT = parseObjectWrapperInstruction(ins,visited);
         buildObjMap[ins] = objT;
         errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
@@ -53,11 +54,12 @@ void ObjectLowering::analyze() {
     for(auto ins : this->reads) {
         errs() << "Parsing: " << *ins << "\n\n";
         FieldWrapper* fw;
+        std::set<PHINode*> visited;
         std::function<void(CallInst*)> call_back = [&](CallInst* ci)
         {
-            fw = parseFieldWrapperIns(ci);
+            fw = parseFieldWrapperIns(ci,visited);
         };
-        parseType(ins->getArgOperand(0), call_back);
+        parseType(ins->getArgOperand(0), call_back,visited);
         errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
         errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
         errs() << "The field index is" << fw->fieldIndex << "\n";
@@ -70,12 +72,13 @@ void ObjectLowering::analyze() {
     for(auto ins : this->writes) {
         errs() << "Parsing: " << *ins << "\n\n";
         FieldWrapper* fw;
+        std::set<PHINode*> visited;
         std::function<void(CallInst*)> call_back = [&](CallInst* ci)
         {
-            fw = parseFieldWrapperIns(ci);
+            fw = parseFieldWrapperIns(ci,visited);
         };
         readWriteFieldMap[ins] = fw;
-        parseType(ins->getArgOperand(0), call_back);
+        parseType(ins->getArgOperand(0), call_back,visited);
         errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
         errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
         errs() << "The field index is" << fw->fieldIndex << "\n";
@@ -87,7 +90,7 @@ void ObjectLowering::analyze() {
   }
 }
 
-object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins) {
+object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited) {
     // check to see what sort of call instruction this is dispatch on the name of the function
     auto callee = ins->getCalledFunction();
     if (!callee) {
@@ -104,16 +107,17 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins) 
         case OBJECT_TYPE:
         {std::vector<object_lowering::AnalysisType*> typeVec;
             auto firstArg = ins->arg_begin();
-            auto firstArgVal = firstArg->get();
-            int64_t numTypeInt = dyn_cast_or_null<ConstantInt>(firstArgVal)->getSExtValue();
+//            auto firstArgVal = firstArg->get();
+//            int64_t numTypeInt = dyn_cast_or_null<ConstantInt>(firstArgVal)->getSExtValue();
             for(auto arg = firstArg + 1; arg != ins->arg_end(); ++arg)
             {
                 auto ins = arg->get();
                 object_lowering::AnalysisType* type;
+                std::set<PHINode*> visited;
                 std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-                    type = parseTypeCallInst(ci);
+                    type = parseTypeCallInst(ci,visited);
                 };
-                parseType(dyn_cast_or_null<Instruction>(ins), call_back);
+                parseType(dyn_cast_or_null<Instruction>(ins), call_back,visited);
                 typeVec.push_back(type);
             }
             auto objType = new ObjectType();
@@ -166,14 +170,14 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins) 
     return nullptr;
 }
 
-ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i) {
+ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::set<PHINode*> &visited) {
     auto arg = i->arg_begin()->get();
     AnalysisType* type;
     std::function<void(CallInst*)> callback = [&](CallInst* ci)
     {
-        type = parseTypeCallInst(ci);
+        type = parseTypeCallInst(ci,visited);
     };
-    parseType(dyn_cast_or_null<Instruction>(arg),callback );
+    parseType(dyn_cast_or_null<Instruction>(arg),callback,visited);
 //    errs() << "Obtained ObjectWrapper AnalysisType for " << *i <<"\n";
 
     if(type->getCode() != ObjectTy)
@@ -188,7 +192,7 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i) {
 
 
 
-void ObjectLowering::parseType(Value *ins, std::function<void(CallInst*)> callback) {
+void ObjectLowering::parseType(Value *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*>& visited) {
     // dispatch on the dynamic type of ins
 //    errs()<<*ins << "is being called by parseType\n";
 
@@ -200,20 +204,20 @@ void ObjectLowering::parseType(Value *ins, std::function<void(CallInst*)> callba
     }
     else if (auto storeIns = dyn_cast_or_null<StoreInst>(ins))
     {
-        parseTypeStoreInst(storeIns,callback);
+        parseTypeStoreInst(storeIns,callback,visited);
         return;
     }
     else if(auto loadIns = dyn_cast_or_null<LoadInst>(ins))
     {
-        parseTypeLoadInst(loadIns,callback);
+        parseTypeLoadInst(loadIns,callback,visited);
         return;
     }
     else if (auto allocaIns = dyn_cast_or_null<AllocaInst>(ins))
     {
-        parseTypeAllocaInst(allocaIns,callback);
+        parseTypeAllocaInst(allocaIns,callback,visited);
         return;
     } else if (auto gv = dyn_cast_or_null<GlobalValue>(ins)) {
-        parseTypeGlobalValue(gv,callback);
+        parseTypeGlobalValue(gv,callback,visited);
         return;
     } else if (auto phiInst = dyn_cast_or_null<PHINode>(ins)) {
         /*
@@ -225,14 +229,15 @@ void ObjectLowering::parseType(Value *ins, std::function<void(CallInst*)> callba
          */
 
         errs() << "parse type phi " << *phiInst << "\n";
-        if(visitedPhiNodes.find(phiInst)!= visitedPhiNodes.end())
+        if(visited.find(phiInst) != visited.end())
         {
             return;
         }
-        visitedPhiNodes.insert(phiInst);
+        visited.insert(phiInst);
+        visitedPhiNodesGlobal.insert(phiInst);
         for(auto& val: phiInst->incoming_values())
         {
-            parseType(val.get(), callback);
+            parseType(val.get(), callback,visited);
         }
         return;
     } else if (!ins) {
@@ -246,12 +251,12 @@ void ObjectLowering::parseType(Value *ins, std::function<void(CallInst*)> callba
 
 
 
-void ObjectLowering::parseTypeStoreInst(StoreInst *ins, std::function<void(CallInst*)> callback) {
+void ObjectLowering::parseTypeStoreInst(StoreInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     auto valOp = ins->getValueOperand();
-    parseType(dyn_cast_or_null<Instruction>(valOp), callback);
+    parseType(dyn_cast_or_null<Instruction>(valOp), callback,visited);
 }
 
-void ObjectLowering::parseTypeLoadInst(LoadInst *ins, std::function<void(CallInst*)> callback) {
+void ObjectLowering::parseTypeLoadInst(LoadInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     auto ptrOp = ins->getPointerOperand();
 
     /*if (auto gv = dyn_cast<GlobalValue>(ptrOp)) {
@@ -263,27 +268,27 @@ void ObjectLowering::parseTypeLoadInst(LoadInst *ins, std::function<void(CallIns
     }
     assert(false);*/
 
-    parseType(ptrOp,callback);
+    parseType(ptrOp,callback,visited);
 }
 
-void ObjectLowering::parseTypeAllocaInst(AllocaInst *ins, std::function<void(CallInst*)> callback) {
+void ObjectLowering::parseTypeAllocaInst(AllocaInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     for(auto u: ins->users())
     {
         if(auto i = dyn_cast_or_null<StoreInst>(u))
         {
-            return parseType(i,callback);
+            return parseType(i,callback,visited);
         }
     }
     errs() << "Didn't find any store instruction uses for the instruction" <<*ins;
     assert(false);
 }
 
-void ObjectLowering::parseTypeGlobalValue(GlobalValue *gv, std::function<void(CallInst*)> callback) {
+void ObjectLowering::parseTypeGlobalValue(GlobalValue *gv, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     for(auto u: gv->users())
     {
         if(auto i = dyn_cast_or_null<StoreInst>(u))
         {
-            return parseType(i,callback);
+            return parseType(i,callback,visited);
         }
     }
     errs() << "Didn't find any store instruction uses for the gv" << *gv;
@@ -292,7 +297,7 @@ void ObjectLowering::parseTypeGlobalValue(GlobalValue *gv, std::function<void(Ca
 
 
 
-FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i)
+FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visited)
 {
     auto callee = i->getCalledFunction();
     if (!callee) {
@@ -321,10 +326,10 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i)
             objw = buildObjMap[ci];
         }
         else {
-            objw = parseObjectWrapperInstruction(ci);
+            objw = parseObjectWrapperInstruction(ci,visited);
         }
     };
-    parseType(firstarg, call_back);
+    parseType(firstarg, call_back,visited);
 //    errs() << "Obtained Field Wrapper AnalysisType for " << *i <<"\n";
     auto fieldwrapper = new FieldWrapper();
     fieldwrapper->baseObjPtr = firstarg;
@@ -337,16 +342,12 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i)
 // ========================================================================
 
 void ObjectLowering::transform() {
-    auto* TD = new DataLayout(&M);
     auto &context = M.getContext();
     auto int64Ty = llvm::Type::getInt64Ty(context);
-//    std::vector<llvm::AnalysisType *> types{int64Ty};
-//    auto llvm::StructType::create(M.getContext(), types, "my_struct", false);
-//
-//    auto int64size =
 
     for(auto ins : this->buildObjects) {
-        auto objT = parseObjectWrapperInstruction(ins);
+        std::set<PHINode*> visited;
+        auto objT = parseObjectWrapperInstruction(ins,visited);
         auto llvmType = objT->innerType->getLLVMRepresentation(M);
         errs() << *llvmType <<"\n";
         auto llvmTypeSize = llvm::ConstantInt::get(int64Ty, M.getDataLayout().getTypeAllocSize(llvmType));

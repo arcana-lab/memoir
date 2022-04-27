@@ -31,7 +31,7 @@ private:
   std::unordered_set<CallInst *> writes;
   std::map<CallInst*, ObjectWrapper*> buildObjMap;
   std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
-  std::set<PHINode*> visitedPhiNodes;
+  std::set<PHINode*> visitedPhiNodesGlobal;
 
 public:
   ObjectLowering(Module &M, Noelle *noelle);
@@ -40,21 +40,21 @@ public:
 
   void transform();
 
-  ObjectWrapper* parseObjectWrapperInstruction(CallInst* i);
+  ObjectWrapper* parseObjectWrapperInstruction(CallInst* i, std::set<PHINode*> &visited);
 
-  void parseType(Value* ins, std::function<void(CallInst*)>);
+  void parseType(Value* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-  void parseTypeStoreInst(StoreInst* ins, std::function<void(CallInst*)>);
+  void parseTypeStoreInst(StoreInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-  void parseTypeLoadInst(LoadInst* ins, std::function<void(CallInst*)>);
+  void parseTypeLoadInst(LoadInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-  void parseTypeAllocaInst(AllocaInst* ins, std::function<void(CallInst*)>);
+  void parseTypeAllocaInst(AllocaInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-  void parseTypeGlobalValue(GlobalValue* ins, std::function<void(CallInst*)>);
+  void parseTypeGlobalValue(GlobalValue* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-  AnalysisType* parseTypeCallInst(CallInst *ins);
+  AnalysisType* parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited);
 
-  FieldWrapper* parseFieldWrapperIns(CallInst* i);
+  FieldWrapper* parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visited);
 
 
 //  void parseTypeCallInst(CallInst* ins);
