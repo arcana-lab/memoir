@@ -403,8 +403,8 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 errs() << "The type is " << fieldWrapper->objectType->toString() << "\n\n\n";
 
                 auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
-                std::vector<Value*> indices = {llvm::ConstantInt::get(int64Ty, 0),
-                                               llvm::ConstantInt::get(int64Ty,fieldWrapper->fieldIndex )};
+                std::vector<Value*> indices = {llvm::ConstantInt::get(int32Ty, 0),
+                                               llvm::ConstantInt::get(int32Ty,fieldWrapper->fieldIndex )};
                 if(replacementMapping.find(fieldWrapper->baseObjPtr) ==replacementMapping.end())
                 {
                     errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
