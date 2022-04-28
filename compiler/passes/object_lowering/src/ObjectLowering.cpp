@@ -181,7 +181,7 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperChain(Value*i , std::set<PHINod
     ObjectWrapper* objw;
     std::function<void(CallInst*)> call_back = [&](CallInst* ci)
     {
-        errs() << "Field Wrapper found function " << *ci << "\n";
+//        errs() << "Field Wrapper found function " << *ci << "\n";
         objw = parseObjectWrapperInstruction(ci,visited);
     };
     parseType(i, call_back,visited);
@@ -191,7 +191,7 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperChain(Value*i , std::set<PHINod
 ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::set<PHINode*> &visited) {
     if(buildObjMap.find(i)!=buildObjMap.end())
     {
-        errs() <<" This function has been mapped earlier through buildObjMap\n";
+//        errs() <<" This function has been mapped earlier through buildObjMap\n";
         return  buildObjMap[i];
     }
 
@@ -252,7 +252,7 @@ void ObjectLowering::parseType(Value *ins, const std::function<void(CallInst*)>&
          *          call call back
          */
 
-        errs() << "parse type phi " << *phiInst << "\n";
+//        errs() << "parse type phi " << *phiInst << "\n";
         if(visited.find(phiInst) != visited.end())
         {
             return;
@@ -362,8 +362,10 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
         IRBuilder<> builder(&ins);
         if(auto phi = dyn_cast<PHINode>(&ins))
         {
+            errs() << *phi->getType() <<"\n";
             if(phi->getType() == llvmObjectType)
             {
+                errs() << "Transforming phi instruction " << phi <<"\n";
                 std::set<PHINode*> visited;
                 ObjectWrapper* objw = parseObjectWrapperChain(phi,visited);
                 auto llvmType = objw->innerType->getLLVMRepresentation(M);
