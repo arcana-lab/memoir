@@ -411,7 +411,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                     assert(false);
                 }
                 auto llvmPtrType = PointerType::getUnqual(llvmType);
-                auto gep = builder.CreateGEP(llvmPtrType,replacementMapping[fieldWrapper->baseObjPtr],indices);
+                auto gep = builder.CreateGEP(replacementMapping[fieldWrapper->baseObjPtr],indices);
                 auto storeInst = builder.CreateStore(callIns->getArgOperand(1),gep);
                 replacementMapping[callIns] = storeInst;
             }
