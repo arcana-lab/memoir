@@ -355,15 +355,14 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
 
 void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
 {
-    errs() << "Transforming Basic Block with the starting instruction of " << bb->front() << "\n";
+    errs() << "Transforming Basic Block  " <<*bb << "\n\n";
     auto int64Ty = llvm::Type::getInt64Ty(M.getContext());
     for(auto &ins: *bb)
     {
-
+        errs() << "encountering  instruction " << ins <<"\n";
         IRBuilder<> builder(&ins);
         if(auto phi = dyn_cast<PHINode>(&ins))
         {
-            errs() << "encountering phi instruction " << *phi <<"\n";
             errs()<< "The phi has type " << *phi->getType() <<"\n";
             errs() << "our type is " << *llvmObjectType << "\n";
             if(phi->getType() == llvmObjectType)
@@ -395,7 +394,6 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
             }
             else if(calleeName == "writeUInt64")//todo: improve this logic
             {
-                errs() << *callIns << "\n";
                 auto fieldWrapper = readWriteFieldMap[callIns];
                 auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
 //                auto llvmPtrType = PointerType::getUnqual(llvmType);
