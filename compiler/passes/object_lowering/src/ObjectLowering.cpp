@@ -195,7 +195,7 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::s
 
 void ObjectLowering::parseType(Value *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*>& visited) {
     // dispatch on the dynamic type of ins
-//    errs()<<*ins << "is being called by parseType\n";
+    errs()<<*ins << "is being called by parseType\n";
 
     if (auto callins = dyn_cast_or_null<CallInst>(ins))
     {
