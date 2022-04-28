@@ -359,12 +359,16 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
     auto int64Ty = llvm::Type::getInt64Ty(M.getContext());
     for(auto &ins: *bb)
     {
+
         IRBuilder<> builder(&ins);
         if(auto phi = dyn_cast<PHINode>(&ins))
         {
+            errs() << "encountering phi instruction " << *phi <<"\n";
+            errs()<< "The phi has type " << *phi->getType() <<"\n";
+            errs() << "our type is " << llvmObjectType << "\n";
             if(phi->getType() == llvmObjectType)
             {
-                errs() << "Transforming phi instruction " << *phi <<"\n";
+                errs() << "those two types as equal" <<"\n";
                 std::set<PHINode*> visited;
                 ObjectWrapper* objw = parseObjectWrapperChain(phi,visited);
                 auto llvmType = objw->innerType->getLLVMRepresentation(M);
