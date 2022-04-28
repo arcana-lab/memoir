@@ -357,6 +357,8 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
 {
     errs() << "Transforming Basic Block  " <<*bb << "\n\n";
     auto int64Ty = llvm::Type::getInt64Ty(M.getContext());
+
+    auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
     for(auto &ins: *bb)
     {
         errs() << "encountering  instruction " << ins <<"\n";
