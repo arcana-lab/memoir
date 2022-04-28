@@ -362,10 +362,9 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
         IRBuilder<> builder(&ins);
         if(auto phi = dyn_cast<PHINode>(&ins))
         {
-            errs() << *phi->getType() <<"\n";
             if(phi->getType() == llvmObjectType)
             {
-                errs() << "Transforming phi instruction " << phi <<"\n";
+                errs() << "Transforming phi instruction " << *phi <<"\n";
                 std::set<PHINode*> visited;
                 ObjectWrapper* objw = parseObjectWrapperChain(phi,visited);
                 auto llvmType = objw->innerType->getLLVMRepresentation(M);
