@@ -17,6 +17,7 @@ bool isObjectType(Type *type) {
     case ObjectTy:
     case ArrayTy:
     case UnionTy:
+    case StubTy:
       return true;
     default:
       return false;
@@ -38,7 +39,11 @@ bool isIntrinsicType(Type *type) {
 /*
  * Type base class
  */
-Type::Type(TypeCode code) : code(code) {
+Type::Type(TypeCode code, std::string name) : code(code) {
+  // Do nothing
+}
+
+Type::Type(TypeCode code) : Type::Type(code, "") {
   // Do nothing
 }
 
@@ -49,7 +54,13 @@ Type::~Type() {
 /*
  * Object Type
  */
-ObjectType::ObjectType() : Type(TypeCode::ObjectTy) {
+
+ObjectType::ObjectType(std::string name)
+  : Type(TypeCode::ObjectTy, name) {
+  // Do nothing.
+}
+
+ObjectType::ObjectType() : ObjectType::ObjectType("") {
   // Do nothing.
 }
 
@@ -62,9 +73,14 @@ ObjectType::~ObjectType() {
 /*
  * Array Type
  */
-ArrayType::ArrayType(Type *type)
-  : Type(TypeCode::ArrayTy),
+ArrayType::ArrayType(Type *type, std::string name)
+  : Type(TypeCode::ArrayTy, name),
     elementType(type) {
+  // Do nothing.
+}
+
+ArrayType::ArrayType(Type *type)
+  : ArrayType::ArrayType(type, "") {
   // Do nothing.
 }
 
@@ -75,7 +91,12 @@ ArrayType::~ArrayType() {
 /*
  * Union Type
  */
-UnionType::UnionType() : Type(TypeCode::UnionTy) {
+UnionType::UnionType(std::string name)
+  : Type(TypeCode::UnionTy, name) {
+  // Do nothing.
+}
+
+UnionType::UnionType() : UnionType::UnionType("") {
   // Do nothing.
 }
 
@@ -135,6 +156,27 @@ PointerType::PointerType(Type *containedType)
 
 PointerType::~PointerType() {
   // Do nothing.
+}
+
+/*
+ * Stub Type
+ */
+StubType::StubType(std::string name)
+  : Type(TypeCode::StubTy),
+    name(name) {
+  // Do nothing.
+}
+
+Type *StubType::resolve() {
+  // Resolve the stub type.
+  if (!this->resolvedType) {
+    std::cerr
+        << "ERROR: " << name
+        << " is not resolved to a type before it's use.";
+    exit(1);
+  }
+
+  return this->resolvedType;
 }
 
 } // namespace objectir

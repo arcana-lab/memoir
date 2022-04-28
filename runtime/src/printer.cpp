@@ -78,3 +78,7 @@ std::string PointerType::toString() {
   return "Type: (pointer " + this->containedType->toString()
          + ")";
 }
+
+std::string StubType::toString() {
+  return "Type: stub";
+}

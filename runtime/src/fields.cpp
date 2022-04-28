@@ -62,6 +62,11 @@ Type *Field::getType() {
 
 Field *Field::createField(Type *type) {
   switch (type->getCode()) {
+    case TypeCode::StubTy: {
+      auto stubType = ((StubType *)type);
+      auto resolvedType = stubType->resolve();
+      return Field::createField(resolvedType);
+    }
     case TypeCode::ObjectTy:
     case TypeCode::ArrayTy:
     case TypeCode::UnionTy:

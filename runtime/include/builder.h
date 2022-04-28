@@ -25,9 +25,27 @@ extern "C" {
  */
 __attribute__((noinline)) Type *getObjectType(int numFields,
                                               ...);
-__attribute__((noinline)) Type *getArrayType(Type *type);
+__attribute__((noinline)) Type *nameObjectType(
+    char *name,
+    int numFields,
+    ...);
+
+__attribute__((noinline)) Type *getArrayType(
+    Type *elementType);
+__attribute__((noinline)) Type *nameArrayType(
+    char *name,
+    Type *elementType);
+
 __attribute__((noinline)) Type *getUnionType(int numMembers,
                                              ...);
+__attribute__((noinline)) Type *nameUnionType(
+    char *name,
+    int numMembers,
+    ...);
+
+/*
+ * Primitive Types
+ */
 __attribute__((noinline)) Type *getIntegerType(
     uint64_t bitwidth,
     bool isSigned);
@@ -44,6 +62,11 @@ __attribute__((noinline)) Type *getFloatType();
 __attribute__((noinline)) Type *getDoubleType();
 __attribute__((noinline)) Type *getPointerType(
     Type *containedType);
+
+/*
+ * Named Types
+ */
+__attribute__((noinline)) Type *getNamedType(char *name);
 
 /*
  * Object construction
