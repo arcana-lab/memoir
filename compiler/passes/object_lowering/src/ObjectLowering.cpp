@@ -372,6 +372,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 ObjectWrapper* objw = parseObjectWrapperChain(phi,visited);
                 auto llvmType = objw->innerType->getLLVMRepresentation(M);
                 auto newPhi = builder.CreatePHI(llvmType, phi->getNumIncomingValues() );
+                errs() << "out of the old phi a new one is born" << *newPhi <<"\n";
                 replacementMapping[phi] = newPhi;
             }
         }
