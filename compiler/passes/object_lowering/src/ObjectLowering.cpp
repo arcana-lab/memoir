@@ -83,12 +83,12 @@ void ObjectLowering::analyze() {
         {
             fw = parseFieldWrapperIns(ci,visited);
         };
-        readWriteFieldMap[ins] = fw;
         parseType(ins->getArgOperand(0), call_back,visited);
         errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
         errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
         errs() << "The field index is" << fw->fieldIndex << "\n";
         errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
+        readWriteFieldMap[ins] = fw;
         //auto objT = parseObjectWrapperInstruction(ins);
         //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
