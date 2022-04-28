@@ -371,7 +371,8 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 std::set<PHINode*> visited;
                 ObjectWrapper* objw = parseObjectWrapperChain(phi,visited);
                 auto llvmType = objw->innerType->getLLVMRepresentation(M);
-                auto newPhi = builder.CreatePHI(llvmType, phi->getNumIncomingValues() );
+                auto llvmPtrType = PointerType::getUnqual(llvmType);
+                auto newPhi = builder.CreatePHI(llvmPtrType, phi->getNumIncomingValues() );
                 errs() << "out of the old phi a new one is born" << *newPhi <<"\n";
                 replacementMapping[phi] = newPhi;
             }
@@ -402,7 +403,6 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 errs() << "The type is " << fieldWrapper->objectType->toString() << "\n\n\n";
 
                 auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
-//                auto llvmPtrType = PointerType::getUnqual(llvmType);
                 std::vector<Value*> indices = {llvm::ConstantInt::get(int64Ty, 0),
                                                llvm::ConstantInt::get(int64Ty,fieldWrapper->fieldIndex )};
                 if(replacementMapping.find(fieldWrapper->baseObjPtr) ==replacementMapping.end())
