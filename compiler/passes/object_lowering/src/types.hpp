@@ -56,7 +56,7 @@ namespace object_lowering {
 
     struct ObjectType : public AnalysisType {
         std::vector<AnalysisType *> fields;
-
+        llvm::StructType* created = nullptr;
         ObjectType();
         ~ObjectType();
 

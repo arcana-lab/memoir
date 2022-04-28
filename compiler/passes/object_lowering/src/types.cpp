@@ -114,6 +114,11 @@ std::string ObjectType::toString() {
 }
 
 llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
+    if(created!=nullptr)
+    {
+        return created;
+    }
+
     std::vector<llvm::Type *> types;
 
     for (auto fieldType: this->fields) {
@@ -133,8 +138,8 @@ llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
                 assert(false);
         }
     }
-
-    return llvm::StructType::create(M.getContext(), types, "my_struct", false);
+    created = llvm::StructType::create(M.getContext(), types, "my_struct", false);
+    return created;
 }
 
 

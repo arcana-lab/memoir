@@ -14,6 +14,8 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
 void ObjectLowering::analyze() {
   // Analyze the program
 
+
+
   errs() << "Running ObjectLowering. Analysis\n";
 
   for (auto &F : M) {
@@ -34,7 +36,10 @@ void ObjectLowering::analyze() {
 
         if (isObjectIRCall(n)) {
             switch (FunctionNamesToObjectIR[n]) {
-                case BUILD_OBJECT: this->buildObjects.insert(callInst); continue;
+                case BUILD_OBJECT:
+                    this->buildObjects.insert(callInst);
+                    llvmObjectType = callInst->getType();
+                    continue;
                 case READ_UINT64: this->reads.insert(callInst); continue;
                 case WRITE_OBJECT:
                 case WRITE_UINT64: this->writes.insert(callInst); continue;
@@ -171,7 +176,25 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
     return nullptr;
 }
 
+ObjectWrapper *ObjectLowering::parseObjectWrapperChain(Value*i , std::set<PHINode*> &visited)
+{
+    ObjectWrapper* objw;
+    std::function<void(CallInst*)> call_back = [&](CallInst* ci)
+    {
+        errs() << "Field Wrapper found function " << *ci << "\n";
+        objw = parseObjectWrapperInstruction(ci,visited);
+    };
+    parseType(i, call_back,visited);
+    return objw;
+}
+
 ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::set<PHINode*> &visited) {
+    if(buildObjMap.find(i)!=buildObjMap.end())
+    {
+        errs() <<" This function has been mapped earlier through buildObjMap\n";
+        return  buildObjMap[i];
+    }
+
     auto arg = i->arg_begin()->get();
     AnalysisType* type;
     std::function<void(CallInst*)> callback = [&](CallInst* ci)
@@ -195,7 +218,7 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::s
 
 void ObjectLowering::parseType(Value *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*>& visited) {
     // dispatch on the dynamic type of ins
-    errs()<<*ins << "is being called by parseType\n";
+//    errs()<<*ins << "is being called by parseType\n";
 
     if (auto callins = dyn_cast_or_null<CallInst>(ins))
     {
@@ -317,20 +340,7 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
     assert(CI);
     errs() << "The Field instruction is  " << *i <<"\n";
     int64_t fieldIndex = CI->getSExtValue();
-    ObjectWrapper* objw;
-    std::function<void(CallInst*)> call_back = [&](CallInst* ci)
-    {
-        errs() << "Field Wrapper found function " << *ci << "\n";
-        if(buildObjMap.find(ci)!=buildObjMap.end())
-        {
-            errs() <<" This function has been mapped earlier through buildObjMap\n";
-            objw = buildObjMap[ci];
-        }
-        else {
-            objw = parseObjectWrapperInstruction(ci,visited);
-        }
-    };
-    parseType(firstarg, call_back,visited);
+    auto objw = parseObjectWrapperChain(firstarg, visited);
 //    errs() << "Obtained Field Wrapper AnalysisType for " << *i <<"\n";
     auto fieldwrapper = new FieldWrapper();
     fieldwrapper->baseObjPtr = firstarg;
@@ -340,13 +350,64 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
 }
 
 
+
 // ========================================================================
 
 void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
 {
     errs() << "Transforming Basic Block with the starting instruction of " << bb->front() << "\n";
+    auto int64Ty = llvm::Type::getInt64Ty(M.getContext());
+    for(auto &ins: *bb)
+    {
+        IRBuilder<> builder(&ins);
+        if(auto phi = dyn_cast<PHINode>(&ins))
+        {
+            if(phi->getType() == llvmObjectType)
+            {
+                std::set<PHINode*> visited;
+                ObjectWrapper* objw = parseObjectWrapperChain(phi,visited);
+                auto llvmType = objw->innerType->getLLVMRepresentation(M);
+                auto newPhi = builder.CreatePHI(llvmType, phi->getNumIncomingValues() );
+                replacementMapping[phi] = newPhi;
+            }
+        }
+        else if(auto callIns = dyn_cast<CallInst>(&ins))
+        {
+            auto callee = callIns->getCalledFunction();
+            if(callee == nullptr)
+            {
+                continue;
+            }
+            auto calleeName = callee->getName().str();
+            if(calleeName == "buildObject")
+            {
+                auto llvmType = buildObjMap[callIns]->innerType->getLLVMRepresentation(M);
+                auto llvmTypeSize = llvm::ConstantInt::get(int64Ty, M.getDataLayout().getTypeAllocSize(llvmType));
+                std::vector<Value *> arguments{llvmTypeSize};
+                auto mallocf = M.getFunction("malloc");
+                auto newMallocCall = builder.CreateCall(mallocf ,arguments);
+                replacementMapping[callIns] = newMallocCall;
+            }
+            else if(calleeName == "writeUInt64")//todo: improve this logic
+            {
+                auto fieldWrapper = readWriteFieldMap[callIns];
+                auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
+//                auto llvmPtrType = PointerType::getUnqual(llvmType);
+                std::vector<Value*> indices = {llvm::ConstantInt::get(int64Ty, 0),
+                                               llvm::ConstantInt::get(int64Ty,fieldWrapper->fieldIndex )};
+                if(replacementMapping.find(fieldWrapper->baseObjPtr) ==replacementMapping.end())
+                {
+                    errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
+                    assert(false);
+                }
+                auto gep = builder.CreateGEP(llvmType,replacementMapping[fieldWrapper->baseObjPtr],indices);
+                auto storeInst = builder.CreateStore(callIns->getArgOperand(1),gep);
+                replacementMapping[callIns] = storeInst;
+            }
+        }
+    }
+
     auto node = DT.getNode(bb);
-    // do some work
     for(auto child: node->getChildren())
     {
         auto dominated = child->getBlock();
@@ -363,33 +424,20 @@ void ObjectLowering::transform() {
     }
 
 
-    auto &context = M.getContext();
-    auto int64Ty = llvm::Type::getInt64Ty(context);
-
-    for(auto ins : this->buildObjects) {
-        std::set<PHINode*> visited;
-        auto objT = parseObjectWrapperInstruction(ins,visited);
-        auto llvmType = objT->innerType->getLLVMRepresentation(M);
-        errs() << *llvmType <<"\n";
-        auto llvmTypeSize = llvm::ConstantInt::get(int64Ty, M.getDataLayout().getTypeAllocSize(llvmType));
-        IRBuilder<> builder(ins);
-        std::vector<Value *> arguments{llvmTypeSize};
-        auto smallf = M.getFunction("malloc");
-        builder.CreateCall(smallf ,arguments);
-    }
-
-
+//    auto &context = M.getContext();
+//    auto int64Ty = llvm::Type::getInt64Ty(context);
+//
+//    for(auto ins : this->buildObjects) {
+//        std::set<PHINode*> visited;
+//        auto objT = parseObjectWrapperInstruction(ins,visited);
+//        auto llvmType = objT->innerType->getLLVMRepresentation(M);
+//        errs() << *llvmType <<"\n";
+//        auto llvmTypeSize = llvm::ConstantInt::get(int64Ty, M.getDataLayout().getTypeAllocSize(llvmType));
+//        IRBuilder<> builder(ins);
+//        std::vector<Value *> arguments{llvmTypeSize};
+//        auto smallf = M.getFunction("malloc");
+//        builder.CreateCall(smallf ,arguments);
+//    }
 
 
-
-
-
-
-
-    // get module ctxt
-    // fetch the first buildObject instruction
-    // get its type
-    // construct the corresponding ArrRef
-    // create the struct type
-    // create alloca inst
 }

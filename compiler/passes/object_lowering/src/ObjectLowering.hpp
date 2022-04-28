@@ -35,6 +35,8 @@ private:
   std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
   std::set<PHINode*> visitedPhiNodesGlobal;
   std::set<Function*> functionsToProcess;
+  std::map<Value*, Value*> replacementMapping;
+  Type* llvmObjectType;
 
 public:
   ObjectLowering(Module &M, Noelle *noelle, ModulePass* mp);
@@ -94,6 +96,8 @@ public:
 
 
         void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb);
+
+        ObjectWrapper *parseObjectWrapperChain(Value *i, set<PHINode *> &visited);
     };
 
 } // namespace object_lowering
