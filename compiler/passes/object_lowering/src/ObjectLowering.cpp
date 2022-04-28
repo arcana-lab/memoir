@@ -416,7 +416,8 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 auto gep = builder.CreateGEP(replacementMapping[fieldWrapper->baseObjPtr],indices);
                 auto storeInst = builder.CreateStore(callIns->getArgOperand(1),gep);
                 replacementMapping[callIns] = storeInst;
-                errs() << "out of the write a store is born" << *storeInst <<"\n";
+                errs() << "out of the write gep is born" << *gep <<"\n";
+                errs() << "out of the gep a store is born" << *storeInst <<"\n";
             }
         }
     }
