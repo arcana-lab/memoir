@@ -410,7 +410,8 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                     errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
                     assert(false);
                 }
-                auto gep = builder.CreateGEP(llvmType,replacementMapping[fieldWrapper->baseObjPtr],indices);
+                auto llvmPtrType = PointerType::getUnqual(llvmType);
+                auto gep = builder.CreateGEP(llvmPtrType,replacementMapping[fieldWrapper->baseObjPtr],indices);
                 auto storeInst = builder.CreateStore(callIns->getArgOperand(1),gep);
                 replacementMapping[callIns] = storeInst;
             }
