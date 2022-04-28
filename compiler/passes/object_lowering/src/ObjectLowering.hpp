@@ -25,6 +25,8 @@ private:
 
   Noelle *noelle;
 
+  ModulePass* mp;
+
   //std::unordered_set<CallInst *> callsToObjectIR;
   std::unordered_set<CallInst *> buildObjects;
   std::unordered_set<CallInst *> reads;
@@ -32,9 +34,10 @@ private:
   std::map<CallInst*, ObjectWrapper*> buildObjMap;
   std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
   std::set<PHINode*> visitedPhiNodesGlobal;
+  std::set<Function*> functionsToProcess;
 
 public:
-  ObjectLowering(Module &M, Noelle *noelle);
+  ObjectLowering(Module &M, Noelle *noelle, ModulePass* mp);
   
   void analyze();
 
@@ -90,6 +93,7 @@ public:
 
 
 
-};
+        void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb);
+    };
 
 } // namespace object_lowering

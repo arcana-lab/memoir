@@ -4,9 +4,10 @@
 
 using namespace object_lowering;
 
-ObjectLowering::ObjectLowering(Module &M, Noelle *noelle)
+ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
   : M(M),
-    noelle(noelle) {
+    noelle(noelle),
+    mp(mp){
   // Do initialization.
 }
 
@@ -18,7 +19,7 @@ void ObjectLowering::analyze() {
   for (auto &F : M) {
 
     if (F.getName().str() != "main") continue; // TODO: don't skip other functions
-
+    functionsToProcess.insert(&F);
     for (auto &I : instructions(F)) {
 
       if (auto callInst = dyn_cast_or_null<CallInst>(&I)) {
@@ -341,7 +342,27 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
 
 // ========================================================================
 
+void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
+{
+    errs() << "Transforming Basic Block with the starting instruction of " << bb->front() << "\n";
+    auto node = DT.getNode(bb);
+    // do some work
+    for(auto child: node->getChildren())
+    {
+        auto dominated = child->getBlock();
+        BasicBlockTransformer(DT, dominated);
+    }
+}
+
 void ObjectLowering::transform() {
+    for (auto f : functionsToProcess)
+    {
+        DominatorTree &DT = mp->getAnalysis<DominatorTreeWrapperPass>(*f).getDomTree();
+        auto &entry = f->getEntryBlock();
+        BasicBlockTransformer(DT,&entry);
+    }
+
+
     auto &context = M.getContext();
     auto int64Ty = llvm::Type::getInt64Ty(context);
 
