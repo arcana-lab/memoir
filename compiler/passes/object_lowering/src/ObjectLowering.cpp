@@ -365,7 +365,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
         {
             errs() << "encountering phi instruction " << *phi <<"\n";
             errs()<< "The phi has type " << *phi->getType() <<"\n";
-            errs() << "our type is " << llvmObjectType << "\n";
+            errs() << "our type is " << *llvmObjectType << "\n";
             if(phi->getType() == llvmObjectType)
             {
                 errs() << "those two types as equal" <<"\n";
@@ -395,6 +395,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
             }
             else if(calleeName == "writeUInt64")//todo: improve this logic
             {
+                errs() << *callIns << "\n";
                 auto fieldWrapper = readWriteFieldMap[callIns];
                 auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
 //                auto llvmPtrType = PointerType::getUnqual(llvmType);
