@@ -395,6 +395,11 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
             else if(calleeName == "writeUInt64")//todo: improve this logic
             {
                 auto fieldWrapper = readWriteFieldMap[callIns];
+                errs() << "Instruction " << *callIns << "\n\n has a field wrapper where ";
+                errs() <<"The base pointer is " << *(fieldWrapper->baseObjPtr) << "\n";
+                errs() << "The field index is" << fieldWrapper->fieldIndex << "\n";
+                errs() << "The type is " << fieldWrapper->objectType->toString() << "\n\n\n";
+
                 auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
 //                auto llvmPtrType = PointerType::getUnqual(llvmType);
                 std::vector<Value*> indices = {llvm::ConstantInt::get(int64Ty, 0),
