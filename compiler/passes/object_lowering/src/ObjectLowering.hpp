@@ -33,9 +33,10 @@ private:
   std::unordered_set<CallInst *> writes;
   std::map<CallInst*, ObjectWrapper*> buildObjMap;
   std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
-  std::set<PHINode*> visitedPhiNodesGlobal;
+  std::set<PHINode*> phiNodesToPopulate;
   std::set<Function*> functionsToProcess;
   std::map<Value*, Value*> replacementMapping;
+
   Type* llvmObjectType;
 
 public:
@@ -98,6 +99,12 @@ public:
         void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb);
 
         ObjectWrapper *parseObjectWrapperChain(Value *i, set<PHINode *> &visited);
+
+        // types
+
+        std::map<Instruction*, AnalysisType*> inst_to_a_type; // cache AnalysisTypes
+
+        void findInstsToDelete(Value* i, std::set<Value*> &toDelete);
     };
 
 } // namespace object_lowering

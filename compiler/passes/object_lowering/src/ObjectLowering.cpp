@@ -13,9 +13,6 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
 
 void ObjectLowering::analyze() {
   // Analyze the program
-
-
-
   errs() << "Running ObjectLowering. Analysis\n";
 
   for (auto &F : M) {
@@ -97,6 +94,10 @@ void ObjectLowering::analyze() {
 }
 
 object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited) {
+    if (inst_to_a_type.find(ins) != inst_to_a_type.end()) {
+        return inst_to_a_type[ins];
+    }    
+    
     // check to see what sort of call instruction this is dispatch on the name of the function
     auto callee = ins->getCalledFunction();
     if (!callee) {
@@ -108,6 +109,9 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
         errs() << "Unrecognized function call " << *ins << "\n";
         assert(false);
     }
+
+    AnalysisType* a_type;
+
     switch (FunctionNamesToObjectIR[n])
     {
         case OBJECT_TYPE:
@@ -126,9 +130,11 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
                 parseType(dyn_cast_or_null<Instruction>(ins), call_back,visited);
                 typeVec.push_back(type);
             }
-            auto objType = new ObjectType();
-            objType->fields = typeVec;
-            return objType;}
+            auto tmp = new ObjectType();
+            tmp->fields = typeVec;
+            a_type = tmp;
+            break;
+        }
         case ARRAY_TYPE:
             assert(false);
             break;
@@ -139,25 +145,25 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
             assert(false);
 //            break;
         case UINT64_TYPE:
-            return new object_lowering::IntegerType(64, false);
+            a_type = new object_lowering::IntegerType(64, false); break;
         case UINT32_TYPE:
-            return new object_lowering::IntegerType(32, true);
+            a_type = new object_lowering::IntegerType(32, true); break;
         case UINT16_TYPE:
-            return new object_lowering::IntegerType(16, true);
+            a_type = new object_lowering::IntegerType(16, true); break;
         case UINT8_TYPE:
-            return new object_lowering::IntegerType(8, true);
+            a_type = new object_lowering::IntegerType(8, true); break;
         case INT64_TYPE:
-            return new object_lowering::IntegerType(64, false);
+            a_type = new object_lowering::IntegerType(64, false); break;
         case INT32_TYPE:
-            return new object_lowering::IntegerType(32, false);
+            a_type = new object_lowering::IntegerType(32, false); break;
         case INT16_TYPE:
-            return new object_lowering::IntegerType(16, false);
+            a_type = new object_lowering::IntegerType(16, false); break;
         case INT8_TYPE:
-            return new object_lowering::IntegerType(8, false);
+            a_type = new object_lowering::IntegerType(8, false); break;
         case FLOAT_TYPE:
-            return new object_lowering::FloatType();
+            a_type = new object_lowering::FloatType(); break;
         case DOUBLE_TYPE:
-            return new object_lowering::DoubleType();
+            a_type = new object_lowering::DoubleType(); break;
         case BUILD_OBJECT:
             errs() << "There shouldn't be a build object in this chain \n";
             assert(false);
@@ -173,7 +179,8 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
             assert(false);
             break;
     }
-    return nullptr;
+    inst_to_a_type[ins] = a_type;
+    return a_type;
 }
 
 ObjectWrapper *ObjectLowering::parseObjectWrapperChain(Value*i , std::set<PHINode*> &visited)
@@ -258,7 +265,7 @@ void ObjectLowering::parseType(Value *ins, const std::function<void(CallInst*)>&
             return;
         }
         visited.insert(phiInst);
-        visitedPhiNodesGlobal.insert(phiInst);
+        //visitedPhiNodesGlobal.insert(phiInst);
         for(auto& val: phiInst->incoming_values())
         {
             parseType(val.get(), callback,visited);
@@ -376,6 +383,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 auto llvmPtrType = PointerType::getUnqual(llvmType);
                 auto newPhi = builder.CreatePHI(llvmPtrType, phi->getNumIncomingValues() );
                 errs() << "out of the old phi a new one is born" << *newPhi <<"\n";
+                phiNodesToPopulate.insert(phi);
                 replacementMapping[phi] = newPhi;
             }
         }
@@ -394,7 +402,10 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 std::vector<Value *> arguments{llvmTypeSize};
                 auto mallocf = M.getFunction("malloc");
                 auto newMallocCall = builder.CreateCall(mallocf ,arguments);
-                replacementMapping[callIns] = newMallocCall;
+
+                auto bc_inst = builder.CreateBitCast(newMallocCall, PointerType::getUnqual(llvmType));
+
+                replacementMapping[callIns] = bc_inst;
             }
             else if(calleeName == "writeUInt64")//todo: improve this logic
             {
@@ -431,28 +442,65 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
 }
 
 void ObjectLowering::transform() {
+    bool debug = false;
+
     for (auto f : functionsToProcess)
     {
+        replacementMapping.clear();
+        phiNodesToPopulate.clear();
         DominatorTree &DT = mp->getAnalysis<DominatorTreeWrapperPass>(*f).getDomTree();
         auto &entry = f->getEntryBlock();
         BasicBlockTransformer(DT,&entry);
+
+        // repopulate incoming values of phi nodes
+        for (auto old_phi : phiNodesToPopulate) {
+            if (replacementMapping.find(old_phi) == replacementMapping.end()) {
+                if (debug) errs() << "obj_lowering transform: no new phi found for " << *old_phi << "\n";
+                assert(false);
+            }
+            auto new_phi = dyn_cast<PHINode>(replacementMapping[old_phi]);
+            assert(new_phi);
+            if (debug) errs() << "will replace `" << *old_phi << "` with: `" << *new_phi << "\n";
+            for (size_t i = 0; i < old_phi->getNumIncomingValues(); i++) {
+                auto old_val = old_phi->getIncomingValue(i);
+                if (replacementMapping.find(old_val) == replacementMapping.end()) {
+                    if (debug) errs() << "obj_lowering transform: no new inst found for " << *old_val << "\n";
+                    assert(false);
+                }
+                auto new_val = replacementMapping[old_val];
+                if (debug) errs() << "Replacing operand" << i << ": " << *old_val << " with: " << *new_val << "\n";
+                new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
+            }
+            if (debug) errs() << "finished populating " << *new_phi << "\n";
+        }
     }
 
+    // find all instructions to delete 
+    std::set<Value*> toDelete;
+    for (auto p : replacementMapping) {
+        toDelete.insert(p.first);
+        
+    }
+    for (auto p : replacementMapping) {
+        findInstsToDelete(p.first, toDelete);
+        
+    }
 
-//    auto &context = M.getContext();
-//    auto int64Ty = llvm::Type::getInt64Ty(context);
-//
-//    for(auto ins : this->buildObjects) {
-//        std::set<PHINode*> visited;
-//        auto objT = parseObjectWrapperInstruction(ins,visited);
-//        auto llvmType = objT->innerType->getLLVMRepresentation(M);
-//        errs() << *llvmType <<"\n";
-//        auto llvmTypeSize = llvm::ConstantInt::get(int64Ty, M.getDataLayout().getTypeAllocSize(llvmType));
-//        IRBuilder<> builder(ins);
-//        std::vector<Value *> arguments{llvmTypeSize};
-//        auto smallf = M.getFunction("malloc");
-//        builder.CreateCall(smallf ,arguments);
-//    }
+    errs() << "going to delete this stuff\n";
+    for (auto v : toDelete) {
+        errs() << *v << "\n";
+        if (auto i = dyn_cast<Instruction>(v)) { 
+            i->replaceAllUsesWith(UndefValue::get(i->getType()));       
+            i->eraseFromParent();
+        }
+    }
+    
+}
 
-
+void ObjectLowering::findInstsToDelete(Value* i, std::set<Value*> &toDelete) {
+    for (auto u : i->users()) {
+        if (toDelete.find(u) != toDelete.end()) continue;
+        toDelete.insert(u);
+        findInstsToDelete(u, toDelete);
+    }
 }
