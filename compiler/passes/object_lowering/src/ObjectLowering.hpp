@@ -25,33 +25,41 @@ private:
 
   Noelle *noelle;
 
+  ModulePass* mp;
+
   //std::unordered_set<CallInst *> callsToObjectIR;
   std::unordered_set<CallInst *> buildObjects;
   std::unordered_set<CallInst *> reads;
   std::unordered_set<CallInst *> writes;
+  std::map<CallInst*, ObjectWrapper*> buildObjMap;
+  std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
+  std::set<PHINode*> visitedPhiNodesGlobal;
+  std::set<Function*> functionsToProcess;
+  std::map<Value*, Value*> replacementMapping;
+  Type* llvmObjectType;
 
 public:
-  ObjectLowering(Module &M, Noelle *noelle);
+  ObjectLowering(Module &M, Noelle *noelle, ModulePass* mp);
   
   void analyze();
 
   void transform();
 
-  ObjectWrapper* parseObjectWrapperInstruction(CallInst* i);
+  ObjectWrapper* parseObjectWrapperInstruction(CallInst* i, std::set<PHINode*> &visited);
 
-  void parseType(Value* ins, std::function<void(CallInst*)>);
+  void parseType(Value* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-  void parseTypeStoreInst(StoreInst* ins, std::function<void(CallInst*)>);
+  void parseTypeStoreInst(StoreInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-  void parseTypeLoadInst(LoadInst* ins, std::function<void(CallInst*)>);
+  void parseTypeLoadInst(LoadInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-  void parseTypeAllocaInst(AllocaInst* ins, std::function<void(CallInst*)>);
+  void parseTypeAllocaInst(AllocaInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-  void parseTypeGlobalValue(GlobalValue* ins, std::function<void(CallInst*)>);
+  void parseTypeGlobalValue(GlobalValue* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-  Type* parseTypeCallInst(CallInst *ins);
+  AnalysisType* parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited);
 
-  FieldWrapper* parseFieldWrapperIns(CallInst* i);
+  FieldWrapper* parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visited);
 
 
 //  void parseTypeCallInst(CallInst* ins);
@@ -65,8 +73,8 @@ public:
    * parseType(%call = getObjectType(%x, %y))
        * Calls
        * parseType(%x) and parseType(%y)
-       * parseType(%x = getint64) -> Type(int64)
-       * parseType(%y = getint64) -> Type(int64)
+       * parseType(%x = getint64) -> AnalysisType(int64)
+       * parseType(%y = getint64) -> AnalysisType(int64)
    * parseType(%call = getObjectType(%x, %y))
    * ObjectType(int64, int64)
    * r
@@ -87,6 +95,9 @@ public:
 
 
 
-};
+        void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb);
+
+        ObjectWrapper *parseObjectWrapperChain(Value *i, set<PHINode *> &visited);
+    };
 
 } // namespace object_lowering

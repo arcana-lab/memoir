@@ -9,9 +9,10 @@ to compile the test:
 ```
 rm -rf build
 mkdir -p build
-clang++ -I/home/pjp2292/object-ir/runtime/include -std=c++17 -emit-llvm -c main.cpp -o build/main.bc
+clang++ -I/home/pze9918/object-ir/runtime/include -std=c++17 -O1 -Xclang -disable-llvm-passes -emit-llvm -c main.cpp -o build/main.bc
 
-llvm-link build/main.bc /home/pjp2292/object-ir/runtime/build/objectir.bc -o build/all_in_one.bc
+
+llvm-link build/main.bc /home/pze9918/object-ir/runtime/build/objectir.bc -o build/all_in_one.bc
 
 noelle-norm build/all_in_one.bc -o build/all_in_one.bc
 
@@ -181,3 +182,11 @@ make[1]: Leaving directory '/home/pjp2292/object-ir/tests/unit/test_aos'
 
 
 
+
+
+```
+Transforming Basic Block with the starting instruction of   %1 = load %"struct.objectir::Type"*, %"struct.objectir::Type"** @objTy, align 8, !tbaa !2
+Transforming Basic Block with the starting instruction of   %.02 = phi %"struct.objectir::Object"* [ %4, %0 ], [ %.01, %6 ]
+Transforming Basic Block with the starting instruction of   %7 = add nuw nsw i32 %.0, 1
+Transforming Basic Block with the starting instruction of   %.01.lcssa = phi %"struct.objectir::Object"* [ %.01, %5 ]
+```

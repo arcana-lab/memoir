@@ -7,25 +7,25 @@
 
 using namespace object_lowering;
 
-TypeCode Type::getCode() {
+TypeCode AnalysisType::getCode() {
     return this->code;
 }
 
 /*
- * Type base class
+ * AnalysisType base class
  */
-Type::Type(TypeCode code) : code(code) {
+AnalysisType::AnalysisType(TypeCode code) : code(code) {
     // Do nothing
 }
 
-Type::~Type() {
+AnalysisType::~AnalysisType() {
     // Do nothing
 }
 
 /*
- * Object Type
+ * Object AnalysisType
  */
-ObjectType::ObjectType() : Type(TypeCode::ObjectTy) {
+ObjectType::ObjectType() : AnalysisType(TypeCode::ObjectTy) {
     // Do nothing.
 }
 
@@ -36,10 +36,10 @@ ObjectType::~ObjectType() {
 }
 
 /*
- * Array Type
+ * Array AnalysisType
  */
-ArrayType::ArrayType(Type *type)
-        : Type(TypeCode::ArrayTy),
+ArrayType::ArrayType(AnalysisType *type)
+        : AnalysisType(TypeCode::ArrayTy),
           elementType(type) {
     // Do nothing.
 }
@@ -49,9 +49,9 @@ ArrayType::~ArrayType() {
 }
 
 /*
- * Union Type
+ * Union AnalysisType
  */
-UnionType::UnionType() : Type(TypeCode::UnionTy) {
+UnionType::UnionType() : AnalysisType(TypeCode::UnionTy) {
     // Do nothing.
 }
 
@@ -62,10 +62,10 @@ UnionType::~UnionType() {
 }
 
 /*
- * Integer Type
+ * Integer AnalysisType
  */
 IntegerType::IntegerType(uint64_t bitwidth, bool isSigned)
-        : Type(TypeCode::IntegerTy),
+        : AnalysisType(TypeCode::IntegerTy),
           bitwidth(bitwidth),
           isSigned(isSigned) {
     // Do nothing.
@@ -75,9 +75,9 @@ IntegerType::~IntegerType() {
 }
 
 /*
- * Float Type
+ * Float AnalysisType
  */
-FloatType::FloatType() : Type(TypeCode::FloatTy) {
+FloatType::FloatType() : AnalysisType(TypeCode::FloatTy) {
     // Do nothing.
 }
 
@@ -87,9 +87,9 @@ FloatType::~FloatType() {
 
 
 /*
- * Double Type
+ * Double AnalysisType
  */
-DoubleType::DoubleType() : Type(TypeCode::DoubleTy) {
+DoubleType::DoubleType() : AnalysisType(TypeCode::DoubleTy) {
     // Do nothing.
 }
 
@@ -114,6 +114,11 @@ std::string ObjectType::toString() {
 }
 
 llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
+    if(created!=nullptr)
+    {
+        return created;
+    }
+
     std::vector<llvm::Type *> types;
 
     for (auto fieldType: this->fields) {
@@ -133,29 +138,29 @@ llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
                 assert(false);
         }
     }
-
-    return llvm::StructType::create(M.getContext(), types, "my_struct", false);
+    created = llvm::StructType::create(M.getContext(), types, "my_struct", false);
+    return created;
 }
 
 
 
 std::string ArrayType::toString() {
-    return "Type: array";
+    return "AnalysisType: array";
 }
 
 std::string UnionType::toString() {
-    return "Type: union";
+    return "AnalysisType: union";
 }
 
 std::string IntegerType::toString() {
-    return "Type: integer";
+    return "AnalysisType: integer";
 }
 
 std::string FloatType::toString() {
-    return "Type: float";
+    return "AnalysisType: float";
 }
 
 std::string DoubleType::toString() {
-    return "Type: double";
+    return "AnalysisType: double";
 }
 

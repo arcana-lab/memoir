@@ -27,9 +27,10 @@ namespace {
       /*
        * Fetch NOELLE
        */
+
       auto &noelle = getAnalysis<Noelle>();
 
-      auto objectLowering = new object_lowering::ObjectLowering(M, &noelle);
+      auto objectLowering = new object_lowering::ObjectLowering(M, &noelle, this);
 
       objectLowering->analyze();
 
@@ -40,6 +41,7 @@ namespace {
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequired<Noelle>();
+      AU.addRequired<DominatorTreeWrapperPass>();
     }
   };
 
