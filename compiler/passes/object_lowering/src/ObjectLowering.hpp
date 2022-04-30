@@ -105,6 +105,8 @@ public:
         std::map<Instruction*, AnalysisType*> inst_to_a_type; // cache AnalysisTypes
 
         void findInstsToDelete(Value* i, std::set<Value*> &toDelete);
+
+        Value *CreateGEPFromFieldWrapper(FieldWrapper *wrapper, IRBuilder<> &builder);
     };
 
 } // namespace object_lowering

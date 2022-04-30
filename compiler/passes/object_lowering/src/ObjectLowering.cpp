@@ -13,6 +13,7 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
 
 void ObjectLowering::analyze() {
   // Analyze the program
+
   errs() << "Running ObjectLowering. Analysis\n";
 
   for (auto &F : M) {
@@ -356,7 +357,21 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
     return fieldwrapper;
 }
 
-
+Value* ObjectLowering::CreateGEPFromFieldWrapper(FieldWrapper* fieldWrapper, IRBuilder<>& builder)
+{
+    auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
+    auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
+    std::vector<Value*> indices = {llvm::ConstantInt::get(int32Ty, 0),
+                                   llvm::ConstantInt::get(int32Ty,fieldWrapper->fieldIndex )};
+    if(replacementMapping.find(fieldWrapper->baseObjPtr) ==replacementMapping.end())
+    {
+        errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
+        assert(false);
+    }
+    auto llvmPtrType = PointerType::getUnqual(llvmType);
+    auto gep = builder.CreateGEP(replacementMapping[fieldWrapper->baseObjPtr],indices);
+    return gep;
+}
 
 // ========================================================================
 
@@ -400,31 +415,22 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 auto llvmType = buildObjMap[callIns]->innerType->getLLVMRepresentation(M);
                 auto llvmTypeSize = llvm::ConstantInt::get(int64Ty, M.getDataLayout().getTypeAllocSize(llvmType));
                 std::vector<Value *> arguments{llvmTypeSize};
-                auto mallocf = M.getFunction("malloc");
+                auto funcType = llvm::FunctionType::get(builder.getInt8PtrTy(),
+                                                        ArrayRef<Type *>({ builder.getInt64Ty() }), false);
+                auto mallocf = M.getOrInsertFunction("malloc", funcType);
                 auto newMallocCall = builder.CreateCall(mallocf ,arguments);
 
                 auto bc_inst = builder.CreateBitCast(newMallocCall, PointerType::getUnqual(llvmType));
 
                 replacementMapping[callIns] = bc_inst;
             }
+
+            //
+                //        return M.getOrInsertFunction(name, funcType);
             else if(calleeName == "writeUInt64" )//todo: improve this logic
             {
                 auto fieldWrapper = readWriteFieldMap[callIns];
-                errs() << "Instruction " << *callIns << "\n\n has a field wrapper where ";
-                errs() <<"The base pointer is " << *(fieldWrapper->baseObjPtr) << "\n";
-                errs() << "The field index is" << fieldWrapper->fieldIndex << "\n";
-                errs() << "The type is " << fieldWrapper->objectType->toString() << "\n\n\n";
-
-                auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
-                std::vector<Value*> indices = {llvm::ConstantInt::get(int32Ty, 0),
-                                               llvm::ConstantInt::get(int32Ty,fieldWrapper->fieldIndex )};
-                if(replacementMapping.find(fieldWrapper->baseObjPtr) ==replacementMapping.end())
-                {
-                    errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
-                    assert(false);
-                }
-                auto llvmPtrType = PointerType::getUnqual(llvmType);
-                auto gep = builder.CreateGEP(replacementMapping[fieldWrapper->baseObjPtr],indices);
+                auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder);
                 auto storeInst = builder.CreateStore(callIns->getArgOperand(1),gep);
                 replacementMapping[callIns] = storeInst;
                 errs() << "out of the write gep is born" << *gep <<"\n";
@@ -432,21 +438,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
             }
             else if(calleeName == "readUInt64"){
                 auto fieldWrapper = readWriteFieldMap[callIns];
-                errs() << "Instruction " << *callIns << "\n\n has a field wrapper where ";
-                errs() <<"The base pointer is " << *(fieldWrapper->baseObjPtr) << "\n";
-                errs() << "The field index is" << fieldWrapper->fieldIndex << "\n";
-                errs() << "The type is " << fieldWrapper->objectType->toString() << "\n\n\n";
-
-                auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
-                std::vector<Value*> indices = {llvm::ConstantInt::get(int32Ty, 0),
-                                               llvm::ConstantInt::get(int32Ty,fieldWrapper->fieldIndex )};
-                if(replacementMapping.find(fieldWrapper->baseObjPtr) ==replacementMapping.end())
-                {
-                    errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
-                    assert(false);
-                }
-                auto llvmPtrType = PointerType::getUnqual(llvmType);
-                auto gep = builder.CreateGEP(replacementMapping[fieldWrapper->baseObjPtr],indices);
+                auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder);
                 auto int64Ty = llvm::Type::getInt64Ty(M.getContext());
                 auto loadInst = builder.CreateLoad(int64Ty,gep, "loadfrominst64");
                 replacementMapping[callIns] = loadInst;

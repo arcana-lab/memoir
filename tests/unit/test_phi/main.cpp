@@ -51,6 +51,6 @@ int main() {
     std::cerr << "1=: " << readUInt64(field1) << "\n";
     std::cerr << "2=: " << readUInt64(field2) << "\n";
     std::cerr << "3=: " << readUInt64(field3) << "\n";
-    return x;
+    return 0;
 
 }
