@@ -14,7 +14,7 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
 void ObjectLowering::analyze() {
   // Analyze the program
 
-  errs() << "Running ObjectLowering. Analysis\n";
+  //errs() << "Running ObjectLowering. Analysis\n";
 
   for (auto &F : M) {
 
@@ -48,15 +48,15 @@ void ObjectLowering::analyze() {
     }
 
     for(auto ins : this->buildObjects) {
-        //errs() << "Parsing: " << *ins << "\n\n";
+        ////errs() << "Parsing: " << *ins << "\n\n";
         std::set<PHINode*> visited;
         auto objT = parseObjectWrapperInstruction(ins,visited);
         buildObjMap[ins] = objT;
-        errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
+//        //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
-    errs() << "READS\n\n";
+    ////errs() << "READS\n\n";
     for(auto ins : this->reads) {
-        errs() << "Parsing: " << *ins << "\n\n";
+        ////errs() << "Parsing: " << *ins << "\n\n";
         FieldWrapper* fw;
         std::set<PHINode*> visited;
         std::function<void(CallInst*)> call_back = [&](CallInst* ci)
@@ -64,17 +64,17 @@ void ObjectLowering::analyze() {
             fw = parseFieldWrapperIns(ci,visited);
         };
         parseType(ins->getArgOperand(0), call_back,visited);
-        errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
-        errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
-        errs() << "The field index is" << fw->fieldIndex << "\n";
-        errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
+        ////errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
+        ////errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
+        ////errs() << "The field index is" << fw->fieldIndex << "\n";
+        ////errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
         readWriteFieldMap[ins] = fw;
         //auto objT = parseObjectWrapperInstruction(ins);
-        //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
+        //////errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
-    errs() << "WRITES\n\n";
+    ////errs() << "WRITES\n\n";
     for(auto ins : this->writes) {
-        errs() << "Parsing: " << *ins << "\n\n";
+        ////errs() << "Parsing: " << *ins << "\n\n";
         FieldWrapper* fw;
         std::set<PHINode*> visited;
         std::function<void(CallInst*)> call_back = [&](CallInst* ci)
@@ -82,13 +82,13 @@ void ObjectLowering::analyze() {
             fw = parseFieldWrapperIns(ci,visited);
         };
         parseType(ins->getArgOperand(0), call_back,visited);
-        errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
-        errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
-        errs() << "The field index is" << fw->fieldIndex << "\n";
-        errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
+        ////errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
+        ////errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
+        ////errs() << "The field index is" << fw->fieldIndex << "\n";
+        ////errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
         readWriteFieldMap[ins] = fw;
         //auto objT = parseObjectWrapperInstruction(ins);
-        //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
+        //////errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
 
   }
@@ -102,12 +102,12 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
     // check to see what sort of call instruction this is dispatch on the name of the function
     auto callee = ins->getCalledFunction();
     if (!callee) {
-        errs() << "Unrecognized indirect call" << *ins << "\n";
+        ////errs() << "Unrecognized indirect call" << *ins << "\n";
         assert(false);
     }
     auto n = callee->getName().str();
     if (!isObjectIRCall(n)) {
-        errs() << "Unrecognized function call " << *ins << "\n";
+        ////errs() << "Unrecognized function call " << *ins << "\n";
         assert(false);
     }
 
@@ -166,7 +166,7 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
         case DOUBLE_TYPE:
             a_type = new object_lowering::DoubleType(); break;
         case BUILD_OBJECT:
-            errs() << "There shouldn't be a build object in this chain \n";
+            ////errs() << "There shouldn't be a build object in this chain \n";
             assert(false);
             break;
         case BUILD_ARRAY:
@@ -176,7 +176,7 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
             assert(false);
             break;
         default:
-            errs() <<"the switch should cover everything this is wrong\n";
+            ////errs() <<"the switch should cover everything this is wrong\n";
             assert(false);
             break;
     }
@@ -189,7 +189,7 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperChain(Value*i , std::set<PHINod
     ObjectWrapper* objw;
     std::function<void(CallInst*)> call_back = [&](CallInst* ci)
     {
-//        errs() << "Field Wrapper found function " << *ci << "\n";
+//        ////errs() << "Field Wrapper found function " << *ci << "\n";
         objw = parseObjectWrapperInstruction(ci,visited);
     };
     parseType(i, call_back,visited);
@@ -199,7 +199,7 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperChain(Value*i , std::set<PHINod
 ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::set<PHINode*> &visited) {
     if(buildObjMap.find(i)!=buildObjMap.end())
     {
-//        errs() <<" This function has been mapped earlier through buildObjMap\n";
+//        ////errs() <<" This function has been mapped earlier through buildObjMap\n";
         return  buildObjMap[i];
     }
 
@@ -210,11 +210,11 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::s
         type = parseTypeCallInst(ci,visited);
     };
     parseType(dyn_cast_or_null<Instruction>(arg),callback,visited);
-//    errs() << "Obtained ObjectWrapper AnalysisType for " << *i <<"\n";
+//    ////errs() << "Obtained ObjectWrapper AnalysisType for " << *i <<"\n";
 
     if(type->getCode() != ObjectTy)
     {
-        errs() << "It's not an object";
+        ////errs() << "It's not an object";
         assert(false);
     }
     auto* objt = (ObjectType*) type;
@@ -226,7 +226,7 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::s
 
 void ObjectLowering::parseType(Value *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*>& visited) {
     // dispatch on the dynamic type of ins
-//    errs()<<*ins << "is being called by parseType\n";
+//    ////errs()<<*ins << "is being called by parseType\n";
 
     if (auto callins = dyn_cast_or_null<CallInst>(ins))
     {
@@ -260,7 +260,7 @@ void ObjectLowering::parseType(Value *ins, const std::function<void(CallInst*)>&
          *          call call back
          */
 
-//        errs() << "parse type phi " << *phiInst << "\n";
+//        ////errs() << "parse type phi " << *phiInst << "\n";
         if(visited.find(phiInst) != visited.end())
         {
             return;
@@ -273,11 +273,11 @@ void ObjectLowering::parseType(Value *ins, const std::function<void(CallInst*)>&
         }
         return;
     } else if (!ins) {
-        errs() << "i think this is a nullptr\n";
+        ////errs() << "i think this is a nullptr\n";
         assert(false); 
     }
     // we can't handle this so we just like low key give up
-    errs() << "Unrecognized Instruction" << *ins <<"\n";
+    ////errs() << "Unrecognized Instruction" << *ins <<"\n";
     assert(false);
 }
 
@@ -292,10 +292,10 @@ void ObjectLowering::parseTypeLoadInst(LoadInst *ins, const std::function<void(C
     auto ptrOp = ins->getPointerOperand();
 
     /*if (auto gv = dyn_cast<GlobalValue>(ptrOp)) {
-        errs() << *gv << " is a global value\n";
+        ////errs() << *gv << " is a global value\n";
         for(auto u : gv->users())
         {
-            errs() << "\t" << *u << "\n";
+            ////errs() << "\t" << *u << "\n";
         }
     }
     assert(false);*/
@@ -311,7 +311,7 @@ void ObjectLowering::parseTypeAllocaInst(AllocaInst *ins, const std::function<vo
             return parseType(i,callback,visited);
         }
     }
-    errs() << "Didn't find any store instruction uses for the instruction" <<*ins;
+    ////errs() << "Didn't find any store instruction uses for the instruction" <<*ins;
     assert(false);
 }
 
@@ -323,7 +323,7 @@ void ObjectLowering::parseTypeGlobalValue(GlobalValue *gv, const std::function<v
             return parseType(i,callback,visited);
         }
     }
-    errs() << "Didn't find any store instruction uses for the gv" << *gv;
+    ////errs() << "Didn't find any store instruction uses for the gv" << *gv;
     assert(false);
 }
 
@@ -333,23 +333,23 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
 {
     auto callee = i->getCalledFunction();
     if (!callee) {
-        errs() << "Unrecognized indirect call" << *i << "\n";
+        ////errs() << "Unrecognized indirect call" << *i << "\n";
         assert(false);
     }
     auto n = callee->getName().str();
     if(n != "getObjectField")
     {
-        errs() << "Def use chain gave us the wrong function?" << *i;
+        ////errs() << "Def use chain gave us the wrong function?" << *i;
         assert(false);
     }
     auto firstarg = i->getArgOperand(0);
     auto secondarg =  i->getArgOperand(1);
     auto CI = dyn_cast_or_null<ConstantInt>(secondarg);
     assert(CI);
-    errs() << "The Field instruction is  " << *i <<"\n";
+    ////errs() << "The Field instruction is  " << *i <<"\n";
     int64_t fieldIndex = CI->getSExtValue();
     auto objw = parseObjectWrapperChain(firstarg, visited);
-//    errs() << "Obtained Field Wrapper AnalysisType for " << *i <<"\n";
+//    ////errs() << "Obtained Field Wrapper AnalysisType for " << *i <<"\n";
     auto fieldwrapper = new FieldWrapper();
     fieldwrapper->baseObjPtr = firstarg;
     fieldwrapper->fieldIndex = fieldIndex; // NOLINT(cppcoreguidelines-narrowing-conversions)
@@ -365,7 +365,7 @@ Value* ObjectLowering::CreateGEPFromFieldWrapper(FieldWrapper* fieldWrapper, IRB
                                    llvm::ConstantInt::get(int32Ty,fieldWrapper->fieldIndex )};
     if(replacementMapping.find(fieldWrapper->baseObjPtr) ==replacementMapping.end())
     {
-        errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
+        ////errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
         assert(false);
     }
     auto llvmPtrType = PointerType::getUnqual(llvmType);
@@ -377,27 +377,27 @@ Value* ObjectLowering::CreateGEPFromFieldWrapper(FieldWrapper* fieldWrapper, IRB
 
 void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
 {
-    errs() << "Transforming Basic Block  " <<*bb << "\n\n";
+    ////errs() << "Transforming Basic Block  " <<*bb << "\n\n";
     auto int64Ty = llvm::Type::getInt64Ty(M.getContext());
 
     auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
     for(auto &ins: *bb)
     {
-        errs() << "encountering  instruction " << ins <<"\n";
+        //errs() << "encountering  instruction " << ins <<"\n";
         IRBuilder<> builder(&ins);
         if(auto phi = dyn_cast<PHINode>(&ins))
         {
-            errs()<< "The phi has type " << *phi->getType() <<"\n";
-            errs() << "our type is " << *llvmObjectType << "\n";
+            //errs()<< "The phi has type " << *phi->getType() <<"\n";
+            //errs() << "our type is " << *llvmObjectType << "\n";
             if(phi->getType() == llvmObjectType)
             {
-                errs() << "those two types as equal" <<"\n";
+                //errs() << "those two types as equal" <<"\n";
                 std::set<PHINode*> visited;
                 ObjectWrapper* objw = parseObjectWrapperChain(phi,visited);
                 auto llvmType = objw->innerType->getLLVMRepresentation(M);
                 auto llvmPtrType = PointerType::getUnqual(llvmType);
                 auto newPhi = builder.CreatePHI(llvmPtrType, phi->getNumIncomingValues() );
-                errs() << "out of the old phi a new one is born" << *newPhi <<"\n";
+                //errs() << "out of the old phi a new one is born" << *newPhi <<"\n";
                 phiNodesToPopulate.insert(phi);
                 replacementMapping[phi] = newPhi;
             }
@@ -433,8 +433,8 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder);
                 auto storeInst = builder.CreateStore(callIns->getArgOperand(1),gep);
                 replacementMapping[callIns] = storeInst;
-                errs() << "out of the write gep is born" << *gep <<"\n";
-                errs() << "out of the gep a store is born" << *storeInst <<"\n";
+                //errs() << "out of the write gep is born" << *gep <<"\n";
+                //errs() << "out of the gep a store is born" << *storeInst <<"\n";
             }
             else if(calleeName == "readUInt64"){
                 auto fieldWrapper = readWriteFieldMap[callIns];
@@ -443,8 +443,8 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 auto loadInst = builder.CreateLoad(int64Ty,gep, "loadfrominst64");
                 replacementMapping[callIns] = loadInst;
                 ins.replaceAllUsesWith(loadInst);
-                errs() << "out of the write gep is born" << *gep <<"\n";
-                errs() << "from the readuint64 we have a load" << *loadInst <<"\n";
+                //errs() << "out of the write gep is born" << *gep <<"\n";
+                //errs() << "from the readuint64 we have a load" << *loadInst <<"\n";
             }
         }
     }
@@ -502,9 +502,9 @@ void ObjectLowering::transform() {
         
     }
 
-    errs() << "going to delete this stuff\n";
+    //errs() << "going to delete this stuff\n";
     for (auto v : toDelete) {
-        errs() << *v << "\n";
+        //errs() << *v << "\n";
         if (auto i = dyn_cast<Instruction>(v)) { 
             i->replaceAllUsesWith(UndefValue::get(i->getType()));       
             i->eraseFromParent();
