@@ -44,26 +44,41 @@ ObjectField::ObjectField(Object *obj)
   : Field(obj->getType()),
     value(obj) {}
 
+PointerField::PointerField(Type *type)
+  : Field(type),
+    value(nullptr) {}
+
+void PointerField::writeField(Object *value) {
+  this->value = value;
+}
+
+Object *PointerField::readField() {
+  return this->value;
+}
+
 Type *Field::getType() {
   return this->type;
 }
 
 Field *Field::createField(Type *type) {
   switch (type->getCode()) {
+    case TypeCode::StubTy: {
+      auto stubType = ((StubType *)type);
+      auto resolvedType = stubType->resolve();
+      return Field::createField(resolvedType);
+    }
     case TypeCode::ObjectTy:
     case TypeCode::ArrayTy:
     case TypeCode::UnionTy:
-      std::cerr << "Object type found\n";
       return new ObjectField(type);
     case TypeCode::IntegerTy:
-      std::cerr << "Integer type found\n";
       return new IntegerField(type);
     case TypeCode::FloatTy:
-      std::cerr << "Float type found\n";
       return new FloatField(type);
     case TypeCode::DoubleTy:
-      std::cerr << "Double type found\n";
       return new DoubleField(type);
+    case TypeCode::PointerTy:
+      return new PointerField(type);
     default:
       // Error
       break;

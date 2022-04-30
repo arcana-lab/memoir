@@ -10,6 +10,7 @@
  */
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace objectir {
@@ -21,19 +22,25 @@ enum TypeCode {
   IntegerTy,
   FloatTy,
   DoubleTy,
+  PointerTy,
+  StubTy,
 };
 
 struct Type {
 protected:
   TypeCode code;
+  std::string name;
 
-public:  
+public:
   TypeCode getCode();
+  bool hasName();
+  std::string getName();
 
+  Type(TypeCode code, std::string name);
   Type(TypeCode code);
   ~Type();
-  
-  virtual std::string toString() = 0;  
+
+  virtual std::string toString() = 0;
 
   friend class Object;
   friend class Field;
@@ -42,6 +49,7 @@ public:
 struct ObjectType : public Type {
   std::vector<Type *> fields;
 
+  ObjectType(std::string name);
   ObjectType();
   ~ObjectType();
 
@@ -51,6 +59,7 @@ struct ObjectType : public Type {
 struct ArrayType : public Type {
   Type *elementType;
 
+  ArrayType(Type *elementType, std::string name);
   ArrayType(Type *elementType);
   ~ArrayType();
 
@@ -60,6 +69,7 @@ struct ArrayType : public Type {
 struct UnionType : public Type {
   std::vector<Type *> members;
 
+  UnionType(std::string name);
   UnionType();
   ~UnionType();
 
@@ -89,5 +99,65 @@ struct DoubleType : public Type {
 
   std::string toString();
 };
+
+struct PointerType : public Type {
+  Type *containedType;
+
+  PointerType(Type *containedType);
+  ~PointerType();
+
+  std::string toString();
+};
+
+/*
+ * Stub Type
+ *
+ * The stub type is used to represent a named type that
+ * hasn't been defined yet. Using a field of stub type
+ * before the stub type is resolved will result in an error.
+ *
+ * NOTE: The stub type does not need to be represented in
+ * the middle end, it is only necessary to make the runtime
+ * work.
+ */
+struct StubType : public Type {
+  std::string name;
+
+  Type *resolvedType;
+
+  StubType(std::string name);
+  ~StubType();
+
+  Type *resolve();
+
+  std::string toString();
+};
+
+/*
+ * Type Factory
+ *
+ * The Type factory allows the runtime to resolve
+ * named types since they don't have a static view
+ * of the program.
+ */
+class TypeFactory {
+public:
+  static TypeFactory *getInstance();
+
+  void registerType(std::string name, Type *type);
+  Type *getType(std::string name);
+
+private:
+  TypeFactory();
+
+  std::unordered_map<std::string, Type *> nameToType;
+};
+
+/*
+ * Helper functions
+ */
+bool isObjectType(Type *type);
+
+bool isIntrinsicType(Type *type);
 
 } // namespace objectir

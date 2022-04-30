@@ -95,6 +95,9 @@ __attribute__((noinline)) double readDouble(Field *field);
 
 // Pointer access
 __attribute__((noinline)) Object *readObject(Field *field);
+__attribute__((noinline)) Object *readPointer(Field *field);
+__attribute__((noinline)) void writePointer(Field *field,
+                                            Object *value);
 
 #ifdef __cplusplus
 } // extern "C"

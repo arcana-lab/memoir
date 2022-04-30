@@ -1,15 +1,49 @@
+#include <iostream>
+
 #include "types.h"
 
-using namespace objectir;
+namespace objectir {
 
 TypeCode Type::getCode() {
   return this->code;
 }
 
 /*
+ * Helper functions
+ */
+bool isObjectType(Type *type) {
+  TypeCode code = type->getCode();
+  switch (code) {
+    case ObjectTy:
+    case ArrayTy:
+    case UnionTy:
+    case StubTy:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool isIntrinsicType(Type *type) {
+  TypeCode code = type->getCode();
+  switch (code) {
+    case IntegerTy:
+    case FloatTy:
+    case DoubleTy:
+      return true;
+    default:
+      return false;
+  }
+}
+
+/*
  * Type base class
  */
-Type::Type(TypeCode code) : code(code) {
+Type::Type(TypeCode code, std::string name) : code(code) {
+  // Do nothing
+}
+
+Type::Type(TypeCode code) : Type::Type(code, "") {
   // Do nothing
 }
 
@@ -20,39 +54,55 @@ Type::~Type() {
 /*
  * Object Type
  */
-ObjectType::ObjectType() : Type(TypeCode::ObjectTy) {
+
+ObjectType::ObjectType(std::string name)
+  : Type(TypeCode::ObjectTy, name) {
+  // Do nothing.
+}
+
+ObjectType::ObjectType() : ObjectType::ObjectType("") {
   // Do nothing.
 }
 
 ObjectType::~ObjectType() {
   for (auto field : this->fields) {
-    delete field;
+    // delete field;
   }
 }
 
 /*
  * Array Type
  */
-ArrayType::ArrayType(Type *type)
-  : Type(TypeCode::ArrayTy),
+ArrayType::ArrayType(Type *type, std::string name)
+  : Type(TypeCode::ArrayTy, name),
     elementType(type) {
   // Do nothing.
 }
 
+ArrayType::ArrayType(Type *type)
+  : ArrayType::ArrayType(type, "") {
+  // Do nothing.
+}
+
 ArrayType::~ArrayType() {
-  delete elementType;
+  // Do nothing.
 }
 
 /*
  * Union Type
  */
-UnionType::UnionType() : Type(TypeCode::UnionTy) {
+UnionType::UnionType(std::string name)
+  : Type(TypeCode::UnionTy, name) {
+  // Do nothing.
+}
+
+UnionType::UnionType() : UnionType::UnionType("") {
   // Do nothing.
 }
 
 UnionType::~UnionType() {
   for (auto member : this->members) {
-    delete member;
+    // delete member;
   }
 }
 
@@ -80,7 +130,6 @@ FloatType::~FloatType() {
   // Do nothing;
 }
 
-
 /*
  * Double Type
  */
@@ -91,3 +140,43 @@ DoubleType::DoubleType() : Type(TypeCode::DoubleTy) {
 DoubleType::~DoubleType() {
   // Do nothing.
 }
+
+/*
+ * Pointer Type
+ */
+PointerType::PointerType(Type *containedType)
+  : Type(TypeCode::PointerTy),
+    containedType(containedType) {
+  if (!isObjectType(containedType)) {
+    std::cerr
+        << "ERROR: Contained type of pointer is not an object!\n";
+    exit(1);
+  }
+}
+
+PointerType::~PointerType() {
+  // Do nothing.
+}
+
+/*
+ * Stub Type
+ */
+StubType::StubType(std::string name)
+  : Type(TypeCode::StubTy),
+    name(name) {
+  // Do nothing.
+}
+
+Type *StubType::resolve() {
+  // Resolve the stub type.
+  if (!this->resolvedType) {
+    std::cerr
+        << "ERROR: " << name
+        << " is not resolved to a type before it's use.";
+    exit(1);
+  }
+
+  return this->resolvedType;
+}
+
+} // namespace objectir

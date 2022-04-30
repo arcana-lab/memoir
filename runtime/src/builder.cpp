@@ -24,8 +24,37 @@ Type *getObjectType(int numFields, ...) {
   return type;
 }
 
+Type *nameObjectType(char *name, int numFields, ...) {
+  auto type = new ObjectType(name);
+
+  auto typeFactory = TypeFactory::getInstance();
+  typeFactory->registerType(name, type);
+
+  va_list args;
+
+  va_start(args, numFields);
+
+  for (int i = 0; i < numFields; i++) {
+    auto arg = va_arg(args, Type *);
+    type->fields.push_back(arg);
+  }
+
+  va_end(args);
+
+  return type;
+}
+
 Type *getArrayType(Type *type) {
   return new ArrayType(type);
+}
+
+Type *nameArrayType(char *name, Type *elementType) {
+  auto type = new ArrayType(elementType, name);
+
+  auto typeFactory = TypeFactory::getInstance();
+  typeFactory->registerType(name, type);
+
+  return type;
 }
 
 Type *getUnionType(int numMembers, ...) {
@@ -43,6 +72,31 @@ Type *getUnionType(int numMembers, ...) {
   va_end(args);
 
   return type;
+}
+
+Type *nameUnionType(char *name, int numMembers, ...) {
+  auto type = new UnionType(name);
+
+  auto typeFactory = TypeFactory::getInstance();
+  typeFactory->registerType(name, type);
+
+  va_list args;
+
+  va_start(args, numMembers);
+
+  for (int i = 0; i < numMembers; i++) {
+    auto arg = va_arg(args, Type *);
+    type->members.push_back(arg);
+  }
+
+  va_end(args);
+
+  return type;
+}
+
+Type *getNamedType(char *name) {
+  auto typeFactory = TypeFactory::getInstance();
+  return typeFactory->getType(name);
 }
 
 Type *getIntegerType(uint64_t bitwidth, bool isSigned) {
@@ -91,6 +145,10 @@ Type *getFloatType() {
 
 Type *getDoubleType() {
   return new DoubleType();
+}
+
+Type *getPointerType(Type *containedType) {
+  return new PointerType(containedType);
 }
 
 /*
