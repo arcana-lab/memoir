@@ -17,6 +17,9 @@ llvm-link build/main.bc /home/pze9918/object-ir/runtime/build/objectir.bc -o bui
 noelle-norm build/all_in_one.bc -o build/all_in_one.bc
 
 noelle-load -load ../../../compiler/passes/build/lib/ObjectLowering.so -ObjectLowering build/all_in_one.bc -o build/all_in_one.bc
+
+llc -filetype=obj build/all_in_one.bc -o build/all_in_one.o
+clang++ build/all_in_one.o -o build/all_in_one
 ```
 
 to debug - invoke a different bash script:
