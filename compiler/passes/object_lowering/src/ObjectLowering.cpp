@@ -407,7 +407,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
 
                 replacementMapping[callIns] = bc_inst;
             }
-            else if(calleeName == "writeUInt64")//todo: improve this logic
+            else if(calleeName == "writeUInt64" )//todo: improve this logic
             {
                 auto fieldWrapper = readWriteFieldMap[callIns];
                 errs() << "Instruction " << *callIns << "\n\n has a field wrapper where ";
@@ -429,6 +429,30 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 replacementMapping[callIns] = storeInst;
                 errs() << "out of the write gep is born" << *gep <<"\n";
                 errs() << "out of the gep a store is born" << *storeInst <<"\n";
+            }
+            else if(calleeName == "readUInt64"){
+                auto fieldWrapper = readWriteFieldMap[callIns];
+                errs() << "Instruction " << *callIns << "\n\n has a field wrapper where ";
+                errs() <<"The base pointer is " << *(fieldWrapper->baseObjPtr) << "\n";
+                errs() << "The field index is" << fieldWrapper->fieldIndex << "\n";
+                errs() << "The type is " << fieldWrapper->objectType->toString() << "\n\n\n";
+
+                auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
+                std::vector<Value*> indices = {llvm::ConstantInt::get(int32Ty, 0),
+                                               llvm::ConstantInt::get(int32Ty,fieldWrapper->fieldIndex )};
+                if(replacementMapping.find(fieldWrapper->baseObjPtr) ==replacementMapping.end())
+                {
+                    errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
+                    assert(false);
+                }
+                auto llvmPtrType = PointerType::getUnqual(llvmType);
+                auto gep = builder.CreateGEP(replacementMapping[fieldWrapper->baseObjPtr],indices);
+                auto int64Ty = llvm::Type::getInt64Ty(M.getContext());
+                auto loadInst = builder.CreateLoad(int64Ty,gep, "loadfrominst64");
+                replacementMapping[callIns] = loadInst;
+                ins.replaceAllUsesWith(loadInst);
+                errs() << "out of the write gep is born" << *gep <<"\n";
+                errs() << "from the readuint64 we have a load" << *loadInst <<"\n";
             }
         }
     }

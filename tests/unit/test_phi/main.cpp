@@ -31,7 +31,7 @@ int main() {
   }
     Field *field1 = getObjectField(myObj1, 0);
     writeUInt64(field1, 123);
-
-
+    int64_t x = readUInt64(field1);
+    return x;
 
 }
