@@ -1,9 +1,0 @@
-Type: integer
-Integer type found
-integer
-(Object: 
-  (Field: Type: integer)
-)
-
-Object type found
-object
