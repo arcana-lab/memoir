@@ -1,14 +1,10 @@
 #pragma once
 
 #include "noelle/core/Noelle.hpp"
-
 #include "Utils.hpp"
-
 #include "types.hpp"
-
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
-
 
 /*
  * Pass to perform lowering from object-ir to LLVM IR
@@ -22,91 +18,54 @@ namespace object_lowering {
 class ObjectLowering {
 private:
   Module &M;
-
   Noelle *noelle;
-
   ModulePass* mp;
 
-  //std::unordered_set<CallInst *> callsToObjectIR;
+  Type* llvmObjectType; // hacky way to get the represenation of Object* type in llvm
+
   std::unordered_set<CallInst *> buildObjects;
-  std::unordered_set<CallInst *> reads;
+  std::unordered_set<CallInst *> reads; // todo we use this?
   std::unordered_set<CallInst *> writes;
   std::map<CallInst*, ObjectWrapper*> buildObjMap;
   std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
-  std::set<PHINode*> phiNodesToPopulate;
   std::set<Function*> functionsToProcess;
+  
   std::map<Value*, Value*> replacementMapping;
-
-  Type* llvmObjectType;
+  std::set<PHINode*> phiNodesToPopulate;
+  
+  std::map<Instruction*, AnalysisType*> inst_to_a_type; // cache AnalysisTypes // TODO: what is this??
 
 public:
   ObjectLowering(Module &M, Noelle *noelle, ModulePass* mp);
   
+  // ==================== ANALYSIS ====================
+
   void analyze();
 
-  void transform();
+  AnalysisType* parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited);
 
-  ObjectWrapper* parseObjectWrapperInstruction(CallInst* i, std::set<PHINode*> &visited);
+  ObjectWrapper* parseObjectWrapperChain(Value *i, set<PHINode *> &visited); // this function wraps over the second one ...
+  ObjectWrapper* parseObjectWrapperInstruction(CallInst* i, std::set<PHINode*> &visited); // TODO: why 2 of these?
+
+  
+  FieldWrapper* parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visited);
 
   void parseType(Value* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
   void parseTypeStoreInst(StoreInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-
   void parseTypeLoadInst(LoadInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-
   void parseTypeAllocaInst(AllocaInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-
   void parseTypeGlobalValue(GlobalValue* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-  AnalysisType* parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited);
+  // ==================== TRANSFORMATION ====================
 
-  FieldWrapper* parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visited);
+  void transform();
+  
+  void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb);
 
+  Value* CreateGEPFromFieldWrapper(FieldWrapper *wrapper, IRBuilder<> &builder);
 
-//  void parseTypeCallInst(CallInst* ins);
-
-
-  /*
-   * parseType(%0 = load %typety)
-   * Calls
-   * parseType(%typety = alloca .....)
-   * Calls
-   * parseType(%call = getObjectType(%x, %y))
-       * Calls
-       * parseType(%x) and parseType(%y)
-       * parseType(%x = getint64) -> AnalysisType(int64)
-       * parseType(%y = getint64) -> AnalysisType(int64)
-   * parseType(%call = getObjectType(%x, %y))
-   * ObjectType(int64, int64)
-   * r
-   * base case:
-   *
-   *
-   *
-   * if ins is a load from %typety
-   *    go to the uses of typety find store
-   *    value of store is going to be a callinst to get object type
-   *    alloca for type*
-   *    walk back to store untill we find call inst
-   *    foreach parameters:
-   *
-   *
-   *
-   */
-
-
-
-        void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb);
-
-        ObjectWrapper *parseObjectWrapperChain(Value *i, set<PHINode *> &visited);
-
-        // types
-
-        std::map<Instruction*, AnalysisType*> inst_to_a_type; // cache AnalysisTypes
-
-        void findInstsToDelete(Value* i, std::set<Value*> &toDelete);
-
-        Value *CreateGEPFromFieldWrapper(FieldWrapper *wrapper, IRBuilder<> &builder);
-    };
+  void findInstsToDelete(Value* i, std::set<Value*> &toDelete);
+  };
 
 } // namespace object_lowering

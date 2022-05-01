@@ -1,19 +1,6 @@
-//
-// Created by peter on 4/18/22.
-//
-
 #ifndef OBJECTLOWERING_TYPES_H
 #define OBJECTLOWERING_TYPES_H
 #pragma once
-
-/*
- * Object representation recognizable by LLVM IR
- * This file describes the AnalysisType interface for the
- * object-ir library.
- *
- * Author(s): Tommy McMichen
- * Created: Mar 7, 2022
- */
 
 #include <string>
 #include <vector>
@@ -21,11 +8,6 @@
 #include <llvm/IR/DerivedTypes.h>
 #include "llvm/Support/raw_ostream.h"
 #include <llvm/IR/Module.h>
-
-//  (%0 -> ObjectType(int1,int2,int3))
-// (%buildobject -> Object(ObjectType(int1,int2,int3))
-// (readfield(%buildobject)
-// (%read1 -> pointer(int1))
 
 namespace object_lowering {
 
@@ -106,6 +88,7 @@ namespace object_lowering {
         std::string toString();
     };
 
+    // new abstractions for ObjectLowering pass
 
     struct ObjectWrapper{
         explicit ObjectWrapper(ObjectType*);
@@ -115,7 +98,7 @@ namespace object_lowering {
     struct FieldWrapper{
         int fieldIndex;
         ObjectType* objectType;
-        llvm::Value* baseObjPtr;
+        llvm::Value* baseObjPtr; // pointer to the malloc, phi, etc value that this field belongs to
     };
 
 } // namespace objectir

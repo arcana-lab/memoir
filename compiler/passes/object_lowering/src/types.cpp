@@ -1,9 +1,4 @@
-//
-// Created by peter on 4/18/22.
-//
-
 #include "types.hpp"
-
 
 using namespace object_lowering;
 
@@ -14,20 +9,14 @@ TypeCode AnalysisType::getCode() {
 /*
  * AnalysisType base class
  */
-AnalysisType::AnalysisType(TypeCode code) : code(code) {
-    // Do nothing
-}
+AnalysisType::AnalysisType(TypeCode code) : code(code) { }
 
-AnalysisType::~AnalysisType() {
-    // Do nothing
-}
+AnalysisType::~AnalysisType() { }
 
 /*
  * Object AnalysisType
  */
-ObjectType::ObjectType() : AnalysisType(TypeCode::ObjectTy) {
-    // Do nothing.
-}
+ObjectType::ObjectType() : AnalysisType(TypeCode::ObjectTy) { }
 
 ObjectType::~ObjectType() {
     for (auto field : this->fields) {
@@ -40,9 +29,7 @@ ObjectType::~ObjectType() {
  */
 ArrayType::ArrayType(AnalysisType *type)
         : AnalysisType(TypeCode::ArrayTy),
-          elementType(type) {
-    // Do nothing.
-}
+          elementType(type) { }
 
 ArrayType::~ArrayType() {
     delete elementType;
@@ -51,9 +38,7 @@ ArrayType::~ArrayType() {
 /*
  * Union AnalysisType
  */
-UnionType::UnionType() : AnalysisType(TypeCode::UnionTy) {
-    // Do nothing.
-}
+UnionType::UnionType() : AnalysisType(TypeCode::UnionTy) { }
 
 UnionType::~UnionType() {
     for (auto member : this->members) {
@@ -67,40 +52,56 @@ UnionType::~UnionType() {
 IntegerType::IntegerType(uint64_t bitwidth, bool isSigned)
         : AnalysisType(TypeCode::IntegerTy),
           bitwidth(bitwidth),
-          isSigned(isSigned) {
-    // Do nothing.
-}
-IntegerType::~IntegerType() {
-    // Do nothing
-}
+          isSigned(isSigned) { }
+IntegerType::~IntegerType() { }
 
 /*
  * Float AnalysisType
  */
-FloatType::FloatType() : AnalysisType(TypeCode::FloatTy) {
-    // Do nothing.
-}
-
-FloatType::~FloatType() {
-    // Do nothing;
-}
+FloatType::FloatType() : AnalysisType(TypeCode::FloatTy) { }
+FloatType::~FloatType() { }
 
 
 /*
  * Double AnalysisType
  */
-DoubleType::DoubleType() : AnalysisType(TypeCode::DoubleTy) {
-    // Do nothing.
-}
+DoubleType::DoubleType() : AnalysisType(TypeCode::DoubleTy) { }
 
-DoubleType::~DoubleType() {
-    // Do nothing.
-}
+DoubleType::~DoubleType() { }
+
+// ========================= OBJECT LOWERING ABSTRACTIONS ==========================================
 
 ObjectWrapper::ObjectWrapper(ObjectType * it) {
     innerType = it;
 }
 
+llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
+    // return the cached type
+    if (created!=nullptr) return created;
+
+    // create llvm::StructType
+    std::vector<llvm::Type *> types;
+
+    for (auto fieldType: this->fields) {
+        switch (fieldType->getCode()) {
+            case ObjectTy: {
+                types.push_back(llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8)));
+                break;
+            }
+            case IntegerTy: {
+                auto intType = (IntegerType *) fieldType;
+                // TODO: Not every int is 64 bit but for all assume 64 bits
+                types.push_back(llvm::Type::getInt64Ty(M.getContext()));
+                break;
+            }
+            //TODO: other cases
+            default:
+                assert(false);
+        }
+    }
+    created = llvm::StructType::create(M.getContext(), types, "my_struct", false);
+    return created;
+}
 
 std::string ObjectType::toString() {
     std::string str = "(Object: \n";
@@ -113,36 +114,7 @@ std::string ObjectType::toString() {
     return str;
 }
 
-llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
-    if(created!=nullptr)
-    {
-        return created;
-    }
-
-    std::vector<llvm::Type *> types;
-
-    for (auto fieldType: this->fields) {
-        switch (fieldType->getCode()) {
-            case IntegerTy: {
-                auto intType = (IntegerType *) fieldType;
-                //TODO: Not every int is 64 bit but for all assume 64 bits
-                types.push_back(llvm::Type::getInt64Ty(M.getContext()));
-                break;
-            }
-            case ObjectTy: {
-                types.push_back(llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8)));
-                break;
-            }
-            //TODO: other cases
-            default:
-                assert(false);
-        }
-    }
-    created = llvm::StructType::create(M.getContext(), types, "my_struct", false);
-    return created;
-}
-
-
+// ========================= OBJECT LOWERING ABSTRACTIONS ======================================
 
 std::string ArrayType::toString() {
     return "AnalysisType: array";
