@@ -3,10 +3,11 @@ GIT_ROOT=
 BUILD_DIR=build
 
 CC=clang++
+NOELLE_NORM=noelle-norm
 LL=llvm-link
 OPT=$(GIT_ROOT)/compiler/scripts/optimize.sh
 
-CFLAGS=-I$(GIT_ROOT)/runtime/include -std=c++17
+CFLAGS=-I$(GIT_ROOT)/runtime/include -std=c++17 -O1 -Xclang -disable-llvm-passes
 LIBS=-lm
 
 IR_FILE=$(BUILD_DIR)/all_in_one.bc
@@ -31,9 +32,11 @@ $(BUILD_DIR):
 
 $(C_BITCODES): $(BUILD_DIR)/%.bc : %.c
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
+	$(NOELLE_NORM) $@ -o $@
 
 $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
+	$(NOELLE_NORM) $@ -o $@
 
 $(IR_FILE): $(C_BITCODES) $(CPP_BITCODES)
 	$(LL) $^ $(GIT_ROOT)/runtime/build/objectir.bc -o $@
