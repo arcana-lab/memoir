@@ -12,9 +12,45 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
 }
 
 void ObjectLowering::analyze() {
+
   // Analyze the program
 
-  //errs() << "Running ObjectLowering. Analysis\n";
+  errs() << "Running ObjectLowering. Analysis\n";
+
+  // Hack
+    auto getTypeFunc = M.getFunction("getUInt64Type");
+    auto type_star = getTypeFunc->getReturnType();
+
+    std::vector<GlobalValue*> typeDefs;
+    for (auto &globalVar : M.getGlobalList())
+    {
+        if(globalVar.getType() == type_star)
+        {
+            typeDefs.push_back(&globalVar);
+        }
+    }
+
+    std::map<string, AnalysisType*> namedTypeMap;
+/*
+ * Plans for namedtype
+ *
+ * first we collect all the global variables that matches type (i.,e done above)
+ *
+ * Next we use the traditional trick of parsetype where nametypes are left as a stub
+ *
+ * We also create a map from name to analysisType*
+ *
+ * we loop through all the stubs, replacing it with actual typpes
+ *      we have to be careful about infinite loops
+ *
+ */
+
+// A -> B
+// A -> A
+
+
+
+
 
   for (auto &F : M) {
 
