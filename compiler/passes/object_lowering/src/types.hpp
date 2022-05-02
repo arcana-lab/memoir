@@ -12,13 +12,14 @@
 namespace object_lowering {
 
     enum TypeCode {
+        PointerTy,
+        StubTy,
         ObjectTy,
         ArrayTy,
         UnionTy,
         IntegerTy,
         FloatTy,
-        DoubleTy,
-        PointerTy
+        DoubleTy
     };
 
     struct AnalysisType {
@@ -38,13 +39,21 @@ namespace object_lowering {
     };
 
     struct APointerType : public AnalysisType {
-        std::string name;
         AnalysisType* pointsTo;
         APointerType();
         ~APointerType();
 
         std::string toString();
     };
+
+    struct StubType : public AnalysisType {
+        std::string name;
+        StubType(std::string name0);
+        ~StubType();
+
+        std::string toString();
+    };
+
 
     struct ObjectType : public AnalysisType {
         std::string name;

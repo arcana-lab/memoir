@@ -27,7 +27,16 @@ void ObjectLowering::analyze() {
       }
   }
 
-  for (auto v : typeDefs) errs() << "Global value: " << *v << "\n";
+  for (auto v : typeDefs) {
+    errs() << "Global value: " << *v << "\n";
+    object_lowering::AnalysisType* type;
+    std::set<PHINode*> visited;
+    std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+        type = parseTypeCallInst(ci,visited);
+    };
+    parseType(v, call_back,visited);
+    errs() << type->toString() << "\n\n";
+  }
 
   
 
@@ -157,6 +166,46 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
             a_type = tmp;
             break;
         }
+        case NAME_OBJECT_TYPE: {
+            std::vector<object_lowering::AnalysisType*> typeVec;
+            auto name = fetchString(ins->arg_begin()->get());
+            // start from the 3rd argument (skip the name & # of args)
+            for(auto arg = ins->arg_begin() + 2; arg != ins->arg_end(); ++arg)
+            {
+                auto ins = arg->get();
+                object_lowering::AnalysisType* type;
+                std::set<PHINode*> visited;
+                std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+                    type = parseTypeCallInst(ci,visited);
+                };
+                parseType(dyn_cast_or_null<Instruction>(ins), call_back,visited);
+                typeVec.push_back(type);
+            }
+            auto tmp = new ObjectType();
+            tmp->name = name;
+            tmp->fields = typeVec;
+            a_type = tmp;
+            break;
+        }
+        case POINTER_TYPE: {
+            auto pointsToVal = ins->getArgOperand(0);
+            object_lowering::AnalysisType* type;
+            std::set<PHINode*> visited;
+            std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+                type = parseTypeCallInst(ci,visited);
+            };
+            parseType(pointsToVal, call_back,visited);
+            auto tmp = new APointerType();
+            tmp->pointTo = type;
+            a_type = tmp;
+            break;
+        }
+        case GET_NAME_TYPE: {
+            auto name = fetchString(ins->getArgOperand(0));
+            auto tmp = new StubType(name);
+            a_type = tmp;
+            break;
+        }
         case UINT64_TYPE:
             a_type = new object_lowering::IntegerType(64, false); break;
         case UINT32_TYPE:
@@ -185,6 +234,21 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
     analysisTypeMap[ins] = a_type;
     return a_type;
 } // endof parseTypeCallInst
+
+std::string ObjectLowering::fetchString(Value* ins) {
+    if(auto firstargGep = dyn_cast<GetElementPtrInst>(ins)) {
+        if(firstargGep->getNumIndices() == 2 && firstargGep->hasAllZeroIndices()) {
+            if (auto glob_var = dyn_cast<GlobalVariable>(firstargGep->getPointerOperand())) {
+                if (auto cda = dyn_cast<ConstantDataArray>(glob_var->getInitializer())) {
+                    auto str = cda->getAsCString().str();
+                    return str;
+                }
+            }
+        }
+    }
+    errs() << "Not able to fetch str from " << *ins << "\n";
+    assert(false);
+}
 
 ObjectWrapper *ObjectLowering::parseObjectWrapperChain(Value* i, std::set<PHINode*> &visited)
 {

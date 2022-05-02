@@ -18,6 +18,7 @@ enum ObjectIRFunc {
   // types
   NAME_OBJECT_TYPE,
   POINTER_TYPE,
+  GET_NAME_TYPE,
   OBJECT_TYPE,
   ARRAY_TYPE,
   UNION_TYPE,
@@ -82,6 +83,7 @@ static std::unordered_map<ObjectIRFunc, std::string>
       // types
       { NAME_OBJECT_TYPE, "nameObjectType" },
       { POINTER_TYPE, "getPointerType" },
+      { GET_NAME_TYPE, "getNamedType" },
       { OBJECT_TYPE, "getObjectType" },
       { ARRAY_TYPE, "getArrayType" },
       { UNION_TYPE, "getUnionType" },
@@ -112,6 +114,9 @@ static std::unordered_map<ObjectIRFunc, std::string>
 
 static std::unordered_map<std::string, ObjectIRFunc>
     FunctionNamesToObjectIR = {
+      { "nameObjectType", NAME_OBJECT_TYPE },
+      { "getPointerType", POINTER_TYPE },
+      { "getNamedType", GET_NAME_TYPE },
       { "getObjectType", OBJECT_TYPE },
       { "getArrayType", ARRAY_TYPE },
       { "getUnionType", UNION_TYPE },

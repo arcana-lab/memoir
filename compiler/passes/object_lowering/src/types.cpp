@@ -29,6 +29,10 @@ APointerType::APointerType() : AnalysisType(TypeCode::PointerTy) { }
 
 APointerType::~APointerType() { }
 
+StubType::StubType(std::string name0) : AnalysisType(TypeCode::StubTy) { name = name0; }
+
+StubType::~StubType() { }
+
 /*
  * Array AnalysisType
  */
@@ -124,6 +128,10 @@ std::string ObjectType::toString() {
     }
     str += ")\n";
     return str;
+}
+
+std::string StubType::toString() {
+    return "Stub: " + name;
 }
 
 // ========================= OBJECT LOWERING ABSTRACTIONS ======================================
