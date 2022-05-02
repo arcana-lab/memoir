@@ -1,14 +1,10 @@
 #pragma once
 
 #include "noelle/core/Noelle.hpp"
-
 #include "Utils.hpp"
-
 #include "types.hpp"
-
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
-
 
 /*
  * Pass to perform lowering from object-ir to LLVM IR
@@ -22,91 +18,61 @@ namespace object_lowering {
 class ObjectLowering {
 private:
   Module &M;
-
   Noelle *noelle;
-
   ModulePass* mp;
 
-  //std::unordered_set<CallInst *> callsToObjectIR;
+  Type* llvmObjectType; // hacky way to get the represenation of Object* type in llvm
+  std::map<Instruction*, AnalysisType*> analysisTypeMap;
+
   std::unordered_set<CallInst *> buildObjects;
   std::unordered_set<CallInst *> reads;
   std::unordered_set<CallInst *> writes;
+  
   std::map<CallInst*, ObjectWrapper*> buildObjMap;
   std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
-  std::set<PHINode*> phiNodesToPopulate;
+  
   std::set<Function*> functionsToProcess;
+  
+  // TODO: these maps are cleared for every function transformed, but the others aren't
+  // we should reconsider this when implementing the interprocedural pass
   std::map<Value*, Value*> replacementMapping;
-
-  Type* llvmObjectType;
+  std::set<PHINode*> phiNodesToPopulate;
 
 public:
   ObjectLowering(Module &M, Noelle *noelle, ModulePass* mp);
   
+  // ==================== ANALYSIS ====================
+
   void analyze();
 
-  void transform();
-
-  ObjectWrapper* parseObjectWrapperInstruction(CallInst* i, std::set<PHINode*> &visited);
-
-  void parseType(Value* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-
-  void parseTypeStoreInst(StoreInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-
-  void parseTypeLoadInst(LoadInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-
-  void parseTypeAllocaInst(AllocaInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-
-  void parseTypeGlobalValue(GlobalValue* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-
+  // the CallInst must be an getObjectType, getPtrType, getUInt64, etc to reconstruct the Type*
   AnalysisType* parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited);
 
+  // this function wraps over the second one ...
+  // used by BBtransform/phi and parseFieldWrapperIns // REFACTOR: why is this Value*?
+  ObjectWrapper* parseObjectWrapperChain(Value *i, set<PHINode *> &visited); 
+  // create the ObjectWrapper* from the @buildObject CallInst ; do caching w/ buildObjMap
+  ObjectWrapper* parseObjectWrapperInstruction(CallInst* i, std::set<PHINode*> &visited);
+
+  // create the fieldWrapper from @getObjectField CallInst // REFACTOR: maybe we should cache these too?
   FieldWrapper* parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visited);
 
+  // dispatch to the functions below
+  void parseType(Value* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
+  void parseTypeStoreInst(StoreInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
+  void parseTypeLoadInst(LoadInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
+  void parseTypeAllocaInst(AllocaInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
+  void parseTypeGlobalValue(GlobalValue* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 
-//  void parseTypeCallInst(CallInst* ins);
+  // ==================== TRANSFORMATION ====================
 
+  void transform();
+  
+  void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb);
 
-  /*
-   * parseType(%0 = load %typety)
-   * Calls
-   * parseType(%typety = alloca .....)
-   * Calls
-   * parseType(%call = getObjectType(%x, %y))
-       * Calls
-       * parseType(%x) and parseType(%y)
-       * parseType(%x = getint64) -> AnalysisType(int64)
-       * parseType(%y = getint64) -> AnalysisType(int64)
-   * parseType(%call = getObjectType(%x, %y))
-   * ObjectType(int64, int64)
-   * r
-   * base case:
-   *
-   *
-   *
-   * if ins is a load from %typety
-   *    go to the uses of typety find store
-   *    value of store is going to be a callinst to get object type
-   *    alloca for type*
-   *    walk back to store untill we find call inst
-   *    foreach parameters:
-   *
-   *
-   *
-   */
+  Value* CreateGEPFromFieldWrapper(FieldWrapper *wrapper, IRBuilder<> &builder);
 
-
-
-        void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb);
-
-        ObjectWrapper *parseObjectWrapperChain(Value *i, set<PHINode *> &visited);
-
-        // types
-
-        std::map<Instruction*, AnalysisType*> inst_to_a_type; // cache AnalysisTypes
-
-        void findInstsToDelete(Value* i, std::set<Value*> &toDelete);
-
-        Value *CreateGEPFromFieldWrapper(FieldWrapper *wrapper, IRBuilder<> &builder);
-    };
+  void findInstsToDelete(Value* i, std::set<Value*> &toDelete);
+  };
 
 } // namespace object_lowering

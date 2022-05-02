@@ -27,7 +27,26 @@ to debug - invoke a different bash script:
 noelle-load-gdb -load ../../../compiler/passes/build/lib/ObjectLowering.so -ObjectLowering build/all_in_one.bc -o build/all_in_one.bc
 ```
 
-## overall
+# notes and planning
+
+## merging in namedTypes (and pointer types)
+```
+Plans for namedtype
+first we collect all the global variables that matches type (i.,e done above)
+Next we use the traditional trick of parsetype where nametypes are left as a stub
+We also create a map from name to analysisType*
+we loop through all the stubs, replacing it with actual typpes
+     we have to be careful about infinite loops
+we need to do something with bitcasting later
+```
+
+
+## various notes
+- the GEP's second index will depend on the data layout of the obj accessed, right? 
+- how does the GEP know the type of the data access, eg this GEP creates an int64 ptr?
+  -> it that what llvmPtrType is for, as it is used in the PhiNode case?
+  we may bitcast
+
 ```
 analysis
 
@@ -63,7 +82,6 @@ loop through basic block b in dominator order:
     if b is a phi node:
     	create new phi node
     	the incoming values must be in the map_ins
-
 ```
 
 ## Algo for parseType
@@ -79,16 +97,15 @@ goal: %0 => Object{int64, int64, int64}
 # Meeting notes
 
 ## 04-27
+- for running one test: `
 cd unit ; make links
 TESTS="test_0"
-make test
+make test`
 
-get_or_insert_function(funcTy, "malloc") // will resolve null ptr error
-
-IRbuilder createCall: first 2 args are required, rest are optional (twine is used to name the new variable)
-ins->getNextNode can be used when instantiating the builder s.t. the new call is inserted after the given `ins`
-the API for getting type (eg int32) from the builder is cleaner than getting it from the context
-struct type will work for the size but not off the stack
+- IRbuilder createCall: first 2 args are required, rest are optional (twine is used to name the new variable)
+- ins->getNextNode can be used when instantiating the builder s.t. the new call is inserted after the given `ins`
+- the API for getting type (eg int32) from the builder is cleaner than getting it from the context
+- struct type will work for the size but not off the stack(?)
 
 
 ## 04-20
