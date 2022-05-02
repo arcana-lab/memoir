@@ -382,6 +382,8 @@ void ObjectLowering::parseTypeGlobalValue(GlobalValue *gv, const std::function<v
 
 FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visited)
 {
+    errs() << "Parsing field wrapper for " << *i << "\n";
+
     auto callee = i->getCalledFunction();
     if (!callee) {
         errs() << "Unrecognized indirect call" << *i << "\n";
