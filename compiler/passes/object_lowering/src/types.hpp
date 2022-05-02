@@ -96,9 +96,9 @@ namespace object_lowering {
     };
 
     struct FieldWrapper{
+        llvm::Value* baseObjPtr; // ptr to original malloc, phi, etc. used to lookup its replacement
         int fieldIndex;
-        ObjectType* objectType;
-        llvm::Value* baseObjPtr; // pointer to the malloc, phi, etc value that this field belongs to
+        ObjectType* objectType; // used to create GEP based on layout
     };
 
 } // namespace objectir

@@ -37,11 +37,16 @@ Next we use the traditional trick of parsetype where nametypes are left as a stu
 We also create a map from name to analysisType*
 we loop through all the stubs, replacing it with actual typpes
      we have to be careful about infinite loops
-
+we need to do something with bitcasting later
 ```
 
 
 ## various notes
+- the GEP's second index will depend on the data layout of the obj accessed, right? 
+- how does the GEP know the type of the data access, eg this GEP creates an int64 ptr?
+  -> it that what llvmPtrType is for, as it is used in the PhiNode case?
+  we may bitcast
+
 ```
 analysis
 

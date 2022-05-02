@@ -94,7 +94,7 @@ llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
                 types.push_back(llvm::Type::getInt64Ty(M.getContext()));
                 break;
             }
-            //TODO: other cases
+            // needs other cases
             default:
                 assert(false);
         }
