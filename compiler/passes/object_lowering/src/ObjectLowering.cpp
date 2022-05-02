@@ -26,7 +26,11 @@ void ObjectLowering::analyze() {
           typeDefs.push_back(&globalVar);
       }
   }
+ 
+   std::map<string, AnalysisType*> namedTypeMap;
+   std::vector<AnalysisType*> allTypes;
 
+  // parse the Types
   for (auto v : typeDefs) {
     errs() << "Global value: " << *v << "\n";
     object_lowering::AnalysisType* type;
@@ -35,13 +39,46 @@ void ObjectLowering::analyze() {
         type = parseTypeCallInst(ci,visited);
     };
     parseType(v, call_back,visited);
-    errs() << type->toString() << "\n\n";
+
+    allTypes.push_back(type);
+    if(type->getCode() == ObjectTy) {
+        auto objTy = (ObjectType*) type;
+        if (objTy->hasName()) namedTypeMap[objTy->name] = objTy;
+    }
+
+    
+  }
+  // assume that 1) all named Types ARE global vals and not intermediate
+  // 2) all un-named types are also global vals
+
+  // resolve stubs
+  for (auto type : allTypes) {
+      /*
+gv0 = createNameType("c" ...)
+gv2 = buildobjecttype(1, pointertype(getnamedtype(“C”….)))
+gv3 = pointertype(@gv2))
+gv1 = buildobjecttype(1, gv3))
+      */
+     if(type->getCode() == ObjectTy) {
+        
+        auto objTy = (ObjectType*) type;
+        for (auto fld : objTy->fields) {
+            if(fld->getCode() == PointerTy) {
+                auto ptrTy = (APointerType*) fld;
+                auto pointsTo = ptrTy->pointsTo;
+                if(pointsTo->getCode() == StubTy) {
+                    auto stubTy = (StubType*) pointsTo;
+                    ptrTy->pointsTo = namedTypeMap[stubTy->name];
+                }
+            }
+        }
+        
+    }
   }
 
-  
-
-  std::map<string, AnalysisType*> namedTypeMap;
-  // TODO: 2022-05-01 meeting continue here
+  for (auto v : allTypes) {
+      errs() << v->toString() << "\n\n";
+  }
 
 
   errs() << "end of code\n\n\n";
@@ -196,7 +233,7 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
             };
             parseType(pointsToVal, call_back,visited);
             auto tmp = new APointerType();
-            tmp->pointTo = type;
+            tmp->pointsTo = type;
             a_type = tmp;
             break;
         }

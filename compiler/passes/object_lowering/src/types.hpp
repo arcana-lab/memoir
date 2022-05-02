@@ -61,7 +61,7 @@ namespace object_lowering {
         llvm::StructType* created = nullptr;
         ObjectType();
         ~ObjectType();
-
+        bool hasName();
         std::string toString();
         llvm::StructType* getLLVMRepresentation(llvm::Module& m);
     };
