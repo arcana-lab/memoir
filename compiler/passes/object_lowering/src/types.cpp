@@ -125,7 +125,7 @@ std::string APointerType::toString() {
 
 std::string ObjectType::toString() {
     std::string str = "(Object: \n";
-    if (name.empty()) str += "named: " + name + "\n";
+    if (hasName()) str += "named: " + name + "\n";
     for (auto field : this->fields) {
         str += "  (Field: ";
         str += field->toString();
