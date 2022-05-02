@@ -111,7 +111,7 @@ void ObjectLowering::analyze() {
         errs() << "Parsing: " << *ins << "\n\n";
         std::set<PHINode*> visited;
         auto objT = parseObjectWrapperInstruction(ins,visited);
-        buildObjMap[ins] = objT;
+//        buildObjMap[ins] = objT;
         errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
 
@@ -256,16 +256,6 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
             a_type = new object_lowering::FloatType(); break;
         case DOUBLE_TYPE:
             a_type = new object_lowering::DoubleType(); break;
-        case READ_POINTER:{
-            errs() << "Processing the type of the inner pointer for " << *ins << "\n\n";
-            FieldWrapper* fw;
-            std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-                fw = parseFieldWrapperIns(ci,visited);
-            };
-            parseType(ins->getArgOperand(0), call_back,visited);
-            a_type = fw->objectType;
-            break;
-        }
         default:
             errs() <<"the switch should cover everything this is wrong\n";
             errs() << *ins;
@@ -305,22 +295,42 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperChain(Value* i, std::set<PHINod
 
 ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::set<PHINode*> &visited) {
     // return the cached objectWrapper, if it exists
-    if (buildObjMap.find(i)!=buildObjMap.end()) return buildObjMap[i];
+    if (buildObjMap.find(i)!=buildObjMap.end())
+    {
+        return buildObjMap[i];
+    }
+    auto funcName = i->getCalledFunction()->getName().str();
+    if(funcName == "buildObject"){
+        auto typeArg = i->getArgOperand(0); // this should be a loadInst from a global Type**
+        AnalysisType* type;
+        std::function<void(CallInst*)> callback = [&](CallInst* ci) {
+            type = parseTypeCallInst(ci,visited);
+        };
+        parseType(typeArg,callback,visited);
+        //errs() << "Obtained AnalysisType for " << *i <<"\n";
 
-    auto typeArg = i->getArgOperand(0); // this should be a loadInst from a global Type**
-    AnalysisType* type;
-    std::function<void(CallInst*)> callback = [&](CallInst* ci) {
-        type = parseTypeCallInst(ci,visited);
-    };
-    parseType(typeArg,callback,visited);
-    //errs() << "Obtained AnalysisType for " << *i <<"\n";
-
-    if(type->getCode() != ObjectTy) {
-        //errs() << "It's not an object";
+        if(type->getCode() != ObjectTy) {
+            //errs() << "It's not an object";
+            assert(false);
+        }
+        auto* objt = (ObjectType*) type;
+        buildObjMap[i] = new ObjectWrapper(objt);
+    }
+    else if(funcName == "readPointer")
+    {
+        errs() << "Processing the type of the inner pointer for " << *i << "\n\n";
+        FieldWrapper* fw;
+        std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+            fw = parseFieldWrapperIns(ci,visited);
+        };
+        parseType(i->getArgOperand(0), call_back,visited);
+        buildObjMap[i] = new ObjectWrapper(fw->objectType);
+    }
+    else
+    {
         assert(false);
     }
-    auto* objt = (ObjectType*) type;
-    return new ObjectWrapper(objt);
+    return  buildObjMap[i];
 }
 
 
