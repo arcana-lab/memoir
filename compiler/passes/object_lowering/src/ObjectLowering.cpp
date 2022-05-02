@@ -257,7 +257,8 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
         case DOUBLE_TYPE:
             a_type = new object_lowering::DoubleType(); break;
         default:
-            //errs() <<"the switch should cover everything this is wrong\n";
+            errs() <<"the switch should cover everything this is wrong\n";
+            errs() << n;
             assert(false);
             break;
     }
