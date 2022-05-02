@@ -12,7 +12,7 @@ LIBS=-lm
 
 IR_FILE=$(BUILD_DIR)/all_in_one.bc
 OBJ_FILE=$(patsubst %.bc,%.o,$(IR_FILE))
-BINARY=$(notdir $(realpath .))
+BINARY=$(BUILD_DIR)/$(notdir $(realpath .))
 
 CFILES := $(wildcard *.c)
 CPPFILES := $(wildcard *.cpp)
