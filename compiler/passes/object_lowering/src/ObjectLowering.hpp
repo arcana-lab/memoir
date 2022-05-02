@@ -22,7 +22,7 @@ private:
   ModulePass* mp;
 
   Type* llvmObjectType; // hacky way to get the represenation of Object* type in llvm
-  std::map<Instruction*, AnalysisType*> analysisTypeMap;
+  std::map<Instruction*, AnalysisType*> analysisTypeMap; // any CallInst -> type
 
   std::unordered_set<CallInst *> buildObjects;
   std::unordered_set<CallInst *> reads;

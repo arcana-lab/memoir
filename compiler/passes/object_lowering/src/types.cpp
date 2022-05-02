@@ -93,7 +93,7 @@ llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
 
     for (auto fieldType: this->fields) {
         switch (fieldType->getCode()) {
-            case ObjectTy: {
+            case PointerTy: {
                 types.push_back(llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8)));
                 break;
             }

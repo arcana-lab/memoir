@@ -53,12 +53,6 @@ void ObjectLowering::analyze() {
 
   // resolve stubs
   for (auto type : allTypes) {
-      /*
-gv0 = createNameType("c" ...)
-gv2 = buildobjecttype(1, pointertype(getnamedtype(“C”….)))
-gv3 = pointertype(@gv2))
-gv1 = buildobjecttype(1, gv3))
-      */
      if(type->getCode() == ObjectTy) {
         
         auto objTy = (ObjectType*) type;
@@ -534,6 +528,39 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 ins.replaceAllUsesWith(loadInst);
                 //errs() << "out of the write gep is born" << *gep <<"\n";
                 //errs() << "from the readuint64 we have a load" << *loadInst <<"\n";
+            } else if (calleeName == "readPointer") {
+                auto fieldWrapper = readWriteFieldMap[callIns];
+                auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder);
+                // todo: can generalize as below
+                auto i8star = llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8));
+                auto loadInst = builder.CreateLoad(i8star,gep, "loadfromPtr");
+                
+                auto refPtr = fieldWrapper->objectType->fields[fieldWrapper->fieldIndex]; // Type*
+                if(refPtr->getCode() != PointerTy) {
+                    errs() << "BBTransform: " << refPtr->toString() << "not a pointer\n\n";
+                    assert(false);
+                }
+                auto refPtr2 = (APointerType*) refPtr;
+                auto objTy = refPtr->pointsTo;
+                if (objTy->getCode() != ObjectTy) {
+                    errs() << "BBTransform: " << objTy->toString() << "not an object\n\n";
+                    assert(false);
+                }
+                auto llvmtype = ((ObjectTy*) objTy)->getLLVMRepresentation(M);
+                auto bc_inst = builder.CreateBitCast(loadInst, PointerType::getUnqual(llvmType));
+                replacementMapping[callIns] = bc_Inst;
+
+            } else if (calleeName == "writePointer") {
+                auto fieldWrapper = readWriteFieldMap[callIns];
+                auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder);
+                auto new_val = callIns->getArgOperand(1);
+                if (replacementMapping.find(new_val) == replacementMapping.end()) {
+                    errs() << "BBtransform: no replacement found for value: " << callIns << "\n";
+                    assert(false);
+                }
+                auto replPtr = replacementMapping[new_val];
+                auto storeInst = builder.CreateStore(replPtr,gep);
+                replacementMapping[callIns] = storeInst;
             }
         }
     }
