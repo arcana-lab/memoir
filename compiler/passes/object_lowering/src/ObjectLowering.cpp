@@ -573,6 +573,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
 
 Value* ObjectLowering::CreateGEPFromFieldWrapper(FieldWrapper* fieldWrapper, IRBuilder<>& builder) {
     auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
+    errs() << "field wrappere " <<fieldWrapper;
     errs() << "Field Wrapper Base "<< fieldWrapper->baseObjPtr;
     errs() << "Field Wrapper obj type "<< fieldWrapper->objectType;
     errs() << "Field Wrapper index "<< fieldWrapper->fieldIndex;
