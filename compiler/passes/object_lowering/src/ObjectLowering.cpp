@@ -545,9 +545,9 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                     errs() << "BBTransform: " << objTy->toString() << "not an object\n\n";
                     assert(false);
                 }
-                auto llvmtype = ((ObjectTy*) objTy)->getLLVMRepresentation(M);
-                auto bc_inst = builder.CreateBitCast(loadInst, PointerType::getUnqual(llvmType));
-                replacementMapping[callIns] = bc_Inst;
+                auto llvmtype = ((ObjectType*) objTy)->getLLVMRepresentation(M);
+                auto bc_inst = builder.CreateBitCast(loadInst, PointerType::getUnqual(llvmtype));
+                replacementMapping[callIns] = bc_inst;
 
             } else if (calleeName == "writePointer") {
                 auto fieldWrapper = readWriteFieldMap[callIns];
