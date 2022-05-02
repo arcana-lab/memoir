@@ -383,7 +383,7 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
 {
     auto callee = i->getCalledFunction();
     if (!callee) {
-        //errs() << "Unrecognized indirect call" << *i << "\n";
+        errs() << "Unrecognized indirect call" << *i << "\n";
         assert(false);
     }
     auto n = callee->getName().str();
