@@ -268,7 +268,7 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
         }
         default:
             errs() <<"the switch should cover everything this is wrong\n";
-            errs() << n;
+            errs() << *ins;
             assert(false);
             break;
     }
@@ -293,6 +293,7 @@ std::string ObjectLowering::fetchString(Value* ins) {
 
 ObjectWrapper *ObjectLowering::parseObjectWrapperChain(Value* i, std::set<PHINode*> &visited)
 {
+    errs() << "Trying to obtain object wrapper for " << *i <<"\n";
     ObjectWrapper* objw;
     std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
         //errs() << "Field Wrapper found function " << *ci << "\n";
