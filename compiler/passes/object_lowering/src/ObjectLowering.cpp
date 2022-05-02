@@ -108,36 +108,36 @@ void ObjectLowering::analyze() {
 
     // construct the ObjectWrapper* for each @buildObject call
     for(auto ins : this->buildObjects) {
-        //errs() << "Parsing: " << *ins << "\n\n";
+        errs() << "Parsing: " << *ins << "\n\n";
         std::set<PHINode*> visited;
         auto objT = parseObjectWrapperInstruction(ins,visited);
         buildObjMap[ins] = objT;
-        //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
+        errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
 
 
     // construct the FieldWrapper* for each read, write call
-    //errs() << "READS\n\n";
+    errs() << "READS\n\n";
     for(auto ins : this->reads) {
-        //errs() << "Parsing: " << *ins << "\n\n";
+        errs() << "Parsing: " << *ins << "\n\n";
         FieldWrapper* fw;
         std::set<PHINode*> visited;
         std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
             fw = parseFieldWrapperIns(ci,visited);
         };
         parseType(ins->getArgOperand(0), call_back,visited);
-        //errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
-        //errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
-        //errs() << "The field index is" << fw->fieldIndex << "\n";
-        //errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
+        errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
+        errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
+        errs() << "The field index is" << fw->fieldIndex << "\n";
+        errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
         readWriteFieldMap[ins] = fw;
         //auto objT = parseObjectWrapperInstruction(ins);
         //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
 
-    //errs() << "WRITES\n\n";
+    errs() << "WRITES\n\n";
     for(auto ins : this->writes) {
-        //errs() << "Parsing: " << *ins << "\n\n";
+        errs() << "Parsing: " << *ins << "\n\n";
         FieldWrapper* fw;
         std::set<PHINode*> visited;
         std::function<void(CallInst*)> call_back = [&](CallInst* ci)
@@ -145,10 +145,10 @@ void ObjectLowering::analyze() {
             fw = parseFieldWrapperIns(ci,visited);
         };
         parseType(ins->getArgOperand(0), call_back,visited);
-        //errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
-        //errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
-        //errs() << "The field index is" << fw->fieldIndex << "\n";
-        //errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
+        errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
+        errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
+        errs() << "The field index is" << fw->fieldIndex << "\n";
+        errs() << "The type is " << fw->objectType->toString() << "\n\n\n";
         readWriteFieldMap[ins] = fw;
         //auto objT = parseObjectWrapperInstruction(ins);
         //errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
