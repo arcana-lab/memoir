@@ -12,20 +12,19 @@ LIBS=-lm
 
 IR_FILE=$(BUILD_DIR)/all_in_one.bc
 OBJ_FILE=$(patsubst %.bc,%.o,$(IR_FILE))
-BINARY=$(patsubst %.bc,%,$(IR_FILE))
-
+BINARY=$(notdir $(realpath .))
 
 CFILES := $(wildcard *.c)
 CPPFILES := $(wildcard *.cpp)
 C_BITCODES := $(patsubst %.c,$(BUILD_DIR)/%.bc,$(CFILES))
 CPP_BITCODES :=  $(patsubst %.cpp,$(BUILD_DIR)/%.bc,$(CPPFILES))
 
-all: build test
+all: compile test
 
 compile: $(BUILD_DIR) $(BINARY)
 
-test: build
-	$(BUILD_DIR)/all_in_one &> out.txt
+test: compile
+	$(BINARY) &> out.txt
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -51,4 +50,4 @@ $(BINARY): $(OBJ_FILE)
 .PHONY: clean all test compile
 
 clean:
-	rm -f *~ *.bc
+	rm -rf $(BUILD_DIR)
