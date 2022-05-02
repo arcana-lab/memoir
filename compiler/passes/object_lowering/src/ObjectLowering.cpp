@@ -389,7 +389,7 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
     }
     auto n = callee->getName().str();
     if(n != "getObjectField") {
-        //errs() << "Def use chain gave us the wrong function?" << *i;
+        errs() << "Def use chain gave us the wrong function?" << *i;
         assert(false);
     }
     // get the arguments out of @getObjectField
@@ -400,7 +400,7 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
     int64_t fieldIndex = CI->getSExtValue();
     // grab the ObjectWrapper*
     auto objw = parseObjectWrapperChain(objPtr, visited);
-    //errs() << "Obtained Field Wrapper AnalysisType for " << *i <<"\n";
+    errs() << "Obtained Field Wrapper AnalysisType for " << *i <<"\n";
     auto fieldwrapper = new FieldWrapper();
     fieldwrapper->baseObjPtr = objPtr;
     fieldwrapper->fieldIndex = fieldIndex; // NOLINT(cppcoreguidelines-narrowing-conversions)
