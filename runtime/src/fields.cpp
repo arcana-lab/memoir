@@ -61,26 +61,28 @@ Type *Field::getType() {
 }
 
 Field *Field::createField(Type *type) {
-  switch (type->getCode()) {
-    case TypeCode::StubTy: {
-      auto stubType = ((StubType *)type);
-      auto resolvedType = stubType->resolve();
-      return Field::createField(resolvedType);
-    }
+  auto resolvedType = type->resolve();
+
+  switch (resolvedType->getCode()) {
     case TypeCode::ObjectTy:
     case TypeCode::ArrayTy:
     case TypeCode::UnionTy:
-      return new ObjectField(type);
+      return new ObjectField(resolvedType);
     case TypeCode::IntegerTy:
-      return new IntegerField(type);
+      return new IntegerField(resolvedType);
     case TypeCode::FloatTy:
-      return new FloatField(type);
+      return new FloatField(resolvedType);
     case TypeCode::DoubleTy:
-      return new DoubleField(type);
+      return new DoubleField(resolvedType);
     case TypeCode::PointerTy:
-      return new PointerField(type);
+      return new PointerField(resolvedType);
+    case TypeCode::StubTy:
+      std::cerr
+          << "ERROR: Stub Type not resolved before field construction\n";
+      exit(1);
     default:
-      // Error
-      break;
+      std::cerr
+          << "ERROR: Trying to create field of unknown type\n";
+      exit(1);
   }
 }

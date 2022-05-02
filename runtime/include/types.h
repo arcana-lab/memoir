@@ -30,6 +30,7 @@ struct Type {
 protected:
   TypeCode code;
   std::string name;
+  bool resolved;
 
 public:
   TypeCode getCode();
@@ -40,6 +41,7 @@ public:
   Type(TypeCode code);
   ~Type();
 
+  virtual Type *resolve() = 0;
   virtual std::string toString() = 0;
 
   friend class Object;
@@ -53,6 +55,7 @@ struct ObjectType : public Type {
   ObjectType();
   ~ObjectType();
 
+  Type *resolve();
   std::string toString();
 };
 
@@ -63,6 +66,7 @@ struct ArrayType : public Type {
   ArrayType(Type *elementType);
   ~ArrayType();
 
+  Type *resolve();
   std::string toString();
 };
 
@@ -73,6 +77,7 @@ struct UnionType : public Type {
   UnionType();
   ~UnionType();
 
+  Type *resolve();
   std::string toString();
 };
 
@@ -83,6 +88,7 @@ struct IntegerType : public Type {
   IntegerType(uint64_t bitwidth, bool isSigned);
   ~IntegerType();
 
+  Type *resolve();
   std::string toString();
 };
 
@@ -90,6 +96,7 @@ struct FloatType : public Type {
   FloatType();
   ~FloatType();
 
+  Type *resolve();
   std::string toString();
 };
 
@@ -97,6 +104,7 @@ struct DoubleType : public Type {
   DoubleType();
   ~DoubleType();
 
+  Type *resolve();
   std::string toString();
 };
 
@@ -106,6 +114,7 @@ struct PointerType : public Type {
   PointerType(Type *containedType);
   ~PointerType();
 
+  Type *resolve();
   std::string toString();
 };
 
@@ -159,5 +168,7 @@ private:
 bool isObjectType(Type *type);
 
 bool isIntrinsicType(Type *type);
+
+bool isStubType(Type *type);
 
 } // namespace objectir

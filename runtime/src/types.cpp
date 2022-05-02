@@ -36,6 +36,16 @@ bool isIntrinsicType(Type *type) {
   }
 }
 
+bool isStubType(Type *type) {
+  TypeCode code = type->getCode();
+  switch (code) {
+    case StubTy:
+      return true;
+    default:
+      return false;
+  }
+}
+
 /*
  * Type base class
  */
@@ -70,6 +80,20 @@ ObjectType::~ObjectType() {
   }
 }
 
+Type *ObjectType::resolve() {
+  if (resolved) {
+    return this;
+  }
+  resolved = true;
+  for (auto it = this->fields.begin();
+       it != this->fields.end();
+       ++it) {
+    *it = (*it)->resolve();
+  }
+
+  return this;
+}
+
 /*
  * Array Type
  */
@@ -86,6 +110,15 @@ ArrayType::ArrayType(Type *type)
 
 ArrayType::~ArrayType() {
   // Do nothing.
+}
+
+Type *ArrayType::resolve() {
+  if (resolved) {
+    return this;
+  }
+  resolved = true;
+  this->elementType = this->elementType->resolve();
+  return this;
 }
 
 /*
@@ -106,6 +139,16 @@ UnionType::~UnionType() {
   }
 }
 
+Type *UnionType::resolve() {
+  // TODO: resolve members
+  if (resolved) {
+    return this;
+  }
+  resolved = true;
+
+  return this;
+}
+
 /*
  * Integer Type
  */
@@ -115,8 +158,17 @@ IntegerType::IntegerType(uint64_t bitwidth, bool isSigned)
     isSigned(isSigned) {
   // Do nothing.
 }
+
 IntegerType::~IntegerType() {
   // Do nothing
+}
+
+Type *IntegerType::resolve() {
+  if (resolved) {
+    return this;
+  }
+  resolved = true;
+  return this;
 }
 
 /*
@@ -130,6 +182,14 @@ FloatType::~FloatType() {
   // Do nothing;
 }
 
+Type *FloatType::resolve() {
+  if (resolved) {
+    return this;
+  }
+  resolved = true;
+  return this;
+}
+
 /*
  * Double Type
  */
@@ -139,6 +199,15 @@ DoubleType::DoubleType() : Type(TypeCode::DoubleTy) {
 
 DoubleType::~DoubleType() {
   // Do nothing.
+}
+
+Type *DoubleType::resolve() {
+  if (resolved) {
+    return this;
+  }
+  resolved = true;
+
+  return this;
 }
 
 /*
@@ -158,6 +227,16 @@ PointerType::~PointerType() {
   // Do nothing.
 }
 
+Type *PointerType::resolve() {
+  if (resolved) {
+    return this;
+  }
+  resolved = true;
+
+  this->containedType = this->containedType->resolve();
+  return this;
+}
+
 /*
  * Stub Type
  */
@@ -168,6 +247,11 @@ StubType::StubType(std::string name)
 }
 
 Type *StubType::resolve() {
+  if (resolved) {
+    return this;
+  }
+  resolved = true;
+
   // Resolve the stub type.
   if (!this->resolvedType) {
     std::cerr
