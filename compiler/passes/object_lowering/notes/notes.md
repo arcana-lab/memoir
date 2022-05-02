@@ -7,16 +7,7 @@ cd objectlowering
 
 to compile the test:
 ```
-rm -rf build
-mkdir -p build
-clang++ -I/home/pze9918/object-ir/runtime/include -std=c++17 -O1 -Xclang -disable-llvm-passes -emit-llvm -c main.cpp -o build/main.bc
-
-
-llvm-link build/main.bc /home/pze9918/object-ir/runtime/build/objectir.bc -o build/all_in_one.bc
-
-noelle-norm build/all_in_one.bc -o build/all_in_one.bc
-
-noelle-load -load ../../../compiler/passes/build/lib/ObjectLowering.so -ObjectLowering build/all_in_one.bc -o build/all_in_one.bc
+rm -rf build && mkdir -p build && clang++ -I/home/pze9918/object-ir/runtime/include -std=c++17 -O1 -Xclang -disable-llvm-passes -emit-llvm -c main.cpp -o build/main.bc && llvm-link build/main.bc /home/pze9918/object-ir/runtime/build/objectir.bc -o build/all_in_one.bc && noelle-norm build/all_in_one.bc -o build/all_in_one.bc && noelle-load -load ../../../compiler/passes/build/lib/ObjectLowering.so -ObjectLowering build/all_in_one.bc -o build/all_in_one.bc
 
 llc -filetype=obj build/all_in_one.bc -o build/all_in_one.o
 clang++ build/all_in_one.o -o build/all_in_one
