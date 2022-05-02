@@ -573,6 +573,9 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
 
 Value* ObjectLowering::CreateGEPFromFieldWrapper(FieldWrapper* fieldWrapper, IRBuilder<>& builder) {
     auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
+    errs() << "Field Wrapper Base "<< fieldWrapper->baseObjPtr;
+    errs() << "Field Wrapper obj type "<< fieldWrapper->objectType;
+    errs() << "Field Wrapper index "<< fieldWrapper->fieldIndex;
     auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
     std::vector<Value*> indices = {llvm::ConstantInt::get(int32Ty, 0),
                                    llvm::ConstantInt::get(int32Ty,fieldWrapper->fieldIndex )};
