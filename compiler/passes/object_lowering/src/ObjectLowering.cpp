@@ -12,23 +12,24 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
 }
 
 void ObjectLowering::analyze() {
-  errs() << "Running ObjectLowering::Analysis\n";
+  errs() << "\n\nRunning ObjectLowering::Analysis\n";
 
   // Hack to get the LLVM::Type* representation of ObjectIR::Type*
   auto getTypeFunc = M.getFunction("getUInt64Type");
   auto type_star = getTypeFunc->getReturnType();
+  auto type_star_star = PointerType::getUnqual(type_star);
 
   // collect all GlobalVals which are Type*
   std::vector<GlobalValue*> typeDefs;
   for (auto &globalVar : M.getGlobalList()) {
-      if (globalVar.getType() == type_star) {
+      if (globalVar.getType() == type_star_star) {
           typeDefs.push_back(&globalVar);
       }
   }
 
   for (auto v : typeDefs) errs() << "Global value: " << *v << "\n";
 
-  errs() << "end of code\n";
+  errs() << "end of code\n\n\n";
   assert(false);
 
   std::map<string, AnalysisType*> namedTypeMap;
