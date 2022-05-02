@@ -540,8 +540,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                     errs() << "BBTransform: " << refPtr->toString() << "not a pointer\n\n";
                     assert(false);
                 }
-                auto refPtr2 = (APointerType*) refPtr;
-                auto objTy = refPtr->pointsTo;
+                auto objTy = ((APointerType*) refPtr)->pointsTo;
                 if (objTy->getCode() != ObjectTy) {
                     errs() << "BBTransform: " << objTy->toString() << "not an object\n\n";
                     assert(false);
@@ -559,7 +558,8 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                     assert(false);
                 }
                 auto replPtr = replacementMapping[new_val];
-                auto storeInst = builder.CreateStore(replPtr,gep);
+                auto bc_inst = builder.CreateBitCast(replPtr, PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8)));
+                auto storeInst = builder.CreateStore(bc_inst, gep);
                 replacementMapping[callIns] = storeInst;
             }
         }
