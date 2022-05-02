@@ -26,7 +26,7 @@ int main() {
 
   Field *bField1 = getObjectField(myB, 0);
   writeUInt64(bField1, 123);
-  Object *myBcopy = readObject(aField2);
+  Object *myBcopy = readPointer(aField2);
   Field *bField1copy = getObjectField(myBcopy, 0);
   std::cerr << readUInt64(bField1copy);
 }
