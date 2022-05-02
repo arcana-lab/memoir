@@ -184,7 +184,7 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
             {
                 auto ins = arg->get();
                 object_lowering::AnalysisType* type;
-                std::set<PHINode*> visited;
+//                std::set<PHINode*> visited;
                 std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
                     type = parseTypeCallInst(ci,visited);
                 };
@@ -204,7 +204,7 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
             {
                 auto ins = arg->get();
                 object_lowering::AnalysisType* type;
-                std::set<PHINode*> visited;
+//                std::set<PHINode*> visited;
                 std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
                     type = parseTypeCallInst(ci,visited);
                 };
@@ -256,6 +256,16 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
             a_type = new object_lowering::FloatType(); break;
         case DOUBLE_TYPE:
             a_type = new object_lowering::DoubleType(); break;
+        case READ_POINTER:{
+            errs() << "Processing the type of the inner pointer for " << *ins << "\n\n";
+            FieldWrapper* fw;
+            std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+                fw = parseFieldWrapperIns(ci,visited);
+            };
+            parseType(ins->getArgOperand(0), call_back,visited);
+            a_type = fw->objectType;
+            break;
+        }
         default:
             errs() <<"the switch should cover everything this is wrong\n";
             errs() << n;
