@@ -29,12 +29,14 @@ void ObjectLowering::analyze() {
 
   for (auto v : typeDefs) errs() << "Global value: " << *v << "\n";
 
-  errs() << "end of code\n\n\n";
-  assert(false);
+  
 
   std::map<string, AnalysisType*> namedTypeMap;
   // TODO: 2022-05-01 meeting continue here
 
+
+  errs() << "end of code\n\n\n";
+  assert(false);
 
   // ===== code before names types were merged
 

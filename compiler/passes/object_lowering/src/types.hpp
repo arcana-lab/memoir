@@ -18,6 +18,7 @@ namespace object_lowering {
         IntegerTy,
         FloatTy,
         DoubleTy,
+        PointerTy
     };
 
     struct AnalysisType {
@@ -36,7 +37,17 @@ namespace object_lowering {
         friend class Field;
     };
 
+    struct APointerType : public AnalysisType {
+        std::string name;
+        AnalysisType* pointsTo;
+        APointerType();
+        ~APointerType();
+
+        std::string toString();
+    };
+
     struct ObjectType : public AnalysisType {
+        std::string name;
         std::vector<AnalysisType *> fields;
         llvm::StructType* created = nullptr;
         ObjectType();

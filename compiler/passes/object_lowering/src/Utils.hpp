@@ -16,6 +16,8 @@ bool isObjectIRCall(std::string functionName);
  */
 enum ObjectIRFunc {
   // types
+  NAME_OBJECT_TYPE,
+  POINTER_TYPE,
   OBJECT_TYPE,
   ARRAY_TYPE,
   UNION_TYPE,
@@ -78,6 +80,8 @@ enum ObjectIRFunc {
 static std::unordered_map<ObjectIRFunc, std::string>
     ObjectIRToFunctionNames = {
       // types
+      { NAME_OBJECT_TYPE, "nameObjectType" },
+      { POINTER_TYPE, "getPointerType" },
       { OBJECT_TYPE, "getObjectType" },
       { ARRAY_TYPE, "getArrayType" },
       { UNION_TYPE, "getUnionType" },

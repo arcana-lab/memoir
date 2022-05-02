@@ -24,6 +24,11 @@ ObjectType::~ObjectType() {
     }
 }
 
+// Pointer AnalysisType
+APointerType::APointerType() : AnalysisType(TypeCode::PointerTy) { }
+
+APointerType::~APointerType() { }
+
 /*
  * Array AnalysisType
  */
@@ -94,13 +99,20 @@ llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
                 types.push_back(llvm::Type::getInt64Ty(M.getContext()));
                 break;
             }
-            // needs other cases
+            // needs  other cases
             default:
                 assert(false);
         }
     }
     created = llvm::StructType::create(M.getContext(), types, "my_struct", false);
     return created;
+}
+
+std::string APointerType::toString() {
+    std::string str = "(Ptr: \n";
+    if (pointsTo) str += pointsTo->toString();
+    str += ")";
+    return str;
 }
 
 std::string ObjectType::toString() {
