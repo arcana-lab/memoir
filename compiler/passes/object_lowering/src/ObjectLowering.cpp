@@ -75,9 +75,6 @@ void ObjectLowering::analyze() {
   }
 
 
-  errs() << "end of code\n\n\n";
-  assert(false);
-
   // ===== code before names types were merged
 
   for (auto &F : M) {
@@ -411,7 +408,7 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
 // ============================= TRANSFORMATION ===========================================
 
 void ObjectLowering::transform() {
-
+    errs() << "\n Starting transformation\n\n";
     for (auto f : functionsToProcess) {
         // clear these maps for every function
         replacementMapping.clear();
