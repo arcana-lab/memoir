@@ -96,7 +96,9 @@ void ObjectLowering::analyze() {
                     this->buildObjects.insert(callInst);
                     llvmObjectType = callInst->getType();
                     continue;
+                case READ_POINTER:
                 case READ_UINT64: this->reads.insert(callInst); continue;
+                case WRITE_POINTER:
                 case WRITE_UINT64: this->writes.insert(callInst); continue;
                 default: continue;
             }         

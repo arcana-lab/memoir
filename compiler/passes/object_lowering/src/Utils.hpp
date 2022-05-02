@@ -71,7 +71,9 @@ enum ObjectIRFunc {
   READ_FLOAT,
   WRITE_FLOAT,
   READ_DOUBLE,
-  WRITE_DOUBLE
+  WRITE_DOUBLE,
+  WRITE_POINTER,
+  READ_POINTER
 };
 
 /*
@@ -109,7 +111,9 @@ static std::unordered_map<ObjectIRFunc, std::string>
       { ASSERT_TYPE, "assertType" },
       // accessors
       { READ_UINT64, "readUInt64" },
-      { WRITE_UINT64, "writeUInt64" }
+      { WRITE_UINT64, "writeUInt64" },
+            {READ_POINTER, "readPointer"},
+            {WRITE_POINTER, "writePointer" },
     };
 
 static std::unordered_map<std::string, ObjectIRFunc>
@@ -142,6 +146,8 @@ static std::unordered_map<std::string, ObjectIRFunc>
       // accessors
       { "readUInt64", READ_UINT64 },
       { "writeUInt64", WRITE_UINT64 },
+      {"readPointer", READ_POINTER},
+      {"writePointer", WRITE_POINTER},
       { "writeObject", WRITE_OBJECT}
     };
 
