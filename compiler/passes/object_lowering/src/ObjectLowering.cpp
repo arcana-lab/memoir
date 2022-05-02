@@ -12,22 +12,67 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
 }
 
 void ObjectLowering::analyze() {
-  errs() << "Running ObjectLowering::Analysis\n";
+  errs() << "\n\nRunning ObjectLowering::Analysis\n";
 
   // Hack to get the LLVM::Type* representation of ObjectIR::Type*
   auto getTypeFunc = M.getFunction("getUInt64Type");
   auto type_star = getTypeFunc->getReturnType();
+  auto type_star_star = PointerType::getUnqual(type_star);
 
   // collect all GlobalVals which are Type*
   std::vector<GlobalValue*> typeDefs;
   for (auto &globalVar : M.getGlobalList()) {
-      if (globalVar.getType() == type_star) {
+      if (globalVar.getType() == type_star_star) {
           typeDefs.push_back(&globalVar);
       }
   }
+ 
+   std::map<string, AnalysisType*> namedTypeMap;
+   std::vector<AnalysisType*> allTypes;
 
-  std::map<string, AnalysisType*> namedTypeMap;
-  // TODO: 2022-05-01 meeting continue here
+  // parse the Types
+  for (auto v : typeDefs) {
+    errs() << "Global value: " << *v << "\n";
+    object_lowering::AnalysisType* type;
+    std::set<PHINode*> visited;
+    std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+        type = parseTypeCallInst(ci,visited);
+    };
+    parseType(v, call_back,visited);
+
+    allTypes.push_back(type);
+    if(type->getCode() == ObjectTy) {
+        auto objTy = (ObjectType*) type;
+        if (objTy->hasName()) namedTypeMap[objTy->name] = objTy;
+    }
+
+    
+  }
+  // assume that 1) all named Types ARE global vals and not intermediate
+  // 2) all un-named types are also global vals
+
+  // resolve stubs
+  for (auto type : allTypes) {
+     if(type->getCode() == ObjectTy) {
+        
+        auto objTy = (ObjectType*) type;
+        for (auto fld : objTy->fields) {
+            if(fld->getCode() == PointerTy) {
+                auto ptrTy = (APointerType*) fld;
+                auto pointsTo = ptrTy->pointsTo;
+                if(pointsTo->getCode() == StubTy) {
+                    auto stubTy = (StubType*) pointsTo;
+                    ptrTy->pointsTo = namedTypeMap[stubTy->name];
+                }
+            }
+        }
+        
+    }
+  }
+
+  for (auto v : allTypes) {
+      errs() << v->toString() << "\n\n";
+  }
 
 
   // ===== code before names types were merged
@@ -149,6 +194,46 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
             a_type = tmp;
             break;
         }
+        case NAME_OBJECT_TYPE: {
+            std::vector<object_lowering::AnalysisType*> typeVec;
+            auto name = fetchString(ins->arg_begin()->get());
+            // start from the 3rd argument (skip the name & # of args)
+            for(auto arg = ins->arg_begin() + 2; arg != ins->arg_end(); ++arg)
+            {
+                auto ins = arg->get();
+                object_lowering::AnalysisType* type;
+                std::set<PHINode*> visited;
+                std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+                    type = parseTypeCallInst(ci,visited);
+                };
+                parseType(dyn_cast_or_null<Instruction>(ins), call_back,visited);
+                typeVec.push_back(type);
+            }
+            auto tmp = new ObjectType();
+            tmp->name = name;
+            tmp->fields = typeVec;
+            a_type = tmp;
+            break;
+        }
+        case POINTER_TYPE: {
+            auto pointsToVal = ins->getArgOperand(0);
+            object_lowering::AnalysisType* type;
+            std::set<PHINode*> visited;
+            std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+                type = parseTypeCallInst(ci,visited);
+            };
+            parseType(pointsToVal, call_back,visited);
+            auto tmp = new APointerType();
+            tmp->pointsTo = type;
+            a_type = tmp;
+            break;
+        }
+        case GET_NAME_TYPE: {
+            auto name = fetchString(ins->getArgOperand(0));
+            auto tmp = new StubType(name);
+            a_type = tmp;
+            break;
+        }
         case UINT64_TYPE:
             a_type = new object_lowering::IntegerType(64, false); break;
         case UINT32_TYPE:
@@ -177,6 +262,21 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
     analysisTypeMap[ins] = a_type;
     return a_type;
 } // endof parseTypeCallInst
+
+std::string ObjectLowering::fetchString(Value* ins) {
+    if(auto firstargGep = dyn_cast<GetElementPtrInst>(ins)) {
+        if(firstargGep->getNumIndices() == 2 && firstargGep->hasAllZeroIndices()) {
+            if (auto glob_var = dyn_cast<GlobalVariable>(firstargGep->getPointerOperand())) {
+                if (auto cda = dyn_cast<ConstantDataArray>(glob_var->getInitializer())) {
+                    auto str = cda->getAsCString().str();
+                    return str;
+                }
+            }
+        }
+    }
+    errs() << "Not able to fetch str from " << *ins << "\n";
+    assert(false);
+}
 
 ObjectWrapper *ObjectLowering::parseObjectWrapperChain(Value* i, std::set<PHINode*> &visited)
 {
@@ -308,7 +408,7 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
 // ============================= TRANSFORMATION ===========================================
 
 void ObjectLowering::transform() {
-
+    errs() << "\n Starting transformation\n\n";
     for (auto f : functionsToProcess) {
         // clear these maps for every function
         replacementMapping.clear();
@@ -425,6 +525,39 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 ins.replaceAllUsesWith(loadInst);
                 //errs() << "out of the write gep is born" << *gep <<"\n";
                 //errs() << "from the readuint64 we have a load" << *loadInst <<"\n";
+            } else if (calleeName == "readPointer") {
+                auto fieldWrapper = readWriteFieldMap[callIns];
+                auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder);
+                // todo: can generalize as below
+                auto i8star = llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8));
+                auto loadInst = builder.CreateLoad(i8star,gep, "loadfromPtr");
+                
+                auto refPtr = fieldWrapper->objectType->fields[fieldWrapper->fieldIndex]; // Type*
+                if(refPtr->getCode() != PointerTy) {
+                    errs() << "BBTransform: " << refPtr->toString() << "not a pointer\n\n";
+                    assert(false);
+                }
+                auto objTy = ((APointerType*) refPtr)->pointsTo;
+                if (objTy->getCode() != ObjectTy) {
+                    errs() << "BBTransform: " << objTy->toString() << "not an object\n\n";
+                    assert(false);
+                }
+                auto llvmtype = ((ObjectType*) objTy)->getLLVMRepresentation(M);
+                auto bc_inst = builder.CreateBitCast(loadInst, PointerType::getUnqual(llvmtype));
+                replacementMapping[callIns] = bc_inst;
+
+            } else if (calleeName == "writePointer") {
+                auto fieldWrapper = readWriteFieldMap[callIns];
+                auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder);
+                auto new_val = callIns->getArgOperand(1);
+                if (replacementMapping.find(new_val) == replacementMapping.end()) {
+                    errs() << "BBtransform: no replacement found for value: " << callIns << "\n";
+                    assert(false);
+                }
+                auto replPtr = replacementMapping[new_val];
+                auto bc_inst = builder.CreateBitCast(replPtr, PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8)));
+                auto storeInst = builder.CreateStore(bc_inst, gep);
+                replacementMapping[callIns] = storeInst;
             }
         }
     }

@@ -12,12 +12,14 @@
 namespace object_lowering {
 
     enum TypeCode {
+        PointerTy,
+        StubTy,
         ObjectTy,
         ArrayTy,
         UnionTy,
         IntegerTy,
         FloatTy,
-        DoubleTy,
+        DoubleTy
     };
 
     struct AnalysisType {
@@ -36,12 +38,30 @@ namespace object_lowering {
         friend class Field;
     };
 
+    struct APointerType : public AnalysisType {
+        AnalysisType* pointsTo;
+        APointerType();
+        ~APointerType();
+
+        std::string toString();
+    };
+
+    struct StubType : public AnalysisType {
+        std::string name;
+        StubType(std::string name0);
+        ~StubType();
+
+        std::string toString();
+    };
+
+
     struct ObjectType : public AnalysisType {
+        std::string name;
         std::vector<AnalysisType *> fields;
         llvm::StructType* created = nullptr;
         ObjectType();
         ~ObjectType();
-
+        bool hasName();
         std::string toString();
         llvm::StructType* getLLVMRepresentation(llvm::Module& m);
     };

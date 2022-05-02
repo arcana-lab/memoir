@@ -22,7 +22,7 @@ private:
   ModulePass* mp;
 
   Type* llvmObjectType; // hacky way to get the represenation of Object* type in llvm
-  std::map<Instruction*, AnalysisType*> analysisTypeMap;
+  std::map<Instruction*, AnalysisType*> analysisTypeMap; // any CallInst -> type
 
   std::unordered_set<CallInst *> buildObjects;
   std::unordered_set<CallInst *> reads;
@@ -47,6 +47,7 @@ public:
 
   // the CallInst must be an getObjectType, getPtrType, getUInt64, etc to reconstruct the Type*
   AnalysisType* parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited);
+  std::string fetchString(Value* ins);
 
   // this function wraps over the second one ...
   // used by BBtransform/phi and parseFieldWrapperIns // REFACTOR: why is this Value*?

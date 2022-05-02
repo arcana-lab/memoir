@@ -24,6 +24,15 @@ ObjectType::~ObjectType() {
     }
 }
 
+// Pointer AnalysisType
+APointerType::APointerType() : AnalysisType(TypeCode::PointerTy) { }
+
+APointerType::~APointerType() { }
+
+StubType::StubType(std::string name0) : AnalysisType(TypeCode::StubTy) { name = name0; }
+
+StubType::~StubType() { }
+
 /*
  * Array AnalysisType
  */
@@ -84,7 +93,7 @@ llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
 
     for (auto fieldType: this->fields) {
         switch (fieldType->getCode()) {
-            case ObjectTy: {
+            case PointerTy: {
                 types.push_back(llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8)));
                 break;
             }
@@ -94,7 +103,7 @@ llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
                 types.push_back(llvm::Type::getInt64Ty(M.getContext()));
                 break;
             }
-            // needs other cases
+            // needs  other cases
             default:
                 assert(false);
         }
@@ -103,8 +112,20 @@ llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
     return created;
 }
 
+std::string APointerType::toString() {
+    std::string str = "(Ptr: \n";
+    if(pointsTo->getCode() == ObjectTy) {
+        auto objTy = (ObjectType*) pointsTo;
+        if (objTy->hasName()) str += objTy->name;
+        else                  str += "unnamed obj";
+    }
+    str += ")";
+    return str;
+}
+
 std::string ObjectType::toString() {
     std::string str = "(Object: \n";
+    if (hasName()) str += "named: " + name + "\n";
     for (auto field : this->fields) {
         str += "  (Field: ";
         str += field->toString();
@@ -112,6 +133,14 @@ std::string ObjectType::toString() {
     }
     str += ")\n";
     return str;
+}
+
+bool ObjectType::hasName() {
+    return ! name.empty();
+}
+
+std::string StubType::toString() {
+    return "Stub: " + name;
 }
 
 // ========================= OBJECT LOWERING ABSTRACTIONS ======================================
