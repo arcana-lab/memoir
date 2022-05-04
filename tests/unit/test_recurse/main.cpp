@@ -17,9 +17,6 @@ Type *bTy =
                    getPointerType(getNamedType("B")));
 
 int main() {
-  std::cerr << aTy->toString() << "\n";
-  std::cerr << bTy->toString() << "\n";
-
   Object *myA = buildObject(aTy);
   Object *myA2 = buildObject(aTy);
   Object *myB = buildObject(bTy);
@@ -28,8 +25,10 @@ int main() {
   Field *aField1 = getObjectField(myA, 0);
   Field *aField2 = getObjectField(myA, 1);
 
-  writeUInt64(aField1, 0);    // a->i = 0;
-  writePointer(aField2, myB); // a->b = &b;
+  // a->i = 0;
+  writeUInt64(aField1, 0);
+  // a->b = &b;
+  writePointer(aField2, myB);
 
   Field *bField1 = getObjectField(myB, 0);
   Field *bField2 = getObjectField(myB, 1);
@@ -52,4 +51,22 @@ int main() {
 
   // b2->a = &a2;
   writePointer(b2Field1, myA2);
+  // b2->b = &b;
+  writePointer(b2Field2, myB);
+
+  // print(b2->b->a->i)
+  // b2->b
+  Object *ptrToB = readPointer(b2Field2);
+
+  // b2->b->a
+  Field *tmpField = getObjectField(ptrToB, 0);
+  Object *ptrToA = readPointer(tmpField);
+
+  // b2->b->a->i
+  tmpField = getObjectField(ptrToA, 0);
+  uint64_t value = readUInt64(tmpField);
+
+  // Expect 0 to be printed
+  std::cout << "Expected value: 0\n";
+  std::cout << "  Actual value: " << value << "\n";
 }

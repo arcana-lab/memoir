@@ -30,6 +30,8 @@ int main(int argc, char **argv) {
     writeUInt64(getObjectField(elem, 0), rand());
     writeUInt64(getObjectField(elem, 1), rand());
     writeUInt64(getObjectField(elem, 2), rand());
+
+    writeObject(getArrayElement(myArr, i), elem);
   }
 
   /*
