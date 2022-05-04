@@ -2,7 +2,7 @@ ifndef TESTS
 TESTS := $(sort $(wildcard */))
 endif
 
-BUILD_DIRS=$(patsubst %, %build, $(TESTS))
+BUILD_DIRS=$(patsubst %, %/build, $(TESTS))
 
 all: build
 
