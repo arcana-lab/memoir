@@ -73,6 +73,7 @@ public:
 
   Value* CreateGEPFromFieldWrapper(FieldWrapper *wrapper, IRBuilder<> &builder);
 
+  // recursively add users of `i` to `toDelete`
   void findInstsToDelete(Value* i, std::set<Value*> &toDelete);
   };
 

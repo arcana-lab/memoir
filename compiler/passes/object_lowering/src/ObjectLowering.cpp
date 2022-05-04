@@ -74,8 +74,8 @@ void ObjectLowering::analyze() {
       errs() << v->toString() << "\n\n";
   }
 
-
-  // ===== code before names types were merged
+  // the types generated above are cached by parseTypeCallInst, so we could safely delete the helper maps
+  // begin instruction analysis
 
   for (auto &F : M) {
 
@@ -94,7 +94,7 @@ void ObjectLowering::analyze() {
             switch (FunctionNamesToObjectIR[n]) {
                 case BUILD_OBJECT:
                     this->buildObjects.insert(callInst);
-                    llvmObjectType = callInst->getType();
+                    llvmObjectType = callInst->getType(); // setup the hacky llvm::ObjectType*
                     continue;
                 case READ_POINTER:
                 case READ_UINT64: this->reads.insert(callInst); continue;
@@ -199,7 +199,7 @@ object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, 
         case NAME_OBJECT_TYPE: {
             std::vector<object_lowering::AnalysisType*> typeVec;
             auto name = fetchString(ins->arg_begin()->get());
-            // start from the 3rd argument (skip the name & # of args)
+            // the same as BUILD_OBJECT, except start from the 3rd argument (skip the name & # of args)
             for(auto arg = ins->arg_begin() + 2; arg != ins->arg_end(); ++arg)
             {
                 auto ins = arg->get();
@@ -490,9 +490,15 @@ void ObjectLowering::transform() {
 void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
 {
     //errs() << "Transforming Basic Block  " <<*bb << "\n\n";
-    auto int64Ty = llvm::Type::getInt64Ty(M.getContext());
+    // setup llvm::type and malloc function constants
+    auto &ctxt = M.getContext();
+    auto int64Ty = llvm::Type::getInt64Ty(ctxt);
+    auto int32Ty = llvm::Type::getInt32Ty(ctxt);
+    auto i8Ty = llvm::IntegerType::get(ctxt, 8);
+    auto i8StarTy = llvm::PointerType::getUnqual(i8Ty);
+    auto funcType = llvm::FunctionType::get(i8StarTy, ArrayRef<Type *>({ int64Ty }), false);
+    auto mallocf = M.getOrInsertFunction("malloc", funcType);
 
-    auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
     for(auto &ins: *bb)
     {
         //errs() << "encountering  instruction " << ins <<"\n";
@@ -519,50 +525,53 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
             auto callee = callIns->getCalledFunction();
             if(callee == nullptr) continue;
             auto calleeName = callee->getName().str();
-            // REFACTOR: use isObjectIRCall here
-            if(calleeName == "buildObject")
+            if (! isObjectIRCall(calleeName)) continue;
+
+            switch (FunctionNamesToObjectIR[calleeName]) {
+            case BUILD_OBJECT:
             {
+                // create malloc based on the object's LLVMRepresentation ; bitcast to a ptr to LLVMRepresentation
                 auto llvmType = buildObjMap[callIns]->innerType->getLLVMRepresentation(M);
                 auto llvmTypeSize = llvm::ConstantInt::get(int64Ty, M.getDataLayout().getTypeAllocSize(llvmType));
                 std::vector<Value *> arguments{llvmTypeSize};
-                auto funcType = llvm::FunctionType::get(builder.getInt8PtrTy(),
-                                                        ArrayRef<Type *>({ builder.getInt64Ty() }), false);
-                auto mallocf = M.getOrInsertFunction("malloc", funcType);
                 auto newMallocCall = builder.CreateCall(mallocf ,arguments);
 
                 auto bc_inst = builder.CreateBitCast(newMallocCall, PointerType::getUnqual(llvmType));
 
                 replacementMapping[callIns] = bc_inst;
+                break;
             }
-            else if(calleeName == "writeUInt64" ) {
+            case WRITE_UINT64: {
                 auto fieldWrapper = readWriteFieldMap[callIns];
                 auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder);
                 auto storeInst = builder.CreateStore(callIns->getArgOperand(1),gep);
                 replacementMapping[callIns] = storeInst;
                 //errs() << "out of the write gep is born" << *gep <<"\n";
                 //errs() << "out of the gep a store is born" << *storeInst <<"\n";
+                break;
             }
-            else if(calleeName == "readUInt64"){
+            case READ_UINT64: {
                 auto fieldWrapper = readWriteFieldMap[callIns];
                 auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder);
-                auto int64Ty = llvm::Type::getInt64Ty(M.getContext());
                 auto loadInst = builder.CreateLoad(int64Ty,gep, "loadfrominst64");
                 replacementMapping[callIns] = loadInst;
                 ins.replaceAllUsesWith(loadInst);
                 //errs() << "out of the write gep is born" << *gep <<"\n";
                 //errs() << "from the readuint64 we have a load" << *loadInst <<"\n";
-            } else if (calleeName == "readPointer") {
+                break;
+            } 
+            case READ_POINTER: {
+                // create gep. load i8* from the gep. bitcast the load to a ptr to LLVMRepresentation
                 auto fieldWrapper = readWriteFieldMap[callIns];
                 auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder);
-                // todo: can generalize as below
-                auto i8star = llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8));
-                auto loadInst = builder.CreateLoad(i8star,gep, "loadfromPtr");
-                
-                auto refPtr = fieldWrapper->objectType->fields[fieldWrapper->fieldIndex]; // Type*
+                auto loadInst = builder.CreateLoad(i8StarTy,gep, "loadfromPtr");
+                // fetch the Type*, which should be a PointerTy/APointerType
+                auto refPtr = fieldWrapper->objectType->fields[fieldWrapper->fieldIndex]; 
                 if(refPtr->getCode() != PointerTy) {
                     errs() << "BBTransform: " << refPtr->toString() << "not a pointer\n\n";
                     assert(false);
                 }
+                // the pointsTo must be an ObjectType, which we can use to get the target type for bitcast
                 auto objTy = ((APointerType*) refPtr)->pointsTo;
                 if (objTy->getCode() != ObjectTy) {
                     errs() << "BBTransform: " << objTy->toString() << "not an object\n\n";
@@ -571,8 +580,11 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                 auto llvmtype = ((ObjectType*) objTy)->getLLVMRepresentation(M);
                 auto bc_inst = builder.CreateBitCast(loadInst, PointerType::getUnqual(llvmtype));
                 replacementMapping[callIns] = bc_inst;
+                break;
 
-            } else if (calleeName == "writePointer") {
+            } 
+             case WRITE_POINTER: {
+                 // create gep. bitcast the value-to-be-written into i8*. store the bitcast
                 auto fieldWrapper = readWriteFieldMap[callIns];
                 auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder);
                 auto new_val = callIns->getArgOperand(1);
@@ -581,10 +593,13 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
                     assert(false);
                 }
                 auto replPtr = replacementMapping[new_val];
-                auto bc_inst = builder.CreateBitCast(replPtr, PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8)));
+                auto bc_inst = builder.CreateBitCast(replPtr, i8StarTy);
                 auto storeInst = builder.CreateStore(bc_inst, gep);
                 replacementMapping[callIns] = storeInst;
+                break;
             }
+            default: continue;
+            } // endof switch
         }
     }
 
