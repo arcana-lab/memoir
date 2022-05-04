@@ -75,7 +75,7 @@ void ObjectLowering::analyze() {
   }
 
   // the types generated above are cached by parseTypeCallInst, so we could safely delete the helper maps
-  // ===== code before names types were merged ===
+  // begin instruction analysis
 
   for (auto &F : M) {
 

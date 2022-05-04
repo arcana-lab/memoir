@@ -7,6 +7,10 @@ cd objectlowering
 
 to compile the test:
 ```
+make TESTS="test_recurse" clean
+make TESTS="test_recurse" 
+```
+```
 rm -rf build && mkdir -p build && clang++ -I/home/pze9918/object-ir/runtime/include -std=c++17 -O1 -Xclang -disable-llvm-passes -emit-llvm -c main.cpp -o build/main.bc && llvm-link build/main.bc /home/pze9918/object-ir/runtime/build/objectir.bc -o build/all_in_one.bc && noelle-norm build/all_in_one.bc -o build/all_in_one.bc && noelle-load -load ../../../compiler/passes/build/lib/ObjectLowering.so -ObjectLowering build/all_in_one.bc -o build/all_in_one.bc
 
 llc -filetype=obj build/all_in_one.bc -o build/all_in_one.o
@@ -20,22 +24,34 @@ noelle-load-gdb -load ../../../compiler/passes/build/lib/ObjectLowering.so -Obje
 
 # notes and planning
 
-## 05-04 meeting
-- makefile broke :(
-- how to determine the return type of functions that return objects? see suggestion below
-- how will we change types of function definitions? my guess is something like getOrInsertFunction w/ the appropriate type signature followed by splicing the basic blocks into the new Function
-- how should we mix in arguments vs splicing w/ dominator tree (see point 1 below)
-- still lost on what field passing is - caspar
+## 05-05 coding
+goal:
+1. define an abstraction for keeping track of cloned functions? (track new+old Function*, maybe type signatures)
+2. detect functions which need to be cloned
+   1. find the assertTypes within those functions to define new signatures
+3. create function clones w/ new type sigs
+4. generate dummy calls to those function to check that it's working
 
-```
-let f : UINT64T Object* aTy -> Object* bTy
-then, instead of assertType, f should contain:
-getFuncType(3, getUnliftedType(), getNamedType("A"), getNamedType("B));
-where unlifted type will serve as a placeholder for types which are unaffected by OIR
-```
+## later meeting
+1. presentation: talk about design decisions and stack vs heap planning
+
+## suggest methodology for interprocedutal
+- clone function w/ new type signature // automatically creates value mapper
+- value-map between old and new functions
+- transform the new function ; checking dominator using the value-mapper w/ the old function
 
 ## interprocedural
 ```
+OVERALL INTERPROCEDURAL ALGO
+1. collect all the type definitions from GVs
+2a. scan over function signatures & detect any type signatures containing Object* or Field*
+2b. do the cloning to setup these flagged functions. requires looking @ assert types within the function + something for return
+3. do transformation over the original functions (as specified above)
+4. splice the basic blocks into cloned functions
+5. patch up calls to cloned functions (in any order)
+6. remove dead code/functions
+
+
 we are currently replacing uses of `objectIRinstructions` with their shallow copies only for UINT64 reads
 eg. uses of Object*, field*, etc were all used by the objectIR or phi nodes that we replaced, so we didnt need to replace their uses via llvm
 
@@ -49,24 +65,14 @@ _addressing these problems:_
 1. we will need the argument ptr to transform the body of the original function. we might 1) use the argument from the cloned function while transforming the original function, and then splice the BBs, or 2) splice the BBs over to the cloned function and hope that the dominator tree is not affected
 2. shallow-copy those callInsts (but no bitcasts, since we should be able to set up the function-type-signatures as my_struct* instead of i8*)
 3 and 4. i guess these are just cases we need to check for during transformation; there is nothing smart we can do here i think. we'll also need to be careful when both 2 and 3 are true.
-
-OVERALL INTERPROCEDURAL ALGO
-1. collect all the type definitions from GVs
-2a. scan over function signatures & detect any type signatures containing Object* or Field*
-2b. do the cloning to setup these flagged functions. requires looking @ assert types within the function + something for return
-3. do transformation over the original functions (as specified above)
-4. splice the basic blocks into cloned functions
 ```
-
 
 ## delete/free in OIR
 - forward DFA: gen = buildObject; kill = deleteObject
 - any objects still live in the return block must go on the heap
 
-
 ## merging in namedTypes (and pointer types)
 ```
-Plans for namedtype
 first we collect all the global variables that matches type (i.,e done above)
 Next we use the traditional trick of parsetype where nametypes are left as a stub
 We also create a map from name to analysisType*
