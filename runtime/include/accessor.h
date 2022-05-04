@@ -43,6 +43,9 @@ __attribute__((noinline)) Field *getUnionMember(
  */
 __attribute__((noinline)) bool assertType(Type *type,
                                           Object *object);
+__attribute__((noinline)) bool assertFieldType(
+    Type *type,
+    Field *field);
 
 /*
  * Field accesses
