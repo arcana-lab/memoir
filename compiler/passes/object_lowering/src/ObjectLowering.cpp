@@ -12,6 +12,54 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
 }
 
 void ObjectLowering::analyze() {
+    auto getbuildObjFunc = M.getFunction("buildObject");
+    auto object_star = getbuildObjFunc->getReturnType();
+    std::vector<Function *> functions_to_clone;
+    for (auto &F : M) {
+        auto ft = F.getFunctionType();
+        bool should_clone = false;
+        for (auto& paramType : ft->params())
+        {
+            if(paramType == object_star)
+            {
+                should_clone = true;
+                break;
+            }
+        }
+        if(should_clone && (!F.isDeclaration()))
+        {
+            functions_to_clone.push_back(&F);
+        }
+
+//        if(auto parms = F)
+//        {
+//            if
+//        }
+    }
+    std::map<Function*, Function*> clonedFunctionMap;
+
+    for(auto &f: functions_to_clone)
+    {
+        // Clone the function
+        ValueToValueMapTy VMap;
+        auto cloneFunc = llvm::CloneFunction(f, VMap);
+        clonedFunctionMap[f] = cloneFunc;
+        // Rewire the values inside the function.
+        auto valueMapper = new ValueMapper(VMap);
+        valueMapper->remapFunction(*cloneFunc);
+        delete valueMapper;
+        errs() << "cloning function with name " << f->getName().str() << "to function with name "
+        <<cloneFunc->getName() << "\n\n";
+    }
+
+//        if (F.getName().str() != "main")
+
+
+
+
+
+
+    return;
   errs() << "\n\nRunning ObjectLowering::Analysis\n";
 
   // Hack to get the LLVM::Type* representation of ObjectIR::Type*
@@ -434,6 +482,7 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
 // ============================= TRANSFORMATION ===========================================
 
 void ObjectLowering::transform() {
+    return;
     errs() << "\n Starting transformation\n\n";
     for (auto f : functionsToProcess) {
         // clear these maps for every function
