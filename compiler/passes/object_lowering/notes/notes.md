@@ -26,45 +26,44 @@ noelle-load-gdb -load ../../../compiler/passes/build/lib/ObjectLowering.so -Obje
 
 ## 05-05 coding
 goal:
-1. define an abstraction for keeping track of cloned functions? (track new+old Function*, maybe type signatures)
-2. detect functions which need to be cloned
-   1. find the assertTypes within those functions to define new signatures
-3. create function clones w/ new type sigs
-4. generate dummy calls to those function to check that it's working
+1. refactor type signature detection
+2. create function clones w/ new type sigs
+3. presentation: talk about design decisions and stack vs heap planning
+4. define an abstraction for keeping track of cloned functions?
+   1. we already have a map from old -> new Function*, which includes type signature
+   2. we may want to map old -> new Argument*
 
-## later meeting
-1. presentation: talk about design decisions and stack vs heap planning
-
-## suggest methodology for interprocedutal
+## suggested methodology for interprocedural (from Wed meeting)
 - clone function w/ new type signature // automatically creates value mapper
 - value-map between old and new functions
 - transform the new function ; checking dominator using the value-mapper w/ the old function
 
 ## interprocedural
-```
 OVERALL INTERPROCEDURAL ALGO
-1. collect all the type definitions from GVs
-2a. scan over function signatures & detect any type signatures containing Object* or Field*
-2b. do the cloning to setup these flagged functions. requires looking @ assert types within the function + something for return
-3. do transformation over the original functions (as specified above)
-4. splice the basic blocks into cloned functions
-5. patch up calls to cloned functions (in any order)
-6. remove dead code/functions
+- [ ] collect all the type definitions from GVs
+- [ ] scan over function signatures & detect any type signatures containing Object* or Field*
+- [ ] do the cloning to setup these flagged function: look for assert types and assertReturnType to get the right typesignature
+- [ ] analyze all (1) unflagged functions and (2) function clones. look for:
+  - [ ] ObjectIR call instructions (eg build, read, write, like we do already)
+  - [ ] any callinsts to flagged functions
+  - [ ] return w/ objects
+- [ ] transform analyzed functions with BBtransform
+  - [ ] patch up callinsts to flagged/cloned functions
+  - [ ] patch up returns
+  - [ ] (these need to be done in Dominator order s.t. the object* used or defined by callInsts are replaced)
+- [ ] remove dead code/functions
 
-
+```
+NOTES
 we are currently replacing uses of `objectIRinstructions` with their shallow copies only for UINT64 reads
 eg. uses of Object*, field*, etc were all used by the objectIR or phi nodes that we replaced, so we didnt need to replace their uses via llvm
+however, base types like UINT64 do need this use-replacement
 
 HOWEVER this will not be true for interprocedural:
 1. arguments define Object* 
 2. non-objectIR CallInsts can define Object*
 3. non-objectIR CallInsts can use Object*
 4. returns use Object*
-
-_addressing these problems:_
-1. we will need the argument ptr to transform the body of the original function. we might 1) use the argument from the cloned function while transforming the original function, and then splice the BBs, or 2) splice the BBs over to the cloned function and hope that the dominator tree is not affected
-2. shallow-copy those callInsts (but no bitcasts, since we should be able to set up the function-type-signatures as my_struct* instead of i8*)
-3 and 4. i guess these are just cases we need to check for during transformation; there is nothing smart we can do here i think. we'll also need to be careful when both 2 and 3 are true.
 ```
 
 ## delete/free in OIR

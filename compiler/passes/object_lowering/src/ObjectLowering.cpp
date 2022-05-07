@@ -8,12 +8,18 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
   : M(M),
     noelle(noelle),
     mp(mp){
-  // Do initialization.
+    // Do initialization.
+    // get llvm::Type* for ObjectIR::Object*
+    auto getbuildObjFunc = M.getFunction(ObjectIRToFunctionNames[BUILD_OBJECT]);
+    this->object_star = getbuildObjFunc->getReturnType();
+    // get the LLVM::Type* for ObjectIR::Type*
+    auto getTypeFunc = M.getFunction(ObjectIRToFunctionNames[OBJECT_TYPE]);
+    this->type_star = getTypeFunc->getReturnType();
+    this->type_star_star = PointerType::getUnqual(type_star);
 }
 
 void ObjectLowering::analyze() {
-    auto getbuildObjFunc = M.getFunction("buildObject");
-    auto object_star = getbuildObjFunc->getReturnType();
+    // scan function type signatures for instances of Object*
     std::vector<Function *> functions_to_clone;
     for (auto &F : M) {
         auto ft = F.getFunctionType();
@@ -26,20 +32,29 @@ void ObjectLowering::analyze() {
                 break;
             }
         }
+        // TODO: also check the return type with getReturnType()
         if(should_clone && (!F.isDeclaration()))
         {
             functions_to_clone.push_back(&F);
         }
-
-//        if(auto parms = F)
-//        {
-//            if
-//        }
     }
+
+    // create the cloned functions
     std::map<Function*, Function*> clonedFunctionMap;
 
     for(auto &f: functions_to_clone)
     {
+        // Create a new function type...
+        //auto ArgTypes = inferArgTypes(f);
+        //for (auto a : ArgTypes) errs() << *a << "\n";
+   /*FunctionType *FTy =
+       FunctionType::get(F->getFunctionType()->getReturnType(), ArgTypes,
+                         F->getFunctionType()->isVarArg());
+  
+   // Create the new function...
+   Function *NewF = Function::Create(FTy, F->getLinkage(), F->getAddressSpace(),
+                                     F->getName(), F->getParent());*/
+
         // Clone the function
         ValueToValueMapTy VMap;
         auto cloneFunc = llvm::CloneFunction(f, VMap);
@@ -52,20 +67,14 @@ void ObjectLowering::analyze() {
         <<cloneFunc->getName() << "\n\n";
     }
 
-//        if (F.getName().str() != "main")
 
 
 
+    return; // temporarily skip other code
 
 
 
-    return;
   errs() << "\n\nRunning ObjectLowering::Analysis\n";
-
-  // Hack to get the LLVM::Type* representation of ObjectIR::Type*
-  auto getTypeFunc = M.getFunction("getUInt64Type");
-  auto type_star = getTypeFunc->getReturnType();
-  auto type_star_star = PointerType::getUnqual(type_star);
 
   // collect all GlobalVals which are Type*
   std::vector<GlobalValue*> typeDefs;
@@ -142,7 +151,6 @@ void ObjectLowering::analyze() {
             switch (FunctionNamesToObjectIR[n]) {
                 case BUILD_OBJECT:
                     this->buildObjects.insert(callInst);
-                    llvmObjectType = callInst->getType(); // setup the hacky llvm::ObjectType*
                     continue;
                 case READ_POINTER:
                 case READ_UINT64: this->reads.insert(callInst); continue;
@@ -204,6 +212,56 @@ void ObjectLowering::analyze() {
 
   }
 } // endof analyze
+
+
+/*
+1. Determine which Arguments and/or Return need to be replaced
+2. Cycle through instructions until all are replaced.
+*/
+ArrayRef<Type*> & ObjectLowering::inferArgTypes(llvm::Function* f) {
+    errs() << "Running inferArgTypes on " << f->getName() << "\n";
+    auto arg_vector = vector<Type*>();
+    auto ft = f->getFunctionType();
+    auto args = f->arg_begin();
+    for (auto ogType : ft->params()) {
+        if (ogType == object_star) {
+            // this argument is an Object* => scan the users for assertType()
+            auto &argi = *args;
+            for(auto u: argi.users()) {
+                if (auto ins = dyn_cast_or_null<CallInst>(u)) {
+                    auto callee = ins->getCalledFunction();
+                    if (!callee) continue;
+                    auto n = callee->getName().str();
+                    if (n == ObjectIRToFunctionNames[ASSERT_TYPE]) {
+                        // use parseType to retreive the type info from the first operand
+                        auto newTypeInst = ins->getArgOperand(0);
+                        object_lowering::AnalysisType* a_type;
+                        std::set<PHINode*> visited;
+                        std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+                            a_type = parseTypeCallInst(ci,visited);
+                        };
+                        parseType(newTypeInst, call_back, visited);
+                        // make sure it is an ObjectType
+                        assert(a_type);
+                        if(a_type->getCode() != ObjectTy) assert(false);
+                        auto* objt = (ObjectType*) a_type;
+                        auto llvm_type = objt->getLLVMRepresentation(M);
+                        arg_vector.push_back(llvm_type);
+                    } // WIP
+                }
+            }
+        } else {
+            arg_vector.push_back(ogType);
+        }
+        args++;
+    }
+    errs() << "Original function sig: " << *ft << "\n";
+    errs() << "New function sig: ";
+    for (auto t : arg_vector) errs() << *t << ", ";
+    errs() << "\n";
+    auto ans =  ArrayRef<Type*>(arg_vector);
+    return ans;
+}
 
 object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited) {
     // return a cached AnalysisType*
@@ -348,7 +406,7 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::s
         return buildObjMap[i];
     }
     auto funcName = i->getCalledFunction()->getName().str();
-    if(funcName == "buildObject"){
+    if(funcName == ObjectIRToFunctionNames[BUILD_OBJECT]){
         auto typeArg = i->getArgOperand(0); // this should be a loadInst from a global Type**
         AnalysisType* type;
         std::function<void(CallInst*)> callback = [&](CallInst* ci) {
@@ -364,7 +422,7 @@ ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::s
         auto* objt = (ObjectType*) type;
         buildObjMap[i] = new ObjectWrapper(objt);
     }
-    else if(funcName == "readPointer")
+    else if(funcName == ObjectIRToFunctionNames[READ_POINTER])
     {
         errs() << "Processing the type of the inner pointer for " << *i << "\n\n";
         FieldWrapper* fw;
@@ -459,7 +517,7 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
         assert(false);
     }
     auto n = callee->getName().str();
-    if(n != "getObjectField") {
+    if(n != ObjectIRToFunctionNames[GETOBJECTFIELD]) {
         errs() << "Def use chain gave us the wrong function?" << *i;
         assert(false);
     }
@@ -482,7 +540,7 @@ FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode
 // ============================= TRANSFORMATION ===========================================
 
 void ObjectLowering::transform() {
-    return;
+    return; // temporarily skip other code
     errs() << "\n Starting transformation\n\n";
     for (auto f : functionsToProcess) {
         // clear these maps for every function
@@ -556,7 +614,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
         {
             //errs()<< "The phi has type " << *phi->getType() <<"\n";
             //errs() << "our type is " << *llvmObjectType << "\n";
-            if(phi->getType() == llvmObjectType)
+            if(phi->getType() == object_star)
             {
                 //errs() << "those two types as equal" <<"\n";
                 std::set<PHINode*> visited;

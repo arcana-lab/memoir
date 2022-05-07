@@ -21,7 +21,11 @@ private:
   Noelle *noelle;
   ModulePass* mp;
 
-  Type* llvmObjectType; // hacky way to get the represenation of Object* type in llvm
+  // llvm Type*s
+  Type* object_star;
+  Type* type_star;
+  Type* type_star_star;
+
   std::map<Instruction*, AnalysisType*> analysisTypeMap; // any CallInst -> type
 
   std::unordered_set<CallInst *> buildObjects;
@@ -44,6 +48,8 @@ public:
   // ==================== ANALYSIS ====================
 
   void analyze();
+
+  ArrayRef<Type*> &inferArgTypes(llvm::Function* f);
 
   // the CallInst must be an getObjectType, getPtrType, getUInt64, etc to reconstruct the Type*
   AnalysisType* parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited);
