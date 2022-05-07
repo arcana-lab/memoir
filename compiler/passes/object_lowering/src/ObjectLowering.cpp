@@ -9,16 +9,29 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
     noelle(noelle),
     mp(mp){
     // Do initialization.
+    this->parser = new Parser(M, noelle, mp);
+
     // get llvm::Type* for ObjectIR::Object*
     auto getbuildObjFunc = M.getFunction(ObjectIRToFunctionNames[BUILD_OBJECT]);
     this->object_star = getbuildObjFunc->getReturnType();
+    
     // get the LLVM::Type* for ObjectIR::Type*
     auto getTypeFunc = M.getFunction(ObjectIRToFunctionNames[OBJECT_TYPE]);
+    if (!getTypeFunc) {
+      getTypeFunc = M.getFunction(ObjectIRToFunctionNames[NAME_OBJECT_TYPE]);
+      if (!getTypeFunc) {
+          errs() << "Failed to retrieve Type*";
+          assert(false);
+      }
+    }
     this->type_star = getTypeFunc->getReturnType();
     this->type_star_star = PointerType::getUnqual(type_star);
 }
 
 void ObjectLowering::analyze() {
+    cacheTypes();
+
+
     // scan function type signatures for instances of Object*
     std::vector<Function *> functions_to_clone;
     for (auto &F : M) {
@@ -42,28 +55,34 @@ void ObjectLowering::analyze() {
     // create the cloned functions
     std::map<Function*, Function*> clonedFunctionMap;
 
-    for(auto &f: functions_to_clone)
+    for(auto &oldF: functions_to_clone)
     {
         // Create a new function type...
-        //auto ArgTypes = inferArgTypes(f);
-        //for (auto a : ArgTypes) errs() << *a << "\n";
-   /*FunctionType *FTy =
-       FunctionType::get(F->getFunctionType()->getReturnType(), ArgTypes,
-                         F->getFunctionType()->isVarArg());
-  
-   // Create the new function...
-   Function *NewF = Function::Create(FTy, F->getLinkage(), F->getAddressSpace(),
-                                     F->getName(), F->getParent());*/
+        /*vector<Type*> ArgTypes;
+        inferArgTypes(oldF, &ArgTypes);
+        errs() << "New function argument types: ";
+        for (auto t : ArgTypes) errs() << *t << ", ";
+        errs() << "\n";
+        FunctionType *FTy = FunctionType::get(oldF->getFunctionType()->getReturnType(), ArgTypes,
+                         oldF->getFunctionType()->isVarArg());
+        Function *newF = Function::Create(FTy, oldF->getLinkage(), oldF->getAddressSpace(), oldF->getName(), oldF->getParent());*/
+        
+        // Create the new function...
+        // can't get clonefunctioninto to work:
+        /*ValueToValueMapTy VMap;
+        SmallVectorImpl<ReturnInst*> Returns(0);
+        ValueMapTypeRemapper *TypeMapper;
+        llvm::CloneFunctionInto(newF, oldF, VMap, false, Returns);*/
 
         // Clone the function
         ValueToValueMapTy VMap;
-        auto cloneFunc = llvm::CloneFunction(f, VMap);
-        clonedFunctionMap[f] = cloneFunc;
+        auto cloneFunc = llvm::CloneFunction(oldF, VMap);
+        clonedFunctionMap[oldF] = cloneFunc;
         // Rewire the values inside the function.
         auto valueMapper = new ValueMapper(VMap);
         valueMapper->remapFunction(*cloneFunc);
         delete valueMapper;
-        errs() << "cloning function with name " << f->getName().str() << "to function with name "
+        errs() << "cloning function with name " << oldF->getName().str() << "to function with name "
         <<cloneFunc->getName() << "\n\n";
     }
 
@@ -72,67 +91,6 @@ void ObjectLowering::analyze() {
 
     return; // temporarily skip other code
 
-
-
-  errs() << "\n\nRunning ObjectLowering::Analysis\n";
-
-  // collect all GlobalVals which are Type*
-  std::vector<GlobalValue*> typeDefs;
-  for (auto &globalVar : M.getGlobalList()) {
-      if (globalVar.getType() == type_star_star) {
-          typeDefs.push_back(&globalVar);
-      }
-  }
- 
-   std::map<string, AnalysisType*> namedTypeMap;
-   std::vector<AnalysisType*> allTypes;
-
-  // parse the Types
-  for (auto v : typeDefs) {
-    errs() << "Global value: " << *v << "\n";
-    object_lowering::AnalysisType* type;
-    std::set<PHINode*> visited;
-    std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-        type = parseTypeCallInst(ci,visited);
-    };
-    parseType(v, call_back,visited);
-
-    allTypes.push_back(type);
-    if(type->getCode() == ObjectTy) {
-        auto objTy = (ObjectType*) type;
-        if (objTy->hasName()) namedTypeMap[objTy->name] = objTy;
-    }
-
-    
-  }
-  // assume that 1) all named Types ARE global vals and not intermediate
-  // 2) all un-named types are also global vals
-
-  // resolve stubs
-  for (auto type : allTypes) {
-     if(type->getCode() == ObjectTy) {
-        
-        auto objTy = (ObjectType*) type;
-        for (auto fld : objTy->fields) {
-            if(fld->getCode() == PointerTy) {
-                auto ptrTy = (APointerType*) fld;
-                auto pointsTo = ptrTy->pointsTo;
-                if(pointsTo->getCode() == StubTy) {
-                    auto stubTy = (StubType*) pointsTo;
-                    ptrTy->pointsTo = namedTypeMap[stubTy->name];
-                }
-            }
-        }
-        
-    }
-  }
-
-  for (auto v : allTypes) {
-      errs() << v->toString() << "\n\n";
-  }
-
-  // the types generated above are cached by parseTypeCallInst, so we could safely delete the helper maps
-  // begin instruction analysis
 
   for (auto &F : M) {
 
@@ -166,8 +124,7 @@ void ObjectLowering::analyze() {
     for(auto ins : this->buildObjects) {
         errs() << "Parsing: " << *ins << "\n\n";
         std::set<PHINode*> visited;
-        auto objT = parseObjectWrapperInstruction(ins,visited);
-//        buildObjMap[ins] = objT;
+        auto objT = parser->parseObjectWrapperInstruction(ins,visited);
         errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
 
@@ -179,9 +136,9 @@ void ObjectLowering::analyze() {
         FieldWrapper* fw;
         std::set<PHINode*> visited;
         std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-            fw = parseFieldWrapperIns(ci,visited);
+            fw = parser->parseFieldWrapperIns(ci,visited);
         };
-        parseType(ins->getArgOperand(0), call_back,visited);
+        parser->parseType(ins->getArgOperand(0), call_back,visited);
         errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
         errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
         errs() << "The field index is" << fw->fieldIndex << "\n";
@@ -198,9 +155,9 @@ void ObjectLowering::analyze() {
         std::set<PHINode*> visited;
         std::function<void(CallInst*)> call_back = [&](CallInst* ci)
         {
-            fw = parseFieldWrapperIns(ci,visited);
+            fw = parser->parseFieldWrapperIns(ci,visited);
         };
-        parseType(ins->getArgOperand(0), call_back,visited);
+        parser->parseType(ins->getArgOperand(0), call_back,visited);
         errs() << "Instruction " << *ins << "\n\n has a field wrapper where ";
         errs() <<"The base pointer is " << *(fw->baseObjPtr) << "\n";
         errs() << "The field index is" << fw->fieldIndex << "\n";
@@ -214,13 +171,65 @@ void ObjectLowering::analyze() {
 } // endof analyze
 
 
-/*
-1. Determine which Arguments and/or Return need to be replaced
-2. Cycle through instructions until all are replaced.
-*/
-ArrayRef<Type*> & ObjectLowering::inferArgTypes(llvm::Function* f) {
+void ObjectLowering::cacheTypes() {
+    errs() << "\n\nRunning ObjectLowering::Analysis\n";
+
+    // collect all GlobalVals which are Type*
+    std::vector<GlobalValue*> typeDefs;
+    for (auto &globalVar : M.getGlobalList()) {
+        if (globalVar.getType() == type_star_star) {
+            typeDefs.push_back(&globalVar);
+        }
+    }
+ 
+   std::map<string, AnalysisType*> namedTypeMap;
+   std::vector<AnalysisType*> allTypes;
+
+    // parse the Types
+    for (auto v : typeDefs) {
+        errs() << "Global value: " << *v << "\n";
+        object_lowering::AnalysisType* type;
+        std::set<PHINode*> visited;
+        std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+            type = parser->parseTypeCallInst(ci,visited);
+        };
+        parser->parseType(v, call_back,visited);
+
+        allTypes.push_back(type);
+        if(type->getCode() == ObjectTy) {
+            auto objTy = (ObjectType*) type;
+            if (objTy->hasName()) namedTypeMap[objTy->name] = objTy;
+        }
+    }
+    // assume that 1) all named Types ARE global vals and not intermediate
+    // 2) all un-named types are also global vals
+
+    // resolve stubs
+    for (auto type : allTypes) {
+        if(type->getCode() == ObjectTy) {
+            auto objTy = (ObjectType*) type;
+            for (auto fld : objTy->fields) {
+                if(fld->getCode() == PointerTy) {
+                    auto ptrTy = (APointerType*) fld;
+                    auto pointsTo = ptrTy->pointsTo;
+                    if(pointsTo->getCode() == StubTy) {
+                        auto stubTy = (StubType*) pointsTo;
+                        ptrTy->pointsTo = namedTypeMap[stubTy->name];
+                    }
+                }
+            }
+        }
+    }
+
+    for (auto v : allTypes) {
+        errs() << v->toString() << "\n\n";
+    }
+    errs() << "Done caching types\n\n";
+} // endof cachetypes
+
+
+void ObjectLowering::inferArgTypes(llvm::Function* f, vector<Type*> *arg_vector) {
     errs() << "Running inferArgTypes on " << f->getName() << "\n";
-    auto arg_vector = vector<Type*>();
     auto ft = f->getFunctionType();
     auto args = f->arg_begin();
     for (auto ogType : ft->params()) {
@@ -238,304 +247,25 @@ ArrayRef<Type*> & ObjectLowering::inferArgTypes(llvm::Function* f) {
                         object_lowering::AnalysisType* a_type;
                         std::set<PHINode*> visited;
                         std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-                            a_type = parseTypeCallInst(ci,visited);
+                            a_type = parser->parseTypeCallInst(ci,visited);
                         };
-                        parseType(newTypeInst, call_back, visited);
+                        parser->parseType(newTypeInst, call_back, visited);
                         // make sure it is an ObjectType
                         assert(a_type);
                         if(a_type->getCode() != ObjectTy) assert(false);
                         auto* objt = (ObjectType*) a_type;
                         auto llvm_type = objt->getLLVMRepresentation(M);
-                        arg_vector.push_back(llvm_type);
-                    } // WIP
+                        arg_vector->push_back(llvm_type);
+                    }
                 }
             }
         } else {
-            arg_vector.push_back(ogType);
+            arg_vector->push_back(ogType);
         }
         args++;
     }
-    errs() << "Original function sig: " << *ft << "\n";
-    errs() << "New function sig: ";
-    for (auto t : arg_vector) errs() << *t << ", ";
-    errs() << "\n";
-    auto ans =  ArrayRef<Type*>(arg_vector);
-    return ans;
 }
 
-object_lowering::AnalysisType* ObjectLowering::parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited) {
-    // return a cached AnalysisType*
-    if (analysisTypeMap.find(ins) != analysisTypeMap.end()) {
-        return analysisTypeMap[ins];
-    }    
-    
-    auto callee = ins->getCalledFunction();
-    if (!callee) {
-        //errs() << "Unrecognized indirect call" << *ins << "\n";
-        assert(false);
-    }
-    auto n = callee->getName().str();
-    if (!isObjectIRCall(n)) {
-        //errs() << "Unrecognized function call " << *ins << "\n";
-        assert(false);
-    }
-
-    AnalysisType* a_type; // the Type* of this CallInst will be reconstructed into an AnalysisType*
-
-    switch (FunctionNamesToObjectIR[n])
-    {
-        case OBJECT_TYPE: {
-            std::vector<object_lowering::AnalysisType*> typeVec;
-            for(auto arg = ins->arg_begin() + 1; arg != ins->arg_end(); ++arg)
-            {
-                auto ins = arg->get();
-                object_lowering::AnalysisType* type;
-//                std::set<PHINode*> visited;
-                std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-                    type = parseTypeCallInst(ci,visited);
-                };
-                parseType(dyn_cast_or_null<Instruction>(ins), call_back,visited);
-                typeVec.push_back(type);
-            }
-            auto tmp = new ObjectType();
-            tmp->fields = typeVec;
-            a_type = tmp;
-            break;
-        }
-        case NAME_OBJECT_TYPE: {
-            std::vector<object_lowering::AnalysisType*> typeVec;
-            auto name = fetchString(ins->arg_begin()->get());
-            // the same as BUILD_OBJECT, except start from the 3rd argument (skip the name & # of args)
-            for(auto arg = ins->arg_begin() + 2; arg != ins->arg_end(); ++arg)
-            {
-                auto ins = arg->get();
-                object_lowering::AnalysisType* type;
-//                std::set<PHINode*> visited;
-                std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-                    type = parseTypeCallInst(ci,visited);
-                };
-                parseType(dyn_cast_or_null<Instruction>(ins), call_back,visited);
-                typeVec.push_back(type);
-            }
-            auto tmp = new ObjectType();
-            tmp->name = name;
-            tmp->fields = typeVec;
-            a_type = tmp;
-            break;
-        }
-        case POINTER_TYPE: {
-            auto pointsToVal = ins->getArgOperand(0);
-            object_lowering::AnalysisType* type;
-            std::set<PHINode*> visited;
-            std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-                type = parseTypeCallInst(ci,visited);
-            };
-            parseType(pointsToVal, call_back,visited);
-            auto tmp = new APointerType();
-            tmp->pointsTo = type;
-            a_type = tmp;
-            break;
-        }
-        case GET_NAME_TYPE: {
-            auto name = fetchString(ins->getArgOperand(0));
-            auto tmp = new StubType(name);
-            a_type = tmp;
-            break;
-        }
-        case UINT64_TYPE:
-            a_type = new object_lowering::IntegerType(64, false); break;
-        case UINT32_TYPE:
-            a_type = new object_lowering::IntegerType(32, true); break;
-        case UINT16_TYPE:
-            a_type = new object_lowering::IntegerType(16, true); break;
-        case UINT8_TYPE:
-            a_type = new object_lowering::IntegerType(8, true); break;
-        case INT64_TYPE:
-            a_type = new object_lowering::IntegerType(64, false); break;
-        case INT32_TYPE:
-            a_type = new object_lowering::IntegerType(32, false); break;
-        case INT16_TYPE:
-            a_type = new object_lowering::IntegerType(16, false); break;
-        case INT8_TYPE:
-            a_type = new object_lowering::IntegerType(8, false); break;
-        case FLOAT_TYPE:
-            a_type = new object_lowering::FloatType(); break;
-        case DOUBLE_TYPE:
-            a_type = new object_lowering::DoubleType(); break;
-        default:
-            errs() <<"the switch should cover everything this is wrong\n";
-            errs() << *ins;
-            assert(false);
-            break;
-    }
-    analysisTypeMap[ins] = a_type;
-    return a_type;
-} // endof parseTypeCallInst
-
-std::string ObjectLowering::fetchString(Value* ins) {
-    if(auto firstargGep = dyn_cast<GetElementPtrInst>(ins)) {
-        if(firstargGep->getNumIndices() == 2 && firstargGep->hasAllZeroIndices()) {
-            if (auto glob_var = dyn_cast<GlobalVariable>(firstargGep->getPointerOperand())) {
-                if (auto cda = dyn_cast<ConstantDataArray>(glob_var->getInitializer())) {
-                    auto str = cda->getAsCString().str();
-                    return str;
-                }
-            }
-        }
-    }
-    errs() << "Not able to fetch str from " << *ins << "\n";
-    assert(false);
-}
-
-ObjectWrapper *ObjectLowering::parseObjectWrapperChain(Value* i, std::set<PHINode*> &visited)
-{
-    errs() << "Trying to obtain object wrapper for " << *i <<"\n";
-    ObjectWrapper* objw;
-    std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-        //errs() << "Field Wrapper found function " << *ci << "\n";
-        objw = parseObjectWrapperInstruction(ci,visited);
-    };
-    parseType(i, call_back,visited);
-    return objw;
-}
-
-ObjectWrapper *ObjectLowering::parseObjectWrapperInstruction(CallInst *i, std::set<PHINode*> &visited) {
-    // return the cached objectWrapper, if it exists
-    if (buildObjMap.find(i)!=buildObjMap.end())
-    {
-        return buildObjMap[i];
-    }
-    auto funcName = i->getCalledFunction()->getName().str();
-    if(funcName == ObjectIRToFunctionNames[BUILD_OBJECT]){
-        auto typeArg = i->getArgOperand(0); // this should be a loadInst from a global Type**
-        AnalysisType* type;
-        std::function<void(CallInst*)> callback = [&](CallInst* ci) {
-            type = parseTypeCallInst(ci,visited);
-        };
-        parseType(typeArg,callback,visited);
-        //errs() << "Obtained AnalysisType for " << *i <<"\n";
-
-        if(type->getCode() != ObjectTy) {
-            //errs() << "It's not an object";
-            assert(false);
-        }
-        auto* objt = (ObjectType*) type;
-        buildObjMap[i] = new ObjectWrapper(objt);
-    }
-    else if(funcName == ObjectIRToFunctionNames[READ_POINTER])
-    {
-        errs() << "Processing the type of the inner pointer for " << *i << "\n\n";
-        FieldWrapper* fw;
-        std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-            fw = parseFieldWrapperIns(ci,visited);
-        };
-        parseType(i->getArgOperand(0), call_back,visited);
-        buildObjMap[i] = new ObjectWrapper(fw->objectType);
-    }
-    else
-    {
-        assert(false);
-    }
-    return  buildObjMap[i];
-}
-
-
-
-
-void ObjectLowering::parseType(Value *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*>& visited) {
-   //errs()<<*ins << "is being called by parseType\n";
-
-    if (auto callins = dyn_cast_or_null<CallInst>(ins)) {
-        callback(callins);
-    }
-    else if (auto storeIns = dyn_cast_or_null<StoreInst>(ins)) {
-        parseTypeStoreInst(storeIns,callback,visited);
-    }
-    else if(auto loadIns = dyn_cast_or_null<LoadInst>(ins)) {
-        parseTypeLoadInst(loadIns,callback,visited);
-    }
-    else if (auto allocaIns = dyn_cast_or_null<AllocaInst>(ins)) {
-        parseTypeAllocaInst(allocaIns,callback,visited);
-    } else if (auto gv = dyn_cast_or_null<GlobalValue>(ins)) {
-        parseTypeGlobalValue(gv,callback,visited);
-    } else if (auto phiInst = dyn_cast_or_null<PHINode>(ins)) {
-        // if the value has been visited, do nothing
-        if(visited.find(phiInst) != visited.end()) return;
-        // otherwise, vist the children
-        visited.insert(phiInst);
-        for (auto& val: phiInst->incoming_values()) parseType(val.get(), callback, visited);
-    } else if (!ins) {
-        //errs() << "i think this is a nullptr\n";
-        assert(false); 
-    } else {
-        errs() << "parseType: Unrecognized instruction" << *ins <<"\n";
-        assert(false);
-    }
-}
-
-
-
-void ObjectLowering::parseTypeStoreInst(StoreInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
-    auto valOp = ins->getValueOperand();
-    parseType(dyn_cast_or_null<Instruction>(valOp), callback,visited);
-}
-
-void ObjectLowering::parseTypeLoadInst(LoadInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
-    auto ptrOp = ins->getPointerOperand();
-    parseType(ptrOp,callback,visited);
-}
-
-void ObjectLowering::parseTypeAllocaInst(AllocaInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
-    for(auto u: ins->users()) {
-        if(auto i = dyn_cast_or_null<StoreInst>(u)) {
-            return parseType(i,callback,visited);
-        }
-    }
-    //errs() << "Didn't find any store instruction uses for the instruction" <<*ins;
-    assert(false);
-}
-
-void ObjectLowering::parseTypeGlobalValue(GlobalValue *gv, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
-    for(auto u: gv->users()) {
-        if(auto i = dyn_cast_or_null<StoreInst>(u)) {
-            return parseType(i,callback,visited);
-        }
-    }
-    //errs() << "Didn't find any store instruction uses for the gv" << *gv;
-    assert(false);
-}
-
-
-
-FieldWrapper* ObjectLowering::parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visited)
-{
-    errs() << "Parsing field wrapper for " << *i << "\n";
-
-    auto callee = i->getCalledFunction();
-    if (!callee) {
-        errs() << "Unrecognized indirect call" << *i << "\n";
-        assert(false);
-    }
-    auto n = callee->getName().str();
-    if(n != ObjectIRToFunctionNames[GETOBJECTFIELD]) {
-        errs() << "Def use chain gave us the wrong function?" << *i;
-        assert(false);
-    }
-    // get the arguments out of @getObjectField
-    auto objPtr = i->getArgOperand(0);
-    auto llvmFieldIndex =  i->getArgOperand(1);
-    auto CI = dyn_cast_or_null<ConstantInt>(llvmFieldIndex);
-    assert(CI);
-    int64_t fieldIndex = CI->getSExtValue();
-    // grab the ObjectWrapper*
-    auto objw = parseObjectWrapperChain(objPtr, visited);
-    errs() << "Obtained Field Wrapper AnalysisType for " << *i <<"\n";
-    auto fieldwrapper = new FieldWrapper();
-    fieldwrapper->baseObjPtr = objPtr;
-    fieldwrapper->fieldIndex = fieldIndex; // NOLINT(cppcoreguidelines-narrowing-conversions)
-    fieldwrapper->objectType = objw->innerType; 
-    return fieldwrapper;
-}
 
 // ============================= TRANSFORMATION ===========================================
 
@@ -618,7 +348,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
             {
                 //errs() << "those two types as equal" <<"\n";
                 std::set<PHINode*> visited;
-                ObjectWrapper* objw = parseObjectWrapperChain(phi,visited);
+                ObjectWrapper* objw = parser->parseObjectWrapperChain(phi,visited);
                 auto llvmType = objw->innerType->getLLVMRepresentation(M);
                 auto llvmPtrType = PointerType::getUnqual(llvmType);
                 auto newPhi = builder.CreatePHI(llvmPtrType, phi->getNumIncomingValues() );
@@ -638,7 +368,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb)
             case BUILD_OBJECT:
             {
                 // create malloc based on the object's LLVMRepresentation ; bitcast to a ptr to LLVMRepresentation
-                auto llvmType = buildObjMap[callIns]->innerType->getLLVMRepresentation(M);
+                auto llvmType = parser->buildObjMap[callIns]->innerType->getLLVMRepresentation(M);
                 auto llvmTypeSize = llvm::ConstantInt::get(int64Ty, M.getDataLayout().getTypeAllocSize(llvmType));
                 std::vector<Value *> arguments{llvmTypeSize};
                 auto newMallocCall = builder.CreateCall(mallocf ,arguments);

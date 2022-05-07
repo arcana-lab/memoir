@@ -3,6 +3,7 @@
 #include "noelle/core/Noelle.hpp"
 #include "Utils.hpp"
 #include "types.hpp"
+#include "Parser.hpp"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
 
@@ -20,19 +21,17 @@ private:
   Module &M;
   Noelle *noelle;
   ModulePass* mp;
+  Parser *parser;
 
   // llvm Type*s
   Type* object_star;
   Type* type_star;
   Type* type_star_star;
 
-  std::map<Instruction*, AnalysisType*> analysisTypeMap; // any CallInst -> type
-
   std::unordered_set<CallInst *> buildObjects;
   std::unordered_set<CallInst *> reads;
   std::unordered_set<CallInst *> writes;
   
-  std::map<CallInst*, ObjectWrapper*> buildObjMap;
   std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
   
   std::set<Function*> functionsToProcess;
@@ -49,27 +48,9 @@ public:
 
   void analyze();
 
-  ArrayRef<Type*> &inferArgTypes(llvm::Function* f);
+  void cacheTypes(); // analyze the global values for type*
 
-  // the CallInst must be an getObjectType, getPtrType, getUInt64, etc to reconstruct the Type*
-  AnalysisType* parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited);
-  std::string fetchString(Value* ins);
-
-  // this function wraps over the second one ...
-  // used by BBtransform/phi and parseFieldWrapperIns // REFACTOR: why is this Value*?
-  ObjectWrapper* parseObjectWrapperChain(Value *i, set<PHINode *> &visited); 
-  // create the ObjectWrapper* from the @buildObject CallInst ; do caching w/ buildObjMap
-  ObjectWrapper* parseObjectWrapperInstruction(CallInst* i, std::set<PHINode*> &visited);
-
-  // create the fieldWrapper from @getObjectField CallInst // REFACTOR: maybe we should cache these too?
-  FieldWrapper* parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visited);
-
-  // dispatch to the functions below
-  void parseType(Value* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-  void parseTypeStoreInst(StoreInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-  void parseTypeLoadInst(LoadInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-  void parseTypeAllocaInst(AllocaInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-  void parseTypeGlobalValue(GlobalValue* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
+  void inferArgTypes(llvm::Function* f, vector<Type*> *arg_vector); // build a new list of argument types
 
   // ==================== TRANSFORMATION ====================
 
