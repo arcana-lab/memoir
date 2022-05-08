@@ -24,14 +24,9 @@ noelle-load-gdb -load ../../../compiler/passes/build/lib/ObjectLowering.so -Obje
 
 # notes and planning
 
-## 05-05 coding
-goal:
-1. refactor type signature detection
-2. create function clones w/ new type sigs
-3. presentation: talk about design decisions and stack vs heap planning
-4. define an abstraction for keeping track of cloned functions?
-   1. we already have a map from old -> new Function*, which includes type signature
-   2. we may want to map old -> new Argument*
+## 05-09
+- write tests for delete object
+- plan algo + presentation
 
 ## suggested methodology for interprocedural (from Wed meeting)
 - clone function w/ new type signature // automatically creates value mapper
@@ -40,13 +35,15 @@ goal:
 
 ## interprocedural
 OVERALL INTERPROCEDURAL ALGO
-- [ ] collect all the type definitions from GVs
+- [x] collect all the type definitions from GVs
 - [ ] scan over function signatures & detect any type signatures containing Object* or Field*
+  - [x] done for Object* arguments only
 - [ ] do the cloning to setup these flagged function: look for assert types and assertReturnType to get the right typesignature
+  - [x] done for Object* arguments only 
 - [ ] analyze all (1) unflagged functions and (2) function clones. look for:
   - [ ] ObjectIR call instructions (eg build, read, write, like we do already)
   - [ ] any callinsts to flagged functions
-  - [ ] return w/ objects
+  - [ ] return instructions inside of flagged functions
 - [ ] transform analyzed functions with BBtransform
   - [ ] patch up callinsts to flagged/cloned functions
   - [ ] patch up returns

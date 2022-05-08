@@ -58,32 +58,16 @@ void ObjectLowering::analyze() {
     for(auto &oldF: functions_to_clone)
     {
         // Create a new function type...
-        /*vector<Type*> ArgTypes;
+        vector<Type*> ArgTypes; // this would replace oldF->getFunctionType()->params() below
         inferArgTypes(oldF, &ArgTypes);
-        errs() << "New function argument types: ";
-        for (auto t : ArgTypes) errs() << *t << ", ";
-        errs() << "\n";
-        FunctionType *FTy = FunctionType::get(oldF->getFunctionType()->getReturnType(), ArgTypes,
-                         oldF->getFunctionType()->isVarArg());
-        Function *newF = Function::Create(FTy, oldF->getLinkage(), oldF->getAddressSpace(), oldF->getName(), oldF->getParent());*/
-        
-        // Create the new function...
-        // can't get clonefunctioninto to work:
-        /*ValueToValueMapTy VMap;
-        SmallVectorImpl<ReturnInst*> Returns(0);
-        ValueMapTypeRemapper *TypeMapper;
-        llvm::CloneFunctionInto(newF, oldF, VMap, false, Returns);*/
 
-        // Clone the function
-        ValueToValueMapTy VMap;
-        auto cloneFunc = llvm::CloneFunction(oldF, VMap);
-        clonedFunctionMap[oldF] = cloneFunc;
-        // Rewire the values inside the function.
-        auto valueMapper = new ValueMapper(VMap);
-        valueMapper->remapFunction(*cloneFunc);
-        delete valueMapper;
-        errs() << "cloning function with name " << oldF->getName().str() << "to function with name "
-        <<cloneFunc->getName() << "\n\n";
+        FunctionType *FTy = FunctionType::get(oldF->getFunctionType()->getReturnType(), oldF->getFunctionType()->params(), 
+                         oldF->getFunctionType()->isVarArg());
+        Function *newF = Function::Create(FTy, oldF->getLinkage(), oldF->getAddressSpace(), oldF->getName(), oldF->getParent());
+        
+        newF->getBasicBlockList().splice(newF->begin(), oldF->getBasicBlockList()); //  THIS BREAKS THE OLD FUNCTION
+
+        tmpPatchup(oldF, newF);
     }
 
 
@@ -263,6 +247,71 @@ void ObjectLowering::inferArgTypes(llvm::Function* f, vector<Type*> *arg_vector)
             arg_vector->push_back(ogType);
         }
         args++;
+    }
+}
+
+// ======================================================================
+
+/* this is a proof-of-concept for splicing:
+above, we use llvm:Create to make a new function with the SAME type sig s.t. no lowering is required
+here, we use the dominator tree of the NEW function to traverse all of its instructions
+any use of the OLD arguments are replaced by new arguments
+this is proof of concept that splicing and the dominator tree API will work
+
+after that we have to patch up the old call in main
+*/
+void ObjectLowering::tmpPatchup(Function* oldF, Function* newF) {
+    // construct a map from old to new args
+    map<Argument*, Argument*> old_to_new;
+    auto new_arg_itr = newF->arg_begin();
+    for (auto old_arg_itr =  oldF->arg_begin(); old_arg_itr != oldF->arg_end(); ++old_arg_itr) {
+        old_to_new[&*old_arg_itr] = &*new_arg_itr;
+        new_arg_itr++;
+    } 
+    // traverse the dom tree
+    DominatorTree &DT = mp->getAnalysis<DominatorTreeWrapperPass>(*newF).getDomTree();
+    auto entry = &(newF->getEntryBlock());
+    tmpDomTreeTraversal(DT, entry, &old_to_new);  
+    // patch up the call in main
+    Function* mainF = M.getFunction("main");
+    for (auto &bb : *mainF) {
+        for (auto &ins : bb) {
+            if(auto callIns = dyn_cast<CallInst>(&ins)) {
+                auto callee = callIns->getCalledFunction();
+                if(callee == nullptr) continue;
+                auto calleeName = callee->getName().str();
+                if (calleeName == oldF->getName()) {
+                    callIns->setCalledFunction(newF);
+                }
+            }
+        }
+    }
+
+}
+
+void ObjectLowering::tmpDomTreeTraversal(DominatorTree &DT, BasicBlock *bb, map<Argument*, Argument*> *old_to_new) {
+    for(auto &ins: *bb) {
+        // for test_object_passing, i know that that this argument is only used in OBJECTIR callinsts
+        // so i only check those to replace the operands
+        if(auto callIns = dyn_cast<CallInst>(&ins))
+        {
+            auto callee = callIns->getCalledFunction();
+            if(callee == nullptr) continue;
+            auto calleeName = callee->getName().str();
+            if (! isObjectIRCall(calleeName)) continue;
+            for (size_t idx = 0; idx < callIns->getNumArgOperands(); idx++) {
+                Argument* ciArg = dyn_cast_or_null<Argument>(callIns->getArgOperand(idx));
+                if (!ciArg) continue;
+                callIns->setArgOperand(idx, old_to_new->at(ciArg));
+            }
+        }
+    }
+
+    auto node = DT.getNode(bb);
+    for(auto child: node->getChildren())
+    {
+        auto dominated = child->getBlock();
+        tmpDomTreeTraversal(DT, dominated, old_to_new);
     }
 }
 

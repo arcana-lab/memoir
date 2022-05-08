@@ -52,6 +52,10 @@ public:
 
   void inferArgTypes(llvm::Function* f, vector<Type*> *arg_vector); // build a new list of argument types
 
+  // proof of concept temp impl:
+  void tmpPatchup(Function* oldF, Function* newF);
+  void tmpDomTreeTraversal(DominatorTree &DT, BasicBlock *bb, map<Argument*, Argument*> *old_to_new);
+
   // ==================== TRANSFORMATION ====================
 
   void transform();
