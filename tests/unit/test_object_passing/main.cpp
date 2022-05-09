@@ -9,7 +9,8 @@ Type *objTy = getObjectType(3,
                             getUInt64Type(),
                             getUInt64Type());
 
-void foo(Object *myObj) {
+Object *foo(Object *myObj) {
+  setReturnType(objTy);
   assertType(objTy, myObj);
 
   Field *field1 = getObjectField(myObj, 0);
@@ -20,26 +21,20 @@ void foo(Object *myObj) {
   uint64_t read2 = readUInt64(field2);
   uint64_t read3 = readUInt64(field3);
 
-  std::cerr << "1: " << read1 << "\n";
-  std::cerr << "2: " << read2 << "\n";
-  std::cerr << "3: " << read3 << "\n\n";
+  Object *newObj = buildObject(objTy);
 
-  writeUInt64(field1, read1 + read2);
-  writeUInt64(field2, read2 + read3);
-  writeUInt64(field3, read3 + read1);
+  Field *newField1 = getObjectField(newObj, 0);
+  Field *newField2 = getObjectField(newObj, 1);
+  Field *newField3 = getObjectField(newObj, 2);
 
-  read1 = readUInt64(field1);
-  read2 = readUInt64(field2);
-  read3 = readUInt64(field3);
+  writeUInt64(newField1, read1 + read2);
+  writeUInt64(newField2, read2 + read3);
+  writeUInt64(newField3, read3 + read1);
 
-  std::cerr << "1: " << read1 << "\n";
-  std::cerr << "2: " << read2 << "\n";
-  std::cerr << "3: " << read3 << "\n\n";
+  return newObj;
 }
 
 int main() {
-
-  std::cerr << objTy->toString() << "\n";
 
   Object *myObj = buildObject(objTy);
 
@@ -53,5 +48,28 @@ int main() {
   writeUInt64(field2, 456);
   writeUInt64(field3, 789);
 
-  foo(myObj);
+  Object *newObj = foo(myObj);
+
+  Field *newField1 = getObjectField(newObj, 0);
+  Field *newField2 = getObjectField(newObj, 1);
+  Field *newField3 = getObjectField(newObj, 2);
+
+  uint64_t old1 = readUInt64(field1);
+  uint64_t old2 = readUInt64(field2);
+  uint64_t old3 = readUInt64(field3);
+
+  uint64_t new1 = readUInt64(newField1);
+  uint64_t new2 = readUInt64(newField2);
+  uint64_t new3 = readUInt64(newField3);
+
+  std::cout << "Old Object: \n";
+  std::cout << "  1: " << old1 << "\n";
+  std::cout << "  2: " << old2 << "\n";
+  std::cout << "  3: " << old3 << "\n";
+
+  std::cout << "\n======================\n";
+  std::cout << "New Object: \n";
+  std::cout << "  1: " << new1 << "\n";
+  std::cout << "  2: " << new2 << "\n";
+  std::cout << "  3: " << new3 << "\n";
 }

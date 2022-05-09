@@ -94,6 +94,10 @@ Type *ObjectType::resolve() {
   return this;
 }
 
+bool ObjectType::equals(Type *other) {
+  return (this == other);
+}
+
 /*
  * Array Type
  */
@@ -119,6 +123,10 @@ Type *ArrayType::resolve() {
   resolved = true;
   this->elementType = this->elementType->resolve();
   return this;
+}
+
+bool ArrayType::equals(Type *other) {
+  return (this == other);
 }
 
 /*
@@ -149,6 +157,10 @@ Type *UnionType::resolve() {
   return this;
 }
 
+bool UnionType::equals(Type *other) {
+  return (this == other);
+}
+
 /*
  * Integer Type
  */
@@ -171,6 +183,23 @@ Type *IntegerType::resolve() {
   return this;
 }
 
+bool IntegerType::equals(Type *other) {
+  if (this->getCode() != other->getCode()) {
+    return false;
+  }
+
+  auto otherInt = (IntegerType *)other;
+  if (this->bitwidth != otherInt->bitwidth) {
+    return false;
+  }
+
+  if (this->isSigned != otherInt->isSigned) {
+    return false;
+  }
+
+  return true;
+}
+
 /*
  * Float Type
  */
@@ -188,6 +217,10 @@ Type *FloatType::resolve() {
   }
   resolved = true;
   return this;
+}
+
+bool FloatType::equals(Type *other) {
+  return (this->getCode() == other->getCode());
 }
 
 /*
@@ -208,6 +241,10 @@ Type *DoubleType::resolve() {
   resolved = true;
 
   return this;
+}
+
+bool DoubleType::equals(Type *other) {
+  return (this->getCode() == other->getCode());
 }
 
 /*
@@ -237,6 +274,17 @@ Type *PointerType::resolve() {
   return this;
 }
 
+bool PointerType::equals(Type *other) {
+  if (this->getCode() != other->getCode()) {
+    return false;
+  }
+
+  auto otherPtr = (PointerType *)other;
+  auto thisContained = this->containedType;
+  auto otherContained = otherPtr->containedType;
+  return thisContained->equals(otherContained);
+}
+
 /*
  * Stub Type
  */
@@ -261,6 +309,11 @@ Type *StubType::resolve() {
   }
 
   return this->resolvedType;
+}
+
+bool StubType::equals(Type *other) {
+  auto otherStub = (StubType *)other;
+  return (this->name == otherStub->name);
 }
 
 } // namespace objectir

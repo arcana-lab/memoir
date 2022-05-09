@@ -42,6 +42,7 @@ public:
   ~Type();
 
   virtual Type *resolve() = 0;
+  virtual bool equals(Type *other) = 0;
   virtual std::string toString() = 0;
 
   friend class Object;
@@ -56,6 +57,7 @@ struct ObjectType : public Type {
   ~ObjectType();
 
   Type *resolve();
+  bool equals(Type *other);
   std::string toString();
 };
 
@@ -67,6 +69,7 @@ struct ArrayType : public Type {
   ~ArrayType();
 
   Type *resolve();
+  bool equals(Type *other);
   std::string toString();
 };
 
@@ -78,6 +81,7 @@ struct UnionType : public Type {
   ~UnionType();
 
   Type *resolve();
+  bool equals(Type *other);
   std::string toString();
 };
 
@@ -89,6 +93,7 @@ struct IntegerType : public Type {
   ~IntegerType();
 
   Type *resolve();
+  bool equals(Type *other);
   std::string toString();
 };
 
@@ -97,6 +102,7 @@ struct FloatType : public Type {
   ~FloatType();
 
   Type *resolve();
+  bool equals(Type *other);
   std::string toString();
 };
 
@@ -105,6 +111,7 @@ struct DoubleType : public Type {
   ~DoubleType();
 
   Type *resolve();
+  bool equals(Type *other);
   std::string toString();
 };
 
@@ -115,6 +122,7 @@ struct PointerType : public Type {
   ~PointerType();
 
   Type *resolve();
+  bool equals(Type *other);
   std::string toString();
 };
 
@@ -138,6 +146,7 @@ struct StubType : public Type {
   ~StubType();
 
   Type *resolve();
+  bool equals(Type *other);
 
   std::string toString();
 };
