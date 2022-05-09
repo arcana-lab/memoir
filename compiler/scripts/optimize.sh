@@ -3,7 +3,7 @@
 GIT_ROOT=`git rev-parse --show-toplevel` ;
 COMPILER_DIR=${GIT_ROOT}/compiler ;
 
-source ${COMPILER_DIR}/noelle/enable ;
+source ${GIT_ROOT}/enable ;
 
 IR_FILE="$1" ;
 
