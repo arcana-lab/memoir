@@ -47,6 +47,8 @@ __attribute__((noinline)) bool assertFieldType(
     Type *type,
     Field *field);
 
+__attribute__((noinline)) bool setReturnType(Type *type);
+
 /*
  * Field accesses
  */

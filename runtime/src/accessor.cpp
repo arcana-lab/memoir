@@ -57,6 +57,10 @@ bool assertFieldType(Type *type, Field *field) {
   return true;
 }
 
+bool setReturnType(Type *type) {
+  return true;
+}
+
 /*
  * Field accesses
  */

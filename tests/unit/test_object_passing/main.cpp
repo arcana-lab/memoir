@@ -10,6 +10,7 @@ Type *objTy = getObjectType(3,
                             getUInt64Type());
 
 Object *foo(Object *myObj) {
+  setReturnType(objTy);
   assertType(objTy, myObj);
 
   Field *field1 = getObjectField(myObj, 0);
@@ -29,8 +30,6 @@ Object *foo(Object *myObj) {
   writeUInt64(newField1, read1 + read2);
   writeUInt64(newField2, read2 + read3);
   writeUInt64(newField3, read3 + read1);
-
-  assertType(objTy, newObj);
 
   return newObj;
 }
