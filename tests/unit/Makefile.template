@@ -31,15 +31,14 @@ $(BUILD_DIR):
 
 $(C_BITCODES): $(BUILD_DIR)/%.bc : %.c
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
-	$(NOELLE_NORM) $@ -o $@
 
 $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
-	$(NOELLE_NORM) $@ -o $@
 
 $(IR_FILE): $(C_BITCODES) $(CPP_BITCODES)
-	$(LL) $^ $(GIT_ROOT)/runtime/build/objectir.bc -o $@
+	$(LL) $^ -o $@
 	$(OPT) $@
+	$(LL) $@ $(GIT_ROOT)/runtime/build/objectir.bc -o $@
 
 $(OBJ_FILE): $(IR_FILE)
 	llc -filetype=obj $< -o $@
