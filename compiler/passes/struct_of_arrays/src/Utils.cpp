@@ -11,5 +11,5 @@ ObjectIRFunc getObjectIRCall(std::string functionName) {
     return ObjectIRFunc::NONE;
   }
 
-  return *IT;
+  return (*IT).second;
 }

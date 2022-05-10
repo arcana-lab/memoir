@@ -9,7 +9,6 @@
 #include "StructOfArrays.hpp"
 
 using namespace llvm::noelle;
-using namespace struct_of_arrays;
 
 namespace {
 

@@ -11,7 +11,7 @@
  * Created: April 12, 2022
  */
 
-namespace {
+namespace struct_of_arrays {
 
 class StructOfArrays {
 private:
@@ -29,4 +29,4 @@ public:
   void transform();
 };
 
-} // namespace
+} // namespace struct_of_arrays
