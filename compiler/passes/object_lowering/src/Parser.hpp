@@ -17,7 +17,7 @@ public:
 
   // Caches
   std::map<Instruction*, AnalysisType*> analysisTypeMap; // any CallInst -> type
-  std::map<CallInst*, ObjectWrapper*> buildObjMap;
+  std::map<Value*, ObjectWrapper*> buildObjMap;
   
   // the CallInst must be an getObjectType, getPtrType, getUInt64, etc to reconstruct the Type*
   AnalysisType* parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited);
