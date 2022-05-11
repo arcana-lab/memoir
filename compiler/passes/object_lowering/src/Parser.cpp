@@ -184,6 +184,8 @@ ObjectWrapper *Parser::parseObjectWrapperChain(Value* i, std::set<PHINode*> &vis
 
 ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINode*> &visited) {
 
+
+
     auto funcName = i->getCalledFunction()->getName().str();
     if(funcName == ObjectIRToFunctionNames[BUILD_OBJECT]){
         auto typeArg = i->getArgOperand(0); // this should be a loadInst from a global Type**
@@ -313,4 +315,16 @@ FieldWrapper* Parser::parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visi
     fieldwrapper->fieldIndex = fieldIndex; // NOLINT(cppcoreguidelines-narrowing-conversions)
     fieldwrapper->objectType = objw->innerType; 
     return fieldwrapper;
+}
+
+FieldWrapper* Parser::parseFieldWrapperChain(Value* i, std::set<PHINode*> &visited)
+{
+    //TODO: Cache???
+
+    FieldWrapper* fw;
+    std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+        fw = parseFieldWrapperIns(ci,visited);
+    };
+    parseType(i, call_back,visited);
+    return fw;
 }

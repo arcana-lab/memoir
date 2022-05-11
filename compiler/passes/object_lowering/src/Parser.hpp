@@ -32,6 +32,8 @@ public:
   // create the fieldWrapper from @getObjectField CallInst // REFACTOR: maybe we should cache these too?
   FieldWrapper* parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visited);
 
+  FieldWrapper* parseFieldWrapperChain(Value* i, std::set<PHINode*> &visited);
+
   // dispatch to the functions below
   void parseType(Value* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
   void parseTypeStoreInst(StoreInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);

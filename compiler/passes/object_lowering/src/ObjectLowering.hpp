@@ -28,18 +28,21 @@ private:
   Type* type_star;
   Type* type_star_star;
 
-  std::unordered_set<CallInst *> buildObjects;
-  std::unordered_set<CallInst *> reads;
-  std::unordered_set<CallInst *> writes;
+    std::map<Function*, Function*> clonedFunctionMap;
+    std::map<Function*, map<Argument *, Argument *>> functionArgumentMaps;
+
+//  std::unordered_set<CallInst *> buildObjects;
+//  std::unordered_set<CallInst *> reads;
+//  std::unordered_set<CallInst *> writes;
+//
+//  std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
   
-  std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
-  
-  std::set<Function*> functionsToProcess;
+//  std::set<Function*> functionsToProcess;
   
   // TODO: these maps are cleared for every function transformed, but the others aren't
   // we should reconsider this when implementing the interprocedural pass
-  std::map<Value*, Value*> replacementMapping;
-  std::set<PHINode*> phiNodesToPopulate;
+//  std::map<Value*, Value*> replacementMapping;
+//  std::set<PHINode*> phiNodesToPopulate;
 
 public:
   ObjectLowering(Module &M, Noelle *noelle, ModulePass* mp);
@@ -48,22 +51,24 @@ public:
 
   void analyze();
 
+  void FunctionTransform(Function* func);
+
   void cacheTypes(); // analyze the global values for type*
 
   void inferArgTypes(llvm::Function* f, vector<Type*> *arg_vector); // build a new list of argument types
   Type* inferReturnType(llvm::Function* f);
 
   // proof of concept temp impl:
-  void tmpPatchup(Function* oldF, Function* newF);
+  void tmpPatchup(Function* oldF, Function* newF,map<Argument *, Argument *> &old_to_new);
   void tmpDomTreeTraversal(DominatorTree &DT, BasicBlock *bb, map<Argument*, Argument*> *old_to_new);
 
   // ==================== TRANSFORMATION ====================
 
   void transform();
   
-  void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb);
+  void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,std::map<Value*, Value*> &replacementMapping, std::set<PHINode*>& phiNodesToPopulate);
 
-  Value* CreateGEPFromFieldWrapper(FieldWrapper *wrapper, IRBuilder<> &builder);
+  Value* CreateGEPFromFieldWrapper(FieldWrapper *wrapper, IRBuilder<> &builder, std::map<Value*, Value*> &replacementMapping);
 
   // recursively add users of `i` to `toDelete`
   void findInstsToDelete(Value* i, std::set<Value*> &toDelete);
