@@ -138,21 +138,52 @@ std::string Parser::fetchString(Value* ins) {
 ObjectWrapper *Parser::parseObjectWrapperChain(Value* i, std::set<PHINode*> &visited)
 {
     errs() << "Trying to obtain object wrapper for " << *i <<"\n";
-    ObjectWrapper* objw;
-    std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-        //errs() << "Field Wrapper found function " << *ci << "\n";
-        objw = parseObjectWrapperInstruction(ci,visited);
-    };
-    parseType(i, call_back,visited);
-    return objw;
-}
 
-ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINode*> &visited) {
     // return the cached objectWrapper, if it exists
     if (buildObjMap.find(i)!=buildObjMap.end())
     {
         return buildObjMap[i];
     }
+    if(dyn_cast<Argument>(i))
+    {
+        errs() <<"The object is passed in \n ";
+        for(auto u: i->users()) {
+            if (auto ins = dyn_cast_or_null<CallInst>(u)) {
+                auto callee = ins->getCalledFunction();
+                if (!callee) continue;
+                auto n = callee->getName().str();
+                if (n == ObjectIRToFunctionNames[ASSERT_TYPE]) {
+                    // use parseType to retreive the type info from the first operand
+                    auto newTypeInst = ins->getArgOperand(0);
+                    object_lowering::AnalysisType* a_type;
+//                    std::set<PHINode*> visited;
+                    std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+                        a_type = parseTypeCallInst(ci,visited);
+                    };
+                    parseType(newTypeInst, call_back, visited);
+                    // make sure it is an ObjectType
+                    assert(a_type);
+                    if(a_type->getCode() != ObjectTy) assert(false);
+                    auto* objt = (ObjectType*) a_type;
+                    buildObjMap[i] = new ObjectWrapper(objt);
+                }
+            }
+        }
+    }
+    else {
+        ObjectWrapper *objw;
+        std::function<void(CallInst *)> call_back = [&](CallInst *ci) {
+            //errs() << "Field Wrapper found function " << *ci << "\n";
+            objw = parseObjectWrapperInstruction(ci, visited);
+        };
+        parseType(i, call_back, visited);
+        buildObjMap[i] = objw;
+    }
+    return buildObjMap[i];
+}
+
+ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINode*> &visited) {
+
     auto funcName = i->getCalledFunction()->getName().str();
     if(funcName == ObjectIRToFunctionNames[BUILD_OBJECT]){
         auto typeArg = i->getArgOperand(0); // this should be a loadInst from a global Type**
@@ -168,7 +199,7 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
             assert(false);
         }
         auto* objt = (ObjectType*) type;
-        buildObjMap[i] = new ObjectWrapper(objt);
+        return new ObjectWrapper(objt);
     }
     else if(funcName == ObjectIRToFunctionNames[READ_POINTER])
     {
@@ -178,13 +209,12 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
             fw = parseFieldWrapperIns(ci,visited);
         };
         parseType(i->getArgOperand(0), call_back,visited);
-        buildObjMap[i] = new ObjectWrapper(fw->objectType);
+        return new ObjectWrapper(fw->objectType);
     }
     else
     {
         assert(false);
     }
-    return  buildObjMap[i];
 }
 
 

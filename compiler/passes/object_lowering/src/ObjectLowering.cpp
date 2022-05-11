@@ -110,7 +110,7 @@ void ObjectLowering::analyze() {
     for(auto ins : this->buildObjects) {
         errs() << "Parsing: " << *ins << "\n\n";
         std::set<PHINode*> visited;
-        auto objT = parser->parseObjectWrapperInstruction(ins,visited);
+        auto objT = parser->parseObjectWrapperChain(ins,visited);
         errs() << "Instruction " << *ins << "\n\n has the type of" << objT->innerType->toString() << "\n\n";
     }
 
