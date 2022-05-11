@@ -12,6 +12,7 @@ Type *objTy = getObjectType(3,
                             getUInt64Type());
 
 uint64_t foo(Field *fld) {
+  assertFieldType(getUInt64Type(), fld);
   writeUInt64(fld, readUInt64(fld) + 1);
   return readUInt64(fld);
 }

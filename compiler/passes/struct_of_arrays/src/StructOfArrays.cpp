@@ -1,5 +1,7 @@
 #include "StructOfArrays.hpp"
 
+namespace struct_of_arrays {
+
 StructOfArrays::StructOfArrays(Module &M, Noelle *noelle)
   : M(M),
     noelle(noelle) {
@@ -33,3 +35,5 @@ void StructOfArrays::analyze() {
 void StructOfArrays::transform() {
   // Transform the program
 }
+
+} // namespace struct_of_arrays

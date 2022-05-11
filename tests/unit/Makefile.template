@@ -39,6 +39,7 @@ $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 $(IR_FILE_PROGRAM): $(C_BITCODES) $(CPP_BITCODES)
 	$(LL) $^ -o $@
 	$(OPT) $@
+	$(LL) $@ $(GIT_ROOT)/runtime/build/objectir.bc -o $@
 
 $(IR_FILE_RUNTIME):
 	make -C $(GIT_ROOT)/runtime
