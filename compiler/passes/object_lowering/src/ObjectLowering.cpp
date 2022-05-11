@@ -454,7 +454,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
     auto node = DT.getNode(bb);
     for (auto child: node->getChildren()) {
         auto dominated = child->getBlock();
-        BasicBlockTransformer(DT, dominated);
+        BasicBlockTransformer(DT, dominated, replacementMapping,phiNodesToPopulate);
     }
 } // endof BasicBlockTransformer
 
