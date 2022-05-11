@@ -11,14 +11,14 @@ private:
   Module &M;
   Noelle *noelle;
   ModulePass* mp;
+    // Caches
+    std::map<Instruction*, AnalysisType*> analysisTypeMap; // any CallInst -> type
+    std::map<Value*, ObjectWrapper*> buildObjMap;
   
 public:
   Parser(Module &M, Noelle *noelle, ModulePass* mp);
 
-  // Caches
-  std::map<Instruction*, AnalysisType*> analysisTypeMap; // any CallInst -> type
-  std::map<Value*, ObjectWrapper*> buildObjMap;
-  
+
   // the CallInst must be an getObjectType, getPtrType, getUInt64, etc to reconstruct the Type*
   AnalysisType* parseTypeCallInst(CallInst *ins, std::set<PHINode*> &visited);
   std::string fetchString(Value* ins);

@@ -361,7 +361,10 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                 switch (FunctionNamesToObjectIR[calleeName]) {
                     case BUILD_OBJECT: {
                         // create malloc based on the object's LLVMRepresentation ; bitcast to a ptr to LLVMRepresentation
-                        auto llvmType = parser->buildObjMap[callIns]->innerType->getLLVMRepresentation(M);
+
+                        std::set<PHINode*> visited;
+                        auto objT = parser->parseObjectWrapperChain(callIns,visited);
+                        auto llvmType =objT->innerType->getLLVMRepresentation(M);
                         auto llvmTypeSize = llvm::ConstantInt::get(int64Ty,
                                                                    M.getDataLayout().getTypeAllocSize(llvmType));
                         std::vector<Value *> arguments{llvmTypeSize};
