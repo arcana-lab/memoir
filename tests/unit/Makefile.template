@@ -14,6 +14,7 @@ BINARY=$(BUILD_DIR)/$(notdir $(realpath .))
 IR_FILE=$(BINARY).bc
 IR_FILE_PROGRAM=$(BUILD_DIR)/program.bc
 IR_FILE_RUNTIME=$(GIT_ROOT)/runtime/build/objectir.bc
+#IR_FILE_RUNTIME=$(GIT_ROOT)/build/runtime/llvm-ir/ObjectIR_llvmlink/ObjectIR_llvmlink.bc
 OBJ_FILE=$(patsubst %.bc,%.o,$(IR_FILE))
 
 CFILES := $(wildcard *.c)
@@ -40,7 +41,6 @@ $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 $(IR_FILE_PROGRAM): $(C_BITCODES) $(CPP_BITCODES)
 	$(LL) $^ -o $@
 	$(OPT) $@
-	$(LL) $@ $(GIT_ROOT)/runtime/build/objectir.bc -o $@
 
 $(IR_FILE_RUNTIME):
 	make -C $(GIT_ROOT)/runtime
