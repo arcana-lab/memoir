@@ -184,8 +184,6 @@ ObjectWrapper *Parser::parseObjectWrapperChain(Value* i, std::set<PHINode*> &vis
 
 ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINode*> &visited) {
 
-
-
     auto funcName = i->getCalledFunction()->getName().str();
     if(funcName == ObjectIRToFunctionNames[BUILD_OBJECT]){
         auto typeArg = i->getArgOperand(0); // this should be a loadInst from a global Type**
@@ -212,6 +210,11 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
         };
         parseType(i->getArgOperand(0), call_back,visited);
         return new ObjectWrapper(fw->objectType);
+    }
+    else if(clonedFunctionReturnTypes.find(i->getCalledFunction())!= clonedFunctionReturnTypes.end())
+    {
+        auto retType = clonedFunctionReturnTypes[i->getCalledFunction()];
+        return new ObjectWrapper(retType);
     }
     else
     {
@@ -327,4 +330,8 @@ FieldWrapper* Parser::parseFieldWrapperChain(Value* i, std::set<PHINode*> &visit
     };
     parseType(i, call_back,visited);
     return fw;
+}
+
+void Parser::setClonedFunctionReturnTypes(std::map<Function *, ObjectType *> &clonedFunctionReturnTypes) {
+ this->clonedFunctionReturnTypes = clonedFunctionReturnTypes;
 }

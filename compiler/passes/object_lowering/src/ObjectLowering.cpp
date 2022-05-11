@@ -48,12 +48,14 @@ void ObjectLowering::analyze() {
         }
     }
 
+    std::map<Function*, ObjectType*> clonedFunctionReturnTypes;
 
     for (auto &oldF: functions_to_clone) {
         // Create a new function type...
         vector<Type *> ArgTypes; // this would replace oldF->getFunctionType()->params() below
         inferArgTypes(oldF, &ArgTypes);
-        Type *retTy = inferReturnType(oldF);
+        auto objt = inferReturnType(oldF);
+        Type *retTy = objt->getLLVMRepresentation(M);
         errs() << *retTy << " // return type \n";
 
 
@@ -70,7 +72,11 @@ void ObjectLowering::analyze() {
         clonedFunctionMap[oldF] = newF;
 
         functionArgumentMaps[newF] = old_to_new;
+
+        clonedFunctionReturnTypes[oldF] = objt;
     }
+
+    parser->setClonedFunctionReturnTypes(clonedFunctionReturnTypes);
 
 } // endof analyze
 
@@ -182,7 +188,7 @@ void ObjectLowering::inferArgTypes(llvm::Function *f, vector<Type *> *arg_vector
     }
 }
 
-Type *ObjectLowering::inferReturnType(llvm::Function *f) {
+ObjectType *ObjectLowering::inferReturnType(llvm::Function *f) {
     for (auto &bb: *f) {
         for (auto &ins: bb) {
             if (auto callIns = dyn_cast<CallInst>(&ins)) {
@@ -203,8 +209,7 @@ Type *ObjectLowering::inferReturnType(llvm::Function *f) {
                     assert(a_type);
                     if (a_type->getCode() != ObjectTy) assert(false);
                     auto *objt = (ObjectType *) a_type;
-                    auto llvm_type = objt->getLLVMRepresentation(M);
-                    return llvm_type;
+                    return objt;
                 }
             }
         }
