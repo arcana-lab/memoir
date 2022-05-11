@@ -43,6 +43,7 @@ enum ObjectIRFunc {
   GETUNIONMEMBER,
   // asserts
   ASSERT_TYPE,
+  SET_RETURN_TYPE,
   // accessors
   READ_OBJECT,
   WRITE_OBJECT,
@@ -109,6 +110,7 @@ static std::unordered_map<ObjectIRFunc, std::string>
       { GETOBJECTFIELD, "getObjectField" },
       // asserts
       { ASSERT_TYPE, "assertType" },
+      { SET_RETURN_TYPE, "setReturnType" },
       // accessors
       { READ_UINT64, "readUInt64" },
       { WRITE_UINT64, "writeUInt64" },
@@ -143,6 +145,7 @@ static std::unordered_map<std::string, ObjectIRFunc>
       { "getObjectField", GETOBJECTFIELD },
       // asserts
       { "assertType", ASSERT_TYPE },
+      { "setReturnType", SET_RETURN_TYPE },
       // accessors
       { "readUInt64", READ_UINT64 },
       { "writeUInt64", WRITE_UINT64 },

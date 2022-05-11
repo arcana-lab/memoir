@@ -45,7 +45,7 @@ void ObjectLowering::analyze() {
                 break;
             }
         }
-        // TODO: also check the return type with getReturnType()
+        if (ft->getReturnType() == object_star) should_clone = true;
         if(should_clone && (!F.isDeclaration()))
         {
             functions_to_clone.push_back(&F);
@@ -60,6 +60,8 @@ void ObjectLowering::analyze() {
         // Create a new function type...
         vector<Type*> ArgTypes; // this would replace oldF->getFunctionType()->params() below
         inferArgTypes(oldF, &ArgTypes);
+        Type* retTy = inferReturnType(oldF);
+        errs() << *retTy << " // return type \n";
 
         FunctionType *FTy = FunctionType::get(oldF->getFunctionType()->getReturnType(), oldF->getFunctionType()->params(), 
                          oldF->getFunctionType()->isVarArg());
@@ -248,6 +250,38 @@ void ObjectLowering::inferArgTypes(llvm::Function* f, vector<Type*> *arg_vector)
         }
         args++;
     }
+}
+
+Type* ObjectLowering::inferReturnType(llvm::Function* f) {
+    for (auto &bb : *f) {
+        for (auto &ins : bb) {
+            if(auto callIns = dyn_cast<CallInst>(&ins))
+            {
+                auto callee = callIns->getCalledFunction();
+                if(callee == nullptr) continue;
+                auto calleeName = callee->getName().str();
+                if (! isObjectIRCall(calleeName)) continue;
+                if (FunctionNamesToObjectIR[calleeName] == SET_RETURN_TYPE) {
+                    // use parseType to retreive the type info from the first operand
+                    auto newTypeInst = callIns->getArgOperand(0);
+                    object_lowering::AnalysisType* a_type;
+                    std::set<PHINode*> visited;
+                    std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+                        a_type = parser->parseTypeCallInst(ci,visited);
+                    };
+                    parser->parseType(newTypeInst, call_back, visited);
+                    // make sure it is an ObjectType
+                    assert(a_type);
+                    if(a_type->getCode() != ObjectTy) assert(false);
+                    auto* objt = (ObjectType*) a_type;
+                    auto llvm_type = objt->getLLVMRepresentation(M);
+                    return llvm_type;
+                }
+            }
+        }
+    }
+    errs() << "did not find setReturnType\n";
+    assert(false);
 }
 
 // ======================================================================
