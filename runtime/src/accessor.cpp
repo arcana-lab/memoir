@@ -9,7 +9,7 @@
 
 #include <iostream>
 
-#include "accessor.h"
+#include "object_ir.h"
 
 using namespace objectir;
 
