@@ -313,8 +313,11 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
     auto int32Ty = llvm::Type::getInt32Ty(ctxt);
     auto i8Ty = llvm::IntegerType::get(ctxt, 8);
     auto i8StarTy = llvm::PointerType::getUnqual(i8Ty);
-    auto funcType = llvm::FunctionType::get(i8StarTy, ArrayRef<Type *>({int64Ty}), false);
-    auto mallocf = M.getOrInsertFunction("malloc", funcType);
+    auto voidTy = llvm::Type::getVoidType(ctxt);
+    auto mallocFTY = llvm::FunctionType::get(i8StarTy, ArrayRef<Type *>({int64Ty}), false);
+    auto mallocf = M.getOrInsertFunction("malloc", mallocFTY);
+    auto freeFTY = llvm::FunctionType::get(voidTy, ArrayRef<Type *>({i8StarTy}), false);
+    auto freef = M.getOrInsertFunction("free", freeFTY);
 
     for (auto &ins: *bb) {
         //errs() << "encountering  instruction " << ins <<"\n";
@@ -442,6 +445,14 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                         auto bc_inst = builder.CreateBitCast(replPtr, i8StarTy);
                         auto storeInst = builder.CreateStore(bc_inst, gep);
                         replacementMapping[callIns] = storeInst;
+                        break;
+                    }
+                    case DELETE_OBJECT: {
+                        auto obj_inst = replacementMapping[callInst->getArgOperand(0)];
+                        auto bc_inst = builder.CreateBitCast(obj_inst, i8StarTy);
+                        std::vector<Value *> arguments{bc_inst};
+                        auto free_inst = builder.CreateCall(freef, arguments);
+                        replacementMapping[callIns] = free_inst;
                         break;
                     }
                     default:

@@ -74,7 +74,9 @@ enum ObjectIRFunc {
   READ_DOUBLE,
   WRITE_DOUBLE,
   WRITE_POINTER,
-  READ_POINTER
+  READ_POINTER,
+  // other
+  DELETE_OBJECT
 };
 
 /*
@@ -114,8 +116,10 @@ static std::unordered_map<ObjectIRFunc, std::string>
       // accessors
       { READ_UINT64, "readUInt64" },
       { WRITE_UINT64, "writeUInt64" },
-            {READ_POINTER, "readPointer"},
-            {WRITE_POINTER, "writePointer" },
+      {READ_POINTER, "readPointer"},
+      {WRITE_POINTER, "writePointer" },
+      // other
+      {DELETE_OBJECT, "deleteObject"}
     };
 
 static std::unordered_map<std::string, ObjectIRFunc>
@@ -152,6 +156,8 @@ static std::unordered_map<std::string, ObjectIRFunc>
       {"readPointer", READ_POINTER},
       {"writePointer", WRITE_POINTER},
       { "writeObject", WRITE_OBJECT}
+      // other
+      {"deleteObject", DELETE_OBJECT}
     };
 
 } // namespace object_lowering
