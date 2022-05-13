@@ -56,12 +56,13 @@ void ObjectLowering::analyze() {
         inferArgTypes(oldF, &ArgTypes);
 
         Type *retTy;
-        auto ft = F.getFunctionType();
+        auto ft = oldF.getFunctionType();
         if (ft->getReturnType() == object_star) {
             auto objt = inferReturnType(oldF);
             retTy = llvm::PointerType::getUnqual(objt->getLLVMRepresentation(M));
+            clonedFunctionReturnTypes[oldF] = objt;
         } else {
-            retTye = ft->getReturnType();
+            retTy = ft->getReturnType();
         }       
 
         FunctionType *FTy = FunctionType::get(retTy, ArgTypes, oldF->getFunctionType()->isVarArg());
@@ -77,8 +78,7 @@ void ObjectLowering::analyze() {
         clonedFunctionMap[oldF] = newF;
 
         functionArgumentMaps[newF] = old_to_new;
-
-        clonedFunctionReturnTypes[oldF] = objt;
+        
     }
 
     parser->setClonedFunctionReturnTypes(clonedFunctionReturnTypes);
