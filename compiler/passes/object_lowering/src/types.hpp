@@ -42,7 +42,7 @@ namespace object_lowering {
         AnalysisType* pointsTo;
         APointerType();
         ~APointerType();
-        llvm::StructType* getLLVMRepresentation(llvm::Module& m);
+        //llvm::StructType* getLLVMRepresentation(llvm::Module& m);
 
         std::string toString();
     };

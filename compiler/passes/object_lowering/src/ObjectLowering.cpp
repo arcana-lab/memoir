@@ -56,7 +56,7 @@ void ObjectLowering::analyze() {
         inferArgTypes(oldF, &ArgTypes);
 
         Type *retTy;
-        auto ft = oldF.getFunctionType();
+        auto ft = oldF->getFunctionType();
         if (ft->getReturnType() == object_star) {
             auto objt = inferReturnType(oldF);
             retTy = llvm::PointerType::getUnqual(objt->getLLVMRepresentation(M));

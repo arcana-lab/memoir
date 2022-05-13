@@ -112,14 +112,14 @@ llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
     return created;
 }
 
-llvm::StructType* APointerType::getLLVMRepresentation(llvm::Module& M) {
+/*llvm::StructType* APointerType::getLLVMRepresentation(llvm::Module& M) {
     if (auto objTy = dyn_cast_or_null<ObjectType>(pointsTo)) {
         return objTy->getLLVMRepresentation(M);
     } else {
         errs() << "APointerType::getLLVMRepresentation expected that it points to an object, got: " << pointsTo->toString() << "\n";
         assert(false);
     }
-}
+}*/
 
 std::string APointerType::toString() {
     std::string str = "(Ptr: \n";
