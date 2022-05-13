@@ -19,12 +19,12 @@ object_lowering::AnalysisType* Parser::parseTypeCallInst(CallInst *ins, std::set
     
     auto callee = ins->getCalledFunction();
     if (!callee) {
-        //errs() << "Unrecognized indirect call" << *ins << "\n";
+        errs() << "Unrecognized indirect call" << *ins << "\n";
         assert(false);
     }
     auto n = callee->getName().str();
     if (!isObjectIRCall(n)) {
-        //errs() << "Unrecognized function call " << *ins << "\n";
+        errs() << "Unrecognized function call " << *ins << "\n";
         assert(false);
     }
 
@@ -38,7 +38,6 @@ object_lowering::AnalysisType* Parser::parseTypeCallInst(CallInst *ins, std::set
             {
                 auto ins = arg->get();
                 object_lowering::AnalysisType* type;
-//                std::set<PHINode*> visited;
                 std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
                     type = parseTypeCallInst(ci,visited);
                 };
@@ -156,7 +155,6 @@ ObjectWrapper *Parser::parseObjectWrapperChain(Value* i, std::set<PHINode*> &vis
                     // use parseType to retreive the type info from the first operand
                     auto newTypeInst = ins->getArgOperand(0);
                     object_lowering::AnalysisType* a_type;
-//                    std::set<PHINode*> visited;
                     std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
                         a_type = parseTypeCallInst(ci,visited);
                     };
@@ -312,7 +310,7 @@ FieldWrapper* Parser::parseFieldWrapperIns(CallInst* i, std::set<PHINode*> &visi
     int64_t fieldIndex = CI->getSExtValue();
     // grab the ObjectWrapper*
     auto objw = parseObjectWrapperChain(objPtr, visited);
-    errs() << "Obtained Field Wrapper AnalysisType for " << *i <<"\n";
+    errs() << "Obtained Field Wrapper AnalysisType for " << *i <<"\n\n";
     auto fieldwrapper = new FieldWrapper();
     fieldwrapper->baseObjPtr = objPtr;
     fieldwrapper->fieldIndex = fieldIndex; // NOLINT(cppcoreguidelines-narrowing-conversions)

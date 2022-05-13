@@ -56,7 +56,7 @@ public:
   void cacheTypes(); // analyze the global values for type*
 
   void inferArgTypes(llvm::Function* f, vector<Type*> *arg_vector); // build a new list of argument types
-        ObjectType* inferReturnType(llvm::Function* f);
+  ObjectType* inferReturnType(llvm::Function* f);
 
   // proof of concept temp impl:
   void tmpPatchup(Function* oldF, Function* newF,map<Argument *, Argument *> &old_to_new);

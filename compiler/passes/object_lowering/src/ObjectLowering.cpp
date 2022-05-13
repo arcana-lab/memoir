@@ -52,12 +52,17 @@ void ObjectLowering::analyze() {
 
     for (auto &oldF: functions_to_clone) {
         // Create a new function type...
-        vector<Type *> ArgTypes; // this would replace oldF->getFunctionType()->params() below
+        vector<Type *> ArgTypes;
         inferArgTypes(oldF, &ArgTypes);
-        auto objt = inferReturnType(oldF);
-        Type *retTy = objt->getLLVMRepresentation(M);
-        errs() << *retTy << " // return type \n";
 
+        Type *retTy;
+        auto ft = F.getFunctionType();
+        if (ft->getReturnType() == object_star) {
+            auto objt = inferReturnType(oldF);
+            retTy = llvm::PointerType::getUnqual(objt->getLLVMRepresentation(M));
+        } else {
+            retTye = ft->getReturnType();
+        }       
 
         FunctionType *FTy = FunctionType::get(retTy, ArgTypes, oldF->getFunctionType()->isVarArg());
         Function *newF = Function::Create(FTy, oldF->getLinkage(), oldF->getAddressSpace(),
@@ -94,7 +99,7 @@ void ObjectLowering::transform()
 
 
 void ObjectLowering::cacheTypes() {
-    errs() << "\n\nRunning ObjectLowering::Analysis\n";
+    errs() << "\n\nRunning ObjectLowering::cacheTypes\n";
 
     // collect all GlobalVals which are Type*
     std::vector<GlobalValue *> typeDefs;
@@ -109,7 +114,6 @@ void ObjectLowering::cacheTypes() {
 
     // parse the Types
     for (auto v: typeDefs) {
-        errs() << "Global value: " << *v << "\n";
         object_lowering::AnalysisType *type;
         std::set<PHINode *> visited;
         std::function<void(CallInst *)> call_back = [&](CallInst *ci) {
@@ -151,7 +155,6 @@ void ObjectLowering::cacheTypes() {
 
 
 void ObjectLowering::inferArgTypes(llvm::Function *f, vector<Type *> *arg_vector) {
-    errs() << "Running inferArgTypes on " << f->getName() << "\n";
     auto ft = f->getFunctionType();
     auto args = f->arg_begin();
     for (auto ogType: ft->params()) {
@@ -177,7 +180,7 @@ void ObjectLowering::inferArgTypes(llvm::Function *f, vector<Type *> *arg_vector
                         if (a_type->getCode() != ObjectTy) assert(false);
                         auto *objt = (ObjectType *) a_type;
                         auto llvm_type = objt->getLLVMRepresentation(M);
-                        arg_vector->push_back(llvm_type);
+                        arg_vector->push_back(llvm::PointerType::getUnqual(llvm_type)); // turn this obj into pointer
                     }
                 }
             }
@@ -241,7 +244,7 @@ void ObjectLowering::tmpPatchup(Function *oldF, Function *newF, map<Argument *, 
 // ============================= TRANSFORMATION ===========================================
 
 void ObjectLowering::FunctionTransform(Function *f) {
-    errs() << "\n Starting transformation\n\n";
+    errs() << "\n Starting transformation on " << f->getName() << "\n\n";
 
     std::map<Value *, Value *> replacementMapping;
     std::set<PHINode *> phiNodesToPopulate;
@@ -262,7 +265,7 @@ void ObjectLowering::FunctionTransform(Function *f) {
     // repopulate incoming values of phi nodes
     for (auto old_phi: phiNodesToPopulate) {
         if (replacementMapping.find(old_phi) == replacementMapping.end()) {
-            // errs() << "obj_lowering transform: no new phi found for " << *old_phi << "\n";
+            errs() << "obj_lowering transform: no new phi found for " << *old_phi << "\n";
             assert(false);
         }
         auto new_phi = dyn_cast<PHINode>(replacementMapping[old_phi]);
@@ -271,7 +274,7 @@ void ObjectLowering::FunctionTransform(Function *f) {
         for (size_t i = 0; i < old_phi->getNumIncomingValues(); i++) {
             auto old_val = old_phi->getIncomingValue(i);
             if (replacementMapping.find(old_val) == replacementMapping.end()) {
-                // errs() << "obj_lowering transform: no new inst found for " << *old_val << "\n";
+                errs() << "obj_lowering transform: no new inst found for " << *old_val << "\n";
                 assert(false);
             }
             auto new_val = replacementMapping[old_val];
@@ -469,19 +472,22 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
 Value *ObjectLowering::CreateGEPFromFieldWrapper(FieldWrapper *fieldWrapper, IRBuilder<> &builder,
                                                  std::map<Value *, Value *> &replacementMapping) {
     auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
-    errs() << "field wrappere " << fieldWrapper;
-    errs() << "Field Wrapper Base " << fieldWrapper->baseObjPtr;
-    errs() << "Field Wrapper obj type " << fieldWrapper->objectType;
-    errs() << "Field Wrapper index " << fieldWrapper->fieldIndex;
+    errs() << "CreateGEPFromFieldWrapper\n";
+    errs() << "\tField Wrapper Base " << *(fieldWrapper->baseObjPtr) << "\n";
+    errs() << "\tField Wrapper obj type " << fieldWrapper->objectType->toString() << "\n";
+    errs() << "\tField Wrapper index " << fieldWrapper->fieldIndex << "\n";
     auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
     std::vector<Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
                                     llvm::ConstantInt::get(int32Ty, fieldWrapper->fieldIndex)};
     if (replacementMapping.find(fieldWrapper->baseObjPtr) == replacementMapping.end()) {
-        //errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
+        errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
         assert(false);
     }
+    errs() << "llvm type: " << *llvmType << "\n";
     auto llvmPtrType = PointerType::getUnqual(llvmType);
-    auto gep = builder.CreateGEP(replacementMapping[fieldWrapper->baseObjPtr], indices);
+    errs() << "made the llvmptrtype; next thing is: " << *(replacementMapping.at(fieldWrapper->baseObjPtr)) << "\n";
+    auto gep = builder.CreateGEP(replacementMapping.at(fieldWrapper->baseObjPtr), indices);
+    errs() << "done with GEP\n\n";
     return gep;
 }
 

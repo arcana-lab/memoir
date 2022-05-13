@@ -40,15 +40,17 @@ OVERALL INTERPROCEDURAL ALGO
   - [x] done for Object* arguments only
 - [ ] do the cloning to setup these flagged function: look for assert types and assertReturnType to get the right typesignature
   - [x] done for Object* arguments only 
-- [ ] analyze all (1) unflagged functions and (2) function clones. look for:
+- [ ] iterate over (1) unflagged functions and (2) function clones. look for:
   - [ ] ObjectIR call instructions (eg build, read, write, like we do already)
-  - [ ] any callinsts to flagged functions
+  - [ ] any callinsts to flagged functions (replace operands and calledFunction)
   - [ ] return instructions inside of flagged functions
-- [ ] transform analyzed functions with BBtransform
-  - [ ] patch up callinsts to flagged/cloned functions
-  - [ ] patch up returns
-  - [ ] (these need to be done in Dominator order s.t. the object* used or defined by callInsts are replaced)
 - [ ] remove dead code/functions
+
+1. populate replacement mapping
+   1. only for cloned function, which we tell by checking the funcArgs map
+2. add case to transform non-OIR callinsts (clones)
+   1. replace uses for non-OIR return types
+3. add case for return insts
 
 ```
 NOTES
@@ -66,6 +68,15 @@ HOWEVER this will not be true for interprocedural:
 ## delete/free in OIR
 - forward DFA: gen = buildObject; kill = deleteObject
 - any objects still live in the return block must go on the heap
+
+05-11 meeting notes
+1. loop structures (guaranteed single entry and single exit)
+   1. see loop abstractions in noelle (simone's slides). there might be mutliple latches but 1 guaranteed exit and entry (header)
+2. DFA on the header and the basic blocks inside the loop
+3. can have multiple latches: compute intersection of latches to see everything that might be alivei
+4. phis are conservarive and can't kill anything 
+5. we can assume ptrs for now but will need copy constructor later
+6. assume that aobjects must be writte to/initialized before reading, so we don't need to clear a reused alloca
 
 ## merging in namedTypes (and pointer types)
 ```
