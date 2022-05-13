@@ -155,7 +155,7 @@ static std::unordered_map<std::string, ObjectIRFunc>
       { "writeUInt64", WRITE_UINT64 },
       {"readPointer", READ_POINTER},
       {"writePointer", WRITE_POINTER},
-      { "writeObject", WRITE_OBJECT}
+      { "writeObject", WRITE_OBJECT},
       // other
       {"deleteObject", DELETE_OBJECT}
     };

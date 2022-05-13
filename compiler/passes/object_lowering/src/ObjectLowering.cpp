@@ -313,7 +313,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
     auto int32Ty = llvm::Type::getInt32Ty(ctxt);
     auto i8Ty = llvm::IntegerType::get(ctxt, 8);
     auto i8StarTy = llvm::PointerType::getUnqual(i8Ty);
-    auto voidTy = llvm::Type::getVoidType(ctxt);
+    auto voidTy = llvm::Type::getVoidTy(ctxt);
     auto mallocFTY = llvm::FunctionType::get(i8StarTy, ArrayRef<Type *>({int64Ty}), false);
     auto mallocf = M.getOrInsertFunction("malloc", mallocFTY);
     auto freeFTY = llvm::FunctionType::get(voidTy, ArrayRef<Type *>({i8StarTy}), false);
@@ -448,7 +448,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                         break;
                     }
                     case DELETE_OBJECT: {
-                        auto obj_inst = replacementMapping[callInst->getArgOperand(0)];
+                        auto obj_inst = replacementMapping[callIns->getArgOperand(0)];
                         auto bc_inst = builder.CreateBitCast(obj_inst, i8StarTy);
                         std::vector<Value *> arguments{bc_inst};
                         auto free_inst = builder.CreateCall(freef, arguments);
