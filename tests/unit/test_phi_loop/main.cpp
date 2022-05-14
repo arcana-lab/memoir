@@ -10,10 +10,6 @@ Type *objTy = getObjectType(3,
                             getUInt64Type(),
                             getUInt64Type());
 
-char* _ignore()
-{
-    return (char*) malloc(1);
-}
 
 int main() {
 

@@ -31,18 +31,6 @@ private:
     std::map<Function*, Function*> clonedFunctionMap;
     std::map<Function*, map<Argument *, Argument *>> functionArgumentMaps;
 
-//  std::unordered_set<CallInst *> buildObjects;
-//  std::unordered_set<CallInst *> reads;
-//  std::unordered_set<CallInst *> writes;
-//
-//  std::map<CallInst*, FieldWrapper*> readWriteFieldMap;
-  
-//  std::set<Function*> functionsToProcess;
-  
-  // TODO: these maps are cleared for every function transformed, but the others aren't
-  // we should reconsider this when implementing the interprocedural pass
-//  std::map<Value*, Value*> replacementMapping;
-//  std::set<PHINode*> phiNodesToPopulate;
 
 public:
   ObjectLowering(Module &M, Noelle *noelle, ModulePass* mp);
@@ -51,20 +39,17 @@ public:
 
   void analyze();
 
-  void FunctionTransform(Function* func);
-
   void cacheTypes(); // analyze the global values for type*
 
+  // handle object passing and returning
   void inferArgTypes(llvm::Function* f, vector<Type*> *arg_vector); // build a new list of argument types
   ObjectType* inferReturnType(llvm::Function* f);
-
-  // proof of concept temp impl:
-  void tmpPatchup(Function* oldF, Function* newF,map<Argument *, Argument *> &old_to_new);
-  void tmpDomTreeTraversal(DominatorTree &DT, BasicBlock *bb, map<Argument*, Argument*> *old_to_new);
 
   // ==================== TRANSFORMATION ====================
 
   void transform();
+
+  void FunctionTransform(Function* func);
   
   void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,std::map<Value*, Value*> &replacementMapping, std::set<PHINode*>& phiNodesToPopulate);
 

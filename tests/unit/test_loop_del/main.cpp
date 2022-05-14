@@ -10,11 +10,6 @@ Type *objTy = getObjectType(3,
                             getUInt64Type(),
                             getUInt64Type());
 
-char* _ignore()
-{
-    return (char*) malloc(1);
-}
-
 int main() {
 
   Object *myObj1 = buildObject(objTy);
@@ -35,14 +30,15 @@ int main() {
   while(counter<2)
   {
       counter++;
+
+      // alocate and free obj4 inside the loop:
       Object* obj4 = buildObject(objTy);
       Field *field41 = getObjectField(obj4, 0);
       writeUInt64(field41, 10000);
       std::cerr << "obj4 =: " << readUInt64(field41) << "\n";
-
       deleteObject(obj4);     
 
-     Object* object3 = myObj1;
+      Object* object3 = myObj1;
   
       myObj1 = myObj2;
       myObj2 = object3;

@@ -13,6 +13,10 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
 
     // get llvm::Type* for ObjectIR::Object*
     auto getbuildObjFunc = M.getFunction(ObjectIRToFunctionNames[BUILD_OBJECT]);
+    if (!getbuildObjFunc) {
+        errs() << "Failed to retrieve Object*";
+        assert(false);
+    }
     this->object_star = getbuildObjFunc->getReturnType();
 
     // get the LLVM::Type* for ObjectIR::Type*
@@ -31,9 +35,10 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
 void ObjectLowering::analyze() {
     cacheTypes();
 
-    // scan function type signatures for instances of Object*
+    // determine which functions to clone by scanning function type signatures for instances of Object*
     std::vector<Function *> functions_to_clone;
     for (auto &F: M) {
+        if (F.isDeclaration()) continue;
         auto ft = F.getFunctionType();
         bool should_clone = false;
         for (auto &paramType: ft->params()) {
@@ -43,18 +48,17 @@ void ObjectLowering::analyze() {
             }
         }
         if (ft->getReturnType() == object_star) should_clone = true;
-        if (should_clone && (!F.isDeclaration())) {
-            functions_to_clone.push_back(&F);
-        }
+        if (should_clone)  functions_to_clone.push_back(&F);
     }
 
+    // clone the functions
     std::map<Function*, ObjectType*> clonedFunctionReturnTypes;
-
     for (auto &oldF: functions_to_clone) {
-        // Create a new function type...
+        // get arguments types
         vector<Type *> ArgTypes;
         inferArgTypes(oldF, &ArgTypes);
-
+        
+        // get return type
         Type *retTy;
         auto ft = oldF->getFunctionType();
         if (ft->getReturnType() == object_star) {
@@ -65,15 +69,19 @@ void ObjectLowering::analyze() {
             retTy = ft->getReturnType();
         }       
 
+        // create and fill the new function
         FunctionType *FTy = FunctionType::get(retTy, ArgTypes, oldF->getFunctionType()->isVarArg());
         Function *newF = Function::Create(FTy, oldF->getLinkage(), oldF->getAddressSpace(),
                                           oldF->getName(), oldF->getParent());
+        newF->getBasicBlockList().splice(newF->begin(), oldF->getBasicBlockList());
 
-        newF->getBasicBlockList().splice(newF->begin(), oldF->getBasicBlockList()); //  THIS BREAKS THE OLD FUNCTION
-
+        // construct a map from old to new args
         map<Argument *, Argument *> old_to_new;
-
-        tmpPatchup(oldF, newF, old_to_new);
+        auto new_arg_itr = newF->arg_begin();
+        for (auto old_arg_itr = oldF->arg_begin(); old_arg_itr != oldF->arg_end(); ++old_arg_itr) {
+            old_to_new[&*old_arg_itr] = &*new_arg_itr;
+            new_arg_itr++;
+        }
 
         clonedFunctionMap[oldF] = newF;
 
@@ -84,17 +92,6 @@ void ObjectLowering::analyze() {
     parser->setClonedFunctionReturnTypes(clonedFunctionReturnTypes);
 
 } // endof analyze
-
-void ObjectLowering::transform()
-{
-    for(auto &f : M)
-    {
-        if(!f.isDeclaration())
-        {
-            FunctionTransform(&f);
-        }
-    }
-}
 
 
 
@@ -221,27 +218,20 @@ ObjectType *ObjectLowering::inferReturnType(llvm::Function *f) {
     assert(false);
 }
 
-// ======================================================================
-
-/* this is a proof-of-concept for splicing:
-above, we use llvm:Create to make a new function with the SAME type sig s.t. no lowering is required
-here, we use the dominator tree of the NEW function to traverse all of its instructions
-any use of the OLD arguments are replaced by new arguments
-this is proof of concept that splicing and the dominator tree API will work
-
-after that we have to patch up the old call in main
-*/
-void ObjectLowering::tmpPatchup(Function *oldF, Function *newF, map<Argument *, Argument *> &old_to_new) {
-    // construct a map from old to new args
-    auto new_arg_itr = newF->arg_begin();
-    for (auto old_arg_itr = oldF->arg_begin(); old_arg_itr != oldF->arg_end(); ++old_arg_itr) {
-        old_to_new[&*old_arg_itr] = &*new_arg_itr;
-        new_arg_itr++;
-    }
-}
-
 
 // ============================= TRANSFORMATION ===========================================
+
+void ObjectLowering::transform()
+{
+    for(auto &f : M)
+    {
+        if(!f.isDeclaration())
+        {
+            FunctionTransform(&f);
+        }
+    }
+    // TODO: delete GVs and users
+}
 
 void ObjectLowering::FunctionTransform(Function *f) {
     errs() << "\n Starting transformation on " << f->getName() << "\n\n";
@@ -448,6 +438,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                         break;
                     }
                     case DELETE_OBJECT: {
+                        // bitcast to i8* and call free
                         auto obj_inst = replacementMapping[callIns->getArgOperand(0)];
                         auto bc_inst = builder.CreateBitCast(obj_inst, i8StarTy);
                         std::vector<Value *> arguments{bc_inst};
@@ -463,6 +454,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
         }
         else if(auto retIns = dyn_cast<ReturnInst>(&ins))
         {
+            // replace returned value, if necessary
             auto r_val = retIns->getReturnValue();
             if(replacementMapping.find(r_val) != replacementMapping.end())
             {
@@ -483,10 +475,10 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
 Value *ObjectLowering::CreateGEPFromFieldWrapper(FieldWrapper *fieldWrapper, IRBuilder<> &builder,
                                                  std::map<Value *, Value *> &replacementMapping) {
     auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
-    errs() << "CreateGEPFromFieldWrapper\n";
+    /*errs() << "CreateGEPFromFieldWrapper\n";
     errs() << "\tField Wrapper Base " << *(fieldWrapper->baseObjPtr) << "\n";
     errs() << "\tField Wrapper obj type " << fieldWrapper->objectType->toString() << "\n";
-    errs() << "\tField Wrapper index " << fieldWrapper->fieldIndex << "\n";
+    errs() << "\tField Wrapper index " << fieldWrapper->fieldIndex << "\n";*/
     auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
     std::vector<Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
                                     llvm::ConstantInt::get(int32Ty, fieldWrapper->fieldIndex)};
@@ -494,11 +486,8 @@ Value *ObjectLowering::CreateGEPFromFieldWrapper(FieldWrapper *fieldWrapper, IRB
         errs() << "unable to find the base pointer " << *fieldWrapper->baseObjPtr <<"\n";
         assert(false);
     }
-    errs() << "llvm type: " << *llvmType << "\n";
     auto llvmPtrType = PointerType::getUnqual(llvmType);
-    errs() << "made the llvmptrtype; next thing is: " << *(replacementMapping.at(fieldWrapper->baseObjPtr)) << "\n";
     auto gep = builder.CreateGEP(replacementMapping.at(fieldWrapper->baseObjPtr), indices);
-    errs() << "done with GEP\n\n";
     return gep;
 }
 
