@@ -255,12 +255,14 @@ void ObjectLowering::dataflow() {
                     auto& kill = df->KILL(i);
                     kill.insert(buildIns);
                     errs() << *i << " kills " << *buildIns << "\n";
-                    for (auto possibleInst : kill){
-                        errs() << "   KILL: " << *possibleInst << "\n";
-                    }
                 }
             }            
         }
+
+        for (auto possibleInst : df->KILL(i)){
+            errs() << "   KILL: " << *possibleInst << "\n";
+        }
+
         return ;
     };
     auto initializeIN = [](Instruction *inst, std::set<Value *>& IN) { return; };
@@ -284,12 +286,12 @@ void ObjectLowering::dataflow() {
         for (auto possibleInst : genI){
             errs() << "    " << *possibleInst << "\n";
         }
-        errs() << "   KILL: " << killI.size() << "\n";
+        errs() << "   KILL: " << df->KILL(inst).size() << "\n";
 
-        if(killI.size() == 1) {
-            auto kill_start = killI.begin();
+        if(df->KILL(inst).size() == 1) {
+            auto kill_start = df->KILL(inst).begin();
             errs() << "killstart\n";
-            auto kill_end = killI.end();
+            auto kill_end = df->KILL(inst).end();
             errs() << "killend\n";
             auto first_inst = *kill_start;
             errs() << "gotten the first inst \n";
@@ -297,7 +299,7 @@ void ObjectLowering::dataflow() {
         }
 
 
-        for (auto possibleInst : killI){
+        for (auto possibleInst : df->KILL(inst)){
             errs() << "    " << possibleInst << "\n";
         }
 
