@@ -286,7 +286,7 @@ void ObjectLowering::dataflow() {
         }
         errs() << "   KILL: " << killI.size() << "\n";
         for (auto possibleInst : killI){
-            errs() << "    " << *possibleInst << "\n";
+            errs() << "    " << possibleInst << "\n";
         }
 
         OUT.insert(inI.begin(), inI.end());
