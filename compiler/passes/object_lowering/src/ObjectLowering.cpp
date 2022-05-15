@@ -285,6 +285,18 @@ void ObjectLowering::dataflow() {
             errs() << "    " << *possibleInst << "\n";
         }
         errs() << "   KILL: " << killI.size() << "\n";
+
+        if(killI.size() == 1) {
+            auto kill_start = killI.begin();
+            errs() << "killstart\n";
+            auto kill_end = killI.end();
+            errs() << "killend\n";
+            auto first_inst = *kill_start;
+            errs() << "gotten the first inst \n";
+            errs() << first_inst << *first_inst << "\n";
+        }
+
+
         for (auto possibleInst : killI){
             errs() << "    " << possibleInst << "\n";
         }
