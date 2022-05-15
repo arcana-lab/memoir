@@ -218,6 +218,105 @@ ObjectType *ObjectLowering::inferReturnType(llvm::Function *f) {
     assert(false);
 }
 
+// ============================ EXPERIMENTAL =============================================
+
+void ObjectLowering::dataflow() {
+    auto dfe = noelle->getDataFlowEngine();
+    auto mainF = M.getFunction("main"); // HACK
+
+    auto computeGEN = [](Instruction *i, DataFlowResult *df) {
+        if (!isa<CallInst>(i)) return;
+        auto callIns = dyn_cast<CallInst>(i);
+        auto callee = callIns->getCalledFunction();
+        if (!callee) return;
+        auto calleeName = callee->getName().str();
+        if (!isObjectIRCall(calleeName)) return;
+        if (FunctionNamesToObjectIR[calleeName] == BUILD_OBJECT) {
+            auto& gen = df->GEN(i);
+            gen.insert(i);
+        }
+        return ;
+    };
+    auto computeKILL = [](Instruction *i, DataFlowResult *df) {
+        if (!isa<CallInst>(i)) return;
+        auto callIns = dyn_cast<CallInst>(i);
+        auto callee = callIns->getCalledFunction();
+        if (!callee) return;
+        auto calleeName = callee->getName().str();
+        if (!isObjectIRCall(calleeName)) return;
+        if (FunctionNamesToObjectIR[calleeName] == DELETE_OBJECT) {
+            auto obj = callIns->getArgOperand(0);
+            if (auto buildIns = dyn_cast_or_null<CallInst>(obj)) {
+                auto callee = buildIns->getCalledFunction();
+                if (!callee) return;
+                auto calleeName = callee->getName().str();
+                if (!isObjectIRCall(calleeName)) return;
+                if (FunctionNamesToObjectIR[calleeName] == BUILD_OBJECT) {
+                    auto& kill = df->KILL(i);
+                    kill.insert(buildIns);
+                    errs() << *i << " kills " << *buildIns << "\n";
+                    for (auto possibleInst : kill){
+                        errs() << "   KILL: " << *possibleInst << "\n";
+                    }
+                }
+            }            
+        }
+        return ;
+    };
+    auto initializeIN = [](Instruction *inst, std::set<Value *>& IN) { return; };
+    auto initializeOUT = [](Instruction *inst, std::set<Value *>& OUT) { return; };
+    auto computeIN = [](Instruction *inst, std::set<Value *>& IN, Instruction *predecessor, DataFlowResult *df) {
+        auto& outI = df->OUT(predecessor);
+        IN.insert(outI.begin(), outI.end());
+        return ;
+    };
+    auto computeOUT = [](Instruction *inst, std::set<Value *>& OUT, DataFlowResult *df) {
+        errs() << "computing OUT of " << *inst << "\n";
+        auto &inI = df->IN(inst);
+        auto &genI = df->GEN(inst);
+        auto &killI = df->KILL(inst);
+
+        errs() << "   IN:\n";
+        for (auto possibleInst : inI){
+            errs() << "    " << *possibleInst << "\n";
+        }
+        errs() << "   GEN:\n";
+        for (auto possibleInst : genI){
+            errs() << "    " << *possibleInst << "\n";
+        }
+        errs() << "   KILL: " << killI.size() << "\n";
+        for (auto possibleInst : killI){
+            errs() << "    " << *possibleInst << "\n";
+        }
+
+        OUT.insert(inI.begin(), inI.end());
+        OUT.erase(killI.begin(), killI.end());
+        OUT.insert(genI.begin(), genI.end());
+    };
+    
+
+    auto customDfr = dfe.applyForward(
+        mainF,
+        computeGEN, 
+        computeKILL, 
+        initializeIN,
+        initializeOUT,
+        computeIN, 
+        computeOUT
+    );
+
+    errs() << "\nDATA FLOW RESULTS\n";
+    for (auto &BB : *mainF) {
+        auto term = BB.getTerminator();
+        if (!isa<ReturnInst>(term)) continue;
+        auto insts = customDfr->OUT(term);
+        for (auto possibleInst : insts){
+            errs() << "   " << *possibleInst << "\n";
+        }
+    }
+    errs() << "\n";
+}
+
 
 // ============================= TRANSFORMATION ===========================================
 
@@ -242,6 +341,7 @@ void ObjectLowering::FunctionTransform(Function *f) {
     DominatorTree &DT = mp->getAnalysis<DominatorTreeWrapperPass>(*f).getDomTree();
     auto &entry = f->getEntryBlock();
 
+    // if this function is a clone, we need to populate the replacementMapping with its arguments
     if (functionArgumentMaps.find(f) != functionArgumentMaps.end()) {
         for (const auto &p: functionArgumentMaps[f]) {
             replacementMapping[p.first] = p.second;
@@ -336,6 +436,8 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                 {
                     continue;
                 }
+                // this is a function call which passes or returns Object*s
+                // replace the arguments
                 std::vector<Value *> arguments;
                 for(auto &arg: callIns->args())
                 {
@@ -350,6 +452,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                     }
                 }
                 auto new_callins = builder.CreateCall(clonedFunctionMap[callee], arguments );
+                // if the return type isn't Object*, then we assume it is an intrinsic and its uses must be replaced
                 if(callIns->getType() != this->object_star)
                 {
                     assert(new_callins->getType() == callIns->getType());

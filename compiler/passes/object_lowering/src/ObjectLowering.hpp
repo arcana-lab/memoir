@@ -45,6 +45,10 @@ public:
   void inferArgTypes(llvm::Function* f, vector<Type*> *arg_vector); // build a new list of argument types
   ObjectType* inferReturnType(llvm::Function* f);
 
+  // ======================== EXPERIMENTAL =====================
+
+  void dataflow();
+
   // ==================== TRANSFORMATION ====================
 
   void transform();

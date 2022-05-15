@@ -7,63 +7,19 @@ cd objectlowering
 
 to compile the test:
 ```
-make TESTS="test_recurse" clean
 make TESTS="test_recurse" 
-```
-```
-rm -rf build && mkdir -p build && clang++ -I/home/pze9918/object-ir/runtime/include -std=c++17 -O1 -Xclang -disable-llvm-passes -emit-llvm -c main.cpp -o build/main.bc && llvm-link build/main.bc /home/pze9918/object-ir/runtime/build/objectir.bc -o build/all_in_one.bc && noelle-norm build/all_in_one.bc -o build/all_in_one.bc && noelle-load -load ../../../compiler/passes/build/lib/ObjectLowering.so -ObjectLowering build/all_in_one.bc -o build/all_in_one.bc
-
-llc -filetype=obj build/all_in_one.bc -o build/all_in_one.o
-clang++ build/all_in_one.o -o build/all_in_one
-```
-
-to debug - invoke a different bash script:
-```
-noelle-load-gdb -load ../../../compiler/passes/build/lib/ObjectLowering.so -ObjectLowering build/all_in_one.bc -o build/all_in_one.bc
 ```
 
 # notes and planning
+- stack vs heap
+  - DFA
+  - using results of DFA
+- intrinsic types
+- field passing
+- remove type GVs and loads
+- copy constructors 
 
-## 05-09
-- write tests for delete object
-- plan algo + presentation
-
-## suggested methodology for interprocedural (from Wed meeting)
-- clone function w/ new type signature // automatically creates value mapper
-- value-map between old and new functions
-- transform the new function ; checking dominator using the value-mapper w/ the old function
-
-## interprocedural
-OVERALL INTERPROCEDURAL ALGO
-- [x] collect all the type definitions from GVs
-- [ ] scan over function signatures & detect any type signatures containing Object* or Field*
-  - [x] done for Object* arguments only
-- [ ] do the cloning to setup these flagged function: look for assert types and assertReturnType to get the right typesignature
-  - [x] done for Object* arguments only 
-- [ ] iterate over (1) unflagged functions and (2) function clones. look for:
-  - [ ] ObjectIR call instructions (eg build, read, write, like we do already)
-  - [ ] any callinsts to flagged functions (replace operands and calledFunction)
-  - [ ] return instructions inside of flagged functions
-- [ ] remove dead code/functions
-
-1. populate replacement mapping
-   1. only for cloned function, which we tell by checking the funcArgs map
-2. add case to transform non-OIR callinsts (clones)
-   1. replace uses for non-OIR return types
-3. add case for return insts
-
-```
-NOTES
-we are currently replacing uses of `objectIRinstructions` with their shallow copies only for UINT64 reads
-eg. uses of Object*, field*, etc were all used by the objectIR or phi nodes that we replaced, so we didnt need to replace their uses via llvm
-however, base types like UINT64 do need this use-replacement
-
-HOWEVER this will not be true for interprocedural:
-1. arguments define Object* 
-2. non-objectIR CallInsts can define Object*
-3. non-objectIR CallInsts can use Object*
-4. returns use Object*
-```
+re: fieldpassing and copy constructors, we currently only look for function passing around Object* and assume they are pointers
 
 ## delete/free in OIR
 - forward DFA: gen = buildObject; kill = deleteObject

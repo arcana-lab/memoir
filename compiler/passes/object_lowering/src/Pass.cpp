@@ -32,9 +32,11 @@ namespace {
 
       auto objectLowering = new object_lowering::ObjectLowering(M, &noelle, this);
 
-      objectLowering->analyze();
+      objectLowering->dataflow();
 
-      objectLowering->transform();
+      //objectLowering->analyze();
+
+      //objectLowering->transform();
       
       return false;
     }
