@@ -220,6 +220,23 @@ ObjectType *ObjectLowering::inferReturnType(llvm::Function *f) {
 
 // ============================ EXPERIMENTAL =============================================
 
+void ObjectLowering::loopstructure(){
+
+    auto mainF = M.getFunction("main"); // HACK
+    auto loopStructures = noelle->getLoopStructures(mainF);
+    auto loopForest = noelle->organizeLoopsInTheirNestingForest(*loopStructures);
+
+    for (auto loopTree: loopForest->getTrees())
+    {
+        auto rootLoop = loopTree->getLoop();
+        for (auto latch: rootLoop->getLatches())
+        {
+            errs() << "latch: " << *latch << "\n\n\n\n";
+        }
+    }
+}
+
+
 void ObjectLowering::dataflow() {
     auto dfe = noelle->getDataFlowEngine();
     auto mainF = M.getFunction("main"); // HACK
@@ -289,6 +306,7 @@ void ObjectLowering::dataflow() {
         errs() << "   KILL: " << df->KILL(inst).size() << "\n";
 
         if(df->KILL(inst).size() == 1) {
+//            killI.
             auto kill_start = df->KILL(inst).begin();
             errs() << "killstart\n";
             auto kill_end = df->KILL(inst).end();

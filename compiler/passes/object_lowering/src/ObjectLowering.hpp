@@ -48,6 +48,7 @@ public:
   // ======================== EXPERIMENTAL =====================
 
   void dataflow();
+    void loopstructure();
 
   // ==================== TRANSFORMATION ====================
 
