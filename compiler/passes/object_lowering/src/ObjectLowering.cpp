@@ -246,7 +246,7 @@ void ObjectLowering::dataflow() {
         if (!isObjectIRCall(calleeName)) return;
         if (FunctionNamesToObjectIR[calleeName] == DELETE_OBJECT) {
             auto obj = callIns->getArgOperand(0);
-            if (auto buildIns = dyn_cast_or_null<CallInst>(obj)) {
+            if (auto buildIns = dyn_cast<CallInst>(obj)) {
                 auto callee = buildIns->getCalledFunction();
                 if (!callee) return;
                 auto calleeName = callee->getName().str();
@@ -290,12 +290,12 @@ void ObjectLowering::dataflow() {
 
         if(df->KILL(inst).size() == 1) {
             auto kill_start = df->KILL(inst).begin();
-            errs() << "killstart\n";
+    //        errs() << "killstart\n";
             auto kill_end = df->KILL(inst).end();
-            errs() << "killend\n";
-            auto first_inst = *kill_start;
-            errs() << "gotten the first inst \n";
-            errs() << first_inst << *first_inst << "\n";
+      //      errs() << "killend\n";
+            auto first_inst = &*kill_start;
+        //    errs() << "gotten the first inst \n";
+//            errs() << first_inst << *first_inst << "\n";
         }
 
 
@@ -304,7 +304,9 @@ void ObjectLowering::dataflow() {
         }
 
         OUT.insert(inI.begin(), inI.end());
-        OUT.erase(killI.begin(), killI.end());
+        for (auto k : killI) {
+          OUT.erase(k);
+        } //killI.begin(), killI.end());
         OUT.insert(genI.begin(), genI.end());
     };
     
