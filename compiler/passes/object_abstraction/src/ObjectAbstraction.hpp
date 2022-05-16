@@ -17,22 +17,27 @@ class TypeNode;
 class FieldNode;
 class ObjectNode;
 
+/*
+ * TypeNode
+ */
 class TypeNode {
 private:
   CallInst *definition;
-  int numFields;
   std::vector<CallInst *> fieldTypes;
 
 public:
   ~TypeNode();
-  TypeNode(CallInst *inst);
-  inline int getNumFields() { return this->numFields; };
+  TypeNode(CallInst *callInst);
+  inline int getNumFields() { return this->fieldTypes.size(); };
   inline CallInst * getFieldType(int fieldNum) { return this->fieldTypes[fieldNum]; };
   void printTypeInfo(string prefix);
 };
 
+/*
+ * FieldNode
+ */
 class FieldNode {
-private:
+protected:
   ObjectNode *objectBelongsTo;
   CallInst *fieldType;
   std::unordered_set<CallInst *> fieldReads;
@@ -41,49 +46,64 @@ private:
 public:
   ~FieldNode();
   FieldNode(ObjectNode *objectBelongsTo, CallInst *fieldType);
-  inline void addFieldRead(CallInst *fieldRead) { this->fieldReads.insert(fieldRead); };
   inline void addFieldWrite(CallInst *fieldWrite) { this->fieldWrites.insert(fieldWrite); };
-  void printFieldInfo(string prefix);
+  inline void addFieldRead(CallInst *fieldRead) { this->fieldReads.insert(fieldRead); };
+  virtual void printFieldInfo(string prefix);
 };
 
+class SummaryFieldNode : public FieldNode {
+private:
+  TypeNode *innerObjectType;
+  Value *size;
+
+public:
+  ~SummaryFieldNode();
+  SummaryFieldNode(ObjectNode *objectBelongsTo, TypeNode *typeNode, Value *size);
+  void printFieldInfo(string prefix) override;
+};
+
+/*
+ * ObjectNode
+ */
 class ObjectNode {
 private:
   CallInst *allocation;
   TypeNode *manifest;
-  std::unordered_map<CallInst *, FieldNode *> fieldAccessorMap;
   std::vector<FieldNode *> fields;
+  SummaryFieldNode *summaryField;
+  std::unordered_map<CallInst *, FieldNode *> fieldAccessMap;
   CallInst *deletion;
 
 public:
   ~ObjectNode();
-  ObjectNode(CallInst *inst, TypeNode *typeNode);
-  void addFieldAccessor(CallInst *fieldAccessor);
-  inline void addFieldRead(CallInst *fieldAccessor, CallInst *fieldRead) { this->fieldAccessorMap[fieldAccessor]->addFieldRead(fieldRead); };
-  inline void addFieldWrite(CallInst *fieldAccessor, CallInst *fieldWrite) { this->fieldAccessorMap[fieldAccessor]->addFieldWrite(fieldWrite); };
+  ObjectNode(CallInst *callInst, TypeNode *typeNode);
+  ObjectNode(CallInst *callInst, TypeNode *arrayTypeNode, TypeNode *innerTypeNode);
+  void addFieldAccess(CallInst *fieldAccess);
+  inline void addFieldWrite(CallInst *fieldAccess, CallInst *fieldWrite) { this->fieldAccessMap[fieldAccess]->addFieldWrite(fieldWrite); };
+  inline void addFieldRead(CallInst *fieldAccess, CallInst *fieldRead) { this->fieldAccessMap[fieldAccess]->addFieldRead(fieldRead); };
   inline void setObjectDeletion(CallInst *deletion) { this->deletion = deletion; };
-  void printObjectInfo(string prefix);
+  virtual void printObjectInfo(string prefix);
 };
 
 class ObjectAbstraction {
 private:
   Module &M;
-
   Noelle *noelle;
-
   PDG *pdg;
 
-  std::unordered_set<CallInst *> callsToObjectIR;
-  std::unordered_set<TypeNode *> types; // All definition of object 
-  std::unordered_map<CallInst *, TypeNode *> callToTypeNodeMap; // Type definition to created TypeNode
-  std::unordered_set<ObjectNode *> objects; // All allocation of objects
+  std::unordered_set<TypeNode *> types;                             // All definition of object types
+  std::unordered_map<CallInst *, TypeNode *> callToTypeNodeMap;     // Type definition to created TypeNode
+  std::unordered_set<ObjectNode *> objects;                         // All allocation of objects
   std::unordered_map<CallInst *, ObjectNode *> callToObjectNodeMap; // Object allocation to created ObjectNode
 
 public:
   ObjectAbstraction(Module &M, Noelle *noelle, PDG *pdg);
-  
+
   void analyze();
 
   void transform();
+
+  CallInst * retrieveTypeDefinition(Value *value);
 };
 
 } // namespace object_abstraction
