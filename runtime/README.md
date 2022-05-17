@@ -3,14 +3,16 @@ Updated as of May 17, 2022
 
 This is the working description of the ContainIR.
 
-## Defining Container Types
-nameContainerType(name, # of fields, ...)
+### Defining Container Types
+nameContainerType(name, # of fields, *<field type, ...>*)
 
-defineContainerType(# of fields, ...)
+defineContainerType(# of fields, *<field type, ...>*)
 
 getNamedType(name)
 
-## Primitive Types
+### Primitive Types
+IntegerType(bitwidth, is signed?)
+
 UInt64Type()
 
 UInt32Type()
@@ -35,12 +37,12 @@ ReferenceType(referenced type)
 
 TensorType(element type, # of dimensions)
 
-## Accessing Fields
-getObjectField(object, field index)
+### Accessing Fields
+getContainerField(object, field index)
 
-getArrayElement(array, element index)
+getTensorElement(array, *<index, ...>*)
 
-## Reading / Writing Fields
+### Reading / Writing Fields
 readUInt64(field)
 
 readUInt32(field)
@@ -56,6 +58,8 @@ readInt32(field)
 readInt16(field)
 
 readInt8(field)
+
+readInteger(field)
 
 readFloat(field)
 
@@ -79,13 +83,15 @@ writeInt16(field, value)
 
 writeInt8(field, value)
 
+writeInteger(field, value)
+
 writeFloat(field, value)
 
 writeDouble(field, value)
 
 writeReference(field, object to reference)
 
-## Type Checking
+### Type Checking
 assertType(type, object)
 
 assertFieldType(type, field)
