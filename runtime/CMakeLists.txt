@@ -1,4 +1,4 @@
-set(CMAKE_C_FLAGS   "-O1 -Xclang -disable-llvm-passes -c -emit-llvm")
+set(CMAKE_C_FLAGS   "-O1 -Xclang -disable-llvm-passes -c -emit-llvm -fdeclspec")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -g -march=native -mcmodel=large")
 
 include_directories(include)
