@@ -1,6 +1,6 @@
 .clangd
 install
-build
+.build.dir
 compile_commands.json
 *.bc
 *.ll
