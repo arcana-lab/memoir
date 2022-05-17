@@ -1,30 +1,39 @@
-# Object IR Description
+# ContainIR Description
+Updated as of May 17, 2022
 
-## Defining Types
-defineObjectType(# of fields, ...)
+This is the working description of the ContainIR.
 
-defineTensorType(inner type, # of dimensions)
+## Defining Container Types
+nameContainerType(name, # of fields, ...)
+
+defineContainerType(# of fields, ...)
+
+getNamedType(name)
 
 ## Primitive Types
-getUInt64Type()
+UInt64Type()
 
-getUInt32Type()
+UInt32Type()
 
-getUInt16Type()
+UInt16Type()
 
-getUInt8Type()
+UInt8Type()
 
-getInt64Type()
+Int64Type()
 
-getInt32Type()
+Int32Type()
 
-getInt16Type()
+Int16Type()
 
-getInt8Type()
+Int8Type()
 
-getFloatType()
+FloatType()
 
-getDoubleType()
+DoubleType()
+
+ReferenceType(referenced type)
+
+TensorType(element type, # of dimensions)
 
 ## Accessing Fields
 getObjectField(object, field index)
@@ -52,6 +61,8 @@ readFloat(field)
 
 readDouble(field)
 
+readReference(field)
+
 writeUInt64(field, value)
 
 writeUInt32(field, value)
@@ -71,3 +82,12 @@ writeInt8(field, value)
 writeFloat(field, value)
 
 writeDouble(field, value)
+
+writeReference(field, object to reference)
+
+## Type Checking
+assertType(type, object)
+
+assertFieldType(type, field)
+
+setReturnType(type)
