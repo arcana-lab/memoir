@@ -17,156 +17,146 @@ namespace objectir {
 extern "C" {
 //#endif
 
+#define __OBJECTIR_ATTR                                    \
+  __declspec(noalias) __attribute__((nothrow))             \
+      __attribute__((noinline))
+#define __ALLOC_ATTR __declspec(allocator)
+
 /*
  * Type construction
  */
-__attribute__((noinline)) Type *getObjectType(int numFields,
-                                              ...);
-__attribute__((noinline)) Type *nameObjectType(
-    char *name,
-    int numFields,
-    ...);
+__OBJECTIR_ATTR Type *getObjectType(int numFields, ...);
+__OBJECTIR_ATTR Type *nameObjectType(char *name,
+                                     int numFields,
+                                     ...);
 
-__attribute__((noinline)) Type *getArrayType(
-    Type *elementType);
-__attribute__((noinline)) Type *nameArrayType(
-    char *name,
-    Type *elementType);
+__OBJECTIR_ATTR Type *getArrayType(Type *elementType);
+__OBJECTIR_ATTR Type *nameArrayType(char *name,
+                                    Type *elementType);
 
-__attribute__((noinline)) Type *getUnionType(int numMembers,
-                                             ...);
-__attribute__((noinline)) Type *nameUnionType(
-    char *name,
-    int numMembers,
-    ...);
+__OBJECTIR_ATTR Type *getUnionType(int numMembers, ...);
+__OBJECTIR_ATTR Type *nameUnionType(char *name,
+                                    int numMembers,
+                                    ...);
 
 /*
  * Primitive Types
  */
-__attribute__((noinline)) Type *getIntegerType(
-    uint64_t bitwidth,
-    bool isSigned);
-__attribute__((noinline)) Type *getUInt64Type();
-__attribute__((noinline)) Type *getUInt32Type();
-__attribute__((noinline)) Type *getUInt16Type();
-__attribute__((noinline)) Type *getUInt8Type();
-__attribute__((noinline)) Type *getInt64Type();
-__attribute__((noinline)) Type *getInt32Type();
-__attribute__((noinline)) Type *getInt16Type();
-__attribute__((noinline)) Type *getInt8Type();
-__attribute__((noinline)) Type *getBooleanType();
-__attribute__((noinline)) Type *getFloatType();
-__attribute__((noinline)) Type *getDoubleType();
-__attribute__((noinline)) Type *getPointerType(
-    Type *containedType);
+__OBJECTIR_ATTR Type *getIntegerType(uint64_t bitwidth,
+                                     bool isSigned);
+__OBJECTIR_ATTR Type *getUInt64Type();
+__OBJECTIR_ATTR Type *getUInt32Type();
+__OBJECTIR_ATTR Type *getUInt16Type();
+__OBJECTIR_ATTR Type *getUInt8Type();
+__OBJECTIR_ATTR Type *getInt64Type();
+__OBJECTIR_ATTR Type *getInt32Type();
+__OBJECTIR_ATTR Type *getInt16Type();
+__OBJECTIR_ATTR Type *getInt8Type();
+__OBJECTIR_ATTR Type *getBooleanType();
+__OBJECTIR_ATTR Type *getFloatType();
+__OBJECTIR_ATTR Type *getDoubleType();
+__OBJECTIR_ATTR Type *getPointerType(Type *containedType);
 
 /*
  * Named Types
  */
-__attribute__((noinline)) Type *getNamedType(char *name);
+__OBJECTIR_ATTR Type *getNamedType(char *name);
 
 /*
  * Object construction
  */
-__attribute__((noinline)) Object *buildObject(Type *type);
-__attribute__((noinline)) Array *buildArray(
+__ALLOC_ATTR __OBJECTIR_ATTR Object *buildObject(
+    Type *type);
+__ALLOC_ATTR __OBJECTIR_ATTR Array *buildArray(
     Type *type,
     uint64_t length);
-__attribute__((noinline)) Union *buildUnion(Type *type);
+__OBJECTIR_ATTR Union *buildUnion(Type *type);
 
 /*
  * Object destruction
  */
-__attribute__((noinline)) void deleteObject(Object *obj);
+__OBJECTIR_ATTR void deleteObject(Object *obj);
 
 /*
  * Object accesses
  */
-__attribute__((noinline)) Field *getObjectField(
-    Object *object,
-    uint64_t fieldNo);
+__OBJECTIR_ATTR Field *getObjectField(Object *object,
+                                      uint64_t fieldNo);
 
 /*
  * Array accesses
  */
-__attribute__((noinline)) Field *getArrayElement(
-    Array *array,
-    uint64_t index);
+__OBJECTIR_ATTR Field *getArrayElement(Array *array,
+                                       uint64_t index);
 
 /*
  * Union accesses
  */
-__attribute__((noinline)) Field *getUnionMember(
-    Union *unionObj,
-    uint64_t index);
+__OBJECTIR_ATTR Field *getUnionMember(Union *unionObj,
+                                      uint64_t index);
 
 /*
  * Type checking
  */
-__attribute__((noinline)) bool assertType(Type *type,
-                                          Object *object);
-__attribute__((noinline)) bool assertFieldType(
-    Type *type,
-    Field *field);
+__OBJECTIR_ATTR bool assertType(Type *type, Object *object);
+__OBJECTIR_ATTR bool assertFieldType(Type *type,
+                                     Field *field);
 
-__attribute__((noinline)) bool setReturnType(Type *type);
+__OBJECTIR_ATTR bool setReturnType(Type *type);
 
 /*
  * Field accesses
  */
 // Unsigned integer access
-__attribute__((noinline)) void writeUInt64(Field *field,
-                                           uint64_t value);
-__attribute__((noinline)) void writeUInt32(Field *field,
-                                           uint32_t value);
-__attribute__((noinline)) void writeUInt16(Field *field,
-                                           uint16_t value);
-__attribute__((noinline)) void writeUInt8(Field *field,
-                                          uint8_t value);
+__OBJECTIR_ATTR void writeUInt64(Field *field,
+                                 uint64_t value);
+__OBJECTIR_ATTR void writeUInt32(Field *field,
+                                 uint32_t value);
+__OBJECTIR_ATTR void writeUInt16(Field *field,
+                                 uint16_t value);
+__OBJECTIR_ATTR void writeUInt8(Field *field,
+                                uint8_t value);
 
 // Signed integer access
-__attribute__((noinline)) void writeInt64(Field *field,
-                                          int64_t value);
-__attribute__((noinline)) void writeInt32(Field *field,
-                                          int32_t value);
-__attribute__((noinline)) void writeInt16(Field *field,
-                                          int16_t value);
-__attribute__((noinline)) void writeInt8(Field *field,
-                                         int8_t value);
+__OBJECTIR_ATTR void writeInt64(Field *field,
+                                int64_t value);
+__OBJECTIR_ATTR void writeInt32(Field *field,
+                                int32_t value);
+__OBJECTIR_ATTR void writeInt16(Field *field,
+                                int16_t value);
+__OBJECTIR_ATTR void writeInt8(Field *field, int8_t value);
 
 // Floating point access
-__attribute__((noinline)) void writeFloat(Field *field,
-                                          float value);
-__attribute__((noinline)) void writeDouble(Field *field,
-                                           double value);
+__OBJECTIR_ATTR void writeFloat(Field *field, float value);
+__OBJECTIR_ATTR void writeDouble(Field *field,
+                                 double value);
 
 // Pointer access
-__attribute__((noinline)) void writeObject(Field *field,
-                                           Object *object);
+__OBJECTIR_ATTR void writeObject(Field *field,
+                                 Object *object);
 
 // Unsigned integer access
-__attribute__((noinline)) uint64_t readUInt64(Field *field);
-__attribute__((noinline)) uint32_t readUInt32(Field *field);
-__attribute__((noinline)) uint16_t readUInt16(Field *field);
-__attribute__((noinline)) uint8_t readUInt8(Field *field);
+__OBJECTIR_ATTR uint64_t readUInt64(Field *field);
+__OBJECTIR_ATTR uint32_t readUInt32(Field *field);
+__OBJECTIR_ATTR uint16_t readUInt16(Field *field);
+__OBJECTIR_ATTR uint8_t readUInt8(Field *field);
 
 // Signed integer access
-__attribute__((noinline)) int64_t readInt64(Field *field);
-__attribute__((noinline)) int32_t readInt32(Field *field);
-__attribute__((noinline)) int16_t readInt16(Field *field);
-__attribute__((noinline)) int8_t readInt8(Field *field);
+__OBJECTIR_ATTR int64_t readInt64(Field *field);
+__OBJECTIR_ATTR int32_t readInt32(Field *field);
+__OBJECTIR_ATTR int16_t readInt16(Field *field);
+__OBJECTIR_ATTR int8_t readInt8(Field *field);
 
 // Floating point access
-__attribute__((noinline)) float readFloat(Field *field);
-__attribute__((noinline)) double readDouble(Field *field);
+__OBJECTIR_ATTR float readFloat(Field *field);
+__OBJECTIR_ATTR double readDouble(Field *field);
 
 // Pointer access
-__attribute__((noinline)) Object *readObject(Field *field);
-__attribute__((noinline)) Object *readPointer(Field *field);
-__attribute__((noinline)) void writePointer(Field *field,
-                                            Object *value);
+__OBJECTIR_ATTR Object *readObject(Field *field);
+__OBJECTIR_ATTR Object *readPointer(Field *field);
+__OBJECTIR_ATTR void writePointer(Field *field,
+                                  Object *value);
 
-  
 //#ifdef __cplusplus
 } // extern "C"
 } // namespace objectir
