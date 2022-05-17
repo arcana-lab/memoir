@@ -37,6 +37,11 @@ ReferenceType(referenced type)
 
 TensorType(element type, # of dimensions)
 
+### Allocating Containers
+allocateContainer(container type)
+
+allocateTensor(element type, # of dimensions, *<size of dimension, ...>*)
+
 ### Accessing Fields
 getContainerField(object, field index)
 
