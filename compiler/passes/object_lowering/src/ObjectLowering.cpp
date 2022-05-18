@@ -271,15 +271,10 @@ void ObjectLowering::dataflow() {
                 if (FunctionNamesToObjectIR[calleeName] == BUILD_OBJECT) {
                     auto& kill = df->KILL(i);
                     kill.insert(buildIns);
-                    errs() << *i << " kills " << *buildIns << "\n";
+                    //errs() << *i << " kills " << *buildIns << "\n";
                 }
             }            
         }
-
-        for (auto possibleInst : df->KILL(i)){
-            errs() << "   KILL: " << *possibleInst << "\n";
-        }
-
         return ;
     };
     auto initializeIN = [](Instruction *inst, std::set<Value *>& IN) { return; };
@@ -290,12 +285,11 @@ void ObjectLowering::dataflow() {
         return ;
     };
     auto computeOUT = [](Instruction *inst, std::set<Value *>& OUT, DataFlowResult *df) {
-        errs() << "computing OUT of " << *inst << "\n";
         auto &inI = df->IN(inst);
         auto &genI = df->GEN(inst);
         auto &killI = df->KILL(inst);
 
-        errs() << "   IN:\n";
+        /*errs() << "   IN:\n";
         for (auto possibleInst : inI){
             errs() << "    " << *possibleInst << "\n";
         }
@@ -304,27 +298,14 @@ void ObjectLowering::dataflow() {
             errs() << "    " << *possibleInst << "\n";
         }
         errs() << "   KILL: " << df->KILL(inst).size() << "\n";
-
-        if(df->KILL(inst).size() == 1) {
-//            killI.
-            auto kill_start = df->KILL(inst).begin();
-    //        errs() << "killstart\n";
-            auto kill_end = df->KILL(inst).end();
-      //      errs() << "killend\n";
-            auto first_inst = &*kill_start;
-        //    errs() << "gotten the first inst \n";
-//            errs() << first_inst << *first_inst << "\n";
-        }
-
-
         for (auto possibleInst : df->KILL(inst)){
             errs() << "    " << possibleInst << "\n";
-        }
+        }*/
 
         OUT.insert(inI.begin(), inI.end());
         for (auto k : killI) {
           OUT.erase(k);
-        } //killI.begin(), killI.end());
+        } 
         OUT.insert(genI.begin(), genI.end());
     };
     
