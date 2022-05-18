@@ -319,6 +319,8 @@ void ObjectLowering::transform()
     {
         if(!f.isDeclaration())
         {
+            auto calleename = f.getName();
+            if (calleename.str().at(0) == '_') continue; // TODO: skipping internal functions
             FunctionTransform(&f);
         }
     }
@@ -354,8 +356,9 @@ void ObjectLowering::FunctionTransform(Function *f) {
         }
     }
 
+    errs() << "Getting loop structures \n";
     auto loopStructures = noelle->getLoopStructures(f);
-
+    errs() << "done getting loop structures\n";
     std::set<CallInst*> allocBuildObjects;
 
     for(auto buildObjins: buildObjs)
@@ -365,8 +368,10 @@ void ObjectLowering::FunctionTransform(Function *f) {
             continue;
         }
         bool inLoop = false;
+        errs() << "about to loop over LS\n";
         for(auto loop: *loopStructures)
         {
+            errs() << "fetched a loop while checking " << *buildObjins << "\n";
             if(!loop->isIncluded(buildObjins))
             {
                 continue;
@@ -402,10 +407,10 @@ buildObjectLive:
         auto llvmType =objT->innerType->getLLVMRepresentation(M);
         auto allocaIns = builder.CreateAlloca(llvmType);
         replacementMapping[allocaBuildObj] = allocaIns;
-        errs() << *allocaBuildObj << " will be replaced by " << *allocaInst << "\n";
+        errs() << *allocaBuildObj << " will be replaced by " << *allocaIns << "\n";
     }
 
-
+    errs() << "invoking bbtransform \n";
 
     // traverse the dominator to replace instructions
     BasicBlockTransformer(DT, &entry, replacementMapping, phiNodesToPopulate, allocBuildObjects);
@@ -524,7 +529,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                 switch (FunctionNamesToObjectIR[calleeName]) {
                     case BUILD_OBJECT: {
                         // create malloc based on the object's LLVMRepresentation ; bitcast to a ptr to LLVMRepresentation
-                        if(allocaBuildObj.find(callIns) == allocaBuildObj.end())
+                        if(allocaBuildObj.find(callIns) != allocaBuildObj.end())
                         {
                             continue;
                         }
@@ -605,7 +610,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                     case DELETE_OBJECT: {
 
                         auto arg0 = callIns->getArgOperand(0);
-                        if(allocaBuildObj.find(dyn_cast<CallInst>(arg0)) == allocaBuildObj.end())
+                        if(allocaBuildObj.find(dyn_cast<CallInst>(arg0)) != allocaBuildObj.end())
                         {
                             continue;
                         }
