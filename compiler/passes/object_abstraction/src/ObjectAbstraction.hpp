@@ -28,6 +28,7 @@ private:
 public:
   ~TypeNode();
   TypeNode(CallInst *callInst);
+  TypeNode(CallInst *callInst, CallInst *innerTypeCallInst);
   inline int getNumFields() { return this->fieldTypes.size(); };
   inline CallInst * getFieldType(int fieldNum) { return this->fieldTypes[fieldNum]; };
   void printTypeInfo(string prefix);
@@ -70,7 +71,6 @@ private:
   CallInst *allocation;
   TypeNode *manifest;
   std::vector<FieldNode *> fields;
-  SummaryFieldNode *summaryField;
   std::unordered_map<CallInst *, FieldNode *> fieldAccessMap;
   CallInst *deletion;
 

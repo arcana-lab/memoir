@@ -3,7 +3,7 @@
 using namespace object_abstraction;
 
 /*
- * Constructor for both struct and array type definition
+ *  Constructor for struct type definition
  */
 TypeNode::TypeNode(CallInst *callInst)
   : definition(callInst) {
@@ -16,11 +16,21 @@ TypeNode::TypeNode(CallInst *callInst)
   return;
 }
 
+/*
+ *  Constructor for array type definition
+ */
+TypeNode::TypeNode(CallInst *callInst, CallInst *innerTypeCallInst)
+  : definition(callInst) {
+  this->fieldTypes.push_back(innerTypeCallInst);
+
+  return;
+}
+
 void TypeNode::printTypeInfo(string prefix="") {
   errs() << prefix << "Type definition: " << *this->definition << "\n";
   errs() << prefix << "  Num of fields: " << this->fieldTypes.size() << "\n";
   for (auto fieldType : this->fieldTypes) {
-    errs() << prefix << "    Field: " << *fieldType << "\n";
+    errs() << prefix << "    Field definition: " << *fieldType << "\n";
   }
 
   return;
@@ -76,7 +86,7 @@ void SummaryFieldNode::printFieldInfo(string prefix) {
 }
 
 /*
- * Constructor for both struct object
+ * Constructor for struct object
  */
 ObjectNode::ObjectNode(CallInst *callInst, TypeNode *typeNode)
   : allocation(callInst),
@@ -95,18 +105,19 @@ ObjectNode::ObjectNode(CallInst *callInst, TypeNode *typeNode)
 ObjectNode::ObjectNode(CallInst *callInst, TypeNode *arrayTypeNode, TypeNode *innerTypeNode) 
   : allocation(callInst),
     manifest(arrayTypeNode) {
-  this->summaryField = new SummaryFieldNode(this, innerTypeNode, callInst->getArgOperand(1));
+  FieldNode *summaryFieldNode = new SummaryFieldNode(this, innerTypeNode, callInst->getArgOperand(1));
+  this->fields.push_back(summaryFieldNode);
 
   return;
 }
 
 void ObjectNode::addFieldAccess(CallInst *fieldAccess) {
-  if (this->manifest->getNumFields() > 0) {       // accessing struct-like object
+  if (fieldAccess->getCalledFunction()->getName() == "getObjectField") {   // accessing struct-like object    
     if (auto fieldIndexConstant = dyn_cast<ConstantInt>(fieldAccess->getArgOperand(1))) {
       this->fieldAccessMap[fieldAccess] = this->fields[fieldIndexConstant->getSExtValue()];
     }
-  } else {                                        // accessing array-like object
-    this->fieldAccessMap[fieldAccess] = this->summaryField;
+  } else {                                            // accessing array-like object
+    this->fieldAccessMap[fieldAccess] = this->fields[0];
   }
 
   return;
@@ -120,14 +131,9 @@ void ObjectNode::printObjectInfo(string prefix="") {
   for (auto &pair : this->fieldAccessMap) {
     errs() << prefix << "  " << *pair.first << "\n";
   }
-  if (this->manifest->getNumFields() > 0) {     // looking at struct-like object
-    errs() << "Object fields:\n";
-    for (auto fieldNode : this->fields) {
-      fieldNode->printFieldInfo(prefix + "  ");
-    }
-  } else {                                      // looking at array-like object
-    errs() << "Object summary field:\n";
-    this->summaryField->printFieldInfo(prefix + "  ");
+  errs() << "Object fields:\n";
+  for (auto fieldNode : this->fields) {
+    fieldNode->printFieldInfo(prefix + "  ");
   }
   errs() << prefix << "Object deallocation: " << *this->deletion << "\n";
 
@@ -156,10 +162,18 @@ void ObjectAbstraction::analyze() {
             continue;
           }
 
-          if (callee->getName() == ObjectIRToFunctionNames[OBJECT_TYPE] || callee->getName() == ObjectIRToFunctionNames[ARRAY_TYPE]) {
+          if (callee->getName() == ObjectIRToFunctionNames[OBJECT_TYPE]) {
             TypeNode *typeNode = new TypeNode(callInst);
             this->types.insert(typeNode);
             this->callToTypeNodeMap[callInst] = typeNode;
+          }
+
+          if (callee->getName() == ObjectIRToFunctionNames[ARRAY_TYPE]) {
+            if (auto innerTypeCallInst = this->retrieveTypeDefinition(callInst->getArgOperand(0))) {
+              TypeNode *typeNode = new TypeNode(callInst, innerTypeCallInst);
+              this->types.insert(typeNode);
+              this->callToTypeNodeMap[callInst] = typeNode;
+            }
           }
         }
       }
