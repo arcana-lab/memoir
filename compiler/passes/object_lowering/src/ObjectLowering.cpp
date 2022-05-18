@@ -237,11 +237,10 @@ void ObjectLowering::loopstructure(){
 }
 
 
-void ObjectLowering::dataflow() {
+DataFlowResult * ObjectLowering::dataflow(Function *f, std::set<CallInst *> &buildObjs) {
     auto dfe = noelle->getDataFlowEngine();
-    auto mainF = M.getFunction("main"); // HACK
 
-    auto computeGEN = [](Instruction *i, DataFlowResult *df) {
+    auto computeGEN = [&](Instruction *i, DataFlowResult *df) {
         if (!isa<CallInst>(i)) return;
         auto callIns = dyn_cast<CallInst>(i);
         auto callee = callIns->getCalledFunction();
@@ -251,6 +250,7 @@ void ObjectLowering::dataflow() {
         if (FunctionNamesToObjectIR[calleeName] == BUILD_OBJECT) {
             auto& gen = df->GEN(i);
             gen.insert(i);
+            buildObjs.insert(callIns);
         }
         return ;
     };
@@ -271,7 +271,6 @@ void ObjectLowering::dataflow() {
                 if (FunctionNamesToObjectIR[calleeName] == BUILD_OBJECT) {
                     auto& kill = df->KILL(i);
                     kill.insert(buildIns);
-                    //errs() << *i << " kills " << *buildIns << "\n";
                 }
             }            
         }
@@ -289,19 +288,6 @@ void ObjectLowering::dataflow() {
         auto &genI = df->GEN(inst);
         auto &killI = df->KILL(inst);
 
-        /*errs() << "   IN:\n";
-        for (auto possibleInst : inI){
-            errs() << "    " << *possibleInst << "\n";
-        }
-        errs() << "   GEN:\n";
-        for (auto possibleInst : genI){
-            errs() << "    " << *possibleInst << "\n";
-        }
-        errs() << "   KILL: " << df->KILL(inst).size() << "\n";
-        for (auto possibleInst : df->KILL(inst)){
-            errs() << "    " << possibleInst << "\n";
-        }*/
-
         OUT.insert(inI.begin(), inI.end());
         for (auto k : killI) {
           OUT.erase(k);
@@ -311,7 +297,7 @@ void ObjectLowering::dataflow() {
     
 
     auto customDfr = dfe.applyForward(
-        mainF,
+        f,
         computeGEN, 
         computeKILL, 
         initializeIN,
@@ -320,16 +306,8 @@ void ObjectLowering::dataflow() {
         computeOUT
     );
 
-    errs() << "\nDATA FLOW RESULTS\n";
-    for (auto &BB : *mainF) {
-        auto term = BB.getTerminator();
-        if (!isa<ReturnInst>(term)) continue;
-        auto insts = customDfr->OUT(term);
-        for (auto possibleInst : insts){
-            errs() << "   " << *possibleInst << "\n";
-        }
-    }
-    errs() << "\n";
+
+    return customDfr;
 }
 
 
@@ -363,9 +341,72 @@ void ObjectLowering::FunctionTransform(Function *f) {
         }
     }
 
+    std::set<CallInst*> buildObjs;
+    auto dataflowResult = dataflow(f, buildObjs);
+
+    std::set<Value*> liveBuildObjs;
+    for (auto &BB : *f) {
+        auto term = BB.getTerminator();
+        if (!isa<ReturnInst>(term)) continue;
+        auto insts = dataflowResult->OUT(term);
+        for (auto possibleInst : insts){
+            liveBuildObjs.insert(possibleInst);
+        }
+    }
+
+    auto loopStructures = noelle->getLoopStructures(f);
+
+    std::set<CallInst*> allocBuildObjects;
+
+    for(auto buildObjins: buildObjs)
+    {
+        if(liveBuildObjs.find(buildObjins)!=liveBuildObjs.end())
+        {
+            continue;
+        }
+        bool inLoop = false;
+        for(auto loop: *loopStructures)
+        {
+            if(!loop->isIncluded(buildObjins))
+            {
+                continue;
+            }
+            inLoop=true;
+            for(auto loopLatches: loop->getLatches())
+            {
+                auto lastIns = &(loopLatches->back());
+                auto& latchOut = dataflowResult->OUT(lastIns);
+                if(latchOut.find(buildObjins) == latchOut.end())
+                {
+                    allocBuildObjects.erase(buildObjins);
+                    goto buildObjectLive;
+                }
+                allocBuildObjects.insert(buildObjins);
+            }
+        }
+        if(!inLoop)
+        {
+            allocBuildObjects.insert(buildObjins);
+        }
+
+buildObjectLive:
+        continue;
+        ///
+    }
+    Instruction* entryIns = entry.getFirstNonPHI();
+    IRBuilder<> builder(entryIns);
+    for(auto allocaBuildObj: allocBuildObjects)
+    {
+        std::set<PHINode*> visited;
+        auto objT = parser->parseObjectWrapperChain(allocaBuildObj,visited);
+        auto llvmType =objT->innerType->getLLVMRepresentation(M);
+        auto allocaIns = builder.CreateAlloca(llvmType);
+        replacementMapping[allocaBuildObj] = allocaIns;
+    }
+
 
     // traverse the dominator to replace instructions
-    BasicBlockTransformer(DT, &entry, replacementMapping, phiNodesToPopulate);
+    BasicBlockTransformer(DT, &entry, replacementMapping, phiNodesToPopulate, allocBuildObjects);
 
     // repopulate incoming values of phi nodes
     for (auto old_phi: phiNodesToPopulate) {
@@ -410,7 +451,8 @@ void ObjectLowering::FunctionTransform(Function *f) {
 
 void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                                            std::map<Value *, Value *> &replacementMapping,
-                                           std::set<PHINode *> &phiNodesToPopulate) {
+                                           std::set<PHINode *> &phiNodesToPopulate,
+                                           std::set<CallInst*> &allocaBuildObj) {
     //errs() << "Transforming Basic Block  " <<*bb << "\n\n";
     // setup llvm::type and malloc function constants
     auto &ctxt = M.getContext();
@@ -480,7 +522,10 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                 switch (FunctionNamesToObjectIR[calleeName]) {
                     case BUILD_OBJECT: {
                         // create malloc based on the object's LLVMRepresentation ; bitcast to a ptr to LLVMRepresentation
-
+                        if(allocaBuildObj.find(callIns) == allocaBuildObj.end())
+                        {
+                            continue;
+                        }
                         std::set<PHINode*> visited;
                         auto objT = parser->parseObjectWrapperChain(callIns,visited);
                         auto llvmType =objT->innerType->getLLVMRepresentation(M);
@@ -556,8 +601,14 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                         break;
                     }
                     case DELETE_OBJECT: {
+
+                        auto arg0 = callIns->getArgOperand(0);
+                        if(allocaBuildObj.find(dyn_cast<CallInst>(arg0)) == allocaBuildObj.end())
+                        {
+                            continue;
+                        }
                         // bitcast to i8* and call free
-                        auto obj_inst = replacementMapping[callIns->getArgOperand(0)];
+                        auto obj_inst = replacementMapping[arg0];
                         auto bc_inst = builder.CreateBitCast(obj_inst, i8StarTy);
                         std::vector<Value *> arguments{bc_inst};
                         auto free_inst = builder.CreateCall(freef, arguments);

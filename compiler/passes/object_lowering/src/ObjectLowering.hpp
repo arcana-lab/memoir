@@ -47,7 +47,7 @@ public:
 
   // ======================== EXPERIMENTAL =====================
 
-  void dataflow();
+  DataFlowResult *dataflow(Function *f, std::set<CallInst *> &buildObjs);
     void loopstructure();
 
   // ==================== TRANSFORMATION ====================
@@ -56,7 +56,10 @@ public:
 
   void FunctionTransform(Function* func);
   
-  void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,std::map<Value*, Value*> &replacementMapping, std::set<PHINode*>& phiNodesToPopulate);
+  void BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
+                             std::map<Value*, Value*> &replacementMapping,
+                             std::set<PHINode*>& phiNodesToPopulate,
+                             std::set<CallInst*>& allocaBuildObj);
 
   Value* CreateGEPFromFieldWrapper(FieldWrapper *wrapper, IRBuilder<> &builder, std::map<Value*, Value*> &replacementMapping);
 
