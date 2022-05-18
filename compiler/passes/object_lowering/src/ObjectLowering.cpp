@@ -402,7 +402,9 @@ buildObjectLive:
         auto llvmType =objT->innerType->getLLVMRepresentation(M);
         auto allocaIns = builder.CreateAlloca(llvmType);
         replacementMapping[allocaBuildObj] = allocaIns;
+        errs() << *allocaBuildObj << " will be replaced by " << *allocaInst << "\n";
     }
+
 
 
     // traverse the dominator to replace instructions
@@ -637,7 +639,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
     auto node = DT.getNode(bb);
     for (auto child: node->getChildren()) {
         auto dominated = child->getBlock();
-        BasicBlockTransformer(DT, dominated, replacementMapping,phiNodesToPopulate);
+        BasicBlockTransformer(DT, dominated, replacementMapping,phiNodesToPopulate, allocaBuildObj);
     }
 } // endof BasicBlockTransformer
 
