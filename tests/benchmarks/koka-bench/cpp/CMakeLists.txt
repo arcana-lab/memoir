@@ -2,7 +2,16 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-foreach (source IN ITEMS rbtree.cpp rbtree-ck.cpp nqueens.cpp deriv.cpp cfold.cpp) # binarytrees.cpp)
+set(GLOB sources
+  rbtree/rbtree.cpp
+  rbtree-ck/rbtree-ck.cpp
+  nqueens/nqueens.cpp
+  deriv/deriv.cpp
+  cfold/cfold.cpp
+  # binarytrees/binarytrees.cpp
+  )
+
+foreach (source IN ITEMS ${sources})
   get_filename_component(name "${source}" NAME_WE)
   set(name "cpp-${name}")
 
