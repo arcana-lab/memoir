@@ -44,6 +44,10 @@ Field *getUnionMember(Union *unionObj, uint64_t index) {
  */
 __OBJECTIR_ATTR
 bool assertType(Type *type, Object *object) {
+  if (object == nullptr) {
+    return isObjectType(type);
+  }
+  
   if (!type->equals(object->getType())) {
     std::cerr
         << "assertType: Object is not the correct type\n";
@@ -54,6 +58,10 @@ bool assertType(Type *type, Object *object) {
 
 __OBJECTIR_ATTR
 bool assertFieldType(Type *type, Field *field) {
+  if (field == nullptr) {
+    return isObjectType(type);
+  }
+
   if (!type->equals(field->getType())) {
     std::cerr
         << "assertFieldType: Field is not the correct type\n";
