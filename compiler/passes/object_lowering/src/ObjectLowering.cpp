@@ -364,6 +364,11 @@ void ObjectLowering::FunctionTransform(Function *f) {
         }
     }
 
+    for(auto liveObj: liveBuildObjs)
+    {
+        errs() << "this object is alive "<< *liveObj << "\n";
+    }
+
     errs() << "Getting loop structures \n";
     auto loopStructures = noelle->getLoopStructures(f);
     errs() << "done getting loop structures\n";
