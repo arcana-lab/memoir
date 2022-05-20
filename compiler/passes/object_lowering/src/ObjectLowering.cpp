@@ -385,8 +385,10 @@ void ObjectLowering::FunctionTransform(Function *f) {
         for(auto loop: *loopStructures)
         {
             errs() << "fetched a loop while checking " << *buildObjins << "\n";
+            errs() << "This is the loop" <<loop << "\n\n\n";
             if(!loop->isIncluded(buildObjins))
             {
+                errs() << "This build object is not included in the loop\n";
                 continue;
             }
             inLoop=true;
@@ -394,8 +396,9 @@ void ObjectLowering::FunctionTransform(Function *f) {
             {
                 auto lastIns = &(loopLatches->back());
                 auto& latchOut = dataflowResult->OUT(lastIns);
-                if(latchOut.find(buildObjins) == latchOut.end())
+                if(latchOut.find(buildObjins) != latchOut.end())
                 {
+                    errs() << "This build object is not dead in one of the latches \n";
                     allocBuildObjects.erase(buildObjins);
                     goto buildObjectLive;
                 }
