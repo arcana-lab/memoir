@@ -6,13 +6,14 @@ CC=clang++
 NOELLE_NORM=noelle-norm
 LL=llvm-link
 OPT=$(GIT_ROOT)/compiler/scripts/optimize.sh
-CFLAGS=-I$(GIT_ROOT)/runtime/include -std=c++17 -O1 -Xclang -disable-llvm-passes
+
+CFLAGS=-I$(GIT_ROOT)/install/include -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec
 LIBS=-lm
 
 BINARY=$(BUILD_DIR)/$(notdir $(realpath .))
 IR_FILE=$(BINARY).bc
 IR_FILE_PROGRAM=$(BUILD_DIR)/program.bc
-IR_FILE_RUNTIME=$(GIT_ROOT)/runtime/build/objectir.bc
+IR_FILE_RUNTIME=$(GIT_ROOT)/install/lib/ObjectIR.bc
 OBJ_FILE=$(patsubst %.bc,%.o,$(IR_FILE))
 
 CFILES := $(wildcard *.c)
@@ -38,11 +39,10 @@ $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 
 $(IR_FILE_PROGRAM): $(C_BITCODES) $(CPP_BITCODES)
 	$(LL) $^ -o $@
-#	$(OPT) $@
-	# $(LL) $@ $(GIT_ROOT)/runtime/build/objectir.bc -o $@
+	$(OPT) $@
 
 $(IR_FILE_RUNTIME):
-	make -C $(GIT_ROOT)/runtime
+	make -C $(GIT_ROOT)
 
 $(IR_FILE): $(IR_FILE_PROGRAM) $(IR_FILE_RUNTIME)
 	$(LL) $^ -o $@

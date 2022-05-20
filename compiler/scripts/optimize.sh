@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 GIT_ROOT=`git rev-parse --show-toplevel` ;
-COMPILER_DIR=${GIT_ROOT}/compiler ;
+LIB_DIR=${GIT_ROOT}/install/lib ;
 
 source ${GIT_ROOT}/enable ;
 
@@ -24,5 +24,5 @@ cp ${IR_FILE} ${IR_FILE_PROF} ;
 
 IR_FILE_LOWERED=${OUT_DIR}/all_in_one_lowered.bc ;
 echo "Lower Objects (I: ${IR_FILE}, O: ${IR_FILE_LOWERED})" ;
-noelle-load -load ${COMPILER_DIR}/passes/build/lib/ObjectLowering.so -ObjectLowering ${IR_FILE} -o ${IR_FILE} ;
+noelle-load -load ${LIB_DIR}/ObjectLowering.so -ObjectLowering ${IR_FILE} -o ${IR_FILE} ;
 cp ${IR_FILE} ${IR_FILE_LOWERED} ;

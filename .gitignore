@@ -1,6 +1,7 @@
 .clangd
 install
-build
+.build.dir
+.noelle
 compile_commands.json
 *.bc
 *.ll

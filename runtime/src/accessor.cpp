@@ -9,7 +9,7 @@
 
 #include <iostream>
 
-#include "accessor.h"
+#include "object_ir.h"
 
 using namespace objectir;
 
@@ -18,6 +18,7 @@ extern "C" {
 /*
  * Object accesses
  */
+__OBJECTIR_ATTR
 Field *getObjectField(Object *object, uint64_t fieldNo) {
   return object->fields.at(fieldNo);
 }
@@ -25,6 +26,7 @@ Field *getObjectField(Object *object, uint64_t fieldNo) {
 /*
  * Array accesses
  */
+__OBJECTIR_ATTR
 Field *getArrayElement(Array *array, uint64_t index) {
   return array->fields.at(index);
 }
@@ -32,6 +34,7 @@ Field *getArrayElement(Array *array, uint64_t index) {
 /*
  * Union accesses
  */
+__OBJECTIR_ATTR
 Field *getUnionMember(Union *unionObj, uint64_t index) {
   return unionObj->members.at(index);
 }
@@ -39,7 +42,12 @@ Field *getUnionMember(Union *unionObj, uint64_t index) {
 /*
  * Type checking
  */
+__OBJECTIR_ATTR
 bool assertType(Type *type, Object *object) {
+  if (object == nullptr) {
+    return isObjectType(type);
+  }
+  
   if (!type->equals(object->getType())) {
     std::cerr
         << "assertType: Object is not the correct type\n";
@@ -48,7 +56,12 @@ bool assertType(Type *type, Object *object) {
   return true;
 }
 
+__OBJECTIR_ATTR
 bool assertFieldType(Type *type, Field *field) {
+  if (field == nullptr) {
+    return isObjectType(type);
+  }
+
   if (!type->equals(field->getType())) {
     std::cerr
         << "assertFieldType: Field is not the correct type\n";
@@ -57,6 +70,7 @@ bool assertFieldType(Type *type, Field *field) {
   return true;
 }
 
+__OBJECTIR_ATTR
 bool setReturnType(Type *type) {
   return true;
 }
@@ -65,6 +79,7 @@ bool setReturnType(Type *type) {
  * Field accesses
  */
 // Unsigned integer access
+__OBJECTIR_ATTR
 void writeUInt64(Field *field, uint64_t value) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -77,6 +92,7 @@ void writeUInt64(Field *field, uint64_t value) {
   }
 }
 
+__OBJECTIR_ATTR
 void writeUInt32(Field *field, uint32_t value) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -89,6 +105,7 @@ void writeUInt32(Field *field, uint32_t value) {
   }
 }
 
+__OBJECTIR_ATTR
 void writeUInt16(Field *field, uint16_t value) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -101,6 +118,7 @@ void writeUInt16(Field *field, uint16_t value) {
   }
 }
 
+__OBJECTIR_ATTR
 void writeUInt8(Field *field, uint8_t value) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -114,6 +132,7 @@ void writeUInt8(Field *field, uint8_t value) {
 }
 
 // Signed integer access
+__OBJECTIR_ATTR
 void writeInt64(Field *field, int64_t value) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -126,6 +145,7 @@ void writeInt64(Field *field, int64_t value) {
   }
 }
 
+__OBJECTIR_ATTR
 void writeInt32(Field *field, int32_t value) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -138,6 +158,7 @@ void writeInt32(Field *field, int32_t value) {
   }
 }
 
+__OBJECTIR_ATTR
 void writeInt16(Field *field, int16_t value) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -150,6 +171,7 @@ void writeInt16(Field *field, int16_t value) {
   }
 }
 
+__OBJECTIR_ATTR
 void writeInt8(Field *field, int8_t value) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -163,6 +185,7 @@ void writeInt8(Field *field, int8_t value) {
 }
 
 // Boolean access
+__OBJECTIR_ATTR
 void writeBoolean(Field *field, bool value) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -176,6 +199,7 @@ void writeBoolean(Field *field, bool value) {
 }
 
 // Floating point access
+__OBJECTIR_ATTR
 void writeFloat(Field *field, float value) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -187,6 +211,8 @@ void writeFloat(Field *field, float value) {
     exit(1);
   }
 }
+
+__OBJECTIR_ATTR
 void writeDouble(Field *field, double value) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -200,6 +226,7 @@ void writeDouble(Field *field, double value) {
 }
 
 // Pointer access
+__OBJECTIR_ATTR
 void writeObject(Field *field, Object *object) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::ObjectTy) {
@@ -213,6 +240,7 @@ void writeObject(Field *field, Object *object) {
 }
 
 // Integer access
+__OBJECTIR_ATTR
 uint64_t readUInt64(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -225,6 +253,7 @@ uint64_t readUInt64(Field *field) {
   }
 }
 
+__OBJECTIR_ATTR
 uint32_t readUInt32(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -237,6 +266,7 @@ uint32_t readUInt32(Field *field) {
   }
 }
 
+__OBJECTIR_ATTR
 uint16_t readUInt16(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -249,6 +279,7 @@ uint16_t readUInt16(Field *field) {
   }
 }
 
+__OBJECTIR_ATTR
 uint8_t readUInt8(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -261,6 +292,7 @@ uint8_t readUInt8(Field *field) {
   }
 }
 
+__OBJECTIR_ATTR
 int64_t readInt64(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -273,6 +305,7 @@ int64_t readInt64(Field *field) {
   }
 }
 
+__OBJECTIR_ATTR
 int32_t readInt32(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -285,6 +318,7 @@ int32_t readInt32(Field *field) {
   }
 }
 
+__OBJECTIR_ATTR
 int16_t readInt16(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -297,6 +331,7 @@ int16_t readInt16(Field *field) {
   }
 }
 
+__OBJECTIR_ATTR
 int8_t readInt8(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::IntegerTy) {
@@ -310,6 +345,7 @@ int8_t readInt8(Field *field) {
 }
 
 // Floating point access
+__OBJECTIR_ATTR
 float readFloat(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::FloatTy) {
@@ -322,6 +358,7 @@ float readFloat(Field *field) {
   }
 }
 
+__OBJECTIR_ATTR
 double readDouble(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::DoubleTy) {
@@ -335,6 +372,7 @@ double readDouble(Field *field) {
 }
 
 // Object access
+__OBJECTIR_ATTR
 Object *readObject(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::ObjectTy) {
@@ -347,6 +385,7 @@ Object *readObject(Field *field) {
   }
 }
 
+__OBJECTIR_ATTR
 Object *readPointer(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::PointerTy) {
@@ -359,6 +398,7 @@ Object *readPointer(Field *field) {
   }
 }
 
+__OBJECTIR_ATTR
 void writePointer(Field *field, Object *obj) {
   TypeCode fieldType = field->getType()->getCode();
   if (fieldType == TypeCode::PointerTy) {

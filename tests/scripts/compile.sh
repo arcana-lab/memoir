@@ -7,9 +7,13 @@ function compile_benchmark {
 
     pushd ${TEST_DIR} ;
 
+    echo "" ;
     echo "Building test: ${TEST_DIR}"
     
     make compile ;
+
+    echo "Done building test: ${TEST_DIR}"
+    echo "" ;
 
     popd ;
 }

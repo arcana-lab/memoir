@@ -10,12 +10,7 @@ Type *objTy = getObjectType(3,
                             getUInt64Type());
 
 int main() {
-
-  std::cerr << objTy->toString() << "\n";
-
   Object *myObj = buildObject(objTy);
-
-  std::cerr << myObj->toString() << "\n";
 
   Field *field1 = getObjectField(myObj, 0);
   Field *field2 = getObjectField(myObj, 1);

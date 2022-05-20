@@ -1,1 +1,0 @@
-/home/pjp2292/object-ir/compiler/scripts/run_me.sh
