@@ -109,7 +109,7 @@ llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
                         break;
                     }
                     default: {
-                        errs() << "IntegerType: bitwidth " << intType->bitwidth << " not supported\n";
+                        llvm::errs() << "IntegerType: bitwidth " << intType->bitwidth << " not supported\n";
                         assert(false);
                     }
                 }
