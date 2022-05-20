@@ -99,8 +99,20 @@ llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
             }
             case IntegerTy: {
                 auto intType = (IntegerType *) fieldType;
-                // TODO: Not every int is 64 bit but for all assume 64 bits
-                types.push_back(llvm::Type::getInt64Ty(M.getContext()));
+                switch (intType->bitwidth) {
+                    case 64: {
+                        types.push_back(llvm::Type::getInt64Ty(M.getContext()));
+                        break;
+                    }
+                    case 32: {
+                        types.push_back(llvm::Type::getInt32Ty(M.getContext()));
+                        break;
+                    }
+                    default: {
+                        errs() << "IntegerType: bitwidth " << intType->bitwidth << " not supported\n";
+                        assert(false);
+                    }
+                }
                 break;
             }
             // needs  other cases
