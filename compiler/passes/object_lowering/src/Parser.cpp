@@ -247,9 +247,12 @@ void Parser::parseType(Value *ins, const std::function<void(CallInst*)>& callbac
         visited.insert(phiInst);
         for (auto& val: phiInst->incoming_values()) {
 
-
-            auto nullObjStar = ConstantPointerNull::get(objectStar);
-            if(val.get() == nullObjStar) continue;
+//
+//            auto nullObjStar = ConstantPointerNull::get(objectStar);
+//
+////            errs() <<
+//            val.get().
+            if(dyn_cast<ConstantPointerNull>(val.get())) continue;
             parseType(val.get(), callback, visited);
         }
     } else if (!ins) {
