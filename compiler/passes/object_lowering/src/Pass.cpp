@@ -34,11 +34,11 @@ namespace {
 
 //        objectLowering->dataflow(nullptr);
 
-      objectLowering->loopstructure();
+//      objectLowering->loopstructure();
 
-      //objectLowering->analyze();
+      objectLowering->analyze();
 
-      //objectLowering->transform();
+      objectLowering->transform();
       
       return false;
     }
