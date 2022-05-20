@@ -189,6 +189,9 @@ void ObjectLowering::inferArgTypes(llvm::Function *f, vector<Type *> *arg_vector
 }
 
 ObjectType *ObjectLowering::inferReturnType(llvm::Function *f) {
+    errs() << f->getName().str() << ": inferring its return type rn\n";
+
+
     for (auto &bb: *f) {
         for (auto &ins: bb) {
             if (auto callIns = dyn_cast<CallInst>(&ins)) {
