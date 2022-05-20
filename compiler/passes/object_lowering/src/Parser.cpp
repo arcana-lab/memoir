@@ -4,10 +4,11 @@
 
 using namespace object_lowering;
 
-Parser::Parser(Module &M, Noelle *noelle, ModulePass *mp)
+Parser::Parser(Module &M, Noelle *noelle, ModulePass *mp, PointerType *objectStar)
   : M(M),
     noelle(noelle),
-    mp(mp) {
+    mp(mp) ,
+    objectStar(objectStar){
     // Do initialization.
 }
 
@@ -244,7 +245,13 @@ void Parser::parseType(Value *ins, const std::function<void(CallInst*)>& callbac
         if(visited.find(phiInst) != visited.end()) return;
         // otherwise, vist the children
         visited.insert(phiInst);
-        for (auto& val: phiInst->incoming_values()) parseType(val.get(), callback, visited);
+        for (auto& val: phiInst->incoming_values()) {
+
+
+            auto nullObjStar = ConstantPointerNull::get(objectStar);
+            if(val.get() == nullObjStar) continue;
+            parseType(val.get(), callback, visited);
+        }
     } else if (!ins) {
         //errs() << "i think this is a nullptr\n";
         assert(false); 

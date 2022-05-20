@@ -11,6 +11,7 @@ private:
   Module &M;
   Noelle *noelle;
   ModulePass* mp;
+  PointerType *objectStar;
     // Caches
     std::map<Instruction*, AnalysisType*> analysisTypeMap; // any CallInst -> type
     std::map<Value*, ObjectWrapper*> buildObjMap;
@@ -18,7 +19,7 @@ private:
     std::map<Function*, ObjectType*> clonedFunctionReturnTypes;
   
 public:
-  Parser(Module &M, Noelle *noelle, ModulePass* mp);
+  Parser(Module &M, Noelle *noelle, ModulePass* mp,PointerType *objectStar);
 
   void setClonedFunctionReturnTypes(std::map<Function*, ObjectType*> &clonedFunctionReturnTypes);
 

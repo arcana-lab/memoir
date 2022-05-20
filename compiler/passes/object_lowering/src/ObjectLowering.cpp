@@ -9,7 +9,7 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
           noelle(noelle),
           mp(mp) {
     // Do initialization.
-    this->parser = new Parser(M, noelle, mp);
+
 
     // get llvm::Type* for ObjectIR::Object*
     auto getbuildObjFunc = M.getFunction(ObjectIRToFunctionNames[BUILD_OBJECT]);
@@ -30,6 +30,9 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
     }
     this->type_star = getTypeFunc->getReturnType();
     this->type_star_star = PointerType::getUnqual(type_star);
+    if(!isa<PointerType>(type_star))assert(false);
+    this->parser = new Parser(M, noelle, mp, dyn_cast<PointerType>(this->type_star ));
+
 }
 
 void ObjectLowering::analyze() {
