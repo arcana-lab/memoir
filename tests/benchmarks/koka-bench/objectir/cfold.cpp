@@ -2,12 +2,25 @@
 #include <math.h>
 #include <string.h>
 
+#include "object_ir.h"
+
+using namespace objectir;
+
 enum Kind {
   Val, // 0
   Var, // 1
   Add, // 2
   Mul, // 3
 };
+
+Type *Expr = nameObjectType(
+    "Expr",         // merged subclasses
+    4,              // # fields
+    getUInt8Type(), // kind
+    getInt64Type(), // name/value
+    getPointerType(getNamedType("Expr")), // left
+    getPointerType(getNamedType("Expr"))  // right
+);
 
 /*
 class Expr {
@@ -29,6 +42,18 @@ public:
 };
 */
 
+Object *new_ValExpr(int64_t i) {
+  setReturnType(Expr);
+
+  auto newValExpr = buildObject(Expr);
+  auto newValExpr_kindFld = getObjectField(newValExpr, 0);
+  auto newValExpr_valueFld = getObjectField(newValExpr, 1);
+  writeUInt8(newValExpr_kindFld, (uint8_t)Kind::Val);
+  writeInt64(newValExpr_valueFld, i);
+
+  return newValExpr;
+}
+
 /*
 class VarExpr : public Expr {
 public:
@@ -38,6 +63,18 @@ public:
   }
 };
 */
+
+Object *new_VarExpr(int64_t n) {
+  setReturnType(Expr);
+
+  auto newVarExpr = buildObject(Expr);
+  auto newVarExpr_kindFld = getObjectField(newVarExpr, 0);
+  auto newVarExpr_nameFld = getObjectField(newVarExpr, 1);
+  writeUInt8(newVarExpr_kindFld, (uint8_t)Kind::Var);
+  writeInt64(newVarExpr_nameFld, n);
+
+  return newVarExpr;
+}
 
 /*
 class AddExpr : public Expr {
@@ -51,6 +88,22 @@ public:
 };
 */
 
+Object *new_AddExpr(Object *left, Object *right) {
+  setReturnType(Expr);
+  assertType(Expr, left);
+  assertType(Expr, right);
+
+  auto newAddExpr = buildObject(Expr);
+  auto newAddExpr_kindFld = getObjectField(newAddExpr, 0);
+  auto newAddExpr_leftFld = getObjectField(newAddExpr, 2);
+  auto newAddExpr_rightFld = getObjectField(newAddExpr, 3);
+  writeUInt8(newAddExpr_kindFld, (uint8_t)Kind::Add);
+  writePointer(newAddExpr_leftFld, left);
+  writePointer(newAddExpr_rightFld, right);
+
+  return newAddExpr;
+}
+
 /*
 class MulExpr : public Expr {
 public:
@@ -62,14 +115,22 @@ public:
   }
 };
 */
-Type *Expr = nameObjectType(
-    "Expr", // merged subclasses
-    4,
-    getUInt8Type(),                       // kind
-    getInt64Type(),                       // name/value
-    getPointerType(getNamedType("Expr")), // left
-    getPointerType(getNamedType("Expr"))  // right
-);
+
+Object *new_MulExpr(Object *left, Object *right) {
+  setReturnType(Expr);
+  assertType(Expr, left);
+  assertType(Expr, right);
+
+  auto newMulExpr = buildObject(Expr);
+  auto newMulExpr_kindFld = getObjectField(newMulExpr, 0);
+  auto newMulExpr_leftFld = getObjectField(newMulExpr, 2);
+  auto newMulExpr_rightFld = getObjectField(newMulExpr, 3);
+  writeUInt8(newMulExpr_kindFld, (uint8_t)Kind::Mul);
+  writePointer(newMulExpr_leftFld, left);
+  writePointer(newMulExpr_rightFld, right);
+
+  return newMulExpr;
+}
 
 /*
 static const Expr *mk_expr(long n, long v) {
@@ -90,46 +151,38 @@ static Object *mk_expr(int64_t n, int64_t v) {
 
   if (n == 0) {
     if (v == 0) {
-      Object *varExprObj = buildObject(Expr);
-      Field *kindFld = getObjectField(varExprObj, 0);
-      Field *nameFld = getObjectField(varExprObj, 1);
-      writeUInt8((uint8_t)Kind::Var);
-      writeInt64(1);
-      return varExprObj;
+      return new_VarExpr(1);
     } else {
-      Object *valExprObj = buildObject(Expr);
-      Field *kindFld = getObjectField(valExprObj, 0);
-      Field *valueFld = getObjectField(valExprObj, 1);
-      writeUInt8((uint8_t)Kind::Val);
-      writeInt64(v);
-      return valExprObj;
+      return new_ValExpr(v);
     }
   } else {
-    Object *addExprObj = buildObject(Expr);
-    Field *kindFld = getObjectField(addExprObj, 0);
-    Field *nameFld = getObjectField(addExprObj, 1);
-    Field *leftFld = getObjectField(addExprObj, 2);
-    Field *rightFld = getObjectField(addExprObj, 3);
-    writeUInt8(kindFld, (uint8_t)Kind::Add);
-    writePointer(leftFld, mk_expr(n - 1, v + 1));
-    writePointer(rightFld,
-                 mk_expr(n - 1, v == 0 ? 0 : v - 1));
-    return addExprObj;
-    // return new AddExpr(mk_expr(n - 1, v + 1),
-    //    mk_expr(n - 1, v == 0 ? 0 : v - 1));
+    return new_AddExpr(mk_expr(n - 1, v + 1),
+                       mk_expr(n - 1, v == 0 ? 0 : v - 1));
   }
 }
 
 static Object *append_add(Object *e1, Object *e2) {
+  std::cerr << "append_add\n";
+  std::cerr << e1 << "\n";
+  std::cerr << e2 << "\n";
+  if (e1) {
+    std::cerr << e1->toString() << "\n";
+  }
+  if (e2) {
+    std::cerr << e2->toString() << "\n";
+  }
+
   setReturnType(Expr);
   assertType(Expr, e1);
   assertType(Expr, e2);
 
-  Field *kindFld = getObjectField(e1, 0);
-  Kind kind = (Kind)readUInt8(kindFld);
-  if (kind == Kind::Add) {
+  Field *e1_kindFld = getObjectField(e1, 0);
+  Kind e1_kind = (Kind)readUInt8(e1_kindFld);
+
+  if (e1_kind == Kind::Add) {
     // const AddExpr *x = (AddExpr *)e1;
-    x = e1;
+    auto x = e1;
+
     Field *x_leftField = getObjectField(x, 2);
     Field *x_rightField = getObjectField(x, 3);
     Object *x_left = readPointer(x_leftField);
@@ -137,26 +190,10 @@ static Object *append_add(Object *e1, Object *e2) {
 
     // return new AddExpr(x->left, append_add(x->right,
     // e2));
-    Object *addExprObj = buildObject(Expr);
-    Field *kindFld = getObjectField(addExprObj, 0);
-    Field *leftField = getObjectField(addExprObj, 2);
-    Field *rightField = getObjectField(addExprObj, 3);
-    writeUInt8(kindFld, (uint8_t)Kind::Add);
-    writePointer(leftField, x_left);
-    writePointer(rightField, append_add(x_right, e2));
-
-    return addExprObj;
+    return new_AddExpr(x_left, append_add(x_right, e2));
   } else {
     // return new AddExpr(e1, e2);
-    Object *addExprObj = buildObject(Expr);
-    Field *kindFld = getObjectField(addExprObj, 0);
-    Field *leftField = getObjectField(addExprObj, 2);
-    Field *rightField = getObjectField(addExprObj, 3);
-    writeUInt8(kindFld, (uint8_t)Kind::Add);
-    writePointer(leftField, e1);
-    writePointer(rightField, e2);
-
-    return addExprObj;
+    return new_AddExpr(e1, e2);
   }
 }
 
@@ -170,7 +207,7 @@ static Object *append_mul(Object *e1, Object *e2) {
 
   if (kind == Kind::Mul) {
     // const MulExpr *x = (MulExpr *)e1;
-    x = e1;
+    Object *x = e1;
     Field *x_leftField = getObjectField(x, 2);
     Field *x_rightField = getObjectField(x, 3);
     Object *x_left = readPointer(x_leftField);
@@ -178,34 +215,21 @@ static Object *append_mul(Object *e1, Object *e2) {
 
     // return new MulExpr(x->left, append_mul(x->right,
     // e2));
-    Object *mulExprObj = buildObject(Expr);
-    Field *kindFld = getObjectField(mulExprObj, 0);
-    Field *leftField = getObjectField(mulExprObj, 2);
-    Field *rightField = getObjectField(mulExprObj, 3);
-    writeUInt8(kindFld, (uint8_t)Kind::Mul);
-    writePointer(leftField, x_left);
-    writePointer(rightField, append_mul(x_right, e2));
-
-    return mulExprObj;
+    return new_MulExpr(x_left, append_mul(x_right, e2));
   } else {
     // return new MulExpr(e1, e2);
-    Object *mulExprObj = buildObject(Expr);
-    Field *kindFld = getObjectField(mulExprObj, 0);
-    Field *leftField = getObjectField(mulExprObj, 2);
-    Field *rightField = getObjectField(mulExprObj, 3);
-    writeUInt8(kindFld, (uint8_t)Kind::Mul);
-    writePointer(leftField, e1);
-    writePointer(rightField, e2);
-
-    return mulExprObj;
+    return new_MulExpr(e1, e2);
   }
 }
 
-static const Expr *reassoc(const Expr *e) {
+static Object *reassoc(Object *e) {
   setReturnType(Expr);
   assertType(Expr, e);
 
-  if (e->kind == Add) {
+  auto e_kindFld = getObjectField(e, 0);
+  auto e_kind = (Kind)readUInt8(e_kindFld);
+
+  if (e_kind == Add) {
     // const AddExpr *x = (AddExpr *)e;
     Object *x = e;
 
@@ -213,12 +237,12 @@ static const Expr *reassoc(const Expr *e) {
     // reassoc(x->right));
     Field *x_leftFld = getObjectField(x, 2);
     Field *x_rightFld = getObjectField(x, 3);
-    Object *x_left = readPointer(x_leftField);
-    Object *x_right = readPointer(x_rightField);
+    Object *x_left = readPointer(x_leftFld);
+    Object *x_right = readPointer(x_rightFld);
 
-    return append_add(reassoc(x_left), reassoc(x_right);
+    return append_add(reassoc(x_left), reassoc(x_right));
 
-  } else if (e->kind == Mul) {
+  } else if (e_kind == Mul) {
     // const MulExpr *x = (MulExpr *)e;
     Object *x = e;
 
@@ -226,8 +250,8 @@ static const Expr *reassoc(const Expr *e) {
     // reassoc(x->right));
     Field *x_leftFld = getObjectField(x, 2);
     Field *x_rightFld = getObjectField(x, 3);
-    Object *x_left = readPointer(x_leftField);
-    Object *x_right = readPointer(x_rightField);
+    Object *x_left = readPointer(x_leftFld);
+    Object *x_right = readPointer(x_rightFld);
 
     return append_mul(reassoc(x_left), reassoc(x_right));
 
@@ -236,7 +260,7 @@ static const Expr *reassoc(const Expr *e) {
   }
 }
 
-static const Expr *const_folding(const Expr *e) {
+static Object *const_folding(Object *e) {
   setReturnType(Expr);
   assertType(Expr, e);
 
@@ -245,8 +269,8 @@ static const Expr *const_folding(const Expr *e) {
   Field *leftFld = getObjectField(e, 2);
   Field *rightFld = getObjectField(e, 3);
 
-  Kind kind = (Kind)readUInt8(kindFld);
-  if (kind == Kind::Add) {
+  Kind e_kind = (Kind)readUInt8(kindFld);
+  if (e_kind == Kind::Add) {
     // const Expr *e1 = ((AddExpr *)e)->left;
     Object *e1 = readPointer(leftFld);
     Field *e1_kindFld = getObjectField(e1, 0);
@@ -254,7 +278,7 @@ static const Expr *const_folding(const Expr *e) {
 
     // const Expr *e2 = ((AddExpr *)e)->right;
     Object *e2 = readPointer(rightFld);
-    Field *e1_kindFld = getObjectField(e2, 0);
+    Field *e2_kindFld = getObjectField(e2, 0);
     Kind e2_kind = (Kind)readUInt8(e2_kindFld);
 
     if (e1_kind == Kind::Val && e2_kind == Kind::Val) {
@@ -268,12 +292,7 @@ static const Expr *const_folding(const Expr *e) {
 
       // return new ValExpr(((ValExpr *)e1)->value
       //                    + ((ValExpr *)e2)->value);
-      auto newValExpr = buildObject(Expr);
-      auto newKindFld = getObjectField(newValExpr, 0);
-      auto newValFld = getObjectField(newValExpr, 1);
-      writeInt64(e1_value + e2_value);
-
-      return newValExpr;
+      return new_ValExpr(e1_value + e2_value);
     } else if (e1_kind == Val && e2_kind == Add) {
       auto e2_rightFld = getObjectField(e2, 3);
       auto e2_right = readPointer(e2_rightFld);
@@ -283,38 +302,22 @@ static const Expr *const_folding(const Expr *e) {
       if (e2_right_kind == Kind::Val) {
         auto b = e2;
         auto v = e2_right;
-        // return new AddExpr(
-        //     new ValExpr(((ValExpr *)e1)->value +
-        //     v->value), b->left);
-        auto newAddExpr = buildObject(Expr);
-        auto newAddExpr_kindFld =
-            getObjectField(newAddExpr, 0);
-        auto newAddExpr_leftFld =
-            getObjectField(newAddExpr, 2);
-        auto newAddExpr_rightFld =
-            getObjectField(newAddExpr, 3);
-        writeUInt8((uint8_t)Kind::Add);
 
         //     new ValExpr(((ValExpr *)e1)->value +
         //     v->value)
-        auto newValExpr = buildObject(Expr);
-        auto newValExpr_kindFld =
-            getObjectField(newValExpr, 0);
-        auto newValExpr_valFld =
-            getObjectField(newValExpr, 1);
-
-        auto e1ValFld = getObjectField(e1, 1);
-        auto e1_value = readInt64(e1ValFld);
+        auto e1_valueFld = getObjectField(e1, 1);
+        auto e1_value = readInt64(e1_valueFld);
         auto v_valueFld = getObjectField(v, 1);
         auto v_value = readInt64(v_valueFld);
-        writeInt64(newValExpr_valFld, e1_value + v_value);
-        writePointer(newAddExpr_leftFld, newValExpr_valFld);
 
         auto b_leftFld = getObjectField(b, 2);
         auto b_left = readPointer(b_leftFld);
-        writePointer(newAddExpr_rightFld, b_left);
 
-        return newAddExpr;
+        // return new AddExpr(
+        //     new ValExpr(((ValExpr *)e1)->value +
+        //     v->value), b->left);
+        return new_AddExpr(new_ValExpr(e1_value + v_value),
+                           b_left);
       }
 
       auto e2_leftFld = getObjectField(e2, 3);
@@ -332,53 +335,27 @@ static const Expr *const_folding(const Expr *e) {
 
         //     new ValExpr(((ValExpr *)e1)->value +
         //     v->value),
-        auto newValExpr = buildObject(Expr);
-        auto newValExpr_kindFld =
-            getObjectField(newValExpr, 0);
-        auto newValExpr_valFld =
-            getObjectField(newValExpr, 1);
-        writeUInt8(newValExpr_kindFld, (uint8_t)Kind::Val);
-
         auto e1ValFld = getObjectField(e1, 1);
         auto e1_value = readInt64(e1ValFld);
         auto v_valueFld = getObjectField(v, 1);
         auto v_value = readInt64(v_valueFld);
-        writeInt64(newValExpr_valFld, e1_value + v_value);
+
+        auto newValExpr = new_ValExpr(e1_value + v_value);
 
         // return new AddExpr(
         //     new ValExpr(
         //       ((ValExpr *)e1)->value +
         //       v->value),
         //     b->right);
-        auto newAddExpr = buildObject(Expr);
-        auto newAddExpr_kindFld =
-            getObjectField(newAddExpr, 0);
-        auto newAddExpr_leftFld =
-            getObjectField(newAddExpr, 2);
-        auto newAddExpr_rightFld =
-            getObjectField(newAddExpr, 3);
-        writeUInt8(newAddExpr_kindFld, (uint8_t)Kind::Add);
-        writePointer(newAddExpr_leftFld, newValExpr);
-
         auto b_rightFld = getObjectField(b, 3);
         auto b_right = readPointer(b_rightFld);
-        writePointer(newAddExpr_rightFld, b_right);
 
-        return newAddExpr;
+        return new_AddExpr(newValExpr, b_right);
       }
     }
 
     // return new AddExpr(e1, e2);
-    auto newAddExpr = buildObject(Expr);
-    auto newAddExpr_kindFld = getObjectField(newAddExpr, 0);
-    auto newAddExpr_leftFld = getObjectField(newAddExpr, 2);
-    auto newAddExpr_rightFld =
-        getObjectField(newAddExpr, 3);
-    writeUInt8(newAddExpr_kindFld, (uint8_t)Kind::Add);
-    writePointer(newAddExpr_leftFld, e1);
-    writePointer(newAddExpr_rightFld, e2);
-
-    return newAddExpr;
+    return new_AddExpr(e1, e2);
   } else if (e_kind == Kind::Mul) {
     // const Expr *e1 = ((MulExpr *)e)->left;
     auto e_leftFld = getObjectField(e, 2);
@@ -401,21 +378,12 @@ static const Expr *const_folding(const Expr *e) {
     if (e1_kind == Kind::Val && e2_kind == Kind::Val) {
       // return new ValExpr(((ValExpr *)e1)->value
       //                    * ((ValExpr *)e2)->value);
-      auto newValExpr = buildObject(Expr);
-      auto newValExpr_kindFld =
-          getObjectField(newValExpr, 0);
-      auto newValExpr_valFld =
-          getObjectField(newValExpr, 1);
-      writeUInt8(newValExpr_kindFld, (uint8_t)Kind::Val);
-
       auto e1_valueFld = getObjectField(e1, 1);
       auto e1_value = readInt64(e1_valueFld);
       auto e2_valueFld = getObjectField(e2, 1);
       auto e2_value = readInt64(e2_valueFld);
-      writeInt64(e1_value * e2_value);
 
-      return newValExpr;
-
+      return new_ValExpr(e1_value * e2_value);
     } else if (e1_kind == Kind::Val
                && e2_kind == Kind::Mul) {
       auto e2_rightFld = getObjectField(e2, 3);
@@ -427,38 +395,21 @@ static const Expr *const_folding(const Expr *e) {
       if (e2_right_kind == Kind::Val) {
         auto b = e2;
         auto v = e2_right;
+
         // return new MulExpr(
         //     new ValExpr(((ValExpr *)e1)->value *
         //     v->value), b->left);
-        auto newMulExpr = buildObject(Expr);
-        auto newMulExpr_kindFld =
-            getObjectField(newMulExpr, 0);
-        auto newMulExpr_leftFld =
-            getObjectField(newMulExpr, 2);
-        auto newMulExpr_rightFld =
-            getObjectField(newMulExpr, 3);
-        writeUInt8(newMulExpr_kindFld, (uint8_t)Kind::Mul);
-
-        auto newValExpr = buildObject(Expr);
-        auto newValExpr_kindFld =
-            getObjectField(newValExpr, 0);
-        writeUInt8(newValExpr_kindFld, (uint8_t)Kind::Val);
-
         auto e1_valueFld = getObjectField(e1, 1);
         auto e1_value = readInt64(e1_valueFld);
         auto v_valueFld = getObjectField(v, 1);
         auto v_value = readInt64(v_valueFld);
-        auto newValExpr_valFld =
-            getObjectField(newValExpr, 1);
-        writeInt64(newValExpr_valFld, e1_value * v_value);
 
-        writePointer(newMulExpr_leftFld, newValExpr);
+        auto newValExpr = new_ValExpr(e1_value * v_value);
 
         auto b_leftFld = getObjectField(e2, 2);
-        auto b_left = readPointer(b_leftFld, 2);
-        writePointer(newMulExpr_rightFld, b_left);
+        auto b_left = readPointer(b_leftFld);
 
-        return newMulExpr;
+        return new_MulExpr(newValExpr, b_left);
       }
 
       auto e2_leftFld = getObjectField(e2, 2);
@@ -473,76 +424,59 @@ static const Expr *const_folding(const Expr *e) {
         // return new MulExpr(
         //     new ValExpr(((ValExpr *)e1)->value *
         //     v->value), b->right);
-        auto newMulExpr = buildObject(Expr);
-        auto newMulExpr_kindFld =
-            getObjectField(newMulExpr, 0);
-        auto newMulExpr_leftFld =
-            getObjectField(newMulExpr, 2);
-        auto newMulExpr_rightFld =
-            getObjectField(newMulExpr, 3);
-        writeUInt8(newMulExpr_kindFld, (uint8_t)Kind::Mul);
-
-        auto newValExpr = buildObject(Expr);
-        auto newValExpr_kindFld =
-            getObjectField(newValExpr, 0);
-        writeUInt8(newValExpr_kindFld, (uint8_t)Kind::Val);
-
         auto e1_valueFld = getObjectField(e1, 1);
         auto e1_value = readInt64(e1_valueFld);
         auto v_valueFld = getObjectField(v, 1);
         auto v_value = readInt64(v_valueFld);
-        auto newValExpr_valFld =
-            getObjectField(newValExpr, 1);
-        writeInt64(newValExpr_valFld, e1_value * v_value);
-
-        writePointer(newMulExpr_leftFld, newValExpr);
-
         auto b_rightFld = getObjectField(e2, 2);
-        auto b_right = readPointer(b_leftFld, 2);
-        writePointer(newMulExpr_rightFld, b_right);
+        auto b_right = readPointer(b_rightFld);
 
-        return newMulExpr;
+        return new_MulExpr(new_ValExpr(e1_value * v_value),
+                           b_right);
       }
 
       // return new MulExpr(e1, e2);
-      auto newMulExpr = buildObject(Expr);
-      auto newMulExpr_kindFld =
-          getObjectField(newMulExpr, 0);
-      writeUInt8((uint8_t)Kind::Mul);
-      auto newMulExpr_leftFld =
-          getObjectField(newMulExpr, 2);
-      writePointer(newMulExpr_leftFld, e1);
-      auto newMulExpr_rightFld =
-          getObjectField(newMulExpr, 3);
-      writePointer(newMulExpr_rightFld, e2);
-
-      return newMulExpr;
+      return new_MulExpr(e1, e2);
     }
-  } else {
-    return e;
   }
+
+  return e;
 }
 
+static int64_t eval(Object *e) {
+  assertType(Expr, e);
 
-// TODO
-static int64_t eval(const Expr *e) {
-  if (e->kind == Var) {
+  auto e_kindFld = getObjectField(e, 0);
+  auto e_kind = (Kind)readUInt8(e_kindFld);
+
+  if (e_kind == Kind::Var) {
     return 0;
-  } else if (e->kind == Val) {
-    return ((ValExpr *)e)->value;
-  } else if (e->kind == Add) {
-    return eval(((AddExpr *)e)->left)
-           + eval(((AddExpr *)e)->right);
-  } else if (e->kind == Mul) {
-    return eval(((MulExpr *)e)->left)
-           * eval(((MulExpr *)e)->right);
+  } else if (e_kind == Val) {
+    auto e_valueFld = getObjectField(e, 1);
+    auto e_value = readInt64(e_valueFld);
+
+    return e_value;
+  } else if (e_kind == Add) {
+    auto e_leftFld = getObjectField(e, 2);
+    auto e_rightFld = getObjectField(e, 3);
+    auto e_left = readPointer(e_leftFld);
+    auto e_right = readPointer(e_rightFld);
+
+    return eval(e_left) + eval(e_right);
+  } else if (e_kind == Mul) {
+    auto e_leftFld = getObjectField(e, 2);
+    auto e_rightFld = getObjectField(e, 3);
+    auto e_left = readPointer(e_leftFld);
+    auto e_right = readPointer(e_rightFld);
+
+    return eval(e_left) * eval(e_right);
   } else {
     return 0;
   }
 }
 
 int main(int argc, char **argv) {
-  const Expr *e = mk_expr(20, 1);
+  Object *e = mk_expr(20, 1);
   int64_t v1 = eval(e);
   int64_t v2 = eval(const_folding(reassoc(e)));
   std::cout << v1 << ", " << v2 << "\n";
