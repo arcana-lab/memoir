@@ -448,13 +448,19 @@ buildObjectLive:
         // errs() << "will replace `" << *old_phi << "` with: `" << *new_phi << "\n";
         for (size_t i = 0; i < old_phi->getNumIncomingValues(); i++) {
             auto old_val = old_phi->getIncomingValue(i);
-            if (replacementMapping.find(old_val) == replacementMapping.end()) {
-                errs() << "obj_lowering transform: no new inst found for " << *old_val << "\n";
-                assert(false);
+            if(dyn_cast<ConstantPointerNull>(old_val))
+            {
+                auto new_val = ConstantPointerNull::get(dyn_cast<PointerType>(new_phi->getType()));
+                new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
+            }else {
+                if (replacementMapping.find(old_val) == replacementMapping.end()) {
+                    errs() << "obj_lowering transform: no new inst found for " << *old_val << "\n";
+                    assert(false);
+                }
+                auto new_val = replacementMapping[old_val];
+                // errs() << "Replacing operand" << i << ": " << *old_val << " with: " << *new_val << "\n";
+                new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
             }
-            auto new_val = replacementMapping[old_val];
-            // errs() << "Replacing operand" << i << ": " << *old_val << " with: " << *new_val << "\n";
-            new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
         }
         // errs() << "finished populating " << *new_phi << "\n";
     }
