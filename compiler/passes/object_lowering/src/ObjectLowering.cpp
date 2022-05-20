@@ -554,7 +554,8 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
 
             }else {
 
-                switch (FunctionNamesToObjectIR[calleeName]) {
+                auto calleeCategory = FunctionNamesToObjectIR[calleeName];
+                switch (calleeCategory) {
                     case BUILD_OBJECT: {
                         // create malloc based on the object's LLVMRepresentation ; bitcast to a ptr to LLVMRepresentation
                         if(allocaBuildObj.find(callIns) != allocaBuildObj.end())
@@ -574,7 +575,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                         replacementMapping[callIns] = bc_inst;
                         break;
                     }
-                    case WRITE_UINT64: {
+                    case WRITE_UINT32: case WRITE_UINT64: {
                         std::set<PHINode *> visited;
                         auto fieldWrapper = parser->parseFieldWrapperChain(callIns->getArgOperand(0), visited);
                         auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder, replacementMapping);
@@ -584,11 +585,21 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                         //errs() << "out of the gep a store is born" << *storeInst <<"\n";
                         break;
                     }
-                    case READ_UINT64: {
+                    case READ_UINT64: case READ_UINT32: {
+                        Type* targetType;
+                        if(calleeCategory == READ_UINT64)
+                        {
+                            targetType = int64Ty;
+                        }
+                        else if (calleeCategory == READ_UINT32)
+                        {
+                            targetType = int32Ty;
+                        }
+
                         std::set<PHINode *> visited;
                         auto fieldWrapper = parser->parseFieldWrapperChain(callIns->getArgOperand(0), visited);
                         auto gep = CreateGEPFromFieldWrapper(fieldWrapper, builder, replacementMapping);
-                        auto loadInst = builder.CreateLoad(int64Ty, gep, "loadfrominst64");
+                        auto loadInst = builder.CreateLoad(targetType, gep, "loadfromint32");
                         replacementMapping[callIns] = loadInst;
                         ins.replaceAllUsesWith(loadInst);
                         //errs() << "out of the write gep is born" << *gep <<"\n";
