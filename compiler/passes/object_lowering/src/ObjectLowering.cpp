@@ -39,6 +39,11 @@ void ObjectLowering::analyze() {
     std::vector<Function *> functions_to_clone;
     for (auto &F: M) {
         if (F.isDeclaration()) continue;
+        if(!F.hasName()) continue;
+        auto fname = F.getName().str();
+        if(fname.find("main") == std::string::npos) continue;
+
+
         auto ft = F.getFunctionType();
         bool should_clone = false;
         for (auto &paramType: ft->params()) {
@@ -322,8 +327,8 @@ void ObjectLowering::transform()
     {
         if(!f.isDeclaration())
         {
-            auto calleename = f.getName();
-            if (calleename.str().at(0) == '_') continue; // TODO: skipping internal functions
+            auto calleename = f.getName().str();
+            if (calleename.find("main") == std::string::npos) continue;// TODO: hack to skipped non-tagged functions
             FunctionTransform(&f);
         }
     }
