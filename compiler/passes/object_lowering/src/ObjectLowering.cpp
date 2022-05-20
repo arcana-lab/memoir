@@ -395,6 +395,8 @@ void ObjectLowering::FunctionTransform(Function *f) {
             for(auto loopLatches: loop->getLatches())
             {
                 auto lastIns = &(loopLatches->back());
+
+                errs() << "Checking the loop latch with the last ins " << *lastIns << "\n";
                 auto& latchOut = dataflowResult->OUT(lastIns);
                 if(latchOut.find(buildObjins) != latchOut.end())
                 {
@@ -402,6 +404,7 @@ void ObjectLowering::FunctionTransform(Function *f) {
                     allocBuildObjects.erase(buildObjins);
                     goto buildObjectLive;
                 }
+                errs() << "Adding ins" << *buildObjins << " To the allocBuildObjects \n";
                 allocBuildObjects.insert(buildObjins);
             }
         }
