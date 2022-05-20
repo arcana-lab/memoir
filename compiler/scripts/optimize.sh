@@ -15,7 +15,7 @@ noelle-norm ${IR_FILE} -o ${IR_FILE};
 cp ${IR_FILE} ${IR_FILE_NORM} ;
 
 PROF_FILE="toProfileBinary" ;
-IR_FILE_PROF=all_in_one_prof.bc ;
+IR_FILE_PROF=${OUT_DIR}/all_in_one_prof.bc ;
 echo "Profile Bitcode (I: ${IR_FILE}, O: ${IR_FILE_PROF})" ;
 noelle-prof-coverage ${IR_FILE} ${PROF_FILE} -lm -lstdc++ ;
 ./${PROF_FILE} ;
