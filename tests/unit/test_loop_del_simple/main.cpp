@@ -23,7 +23,16 @@ int main() {
       Field *field41 = getObjectField(obj4, 0);
       writeUInt64(field41, 10000);
       std::cerr << "obj4 =: " << readUInt64(field41) << "\n";
-      deleteObject(obj4);     
+      for(int k = 0; k<10; ++k)
+      {
+        Object* innerObj = buildObject(objTy);
+        Field *fieldinner3 = getObjectField(obj4, 2);
+        writeUInt64(fieldinner3, k);
+        std::cerr << "innerObj =: " << readUInt64(fieldinner3) << "\n";
+        deleteObject(innerObj);
+      }       
+      
+      deleteObject(obj4);   
 
   }
     return 0;
