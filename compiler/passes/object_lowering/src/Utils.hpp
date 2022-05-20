@@ -116,6 +116,8 @@ static std::unordered_map<ObjectIRFunc, std::string>
       // accessors
       { READ_UINT64, "readUInt64" },
       { WRITE_UINT64, "writeUInt64" },
+      { READ_UINT32, "readUInt32" },
+      { WRITE_UINT32, "writeUInt32" },
       {READ_POINTER, "readPointer"},
       {WRITE_POINTER, "writePointer" },
       // other
@@ -153,6 +155,8 @@ static std::unordered_map<std::string, ObjectIRFunc>
       // accessors
       { "readUInt64", READ_UINT64 },
       { "writeUInt64", WRITE_UINT64 },
+      { "readUInt32", READ_UINT32 },
+      { "writeUInt32", WRITE_UINT32 },
       {"readPointer", READ_POINTER},
       {"writePointer", WRITE_POINTER},
       { "writeObject", WRITE_OBJECT},
