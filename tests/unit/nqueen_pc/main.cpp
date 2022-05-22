@@ -241,6 +241,6 @@ int main(int argc, char **argv) {
   if (argc == 2) {
     n = atoi(argv[1]);
   }
-  std::cout << main_nqueens(n) << "\n";
+  // std::cout << main_nqueens(n) << "\n";
   return 0;
 }
