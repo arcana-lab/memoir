@@ -480,7 +480,7 @@ buildObjectLive:
 
     //errs() << "ObjectLowing: deleting the following instructions\n";
     for (auto v: toDelete) {
-        //errs() << *v << "\n";
+        errs() << "deleting: " << *v << "\n";
         if (auto i = dyn_cast<Instruction>(v)) {
             i->replaceAllUsesWith(UndefValue::get(i->getType()));
             i->eraseFromParent();
