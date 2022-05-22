@@ -336,6 +336,12 @@ void ObjectLowering::transform()
         }
     }
     // TODO: delete GVs and users
+
+    for (auto const& x : clonedFunctionMap)
+    {
+        x.first->eraseFromParent();
+    }
+
 }
 
 void ObjectLowering::FunctionTransform(Function *f) {
