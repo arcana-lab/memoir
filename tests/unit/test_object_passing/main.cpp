@@ -9,7 +9,7 @@ Type *objTy = getObjectType(3,
                             getUInt64Type(),
                             getUInt64Type());
 
-Object *foo(Object *myObj) {
+Object *main_foo(Object *myObj) {
   setReturnType(objTy);
   assertType(objTy, myObj);
 
@@ -38,7 +38,7 @@ int main() {
 
   Object *myObj = buildObject(objTy);
 
-  std::cerr << myObj->toString() << "\n";
+  //std::cerr << myObj->toString() << "\n";
 
   Field *field1 = getObjectField(myObj, 0);
   Field *field2 = getObjectField(myObj, 1);
@@ -48,7 +48,7 @@ int main() {
   writeUInt64(field2, 456);
   writeUInt64(field3, 789);
 
-  Object *newObj = foo(myObj);
+  Object *newObj = main_foo(myObj);
 
   Field *newField1 = getObjectField(newObj, 0);
   Field *newField2 = getObjectField(newObj, 1);
