@@ -28,7 +28,7 @@ int main() {
 
   Object* obj = buildObject(objTy);
   
-  std::cerr << main_2(obj4);
+  std::cerr << main_2(obj);
   // int counter = 0;
   // while(counter<2)
   // {
