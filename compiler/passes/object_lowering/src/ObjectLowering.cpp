@@ -710,15 +710,17 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                 new_right = ConstantPointerNull::get(pointerNewType);
             }else if (replacementMapping.find(curRight)== replacementMapping.end())
             {
-                errs() << "can't find " << *curLeft << "in replacement mapping";
+                errs() << "can't find " << *curRight << "in replacement mapping";
                 assert(false);
             }
             else{
-                new_right = replacementMapping[curLeft];
+                new_right = replacementMapping[curRight];
             }
-
+            errs() << "the left operand is " << *new_left << "\n";
+            errs() << "the right operand is " << *new_right << "\n";
             auto newIcmp = builder.CreateICmp(icmp->getPredicate(),new_left,new_right);
             replacementMapping[icmp] = newIcmp;
+            icmp->replaceAllUsesWith(newIcmp);
         }
 
         else if(auto retIns = dyn_cast<ReturnInst>(&ins))
