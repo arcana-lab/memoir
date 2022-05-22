@@ -45,34 +45,34 @@ list<T> *Cons(T hd, list<T> *tl) {
 }
 */
 
-Object *main_Cons_int(uint32_t hd, Object *tl) {
-  setReturnType(ListOfInts);
-  assertType(ListOfInts, tl);
+// Object *main_Cons_int(uint32_t hd, Object *tl) {
+//   setReturnType(ListOfInts);
+//   assertType(ListOfInts, tl);
 
-  Object *newList = buildObject(ListOfInts);
-  Field *headFld = getObjectField(newList, 0);
-  Field *tailFld = getObjectField(newList, 1);
+//   Object *newList = buildObject(ListOfInts);
+//   Field *headFld = getObjectField(newList, 0);
+//   Field *tailFld = getObjectField(newList, 1);
 
-  writeUInt32(headFld, hd);
-  writePointer(tailFld, tl);
+//   writeUInt32(headFld, hd);
+//   writePointer(tailFld, tl);
 
-  return newList;
-}
+//   return newList;
+// }
 
-Object *main_Cons_list(Object *hd, Object *tl) {
-  setReturnType(ListOfLists);
-  assertType(ListOfInts, hd);
-  assertType(ListOfLists, tl);
+// Object *main_Cons_list(Object *hd, Object *tl) {
+//   setReturnType(ListOfLists);
+//   assertType(ListOfInts, hd);
+//   assertType(ListOfLists, tl);
 
-  Object *newList = buildObject(ListOfLists);
-  Field *headFld = getObjectField(newList, 0);
-  Field *tailFld = getObjectField(newList, 1);
+//   Object *newList = buildObject(ListOfLists);
+//   Field *headFld = getObjectField(newList, 0);
+//   Field *tailFld = getObjectField(newList, 1);
 
-  writePointer(headFld, hd);
-  writePointer(tailFld, tl);
+//   writePointer(headFld, hd);
+//   writePointer(tailFld, tl);
 
-  return newList;
-}
+//   return newList;
+// }
 
 /*
 template <typename T>
@@ -100,141 +100,141 @@ uint32_t main_len_int(Object *xs) {
   return n;
 }
 
-uint32_t main_len_list(Object *xs) {
-  assertType(ListOfLists, xs);
+// uint32_t main_len_list(Object *xs) {
+//   assertType(ListOfLists, xs);
 
-  uint32_t n = 0;
-  while (xs != NULL) {
-    n++;
-    // xs = xs->tail;
-    Field *tailFld = getObjectField(xs, 1);
-    xs = readPointer(tailFld);
-  }
-  return n;
-}
+//   uint32_t n = 0;
+//   while (xs != NULL) {
+//     n++;
+//     // xs = xs->tail;
+//     Field *tailFld = getObjectField(xs, 1);
+//     xs = readPointer(tailFld);
+//   }
+//   return n;
+// }
 
-/*
-bool safe(uint32_t queen, list<uint32_t> *xs) {
-  list<uint32_t> *cur = xs;
-  uint32_t diag = 1;
-  while (cur != NULL) {
-    uint32_t q = cur->head;
-    if (queen == q || queen == (q + diag)
-        || queen == (q - diag)) {
-      return false;
-    }
-    diag++;
-    cur = cur->tail;
-  }
-  return true;
-}
-*/
-bool main_safe(uint32_t queen, Object *xs) {
-  assertType(ListOfInts, xs);
+// /*
+// bool safe(uint32_t queen, list<uint32_t> *xs) {
+//   list<uint32_t> *cur = xs;
+//   uint32_t diag = 1;
+//   while (cur != NULL) {
+//     uint32_t q = cur->head;
+//     if (queen == q || queen == (q + diag)
+//         || queen == (q - diag)) {
+//       return false;
+//     }
+//     diag++;
+//     cur = cur->tail;
+//   }
+//   return true;
+// }
+// */
+// bool main_safe(uint32_t queen, Object *xs) {
+//   assertType(ListOfInts, xs);
 
-  Object *cur = xs;
-  uint32_t diag = 1;
-  while (cur != NULL) {
-    // uint32_t q = cur->head;
-    Field *headFld = getObjectField(cur, 0);
-    uint32_t q = readUInt32(headFld);
+//   Object *cur = xs;
+//   uint32_t diag = 1;
+//   while (cur != NULL) {
+//     // uint32_t q = cur->head;
+//     Field *headFld = getObjectField(cur, 0);
+//     uint32_t q = readUInt32(headFld);
 
-    if (queen == q || queen == (q + diag)
-        || queen == (q - diag)) {
-      return false;
-    }
+//     if (queen == q || queen == (q + diag)
+//         || queen == (q - diag)) {
+//       return false;
+//     }
 
-    diag++;
-    // cur = cur->tail;
-    Field *tailFld = getObjectField(cur, 1);
-    cur = readPointer(tailFld);
-  }
+//     diag++;
+//     // cur = cur->tail;
+//     Field *tailFld = getObjectField(cur, 1);
+//     cur = readPointer(tailFld);
+//   }
 
-  return true;
-}
+//   return true;
+// }
 
-Object *main_append_safe(uint32_t k,
-                    Object *soln,
-                    Object *solns) {
-  setReturnType(ListOfLists);
-  assertType(ListOfInts, soln);
-  assertType(ListOfLists, solns);
+// Object *main_append_safe(uint32_t k,
+//                     Object *soln,
+//                     Object *solns) {
+//   setReturnType(ListOfLists);
+//   assertType(ListOfInts, soln);
+//   assertType(ListOfLists, solns);
 
-  Object *acc = solns;
-  uint32_t n = k;
-  while (n > 0) {
-    if (main_safe(n, soln)) {
-      acc = main_Cons_list(main_Cons_int(n, soln), acc);
-    }
-    n--;
-  }
-  return acc;
-}
+//   Object *acc = solns;
+//   uint32_t n = k;
+//   while (n > 0) {
+//     if (main_safe(n, soln)) {
+//       acc = main_Cons_list(main_Cons_int(n, soln), acc);
+//     }
+//     n--;
+//   }
+//   return acc;
+// }
 
-/*
-list<list<uint32_t> *> *extend(
-    uint32_t n,
-    list<list<uint32_t> *> *solns) {
-  list<list<uint32_t> *> *acc = NULL;
-  list<list<uint32_t> *> *cur = solns;
-  while (cur != NULL) {
-    list<uint32_t> *soln = cur->head;
-    acc = append_safe(n, soln, acc);
-    cur = cur->tail;
-  }
-  return acc;
-}
-*/
+// /*
+// list<list<uint32_t> *> *extend(
+//     uint32_t n,
+//     list<list<uint32_t> *> *solns) {
+//   list<list<uint32_t> *> *acc = NULL;
+//   list<list<uint32_t> *> *cur = solns;
+//   while (cur != NULL) {
+//     list<uint32_t> *soln = cur->head;
+//     acc = append_safe(n, soln, acc);
+//     cur = cur->tail;
+//   }
+//   return acc;
+// }
+// */
 
-Object *main_extend(uint32_t n, Object *solns) {
-  setReturnType(ListOfLists);
-  assertType(ListOfLists, solns);
+// Object *main_extend(uint32_t n, Object *solns) {
+//   setReturnType(ListOfLists);
+//   assertType(ListOfLists, solns);
 
-  Object *acc = NULL;
-  Object *cur = solns;
-  while (cur != NULL) {
-    //Object *soln = cur->head;
-    Field *headFld = getObjectField(cur, 0);
-    Object *soln = readPointer(headFld);
+//   Object *acc = NULL;
+//   Object *cur = solns;
+//   while (cur != NULL) {
+//     //Object *soln = cur->head;
+//     Field *headFld = getObjectField(cur, 0);
+//     Object *soln = readPointer(headFld);
     
-    acc = main_append_safe(n, soln, acc);
+//     acc = main_append_safe(n, soln, acc);
     
-    // cur = cur->tail;
-    Field *tailFld = getObjectField(cur, 1);
-    cur = readPointer(tailFld);
-  }
-  return acc;
-}
-/*
-list<list<uint32_t> *> *find_solutions(uint32_t n) {
-  uint32_t k = 0;
-  list<list<uint32_t> *> *acc =
-      Cons<list<uint32_t> *>(NULL, NULL);
-  while (k < n) {
-    acc = extend(n, acc);
-    k++;
-  }
-  return acc;
-}
-*/
-Object *main_find_solutions(uint32_t n) {
-  setReturnType(ListOfLists);
+//     // cur = cur->tail;
+//     Field *tailFld = getObjectField(cur, 1);
+//     cur = readPointer(tailFld);
+//   }
+//   return acc;
+// }
+// /*
+// list<list<uint32_t> *> *find_solutions(uint32_t n) {
+//   uint32_t k = 0;
+//   list<list<uint32_t> *> *acc =
+//       Cons<list<uint32_t> *>(NULL, NULL);
+//   while (k < n) {
+//     acc = extend(n, acc);
+//     k++;
+//   }
+//   return acc;
+// }
+// */
+// Object *main_find_solutions(uint32_t n) {
+//   setReturnType(ListOfLists);
   
-  uint32_t k = 0;
-  //list<list<uint32_t> *> *acc =
-  //    Cons<list<uint32_t> *>(NULL, NULL);
-  Object *acc = buildObject(ListOfLists);
-  while (k < n) {
-    acc = main_extend(n, acc);
-    k++;
-  }
-  return acc;
-}
+//   uint32_t k = 0;
+//   //list<list<uint32_t> *> *acc =
+//   //    Cons<list<uint32_t> *>(NULL, NULL);
+//   Object *acc = buildObject(ListOfLists);
+//   while (k < n) {
+//     acc = main_extend(n, acc);
+//     k++;
+//   }
+//   return acc;
+// }
 
 
-uint32_t main_nqueens(uint32_t n) {
-  return main_len_list(main_find_solutions(n));
-}
+// uint32_t main_nqueens(uint32_t n) {
+//   return main_len_list(main_find_solutions(n));
+// }
 
 int main(int argc, char **argv) {
   int n = 13;
