@@ -28,8 +28,11 @@ private:
   Type* type_star;
   Type* type_star_star;
 
-    std::map<Function*, Function*> clonedFunctionMap;
-    std::map<Function*, map<Argument *, Argument *>> functionArgumentMaps;
+  // collect all GlobalVals which are Type*
+  std::vector<GlobalValue *> typeDefs;
+
+  std::map<Function*, Function*> clonedFunctionMap;
+  std::map<Function*, map<Argument *, Argument *>> functionArgumentMaps;
 
 
 public:
@@ -45,10 +48,9 @@ public:
   void inferArgTypes(llvm::Function* f, vector<Type*> *arg_vector); // build a new list of argument types
   ObjectType* inferReturnType(llvm::Function* f);
 
-  // ======================== EXPERIMENTAL =====================
+  // ======================== STACK VS HEAP =====================
 
   DataFlowResult *dataflow(Function *f, std::set<CallInst *> &buildObjs);
-    void loopstructure();
 
   // ==================== TRANSFORMATION ====================
 

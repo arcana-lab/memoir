@@ -107,7 +107,6 @@ void ObjectLowering::cacheTypes() {
     errs() << "\n\nRunning ObjectLowering::cacheTypes\n";
 
     // collect all GlobalVals which are Type*
-    std::vector<GlobalValue *> typeDefs;
     for (auto &globalVar: M.getGlobalList()) {
         if (globalVar.getType() == type_star_star) {
             typeDefs.push_back(&globalVar);
@@ -229,24 +228,7 @@ ObjectType *ObjectLowering::inferReturnType(llvm::Function *f) {
     assert(false);
 }
 
-// ============================ EXPERIMENTAL =============================================
-
-void ObjectLowering::loopstructure(){
-
-    auto mainF = M.getFunction("main"); // HACK
-    auto loopStructures = noelle->getLoopStructures(mainF);
-    auto loopForest = noelle->organizeLoopsInTheirNestingForest(*loopStructures);
-
-    for (auto loopTree: loopForest->getTrees())
-    {
-        auto rootLoop = loopTree->getLoop();
-        for (auto latch: rootLoop->getLatches())
-        {
-            errs() << "latch: " << *latch << "\n\n\n\n";
-        }
-    }
-}
-
+// ============================ STACK VS HEAP =============================================
 
 DataFlowResult * ObjectLowering::dataflow(Function *f, std::set<CallInst *> &buildObjs) {
     auto dfe = noelle->getDataFlowEngine();
@@ -261,7 +243,7 @@ DataFlowResult * ObjectLowering::dataflow(Function *f, std::set<CallInst *> &bui
         if (FunctionNamesToObjectIR[calleeName] == BUILD_OBJECT) {
             auto& gen = df->GEN(i);
             gen.insert(i);
-            buildObjs.insert(callIns);
+            buildObjs.insert(callIns); // collect all buildObjs
         }
         return ;
     };
@@ -335,7 +317,30 @@ void ObjectLowering::transform()
             FunctionTransform(&f);
         }
     }
-    // TODO: delete GVs and users
+
+    
+    // delete the Type* global variables
+    std::set<Value *> toDelete;
+    // start with the GVs
+    for (auto p: typeDefs) toDelete.insert(p);
+    // recursively find all instructions to delete
+    for (auto p: typeDefs) findInstsToDelete(p, toDelete);
+
+    //errs() << "ObjectLowing: deleting these instructions\n";
+    for (auto v: toDelete) {
+        //errs() << "\t" << *v << "\n";
+        if (auto i = dyn_cast<Instruction>(v)) {
+            i->replaceAllUsesWith(UndefValue::get(i->getType()));
+            i->eraseFromParent();
+        }
+    }
+
+    for (GlobalValue* p: typeDefs) {
+        //errs() << "Dropping refs: " << *p << "\n";
+        p->dropAllReferences();
+        //errs() << "\terasing from parent\n";
+        p->eraseFromParent();
+    }
 
     for (auto const& x : clonedFunctionMap)
     {
