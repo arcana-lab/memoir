@@ -178,6 +178,9 @@ ObjectWrapper *Parser::parseObjectWrapperChain(Value* i, std::set<PHINode*> &vis
         parseType(i, call_back, visited);
         buildObjMap[i] = objw;
 //    }
+
+    errs() << "obtained object wrapper with address " << objw ;
+    errs() << "and the addresss of the inner object type is " << objw->innerType << "\n";
     return buildObjMap[i];
 }
 
