@@ -142,47 +142,54 @@ ObjectWrapper *Parser::parseObjectWrapperChain(Value* i, std::set<PHINode*> &vis
     // return the cached objectWrapper, if it exists
     if (buildObjMap.find(i)!=buildObjMap.end())
     {
+        errs() << "Cache exists for " << *i<< "with address" << buildObjMap[i] << "\n";
         return buildObjMap[i];
     }
-    if(dyn_cast<Argument>(i))
-    {
-        errs() <<"The object is passed in \n ";
-        for(auto u: i->users()) {
-            if (auto ins = dyn_cast_or_null<CallInst>(u)) {
-                auto callee = ins->getCalledFunction();
-                if (!callee) continue;
-                auto n = callee->getName().str();
-                if (n == ObjectIRToFunctionNames[ASSERT_TYPE]) {
-                    // use parseType to retreive the type info from the first operand
-                    auto newTypeInst = ins->getArgOperand(0);
-                    object_lowering::AnalysisType* a_type;
-                    std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
-                        a_type = parseTypeCallInst(ci,visited);
-                    };
-                    parseType(newTypeInst, call_back, visited);
-                    // make sure it is an ObjectType
-                    assert(a_type);
-                    if(a_type->getCode() != ObjectTy) assert(false);
-                    auto* objt = (ObjectType*) a_type;
-                    buildObjMap[i] = new ObjectWrapper(objt);
-                }
-            }
-        }
-    }
-    else {
+//    if(dyn_cast<Argument>(i))
+//    {
+//        errs() <<"The object is passed in \n ";
+//        for(auto u: i->users()) {
+//            if (auto ins = dyn_cast_or_null<CallInst>(u)) {
+//                auto callee = ins->getCalledFunction();
+//                if (!callee) continue;
+//                auto n = callee->getName().str();
+//                if (n == ObjectIRToFunctionNames[ASSERT_TYPE]) {
+//                    // use parseType to retreive the type info from the first operand
+//                    auto newTypeInst = ins->getArgOperand(0);
+//                    object_lowering::AnalysisType* a_type;
+//                    std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+//                        a_type = parseTypeCallInst(ci,visited);
+//                    };
+//                    parseType(newTypeInst, call_back, visited);
+//                    // make sure it is an ObjectType
+//                    assert(a_type);
+//                    if(a_type->getCode() != ObjectTy) assert(false);
+//                    auto* objt = (ObjectType*) a_type;
+//                    buildObjMap[i] = new ObjectWrapper(objt);
+//                }
+//            }
+//        }
+//    }
+//    else {
         ObjectWrapper *objw;
         std::function<void(CallInst *)> call_back = [&](CallInst *ci) {
             //errs() << "Field Wrapper found function " << *ci << "\n";
             objw = parseObjectWrapperInstruction(ci, visited);
         };
-        parseType(i, call_back, visited);
+        assert(parseType(i, call_back, visited));
         buildObjMap[i] = objw;
-    }
+//    }
+
+    errs() << "obtained object wrapper with address " << objw ;
+    errs() << "and the addresss of the inner object type is " << objw->innerType << "\n";
     return buildObjMap[i];
 }
 
 ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINode*> &visited) {
-
+    if (buildObjMap.find(i)!=buildObjMap.end())
+    {
+        return buildObjMap[i];
+    }
     auto funcName = i->getCalledFunction()->getName().str();
     if(funcName == ObjectIRToFunctionNames[BUILD_OBJECT]){
         auto typeArg = i->getArgOperand(0); // this should be a loadInst from a global Type**
@@ -190,15 +197,15 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
         std::function<void(CallInst*)> callback = [&](CallInst* ci) {
             type = parseTypeCallInst(ci,visited);
         };
-        parseType(typeArg,callback,visited);
-        //errs() << "Obtained AnalysisType for " << *i <<"\n";
+        assert(parseType(typeArg,callback,visited));
+        errs() << "Obtained AnalysisType for " << *i <<"\n";
 
         if(type->getCode() != ObjectTy) {
             //errs() << "It's not an object";
             assert(false);
         }
         auto* objt = (ObjectType*) type;
-        return new ObjectWrapper(objt);
+        buildObjMap[i]= new ObjectWrapper(objt);
     }
     else if(funcName == ObjectIRToFunctionNames[READ_POINTER])
     {
@@ -207,24 +214,39 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
         std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
             fw = parseFieldWrapperIns(ci,visited);
         };
-        parseType(i->getArgOperand(0), call_back,visited);
-        return new ObjectWrapper(fw->objectType);
+        assert(parseType(i->getArgOperand(0), call_back,visited));
+        buildObjMap[i]= new ObjectWrapper(fw->objectType);
+    }
+    else if (funcName == ObjectIRToFunctionNames[ASSERT_TYPE])
+    {
+        auto newTypeInst = i->getArgOperand(0);
+        errs() << "Processing the assert type for " <<*i<< "whose first arg is" << *newTypeInst << "\n\n";
+        object_lowering::AnalysisType* a_type;
+        std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+            a_type = parseTypeCallInst(ci,visited);
+        };
+        assert(parseType(newTypeInst, call_back, visited));
+        // make sure it is an ObjectType
+        assert(a_type);
+        if(a_type->getCode() != ObjectTy) assert(false);
+        auto* objt = (ObjectType*) a_type;
+//        objt->getLLVMRepresentation(M);
+        buildObjMap[i]= new ObjectWrapper(objt);
     }
     else if(clonedFunctionReturnTypes.find(i->getCalledFunction())!= clonedFunctionReturnTypes.end())
     {
         auto retType = clonedFunctionReturnTypes[i->getCalledFunction()];
-        return new ObjectWrapper(retType);
+        buildObjMap[i]= new ObjectWrapper(retType);
     }
     else
     {
         assert(false);
     }
+    return buildObjMap[i];
 }
 
 
-
-
-void Parser::parseType(Value *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*>& visited) {
+bool Parser::parseType(Value *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*>& visited) {
    //errs()<<*ins << "is being called by parseType\n";
 
     if (auto callins = dyn_cast_or_null<CallInst>(ins)) {
@@ -242,19 +264,30 @@ void Parser::parseType(Value *ins, const std::function<void(CallInst*)>& callbac
         parseTypeGlobalValue(gv,callback,visited);
     } else if (auto phiInst = dyn_cast_or_null<PHINode>(ins)) {
         // if the value has been visited, do nothing
-        if(visited.find(phiInst) != visited.end()) return;
+        if(visited.find(phiInst) != visited.end()) return false;
         // otherwise, vist the children
         visited.insert(phiInst);
         for (auto& val: phiInst->incoming_values()) {
-
-//
-//            auto nullObjStar = ConstantPointerNull::get(objectStar);
-//
-////            errs() <<
-//            val.get().
             if(dyn_cast<ConstantPointerNull>(val.get())) continue;
-            parseType(val.get(), callback, visited);
+            auto res = parseType(val.get(), callback, visited);
+            if(res)
+            {
+                return true;
+            }
         }
+    } else if (auto arg = dyn_cast_or_null<Argument>(ins))
+    {
+        for(auto u: arg->users()) {
+            if (auto call_ins = dyn_cast_or_null<CallInst>(u)) {
+                auto callee = call_ins->getCalledFunction();
+                if (!callee) continue;
+                auto n = callee->getName().str();
+                if (n == ObjectIRToFunctionNames[ASSERT_TYPE]) {
+                    callback(call_ins);
+                }
+            }
+        }
+
     } else if (!ins) {
         //errs() << "i think this is a nullptr\n";
         assert(false); 
@@ -262,21 +295,22 @@ void Parser::parseType(Value *ins, const std::function<void(CallInst*)>& callbac
         errs() << "parseType: Unrecognized instruction" << *ins <<"\n";
         assert(false);
     }
+    return true;
 }
 
 
 
-void Parser::parseTypeStoreInst(StoreInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
+bool Parser::parseTypeStoreInst(StoreInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     auto valOp = ins->getValueOperand();
-    parseType(dyn_cast_or_null<Instruction>(valOp), callback,visited);
+    return parseType(dyn_cast_or_null<Instruction>(valOp), callback,visited);
 }
 
-void Parser::parseTypeLoadInst(LoadInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
+bool Parser::parseTypeLoadInst(LoadInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     auto ptrOp = ins->getPointerOperand();
-    parseType(ptrOp,callback,visited);
+    return parseType(ptrOp,callback,visited);
 }
 
-void Parser::parseTypeAllocaInst(AllocaInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
+bool Parser::parseTypeAllocaInst(AllocaInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     for(auto u: ins->users()) {
         if(auto i = dyn_cast_or_null<StoreInst>(u)) {
             return parseType(i,callback,visited);
@@ -286,7 +320,7 @@ void Parser::parseTypeAllocaInst(AllocaInst *ins, const std::function<void(CallI
     assert(false);
 }
 
-void Parser::parseTypeGlobalValue(GlobalValue *gv, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
+bool  Parser::parseTypeGlobalValue(GlobalValue *gv, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     for(auto u: gv->users()) {
         if(auto i = dyn_cast_or_null<StoreInst>(u)) {
             return parseType(i,callback,visited);
@@ -336,7 +370,7 @@ FieldWrapper* Parser::parseFieldWrapperChain(Value* i, std::set<PHINode*> &visit
     std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
         fw = parseFieldWrapperIns(ci,visited);
     };
-    parseType(i, call_back,visited);
+    assert(parseType(i, call_back,visited));
     return fw;
 }
 
