@@ -356,7 +356,12 @@ void ObjectLowering::FunctionTransform(Function *f) {
     // if this function is a clone, we need to populate the replacementMapping with its arguments
     if (functionArgumentMaps.find(f) != functionArgumentMaps.end()) {
         for (const auto &p: functionArgumentMaps[f]) {
-            replacementMapping[p.first] = p.second;
+            if(p.first->getType() == object_star) {
+                replacementMapping[p.first] = p.second;
+            }else
+            {
+                p.first->replaceAllUsesWith(p.second);
+            }
         }
     }
 
