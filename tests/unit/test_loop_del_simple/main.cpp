@@ -10,24 +10,25 @@ Type *objTy = getObjectType(3,
                             getUInt64Type(),
                             getUInt64Type());
 
-void main_2(Object* obj)
+long main_2(Object* obj)
 {
   assertType(objTy, obj);
-  Field* f = getObjectField(obj, 1);
-  long x =readUInt64(f);
-  // long k = 0;
-  // for(int i =0; i < x; ++i)
-  // {    
-  //   k++;
-  // }
+  long k = 0;
+  for (int i =0;i<10;i++)
+  {
+     Object* obj = buildObject(objTy);
+     Field *f = getObjectField(obj, 0);
+     writeUInt64(f, 10000);
+     k += readUInt64(f);
+  }
+  return k;
 }
 
 int main() {
 
-  Object* obj4 = buildObject(objTy);
-  Field *field41 = getObjectField(obj4, 0);
-  writeUInt64(field41, 10000);
-  main_2(obj4);
+  Object* obj = buildObject(objTy);
+  
+  std::cerr << main_2(obj4);
   // int counter = 0;
   // while(counter<2)
   // {
