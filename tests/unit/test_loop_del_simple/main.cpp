@@ -24,7 +24,10 @@ void main_2(Object* obj)
 
 int main() {
 
-  
+  Object* obj4 = buildObject(objTy);
+  Field *field41 = getObjectField(obj4, 0);
+  writeUInt64(field41, 10000);
+  main_2(obj4);
   // int counter = 0;
   // while(counter<2)
   // {
