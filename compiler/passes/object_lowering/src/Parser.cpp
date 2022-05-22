@@ -219,7 +219,7 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
     else if (funcName == ObjectIRToFunctionNames[ASSERT_TYPE])
     {
         auto newTypeInst = i->getArgOperand(0);
-        errs() << "Processing the assert type for " << *newTypeInst << "\n\n";
+//        errs() << "Processing the assert type for " << *newTypeInst << "\n\n";
         object_lowering::AnalysisType* a_type;
         std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
             a_type = parseTypeCallInst(ci,visited);
@@ -229,7 +229,7 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
         assert(a_type);
         if(a_type->getCode() != ObjectTy) assert(false);
         auto* objt = (ObjectType*) a_type;
-        objt->getLLVMRepresentation(M);
+//        objt->getLLVMRepresentation(M);
         buildObjMap[i]= new ObjectWrapper(objt);
     }
     else if(clonedFunctionReturnTypes.find(i->getCalledFunction())!= clonedFunctionReturnTypes.end())
