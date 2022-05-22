@@ -704,7 +704,7 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                 new_left = replacementMapping[curLeft];
             }
             Value* new_right;
-            auto curRight = icmp->getOperand(0);
+            auto curRight = icmp->getOperand(1);
             if( isa<ConstantPointerNull>(curRight))
             {
                 new_right = ConstantPointerNull::get(pointerNewType);
