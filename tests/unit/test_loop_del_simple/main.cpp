@@ -12,7 +12,7 @@ Type *objTy = getObjectType(3,
 
 void main_2(Object* obj)
 {
-  assertType(objTy, obj)
+  assertType(objTy, obj);
   Field* f = getObjectField(obj, 1);
   long x =readUInt64(f);
   long k = 0;
