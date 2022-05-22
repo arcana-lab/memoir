@@ -46,7 +46,7 @@ int main() {
       
   //     deleteObject(obj4);   
 
-  }
+  // }
     return 0;
 
 }
