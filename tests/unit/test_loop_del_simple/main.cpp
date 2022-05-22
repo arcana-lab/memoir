@@ -10,6 +10,17 @@ Type *objTy = getObjectType(3,
                             getUInt64Type(),
                             getUInt64Type());
 
+void main_2(Object* obj)
+{
+  Field* f = getObjectField(obj, 1);
+  long x =readUInt64(f);
+  long k = 0;
+  for(int i =0; i < x; ++i)
+  {    
+    k++;
+  }
+}
+
 int main() {
 
   
