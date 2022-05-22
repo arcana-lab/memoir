@@ -481,6 +481,8 @@ buildObjectLive:
         }
     }
 
+    errs() << *f <<"transformed function\n\n";
+
 
 } // endof transform
 
