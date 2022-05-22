@@ -85,6 +85,12 @@ ObjectWrapper::ObjectWrapper(ObjectType * it) {
 }
 
 llvm::StructType* ObjectType::getLLVMRepresentation(llvm::Module& M) {
+    llvm::errs() << "the current created type cached is " << created << "\n";
+    if(created != nullptr)
+    {
+        llvm::errs() << "and it's not a nullptr " << *created << "\n\n";
+    }
+
     // return the cached type
     if (created!=nullptr) return created;
 
