@@ -176,7 +176,7 @@ ObjectWrapper *Parser::parseObjectWrapperChain(Value* i, std::set<PHINode*> &vis
             //errs() << "Field Wrapper found function " << *ci << "\n";
             objw = parseObjectWrapperInstruction(ci, visited);
         };
-        parseType(i, call_back, visited);
+        assert(parseType(i, call_back, visited));
         buildObjMap[i] = objw;
 //    }
 
@@ -197,7 +197,7 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
         std::function<void(CallInst*)> callback = [&](CallInst* ci) {
             type = parseTypeCallInst(ci,visited);
         };
-        parseType(typeArg,callback,visited);
+        assert(parseType(typeArg,callback,visited));
         errs() << "Obtained AnalysisType for " << *i <<"\n";
 
         if(type->getCode() != ObjectTy) {
@@ -214,7 +214,7 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
         std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
             fw = parseFieldWrapperIns(ci,visited);
         };
-        parseType(i->getArgOperand(0), call_back,visited);
+        assert(parseType(i->getArgOperand(0), call_back,visited));
         buildObjMap[i]= new ObjectWrapper(fw->objectType);
     }
     else if (funcName == ObjectIRToFunctionNames[ASSERT_TYPE])
@@ -225,7 +225,7 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
         std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
             a_type = parseTypeCallInst(ci,visited);
         };
-        parseType(newTypeInst, call_back, visited);
+        assert(parseType(newTypeInst, call_back, visited));
         // make sure it is an ObjectType
         assert(a_type);
         if(a_type->getCode() != ObjectTy) assert(false);
@@ -246,7 +246,7 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
 }
 
 
-void Parser::parseType(Value *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*>& visited) {
+bool Parser::parseType(Value *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*>& visited) {
    //errs()<<*ins << "is being called by parseType\n";
 
     if (auto callins = dyn_cast_or_null<CallInst>(ins)) {
@@ -264,12 +264,16 @@ void Parser::parseType(Value *ins, const std::function<void(CallInst*)>& callbac
         parseTypeGlobalValue(gv,callback,visited);
     } else if (auto phiInst = dyn_cast_or_null<PHINode>(ins)) {
         // if the value has been visited, do nothing
-        if(visited.find(phiInst) != visited.end()) return;
+        if(visited.find(phiInst) != visited.end()) return false;
         // otherwise, vist the children
         visited.insert(phiInst);
         for (auto& val: phiInst->incoming_values()) {
             if(dyn_cast<ConstantPointerNull>(val.get())) continue;
-            parseType(val.get(), callback, visited);
+            auto res = parseType(val.get(), callback, visited);
+            if(res)
+            {
+                return true;
+            }
         }
     } else if (auto arg = dyn_cast_or_null<Argument>(ins))
     {
@@ -291,21 +295,22 @@ void Parser::parseType(Value *ins, const std::function<void(CallInst*)>& callbac
         errs() << "parseType: Unrecognized instruction" << *ins <<"\n";
         assert(false);
     }
+    return true;
 }
 
 
 
-void Parser::parseTypeStoreInst(StoreInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
+bool Parser::parseTypeStoreInst(StoreInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     auto valOp = ins->getValueOperand();
-    parseType(dyn_cast_or_null<Instruction>(valOp), callback,visited);
+    return parseType(dyn_cast_or_null<Instruction>(valOp), callback,visited);
 }
 
-void Parser::parseTypeLoadInst(LoadInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
+bool Parser::parseTypeLoadInst(LoadInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     auto ptrOp = ins->getPointerOperand();
-    parseType(ptrOp,callback,visited);
+    return parseType(ptrOp,callback,visited);
 }
 
-void Parser::parseTypeAllocaInst(AllocaInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
+bool Parser::parseTypeAllocaInst(AllocaInst *ins, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     for(auto u: ins->users()) {
         if(auto i = dyn_cast_or_null<StoreInst>(u)) {
             return parseType(i,callback,visited);
@@ -315,7 +320,7 @@ void Parser::parseTypeAllocaInst(AllocaInst *ins, const std::function<void(CallI
     assert(false);
 }
 
-void Parser::parseTypeGlobalValue(GlobalValue *gv, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
+bool  Parser::parseTypeGlobalValue(GlobalValue *gv, const std::function<void(CallInst*)>& callback, std::set<PHINode*> &visited) {
     for(auto u: gv->users()) {
         if(auto i = dyn_cast_or_null<StoreInst>(u)) {
             return parseType(i,callback,visited);
@@ -365,7 +370,7 @@ FieldWrapper* Parser::parseFieldWrapperChain(Value* i, std::set<PHINode*> &visit
     std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
         fw = parseFieldWrapperIns(ci,visited);
     };
-    parseType(i, call_back,visited);
+    assert(parseType(i, call_back,visited));
     return fw;
 }
 

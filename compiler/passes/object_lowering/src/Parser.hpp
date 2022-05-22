@@ -39,11 +39,11 @@ public:
   FieldWrapper* parseFieldWrapperChain(Value* i, std::set<PHINode*> &visited);
 
   // dispatch to the functions below
-  void parseType(Value* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-  void parseTypeStoreInst(StoreInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-  void parseTypeLoadInst(LoadInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-  void parseTypeAllocaInst(AllocaInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
-  void parseTypeGlobalValue(GlobalValue* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
+  bool parseType(Value* ins, const std::function<void(CallInst*)> &callback, std::set<PHINode*> &visited);
+  bool parseTypeStoreInst(StoreInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
+  bool parseTypeLoadInst(LoadInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
+  bool parseTypeAllocaInst(AllocaInst* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
+  bool parseTypeGlobalValue(GlobalValue* ins, const std::function<void(CallInst*)>&, std::set<PHINode*> &visited);
 };
 
 } // namespace object_lowering
