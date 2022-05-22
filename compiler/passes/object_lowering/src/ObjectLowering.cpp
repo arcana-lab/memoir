@@ -675,6 +675,52 @@ void ObjectLowering::BasicBlockTransformer(DominatorTree &DT, BasicBlock *bb,
                 } // endof switch
             }
         }
+        else if (auto icmp = dyn_cast<ICmpInst>(&ins))
+        {
+            if(icmp->getOperand(0)->getType() != object_star)
+            {
+                continue;
+            }
+            Value* not_the_null_one = dyn_cast<ConstantPointerNull>(icmp->getOperand(0)) ? icmp->getOperand(1) : icmp->getOperand(0);
+            if(replacementMapping.find(not_the_null_one) == replacementMapping.end())
+            {
+                errs() << "Comparing object* but fail to find it in replacement mapping";
+                assert(false);
+            }
+            auto newType = replacementMapping[not_the_null_one]->getType();
+            assert(isa<PointerType>(newType));
+            auto pointerNewType = dyn_cast<PointerType>(newType);
+            Value* new_left;
+            auto curLeft = icmp->getOperand(0);
+            if( isa<ConstantPointerNull>(curLeft))
+            {
+                new_left = ConstantPointerNull::get(pointerNewType);
+            }else if (replacementMapping.find(curLeft)== replacementMapping.end())
+            {
+                errs() << "can't find " << *curLeft << "in replacement mapping";
+                assert(false);
+            }
+            else{
+                new_left = replacementMapping[curLeft];
+            }
+            Value* new_right;
+            auto curRight = icmp->getOperand(0);
+            if( isa<ConstantPointerNull>(curRight))
+            {
+                new_right = ConstantPointerNull::get(pointerNewType);
+            }else if (replacementMapping.find(curRight)== replacementMapping.end())
+            {
+                errs() << "can't find " << *curLeft << "in replacement mapping";
+                assert(false);
+            }
+            else{
+                new_right = replacementMapping[curLeft];
+            }
+
+            auto newIcmp = builder.CreateICmp(icmp->getPredicate(),new_left,new_right);
+            replacementMapping[icmp] = newIcmp;
+        }
+
         else if(auto retIns = dyn_cast<ReturnInst>(&ins))
         {
             // replace returned value, if necessary
