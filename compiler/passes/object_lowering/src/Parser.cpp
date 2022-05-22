@@ -142,6 +142,7 @@ ObjectWrapper *Parser::parseObjectWrapperChain(Value* i, std::set<PHINode*> &vis
     // return the cached objectWrapper, if it exists
     if (buildObjMap.find(i)!=buildObjMap.end())
     {
+        errs() << "Cache exists for " << *i<< "with address" << buildObjMap[i] << "\n";
         return buildObjMap[i];
     }
 //    if(dyn_cast<Argument>(i))
@@ -219,7 +220,7 @@ ObjectWrapper *Parser::parseObjectWrapperInstruction(CallInst *i, std::set<PHINo
     else if (funcName == ObjectIRToFunctionNames[ASSERT_TYPE])
     {
         auto newTypeInst = i->getArgOperand(0);
-//        errs() << "Processing the assert type for " << *newTypeInst << "\n\n";
+        errs() << "Processing the assert type for " <<*i<< "whose first arg is" << *newTypeInst << "\n\n";
         object_lowering::AnalysisType* a_type;
         std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
             a_type = parseTypeCallInst(ci,visited);
