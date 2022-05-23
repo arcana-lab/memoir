@@ -162,8 +162,6 @@ Object *mk_expr(int64_t n, int64_t v) {
 }
 
 Object *append_add(Object *e1, Object *e2) {
-  std::cerr << "append_add\n";
-
   setReturnType(Expr);
   assertType(Expr, e1);
   assertType(Expr, e2);
@@ -215,7 +213,6 @@ Object *append_mul(Object *e1, Object *e2) {
 }
 
 Object *reassoc(Object *e) {
-  std::cerr << "reassoc\n";
   setReturnType(Expr);
   assertType(Expr, e);
 
@@ -428,7 +425,7 @@ Object *const_folding(Object *e) {
                            b_right);
       }
     }
-    
+
     // return new MulExpr(e1, e2);
     return new_MulExpr(e1, e2);
   }
@@ -469,7 +466,7 @@ int64_t eval(Object *e) {
 }
 
 int main(int argc, char **argv) {
-  Object *e = mk_expr(20, 1);
+  Object *e = mk_expr(15, 1);
   int64_t v1 = eval(e);
   int64_t v2 = eval(const_folding(reassoc(e)));
   std::cout << v1 << ", " << v2 << "\n";
