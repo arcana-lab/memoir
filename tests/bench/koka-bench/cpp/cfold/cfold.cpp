@@ -164,7 +164,7 @@ static long eval(const Expr *e) {
 }
 
 int main(int argc, char **argv) {
-  const Expr *e = mk_expr(20, 1);
+  const Expr *e = mk_expr(15, 1);
   long v1 = eval(e);
   long v2 = eval(const_folding(reassoc(e)));
   std::cout << v1 << ", " << v2 << "\n";
