@@ -1,5 +1,5 @@
 # ContainIR Description
-Updated as of May 17, 2022
+Updated as of May 25, 2022
 
 This is the working description of the ContainIR.
 
@@ -28,6 +28,8 @@ Int32Type()
 Int16Type()
 
 Int8Type()
+
+BoolType
 
 FloatType()
 
@@ -64,6 +66,8 @@ readInt16(field)
 
 readInt8(field)
 
+readBool(field)
+
 readInteger(field)
 
 readFloat(field)
@@ -87,6 +91,8 @@ writeInt32(field, value)
 writeInt16(field, value)
 
 writeInt8(field, value)
+
+writeBool(field, value)
 
 writeInteger(field, value)
 
