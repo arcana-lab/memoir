@@ -1,0 +1,180 @@
+
+ Performance counter stats for './nqueens_o3':
+
+          1,015.53 msec task-clock                #    1.000 CPUs utilized          
+                 2      context-switches          #    0.002 K/sec                  
+                 1      cpu-migrations            #    0.001 K/sec                  
+            73,156      page-faults               #    0.072 M/sec                  
+     3,327,149,366      cycles                    #    3.276 GHz                    
+     5,835,579,774      instructions              #    1.75  insn per cycle         
+     1,361,467,995      branches                  # 1340.650 M/sec                  
+        46,072,055      branch-misses             #    3.38% of all branches        
+
+       1.016034508 seconds time elapsed
+
+       0.888970000 seconds user
+       0.124716000 seconds sys
+
+
+
+ Performance counter stats for './nqueens_o3':
+
+          1,012.44 msec task-clock                #    1.000 CPUs utilized          
+                 4      context-switches          #    0.004 K/sec                  
+                 0      cpu-migrations            #    0.000 K/sec                  
+            73,157      page-faults               #    0.072 M/sec                  
+     3,328,260,334      cycles                    #    3.287 GHz                    
+     5,835,598,728      instructions              #    1.75  insn per cycle         
+     1,361,472,152      branches                  # 1344.739 M/sec                  
+        46,031,618      branch-misses             #    3.38% of all branches        
+
+       1.012892924 seconds time elapsed
+
+       0.887839000 seconds user
+       0.122781000 seconds sys
+
+
+
+ Performance counter stats for './nqueens_o3':
+
+          1,011.37 msec task-clock                #    1.000 CPUs utilized          
+                 0      context-switches          #    0.000 K/sec                  
+                 0      cpu-migrations            #    0.000 K/sec                  
+            73,154      page-faults               #    0.072 M/sec                  
+     3,327,561,764      cycles                    #    3.290 GHz                    
+     5,835,501,688      instructions              #    1.75  insn per cycle         
+     1,361,451,746      branches                  # 1346.143 M/sec                  
+        46,040,689      branch-misses             #    3.38% of all branches        
+
+       1.011791856 seconds time elapsed
+
+       0.888052000 seconds user
+       0.121581000 seconds sys
+
+
+
+ Performance counter stats for './nqueens_o3':
+
+          1,012.32 msec task-clock                #    1.000 CPUs utilized          
+                 2      context-switches          #    0.002 K/sec                  
+                 0      cpu-migrations            #    0.000 K/sec                  
+            73,151      page-faults               #    0.072 M/sec                  
+     3,332,163,812      cycles                    #    3.292 GHz                    
+     5,835,546,160      instructions              #    1.75  insn per cycle         
+     1,361,466,728      branches                  # 1344.899 M/sec                  
+        46,083,239      branch-misses             #    3.38% of all branches        
+
+       1.012758452 seconds time elapsed
+
+       0.882876000 seconds user
+       0.127687000 seconds sys
+
+
+
+ Performance counter stats for './nqueens_o3':
+
+          1,012.69 msec task-clock                #    1.000 CPUs utilized          
+                 2      context-switches          #    0.002 K/sec                  
+                 0      cpu-migrations            #    0.000 K/sec                  
+            73,157      page-faults               #    0.072 M/sec                  
+     3,326,534,660      cycles                    #    3.285 GHz                    
+     5,835,615,333      instructions              #    1.75  insn per cycle         
+     1,361,481,008      branches                  # 1344.420 M/sec                  
+        45,922,261      branch-misses             #    3.37% of all branches        
+
+       1.013124173 seconds time elapsed
+
+       0.856194000 seconds user
+       0.154667000 seconds sys
+
+
+
+ Performance counter stats for './nqueens_o3':
+
+          1,011.99 msec task-clock                #    1.000 CPUs utilized          
+                 1      context-switches          #    0.001 K/sec                  
+                 0      cpu-migrations            #    0.000 K/sec                  
+            73,151      page-faults               #    0.072 M/sec                  
+     3,324,131,042      cycles                    #    3.285 GHz                    
+     5,835,526,174      instructions              #    1.76  insn per cycle         
+     1,361,462,032      branches                  # 1345.331 M/sec                  
+        46,010,296      branch-misses             #    3.38% of all branches        
+
+       1.012405386 seconds time elapsed
+
+       0.873629000 seconds user
+       0.136627000 seconds sys
+
+
+
+ Performance counter stats for './nqueens_o3':
+
+          1,015.32 msec task-clock                #    1.000 CPUs utilized          
+                 1      context-switches          #    0.001 K/sec                  
+                 1      cpu-migrations            #    0.001 K/sec                  
+            73,155      page-faults               #    0.072 M/sec                  
+     3,327,557,377      cycles                    #    3.277 GHz                    
+     5,835,531,324      instructions              #    1.75  insn per cycle         
+     1,361,458,593      branches                  # 1340.914 M/sec                  
+        45,985,791      branch-misses             #    3.38% of all branches        
+
+       1.015753097 seconds time elapsed
+
+       0.871859000 seconds user
+       0.141656000 seconds sys
+
+
+
+ Performance counter stats for './nqueens_o3':
+
+          1,013.44 msec task-clock                #    0.999 CPUs utilized          
+                 2      context-switches          #    0.002 K/sec                  
+                 1      cpu-migrations            #    0.001 K/sec                  
+            73,158      page-faults               #    0.072 M/sec                  
+     3,332,062,741      cycles                    #    3.288 GHz                    
+     5,835,614,887      instructions              #    1.75  insn per cycle         
+     1,361,475,481      branches                  # 1343.414 M/sec                  
+        46,039,537      branch-misses             #    3.38% of all branches        
+
+       1.013980487 seconds time elapsed
+
+       0.866972000 seconds user
+       0.144628000 seconds sys
+
+
+
+ Performance counter stats for './nqueens_o3':
+
+          1,014.74 msec task-clock                #    1.000 CPUs utilized          
+                 3      context-switches          #    0.003 K/sec                  
+                 1      cpu-migrations            #    0.001 K/sec                  
+            73,152      page-faults               #    0.072 M/sec                  
+     3,330,740,700      cycles                    #    3.282 GHz                    
+     5,835,520,318      instructions              #    1.75  insn per cycle         
+     1,361,457,602      branches                  # 1341.687 M/sec                  
+        46,100,773      branch-misses             #    3.39% of all branches        
+
+       1.015208002 seconds time elapsed
+
+       0.875225000 seconds user
+       0.137718000 seconds sys
+
+
+
+ Performance counter stats for './nqueens_o3':
+
+          1,057.59 msec task-clock                #    1.000 CPUs utilized          
+                 2      context-switches          #    0.002 K/sec                  
+                 1      cpu-migrations            #    0.001 K/sec                  
+            73,153      page-faults               #    0.069 M/sec                  
+     3,438,935,218      cycles                    #    3.252 GHz                    
+     5,835,884,149      instructions              #    1.70  insn per cycle         
+     1,361,531,691      branches                  # 1287.389 M/sec                  
+        46,062,524      branch-misses             #    3.38% of all branches        
+
+       1.058049751 seconds time elapsed
+
+       0.931730000 seconds user
+       0.123708000 seconds sys
+
+
