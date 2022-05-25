@@ -3,7 +3,9 @@
 
 using namespace objectir;
 
-Type *type = getObjectType(2, getUInt64Type(), getUInt64Type());
+Type *type = getObjectType(2,
+                           getUInt64Type(),
+                           getUInt64Type());
 Type *arrayType = getArrayType(type);
 
 int main () {
@@ -23,7 +25,8 @@ int main () {
 
     writeUInt64(getObjectField(obj, 0), rand());
     writeUInt64(getObjectField(obj, 1), rand());
-    writeObject(getArrayElement(array, i), obj);
+    Field *arrayField = getArrayElement(array, i);
+    writeObject(arrayField, obj);
 
     deleteObject(obj);
   }

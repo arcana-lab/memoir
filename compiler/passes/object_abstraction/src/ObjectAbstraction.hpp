@@ -29,6 +29,7 @@ public:
   ~TypeNode();
   TypeNode(CallInst *callInst);
   TypeNode(CallInst *callInst, CallInst *innerTypeCallInst);
+  inline CallInst * getDefinition() { return this->definition; };
   inline int getNumFields() { return this->fieldTypes.size(); };
   inline CallInst * getFieldType(int fieldNum) { return this->fieldTypes[fieldNum]; };
   void printTypeInfo(string prefix);
@@ -59,7 +60,7 @@ private:
 
 public:
   ~SummaryFieldNode();
-  SummaryFieldNode(ObjectNode *objectBelongsTo, TypeNode *typeNode, Value *size);
+  SummaryFieldNode(ObjectNode *objectBelongsTo, CallInst *fieldType, TypeNode *typeNode, Value *size);
   void printFieldInfo(string prefix) override;
 };
 

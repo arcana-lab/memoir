@@ -63,8 +63,8 @@ void FieldNode::printFieldInfo(string prefix="") {
 /*
  * Constructor for struct field
  */
-SummaryFieldNode::SummaryFieldNode(ObjectNode *objectBelongsTo, TypeNode *typeNode, Value *size) 
-  : FieldNode(objectBelongsTo, nullptr),
+SummaryFieldNode::SummaryFieldNode(ObjectNode *objectBelongsTo, CallInst *fieldType, TypeNode *typeNode, Value *size) 
+  : FieldNode(objectBelongsTo, fieldType),
     innerObjectType(typeNode),
     size(size) {
 
@@ -72,6 +72,7 @@ SummaryFieldNode::SummaryFieldNode(ObjectNode *objectBelongsTo, TypeNode *typeNo
 }
 
 void SummaryFieldNode::printFieldInfo(string prefix) {
+  errs() << prefix << "Field type: " << *this->fieldType << "\n";
   errs() << prefix << "Inner object type:\n";
   this->innerObjectType->printTypeInfo(prefix + "  ");
   errs() << prefix << "Field size: " << *this->size << "\n";
@@ -83,6 +84,8 @@ void SummaryFieldNode::printFieldInfo(string prefix) {
   for (auto fieldRead : this->fieldReads) {
     errs() << prefix << "    " << *fieldRead << "\n";
   }
+
+  return ;
 }
 
 /*
@@ -105,7 +108,7 @@ ObjectNode::ObjectNode(CallInst *callInst, TypeNode *typeNode)
 ObjectNode::ObjectNode(CallInst *callInst, TypeNode *arrayTypeNode, TypeNode *innerTypeNode) 
   : allocation(callInst),
     manifest(arrayTypeNode) {
-  FieldNode *summaryFieldNode = new SummaryFieldNode(this, innerTypeNode, callInst->getArgOperand(1));
+  FieldNode *summaryFieldNode = new SummaryFieldNode(this, arrayTypeNode->getDefinition(), innerTypeNode, callInst->getArgOperand(1));
   this->fields.push_back(summaryFieldNode);
 
   return;
@@ -285,6 +288,12 @@ void ObjectAbstraction::analyze() {
       }
     }
   }
+
+  for (auto *typeNode : this->types) {
+    errs() << "===========================\n";
+    typeNode->printTypeInfo();
+  }
+  errs() << "===========================\n";
 
   for (auto *objectNode : this->objects) {
     errs() << "===========================\n";
