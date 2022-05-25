@@ -48,6 +48,9 @@ public:
   void inferArgTypes(llvm::Function* f, vector<Type*> *arg_vector); // build a new list of argument types
   ObjectType* inferReturnType(llvm::Function* f);
 
+  // excluding objectIR functions from analysis
+  bool shouldAnalyzeFunction(llvm::Function& F);
+
   // ======================== STACK VS HEAP =====================
 
   DataFlowResult *dataflow(Function *f, std::set<CallInst *> &buildObjs);

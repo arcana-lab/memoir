@@ -11,46 +11,12 @@ make TESTS="test_recurse"
 ```
 
 # notes and planning
-- stack vs heap
-- intrinsic types
-- field passing
-- remove type GVs and loads
-- copy constructors 
+- API stuff with the function names
+- lifetimes for alloca ??
+- add more intrinsic types and test them in more complicated obj layouts
+- safer transformation for the icmp instruction
 
-re: fieldpassing and copy constructors, we currently only look for function passing around Object* and assume they are pointers
-
-## delete/free in OIR
-fetch all the loop structures
-
-forward DFA
-- gen = buildObject
-  - if this instruction `isIncluded` in a loop, then save it into an external map `LoopS -> set<Instruction>`
-- `kill[deleteObject(x)] = {x} if x isa buildObject else {}`
-- in = union of OUT of predecessors
-- out = (in - kill) + gen
-
-Any objects that are LIVE in the OUT set of the return block must be malloced. The remaining (DEAD) objects are *candidates* for alloca
-
-```
-for ((loopS possible_objects) : map) {
-  // figure out what is alive @ the end of the loop
-  latch_bbs = loopS->getLatches()
-  live_objects = {}
-  for (bb : latch_bbs) {
-    term = bb->getTerminator
-    outT = dfa->OUT(term)
-    live_objects Union outT
-  }
-  dead_within_loop = 
-        possible_objects - live_objects
-        // these objects can be allocated
-  alive_outside_loop = 
-        possible_objects Intercetion live_objects
-        // these objects MUST be malloced
-}
-```
-
-Any buildObjects not inside of the map are not within loops and are completely safe to alloca.
+- fieldpassing and copy constructors, we currently only look for function passing around Objectstar and assume they are pointers
 
 ## 05-11 meeting notes
 1. loop structures (guaranteed single entry and single exit)

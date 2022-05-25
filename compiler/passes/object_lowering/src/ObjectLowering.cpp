@@ -8,8 +8,6 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
         : M(M),
           noelle(noelle),
           mp(mp) {
-    // Do initialization.
-
 
     // get llvm::Type* for ObjectIR::Object*
     auto getbuildObjFunc = M.getFunction(ObjectIRToFunctionNames[BUILD_OBJECT]);
@@ -41,11 +39,7 @@ void ObjectLowering::analyze() {
     // determine which functions to clone by scanning function type signatures for instances of Object*
     std::vector<Function *> functions_to_clone;
     for (auto &F: M) {
-        if (F.isDeclaration()) continue;
-        if(!F.hasName()) continue;
-        auto fname = F.getName().str();
-        if(fname.find("main") == std::string::npos) continue;
-
+        if (!shouldAnalyzeFunction(F)) continue;
 
         auto ft = F.getFunctionType();
         bool should_clone = false;
@@ -131,8 +125,6 @@ void ObjectLowering::cacheTypes() {
             if (objTy->hasName()) namedTypeMap[objTy->name] = objTy;
         }
     }
-    // assume that 1) all named Types ARE global vals and not intermediate
-    // 2) all un-named types are also global vals
 
     // resolve stubs
     for (auto type: allTypes) {
@@ -197,8 +189,6 @@ void ObjectLowering::inferArgTypes(llvm::Function *f, vector<Type *> *arg_vector
 
 ObjectType *ObjectLowering::inferReturnType(llvm::Function *f) {
     errs() << f->getName().str() << ": inferring its return type rn\n";
-
-
     for (auto &bb: *f) {
         for (auto &ins: bb) {
             if (auto callIns = dyn_cast<CallInst>(&ins)) {
@@ -226,6 +216,15 @@ ObjectType *ObjectLowering::inferReturnType(llvm::Function *f) {
     }
     errs() << "did not find setReturnType\n";
     assert(false);
+}
+
+bool ObjectLowering::shouldAnalyzeFunction(llvm::Function &F) {
+    if (F.isDeclaration()) return false;
+    if(!F.hasName()) return false;
+    auto fname = F.getName().str();
+    //if (fname.find("objectir") != std::string::npos) return false;
+    if (isObjectIRCall(fname)) return false;
+    return true;
 }
 
 // ============================ STACK VS HEAP =============================================
@@ -310,14 +309,9 @@ void ObjectLowering::transform()
 {
     for(auto &f : M)
     {
-        if(!f.isDeclaration())
-        {
-            auto calleename = f.getName().str();
-            if (calleename.find("main") == std::string::npos) continue;// TODO: hack to skipped non-tagged functions
-            FunctionTransform(&f);
-        }
+        if (!shouldAnalyzeFunction(f)) continue;
+        FunctionTransform(&f);
     }
-
     
     // delete the Type* global variables
     std::set<Value *> toDelete;
@@ -326,9 +320,7 @@ void ObjectLowering::transform()
     // recursively find all instructions to delete
     for (auto p: typeDefs) findInstsToDelete(p, toDelete);
 
-    //errs() << "ObjectLowing: deleting these instructions\n";
     for (auto v: toDelete) {
-        //errs() << "\t" << *v << "\n";
         if (auto i = dyn_cast<Instruction>(v)) {
             i->replaceAllUsesWith(UndefValue::get(i->getType()));
             i->eraseFromParent();
@@ -336,12 +328,11 @@ void ObjectLowering::transform()
     }
 
     for (GlobalValue* p: typeDefs) {
-        //errs() << "Dropping refs: " << *p << "\n";
         p->dropAllReferences();
-        //errs() << "\terasing from parent\n";
         p->eraseFromParent();
     }
 
+    // erase the old functions with Object* in the type signature
     for (auto const& x : clonedFunctionMap)
     {
         x.first->eraseFromParent();
@@ -373,6 +364,7 @@ void ObjectLowering::FunctionTransform(Function *f) {
     std::set<CallInst*> buildObjs;
     auto dataflowResult = dataflow(f, buildObjs);
 
+    // get the set of live objects from OUT[RetInst]
     std::set<Value*> liveBuildObjs;
     for (auto &BB : *f) {
         auto term = BB.getTerminator();
@@ -388,9 +380,8 @@ void ObjectLowering::FunctionTransform(Function *f) {
         errs() << "this object is alive "<< *liveObj << "\n";
     }
 
-    errs() << "Getting loop structures \n";
+    // check the dead objects with loop analysis
     auto loopStructures = noelle->getLoopStructures(f);
-    errs() << "done getting loop structures\n";
     std::set<CallInst*> allocBuildObjects;
 
     for(auto buildObjins: buildObjs)
@@ -400,11 +391,8 @@ void ObjectLowering::FunctionTransform(Function *f) {
             continue;
         }
         bool inLoop = false;
-        errs() << "about to loop over LS\n";
         for(auto loop: *loopStructures)
         {
-            errs() << "fetched a loop while checking " << *buildObjins << "\n";
-            errs() << "This is the loop" <<loop << "\n\n\n";
             if(!loop->isIncluded(buildObjins))
             {
                 errs() << "This build object is not included in the loop\n";
@@ -427,7 +415,7 @@ void ObjectLowering::FunctionTransform(Function *f) {
                 allocBuildObjects.insert(buildObjins);
             }
         }
-        if(!inLoop)
+        if(!inLoop) // object is not in any loop => safe to alloca
         {
             allocBuildObjects.insert(buildObjins);
         }
