@@ -5,50 +5,47 @@
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 #include "noelle/core/Noelle.hpp"
-
 #include "ObjectAbstraction.hpp"
 
-using namespace llvm::noelle;
-using namespace object_abstraction;
+namespace object_abstraction {
 
-namespace {
+  class ObjectAbstractionPass : public ModulePass {
+  public:
+    static char ID;
 
-  struct ObjectAbstractionPass : public ModulePass {
-    static char ID; 
+    ObjectAbstractionPass () : ModulePass(ID) {}
 
-    ObjectAbstractionPass() : ModulePass(ID) {}
-
-    bool doInitialization (Module &M) override {
+    bool doInitialization (Module &M) override { 
       return false;
     }
 
     bool runOnModule (Module &M) override {
-            
-      /*
-       * Fetch NOELLE
-       */
       auto &noelle = getAnalysis<Noelle>();
-      auto pdg = noelle.getProgramDependenceGraph();
 
-      auto ObjectAbstraction = new object_abstraction::ObjectAbstraction(M, &noelle, pdg);
+      this->objectAbstraction = new object_abstraction::ObjectAbstraction(M, &noelle);
+      this->objectAbstraction->contructObjectAbstractions();
 
-      ObjectAbstraction->analyze();
-
-      ObjectAbstraction->transform();
-      
       return false;
     }
 
-    void getAnalysisUsage(AnalysisUsage &AU) const override {
+    void getAnalysisUsage (AnalysisUsage &AU) const override {
       AU.addRequired<Noelle>();
     }
-  };
 
-}
+    /*
+     * Fetch constructed ObjectAbstraction object
+     */
+    ObjectAbstraction * getObjectAbstraction () {
+      return this->objectAbstraction;
+    }
+
+  private:
+    ObjectAbstraction *objectAbstraction;
+  };
 
 // Next there is code to register your pass to "opt"
 char ObjectAbstractionPass::ID = 0;
-static RegisterPass<ObjectAbstractionPass> X("ObjectAbstraction", "Pass to build object representations at object-IR level");
+static RegisterPass<ObjectAbstractionPass> X("ObjectAbstraction", "Analysis pass to build object representations at LLVM-IR level");
 
 // Next there is code to register your pass to "clang"
 static ObjectAbstractionPass * _PassMaker = NULL;
@@ -58,3 +55,5 @@ static RegisterStandardPasses _RegPass1(PassManagerBuilder::EP_OptimizerLast,
 static RegisterStandardPasses _RegPass2(PassManagerBuilder::EP_EnabledOnOptLevel0,
     [](const PassManagerBuilder&, legacy::PassManagerBase& PM) {
         if(!_PassMaker){ PM.add(_PassMaker = new ObjectAbstractionPass()); }}); // ** for -O0
+
+} // namespace object_abstraction
