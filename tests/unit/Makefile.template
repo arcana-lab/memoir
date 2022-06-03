@@ -11,7 +11,7 @@ CFLAGS=-I$(GIT_ROOT)/install/include -std=c++17 -O3 -fno-vectorize -fno-slp-vect
 LIBS=-lm
 
 BINARY=$(BUILD_DIR)/$(notdir $(realpath .))
-IR_FILE=$(BINARY).bc
+IR_FILE=all_in_one.bc
 IR_FILE_PROGRAM=$(BUILD_DIR)/program.bc
 IR_FILE_RUNTIME=$(GIT_ROOT)/install/lib/ObjectIR.bc
 OBJ_FILE=$(patsubst %.bc,%.o,$(IR_FILE))
