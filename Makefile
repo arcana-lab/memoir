@@ -8,7 +8,7 @@ all: noelle
 	cmake -DCMAKE_C_COMPILER=`which clang` -DCMAKE_CXX_COMPILER=`which clang++` -S . -B $(BUILD_DIR)
 	make -C $(BUILD_DIR) install -j8
 
-benchmark: all
+test: all
 	make -C $(BUILD_DIR) tests -j8
 	ctest --test-dir $(BUILD_DIR)
 
@@ -28,4 +28,4 @@ uninstall:
 clean:
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all noelle uninstall clean
+.PHONY: all noelle uninstall clean test
