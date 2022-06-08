@@ -2,6 +2,10 @@
 #include <math.h>
 #include <string.h>
 
+#include "object_ir.h"
+
+using namespace objectir;
+
 /*
 enum Kind {
   Val, // 0
