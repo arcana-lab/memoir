@@ -6,11 +6,11 @@ all: noelle
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(INSTALL_DIR)
 	cmake -DCMAKE_C_COMPILER=`which clang` -DCMAKE_CXX_COMPILER=`which clang++` -S . -B $(BUILD_DIR)
+	make -C $(BUILD_DIR) all -j8
 	make -C $(BUILD_DIR) install -j8
 
-test: all
-	make -C $(BUILD_DIR) tests -j8
-	ctest --test-dir $(BUILD_DIR)
+benchmark: all
+	make -C $(BUILD_DIR) bitcodes -j8
 
 noelle: .noelle
 
@@ -26,6 +26,7 @@ uninstall:
 	rm -rf $(INSTALL_DIR)
 
 clean:
+	make -C $(BUILD_DIR) clean -j8
 	rm -rf $(BUILD_DIR)
 
 .PHONY: all noelle uninstall clean test
