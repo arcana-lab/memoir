@@ -7,8 +7,9 @@ NOELLE_NORM=noelle-norm
 LL=llvm-link
 OPT=$(GIT_ROOT)/compiler/scripts/optimize.sh
 
-CFLAGS=-I$(GIT_ROOT)/install/include -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec
-LIBS=-lm
+LIBS=-lm -lstdc++
+CFLAGS=-I$(GIT_ROOT)/install/include -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(LIBS)
+
 
 BINARY=$(BUILD_DIR)/$(notdir $(realpath .))
 IR_FILE=all_in_one.bc
@@ -39,13 +40,14 @@ $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 
 $(IR_FILE_PROGRAM): $(C_BITCODES) $(CPP_BITCODES)
 	$(LL) $^ -o $@
-	$(OPT) $@
+	#$(OPT) $@
 
 $(IR_FILE_RUNTIME):
 	make -C $(GIT_ROOT)
 
 $(IR_FILE): $(IR_FILE_PROGRAM) $(IR_FILE_RUNTIME)
 	$(LL) $^ -o $@
+	$(OPT) $@
 
 $(OBJ_FILE): $(IR_FILE)
 	llc -filetype=obj $< -o $@
