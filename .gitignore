@@ -5,3 +5,4 @@ install
 compile_commands.json
 *.bc
 *.ll
+**/build
