@@ -12,7 +12,7 @@ source ${GIT_ROOT}/enable ;
 
 IR_FILE="$1" ;
 
-OUT_DIR=$(dirname $(realpath ${IR_FILE})) ;
+echo "Running ObjectIR optimization pipeline (I: ${IR_FILE}, O: ${IR_FILE})" ;
 
 # Normalize the bitcode
 ${GIT_ROOT}/compiler/scripts/normalize.sh ${IR_FILE} ;

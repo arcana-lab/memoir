@@ -10,6 +10,8 @@ LIB_DIR=${GIT_ROOT}/install/lib ;
 
 source ${GIT_ROOT}/enable ;
 
+IR_FILE="$1" ;
+
 OUT_DIR=$(dirname $(realpath ${IR_FILE})) ;
 
 IR_FILE_LOWERED=${OUT_DIR}/all_in_one_lowered.bc ;
