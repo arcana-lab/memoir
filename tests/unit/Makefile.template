@@ -40,7 +40,6 @@ $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 
 $(IR_FILE_PROGRAM): $(C_BITCODES) $(CPP_BITCODES)
 	$(LL) $^ -o $@
-	#$(OPT) $@
 
 $(IR_FILE_RUNTIME):
 	make -C $(GIT_ROOT)
