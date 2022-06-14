@@ -30,9 +30,12 @@ struct NormalizationPass : public ModulePass {
   }
 
   bool runOnModule(Module &M) override {
+    errs() << "Running normalization pass\n";
+    
     auto normalization = new normalization::Normalization(M);
-
+    
     if (OnlyRuntime) {
+      errs() << "Normalizing ObjectIR Runtime\n";
       normalization->transformRuntime();
 
       return true;
