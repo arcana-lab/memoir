@@ -6,6 +6,12 @@
  */
 #pragma once
 
+#include "llvm/Pass.h"
+#include "llvm/IR/Function.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/IR/LegacyPassManager.h"
+#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+
 #include "noelle/core/Noelle.hpp"
 #include "Utils.hpp"
 
@@ -107,7 +113,7 @@ namespace object_abstraction {
     /*
      * Constructor for struct-like object
      */
-    ObjectNode(CallInst *callInst, TypeNode *typeNode);
+    ObjectNode(CallInst *callInst, TypeNode *typeNode, uint64_t level=0);
     
     /*
      * Constructor for array-like object
@@ -141,6 +147,7 @@ namespace object_abstraction {
   private:
     CallInst *allocation;
     TypeNode *manifest;
+    uint64_t level;
     std::vector<FieldNode *> fields;
     std::unordered_map<CallInst *, FieldNode *> fieldAccessMap;
     std::unordered_set<CallInst *> deletions;
@@ -175,7 +182,7 @@ namespace object_abstraction {
     std::unordered_set<TypeNode *> types;                             // All definition of types
     std::unordered_map<CallInst *, TypeNode *> callToTypeNodeMap;     // Type definition to TypeNode
     std::unordered_set<ObjectNode *> objects;                         // All allocation of objects
-    std::unordered_map<CallInst *, ObjectNode *> callToObjectNodeMap; // Object allocation to ObjectNode
+    std::unordered_map<CallInst *, std::vector<ObjectNode *>> callToObjectNodeMap; // Object allocation to ObjectNode
 
     /*
      * Module pass to collect all global type definitions
@@ -186,6 +193,20 @@ namespace object_abstraction {
      * Module pass to collect all object allocations
      */
     void collectObjectAllocations();
+
+    /*
+     * Build objectNode recursively given definition of object type
+     * 
+     * Example: the initialization of the below type definition will create two ObjectNodes
+     * Object {
+     *   Object {
+     *     uint64
+     *     uint64
+     *   }
+     *   uint64
+     * }
+     */
+    void allocateObjectNodeRecursively(CallInst *buildObjectCallInst, CallInst *getObjectTypeCallInst, uint64_t level);
 
     /*
      * Module pass to collect all object accesses and deallocations
@@ -201,6 +222,32 @@ namespace object_abstraction {
      * Print out all types and objects collected
      */
     void printTypesAndObjectsInfo();
+  };
+
+  /*
+   * ObjectAbstraction Module Pass
+   */
+  class ObjectAbstractionPass : public ModulePass {
+  public:
+    static char ID;
+
+    ObjectAbstractionPass () : ModulePass(ID) {}
+
+    bool doInitialization (Module &M) override;
+
+    bool runOnModule (Module &M) override;
+
+    void getAnalysisUsage (AnalysisUsage &AU) const override;
+
+    /*
+     * Fetch constructed ObjectAbstraction object
+     */
+    inline ObjectAbstraction * getObjectAbstraction () {
+      return this->objectAbstraction;
+    };
+
+  private:
+    ObjectAbstraction *objectAbstraction;
   };
 
 } // namespace object_abstraction
