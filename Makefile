@@ -1,11 +1,12 @@
 NOELLE_DIR=compiler/noelle
 BUILD_DIR=.build.dir
+HOOKS_DIR=.githooks
 INSTALL_DIR=install
 
 NORM_RUNTIME=./compiler/scripts/normalize_runtime.sh
 RUNTIME_BC=install/lib/object_ir.bc
 
-all: noelle install
+all: noelle hooks install
 
 build:
 	mkdir -p $(BUILD_DIR)
@@ -32,6 +33,9 @@ noelle: .noelle
 	make -C $<
 	touch $@
 
+hooks:
+	make -C $(HOOKS_DIR) all
+
 $(NOELLE_DIR):
 	mkdir -p $@
 	git clone git@github.com:scampanoni/noelle.git $@
@@ -41,6 +45,7 @@ uninstall:
 
 clean:
 	make -C $(BUILD_DIR) clean -j8
+	make -C $(HOOKS_DIR) clean
 	rm -rf $(BUILD_DIR)
 
 .PHONY: all noelle build install postinstall uninstall clean test
