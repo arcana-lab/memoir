@@ -41,72 +41,72 @@ a nullable references to memory objects, the main difference between this and C 
 `TensorType(element type, # of dimensions)`,
 a container that hold homogeneously typed elements contiguously in memory.
 
-### Allocating Containers
-allocateContainer(container type)
+### Allocating Memory Objects
+allocateStruct(struct type)
 
 allocateTensor(element type, # of dimensions, *<size of dimension, ...>*)
 
 ### Accessing Fields
-getContainerField(object, field index)
+`getStructField(object, field index)`
 
-getTensorElement(array, *<index, ...>*)
+`getTensorElement(tensor, *<index, ...>*)`
 
 ### Reading / Writing Fields
-readUInt64(field)
+`readUInt64(field)`
 
-readUInt32(field)
+`readUInt32(field)`
 
-readUInt16(field)
+`readUInt16(field)`
 
-readUInt8(field)
+`readUInt8(field)`
 
-readInt64(field)
+`readInt64(field)`
 
-readInt32(field)
+`readInt32(field)`
 
-readInt16(field)
+`readInt16(field)`
 
-readInt8(field)
+`readInt8(field)`
 
-readBool(field)
+`readBool(field)`
 
-readInteger(field)
+`readInteger(field)`
 
-readFloat(field)
+`readFloat(field)`
 
-readDouble(field)
+`readDouble(field)`
 
-readReference(field)
+`readReference(field)`
 
-writeUInt64(field, value)
+`writeUInt64(field, value)`
 
-writeUInt32(field, value)
+`writeUInt32(field, value)`
 
-writeUInt16(field, value)
+`writeUInt16(field, value)`
 
-writeUInt8(field, value)
+`writeUInt8(field, value)`
 
-writeInt64(field, value)
+`writeInt64(field, value)`
 
-writeInt32(field, value)
+`writeInt32(field, value)`
 
-writeInt16(field, value)
+`writeInt16(field, value)`
 
-writeInt8(field, value)
+`writeInt8(field, value)`
 
-writeBool(field, value)
+`writeBool(field, value)`
 
-writeInteger(field, value)
+`writeInteger(field, value)`
 
-writeFloat(field, value)
+`writeFloat(field, value)`
 
-writeDouble(field, value)
+`writeDouble(field, value)`
 
-writeReference(field, object to reference)
+`writeReference(field, object to reference)`
 
 ### Type Checking
-assertType(type, object)
+`assertType(type, object)`
 
-assertFieldType(type, field)
+`assertFieldType(type, field)`
 
-setReturnType(type)
+`setReturnType(type)`
