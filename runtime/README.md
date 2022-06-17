@@ -1,14 +1,13 @@
 # MOIR Description
-Updated as of May 25, 2022
 
 This is the working description of the Memory Object IR (MOIR).
 
 ### Defining Container Types
-nameStructType(name, # of fields, *<field type, ...>*)
+`nameStructType(name, # of fields, *<field type, ...>*)`
 
-defineStructType(# of fields, *<field type, ...>*)
+`defineStructType(# of fields, *<field type, ...>*)`
 
-getNamedType(name)
+`getNamedType(name)`
 
 ### Primitive Types
 `IntegerType(bitwidth, is signed?)`
@@ -42,9 +41,9 @@ a nullable references to memory objects, the main difference between this and C 
 a container that hold homogeneously typed elements contiguously in memory.
 
 ### Allocating Memory Objects
-allocateStruct(struct type)
+`allocateStruct(struct type)`
 
-allocateTensor(element type, # of dimensions, *<size of dimension, ...>*)
+`allocateTensor(element type, # of dimensions, *<size of dimension, ...>*)`
 
 ### Accessing Fields
 `getStructField(object, field index)`
