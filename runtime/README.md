@@ -1,4 +1,4 @@
-# MOIR Description
+# MemOIR Description
 
 This is the working description of the Memory Object IR (MOIR).
 
