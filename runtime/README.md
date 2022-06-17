@@ -1,43 +1,45 @@
-# ContainIR Description
+# MOIR Description
 Updated as of May 25, 2022
 
-This is the working description of the ContainIR.
+This is the working description of the Memory Object IR (MOIR).
 
 ### Defining Container Types
-nameContainerType(name, # of fields, *<field type, ...>*)
+nameStructType(name, # of fields, *<field type, ...>*)
 
-defineContainerType(# of fields, *<field type, ...>*)
+defineStructType(# of fields, *<field type, ...>*)
 
 getNamedType(name)
 
 ### Primitive Types
-IntegerType(bitwidth, is signed?)
+`IntegerType(bitwidth, is signed?)`
 
-UInt64Type()
+`UInt64Type()`
 
-UInt32Type()
+`UInt32Type()`
 
-UInt16Type()
+`UInt16Type()`
 
-UInt8Type()
+`UInt8Type()`
 
-Int64Type()
+`Int64Type()`
 
-Int32Type()
+`Int32Type()`
 
-Int16Type()
+`Int16Type()`
 
-Int8Type()
+`Int8Type()`
 
-BoolType
+`BoolType()`
 
-FloatType()
+`FloatType()`
 
-DoubleType()
+`DoubleType()`
 
-ReferenceType(referenced type)
+`ReferenceType(referenced type)`,
+a nullable references to memory objects, the main difference between this and C style pointers is that you are not allowed to index into reference types with pointer arithmetic. Doing so would result in an invalid program.
 
-TensorType(element type, # of dimensions)
+`TensorType(element type, # of dimensions)`,
+a container that hold homogeneously typed elements contiguously in memory.
 
 ### Allocating Containers
 allocateContainer(container type)
