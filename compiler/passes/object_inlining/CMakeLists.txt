@@ -16,6 +16,7 @@ add_llvm_library(
   ${PassName}
   MODULE
   ${PassSrc}
+  ${CommonSrc}
 )
 
 install(TARGETS ${PassName}
