@@ -6,7 +6,7 @@ INSTALL_DIR=install
 NORM_RUNTIME=./compiler/scripts/normalize_runtime.sh
 RUNTIME_BC=install/lib/object_ir.bc
 
-all: noelle hooks install
+all: noelle hooks postinstall
 
 build:
 	mkdir -p $(BUILD_DIR)
