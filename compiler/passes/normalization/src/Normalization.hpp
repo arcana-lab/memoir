@@ -1,12 +1,16 @@
+#ifndef NORMALIZATION_H
+#define NORMALIZATION_H
 #pragma once
 
-#include "llvm/IR/Module.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <unordered_set>
+
+#include "common/support/Metadata.hpp"
 
 /*
  * Pass to normalize the object-ir runtime and object-ir programs.
@@ -24,11 +28,6 @@ private:
   Module &M;
 
   std::unordered_set<CallInst *> callsToObjectIR;
-
-  /*
-   * Add the !objectir.internal metadata tag to the function
-   */
-  void setRuntimeMetadata(Function *F);
 
   const std::string OBJECTIR_INTERNAL = "objectir.internal";
 
@@ -52,3 +51,5 @@ public:
 };
 
 } // namespace normalization
+
+#endif
