@@ -8,7 +8,7 @@ function link_makefile {
     
     echo "Creating Makefile for $(basename ${TEST_DIR})" ;
 
-    cp ${GIT_ROOT}/tests/unit/Makefile.template ${MAKEFILE} ;
+    cp ${GIT_ROOT}/tests/Makefile.template ${MAKEFILE} ;
 
     sed -i "s|GIT_ROOT=|GIT_ROOT=${GIT_ROOT}|" ${MAKEFILE} ;
 }
