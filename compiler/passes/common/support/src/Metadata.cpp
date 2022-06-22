@@ -4,33 +4,39 @@ namespace llvm {
 namespace memoir {
 
 void MetadataManager::setMetadata(Function &F, MetadataType MT) {
+  auto &MM = MetadataManager::getManager();
 
-  auto mdKind = this->MDtoString[MT];
+  auto mdKind = MM.MDtoString[MT];
 
-  this->setMetadata(F, mdKind);
+  MM.setMetadata(F, mdKind);
 
   return;
 }
 
 bool MetadataManager::hasMetadata(Function &F, MetadataType MT) {
+  auto &MM = MetadataManager::getManager();
 
-  auto mdKind = this->MDtoString[MT];
+  auto mdKind = MM.MDtoString[MT];
 
-  return this->hasMetadata(F, mdKind);
+  return MM.hasMetadata(F, mdKind);
 }
 
 void MetadataManager::setMetadata(Instruction &I, MetadataType MT) {
-  auto mdKind = this->MDtoString[MT];
+  auto &MM = MetadataManager::getManager();
 
-  this->setMetadata(I, mdKind);
+  auto mdKind = MM.MDtoString[MT];
+
+  MM.setMetadata(I, mdKind);
 
   return;
 }
 
 bool MetadataManager::hasMetadata(Instruction &I, MetadataType MT) {
-  auto mdKind = this->MDtoString[MT];
+  auto &MM = MetadataManager::getManager();
 
-  return this->hasMetadata(I, mdKind);
+  auto mdKind = MM.MDtoString[MT];
+
+  return MM.hasMetadata(I, mdKind);
 }
 
 /*

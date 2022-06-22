@@ -7,15 +7,10 @@ namespace normalization {
 void Normalization::transformRuntime() {
 
   /*
-   * Get the metadata manager
-   */
-  auto &MM = MetadataManager::getManager();
-
-  /*
    * Attach metadata to all functions in the program
    */
   for (auto &F : M) {
-    MM.setMetadata(F, MetadataType::INTERNAL);
+    MetadataManager::setMetadata(F, MetadataType::INTERNAL);
   }
 
   return;

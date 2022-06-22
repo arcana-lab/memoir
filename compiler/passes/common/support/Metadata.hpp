@@ -12,6 +12,7 @@
 
 namespace llvm {
 namespace memoir {
+
 /*
  * Metadata types
  *
@@ -27,13 +28,13 @@ public:
   /*
    * Metadata management
    */
-  void setMetadata(Function &F, MetadataType MT);
+  static void setMetadata(Function &F, MetadataType MT);
 
-  bool hasMetadata(Function &F, MetadataType MT);
+  static bool hasMetadata(Function &F, MetadataType MT);
 
-  void setMetadata(Instruction &I, MetadataType MT);
+  static void setMetadata(Instruction &I, MetadataType MT);
 
-  bool hasMetadata(Instruction &I, MetadataType MT);
+  static bool hasMetadata(Instruction &I, MetadataType MT);
 
   /*
    * Singleton access
