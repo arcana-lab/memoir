@@ -14,15 +14,15 @@ common
 |-- utility
 |   |-- MyTool.hpp
 |   |-- src
-|   |   |-- MyTool.cpp
-|   |   |-- MyToolHelper.cpp
+|       |-- MyTool.cpp
+|       |-- MyToolHelper.cpp
 |-- support
 |   |-- ThisSupport.hpp
 |   |-- OtherSupport.hpp
 |   |-- src
-|   |   |-- ThisSupport.cpp
-|   |   |-- OtherSupport.cpp
+|       |-- ThisSupport.cpp
+|       |-- OtherSupport.cpp
 |-- abstraction
-|   |-- ...
+    |-- ...
 ```
 
