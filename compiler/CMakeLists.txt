@@ -10,6 +10,9 @@ include(AddLLVM)
 
 message(STATUS "LLVM_DIR IS ${LLVM_CMAKE_DIR}.")
 
-include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(
+  ${LLVM_INCLUDE_DIRS}
+  noelle/install/include
+  noelle/install/include/svf)
 
 add_subdirectory(passes)
