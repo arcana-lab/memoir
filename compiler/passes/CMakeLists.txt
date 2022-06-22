@@ -1,10 +1,9 @@
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -g3 ")
 
 # Configure subdirectories
-include_directories(.)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-file(GLOB CommonSrc "common/*.cpp")
-
+add_subdirectory(common)
 add_subdirectory(object_abstraction)
 add_subdirectory(object_inlining)
 add_subdirectory(object_lowering)

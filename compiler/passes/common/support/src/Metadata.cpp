@@ -1,16 +1,7 @@
-#include "Metadata.hpp"
+#include "common/support/Metadata.hpp"
 
 namespace llvm {
 namespace memoir {
-
-StringRef toString(MetadataType MT) {
-  switch (MT) {
-    case MetadataType::INTERNAL:
-      return "memoir.internal";
-    default:
-      return "memoir";
-  }
-}
 
 void MetadataManager::setMetadata(Function &F, MetadataType MT) {
 

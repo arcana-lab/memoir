@@ -1,4 +1,4 @@
-set(CommonSrc "")
+set(sources "")
 
 set(CommonDirs
   support
@@ -6,5 +6,8 @@ set(CommonDirs
   utility)
 
 foreach (CommonDir ${CommonDirs})
-  list(APPEND CommonSrc "${CommonDir}/src/*.cpp") 
+  file(GLOB source "${CommonDir}/src/*.cpp")
+  list(APPEND sources ${source}) 
 endforeach ()
+
+set(CommonSrc ${sources} PARENT_SCOPE)
