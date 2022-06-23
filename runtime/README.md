@@ -3,11 +3,9 @@
 This is the working description of the Memory Object IR (MOIR).
 
 ### Defining Container Types
-`nameStructType(name, # of fields, *<field type, ...>*)`
+`DefineStructType(name, # of fields, *<field type, ...>*)`
 
-`defineStructType(# of fields, *<field type, ...>*)`
-
-`getNamedType(name)`
+`NamedType(name)`
 
 ### Primitive Types
 `IntegerType(bitwidth, is signed?)`
