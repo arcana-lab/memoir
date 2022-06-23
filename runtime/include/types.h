@@ -1,3 +1,5 @@
+#ifndef MEMOIR_TYPES_H
+#define MEMOIR_TYPES_H
 #pragma once
 
 /*
@@ -16,13 +18,12 @@
 namespace objectir {
 
 enum TypeCode {
-  ObjectTy,
-  ArrayTy,
-  UnionTy,
+  StructTy,
+  TensorTy,
   IntegerTy,
   FloatTy,
   DoubleTy,
-  PointerTy,
+  ReferenceTy,
   StubTy,
 };
 
@@ -49,77 +50,94 @@ public:
   friend class Field;
 };
 
-struct ObjectType : public Type {
+struct StructType : public Type {
+public:
+  static StructType *get(std::vector<Type *> &field_types);
+
   std::vector<Type *> fields;
 
-  ObjectType(std::string name);
-  ObjectType();
-  ~ObjectType();
-
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  StructType(std::string name);
+  StructType();
+  ~StructType();
 };
 
-struct ArrayType : public Type {
-  Type *elementType;
+struct TensorType : public Type {
+public:
+  static TensorType *get(Type *element_type, uint64_t num_dimensions);
 
-  ArrayType(Type *elementType, std::string name);
-  ArrayType(Type *elementType);
-  ~ArrayType();
-
-  Type *resolve();
-  bool equals(Type *other);
-  std::string toString();
-};
-
-struct UnionType : public Type {
-  std::vector<Type *> members;
-
-  UnionType(std::string name);
-  UnionType();
-  ~UnionType();
+  Type *element_type;
+  uint64_t num_dimensions;
 
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  TensorType(Type *elementType);
+  ~TensorType();
 };
 
 struct IntegerType : public Type {
-  uint64_t bitwidth;
-  bool isSigned;
+public:
+  static IntegerType *get(unsigned bitwidth, bool is_signed);
 
-  IntegerType(uint64_t bitwidth, bool isSigned);
-  ~IntegerType();
+  unsigned bitwidth;
+  bool is_signed;
 
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  IntegerType(unsigned bitwidth, bool is_signed);
+  ~IntegerType();
+
+  std::unordered_map<
+      // bitwidth
+      unsigned,
+      std::unordered_map<
+          // is_signed
+          bool,
+          IntegerType *>>
+      integer_types;
 };
 
 struct FloatType : public Type {
-  FloatType();
-  ~FloatType();
+public:
+  static FloatType *get();
 
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  FloatType();
+  ~FloatType();
 };
 
 struct DoubleType : public Type {
-  DoubleType();
-  ~DoubleType();
+public:
+  static DoubleType *get();
 
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  DoubleType();
+  ~DoubleType();
 };
 
-struct PointerType : public Type {
-  Type *containedType;
+struct ReferenceType : public Type {
+  Type *referenced_type;
 
-  PointerType(Type *containedType);
-  ~PointerType();
+  ReferenceType(Type *referenced_type);
+  ~ReferenceType();
 
   Type *resolve();
   bool equals(Type *other);
@@ -138,6 +156,9 @@ struct PointerType : public Type {
  * work.
  */
 struct StubType : public Type {
+public:
+  static Type *get(std::string name);
+
   std::string name;
 
   Type *resolvedType;
@@ -181,3 +202,5 @@ bool isIntrinsicType(Type *type);
 bool isStubType(Type *type);
 
 } // namespace objectir
+
+#endif

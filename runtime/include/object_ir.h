@@ -13,151 +13,111 @@
 #include "types.h"
 
 //#ifdef __cplusplus
-namespace objectir {
+namespace memoir {
 extern "C" {
 //#endif
 
-#define __OBJECTIR_ATTR                                    \
-  __declspec(noalias) __attribute__((nothrow))             \
-      __attribute__((noinline))
+#define __RUNTIME_ATTR                                                         \
+  __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))
 #define __ALLOC_ATTR __declspec(allocator)
 
 /*
- * Type construction
+ * Struct Types
  */
-__OBJECTIR_ATTR Type *getObjectType(int numFields, ...);
-__OBJECTIR_ATTR Type *nameObjectType(char *name,
-                                     int numFields,
-                                     ...);
+__RUNTIME_ATTR Type *DefineStructType(char *name, int num_fields, ...);
+__RUNTIME_ATTR Type *StructType(char *name);
 
-__OBJECTIR_ATTR Type *getArrayType(Type *elementType);
-__OBJECTIR_ATTR Type *nameArrayType(char *name,
-                                    Type *elementType);
-
-__OBJECTIR_ATTR Type *getUnionType(int numMembers, ...);
-__OBJECTIR_ATTR Type *nameUnionType(char *name,
-                                    int numMembers,
-                                    ...);
+/*
+ * Complex Types
+ */
+__RUNTIME_ATTR Type *TensorType(Type *element_type, uint64_t num_dimensions);
+__RUNTIME_ATTR Type *ReferenceType(Type *referenced_type);
 
 /*
  * Primitive Types
  */
-__OBJECTIR_ATTR Type *getIntegerType(uint64_t bitwidth,
-                                     bool isSigned);
-__OBJECTIR_ATTR Type *getUInt64Type();
-__OBJECTIR_ATTR Type *getUInt32Type();
-__OBJECTIR_ATTR Type *getUInt16Type();
-__OBJECTIR_ATTR Type *getUInt8Type();
-__OBJECTIR_ATTR Type *getInt64Type();
-__OBJECTIR_ATTR Type *getInt32Type();
-__OBJECTIR_ATTR Type *getInt16Type();
-__OBJECTIR_ATTR Type *getInt8Type();
-__OBJECTIR_ATTR Type *getBooleanType();
-__OBJECTIR_ATTR Type *getFloatType();
-__OBJECTIR_ATTR Type *getDoubleType();
-__OBJECTIR_ATTR Type *getPointerType(Type *containedType);
-
-/*
- * Named Types
- */
-__OBJECTIR_ATTR Type *getNamedType(char *name);
+__RUNTIME_ATTR Type *IntegerType(uint64_t bitwidth, bool is_signed);
+__RUNTIME_ATTR Type *UInt64Type();
+__RUNTIME_ATTR Type *UInt32Type();
+__RUNTIME_ATTR Type *UInt16Type();
+__RUNTIME_ATTR Type *UInt8Type();
+__RUNTIME_ATTR Type *Int64Type();
+__RUNTIME_ATTR Type *Int32Type();
+__RUNTIME_ATTR Type *Int16Type();
+__RUNTIME_ATTR Type *Int8Type();
+__RUNTIME_ATTR Type *BoolType();
+__RUNTIME_ATTR Type *FloatType();
+__RUNTIME_ATTR Type *DoubleType();
 
 /*
  * Object construction
  */
-__ALLOC_ATTR __OBJECTIR_ATTR Object *buildObject(
-    Type *type);
-__ALLOC_ATTR __OBJECTIR_ATTR Array *buildArray(
-    Type *type,
-    uint64_t length);
-__OBJECTIR_ATTR Union *buildUnion(Type *type);
+__ALLOC_ATTR __RUNTIME_ATTR Object *allocateStruct(Type *type);
+__ALLOC_ATTR __RUNTIME_ATTR Array *allocateTensor(Type *element_type,
+                                                  uint64_t length_of_dimension,
+                                                  ...);
 
 /*
  * Object destruction
  */
-__OBJECTIR_ATTR void deleteObject(Object *obj);
+__RUNTIME_ATTR void deleteObject(Object *obj);
 
 /*
  * Object accesses
  */
-__OBJECTIR_ATTR Field *getObjectField(Object *object,
-                                      uint64_t fieldNo);
+__RUNTIME_ATTR Field *getStructField(Object *object, uint64_t field_index);
 
 /*
- * Array accesses
+ * Tensor accesses
  */
-__OBJECTIR_ATTR Field *getArrayElement(Array *array,
-                                       uint64_t index);
+__RUNTIME_ATTR Field *getTensorElement(Tensor *tensor,
+                                       uint64_t dimension_index,
+                                       ...);
 
 /*
- * Union accesses
+ * Type checking and function signatures
  */
-__OBJECTIR_ATTR Field *getUnionMember(Union *unionObj,
-                                      uint64_t index);
-
-/*
- * Type checking
- */
-__OBJECTIR_ATTR bool assertType(Type *type, Object *object);
-__OBJECTIR_ATTR bool assertFieldType(Type *type,
-                                     Field *field);
-
-__OBJECTIR_ATTR bool setReturnType(Type *type);
+__RUNTIME_ATTR bool assertType(Type *type, Object *object);
+__RUNTIME_ATTR bool setReturnType(Type *type);
 
 /*
  * Field accesses
  */
 // Unsigned integer access
-__OBJECTIR_ATTR void writeUInt64(Field *field,
-                                 uint64_t value);
-__OBJECTIR_ATTR void writeUInt32(Field *field,
-                                 uint32_t value);
-__OBJECTIR_ATTR void writeUInt16(Field *field,
-                                 uint16_t value);
-__OBJECTIR_ATTR void writeUInt8(Field *field,
-                                uint8_t value);
+__RUNTIME_ATTR void writeUInt64(Field *field, uint64_t value);
+__RUNTIME_ATTR void writeUInt32(Field *field, uint32_t value);
+__RUNTIME_ATTR void writeUInt16(Field *field, uint16_t value);
+__RUNTIME_ATTR void writeUInt8(Field *field, uint8_t value);
+__RUNTIME_ATTR uint64_t readUInt64(Field *field);
+__RUNTIME_ATTR uint32_t readUInt32(Field *field);
+__RUNTIME_ATTR uint16_t readUInt16(Field *field);
+__RUNTIME_ATTR uint8_t readUInt8(Field *field);
 
 // Signed integer access
-__OBJECTIR_ATTR void writeInt64(Field *field,
-                                int64_t value);
-__OBJECTIR_ATTR void writeInt32(Field *field,
-                                int32_t value);
-__OBJECTIR_ATTR void writeInt16(Field *field,
-                                int16_t value);
-__OBJECTIR_ATTR void writeInt8(Field *field, int8_t value);
+__RUNTIME_ATTR void writeInt64(Field *field, int64_t value);
+__RUNTIME_ATTR void writeInt32(Field *field, int32_t value);
+__RUNTIME_ATTR void writeInt16(Field *field, int16_t value);
+__RUNTIME_ATTR void writeInt8(Field *field, int8_t value);
+__RUNTIME_ATTR int64_t readInt64(Field *field);
+__RUNTIME_ATTR int32_t readInt32(Field *field);
+__RUNTIME_ATTR int16_t readInt16(Field *field);
+__RUNTIME_ATTR int8_t readInt8(Field *field);
+
+// Boolean access
+__RUNTIME_ATTR void writeBool(Field *field, bool value);
+__RUNTIME_ATTR bool readBool(Field *field);
 
 // Floating point access
-__OBJECTIR_ATTR void writeFloat(Field *field, float value);
-__OBJECTIR_ATTR void writeDouble(Field *field,
-                                 double value);
+__RUNTIME_ATTR void writeFloat(Field *field, float value);
+__RUNTIME_ATTR void writeDouble(Field *field, double value);
+__RUNTIME_ATTR float readFloat(Field *field);
+__RUNTIME_ATTR double readDouble(Field *field);
 
 // Pointer access
-__OBJECTIR_ATTR void writeObject(Field *field,
-                                 Object *object);
-
-// Unsigned integer access
-__OBJECTIR_ATTR uint64_t readUInt64(Field *field);
-__OBJECTIR_ATTR uint32_t readUInt32(Field *field);
-__OBJECTIR_ATTR uint16_t readUInt16(Field *field);
-__OBJECTIR_ATTR uint8_t readUInt8(Field *field);
-
-// Signed integer access
-__OBJECTIR_ATTR int64_t readInt64(Field *field);
-__OBJECTIR_ATTR int32_t readInt32(Field *field);
-__OBJECTIR_ATTR int16_t readInt16(Field *field);
-__OBJECTIR_ATTR int8_t readInt8(Field *field);
-
-// Floating point access
-__OBJECTIR_ATTR float readFloat(Field *field);
-__OBJECTIR_ATTR double readDouble(Field *field);
-
-// Pointer access
-__OBJECTIR_ATTR Object *readObject(Field *field);
-__OBJECTIR_ATTR Object *readPointer(Field *field);
-__OBJECTIR_ATTR void writePointer(Field *field,
-                                  Object *value);
+__RUNTIME_ATTR void writeReference(Field *field, Object *object_to_reference);
+__RUNTIME_ATTR Object *readReference(Field *field);
 
 //#ifdef __cplusplus
 } // extern "C"
-} // namespace objectir
+} // namespace memoir
 //#endif
