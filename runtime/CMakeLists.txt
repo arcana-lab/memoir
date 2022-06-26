@@ -18,7 +18,6 @@ set(SRC_FILES
   src/fields.cpp
   src/objects.cpp
   src/printer.cpp
-  src/type_factory.cpp
   src/types.cpp)
 
 add_library(object_ir_library STATIC ${SRC_FILES})
