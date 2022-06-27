@@ -18,9 +18,7 @@
 #include "objects.h"
 #include "types.h"
 
-#ifdef __cplusplus
 namespace memoir {
-#endif
 
 struct Object {
 public:
@@ -36,97 +34,118 @@ public:
   std::string toString();
 };
 
-struct Struct : public Object {
-public:
-  std::vector<Field *> fields;
-
-  // Access
-  Field *readField(uint64_t field_index);
-  void writeField(uint64_t field_index, Field *field);
-
-  std::string toString();
-}
-
-struct Tensor : public Object {
-public:
-  std::vector<uint64_t> length_of_dimensions;
-
-  // Construction
-  Tensor(Type *t, std::vector<uint64_t> &length_of_dimensions);
-
-  // Access
-  Field *getElement(std::vector<uint64_t> &indices);
-
-  std::string toString();
-};
-
-template <class T>
 struct Field : public Object {
 public:
-  T value;
-
-  T readValue();
-  void writeValue(T value);
-
   Field(Type *type);
-  Field(Type *type, T init);
 
   static Field *createField(Type *type);
 
   virtual std::string toString() = 0;
 };
 
-// Integer
-struct IntegerField : public Field<uint64_t> {
+struct Struct : public Object {
 public:
+  std::vector<Field *> fields;
+
   // Construction
-  IntegerField(uint64_t bitwidth, bool isSigned);
-  IntegerField(uint64_t bitwidth, bool isSigned, uint64_t init);
+  Struct(Type *type);
+
+  // Access
+  Field *readField(uint64_t field_index);
+  void writeField(uint64_t field_index, Field *field);
+
+  std::string toString();
+};
+
+struct Tensor : public Object {
+public:
+  std::vector<Object *> fields;
+  std::vector<uint64_t> length_of_dimensions;
+
+  // Construction
+  Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions);
+
+  // Access
+  Object *getElement(uint64_t index);
+
+  std::string toString();
+};
+
+// Integer
+struct IntegerField : public Field {
+public:
+  uint64_t value;
+
+  uint64_t readValue();
+  void writeValue(uint64_t value);
+
+  // Construction
+  IntegerField(Type *type);
+  IntegerField(Type *type, uint64_t init);
 
   std::string toString();
 };
 
 // Floating point
-struct FloatField : public Field<float> {
+struct FloatField : public Field {
 public:
+  float value;
+
+  float readValue();
+  void writeValue(float value);
+
   // Construction
-  FloatField();
-  FloatField(float init);
+  FloatField(Type *type);
+  FloatField(Type *type, float init);
 
   std::string toString();
 };
 
 // Double-precision floating point
-struct DoubleField : public Field<double> {
+struct DoubleField : public Field {
 public:
+  double value;
+
+  double readValue();
+  void writeValue(double value);
+
   // Construction
-  DoubleField();
-  DoubleField(double init);
+  DoubleField(Type *type);
+  DoubleField(Type *type, double init);
 
   std::string toString();
 };
 
 // Nested object
-struct ObjectField : public Field<Object *> {
+struct ObjectField : public Field {
 public:
+  Object *value;
+
+  Object *readValue();
+  void writeValue(Object *value);
+
   // Construction
   ObjectField(Type *type);
-  ObjectField(Object *init);
+  ObjectField(Type *type, Object *init);
 
   std::string toString();
 };
 
 // Indirection pointer
-struct ReferenceField : public Field<Object *> {
+struct ReferenceField : public Field {
 public:
+  Object *value;
+
+  Object *readValue();
+  void writeValue(Object *value);
+
   // Construction
   ReferenceField(Type *type);
+  ReferenceField(Type *type, Object *init);
 
   std::string toString();
 };
 
-#ifdef __cplusplus
-} // namespace objectir
-#endif
+} // namespace memoir
 
 #endif

@@ -5,7 +5,7 @@
 /*
  * Object representation recognizable by LLVM IR
  * This file describes the Type interface for the
- * object-ir library.
+ * MemOIR library.
  *
  * Author(s): Tommy McMichen
  * Created: Mar 7, 2022
@@ -15,7 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace objectir {
+namespace memoir {
 
 enum TypeCode {
   StructTy,
@@ -28,31 +28,32 @@ enum TypeCode {
 };
 
 struct Type {
-protected:
-  TypeCode code;
-  std::string name;
-  bool resolved;
-
 public:
   TypeCode getCode();
   bool hasName();
   std::string getName();
 
-  Type(TypeCode code, std::string name);
-  Type(TypeCode code);
-  ~Type();
+  static Type *find(std::string name);
+  static void define(std::string name, Type *type_to_define);
 
   virtual Type *resolve() = 0;
   virtual bool equals(Type *other) = 0;
   virtual std::string toString() = 0;
 
-  friend class Object;
-  friend class Field;
+protected:
+  Type(TypeCode code, std::string name);
+  Type(TypeCode code);
+
+private:
+  TypeCode code;
+  std::string name;
+
+  static std::unordered_map<std::string, Type *> named_types;
 };
 
 struct StructType : public Type {
 public:
-  static StructType *get(std::vector<Type *> &field_types);
+  static Type *get(std::string name, std::vector<Type *> &field_types);
 
   std::vector<Type *> fields;
 
@@ -61,14 +62,12 @@ public:
   std::string toString();
 
 private:
-  StructType(std::string name);
-  StructType();
-  ~StructType();
+  StructType(std::string name, std::vector<Type *> &field_types);
 };
 
 struct TensorType : public Type {
 public:
-  static TensorType *get(Type *element_type, uint64_t num_dimensions);
+  static Type *get(Type *element_type, uint64_t num_dimensions);
 
   Type *element_type;
   uint64_t num_dimensions;
@@ -78,13 +77,12 @@ public:
   std::string toString();
 
 private:
-  TensorType(Type *elementType);
-  ~TensorType();
+  TensorType(Type *elementType, uint64_t num_dimensions);
 };
 
 struct IntegerType : public Type {
 public:
-  static IntegerType *get(unsigned bitwidth, bool is_signed);
+  static Type *get(unsigned bitwidth, bool is_signed);
 
   unsigned bitwidth;
   bool is_signed;
@@ -95,9 +93,8 @@ public:
 
 private:
   IntegerType(unsigned bitwidth, bool is_signed);
-  ~IntegerType();
 
-  std::unordered_map<
+  static std::unordered_map<
       // bitwidth
       unsigned,
       std::unordered_map<
@@ -109,7 +106,7 @@ private:
 
 struct FloatType : public Type {
 public:
-  static FloatType *get();
+  static Type *get();
 
   Type *resolve();
   bool equals(Type *other);
@@ -117,12 +114,11 @@ public:
 
 private:
   FloatType();
-  ~FloatType();
 };
 
 struct DoubleType : public Type {
 public:
-  static DoubleType *get();
+  static Type *get();
 
   Type *resolve();
   bool equals(Type *other);
@@ -130,18 +126,20 @@ public:
 
 private:
   DoubleType();
-  ~DoubleType();
 };
 
 struct ReferenceType : public Type {
-  Type *referenced_type;
+public:
+  static Type *get(Type *referenced_type);
 
-  ReferenceType(Type *referenced_type);
-  ~ReferenceType();
+  Type *referenced_type;
 
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  ReferenceType(Type *referenced_type);
 };
 
 /*
@@ -161,35 +159,18 @@ public:
 
   std::string name;
 
-  Type *resolvedType;
-
-  StubType(std::string name);
-  ~StubType();
+  Type *resolved_type;
 
   Type *resolve();
   bool equals(Type *other);
 
   std::string toString();
-};
-
-/*
- * Type Factory
- *
- * The Type factory allows the runtime to resolve
- * named types since they don't have a static view
- * of the program.
- */
-class TypeFactory {
-public:
-  static TypeFactory *getInstance();
-
-  void registerType(std::string name, Type *type);
-  Type *getType(std::string name);
 
 private:
-  TypeFactory();
+  StubType(std::string name);
+  ~StubType();
 
-  std::unordered_map<std::string, Type *> nameToType;
+  static std::unordered_map<std::string, Type *> stub_types;
 };
 
 /*
@@ -201,6 +182,6 @@ bool isIntrinsicType(Type *type);
 
 bool isStubType(Type *type);
 
-} // namespace objectir
+} // namespace memoir
 
 #endif

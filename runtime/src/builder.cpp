@@ -3,206 +3,152 @@
 
 #include "object_ir.h"
 
-using namespace objectir;
+namespace memoir {
 
 extern "C" {
 
 /*
  * Type construction
  */
-__OBJECTIR_ATTR
-Type *getObjectType(int numFields, ...) {
-  auto type = new ObjectType();
+__RUNTIME_ATTR
+Type *defineStructType(const char *name, int num_fields, ...) {
+  std::vector<Type *> fields;
 
   va_list args;
 
-  va_start(args, numFields);
+  va_start(args, num_fields);
 
-  for (int i = 0; i < numFields; i++) {
+  for (int i = 0; i < num_fields; i++) {
     auto arg = va_arg(args, Type *);
-    type->fields.push_back(arg);
+    fields.push_back(arg);
   }
 
   va_end(args);
 
-  return type;
-}
-
-__OBJECTIR_ATTR
-Type *nameObjectType(char *name, int numFields, ...) {
-  auto type = new ObjectType(name);
-
-  auto typeFactory = TypeFactory::getInstance();
-  typeFactory->registerType(name, type);
-
-  va_list args;
-
-  va_start(args, numFields);
-
-  for (int i = 0; i < numFields; i++) {
-    auto arg = va_arg(args, Type *);
-    type->fields.push_back(arg);
-  }
-
-  va_end(args);
+  auto type = StructType::get(name, fields);
 
   return type;
 }
 
-__OBJECTIR_ATTR
-Type *getArrayType(Type *type) {
-  return new ArrayType(type);
+__RUNTIME_ATTR
+Type *StructType(const char *name) {
+  return StubType::get(name);
 }
 
-__OBJECTIR_ATTR
-Type *nameArrayType(char *name, Type *elementType) {
-  auto type = new ArrayType(elementType, name);
-
-  auto typeFactory = TypeFactory::getInstance();
-  typeFactory->registerType(name, type);
-
-  return type;
+__RUNTIME_ATTR
+Type *TensorType(Type *type, uint64_t num_dimensions) {
+  return TensorType::get(type, num_dimensions);
 }
 
-__OBJECTIR_ATTR
-Type *getUnionType(int numMembers, ...) {
-  auto type = new UnionType();
-
-  va_list args;
-
-  va_start(args, numMembers);
-
-  for (int i = 0; i < numMembers; i++) {
-    auto arg = va_arg(args, Type *);
-    type->members.push_back(arg);
-  }
-
-  va_end(args);
-
-  return type;
+__RUNTIME_ATTR
+Type *IntegerType(uint64_t bitwidth, bool isSigned) {
+  return IntegerType::get(bitwidth, isSigned);
 }
 
-__OBJECTIR_ATTR
-Type *nameUnionType(char *name, int numMembers, ...) {
-  auto type = new UnionType(name);
-
-  auto typeFactory = TypeFactory::getInstance();
-  typeFactory->registerType(name, type);
-
-  va_list args;
-
-  va_start(args, numMembers);
-
-  for (int i = 0; i < numMembers; i++) {
-    auto arg = va_arg(args, Type *);
-    type->members.push_back(arg);
-  }
-
-  va_end(args);
-
-  return type;
+__RUNTIME_ATTR
+Type *UInt64Type() {
+  return IntegerType::get(64, false);
 }
 
-__OBJECTIR_ATTR
-Type *getNamedType(char *name) {
-  auto typeFactory = TypeFactory::getInstance();
-  return typeFactory->getType(name);
+__RUNTIME_ATTR
+Type *UInt32Type() {
+  return IntegerType::get(32, false);
 }
 
-__OBJECTIR_ATTR
-Type *getIntegerType(uint64_t bitwidth, bool isSigned) {
-  return new IntegerType(bitwidth, isSigned);
+__RUNTIME_ATTR
+Type *UInt16Type() {
+  return IntegerType::get(16, false);
 }
 
-__OBJECTIR_ATTR
-Type *getUInt64Type() {
-  return new IntegerType(64, false);
+__RUNTIME_ATTR
+Type *UInt8Type() {
+  return IntegerType::get(8, false);
 }
 
-__OBJECTIR_ATTR
-Type *getUInt32Type() {
-  return new IntegerType(32, false);
+__RUNTIME_ATTR
+Type *Int64Type() {
+  return IntegerType::get(64, true);
 }
 
-__OBJECTIR_ATTR
-Type *getUInt16Type() {
-  return new IntegerType(16, false);
+__RUNTIME_ATTR
+Type *Int32Type() {
+  return IntegerType::get(32, true);
 }
 
-__OBJECTIR_ATTR
-Type *getUInt8Type() {
-  return new IntegerType(8, false);
+__RUNTIME_ATTR
+Type *Int16Type() {
+  return IntegerType::get(16, true);
 }
 
-__OBJECTIR_ATTR
-Type *getInt64Type() {
-  return new IntegerType(64, true);
+__RUNTIME_ATTR
+Type *Int8Type() {
+  return IntegerType::get(8, true);
 }
 
-__OBJECTIR_ATTR
-Type *getInt32Type() {
-  return new IntegerType(32, true);
+__RUNTIME_ATTR
+Type *BoolType() {
+  return IntegerType::get(1, false);
 }
 
-__OBJECTIR_ATTR
-Type *getInt16Type() {
-  return new IntegerType(16, true);
+__RUNTIME_ATTR
+Type *FloatType() {
+  return FloatType::get();
 }
 
-__OBJECTIR_ATTR
-Type *getInt8Type() {
-  return new IntegerType(8, true);
+__RUNTIME_ATTR
+Type *DoubleType() {
+  return DoubleType::get();
 }
 
-__OBJECTIR_ATTR
-Type *getBooleanType() {
-  return new IntegerType(1, false);
-}
-
-__OBJECTIR_ATTR
-Type *getFloatType() {
-  return new FloatType();
-}
-
-__OBJECTIR_ATTR
-Type *getDoubleType() {
-  return new DoubleType();
-}
-
-__OBJECTIR_ATTR
-Type *getPointerType(Type *containedType) {
-  return new PointerType(containedType);
+__RUNTIME_ATTR
+Type *ReferenceType(Type *referenced_type) {
+  return ReferenceType::get(referenced_type);
 }
 
 /*
- * Object construction
+ * Struct allocation
+ *   allocateStruct(struct type)
  */
 __ALLOC_ATTR
-__OBJECTIR_ATTR
-Object *buildObject(Type *type) {
-  auto obj = new Object(type);
+__RUNTIME_ATTR
+Object *allocateStruct(Type *type) {
+  auto strct = new struct Struct(type);
 
-  return obj;
+  return strct;
 }
 
+/*
+ * Tensor allocation
+ *   allocateTensor(
+ *     element type,
+ *     number of dimensions,
+ *     <length of dimension, ...>)
+ */
 __ALLOC_ATTR
-__OBJECTIR_ATTR
-Array *buildArray(Type *type, uint64_t length) {
-  auto array = new Array(type, length);
+__RUNTIME_ATTR
+Object *allocateTensor(Type *element_type, uint64_t num_dimensions, ...) {
+  std::vector<uint64_t> length_of_dimensions;
 
-  return array;
+  va_list args;
+
+  va_start(args, num_dimensions);
+
+  for (int i = 0; i < num_dimensions; i++) {
+    auto length_of_dimension = va_arg(args, uint64_t);
+    length_of_dimensions.push_back(length_of_dimension);
+  }
+
+  va_end(args);
+
+  auto tensor = new Tensor(element_type, length_of_dimensions);
+
+  return tensor;
 }
 
-__OBJECTIR_ATTR
-Union *buildUnion(Type *type) {
-  auto unionObj = new Union(type);
-
-  return unionObj;
-}
-
-__OBJECTIR_ATTR
+__RUNTIME_ATTR
 void deleteObject(Object *obj) {
   delete obj;
 }
 
 } // extern "C"
+} // namespace memoir

@@ -1,3 +1,5 @@
+#ifndef MEMOIR_MEMOIR_H
+#define MEMOIR_MEMOIR_H
 #pragma once
 
 /*
@@ -12,10 +14,8 @@
 #include "objects.h"
 #include "types.h"
 
-//#ifdef __cplusplus
 namespace memoir {
 extern "C" {
-//#endif
 
 #define __RUNTIME_ATTR                                                         \
   __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))
@@ -24,8 +24,8 @@ extern "C" {
 /*
  * Struct Types
  */
-__RUNTIME_ATTR Type *DefineStructType(char *name, int num_fields, ...);
-__RUNTIME_ATTR Type *StructType(char *name);
+__RUNTIME_ATTR Type *defineStructType(const char *name, int num_fields, ...);
+__RUNTIME_ATTR Type *StructType(const char *name);
 
 /*
  * Complex Types
@@ -53,26 +53,21 @@ __RUNTIME_ATTR Type *DoubleType();
  * Object construction
  */
 __ALLOC_ATTR __RUNTIME_ATTR Object *allocateStruct(Type *type);
-__ALLOC_ATTR __RUNTIME_ATTR Array *allocateTensor(Type *element_type,
-                                                  uint64_t length_of_dimension,
-                                                  ...);
-
-/*
- * Object destruction
- */
-__RUNTIME_ATTR void deleteObject(Object *obj);
+__ALLOC_ATTR __RUNTIME_ATTR Object *allocateTensor(Type *element_type,
+                                                   uint64_t num_dimensions,
+                                                   ...);
 
 /*
  * Object accesses
  */
 __RUNTIME_ATTR Field *getStructField(Object *object, uint64_t field_index);
-
+__RUNTIME_ATTR Object *getTensorElement(Object *tensor,
+                                        uint64_t dimension_index,
+                                        ...);
 /*
- * Tensor accesses
+ * Object destruction
  */
-__RUNTIME_ATTR Field *getTensorElement(Tensor *tensor,
-                                       uint64_t dimension_index,
-                                       ...);
+__RUNTIME_ATTR void deleteObject(Object *object);
 
 /*
  * Type checking and function signatures
@@ -117,7 +112,7 @@ __RUNTIME_ATTR double readDouble(Field *field);
 __RUNTIME_ATTR void writeReference(Field *field, Object *object_to_reference);
 __RUNTIME_ATTR Object *readReference(Field *field);
 
-//#ifdef __cplusplus
 } // extern "C"
 } // namespace memoir
-//#endif
+
+#endif
