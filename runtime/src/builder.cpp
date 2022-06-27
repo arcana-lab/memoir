@@ -1,7 +1,7 @@
 #include <iostream>
 #include <stdarg.h>
 
-#include "object_ir.h"
+#include "memoir.h"
 
 namespace memoir {
 
