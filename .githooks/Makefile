@@ -8,6 +8,7 @@ GIT_HOOKS=$(addprefix $(GIT_HOOKS_DIR)/, $(HOOK_NAMES))
 all: $(GIT_HOOKS)
 
 $(GIT_HOOKS_DIR)/%: $(CURDIR)/hooks/%
+	rm -f $@
 	ln -s $< $@
 
 clean:
