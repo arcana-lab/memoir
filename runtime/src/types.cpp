@@ -112,12 +112,26 @@ Type *TensorType::get(Type *element_type, uint64_t num_dimensions) {
   return new TensorType(element_type, num_dimensions);
 }
 
+Type *TensorType::get(Type *element_type,
+                      uint64_t num_dimensions,
+                      std::vector<uint64_t> &length_of_dimensions) {
+  return new TensorType(element_type, num_dimensions, length_of_dimensions);
+}
+
 TensorType::TensorType(Type *type, uint64_t num_dimensions)
   : Type(TypeCode::TensorTy),
     element_type(type),
-    num_dimensions(num_dimensions) {
-  // Do nothing.
-}
+    num_dimensions(num_dimensions),
+    is_static_length(false) {}
+
+TensorType::TensorType(Type *type,
+                       uint64_t num_dimensions,
+                       std::vector<uint64_t> &length_of_dimensions)
+  : Type(TypeCode::TensorTy),
+    element_type(type),
+    num_dimensions(num_dimensions),
+    is_static_length(true),
+    length_of_dimensions(length_of_dimensions) {}
 
 Type *TensorType::resolve() {
   this->element_type = this->element_type->resolve();
