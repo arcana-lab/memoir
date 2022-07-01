@@ -61,9 +61,9 @@ __ALLOC_ATTR __RUNTIME_ATTR Object *allocateTensor(Type *element_type,
  * Object accesses
  */
 __RUNTIME_ATTR Field *getStructField(Object *object, uint64_t field_index);
-__RUNTIME_ATTR Object *getTensorElement(Object *tensor,
-                                        uint64_t dimension_index,
-                                        ...);
+__RUNTIME_ATTR Field *getTensorElement(Object *tensor,
+                                       uint64_t dimension_index,
+                                       ...);
 /*
  * Object destruction
  */
@@ -107,6 +107,10 @@ __RUNTIME_ATTR void writeFloat(Field *field, float value);
 __RUNTIME_ATTR void writeDouble(Field *field, double value);
 __RUNTIME_ATTR float readFloat(Field *field);
 __RUNTIME_ATTR double readDouble(Field *field);
+
+// Nested object access
+__RUNTIME_ATTR Struct *readStruct(Field *field);
+__RUNTIME_ATTR Tensor *readTensor(Field *field);
 
 // Pointer access
 __RUNTIME_ATTR void writeReference(Field *field, Object *object_to_reference);
