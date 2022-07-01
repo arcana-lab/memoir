@@ -24,6 +24,8 @@ struct Object {
 public:
   Type *type;
 
+  static Object *init(Type *type);
+
   // Construction
   Object(Type *type);
   ~Object();
@@ -59,14 +61,15 @@ public:
 
 struct Tensor : public Object {
 public:
-  std::vector<Object *> fields;
+  std::vector<Field *> fields;
   std::vector<uint64_t> length_of_dimensions;
 
   // Construction
+  Tensor(Type *type);
   Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions);
 
   // Access
-  Object *getElement(uint64_t index);
+  Field *getElement(std::vector<uint64_t> &indices);
 
   std::string toString();
 };
@@ -117,16 +120,29 @@ public:
 };
 
 // Nested object
-struct ObjectField : public Field {
+struct StructField : public Field {
 public:
-  Object *value;
+  Struct *value;
 
-  Object *readValue();
-  void writeValue(Object *value);
+  Struct *readValue();
 
   // Construction
-  ObjectField(Type *type);
-  ObjectField(Type *type, Object *init);
+  StructField(Type *type);
+  StructField(Type *type, Struct *init);
+
+  std::string toString();
+};
+
+// Nested tensor
+struct TensorField : public Field {
+public:
+  Tensor *value;
+
+  Tensor *readValue();
+
+  // Construction
+  TensorField(Type *type);
+  TensorField(Type *type, Tensor *init);
 
   std::string toString();
 };
