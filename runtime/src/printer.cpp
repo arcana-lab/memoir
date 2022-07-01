@@ -15,8 +15,8 @@ std::string DoubleField::toString() {
   return "double";
 }
 
-std::string ObjectField::toString() {
-  return "object";
+std::string StructField::toString() {
+  return "struct";
 }
 
 std::string ReferenceField::toString() {
