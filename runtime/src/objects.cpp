@@ -38,6 +38,32 @@ Struct::Struct(Type *type) : Object(type) {
 /*
  * Tensor Objects
  */
+Tensor::Tensor(Type *type) : Object(type) {
+
+  if (this->type->getCode() != TypeCode::TensorTy) {
+    std::cerr << "Trying to create a tensor of non-tensor type\n";
+    exit(1);
+  }
+
+  auto tensor_type = (TensorType *)(this->type);
+  auto element_type = tensor_type->element_type;
+  auto num_dimensions = tensor_type->num_dimensions;
+  this->length_of_dimensions = tensor_type->length_of_dimensions;
+
+  if (num_dimensions < 1) {
+    std::cerr << "Trying to create a tensor with 0 dimensions";
+    exit(1);
+  }
+
+  // Initialize the tensor
+  for (auto dimension_length : this->length_of_dimensions) {
+    for (auto i = 0; i < dimension_length; i++) {
+      auto field = Field::createField(element_type);
+      this->fields.push_back(field);
+    }
+  }
+}
+
 Tensor::Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions)
   : Object(type),
     length_of_dimensions(length_of_dimensions) {
@@ -47,45 +73,42 @@ Tensor::Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions)
     exit(1);
   }
 
-  // Initialize the tensor
   auto tensor_type = (TensorType *)(this->type);
   auto inner_type = tensor_type->element_type;
   auto num_dimensions = tensor_type->num_dimensions;
-  if (num_dimensions > 1) {
-    // This is a multi-dimensional tensor, build inner tensors
-    // Clone the dimension lengths and pop off the front dimension
-    std::vector<uint64_t> inner_dimensions(length_of_dimensions);
-    inner_dimensions.erase(inner_dimensions.begin());
 
-    // Build inner tensors
-    auto dimension_length = length_of_dimensions[0];
-    auto element_type = TensorType::get(inner_type, num_dimensions - 1);
-    for (auto i = 0; i < dimension_length; i++) {
-      auto inner_tensor = new Tensor(element_type, inner_dimensions);
-      this->fields.push_back(inner_tensor);
-    }
-  } else if (num_dimensions == 0) {
-    // This is a one-dimensional tensor, build inner fields
+  if (num_dimensions < 1) {
+    std::cerr << "Trying to create a tensor with 0 dimensions";
+    exit(1);
+  }
+  // Initialize the tensor
+  for (auto dim_idx = 0; dim_idx < num_dimensions; dim_idx++) {
     auto dimension_length = length_of_dimensions[0];
     auto element_type = inner_type;
     for (auto i = 0; i < dimension_length; i++) {
       auto field = Field::createField(element_type);
       this->fields.push_back(field);
     }
-  } else {
-    std::cerr << "Trying to create a tensor with 0 dimensions";
-    exit(1);
   }
 }
 
-Object *Tensor::getElement(uint64_t index) {
-  auto first_length = length_of_dimensions[0];
-  if (index >= first_length) {
-    std::cerr << "Tensor::getElement: Index out of range for tensor access\n";
-    exit(1);
+Field *Tensor::getElement(std::vector<uint64_t> &indices) {
+  auto flattened_index = 0;
+  auto last_dimension_length = 1;
+  for (auto i = 0; i < length_of_dimensions.size(); i++) {
+    auto dimension_length = length_of_dimensions[i];
+    auto index = indices[i];
+    if (index >= dimension_length) {
+      std::cerr << "Tensor::getElement: Index out of range for tensor access\n";
+      exit(1);
+    }
+
+    flattened_index *= last_dimension_length;
+    flattened_index += index;
+    last_dimension_length = dimension_length;
   }
 
-  return fields[index];
+  return this->fields[flattened_index];
 }
 
 } // namespace memoir

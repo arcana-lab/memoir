@@ -37,7 +37,7 @@ Field *getStructField(Object *object, uint64_t field_index) {
  *     <index of dimension, ...>)
  */
 __RUNTIME_ATTR
-Object *getTensorElement(Object *object, uint64_t num_dimensions, ...) {
+Field *getTensorElement(Object *object, uint64_t num_dimensions, ...) {
   auto type = object->getType();
   if (type->getCode() != TypeCode::TensorTy) {
     std::cerr << "getTensorElement: object is of non-tensor type\n";
@@ -47,21 +47,16 @@ Object *getTensorElement(Object *object, uint64_t num_dimensions, ...) {
 
   va_start(args, num_dimensions);
 
-  auto tensor = (Tensor *)object;
-  auto current = object;
+  std::vector<uint64_t> indices;
   for (int i = 0; i < num_dimensions; i++) {
     auto dimension_index = va_arg(args, uint64_t);
-    current = tensor->getElement(dimension_index);
-    if (current->getType()->getCode() == TypeCode::TensorTy) {
-      tensor = (Tensor *)object;
-    } else {
-      return current;
-    }
+    indices.push_back(dimension_index);
   }
 
   va_end(args);
 
-  return tensor;
+  auto tensor = (Tensor *)object;
+  return tensor->getElement(indices);
 }
 
 /*
@@ -224,19 +219,6 @@ void writeDouble(Field *field, double value) {
   }
 }
 
-// Pointer access
-__RUNTIME_ATTR
-void writeObject(Field *field, Object *object) {
-  TypeCode type = field->getType()->getCode();
-  if (type == TypeCode::StructTy) {
-    ObjectField *objField = (ObjectField *)field;
-    objField->value = object;
-  } else {
-    std::cerr << "ERROR: Attempt to read UInt64 from non-integer field\n";
-    exit(1);
-  }
-}
-
 // Integer access
 __RUNTIME_ATTR
 uint64_t readUInt64(Field *field) {
@@ -362,13 +344,25 @@ double readDouble(Field *field) {
 
 // Object access
 __RUNTIME_ATTR
-Object *readObject(Field *field) {
+Struct *readStruct(Field *field) {
   TypeCode type = field->getType()->getCode();
   if (type == TypeCode::StructTy) {
-    auto object_field = (ObjectField *)field;
-    return object_field->value;
+    auto struct_field = (StructField *)field;
+    return struct_field->value;
   } else {
-    std::cerr << "ERROR: Attempt to read UInt64 from non-integer field\n";
+    std::cerr << "ERROR: Attempt to read struct from non-struct field\n";
+    exit(1);
+  }
+}
+
+__RUNTIME_ATTR
+Tensor *readTensor(Field *field) {
+  TypeCode type = field->getType()->getCode();
+  if (type == TypeCode::TensorTy) {
+    auto tensor_field = (TensorField *)field;
+    return tensor_field->value;
+  } else {
+    std::cerr << "ERROR: Attempt to read tensor from non-tensor field\n";
     exit(1);
   }
 }
@@ -398,5 +392,5 @@ void writeReference(Field *field, Object *obj) {
   }
 }
 
-} // extern "C"
+} // namespace memoir
 } // namespace memoir

@@ -140,7 +140,7 @@ Object *allocateTensor(Type *element_type, uint64_t num_dimensions, ...) {
 
   va_end(args);
 
-  auto tensor = new Tensor(element_type, length_of_dimensions);
+  auto tensor = new struct Tensor(element_type, length_of_dimensions);
 
   return tensor;
 }
