@@ -4,7 +4,7 @@ HOOKS_DIR=.githooks
 INSTALL_DIR=install
 
 NORM_RUNTIME=./compiler/scripts/normalize_runtime.sh
-RUNTIME_BC=install/lib/object_ir.bc
+RUNTIME_BC=install/lib/memoir.bc
 
 all: noelle hooks postinstall
 
