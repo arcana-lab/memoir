@@ -18,6 +18,15 @@
 namespace llvm::memoir {
 
 /*
+ * Utility functions
+ */
+bool isMemOIRCall(std::string function_name);
+
+MemOIRFunc getMemOIREnum(std::string function_name);
+
+Function *getMemOIRFunction(Module &M, MemOIRFunc function_enum);
+
+/*
  * Enum of MemOIR functions
  */
 enum MemOIRFunc {
@@ -26,13 +35,6 @@ enum MemOIRFunc {
 #undef X
   NONE
 };
-
-/*
- * Utility functions
- */
-bool isMemOIRCall(std::string function_name);
-
-MemOIRFunc getMemOIRCall(std::string function_name);
 
 /*
  * Mapping from MemOIR function enum to function name as
