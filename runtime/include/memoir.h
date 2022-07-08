@@ -98,6 +98,14 @@ __RUNTIME_ATTR int32_t readInt32(Field *field);
 __RUNTIME_ATTR int16_t readInt16(Field *field);
 __RUNTIME_ATTR int8_t readInt8(Field *field);
 
+// General integer access
+// NOTE: you must cast the output of these function calls to the
+//   actual integer type you wish to use. These functions use uint64_t
+//   to be more general purpose and easier to compile for since they
+//   should be rare.
+__RUNTIME_ATTR void writeInteger(Field *field, uint64_t value);
+__RUNTIME_ATTR uint64_t readInteger(Field *field);
+
 // Boolean access
 __RUNTIME_ATTR void writeBool(Field *field, bool value);
 __RUNTIME_ATTR bool readBool(Field *field);

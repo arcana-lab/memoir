@@ -181,6 +181,19 @@ void writeInt8(Field *field, int8_t value) {
   }
 }
 
+// General integer access
+__RUNTIME_ATTR
+void writeInteger(Field *field, uint64_t value) {
+  TypeCode type = field->getType()->getCode();
+  if (type == TypeCode::IntegerTy) {
+    IntegerField *intField = (IntegerField *)field;
+    intField->value = (uint64_t)value;
+  } else {
+    std::cerr << "ERROR: Attempt to read integer from non-integer field\n";
+    exit(1);
+  }
+}
+
 // Boolean access
 __RUNTIME_ATTR
 void writeBoolean(Field *field, bool value) {
@@ -312,6 +325,19 @@ int8_t readInt8(Field *field) {
     return (int8_t)intField->value;
   } else {
     std::cerr << "ERROR: Attempt to read Int8 from non-integer field\n";
+    exit(1);
+  }
+}
+
+// General integer access
+__RUNTIME_ATTR
+uint64_t readInteger(Field *field) {
+  TypeCode type = field->getType()->getCode();
+  if (type == TypeCode::IntegerTy) {
+    IntegerField *intField = (IntegerField *)field;
+    return intField->value;
+  } else {
+    std::cerr << "ERROR: Attempt to read integer from non-integer field\n";
     exit(1);
   }
 }
