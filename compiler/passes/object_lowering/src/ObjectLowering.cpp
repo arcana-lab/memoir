@@ -1,8 +1,9 @@
 #include "ObjectLowering.hpp"
-#include "types.hpp"
+
 #include <functional>
 
 using namespace llvm;
+using namespace llvm::memoir;
 
 namespace object_lowering {
 ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
@@ -12,28 +13,35 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
   // Do initialization.
 
   // get llvm::Type* for ObjectIR::Object*
-  auto getbuildObjFunc = M.getFunction(ObjectIRToFunctionNames[BUILD_OBJECT]);
-  if (!getbuildObjFunc) {
-    errs() << "Failed to retrieve Object*";
-    assert(false);
+  auto allocate_struct_func =
+      memoir::getMemOIRFunction(M, memoir::MemOIR_Func::ALLOCATE_STRUCT);
+  if (!allocate_struct_func) {
+    assert(false && "ObjectLowering::ObjectLowering"
+           && "Failed to retrieve Object*");
   }
-  this->object_star = getbuildObjFunc->getReturnType();
+  this->object_star = allocate_struct_func->getReturnType();
 
   // get the LLVM::Type* for ObjectIR::Type*
-  auto getTypeFunc = M.getFunction(ObjectIRToFunctionNames[OBJECT_TYPE]);
-  if (!getTypeFunc) {
-    getTypeFunc = M.getFunction(ObjectIRToFunctionNames[NAME_OBJECT_TYPE]);
-    if (!getTypeFunc) {
-      errs() << "Failed to retrieve Type*";
-      assert(false);
+  auto struct_type_func =
+      memoir::getMemOIRFunction(M, memoir::MemOIR_Func::STRUCT_TYPE);
+  if (!struct_type_func) {
+    auto define_struct_type_func =
+        memoir::getMemOIRFunction(M, memoir::MemOIR_Func::DEFINE_STRUCT_TYPE);
+    if (!define_struct_type_func) {
+      assert(false && "ObjectLowering::ObjectLowering"
+             && "Failed to retrieve Type*");
     }
   }
-  this->type_star = getTypeFunc->getReturnType();
+  this->type_star = struct_type_func->getReturnType();
   this->type_star_star = PointerType::getUnqual(type_star);
-  if (!isa<PointerType>(type_star))
-    assert(false);
-  this->parser =
-      new Parser(M, noelle, mp, dyn_cast<PointerType>(this->type_star));
+
+  auto type_star_as_pointer = dyn_cast<PointerType>(this->type_star);
+  if (!type_star_as_pointer) {
+    assert(false && "ObjectLowering::ObjectLowering"
+           && "Failed to retrieve Type**");
+  }
+
+  this->parser = new Parser(M, noelle, mp, type_star_as_pointer);
 }
 
 void ObjectLowering::analyze() {
@@ -51,37 +59,41 @@ void ObjectLowering::analyze() {
       continue;
     }
 
-    auto fname = F.getName().str();
-    if (fname.find("main") == std::string::npos) {
+    auto function_name = F.getName().str();
+    if (function_name.find("main") == std::string::npos) {
       continue;
     }
 
-    auto isInternal =
+    auto is_internal =
         memoir::MetadataManager::hasMetadata(F, memoir::MetadataType::INTERNAL);
-    if (isInternal) {
+    if (is_internal) {
       continue;
     }
 
-    auto ft = F.getFunctionType();
+    auto function_type = F.getFunctionType();
     bool should_clone = false;
-    for (auto &paramType : ft->params()) {
-      if (paramType == object_star) {
+    for (auto &param_type : function_type->params()) {
+      if (param_type == object_star) {
         should_clone = true;
         break;
       }
     }
-    if (ft->getReturnType() == object_star)
+
+    if (function_type->getReturnType() == object_star) {
       should_clone = true;
-    if (should_clone)
+    }
+
+    if (should_clone) {
       functions_to_clone.push_back(&F);
+    }
   }
 
   // clone the functions
   std::map<Function *, ObjectType *> clonedFunctionReturnTypes;
   for (auto &oldF : functions_to_clone) {
     // get arguments types
-    vector<Type *> ArgTypes;
-    inferArgTypes(oldF, &ArgTypes);
+    vector<Type *> arg_types;
+    inferArgTypes(oldF, &arg_types);
 
     // get return type
     Type *retTy;
@@ -95,8 +107,9 @@ void ObjectLowering::analyze() {
     }
 
     // create and fill the new function
-    FunctionType *FTy =
-        FunctionType::get(retTy, ArgTypes, oldF->getFunctionType()->isVarArg());
+    FunctionType *FTy = FunctionType::get(retTy,
+                                          arg_types,
+                                          oldF->getFunctionType()->isVarArg());
     Function *newF = Function::Create(FTy,
                                       oldF->getLinkage(),
                                       oldF->getAddressSpace(),
@@ -106,11 +119,11 @@ void ObjectLowering::analyze() {
 
     // construct a map from old to new args
     map<Argument *, Argument *> old_to_new;
-    auto new_arg_itr = newF->arg_begin();
-    for (auto old_arg_itr = oldF->arg_begin(); old_arg_itr != oldF->arg_end();
-         ++old_arg_itr) {
-      old_to_new[&*old_arg_itr] = &*new_arg_itr;
-      new_arg_itr++;
+    auto new_arg_iter = newF->arg_begin();
+    for (auto old_arg_iter = oldF->arg_begin(); old_arg_iter != oldF->arg_end();
+         ++old_arg_iter) {
+      old_to_new[&*old_arg_iter] = &*new_arg_iter;
+      new_arg_iter++;
     }
 
     clonedFunctionMap[oldF] = newF;
@@ -145,10 +158,11 @@ void ObjectLowering::cacheTypes() {
     parser->parseType(v, call_back, visited);
 
     allTypes.push_back(type);
-    if (type->getCode() == ObjectTy) {
-      auto objTy = (ObjectType *)type;
-      if (objTy->hasName())
-        namedTypeMap[objTy->name] = objTy;
+    if (type->getCode() == TypeCode::StructTy) {
+      auto struct_type = (StructTypeSummary *)type;
+      if (struct_type->hasName()) {
+        namedTypeMap[struct_type->getName()] = struct_type;
+      }
     }
   }
   // assume that 1) all named Types ARE global vals and not intermediate
@@ -156,12 +170,12 @@ void ObjectLowering::cacheTypes() {
 
   // resolve stubs
   for (auto type : allTypes) {
-    if (type->getCode() == ObjectTy) {
-      auto objTy = (ObjectType *)type;
-      for (auto fld : objTy->fields) {
-        if (fld->getCode() == PointerTy) {
-          auto ptrTy = (APointerType *)fld;
-          auto pointsTo = ptrTy->pointsTo;
+    if (type->getCode() == StructTy) {
+      auto struct_type = (StructTypeSummary *)type;
+      for (auto field : struct_type->fields) {
+        if (field->getCode() == ReferenceTy) {
+          auto ptrTy = (ReferenceTypeSummary *)fld;
+          auto pointsTo = pointer_type->pointsTo;
           if (pointsTo->getCode() == StubTy) {
             auto stubTy = (StubType *)pointsTo;
             ptrTy->pointsTo = namedTypeMap[stubTy->name];
@@ -202,9 +216,9 @@ void ObjectLowering::inferArgTypes(llvm::Function *f,
             parser->parseType(newTypeInst, call_back, visited);
             // make sure it is an ObjectType
             assert(a_type);
-            if (a_type->getCode() != ObjectTy)
+            if (a_type->getCode() != StructTy)
               assert(false);
-            auto *objt = (ObjectType *)a_type;
+            auto *objt = (StructTypeSummary *)a_type;
             auto llvm_type = objt->getLLVMRepresentation(M);
             arg_vector->push_back(llvm::PointerType::getUnqual(
                 llvm_type)); // turn this obj into pointer
