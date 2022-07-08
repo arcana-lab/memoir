@@ -5,6 +5,11 @@
 #include <string>
 #include <unordered_map>
 
+#include "llvm/ADT/StringRef.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Module.h"
+
 /*
  * This file provides general utilities for determining if a function is a
  * MemOIR API call based on the function name. It also provides an enumeration
@@ -16,20 +21,10 @@
  */
 
 namespace llvm::memoir {
-
-/*
- * Utility functions
- */
-bool isMemOIRCall(std::string function_name);
-
-MemOIRFunc getMemOIREnum(std::string function_name);
-
-Function *getMemOIRFunction(Module &M, MemOIRFunc function_enum);
-
 /*
  * Enum of MemOIR functions
  */
-enum MemOIRFunc {
+enum MemOIR_Func {
 #define X(MemOIR_Enum, MemOIR_Str) MemOIR_Enum,
 #include "FunctionNames.def"
 #undef X
@@ -37,16 +32,25 @@ enum MemOIRFunc {
 };
 
 /*
+ * Utility functions
+ */
+static bool isMemOIRCall(std::string function_name);
+
+static MemOIR_Func getMemOIREnum(std::string function_name);
+
+static Function *getMemOIRFunction(Module &M, MemOIR_Func function_enum);
+
+/*
  * Mapping from MemOIR function enum to function name as
  * string and vice versa
  */
-static std::unordered_map<ObjectIRFunc, std::string> MemOIRToFunctionNames = {
+static std::unordered_map<MemOIR_Func, std::string> MemOIRToFunctionNames = {
 #define X(MemOIR_Enum, MemOIR_Str) { MemOIR_Enum, MemOIR_Str },
 #include "FunctionNames.def"
 #undef X
 };
 
-static std::unordered_map<std::string, ObjectIRFunc> FunctionNamesToMemOIR = {
+static std::unordered_map<std::string, MemOIR_Func> FunctionNamesToMemOIR = {
 #define X(MemOIR_Enum, MemOIR_Str) { MemOIR_Str, MemOIR_Enum },
 #include "FunctionNames.def"
 #undef X
