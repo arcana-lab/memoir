@@ -22,7 +22,9 @@ common
 |   |-- src
 |       |-- ThisSupport.cpp
 |       |-- OtherSupport.cpp
-|-- abstraction
-    |-- ...
+|-- analysis
+    |-- MyAnalysis.hpp
+    |-- src
+        |-- MyAnalysis.cpp
 ```
 
