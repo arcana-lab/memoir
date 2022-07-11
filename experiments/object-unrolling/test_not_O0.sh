@@ -1,7 +1,10 @@
 #!/bin/bash
 
-for ITERS in 1000000 ;
+OPT="Object Unrolling" ;
+
+for ITERS in 1000000 10000000 ;
 do
+    echo "Iterations: ${ITERS}" ;
 		
 		echo "Baseline O1" ;
 		./baseline_O1 ${ITERS} ;
@@ -14,22 +17,22 @@ do
 
 
 		
-		echo "Object Inlining O1" ;
+		echo "${OPT} O1" ;
 		./optimized_O1 ${ITERS} ;
 
-		echo "Object Inlining O2" ;
+		echo "${OPT} O2" ;
 		./optimized_O2 ${ITERS} ;
 
-		echo "Object Inlining O3" ;
+		echo "${OPT} O3" ;
 		./optimized_O3 ${ITERS} ;
 
     
-    echo "Object Inlining with Reorder O1" ;
+    echo "${OPT} with Reorder O1" ;
 		./reorder_O1 ${ITERS} ;
 
-		echo "Object Inlining with Reorder O2" ;
+		echo "${OPT} with Reorder O2" ;
 		./reorder_O2 ${ITERS} ;
 
-		echo "Object Inlining with Reorder O3" ;
+		echo "${OPT} with Reorder O3" ;
 		./reorder_O3 ${ITERS} ;
 done
