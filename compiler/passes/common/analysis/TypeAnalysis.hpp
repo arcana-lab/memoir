@@ -20,7 +20,7 @@ class TypeSummary;
 
 class TypeAnalysis {
 public:
-  TypeAnalysis(llvm::Module &M);
+  static TypeAnalysis &get(Module &M);
 
   TypeSummary *getTypeSummary(llvm::CallInst &call_inst);
 
@@ -37,6 +37,8 @@ private:
   Module &M;
 
   std::unordered_map<llvm::CallInst *, TypeSummary *> type_summaries;
+
+  TypeAnalysis(llvm::Module &M);
 
   TypeSummary *getPrimitiveTypeSummary(llvm::CallInst &call_inst);
 
@@ -74,8 +76,8 @@ public:
 private:
   TypeCode code;
 
-  Type(TypeCode code, std::string name);
-  Type(TypeCode code);
+  TypeSummary(TypeCode code, std::string name);
+  TypeSummary(TypeCode code);
 };
 
 struct StructTypeSummary : public TypeSummary {
@@ -92,7 +94,7 @@ public:
   std::string toString();
 
 private:
-  static std::unordered_map<std::string name, StructTypeSummary *>
+  static std::unordered_map<std::string, StructTypeSummary *>
       defined_type_summaries;
 
   std::string name;
