@@ -1,8 +1,8 @@
-# object-ir
-A case for object representation in the LLVM IR
+# MemOIR
+A case for memory object representation in the LLVM IR
 
 ## Building
-To build our noelle instance and the object-ir passes:
+To build our noelle instance and the MemOIR passes:
 `make`
 
 To build the unit tests:
