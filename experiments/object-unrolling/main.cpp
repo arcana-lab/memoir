@@ -15,6 +15,10 @@
 #  define REORDER false
 #endif
 
+#ifndef INDIRECT
+#  define INDIRECT false
+#endif
+
 #if OPTIMIZED
 struct DataStruct {
 #  if REORDER
@@ -70,31 +74,46 @@ int main(int argc, char **argv) {
 #if OPTIMIZED
   auto num_structs = iterations / 4;
   auto structs =
+#  if INDIRECT
+      (struct DataStruct **)malloc(num_structs * sizeof(struct DataStruct *));
+#  else
       (struct DataStruct *)malloc(num_structs * sizeof(struct DataStruct));
-
+#  endif
   for (int i = 0; i < num_structs; i++) {
-    structs[i] = DataStruct(
-        // struct 1
-        rand(),
-        rand(),
-        // struct 2
-        rand(),
-        rand(),
-        // struct 3
-        rand(),
-        rand(),
-        // struct 4
-        rand(),
-        rand());
+    structs[i] =
+#  if INDIRECT
+        new
+#  endif
+        DataStruct(
+            // struct 1
+            rand(),
+            rand(),
+            // struct 2
+            rand(),
+            rand(),
+            // struct 3
+            rand(),
+            rand(),
+            // struct 4
+            rand(),
+            rand());
   }
 
 #else
   auto num_structs = iterations;
   auto structs =
+#  if INDIRECT
+      (struct DataStruct **)malloc(num_structs * sizeof(struct DataStruct *));
+#  else
       (struct DataStruct *)malloc(num_structs * sizeof(struct DataStruct));
+#  endif
 
   for (int i = 0; i < num_structs; i++) {
-    structs[i] = DataStruct(rand(), rand());
+    structs[i] =
+#  if INDIRECT
+        new
+#  endif
+        DataStruct(rand(), rand());
   }
 #endif
 
@@ -105,12 +124,23 @@ int main(int argc, char **argv) {
     auto datum = structs[i];
 
 #if OPTIMIZED
+#  if INDIRECT
+    datum->a1++;
+    datum->a2++;
+    datum->a3++;
+    datum->a4++;
+#  else
     datum.a1++;
     datum.a2++;
     datum.a3++;
     datum.a4++;
+#  endif
 #else
+#  if INDIRECT
+    datum->a++;
+#  else
     datum.a++;
+#  endif
 #endif
   }
 
@@ -120,6 +150,16 @@ int main(int argc, char **argv) {
     auto datum = structs[i];
 
 #if OPTIMIZED
+#  if INDIRECT
+    int a1 = datum->a1;
+    int b1 = datum->b1;
+    int a2 = datum->a2;
+    int b2 = datum->b2;
+    int a3 = datum->a3;
+    int b3 = datum->b3;
+    int a4 = datum->a4;
+    int b4 = datum->b4;
+#  else
     int a1 = datum.a1;
     int b1 = datum.b1;
     int a2 = datum.a2;
@@ -128,12 +168,17 @@ int main(int argc, char **argv) {
     int b3 = datum.b3;
     int a4 = datum.a4;
     int b4 = datum.b4;
+#  endif
 
     int c = a1 / b1 + a2 / b2 + a3 / b3 + a4 / b4;
 #else
+#  if INDIRECT
+    int a = datum->a;
+    int b = datum->b;
+#  else
     int a = datum.a;
     int b = datum.b;
-
+#  endif
     int c = a / b;
 #endif
 
