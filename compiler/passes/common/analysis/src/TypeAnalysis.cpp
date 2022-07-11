@@ -49,34 +49,34 @@ TypeSummary *TypeAnalysis::getTypeSummary(llvm::CallInst &call_inst) {
    */
   TypeSummary *type_summary;
   switch (callee_enum) {
-    case MemOIRFunc::UINT64_TYPE:
-    case MemOIRFunc::UINT32_TYPE:
-    case MemOIRFunc::UINT16_TYPE:
-    case MemOIRFunc::UINT8_TYPE:
-    case MemOIRFunc::INT64_TYPE:
-    case MemOIRFunc::INT32_TYPE:
-    case MemOIRFunc::INT16_TYPE:
-    case MemOIRFunc::INT8_TYPE:
-    case MemOIRFunc::FLOAT_TYPE:
-    case MemOIRFunc::DOUBLE_TYPE:
+    case MemOIR_Func::UINT64_TYPE:
+    case MemOIR_Func::UINT32_TYPE:
+    case MemOIR_Func::UINT16_TYPE:
+    case MemOIR_Func::UINT8_TYPE:
+    case MemOIR_Func::INT64_TYPE:
+    case MemOIR_Func::INT32_TYPE:
+    case MemOIR_Func::INT16_TYPE:
+    case MemOIR_Func::INT8_TYPE:
+    case MemOIR_Func::FLOAT_TYPE:
+    case MemOIR_Func::DOUBLE_TYPE:
       type_summary = getPrimitiveTypeSummary(callee_enum);
       break;
-    case MemOIRFunc::INTEGER_TYPE:
+    case MemOIR_Func::INTEGER_TYPE:
       type_summary = getIntegerTypeSummary(call_inst);
       break;
-    case MemOIRFunc::REFERENCE_TYPE:
+    case MemOIR_Func::REFERENCE_TYPE:
       type_summary = getReferenceTypeSummary(call_inst);
       break;
-    case MemOIRFunc::STRUCT_TYPE:
+    case MemOIR_Func::STRUCT_TYPE:
       type_summary = getStructTypeSummary(call_inst);
       break;
-    case MemOIRFunc::TENSOR_TYPE:
+    case MemOIR_Func::TENSOR_TYPE:
       type_summary = getTensorTypeSummary(call_inst);
       break;
-    case MemOIRFunc::DEFINE_STRUCT_TYPE:
+    case MemOIR_Func::DEFINE_STRUCT_TYPE:
       type_summary = defineStructTypeSummary(call_inst);
       break;
-    case MemOIRFunc::NONE:
+    case MemOIR_Func::NONE:
       type_summary = nullptr;
       break;
   }
@@ -86,10 +86,13 @@ TypeSummary *TypeAnalysis::getTypeSummary(llvm::CallInst &call_inst) {
    */
   auto type_summaries[&call_inst] = type_summary;
 
+  /*
+   * Return the TypeSummary
+   */
   return type_summary;
 }
 
-TypeSummary *getPrimitiveTypeSummary(MemOIRFunc function_enum) {
+TypeSummary *getPrimitiveTypeSummary(MemOIR_Func function_enum) {
   auto found_primitive = primitive_type_summaries.find(function_enum);
   if (found_primitive != primitive_type_summaries.end()) {
     auto primitive_type_summary = found_primitive.end();
@@ -229,6 +232,12 @@ TypeSummary *defineStructTypeSummary(llvm::CallInst &call_inst) {
   type_summaries[&call_inst] = type_summary;
 
   return type_summary;
+}
+
+TypeAnalysis &TypeAnalysis::get(Module &M) {
+  auto singleton = TypeAnalysis(M);
+
+  return singleton;
 }
 
 } // namespace llvm::memoir
