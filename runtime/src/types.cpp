@@ -49,9 +49,11 @@ bool isStubType(Type *type) {
 /*
  * Type base class
  */
+std::unordered_map<std::string, Type *> Type::named_types;
+
 Type *Type::find(std::string name) {
-  auto found_named = named_types.find(name);
-  if (found_named != named_types.end()) {
+  auto found_named = Type::named_types.find(name);
+  if (found_named != Type::named_types.end()) {
     return found_named->second;
   }
 
@@ -59,7 +61,7 @@ Type *Type::find(std::string name) {
 }
 
 void Type::define(std::string name, Type *type_to_define) {
-  named_types[name] = type_to_define;
+  Type::named_types[name] = type_to_define;
 }
 
 Type::Type(TypeCode code, std::string name) : code(code) {
@@ -156,7 +158,17 @@ bool TensorType::equals(Type *other) {
 /*
  * Integer Type
  */
+std::unordered_map<
+    // bitwidth
+    unsigned,
+    std::unordered_map<
+        // is_signed
+        bool,
+        IntegerType *>>
+    IntegerType::integer_types;
+
 Type *IntegerType::get(unsigned bitwidth, bool is_signed) {
+
   auto found_bitwidth = integer_types.find(bitwidth);
   if (found_bitwidth != integer_types.end()) {
     auto bitwidth_types = found_bitwidth->second;
@@ -281,6 +293,8 @@ bool ReferenceType::equals(Type *other) {
 /*
  * Stub Type
  */
+std::unordered_map<std::string, Type *> StubType::stub_types;
+
 Type *StubType::get(std::string name) {
   auto found_resolved = Type::find(name);
   if (found_resolved) {

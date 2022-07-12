@@ -35,6 +35,15 @@ Struct::Struct(Type *type) : Object(type) {
   }
 }
 
+Field *Struct::readField(uint64_t field_index) {
+  if (field_index >= this->fields.size()) {
+    std::cerr << "Trying to read field from index outside of struct's range\n";
+    exit(1);
+  }
+
+  return this->fields.at(field_index);
+}
+
 /*
  * Tensor Objects
  */

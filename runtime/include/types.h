@@ -176,7 +176,6 @@ public:
 
 private:
   StubType(std::string name);
-  ~StubType();
 
   static std::unordered_map<std::string, Type *> stub_types;
 };

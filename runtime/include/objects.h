@@ -28,7 +28,6 @@ public:
 
   // Construction
   Object(Type *type);
-  ~Object();
 
   // Typing
   Type *getType();
@@ -54,7 +53,6 @@ public:
 
   // Access
   Field *readField(uint64_t field_index);
-  void writeField(uint64_t field_index, Field *field);
 
   std::string toString();
 };

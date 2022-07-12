@@ -48,7 +48,7 @@ Field *getTensorElement(Object *object, ...) {
 
   va_list args;
 
-  va_start(args, num_dimensions);
+  va_start(args, object);
 
   std::vector<uint64_t> indices;
   for (int i = 0; i < num_dimensions; i++) {
@@ -427,5 +427,5 @@ void writeReference(Field *field, Object *obj) {
   }
 }
 
-} // namespace memoir
+} // extern "C"
 } // namespace memoir

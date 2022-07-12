@@ -19,6 +19,10 @@ std::string StructField::toString() {
   return "struct";
 }
 
+std::string TensorField::toString() {
+  return "tensor";
+}
+
 std::string ReferenceField::toString() {
   return "reference";
 }
