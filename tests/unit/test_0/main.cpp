@@ -4,17 +4,18 @@
 
 using namespace objectir;
 
-Type *objTy = getObjectType(3,
-                            getUInt64Type(),
-                            getUInt64Type(),
-                            getUInt64Type());
+Type *objTy = defineStructType("Foo",
+                               3,
+                               getUInt64Type(),
+                               getUInt64Type(),
+                               getUInt64Type());
 
 int main() {
-  Object *myObj = buildObject(objTy);
+  Object *myObj = allocateStruct(objTy);
 
-  Field *field1 = getObjectField(myObj, 0);
-  Field *field2 = getObjectField(myObj, 1);
-  Field *field3 = getObjectField(myObj, 2);
+  Field *field1 = getStructField(myObj, 0);
+  Field *field2 = getStructField(myObj, 1);
+  Field *field3 = getStructField(myObj, 2);
 
   writeUInt64(field1, 123);
   writeUInt64(field2, 456);
