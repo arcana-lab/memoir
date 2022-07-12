@@ -4,9 +4,9 @@
 #include "llvm/IR/IRBuilder.h"
 
 #include "noelle/core/Noelle.hpp"
-
 #include "common/support/Metadata.hpp"
 #include "common/utility/FunctionNames.hpp"
+#include "common/analysis/AllocationAnalysis.hpp"
 
 #include "Parser.hpp"
 #include "Utils.hpp"
