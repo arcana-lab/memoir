@@ -61,9 +61,7 @@ __ALLOC_ATTR __RUNTIME_ATTR Object *allocateTensor(Type *element_type,
  * Object accesses
  */
 __RUNTIME_ATTR Field *getStructField(Object *object, uint64_t field_index);
-__RUNTIME_ATTR Field *getTensorElement(Object *tensor,
-                                       uint64_t dimension_index,
-                                       ...);
+__RUNTIME_ATTR Field *getTensorElement(Object *tensor, ...);
 /*
  * Object destruction
  */

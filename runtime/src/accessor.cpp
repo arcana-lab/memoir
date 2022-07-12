@@ -33,15 +33,18 @@ Field *getStructField(Object *object, uint64_t field_index) {
  * Tensor accesses
  *   getTensorElement(
  *     object,
- *     number of dimensions,
  *     <index of dimension, ...>)
  */
 __RUNTIME_ATTR
-Field *getTensorElement(Object *object, uint64_t num_dimensions, ...) {
+Field *getTensorElement(Object *object, ...) {
   auto type = object->getType();
   if (type->getCode() != TypeCode::TensorTy) {
     std::cerr << "getTensorElement: object is of non-tensor type\n";
+    exit(1);
   }
+
+  auto tensor = (Tensor *)object;
+  auto num_dimensions = tensor->length_of_dimensions.size();
 
   va_list args;
 
@@ -50,12 +53,18 @@ Field *getTensorElement(Object *object, uint64_t num_dimensions, ...) {
   std::vector<uint64_t> indices;
   for (int i = 0; i < num_dimensions; i++) {
     auto dimension_index = va_arg(args, uint64_t);
+    auto dimension_length = tensor->length_of_dimensions.at(i);
+
+    if (dimension_index >= dimension_length) {
+      std::cerr << "getTensorElement: dimension out range\n";
+      exit(1);
+    }
+
     indices.push_back(dimension_index);
   }
 
   va_end(args);
 
-  auto tensor = (Tensor *)object;
   return tensor->getElement(indices);
 }
 
