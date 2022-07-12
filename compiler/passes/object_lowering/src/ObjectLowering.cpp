@@ -44,6 +44,30 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
 }
 
 void ObjectLowering::analyze() {
+    //simple testing stuff to make sure it's working
+
+    for (auto &F : M) {
+        if (F.isDeclaration()) {
+          continue;
+        }
+        if(F.hasName()&& F.getName().str() == "main")
+        {
+            for(auto &I : instructions(F))
+            {
+                auto* ins = &I;
+                if(auto callins = dyn_cast<CallInst>(ins))
+                {
+                   auto allocAna=  memoir::AllocationAnalysis::get(M);
+                   auto res = allocAna.getAllocationSummary(*callins);
+                   errs() << res->toString() <<"\n";
+                   break;
+
+//                    memoir::AllocationAnalysis::getAllocationSummary(callins)
+                }
+            }
+        }
+    }
+
 //  cacheTypes();
 //
 //  // determine which functions to clone by scanning function type signatures for
