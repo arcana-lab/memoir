@@ -48,7 +48,7 @@ private:
   TypeCode code;
   std::string name;
 
-  static std::unordered_map<std::string, Type *> named_types;
+  static std::unordered_map<std::string, Type *> &named_types();
 };
 
 struct StructType : public Type {
@@ -101,15 +101,6 @@ public:
 
 private:
   IntegerType(unsigned bitwidth, bool is_signed);
-
-  static std::unordered_map<
-      // bitwidth
-      unsigned,
-      std::unordered_map<
-          // is_signed
-          bool,
-          IntegerType *>>
-      integer_types;
 };
 
 struct FloatType : public Type {
