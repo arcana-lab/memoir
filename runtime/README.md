@@ -1,6 +1,6 @@
 # MemOIR Description
 
-This is the working description of the Memory Object IR (MOIR).
+This is the working description of the Memory Object IR (MemOIR).
 
 ### Defining Container Types
 `nameStructType(name, # of fields, *<field type, ...>*)`
@@ -105,7 +105,5 @@ a container that hold homogeneously typed elements contiguously in memory.
 
 ### Type Checking
 `assertType(type, object)`
-
-`assertFieldType(type, field)`
 
 `setReturnType(type)`
