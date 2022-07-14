@@ -19,18 +19,20 @@ TypeAnalysis::TypeAnalysis(Module &M) : M(M) {
   /*
    * Analyze the program.
    */
-  for (auto &BB : M) {
-    for (auto &I : BB) {
-      auto call_inst = dyn_cast<CallInst>(&I);
-      if (!call_inst) {
-        continue;
-      }
+  for (auto &F : M) {
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        auto call_inst = dyn_cast<CallInst>(&I);
+        if (!call_inst) {
+          continue;
+        }
 
-      /*
-       * Analyze the call.
-       * The TypeSummary will be memoized
-       */
-      this->getTypeSummary(call_inst);
+        /*
+         * Analyze the call.
+         * The TypeSummary will be memoized
+         */
+        this->getTypeSummary(call_inst);
+      }
     }
   }
 }
