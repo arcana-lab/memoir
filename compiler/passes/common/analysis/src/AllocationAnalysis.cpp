@@ -3,7 +3,18 @@
 namespace llvm::memoir {
 
 AllocationSummary::AllocationSummary(Module &M) : M(M) {
-  // Do nothing.
+  for (auto &F : M) {
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        auto call_inst = dyn_cast<llvm::CallInst>(&I);
+        if (!call_inst) {
+          continue;
+        }
+
+        this->getAllocationSummary(*call_inst);
+      }
+    }
+  }
 }
 
 AllocationSummary *AllocationAnalysis::getAllocationSummary(
@@ -129,7 +140,7 @@ TypeSummary *AllocationSummary::getTypeSummary(Value &V) {
   /*
    * Get the TypeAnalysis class.
    */
-  auto type_analysis = TypeAnalysis::get(this->M);
+  auto &type_analysis = TypeAnalysis::get(this->M);
 
   /*
    * Trace back the value to find the associated
