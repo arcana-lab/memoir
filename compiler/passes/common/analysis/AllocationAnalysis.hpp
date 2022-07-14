@@ -65,6 +65,8 @@ public:
 
 private:
   StructAllocationSummary(CallInst &call_inst);
+
+  friend class AllocationAnalysis;
 };
 
 struct TensorAllocationSummary : public AllocationSummary {
@@ -74,13 +76,15 @@ public:
       std::vector<llvm::Value *> &length_of_dimensions);
 
   TypeSummary &element_type_summary;
-  std::vector<llvm::Value *> &length_of_dimensions;
+  std::vector<llvm::Value *> length_of_dimensions;
 
   std::string toString();
 
 private:
   TensorAllocationSummary(CallInst &call_inst,
                           std::vector<llvm::Value *> &length_of_dimensions);
+
+  friend class AllocationAnalysis;
 };
 
 } // namespace llvm::memoir

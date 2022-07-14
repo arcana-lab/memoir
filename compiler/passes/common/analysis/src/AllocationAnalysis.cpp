@@ -75,7 +75,7 @@ AllocationSummary *AllocationAnalysis::getStructAllocationSummary(
   /*
    * Create the allocation
    */
-  return StructAllocationSummary::get(type_summary);
+  return new StructAllocationSummary(type_summary);
 }
 
 AllocationSummary *AllocationAnalysis::getTensorAllocationSummary(
@@ -106,7 +106,7 @@ AllocationSummary *AllocationAnalysis::getTensorAllocationSummary(
    * Create the tensor type summary.
    */
   auto type_summary =
-      TensorTypeSummary::get(element_type_summary, num_dimensions);
+      new TensorTypeSummary(element_type_summary, num_dimensions);
 
   /*
    * Get the length of dimensions.
@@ -121,7 +121,7 @@ AllocationSummary *AllocationAnalysis::getTensorAllocationSummary(
   /*
    * Create the allocation
    */
-  return StructAllocationSummary::get(type_summary, length_of_dimensions);
+  return new TensorAllocationSummary(type_summary, length_of_dimensions);
 }
 
 TypeSummary *AllocationSummary::getTypeSummary(Value &V) {
