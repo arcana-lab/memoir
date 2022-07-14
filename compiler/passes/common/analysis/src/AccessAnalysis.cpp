@@ -2,6 +2,24 @@
 
 namespace llvm::memoir {
 
+AccessAnalysis::AccessAnalysis(Module &M) : M(M) {
+  for (auto &F : M) {
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        auto call_inst = dyn_cast<llvm::CallInst>(&I);
+        if (!call_inst) {
+          continue;
+        }
+
+        /*
+         * Build the AccessSummary for this call instruction
+         */
+        this->getAccessSummary(*call_inst);
+      }
+    }
+  }
+}
+
 AccessSummary *AccessAnalysis::getAccessSummary(llvm::CallInst &call_inst) {
   /*
    * Look up the call instruction to see if we have a memoized AccessSummary.
@@ -35,31 +53,57 @@ AccessSummary *AccessAnalysis::getAccessSummary(llvm::CallInst &call_inst) {
   AccessSummary *access_summary;
   switch (callee_enum) {
     case MemOIR_Func::READ_INTEGER:
+      break;
     case MemOIR_Func::WRITE_INTEGER:
+      break;
     case MemOIR_Func::READ_UINT64:
+      break;
     case MemOIR_Func::WRITE_UINT64:
+      break;
     case MemOIR_Func::READ_UINT32:
+      break;
     case MemOIR_Func::WRITE_UINT32:
+      break;
     case MemOIR_Func::READ_UINT16:
+      break;
     case MemOIR_Func::WRITE_UINT16:
+      break;
     case MemOIR_Func::READ_UINT8:
+      break;
     case MemOIR_Func::WRITE_UINT8:
+      break;
     case MemOIR_Func::READ_INT64:
+      break;
     case MemOIR_Func::WRITE_INT64:
+      break;
     case MemOIR_Func::READ_INT32:
+      break;
     case MemOIR_Func::WRITE_INT32:
+      break;
     case MemOIR_Func::READ_INT16:
+      break;
     case MemOIR_Func::WRITE_INT16:
+      break;
     case MemOIR_Func::READ_INT8:
+      break;
     case MemOIR_Func::WRITE_INT8:
+      break;
     case MemOIR_Func::READ_FLOAT:
+      break;
     case MemOIR_Func::WRITE_FLOAT:
+      break;
     case MemOIR_Func::READ_DOUBLE:
+      break;
     case MemOIR_Func::WRITE_DOUBLE:
+      break;
     case MemOIR_Func::READ_REFERENCE:
+      break;
     case MemOIR_Func::WRITE_REFERENCE:
+      break;
     case MemOIR_Func::READ_STRUCT:
+      break;
     case MemOIR_Func::READ_TENSOR:
+      break;
   }
 
   return nullptr;
@@ -73,9 +117,4 @@ AccessAnalysis &AccessAnalysis::get(Module &M) {
 
   return access_analysis;
 }
-
-AccessAnalysis::AccessAnalysis(Module &M) : M(M) {
-  // Do nothing.
-}
-
 } // namespace llvm::memoir
