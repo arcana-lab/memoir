@@ -3,10 +3,12 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
 
-#include "noelle/core/Noelle.hpp"
+#include "common/analysis/AccessAnalysis.hpp"
+#include "common/analysis/AllocationAnalysis.hpp"
+#include "common/analysis/TypeAnalysis.hpp"
 #include "common/support/Metadata.hpp"
 #include "common/utility/FunctionNames.hpp"
-#include "common/analysis/AllocationAnalysis.hpp"
+#include "noelle/core/Noelle.hpp"
 
 #include "Parser.hpp"
 #include "Utils.hpp"
