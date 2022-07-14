@@ -38,7 +38,7 @@ private:
 
   std::unordered_map<llvm::CallInst *, TypeSummary *> type_summaries;
 
-  TypeAnalysis(llvm::Module &M);
+  std::unordered_map<MemOIR_Func, TypeSummary *> primitive_type_summaries;
 
   TypeSummary *getPrimitiveTypeSummary(llvm::CallInst &call_inst);
 
@@ -55,6 +55,8 @@ private:
   TypeSummary *getTensorTypeSummary(llvm::CallInst &call_inst);
 
   TypeSummary *defineStructTypeSummary(llvm::CallInst &call_inst);
+
+  TypeAnalysis(llvm::Module &M);
 };
 
 enum TypeCode {

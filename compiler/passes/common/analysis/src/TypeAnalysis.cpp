@@ -3,7 +3,7 @@
 namespace llvm::memoir {
 
 TypeAnalysis::TypeAnalysis(Module &M) : M(M) {
-  primitive_type_summaries = {
+  this->primitive_type_summaries = {
     { UINT64_TYPE, IntegerTypeSummary::get(64, false) },
     { UINT32_TYPE, IntegerTypeSummary::get(32, false) },
     { UINT16_TYPE, IntegerTypeSummary::get(16, false) },
@@ -15,6 +15,24 @@ TypeAnalysis::TypeAnalysis(Module &M) : M(M) {
     { FLOAT_TYPE, FloatTypeSummary::get() },
     { DOUBLE_TYPE, DoubleTypeSummary::get() },
   };
+
+  /*
+   * Analyze the program.
+   */
+  for (auto &BB : M) {
+    for (auto &I : BB) {
+      auto call_inst = dyn_cast<CallInst>(&I);
+      if (!call_inst) {
+        continue;
+      }
+
+      /*
+       * Analyze the call.
+       * The TypeSummary will be memoized
+       */
+      this->getTypeSummary(call_inst);
+    }
+  }
 }
 
 TypeSummary *TypeAnalysis::getTypeSummary(llvm::CallInst &call_inst) {
@@ -235,7 +253,7 @@ TypeSummary *defineStructTypeSummary(llvm::CallInst &call_inst) {
 }
 
 TypeAnalysis &TypeAnalysis::get(Module &M) {
-  auto singleton = TypeAnalysis(M);
+  static TypeAnalysis singleton(M);
 
   return singleton;
 }
