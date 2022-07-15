@@ -46,16 +46,48 @@ class AccessSummary;
  */
 class AccessAnalysis {
 public:
+  /*
+   * Singleton access
+   */
   static AccessAnalysis &get(Module &M);
 
+  /*
+   * Top-level entry point
+   */
   AccessSummary *getAccessSummary(llvm::CallInst &call_inst);
 
 private:
+  /*
+   * Passed state
+   */
   llvm::Module &M;
 
+  /*
+   * Memoized access summaries
+   */
   std::unordered_map<llvm::CallInst *, AccessSummary *> access_summaries;
 
+  /*
+   * Internal helper functions
+   */
+  bool isRead(MemOIR_Func func_enum);
+  bool isWrite(MemOIR_Func func_enum);
+
+  /*
+   * Constructor
+   */
   AccessAnalysis(llvm::Module &M);
+
+  /*
+   * Singleton access protection
+   * Do NOT implement these methods.
+   */
+  AccessAnalysis(AccessAnalysis const &);
+  operator=(AccessAnalysis const &);
+
+public:
+  AccessAnalysis(AccessAnalysis const &) = delete;
+  void operator=(AccessAnalysis const &) = delete;
 };
 
 /*
