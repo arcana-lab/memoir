@@ -9,6 +9,7 @@
 #include "llvm/IR/Module.h"
 
 #include "common/analysis/TypeAnalysis.hpp"
+#include "common/support/InternalDatatypes.hpp"
 #include "common/utility/FunctionNames.hpp"
 
 /*
@@ -59,7 +60,7 @@ private:
   /*
    * Memoized allocation summaries
    */
-  std::unordered_map<CallInst *, AllocationSummary *> allocation_summaries;
+  map<CallInst *, AllocationSummary *> allocation_summaries;
 
   /*
    * Internal helper functions

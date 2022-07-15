@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "common/support/InternalDatatypes.hpp"
+
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Module.h"
@@ -24,7 +26,11 @@
 
 namespace llvm::memoir {
 
+/*
+ * Stub types needed by the AccessAnalysis
+ */
 class AccessSummary;
+class FieldSummary;
 
 /*
  * Access Analysis
@@ -71,11 +77,15 @@ private:
   /*
    * Memoized access summaries
    */
-  std::unordered_map<llvm::CallInst *, AccessSummary *> access_summaries;
+  map<llvm::CallInst *, AccessSummary *> access_summaries;
 
   /*
    * Internal helper functions
    */
+  set<FieldSummary *> getFieldSummaries(llvm::CallInst &call_inst);
+  set<FieldSummary *> getStructFieldSummaries(llvm::CallInst &call_inst);
+  set<FieldSummary *> getTensorElementSummaries(llvm::CallInst &call_inst);
+  set<AllocationSummary *> getAllocationSummaries(llvm::Value &value);
   bool isRead(MemOIR_Func func_enum);
   bool isWrite(MemOIR_Func func_enum);
 
@@ -249,17 +259,17 @@ protected:
  */
 class MayReadSummary : public AccessSummary {
 public:
-  typedef std::unordered_set<ReadSummary *>::const_iterator iterator;
+  typedef set<ReadSummary *>::const_iterator iterator;
 
   iterator begin();
   iterator end();
 
 private:
-  std::unordered_set<ReadSummary *> may_read_summaries;
+  set<ReadSummary *> may_read_summaries;
 
 protected:
   MayReadSummary(llvm::CallInst &call_inst,
-                 std::unordered_set<ReadSummary *> &may_read_summaries);
+                 set<ReadSummary *> &may_read_summaries);
 
   friend class AccessAnalysis;
 };
@@ -271,17 +281,17 @@ protected:
  */
 class MayWriteSummary {
 public:
-  typedef std::unordered_set<WriteSummary *>::const_iterator iterator;
+  typedef set<WriteSummary *>::const_iterator iterator;
 
   iterator begin();
   iterator end();
 
 private:
-  std::unordered_set<WriteSummary *> may_write_summaries;
+  set<WriteSummary *> may_write_summaries;
 
 protected:
   MayWriteSummary(llvm::CallInst &call_inst,
-                  std::unordered_set<ReadSummary *> &may_write_summaries);
+                  set<ReadSummary *> &may_write_summaries);
 
   friend class AccessAnalysis;
 };

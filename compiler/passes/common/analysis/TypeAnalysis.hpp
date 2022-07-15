@@ -3,8 +3,8 @@
 #pragma once
 
 #include <string>
-#include <unordered_map>
 
+#include "common/support/InternalDatatypes.hpp"
 #include "common/utility/FunctionNames.hpp"
 
 /*
@@ -56,9 +56,9 @@ public:
 private:
   Module &M;
 
-  std::unordered_map<llvm::CallInst *, TypeSummary *> type_summaries;
+  map<llvm::CallInst *, TypeSummary *> type_summaries;
 
-  std::unordered_map<MemOIR_Func, TypeSummary *> primitive_type_summaries;
+  map<MemOIR_Func, TypeSummary *> primitive_type_summaries;
 
   TypeSummary *getPrimitiveTypeSummary(llvm::CallInst &call_inst);
 
@@ -116,8 +116,7 @@ public:
   std::string toString();
 
 private:
-  static std::unordered_map<std::string, StructTypeSummary *>
-      defined_type_summaries;
+  static map<std::string, StructTypeSummary *> defined_type_summaries;
 
   std::string name;
   std::vector<TypeSummary *> field_types;
@@ -179,9 +178,9 @@ private:
   unsigned bitwidth;
   bool is_signed;
 
-  static std::unordered_map<unsigned,                /* bitwidth */
-                            std::unordered_map<bool, /* is signed? */
-                                               TypeSummary *>>
+  static map<unsigned, /* bitwidth */
+             map<bool, /* is signed? */
+                 TypeSummary *>>
       integer_type_summaries;
 
   IntegerTypeSummary(unsigned bitwidth, bool is_signed);
