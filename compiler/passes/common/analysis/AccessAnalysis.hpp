@@ -83,7 +83,7 @@ private:
    * Do NOT implement these methods.
    */
   AccessAnalysis(AccessAnalysis const &);
-  operator=(AccessAnalysis const &);
+  void operator=(AccessAnalysis const &);
 
 public:
   AccessAnalysis(AccessAnalysis const &) = delete;
