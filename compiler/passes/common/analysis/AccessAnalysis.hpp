@@ -56,6 +56,12 @@ public:
    */
   AccessSummary *getAccessSummary(llvm::CallInst &call_inst);
 
+  /*
+   * This class is not cloneable nor assignable.
+   */
+  AccessAnalysis(AccessAnalysis const &) = delete;
+  void operator=(AccessAnalysis const &) = delete;
+
 private:
   /*
    * Passed state
@@ -77,17 +83,6 @@ private:
    * Constructor
    */
   AccessAnalysis(llvm::Module &M);
-
-  /*
-   * Singleton access protection
-   * Do NOT implement these methods.
-   */
-  AccessAnalysis(AccessAnalysis const &);
-  void operator=(AccessAnalysis const &);
-
-public:
-  AccessAnalysis(AccessAnalysis const &) = delete;
-  void operator=(AccessAnalysis const &) = delete;
 };
 
 /*

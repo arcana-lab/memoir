@@ -44,6 +44,12 @@ public:
    */
   AllocationSummary *getAllocationSummary(CallInst &call_inst);
 
+  /*
+   * This class is not cloneable nor assignable.
+   */
+  AllocationAnalysis(AllocationAnalysis const &) = delete;
+  void operator=(AllocationAnalysis const &) = delete;
+
 private:
   /*
    * Passed state
@@ -64,16 +70,6 @@ private:
    * Constructor
    */
   AllocationAnalysis(Module &M);
-
-  /*
-   * Singleton access protection
-   */
-  AllocationAnalysis(AllocationAnalysis const &);
-  void operator=(AllocationAnalysis const &);
-
-public:
-  AllocationAnalysis(AllocationAnalysis const &) = delete;
-  void operator=(AllocationAnalysis const &) = delete;
 };
 
 /*
