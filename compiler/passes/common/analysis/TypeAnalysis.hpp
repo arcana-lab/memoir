@@ -18,10 +18,24 @@ namespace llvm::memoir {
 
 class TypeSummary;
 
+/*
+ * Type Analysis
+ *
+ * Top level entry for MemOIR type analysis
+ *
+ * This type analysis provides basic information about MemOIR
+ *   types defined in the program.
+ */
 class TypeAnalysis {
 public:
+  /*
+   * Singleton access
+   */
   static TypeAnalysis &get(Module &M);
 
+  /*
+   * Query the Type Summary for the given call instruction
+   */
   TypeSummary *getTypeSummary(llvm::CallInst &call_inst);
 
   /*
@@ -32,6 +46,12 @@ public:
   static bool isPrimitiveType(TypeSummary *type);
 
   static bool isStubType(TypeSummary *type);
+
+  /*
+   * This class is not cloneable nor assignable
+   */
+  TypeAnalysis(TypeAnalysis &other) = delete;
+  void operator=(const TypeAnalysis &) = delete;
 
 private:
   Module &M;
