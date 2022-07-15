@@ -23,24 +23,72 @@ namespace llvm::memoir {
 
 class AllocationSummary;
 
+/*
+ * Allocation Analysis
+ *
+ * Top level entry for MemOIR allocation analysis
+ *
+ * This allocation analysis provides basic information about a MemOIR
+ *   allocation, it does not provide information about escapes and
+ *   dynamic instances, but can easily be used for that.
+ */
 class AllocationAnalysis {
 public:
+  /*
+   * Singleton access
+   */
   static AllocationAnalysis &get(Module &M);
 
+  /*
+   * Top-level entry point.
+   */
   AllocationSummary *getAllocationSummary(CallInst &call_inst);
 
 private:
+  /*
+   * Passed state
+   */
   Module &M;
 
+  /*
+   * Memoized allocation summaries
+   */
   std::unordered_map<CallInst *, AllocationSummary *> allocation_summaries;
 
+  /*
+   * Internal helper functions
+   */
   TypeSummary *getTypeSummary(Value &V);
 
+  /*
+   * Constructor
+   */
   AllocationAnalysis(Module &M);
+
+  /*
+   * Singleton access protection
+   */
+  AllocationAnalysis(AllocationAnalysis const &);
+  void operator=(AllocationAnalysis const &);
+
+public:
+  AllocationAnalysis(AllocationAnalysis const &) = delete;
+  void operator=(AllocationAnalysis const &) = delete;
 };
 
+/*
+ * Allocation Code
+ * Basic information about the class of object being allocated.
+ */
 enum AllocationCode { StructAlloc, TensorAlloc };
 
+/*
+ * Allocation Summary
+ *
+ * Represents an allocation of a MemOIR object.
+ * For every allocation we know:
+ *   - The statically know type of the allocation
+ */
 struct AllocationSummary {
 public:
   TypeSummary &getTypeSummary();
@@ -57,6 +105,11 @@ private:
   AllocationSummary(AllocationCode code, CallInst &call_inst);
 };
 
+/*
+ * Struct Allocation Summary
+ *
+ * Represents an allocation of a MemOIR struct.
+ */
 struct StructAllocationSummary : public AllocationSummary {
 public:
   static AllocationSummary &get(CallInst &call_inst);
@@ -69,6 +122,11 @@ private:
   friend class AllocationAnalysis;
 };
 
+/*
+ * Tensor Allocation Summary
+ *
+ * Represents an allocation of a MemOIR tensor
+ */
 struct TensorAllocationSummary : public AllocationSummary {
 public:
   static AllocationSummary &get(
