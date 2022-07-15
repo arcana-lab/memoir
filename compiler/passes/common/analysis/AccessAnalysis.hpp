@@ -40,8 +40,8 @@ class AccessSummary;
  *   the index Value(s).
  *   This information is made available in the TensorAccessSummary.
  *
- * Call-Site Sensitive: Provides additional information about the call-site that
- *   causes a may points-to access.
+ * Flow In-sensitive: Does not provide additional information about the
+ *   call-site and control flow that causes a may points-to access.
  *
  */
 class AccessAnalysis {
