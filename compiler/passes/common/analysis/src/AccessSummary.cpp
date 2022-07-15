@@ -89,13 +89,11 @@ MayReadSummary::MayReadSummary(
 }
 
 MayReadSummary::iterator MayReadSummary::begin() {
-  const auto &const_may_read_summaries = may_read_summaries;
-  auto iter = const_may_read_summaries.begin();
+  return const_may_read_summaries.cbegin();
 }
 
 MayReadSummary::iterator MayReadSummary::end() {
-  const auto &const_may_read_summaries = may_read_summaries;
-  auto iter = const_may_read_summaries.end();
+  return const_may_read_summaries.cend();
 }
 
 /*
@@ -110,13 +108,11 @@ MayWriteSummary::MayWriteSummary(
 }
 
 MayWriteSummary::iterator MayWriteSummary::begin() {
-  const auto &const_may_write_summaries = may_write_summaries;
-  auto iter = const_may_write_summaries.begin();
+  return const_may_write_summaries.cbegin();
 }
 
 MayWriteSummary::iterator MayWriteSummary::end() {
-  const auto &const_may_write_summaries = may_write_summaries;
-  auto iter = const_may_write_summaries.end();
+  return const_may_write_summaries.cend();
 }
 
 } // namespace llvm::memoir
