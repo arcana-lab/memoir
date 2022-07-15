@@ -47,8 +47,8 @@ public:
   /*
    * This class is not cloneable nor assignable.
    */
-  AllocationAnalysis(AllocationAnalysis const &) = delete;
-  void operator=(AllocationAnalysis const &) = delete;
+  AllocationAnalysis(AllocationAnalysis &other) = delete;
+  void operator=(const AllocationAnalysis &) = delete;
 
 private:
   /*

@@ -59,8 +59,8 @@ public:
   /*
    * This class is not cloneable nor assignable.
    */
-  AccessAnalysis(AccessAnalysis const &) = delete;
-  void operator=(AccessAnalysis const &) = delete;
+  AccessAnalysis(AccessAnalysis &other) = delete;
+  void operator=(const AccessAnalysis &) = delete;
 
 private:
   /*
