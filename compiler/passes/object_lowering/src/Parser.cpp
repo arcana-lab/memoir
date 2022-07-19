@@ -377,3 +377,123 @@ FieldWrapper* Parser::parseFieldWrapperChain(Value* i, std::set<PHINode*> &visit
 void Parser::setClonedFunctionReturnTypes(std::map<Function *, ObjectType *> &clonedFunctionReturnTypes) {
  this->clonedFunctionReturnTypes = clonedFunctionReturnTypes;
 }
+
+StructTypeSummary *Parser::parseStructTypeSummaryChain(Value *i, std::set<PHINode *> &visited) {
+    errs() << "Trying to StructTypeSummary for " << *i <<"\n";
+
+//    // return the cached objectWrapper, if it exists
+//    if (buildObjMap.find(i)!=buildObjMap.end())
+//    {
+//        errs() << "Cache exists for " << *i<< "with address" << buildObjMap[i] << "\n";
+//        return buildObjMap[i];
+//    }
+//    if(dyn_cast<Argument>(i))
+//    {
+//        errs() <<"The object is passed in \n ";
+//        for(auto u: i->users()) {
+//            if (auto ins = dyn_cast_or_null<CallInst>(u)) {
+//                auto callee = ins->getCalledFunction();
+//                if (!callee) continue;
+//                auto n = callee->getName().str();
+//                if (n == ObjectIRToFunctionNames[ASSERT_TYPE]) {
+//                    // use parseType to retreive the type info from the first operand
+//                    auto newTypeInst = ins->getArgOperand(0);
+//                    object_lowering::AnalysisType* a_type;
+//                    std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+//                        a_type = parseTypeCallInst(ci,visited);
+//                    };
+//                    parseType(newTypeInst, call_back, visited);
+//                    // make sure it is an ObjectType
+//                    assert(a_type);
+//                    if(a_type->getCode() != ObjectTy) assert(false);
+//                    auto* objt = (ObjectType*) a_type;
+//                    buildObjMap[i] = new ObjectWrapper(objt);
+//                }
+//            }
+//        }
+//    }
+//    else {
+    StructTypeSummary *sts;
+    std::function<void(CallInst *)> call_back = [&](CallInst *ci) {
+        //errs() << "Field Wrapper found function " << *ci << "\n";
+        sts = parseStructTypeSummaryInstruction(ci, visited);
+    };
+    assert(parseType(i, call_back, visited));
+    return sts;
+//    }
+
+//    errs() << "obtained object wrapper with address " << objw ;
+//    errs() << "and the addresss of the inner object type is " << objw->innerType << "\n";
+//    return buildObjMap[i];
+}
+
+StructTypeSummary* Parser::parseStructTypeSummaryInstruction(CallInst* i, std::set<PHINode*> &visited){
+//    if (buildObjMap.find(i)!=buildObjMap.end())
+//    {
+//        return buildObjMap[i];
+//    }
+//    auto funcName = i->getCalledFunction()->getName().str();
+//    StructTypeSummary* sts;
+    if(i->getCalledFunction() == memoir::getMemOIRFunction(M, memoir::MemOIR_Func::ALLOCATE_STRUCT)){
+//        auto typeArg = i->getArgOperand(0); // this should be a loadInst from a global Type**
+//        AnalysisType* type;
+//        std::function<void(CallInst*)> callback = [&](CallInst* ci) {
+//            type = parseTypeCallInst(ci,visited);
+//        };
+//        assert(parseType(typeArg,callback,visited));
+//        errs() << "Obtained AnalysisType for " << *i <<"\n";
+//
+//        if(type->getCode() != ObjectTy) {
+//            //errs() << "It's not an object";
+//            assert(false);
+//        }
+//        auto* objt = (ObjectType*) type;
+//        buildObjMap[i]= new ObjectWrapper(objt);
+        auto &allocAna = memoir::AllocationAnalysis::get(M);
+        auto allocSum = allocAna.getAllocationSummary(*i);
+        auto typeSum = &(allocSum->getTypeSummary());
+        if(typeSum->getCode()!= llvm::memoir::TypeCode::StructTy)
+        {
+            assert(false);
+        }
+        return (StructTypeSummary*) typeSum;
+    }
+//    else if(funcName == ObjectIRToFunctionNames[READ_POINTER])
+//    {
+//        errs() << "Processing the type of the inner pointer for " << *i << "\n\n";
+//        FieldWrapper* fw;
+//        std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+//            fw = parseFieldWrapperIns(ci,visited);
+//        };
+//        assert(parseType(i->getArgOperand(0), call_back,visited));
+//        buildObjMap[i]= new ObjectWrapper(fw->objectType);
+//    }
+//    else if (funcName == ObjectIRToFunctionNames[ASSERT_TYPE])
+//    {
+//        auto newTypeInst = i->getArgOperand(0);
+//        errs() << "Processing the assert type for " <<*i<< "whose first arg is" << *newTypeInst << "\n\n";
+//        object_lowering::AnalysisType* a_type;
+//        std::function<void(CallInst*)> call_back = [&](CallInst* ci) {
+//            a_type = parseTypeCallInst(ci,visited);
+//        };
+//        assert(parseType(newTypeInst, call_back, visited));
+//        // make sure it is an ObjectType
+//        assert(a_type);
+//        if(a_type->getCode() != ObjectTy) assert(false);
+//        auto* objt = (ObjectType*) a_type;
+////        objt->getLLVMRepresentation(M);
+//        buildObjMap[i]= new ObjectWrapper(objt);
+//    }
+//    else if(clonedFunctionReturnTypes.find(i->getCalledFunction())!= clonedFunctionReturnTypes.end())
+//    {
+//        auto retType = clonedFunctionReturnTypes[i->getCalledFunction()];
+//        buildObjMap[i]= new ObjectWrapper(retType);
+//    }
+//    else
+//    {
+//        assert(false);
+//    }
+//    return buildObjMap[i];
+    assert(false);
+    return nullptr;
+}

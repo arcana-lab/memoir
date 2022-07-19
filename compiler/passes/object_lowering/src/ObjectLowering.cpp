@@ -9,68 +9,70 @@ ObjectLowering::ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp)
   : M(M),
     noelle(noelle),
     mp(mp) {
-  // Do initialization.
-  //
-  //  // get llvm::Type* for ObjectIR::Object*
-  //  auto allocate_struct_func =
-  //      memoir::getMemOIRFunction(M, memoir::MemOIR_Func::ALLOCATE_STRUCT);
-  //  if (!allocate_struct_func) {
-  //    assert(false && "ObjectLowering::ObjectLowering"
-  //           && "Failed to retrieve Object*");
-  //  }
-  //  this->object_star = allocate_struct_func->getReturnType();
-  //
-  //  // get the LLVM::Type* for ObjectIR::Type*
-  //  auto struct_type_func =
-  //      memoir::getMemOIRFunction(M, memoir::MemOIR_Func::STRUCT_TYPE);
-  //  if (!struct_type_func) {
-  //    auto define_struct_type_func =
-  //        memoir::getMemOIRFunction(M,
-  //        memoir::MemOIR_Func::DEFINE_STRUCT_TYPE);
-  //    if (!define_struct_type_func) {
-  //      assert(false && "ObjectLowering::ObjectLowering"
-  //             && "Failed to retrieve Type*");
-  //    }
-  //  }
-  //  this->type_star = struct_type_func->getReturnType();
-  //  this->type_star_star = PointerType::getUnqual(type_star);
-  //
-  //  auto type_star_as_pointer = dyn_cast<PointerType>(this->type_star);
-  //  if (!type_star_as_pointer) {
-  //    assert(false && "ObjectLowering::ObjectLowering"
-  //           && "Failed to retrieve Type**");
-  //  }
-  //
-  //  this->parser = new Parser(M, noelle, mp, type_star_as_pointer);
+//   Do initialization.
+
+    // get llvm::Type* for ObjectIR::Object*
+    auto allocate_struct_func =
+        memoir::getMemOIRFunction(M, memoir::MemOIR_Func::ALLOCATE_STRUCT);
+    if (!allocate_struct_func) {
+      assert(false && "ObjectLowering::ObjectLowering"
+             && "Failed to retrieve Object*");
+    }
+    this->object_star = allocate_struct_func->getReturnType();
+
+    // get the LLVM::Type* for ObjectIR::Type*
+    auto struct_type_func =
+        memoir::getMemOIRFunction(M, memoir::MemOIR_Func::STRUCT_TYPE);
+    if (!struct_type_func) {
+      auto define_struct_type_func =
+          memoir::getMemOIRFunction(M,
+          memoir::MemOIR_Func::DEFINE_STRUCT_TYPE);
+      if (!define_struct_type_func) {
+        assert(false && "ObjectLowering::ObjectLowering"
+               && "Failed to retrieve Type*");
+      }
+    }
+
+    this->type_star = struct_type_func->getReturnType();
+    this->type_star_star = PointerType::getUnqual(type_star);
+
+    auto type_star_as_pointer = dyn_cast<PointerType>(this->type_star);
+    if (!type_star_as_pointer) {
+      assert(false && "ObjectLowering::ObjectLowering"
+             && "Failed to retrieve Type**");
+    }
+
+    this->parser = new Parser(M, noelle, mp, type_star_as_pointer);
+    this->nativeTypeConverter = new NativeTypeConverter(M,noelle);
 }
 
 void ObjectLowering::analyze() {
   // simple testing stuff to make sure it's working
 
-  auto &allocAna = memoir::AllocationAnalysis::get(M);
-  auto &type_analysis = memoir::TypeAnalysis::get(M);
-  auto &access_analysis = memoir::AccessAnalysis::get(M);
+//  auto &allocAna = memoir::AllocationAnalysis::get(M);
+//  auto &type_analysis = memoir::TypeAnalysis::get(M);
+//  auto &access_analysis = memoir::AccessAnalysis::get(M);
+//
+//  for (auto &F : M) {
+//    if (F.isDeclaration()) {
+//      continue;
+//    }
+//    if (F.hasName() && F.getName().str() == "main") {
+//      for (auto &I : instructions(F)) {
+//        auto *ins = &I;
+//        if (auto callins = dyn_cast<CallInst>(ins)) {
+//
+//          auto res = allocAna.getAllocationSummary(*callins);
+//          errs() << res->toString() << "\n";
+//          break;
+//
+//          //                    memoir::AllocationAnalysis::getAllocationSummary(callins)
+//        }
+//      }
+//    }
+//  }
 
-  for (auto &F : M) {
-    if (F.isDeclaration()) {
-      continue;
-    }
-    if (F.hasName() && F.getName().str() == "main") {
-      for (auto &I : instructions(F)) {
-        auto *ins = &I;
-        if (auto callins = dyn_cast<CallInst>(ins)) {
-
-          auto res = allocAna.getAllocationSummary(*callins);
-          errs() << res->toString() << "\n";
-          break;
-
-          //                    memoir::AllocationAnalysis::getAllocationSummary(callins)
-        }
-      }
-    }
-  }
-
-  //  cacheTypes();
+//    cacheTypes();
   //
   //  // determine which functions to clone by scanning function type signatures
   //  for
@@ -388,57 +390,60 @@ DataFlowResult *ObjectLowering::dataflow(Function *f,
 // ===========================================
 
 void ObjectLowering::transform() {
-  //  for (auto &f : M) {
-  //    if (!f.isDeclaration()) {
-  //      auto calleename = f.getName().str();
-  //      if (calleename.find("main") == std::string::npos)
-  //        continue; // TODO: hack to skipped non-tagged functions
-  //      FunctionTransform(&f);
-  //    }
-  //  }
-  //
-  //  // delete the Type* global variables
-  //  std::set<Value *> toDelete;
-  //  // start with the GVs
-  //  for (auto p : typeDefs)
-  //    toDelete.insert(p);
-  //  // recursively find all instructions to delete
-  //  for (auto p : typeDefs)
-  //    findInstsToDelete(p, toDelete);
-  //
-  //  // errs() << "ObjectLowing: deleting these instructions\n";
-  //  for (auto v : toDelete) {
-  //    // errs() << "\t" << *v << "\n";
-  //    if (auto i = dyn_cast<Instruction>(v)) {
-  //      i->replaceAllUsesWith(UndefValue::get(i->getType()));
-  //      i->eraseFromParent();
-  //    }
-  //  }
-  //
-  //  for (GlobalValue *p : typeDefs) {
-  //    // errs() << "Dropping refs: " << *p << "\n";
-  //    p->dropAllReferences();
-  //    // errs() << "\terasing from parent\n";
-  //    p->eraseFromParent();
-  //  }
-  //
-  //  for (auto const &x : clonedFunctionMap) {
-  //    x.first->eraseFromParent();
-  //  }
+    for (auto &f : M) {
+      if (!f.isDeclaration()) {
+          auto is_internal =
+                  memoir::MetadataManager::hasMetadata(f,
+                  memoir::MetadataType::INTERNAL);
+          if (is_internal) {
+            continue;
+          }
+        FunctionTransform(&f);
+      }
+    }
+
+//    // delete the Type* global variables
+//    std::set<Value *> toDelete;
+//    // start with the GVs
+//    for (auto p : typeDefs)
+//      toDelete.insert(p);
+//    // recursively find all instructions to delete
+//    for (auto p : typeDefs)
+//      findInstsToDelete(p, toDelete);
+//
+//    // errs() << "ObjectLowing: deleting these instructions\n";
+//    for (auto v : toDelete) {
+//      // errs() << "\t" << *v << "\n";
+//      if (auto i = dyn_cast<Instruction>(v)) {
+//        i->replaceAllUsesWith(UndefValue::get(i->getType()));
+//        i->eraseFromParent();
+//      }
+//    }
+//
+//    for (GlobalValue *p : typeDefs) {
+//      // errs() << "Dropping refs: " << *p << "\n";
+//      p->dropAllReferences();
+//      // errs() << "\terasing from parent\n";
+//      p->eraseFromParent();
+//    }
+//
+//    for (auto const &x : clonedFunctionMap) {
+//      x.first->eraseFromParent();
+//    }
 }
 
 void ObjectLowering::FunctionTransform(Function *f) {
-  //  errs() << "\n Starting transformation on " << f->getName() << "\n\n";
+    errs() << "\n Starting transformation on " << f->getName() << "\n\n";
   //
-  //  std::map<Value *, Value *> replacementMapping;
-  //  std::set<PHINode *> phiNodesToPopulate;
-  //
-  //  DominatorTree &DT =
-  //      mp->getAnalysis<DominatorTreeWrapperPass>(*f).getDomTree();
-  //  auto &entry = f->getEntryBlock();
-  //
-  //  // if this function is a clone, we need to populate the replacementMapping
-  //  // with its arguments
+    std::map<Value *, Value *> replacementMapping;
+    std::set<PHINode *> phiNodesToPopulate;
+
+    DominatorTree &DT =
+        mp->getAnalysis<DominatorTreeWrapperPass>(*f).getDomTree();
+    auto &entry = f->getEntryBlock();
+
+    // if this function is a clone, we need to populate the replacementMapping
+    // with its arguments
   //  if (functionArgumentMaps.find(f) != functionArgumentMaps.end()) {
   //    for (const auto &p : functionArgumentMaps[f]) {
   //      if (p.first->getType() == object_star) {
@@ -449,8 +454,8 @@ void ObjectLowering::FunctionTransform(Function *f) {
   //    }
   //  }
   //
-  //  std::set<CallInst *> buildObjs;
-  //  auto dataflowResult = dataflow(f, buildObjs);
+//    std::set<CallInst *> buildObjs;
+//    auto dataflowResult = dataflow(f, buildObjs);
   //
   //  std::set<Value *> liveBuildObjs;
   //  for (auto &BB : *f) {
@@ -470,7 +475,7 @@ void ObjectLowering::FunctionTransform(Function *f) {
   //  errs() << "Getting loop structures \n";
   //  auto loopStructures = noelle->getLoopStructures(f);
   //  errs() << "done getting loop structures\n";
-  //  std::set<CallInst *> allocBuildObjects;
+    std::set<CallInst *> allocBuildObjects;
   //
   //  for (auto buildObjins : buildObjs) {
   //    if (liveBuildObjs.find(buildObjins) != liveBuildObjs.end()) {
@@ -523,14 +528,14 @@ void ObjectLowering::FunctionTransform(Function *f) {
   //    "\n";
   //  }
   //
-  //  errs() << "invoking bbtransform \n";
-  //
-  //  // traverse the dominator to replace instructions
-  //  BasicBlockTransformer(DT,
-  //                        &entry,
-  //                        replacementMapping,
-  //                        phiNodesToPopulate,
-  //                        allocBuildObjects);
+    errs() << "invoking bbtransform \n";
+
+    // traverse the dominator to replace instructions
+    BasicBlockTransformer(DT,
+                          &entry,
+                          replacementMapping,
+                          phiNodesToPopulate,
+                          allocBuildObjects);
   //
   //  // repopulate incoming values of phi nodes
   //  for (auto old_phi : phiNodesToPopulate) {
@@ -594,280 +599,295 @@ void ObjectLowering::BasicBlockTransformer(
     std::map<Value *, Value *> &replacementMapping,
     std::set<PHINode *> &phiNodesToPopulate,
     std::set<CallInst *> &allocaBuildObj) {
-  //  // errs() << "Transforming Basic Block  " <<*bb << "\n\n";
-  //  // setup llvm::type and malloc function constants
-  //  auto &ctxt = M.getContext();
-  //  auto int64Ty = llvm::Type::getInt64Ty(ctxt);
-  //  auto int32Ty = llvm::Type::getInt32Ty(ctxt);
-  //  auto i8Ty = llvm::IntegerType::get(ctxt, 8);
-  //  auto i8StarTy = llvm::PointerType::getUnqual(i8Ty);
-  //  auto voidTy = llvm::Type::getVoidTy(ctxt);
-  //  auto mallocFTY =
-  //      llvm::FunctionType::get(i8StarTy, ArrayRef<Type *>({ int64Ty }),
-  //      false);
-  //  auto mallocf = M.getOrInsertFunction("malloc", mallocFTY);
-  //  auto freeFTY =
-  //      llvm::FunctionType::get(voidTy, ArrayRef<Type *>({ i8StarTy }),
-  //      false);
-  //  auto freef = M.getOrInsertFunction("free", freeFTY);
-  //
-  //  for (auto &ins : *bb) {
-  //    // errs() << "encountering  instruction " << ins <<"\n";
-  //    IRBuilder<> builder(&ins);
-  //    if (auto phi = dyn_cast<PHINode>(&ins)) {
-  //      // errs()<< "The phi has type " << *phi->getType() <<"\n";
-  //      // errs() << "our type is " << *llvmObjectType << "\n";
-  //      if (phi->getType() == object_star) {
-  //        // errs() << "those two types as equal" <<"\n";
-  //        std::set<PHINode *> visited;
-  //        ObjectWrapper *objw = parser->parseObjectWrapperChain(phi, visited);
-  //        auto llvmType = objw->innerType->getLLVMRepresentation(M);
-  //        auto llvmPtrType = PointerType::getUnqual(llvmType);
-  //        auto newPhi =
-  //            builder.CreatePHI(llvmPtrType, phi->getNumIncomingValues());
-  //        // errs() << "out of the old phi a new one is born" << *newPhi
-  //        <<"\n"; phiNodesToPopulate.insert(phi); replacementMapping[phi] =
-  //        newPhi;
-  //      }
-  //    } else if (auto callIns = dyn_cast<CallInst>(&ins)) {
-  //      auto callee = callIns->getCalledFunction();
-  //      if (callee == nullptr)
-  //        continue;
-  //      auto calleeName = callee->getName().str();
-  //      if (!isObjectIRCall(calleeName)) {
-  //        if (clonedFunctionMap.find(callee) == clonedFunctionMap.end()) {
-  //          continue;
-  //        }
-  //        // this is a function call which passes or returns Object*s
-  //        // replace the arguments
-  //        std::vector<Value *> arguments;
-  //        for (auto &arg : callIns->args()) {
-  //          auto val = arg.get();
-  //          if (replacementMapping.find(val) != replacementMapping.end()) {
-  //            arguments.push_back(replacementMapping[val]);
-  //          } else {
-  //            arguments.push_back(val);
-  //          }
-  //        }
-  //        auto new_callins =
-  //            builder.CreateCall(clonedFunctionMap[callee], arguments);
-  //        // if the return type isn't Object*, then we assume it is an
-  //        intrinsic
-  //        // and its uses must be replaced
-  //        if (callIns->getType() != this->object_star) {
-  //          assert(new_callins->getType() == callIns->getType());
-  //          ins.replaceAllUsesWith(new_callins);
-  //        }
-  //        replacementMapping[callIns] = new_callins;
-  //
-  //      } else {
-  //
-  //        auto calleeCategory = FunctionNamesToObjectIR[calleeName];
-  //        switch (calleeCategory) {
-  //          case BUILD_OBJECT: {
-  //            // create malloc based on the object's LLVMRepresentation ;
-  //            bitcast
-  //            // to a ptr to LLVMRepresentation
-  //            if (allocaBuildObj.find(callIns) != allocaBuildObj.end()) {
-  //              continue;
-  //            }
-  //            std::set<PHINode *> visited;
-  //            auto objT = parser->parseObjectWrapperChain(callIns, visited);
-  //            auto llvmType = objT->innerType->getLLVMRepresentation(M);
-  //            auto llvmTypeSize = llvm::ConstantInt::get(
-  //                int64Ty,
-  //                M.getDataLayout().getTypeAllocSize(llvmType));
-  //            std::vector<Value *> arguments{ llvmTypeSize };
-  //            auto newMallocCall = builder.CreateCall(mallocf, arguments);
-  //
-  //            auto bc_inst =
-  //                builder.CreateBitCast(newMallocCall,
-  //                                      PointerType::getUnqual(llvmType));
-  //
-  //            replacementMapping[callIns] = bc_inst;
-  //            break;
-  //          }
-  //          case WRITE_UINT32:
-  //          case WRITE_UINT64: {
-  //            std::set<PHINode *> visited;
-  //            auto fieldWrapper =
-  //                parser->parseFieldWrapperChain(callIns->getArgOperand(0),
-  //                                               visited);
-  //            auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
-  //                                                 builder,
-  //                                                 replacementMapping);
-  //            auto storeInst =
-  //                builder.CreateStore(callIns->getArgOperand(1), gep);
-  //            replacementMapping[callIns] = storeInst;
-  //            // errs() << "out of the write gep is born" << *gep <<"\n";
-  //            // errs() << "out of the gep a store is born" << *storeInst
-  //            <<"\n"; break;
-  //          }
-  //          case READ_UINT64:
-  //          case READ_UINT32: {
-  //            Type *targetType;
-  //            if (calleeCategory == READ_UINT64) {
-  //              targetType = int64Ty;
-  //            } else if (calleeCategory == READ_UINT32) {
-  //              targetType = int32Ty;
-  //            }
-  //
-  //            std::set<PHINode *> visited;
-  //            auto fieldWrapper =
-  //                parser->parseFieldWrapperChain(callIns->getArgOperand(0),
-  //                                               visited);
-  //            auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
-  //                                                 builder,
-  //                                                 replacementMapping);
-  //            auto loadInst =
-  //                builder.CreateLoad(targetType, gep, "loadfromint32");
-  //            replacementMapping[callIns] = loadInst;
-  //            ins.replaceAllUsesWith(loadInst);
-  //            // errs() << "out of the write gep is born" << *gep <<"\n";
-  //            // errs() << "from the readuint64 we have a load" << *loadInst
-  //            // <<"\n";
-  //            break;
-  //          }
-  //          case READ_POINTER: {
-  //            // create gep. load i8* from the gep. bitcast the load to a ptr
-  //            to
-  //            // LLVMRepresentation
-  //            std::set<PHINode *> visited;
-  //            auto fieldWrapper =
-  //                parser->parseFieldWrapperChain(callIns->getArgOperand(0),
-  //                                               visited);
-  //            auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
-  //                                                 builder,
-  //                                                 replacementMapping);
-  //            auto loadInst = builder.CreateLoad(i8StarTy, gep,
-  //            "loadfromPtr");
-  //            // fetch the Type*, which should be a PointerTy/APointerType
-  //            auto refPtr =
-  //                fieldWrapper->objectType->fields[fieldWrapper->fieldIndex];
-  //            if (refPtr->getCode() != PointerTy) {
-  //              errs() << "BBTransform: " << refPtr->toString()
-  //                     << "not a pointer\n\n";
-  //              assert(false);
-  //            }
-  //            // the pointsTo must be an ObjectType, which we can use to get
-  //            the
-  //            // target type for bitcast
-  //            auto objTy = ((APointerType *)refPtr)->pointsTo;
-  //            if (objTy->getCode() != ObjectTy) {
-  //              errs() << "BBTransform: " << objTy->toString()
-  //                     << "not an object\n\n";
-  //              assert(false);
-  //            }
-  //            auto llvmtype = ((ObjectType *)objTy)->getLLVMRepresentation(M);
-  //            auto bc_inst =
-  //                builder.CreateBitCast(loadInst,
-  //                                      PointerType::getUnqual(llvmtype));
-  //            replacementMapping[callIns] = bc_inst;
-  //            break;
-  //          }
-  //          case WRITE_POINTER: {
-  //            // create gep. bitcast the value-to-be-written into i8*. store
-  //            the
-  //            // bitcast
-  //            std::set<PHINode *> visited;
-  //            auto fieldWrapper =
-  //                parser->parseFieldWrapperChain(callIns->getArgOperand(0),
-  //                                               visited);
-  //            auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
-  //                                                 builder,
-  //                                                 replacementMapping);
-  //            auto new_val = callIns->getArgOperand(1);
-  //            if (replacementMapping.find(new_val) ==
-  //            replacementMapping.end()) {
-  //              errs()
-  //                  << "BBtransform: no replacement found for value: " <<
-  //                  callIns
-  //                  << "\n";
-  //              assert(false);
-  //            }
-  //            auto replPtr = replacementMapping[new_val];
-  //            auto bc_inst = builder.CreateBitCast(replPtr, i8StarTy);
-  //            auto storeInst = builder.CreateStore(bc_inst, gep);
-  //            replacementMapping[callIns] = storeInst;
-  //            break;
-  //          }
-  //          case DELETE_OBJECT: {
-  //
-  //            auto arg0 = callIns->getArgOperand(0);
-  //            if (allocaBuildObj.find(dyn_cast<CallInst>(arg0))
-  //                != allocaBuildObj.end()) {
-  //              continue;
-  //            }
-  //            // bitcast to i8* and call free
-  //            auto obj_inst = replacementMapping[arg0];
-  //            auto bc_inst = builder.CreateBitCast(obj_inst, i8StarTy);
-  //            std::vector<Value *> arguments{ bc_inst };
-  //            auto free_inst = builder.CreateCall(freef, arguments);
-  //            replacementMapping[callIns] = free_inst;
-  //            break;
-  //          }
-  //          default:
-  //
-  //            continue;
-  //        } // endof switch
-  //      }
-  //    } else if (auto icmp = dyn_cast<ICmpInst>(&ins)) {
-  //      if (icmp->getOperand(0)->getType() != object_star) {
-  //        continue;
-  //      }
-  //      Value *not_the_null_one =
-  //          dyn_cast<ConstantPointerNull>(icmp->getOperand(0))
-  //              ? icmp->getOperand(1)
-  //              : icmp->getOperand(0);
-  //      if (replacementMapping.find(not_the_null_one)
-  //          == replacementMapping.end()) {
-  //        errs()
-  //            << "Comparing object* but fail to find it in replacement
-  //            mapping";
-  //        assert(false);
-  //      }
-  //      auto newType = replacementMapping[not_the_null_one]->getType();
-  //      assert(isa<PointerType>(newType));
-  //      auto pointerNewType = dyn_cast<PointerType>(newType);
-  //      Value *new_left;
-  //      auto curLeft = icmp->getOperand(0);
-  //      if (isa<ConstantPointerNull>(curLeft)) {
-  //        new_left = ConstantPointerNull::get(pointerNewType);
-  //      } else if (replacementMapping.find(curLeft) ==
-  //      replacementMapping.end()) {
-  //        errs() << "can't find " << *curLeft << "in replacement mapping";
-  //        assert(false);
-  //      } else {
-  //        new_left = replacementMapping[curLeft];
-  //      }
-  //      Value *new_right;
-  //      auto curRight = icmp->getOperand(1);
-  //      if (isa<ConstantPointerNull>(curRight)) {
-  //        new_right = ConstantPointerNull::get(pointerNewType);
-  //      } else if (replacementMapping.find(curRight)
-  //                 == replacementMapping.end()) {
-  //        errs() << "can't find " << *curRight << "in replacement mapping";
-  //        assert(false);
-  //      } else {
-  //        new_right = replacementMapping[curRight];
-  //      }
-  //      errs() << "the left operand is " << *new_left << "\n";
-  //      errs() << "the right operand is " << *new_right << "\n";
-  //      auto newIcmp =
-  //          builder.CreateICmp(icmp->getPredicate(), new_left, new_right);
-  //      replacementMapping[icmp] = newIcmp;
-  //      icmp->replaceAllUsesWith(newIcmp);
-  //    }
-  //
-  //    else if (auto retIns = dyn_cast<ReturnInst>(&ins)) {
-  //      // replace returned value, if necessary
-  //      auto r_val = retIns->getReturnValue();
-  //      if (replacementMapping.find(r_val) != replacementMapping.end()) {
-  //        auto new_ret = builder.CreateRet(replacementMapping[r_val]);
-  //        replacementMapping[retIns] = new_ret;
-  //      }
-  //    }
-  //  }
+    // errs() << "Transforming Basic Block  " <<*bb << "\n\n";
+    // setup llvm::type and malloc function constants
+    auto &ctxt = M.getContext();
+    auto int64Ty = llvm::Type::getInt64Ty(ctxt);
+    auto int32Ty = llvm::Type::getInt32Ty(ctxt);
+    auto i8Ty = llvm::IntegerType::get(ctxt, 8);
+    auto i8StarTy = llvm::PointerType::getUnqual(i8Ty);
+    auto voidTy = llvm::Type::getVoidTy(ctxt);
+    auto mallocFTY =
+        llvm::FunctionType::get(i8StarTy, ArrayRef<Type *>({ int64Ty }),
+        false);
+    auto mallocf = M.getOrInsertFunction("malloc", mallocFTY);
+    auto freeFTY =
+        llvm::FunctionType::get(voidTy, ArrayRef<Type *>({ i8StarTy }),
+        false);
+    auto freef = M.getOrInsertFunction("free", freeFTY);
+    for (auto &ins : *bb) {
+      // errs() << "encountering  instruction " << ins <<"\n";
+      IRBuilder<> builder(&ins);
+      if (auto phi = dyn_cast<PHINode>(&ins)) {
+        // errs()<< "The phi has type " << *phi->getType() <<"\n";
+        // errs() << "our type is " << *llvmObjectType << "\n";
+        if (phi->getType() == object_star) {
+//          // errs() << "those two types as equal" <<"\n";
+          std::set<PHINode *> visited;
+//          ObjectWrapper *objw = parser->parseObjectWrapperChain(phi, visited);
+            StructTypeSummary* sts = parser->parseStructTypeSummaryChain(phi,visited);
+
+          auto llvmType = nativeTypeConverter->getLLVMRepresentation(sts);
+          auto llvmPtrType = PointerType::getUnqual(llvmType);
+          auto newPhi =
+              builder.CreatePHI(llvmPtrType, phi->getNumIncomingValues());
+//          // errs() << "out of the old phi a new one is born" << *newPhi
+//          <<"\n"; phiNodesToPopulate.insert(phi); replacementMapping[phi] =
+//          newPhi;
+        }
+      } else if (auto callIns = dyn_cast<CallInst>(&ins)) {
+        auto callee = callIns->getCalledFunction();
+        if (callee == nullptr)
+          continue;
+        auto calleeName = callee->getName().str();
+
+        if ( !isMemOIRCall(calleeName)) {
+            continue;
+//          if (clonedFunctionMap.find(callee) == clonedFunctionMap.end()) {
+//            continue;
+//          }
+//          // this is a function call which passes or returns Object*s
+//          // replace the arguments
+//          std::vector<Value *> arguments;
+//          for (auto &arg : callIns->args()) {
+//            auto val = arg.get();
+//            if (replacementMapping.find(val) != replacementMapping.end()) {
+//              arguments.push_back(replacementMapping[val]);
+//            } else {
+//              arguments.push_back(val);
+//            }
+//          }
+//          auto new_callins =
+//              builder.CreateCall(clonedFunctionMap[callee], arguments);
+//          // if the return type isn't Object*, then we assume it is an
+////          intrinsic
+//          // and its uses must be replaced
+//          if (callIns->getType() != this->object_star) {
+//            assert(new_callins->getType() == callIns->getType());
+//            ins.replaceAllUsesWith(new_callins);
+//          }
+//          replacementMapping[callIns] = new_callins;
+
+        } else {
+
+          auto calleeCategory =getMemOIREnum(calleeName);
+          switch (calleeCategory) {
+            case ALLOCATE_STRUCT: {
+              // create malloc based on the object's LLVMRepresentation ;
+//              bitcast
+              // to a ptr to LLVMRepresentation
+              if (allocaBuildObj.find(callIns) != allocaBuildObj.end()) {
+                continue;
+              }
+              std::set<PHINode *> visited;
+              StructTypeSummary* sts = parser->parseStructTypeSummaryChain(phi,visited);
+              auto llvmType = nativeTypeConverter->getLLVMRepresentation(sts);
+              auto llvmTypeSize = llvm::ConstantInt::get(
+                  int64Ty,
+                  M.getDataLayout().getTypeAllocSize(llvmType));
+              std::vector<Value *> arguments{ llvmTypeSize };
+              auto newMallocCall = builder.CreateCall(mallocf, arguments);
+
+              auto bc_inst =
+                  builder.CreateBitCast(newMallocCall,
+                                        PointerType::getUnqual(llvmType));
+
+              replacementMapping[callIns] = bc_inst;
+              break;
+            }
+              case WRITE_INT8:
+             case WRITE_INT16:
+             case WRITE_INT32:
+             case WRITE_INT64:
+             case WRITE_UINT8:
+            case WRITE_UINT16:
+            case WRITE_UINT32:
+            case WRITE_UINT64: {
+              std::set<PHINode *> visited;
+              auto fieldWrapper =
+                  parser->parseFieldWrapperChain(callIns->getArgOperand(0),
+                                                 visited);
+              auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
+                                                   builder,
+                                                   replacementMapping);
+              auto storeInst =
+                  builder.CreateStore(callIns->getArgOperand(1), gep);
+              replacementMapping[callIns] = storeInst;
+              // errs() << "out of the write gep is born" << *gep <<"\n";
+              // errs() << "out of the gep a store is born" << *storeInst
+//              <<"\n"; break;
+            }
+              case READ_INT8:
+              case READ_INT16:
+              case READ_INT32:
+              case READ_INT64:
+              case READ_UINT8:
+              case READ_UINT16:
+              case READ_UINT32:
+              case READ_UINT64: {
+              Type *targetType;
+              if (calleeCategory == llvm::memoir::MemOIR_Func::READ_UINT64) {
+                targetType = int64Ty;
+              } else if (llvm::memoir::MemOIR_Func::READ_UINT64) {
+                targetType = int32Ty;
+              }
+
+              std::set<PHINode *> visited;
+              auto fieldWrapper =
+                  parser->parseFieldWrapperChain(callIns->getArgOperand(0),
+                                                 visited);
+              auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
+                                                   builder,
+                                                   replacementMapping);
+              auto loadInst =
+                  builder.CreateLoad(targetType, gep, "loadfromint32");
+              replacementMapping[callIns] = loadInst;
+              ins.replaceAllUsesWith(loadInst);
+              // errs() << "out of the write gep is born" << *gep <<"\n";
+              // errs() << "from the readuint64 we have a load" << *loadInst
+              // <<"\n";
+              break;
+            }
+            case READ_REFERENCE: {
+              // create gep. load i8* from the gep. bitcast the load to a ptr
+//              to
+              // LLVMRepresentation
+              std::set<PHINode *> visited;
+              auto fieldWrapper =
+                  parser->parseFieldWrapperChain(callIns->getArgOperand(0),
+                                                 visited);
+              auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
+                                                   builder,
+                                                   replacementMapping);
+              auto loadInst = builder.CreateLoad(i8StarTy, gep,
+              "loadfromPtr");
+              // fetch the Type*, which should be a PointerTy/APointerType
+              auto refPtr =
+                  fieldWrapper->objectType->fields[fieldWrapper->fieldIndex];
+              if (refPtr->getCode() != PointerTy) {
+                errs() << "BBTransform: " << refPtr->toString()
+                       << "not a pointer\n\n";
+                assert(false);
+              }
+              // the pointsTo must be an ObjectType, which we can use to get
+//              the
+              // target type for bitcast
+              auto objTy = ((APointerType *)refPtr)->pointsTo;
+              if (objTy->getCode() != ObjectTy) {
+                errs() << "BBTransform: " << objTy->toString()
+                       << "not an object\n\n";
+                assert(false);
+              }
+              auto llvmtype = ((ObjectType *)objTy)->getLLVMRepresentation(M);
+              auto bc_inst =
+                  builder.CreateBitCast(loadInst,
+                                        PointerType::getUnqual(llvmtype));
+              replacementMapping[callIns] = bc_inst;
+              break;
+            }
+            case WRITE_REFERENCE: {
+              // create gep. bitcast the value-to-be-written into i8*. store
+//              the
+              // bitcast
+              std::set<PHINode *> visited;
+              auto fieldWrapper =
+                  parser->parseFieldWrapperChain(callIns->getArgOperand(0),
+                                                 visited);
+              auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
+                                                   builder,
+                                                   replacementMapping);
+              auto new_val = callIns->getArgOperand(1);
+              if (replacementMapping.find(new_val) ==
+              replacementMapping.end()) {
+                errs()
+                    << "BBtransform: no replacement found for value: " <<
+                    callIns
+                    << "\n";
+                assert(false);
+              }
+              auto replPtr = replacementMapping[new_val];
+              auto bc_inst = builder.CreateBitCast(replPtr, i8StarTy);
+              auto storeInst = builder.CreateStore(bc_inst, gep);
+              replacementMapping[callIns] = storeInst;
+              break;
+            }
+            case DELETE_OBJECT: {
+
+              auto arg0 = callIns->getArgOperand(0);
+              if (allocaBuildObj.find(dyn_cast<CallInst>(arg0))
+                  != allocaBuildObj.end()) {
+                continue;
+              }
+              // bitcast to i8* and call free
+              auto obj_inst = replacementMapping[arg0];
+              auto bc_inst = builder.CreateBitCast(obj_inst, i8StarTy);
+              std::vector<Value *> arguments{ bc_inst };
+              auto free_inst = builder.CreateCall(freef, arguments);
+              replacementMapping[callIns] = free_inst;
+              break;
+            }
+            default:
+
+              continue;
+          } // endof switch
+        }
+      } else if (auto icmp = dyn_cast<ICmpInst>(&ins)) {
+        if (icmp->getOperand(0)->getType() != object_star) {
+          continue;
+        }
+        Value *not_the_null_one =
+            dyn_cast<ConstantPointerNull>(icmp->getOperand(0))
+                ? icmp->getOperand(1)
+                : icmp->getOperand(0);
+        if (replacementMapping.find(not_the_null_one)
+            == replacementMapping.end()) {
+//          errs()
+//              << "Comparing object* but fail to find it in replacement
+//              mapping";
+          assert(false);
+        }
+        auto newType = replacementMapping[not_the_null_one]->getType();
+        assert(isa<PointerType>(newType));
+        auto pointerNewType = dyn_cast<PointerType>(newType);
+        Value *new_left;
+        auto curLeft = icmp->getOperand(0);
+        if (isa<ConstantPointerNull>(curLeft)) {
+          new_left = ConstantPointerNull::get(pointerNewType);
+        } else if (replacementMapping.find(curLeft) ==
+        replacementMapping.end()) {
+          errs() << "can't find " << *curLeft << "in replacement mapping";
+          assert(false);
+        } else {
+          new_left = replacementMapping[curLeft];
+        }
+        Value *new_right;
+        auto curRight = icmp->getOperand(1);
+        if (isa<ConstantPointerNull>(curRight)) {
+          new_right = ConstantPointerNull::get(pointerNewType);
+        } else if (replacementMapping.find(curRight)
+                   == replacementMapping.end()) {
+          errs() << "can't find " << *curRight << "in replacement mapping";
+          assert(false);
+        } else {
+          new_right = replacementMapping[curRight];
+        }
+        errs() << "the left operand is " << *new_left << "\n";
+        errs() << "the right operand is " << *new_right << "\n";
+        auto newIcmp =
+            builder.CreateICmp(icmp->getPredicate(), new_left, new_right);
+        replacementMapping[icmp] = newIcmp;
+        icmp->replaceAllUsesWith(newIcmp);
+      }
+
+      else if (auto retIns = dyn_cast<ReturnInst>(&ins)) {
+        // replace returned value, if necessary
+        auto r_val = retIns->getReturnValue();
+        if (replacementMapping.find(r_val) != replacementMapping.end()) {
+          auto new_ret = builder.CreateRet(replacementMapping[r_val]);
+          replacementMapping[retIns] = new_ret;
+        }
+      }
+    }
   //
   //  // transform the children in dominator-order
   //  auto node = DT.getNode(bb);

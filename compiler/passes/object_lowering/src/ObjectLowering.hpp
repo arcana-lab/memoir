@@ -8,11 +8,13 @@
 #include "common/analysis/TypeAnalysis.hpp"
 #include "common/support/Metadata.hpp"
 #include "common/utility/FunctionNames.hpp"
+#include "common/support/InternalDatatypes.hpp"
 #include "noelle/core/Noelle.hpp"
 
 #include "Parser.hpp"
 #include "Utils.hpp"
 #include "types.hpp"
+#include "NativeTypeConverter.h"
 
 /*
  * Pass to perform lowering from object-ir to LLVM IR
@@ -31,6 +33,7 @@ private:
   Noelle *noelle;
   ModulePass *mp;
   Parser *parser;
+  NativeTypeConverter* nativeTypeConverter;
 
   // llvm Type*s
   Type *object_star;
@@ -40,8 +43,8 @@ private:
   // collect all GlobalVals which are Type*
   std::vector<GlobalValue *> typeDefs;
 
-  std::map<Function *, Function *> clonedFunctionMap;
-  std::map<Function *, map<Argument *, Argument *>> functionArgumentMaps;
+  std::map<Function *, Function *> clonedFunctionMap; // TODO: switch it all to the templated map
+  std::map<Function *, std::map<Argument *, Argument *>> functionArgumentMaps;
 
 public:
   ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp);
