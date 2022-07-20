@@ -8,7 +8,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <unordered_map>
+#include "common/support/InternalDatatypes.hpp"
 
 namespace llvm {
 namespace memoir {
@@ -57,7 +57,7 @@ private:
 
   bool hasMetadata(Instruction &I, StringRef str);
 
-  std::unordered_map<MetadataType, StringRef> MDtoString;
+  map<MetadataType, StringRef> MDtoString;
 
   /*
    * Singleton
