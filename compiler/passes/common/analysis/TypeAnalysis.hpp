@@ -34,7 +34,7 @@ public:
   static TypeAnalysis &get(Module &M);
 
   /*
-   * Query the Type Summary for the given call instruction
+   * Query the Type Summary for the given LLVM Value
    */
   TypeSummary *getTypeSummary(llvm::CallInst &call_inst);
 
