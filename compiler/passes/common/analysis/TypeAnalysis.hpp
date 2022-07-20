@@ -2,6 +2,7 @@
 #define COMMON_TYPES_H
 #pragma once
 
+#include <iostream>
 #include <string>
 
 #include "common/support/InternalDatatypes.hpp"
@@ -93,7 +94,9 @@ public:
   TypeCode getCode();
 
   virtual bool equals(Type *other) = 0;
-  virtual std::string toString() = 0;
+  virtual std::string toString(std::string indent = "") = 0;
+
+  friend std::ostream &operator<<(std::ostream &os, const TypeSummary &ts);
 
 private:
   TypeCode code;
@@ -113,7 +116,7 @@ public:
   uint64_t getNumFields();
 
   bool equals(TypeSummary *other);
-  std::string toString();
+  std::string toString(std::string indent = "") override;
 
 private:
   static map<std::string, StructTypeSummary *> defined_type_summaries;
@@ -136,7 +139,7 @@ public:
   uint64_t getLengthOfDimension(uint64_t dimension_index);
 
   bool equals(Type *other);
-  std::string toString();
+  std::string toString(std::string indent = "") override;
 
 private:
   TypeSummary *element_type;
@@ -156,7 +159,7 @@ public:
   TypeSummary *getReferencedType();
 
   bool equals(TypeSummary *other);
-  std::string toString();
+  std::string toString(std::string indent = "") override;
 
 private:
   TypeSummary *referenced_type;
@@ -172,7 +175,7 @@ public:
   bool isSigned();
 
   bool equals(TypeSummary *other);
-  std::string toString();
+  std::string toString(std::string indent = "") override;
 
 private:
   unsigned bitwidth;
@@ -191,7 +194,7 @@ public:
   static TypeSummary *get();
 
   bool equals(TypeSummary *other);
-  std::string toString();
+  std::string toString(std::string indent = "") override;
 
 private:
   FloatTypeSummary();
@@ -202,7 +205,7 @@ public:
   static TypeSummary *get();
 
   bool equals(TypeSummary *other);
-  std::string toString();
+  std::string toString(std::string indent = "") override;
 
 private:
   DoubleTypeSummary();

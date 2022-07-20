@@ -2,8 +2,7 @@
 #define COMMON_ACCESSANALYSIS_H
 #pragma once
 
-#include <unordered_map>
-#include <unordered_set>
+#include <iostream>
 
 #include "common/support/InternalDatatypes.hpp"
 
@@ -116,6 +115,8 @@ public:
   AllocationSummary &pointsTo();
   TypeSummary &getType();
 
+  virtual std::string toString(std::string indent = "") = 0;
+
 private:
   AllocationSummary &points_to;
   TypeSummary &type;
@@ -129,9 +130,13 @@ private:
  *
  * Represents a field of a MemOIR struct.
  */
-class StructFieldSummary {
+class StructFieldSummary : public FieldSummary {
 public:
   uint64_t getIndex();
+
+  std::string toString(std::string indent = "") override;
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const StructFieldSummary &summary);
 
 private:
   uint64_t index;
@@ -151,6 +156,8 @@ private:
 class TensorElementSummary : public FieldSummary {
   llvm::Value &getIndex(uint64_t dimension_index);
   uint64_t getNumberOfDimensions();
+
+  std::string toString(std::string indent = "") override;
 
 private:
   std::vector<llvm::Value *> indices;
@@ -203,6 +210,9 @@ public:
 
   virtual TypeSummary &getType() = 0;
 
+  friend std::ostream &operator<<(std::ostream &os, const AccessSummary &as);
+  virtual std::string toString(std::string indent = "") = 0;
+
 private:
   PointsToInfo points_to_info;
   AccessInfo access_info;
@@ -227,6 +237,8 @@ public:
   FieldSummary &getField();
   TypeSummary &getType() override;
 
+  std::string toString(std::string indent = "") override;
+
 private:
   FieldSummary &field;
 
@@ -249,6 +261,8 @@ public:
   llvm::Value &getValueWritten();
   FieldSummary &getField();
   TypeSummary &getType() override;
+
+  std::string toString(std::string indent = "") override;
 
 private:
   llvm::Value &value_written;
@@ -275,6 +289,8 @@ public:
   iterator begin();
   iterator end();
 
+  std::string toString(std::string indent = "") override;
+
 private:
   set<ReadSummary *> may_read_summaries;
 
@@ -296,6 +312,8 @@ public:
 
   iterator begin();
   iterator end();
+
+  std::string toString(std::string indent = "") override;
 
 private:
   set<WriteSummary *> may_write_summaries;

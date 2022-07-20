@@ -2,7 +2,7 @@
 #define COMMON_ALLOCATIONANALYSIS_H
 #pragma once
 
-#include <unordered_map>
+#include <iostream>
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
@@ -99,7 +99,9 @@ public:
   AllocationCode getCode();
   llvm::CallInst &getCallInst();
 
-  virtual std::string toString() = 0;
+  virtual std::string toString(std::string indent = "") = 0;
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const AllocationSummary &as);
 
 private:
   AllocationCode code;
@@ -118,7 +120,7 @@ struct StructAllocationSummary : public AllocationSummary {
 public:
   static AllocationSummary &get(llvm::CallInst &call_inst);
 
-  std::string toString();
+  std::string toString(std::string indent = "") override;
 
 private:
   StructAllocationSummary(llvm::CallInst &call_inst);
@@ -140,7 +142,7 @@ public:
   TypeSummary &element_type_summary;
   std::vector<llvm::Value *> length_of_dimensions;
 
-  std::string toString();
+  std::string toString(std::string indent = "") override;
 
 private:
   TensorAllocationSummary(llvm::CallInst &call_inst,
