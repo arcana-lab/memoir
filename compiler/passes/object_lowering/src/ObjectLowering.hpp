@@ -59,7 +59,7 @@ namespace object_lowering {
         void inferArgTypes(
                 llvm::Function *f,
                 vector<Type *> *arg_vector); // build a new list of argument types
-        ObjectType *inferReturnType(llvm::Function *f);
+//        ObjectType *inferReturnType(llvm::Function *f);
 
         // ======================== STACK VS HEAP =====================
 
@@ -77,10 +77,10 @@ namespace object_lowering {
                                    std::set<PHINode *> &phiNodesToPopulate,
                                    std::set<CallInst *> &allocaBuildObj);
 
-        Value *CreateGEPFromFieldWrapper(
-                FieldWrapper *wrapper,
-                IRBuilder<> &builder,
-                std::map<Value *, Value *> &replacementMapping);
+//        Value *CreateGEPFromFieldWrapper(
+//                FieldWrapper *wrapper,
+//                IRBuilder<> &builder,
+//                std::map<Value *, Value *> &replacementMapping);
 
         Value *CreateGEPFromFieldInfo(
                 Value* baseObjPtr,

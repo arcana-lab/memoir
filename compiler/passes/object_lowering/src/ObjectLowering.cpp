@@ -264,40 +264,40 @@ namespace object_lowering {
         //  }
     }
 
-    ObjectType *ObjectLowering::inferReturnType(llvm::Function *f) {
-        //  errs() << f->getName().str() << ": inferring its return type rn\n";
-        //
-        //  for (auto &bb : *f) {
-        //    for (auto &ins : bb) {
-        //      if (auto callIns = dyn_cast<CallInst>(&ins)) {
-        //        auto callee = callIns->getCalledFunction();
-        //        if (callee == nullptr)
-        //          continue;
-        //        auto calleeName = callee->getName().str();
-        //        if (!isObjectIRCall(calleeName))
-        //          continue;
-        //        if (FunctionNamesToObjectIR[calleeName] == SET_RETURN_TYPE) {
-        //          // use parseType to retreive the type info from the first operand
-        //          auto newTypeInst = callIns->getArgOperand(0);
-        //          object_lowering::AnalysisType *a_type;
-        //          std::set<PHINode *> visited;
-        //          std::function<void(CallInst *)> call_back = [&](CallInst *ci) {
-        //            a_type = parser->parseTypeCallInst(ci, visited);
-        //          };
-        //          parser->parseType(newTypeInst, call_back, visited);
-        //          // make sure it is an ObjectType
-        //          assert(a_type);
-        //          if (a_type->getCode() != ObjectTy)
-        //            assert(false);
-        //          auto *objt = (ObjectType *)a_type;
-        //          return objt;
-        //        }
-        //      }
-        //    }
-        //  }
-        //  errs() << "did not find setReturnType\n";
-        //  assert(false);
-    }
+//    ObjectType *ObjectLowering::inferReturnType(llvm::Function *f) {
+//        //  errs() << f->getName().str() << ": inferring its return type rn\n";
+//        //
+//        //  for (auto &bb : *f) {
+//        //    for (auto &ins : bb) {
+//        //      if (auto callIns = dyn_cast<CallInst>(&ins)) {
+//        //        auto callee = callIns->getCalledFunction();
+//        //        if (callee == nullptr)
+//        //          continue;
+//        //        auto calleeName = callee->getName().str();
+//        //        if (!isObjectIRCall(calleeName))
+//        //          continue;
+//        //        if (FunctionNamesToObjectIR[calleeName] == SET_RETURN_TYPE) {
+//        //          // use parseType to retreive the type info from the first operand
+//        //          auto newTypeInst = callIns->getArgOperand(0);
+//        //          object_lowering::AnalysisType *a_type;
+//        //          std::set<PHINode *> visited;
+//        //          std::function<void(CallInst *)> call_back = [&](CallInst *ci) {
+//        //            a_type = parser->parseTypeCallInst(ci, visited);
+//        //          };
+//        //          parser->parseType(newTypeInst, call_back, visited);
+//        //          // make sure it is an ObjectType
+//        //          assert(a_type);
+//        //          if (a_type->getCode() != ObjectTy)
+//        //            assert(false);
+//        //          auto *objt = (ObjectType *)a_type;
+//        //          return objt;
+//        //        }
+//        //      }
+//        //    }
+//        //  }
+//        //  errs() << "did not find setReturnType\n";
+//        //  assert(false);
+//    }
 
 // ============================ STACK VS HEAP
 // =============================================
@@ -702,20 +702,64 @@ namespace object_lowering {
                         case WRITE_UINT8:
                         case WRITE_UINT16:
                         case WRITE_UINT32:
-                        case WRITE_UINT64: {
-                            std::set<PHINode *> visited;
-                            auto fieldWrapper =
-                                    parser->parseFieldWrapperChain(callIns->getArgOperand(0),
-                                                                   visited);
-                            auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
-                                                                 builder,
-                                                                 replacementMapping);
-                            auto storeInst =
-                                    builder.CreateStore(callIns->getArgOperand(1), gep);
-                            replacementMapping[callIns] = storeInst;
+                        case WRITE_UINT64:
+                        case WRITE_REFERENCE: {
+                            auto &accAna = memoir::AccessAnalysis::get(M);
+                            auto accSum = accAna.getAccessSummary(*callIns);
+
+                            auto mustObjTypeGrabber = [&](AccessSummary* accSum) -> TypeSummary & {
+                                return ((WriteSummary *) accSum)->getField().getType();
+                            };
+                            auto mayObjTypeGrabber = [&](AccessSummary* accSum)  -> TypeSummary & {
+                                return mustObjTypeGrabber(*((MayWriteSummary *) accSum)->begin());
+                            };
+                            auto mustIndexGrabber = [&](AccessSummary* accSum) -> uint64_t  {
+                                return ((StructFieldSummary*) &(((WriteSummary *) accSum)->getField()))->getIndex();
+                            };
+                            auto mayIndexGrabber = [&](AccessSummary* accSum) -> uint64_t {
+                                return mustIndexGrabber(*((MayWriteSummary *) accSum)->begin());
+                            };
+                            auto objectType =(StructTypeSummary*) &(accSum->isMay() ?
+                                                                    mayObjTypeGrabber(accSum) :
+                                                                    mustObjTypeGrabber(accSum));
+                            auto fieldType = &accSum->getType();
+                            auto fieldIndex = accSum->isMay() ?
+                                              mayIndexGrabber(accSum) :
+                                              mustIndexGrabber(accSum);
+                            //This should be the getObjectField
+                            auto fieldCallIns = dyn_cast<CallInst>(callIns->getArgOperand(0));
+                            auto baseObj = fieldCallIns->getArgOperand(0);
+
+                            auto gep = CreateGEPFromFieldInfo(baseObj,objectType,fieldIndex,builder,replacementMapping);
+                            switch (fieldType->getCode()) {
+                                case llvm::memoir::ReferenceTy:{
+                                    auto new_val = callIns->getArgOperand(1);
+                                    if (replacementMapping.find(new_val) ==
+                                        replacementMapping.end()) {
+                                        errs()
+                                                << "BBtransform: no replacement found for value: " <<
+                                                callIns
+                                                << "\n";
+                                        assert(false);
+                                    }
+                                    auto replPtr = replacementMapping[new_val];
+                                    auto bc_inst = builder.CreateBitCast(replPtr, i8StarTy);
+                                    auto storeInst = builder.CreateStore(bc_inst, gep);
+                                    replacementMapping[callIns] = storeInst;
+                                    break;
+                                }
+
+                                default: {
+                                    auto storeInst =
+                                            builder.CreateStore(callIns->getArgOperand(1), gep);
+                                    replacementMapping[callIns] = storeInst;
+                                    break;
+                                }
+                            }
                             // errs() << "out of the write gep is born" << *gep <<"\n";
                             // errs() << "out of the gep a store is born" << *storeInst
-//              <<"\n"; break;
+//              <<"\n";
+                            break;
                         }
                         case READ_INT8:
                         case READ_INT16:
@@ -724,7 +768,8 @@ namespace object_lowering {
                         case READ_UINT8:
                         case READ_UINT16:
                         case READ_UINT32:
-                        case READ_UINT64: {
+                        case READ_UINT64:
+                        case READ_REFERENCE:{
                             auto &accAna = memoir::AccessAnalysis::get(M);
                             auto accSum = accAna.getAccessSummary(*callIns);
 
@@ -744,8 +789,6 @@ namespace object_lowering {
                             auto objectType =(StructTypeSummary*) &(accSum->isMay() ?
                                     mayObjTypeGrabber(accSum) :
                                     mustObjTypeGrabber(accSum));
-                            auto bitwidth = ((IntegerTypeSummary *) fieldType)->getBitWidth();
-                            auto targetType = llvm::IntegerType::get(ctxt, bitwidth);
                             auto fieldIndex = accSum->isMay() ?
                                               mayIndexGrabber(accSum) :
                                               mustIndexGrabber(accSum);
@@ -754,76 +797,46 @@ namespace object_lowering {
                             auto baseObj = fieldCallIns->getArgOperand(0);
 
                             auto gep = CreateGEPFromFieldInfo(baseObj,objectType,fieldIndex,builder,replacementMapping);
-                            auto loadInst =
-                                    builder.CreateLoad(targetType, gep, "loadfromint");
-                            replacementMapping[callIns] = loadInst;
-                            ins.replaceAllUsesWith(loadInst);
+
+                            switch (fieldType->getCode()) {
+                                case llvm::memoir::IntegerTy: {
+                                    auto bitwidth = ((IntegerTypeSummary *) fieldType)->getBitWidth();
+                                    auto targetType = llvm::IntegerType::get(ctxt, bitwidth);
+                                    auto loadInst =
+                                            builder.CreateLoad(targetType, gep, "loadfromint");
+                                    replacementMapping[callIns] = loadInst;
+                                    ins.replaceAllUsesWith(loadInst);
+                                    break;
+                                }
+                                case llvm::memoir::ReferenceTy: {
+                                    auto loadInst = builder.CreateLoad(i8StarTy, gep,
+                                                                       "loadfromPtr");
+                                    // fetch the Type*, which should be a PointerTy/APointerType
+                                    auto refPtr = (ReferenceTypeSummary* ) fieldType;
+                                    // the pointsTo must be an ObjectType, which we can use to get
+                                    //the
+                                    // target type for bitcast
+                                    auto objTy =  refPtr->getReferencedType();
+                                    if (objTy->getCode() != llvm::memoir::StructTy) {
+                                        errs() << "BBTransform: " << objTy->toString()
+                                               << "not an object\n\n";
+                                        assert(false);
+                                        //todo: could be an array/tensor i suppose?
+                                    }
+                                    auto llvmtype = nativeTypeConverter->getLLVMRepresentation((StructTypeSummary *) objTy);
+                                    auto bc_inst =
+                                            builder.CreateBitCast(loadInst,
+                                                                  PointerType::getUnqual(llvmtype));
+                                    replacementMapping[callIns] = bc_inst;
+                                    break;
+                                }
+                                default:
+                                    break;
+                            }
+
                             // errs() << "out of the write gep is born" << *gep <<"\n";
                             // errs() << "from the readuint64 we have a load" << *loadInst
                             // <<"\n";
-                            break;
-                        }
-                        case READ_REFERENCE: {
-                            // create gep. load i8* from the gep. bitcast the load to a ptr
-                            //  to
-                            // LLVMRepresentation
-                            std::set<PHINode *> visited;
-                            auto fieldWrapper =
-                                    parser->parseFieldWrapperChain(callIns->getArgOperand(0),
-                                                                   visited);
-                            auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
-                                                                 builder,
-                                                                 replacementMapping);
-                            auto loadInst = builder.CreateLoad(i8StarTy, gep,
-                                                               "loadfromPtr");
-                            // fetch the Type*, which should be a PointerTy/APointerType
-                            auto refPtr =
-                                    fieldWrapper->objectType->fields[fieldWrapper->fieldIndex];
-                            if (refPtr->getCode() != PointerTy) {
-                                errs() << "BBTransform: " << refPtr->toString()
-                                       << "not a pointer\n\n";
-                                assert(false);
-                            }
-                            // the pointsTo must be an ObjectType, which we can use to get
-                            //the
-                            // target type for bitcast
-                            auto objTy = ((APointerType *) refPtr)->pointsTo;
-                            if (objTy->getCode() != ObjectTy) {
-                                errs() << "BBTransform: " << objTy->toString()
-                                       << "not an object\n\n";
-                                assert(false);
-                            }
-                            auto llvmtype = ((ObjectType *) objTy)->getLLVMRepresentation(M);
-                            auto bc_inst =
-                                    builder.CreateBitCast(loadInst,
-                                                          PointerType::getUnqual(llvmtype));
-                            replacementMapping[callIns] = bc_inst;
-                            break;
-                        }
-                        case WRITE_REFERENCE: {
-                            // create gep. bitcast the value-to-be-written into i8*. store
-                            //  the
-                            // bitcast
-                            std::set<PHINode *> visited;
-                            auto fieldWrapper =
-                                    parser->parseFieldWrapperChain(callIns->getArgOperand(0),
-                                                                   visited);
-                            auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
-                                                                 builder,
-                                                                 replacementMapping);
-                            auto new_val = callIns->getArgOperand(1);
-                            if (replacementMapping.find(new_val) ==
-                                replacementMapping.end()) {
-                                errs()
-                                        << "BBtransform: no replacement found for value: " <<
-                                        callIns
-                                        << "\n";
-                                assert(false);
-                            }
-                            auto replPtr = replacementMapping[new_val];
-                            auto bc_inst = builder.CreateBitCast(replPtr, i8StarTy);
-                            auto storeInst = builder.CreateStore(bc_inst, gep);
-                            replacementMapping[callIns] = storeInst;
                             break;
                         }
                         case DELETE_OBJECT: {
@@ -938,35 +951,35 @@ namespace object_lowering {
         return gep;
     }
 
-    Value *ObjectLowering::CreateGEPFromFieldWrapper(
-            FieldWrapper *fieldWrapper,
-            IRBuilder<> &builder,
-            std::map<Value *, Value *> &replacementMapping) {
-//        return nullptr;
-          auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
-        /*errs() << "CreateGEPFromFieldWrapper\n";
-        errs() << "\tField Wrapper Base " << *(fieldWrapper->baseObjPtr) << "\n";
-        errs() << "\tField Wrapper obj type " << fieldWrapper->objectType->toString()
-        << "\n"; errs() << "\tField Wrapper index " << fieldWrapper->fieldIndex <<
-        "\n";*/
-          auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
-          std::vector<Value *> indices = {
-            llvm::ConstantInt::get(int32Ty, 0),
-            llvm::ConstantInt::get(int32Ty, fieldWrapper->fieldIndex)
-          };
-          if (replacementMapping.find(fieldWrapper->baseObjPtr)
-              == replacementMapping.end()) {
-            errs() << "unable to find the base pointer " <<
-            *fieldWrapper->baseObjPtr
-                   << "\n";
-            assert(false);
-          }
-          auto llvmPtrType = PointerType::getUnqual(llvmType);
-          auto gep =
-          builder.CreateGEP(replacementMapping.at(fieldWrapper->baseObjPtr),
-                                       indices);
-          return gep;
-    }
+//    Value *ObjectLowering::CreateGEPFromFieldWrapper(
+//            FieldWrapper *fieldWrapper,
+//            IRBuilder<> &builder,
+//            std::map<Value *, Value *> &replacementMapping) {
+////        return nullptr;
+//          auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
+//        /*errs() << "CreateGEPFromFieldWrapper\n";
+//        errs() << "\tField Wrapper Base " << *(fieldWrapper->baseObjPtr) << "\n";
+//        errs() << "\tField Wrapper obj type " << fieldWrapper->objectType->toString()
+//        << "\n"; errs() << "\tField Wrapper index " << fieldWrapper->fieldIndex <<
+//        "\n";*/
+//          auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
+//          std::vector<Value *> indices = {
+//            llvm::ConstantInt::get(int32Ty, 0),
+//            llvm::ConstantInt::get(int32Ty, fieldWrapper->fieldIndex)
+//          };
+//          if (replacementMapping.find(fieldWrapper->baseObjPtr)
+//              == replacementMapping.end()) {
+//            errs() << "unable to find the base pointer " <<
+//            *fieldWrapper->baseObjPtr
+//                   << "\n";
+//            assert(false);
+//          }
+//          auto llvmPtrType = PointerType::getUnqual(llvmType);
+//          auto gep =
+//          builder.CreateGEP(replacementMapping.at(fieldWrapper->baseObjPtr),
+//                                       indices);
+//          return gep;
+//    }
 
     void ObjectLowering::findInstsToDelete(Value *i, std::set<Value *> &toDelete) {
         //  for (auto u : i->users()) {
