@@ -727,24 +727,33 @@ namespace object_lowering {
                         case READ_UINT64: {
                             auto &accAna = memoir::AccessAnalysis::get(M);
                             auto accSum = accAna.getAccessSummary(*callIns);
-                            auto mayGrabber = [&]() -> TypeSummary & {
-                                return (*((MayReadSummary *) accSum)->begin())->getField().getType();
-                            };
-                            auto mustGrabber = [&]() -> TypeSummary & {
+
+                            auto mustObjTypeGrabber = [&](AccessSummary* accSum) -> TypeSummary & {
                                 return ((ReadSummary *) accSum)->getField().getType();
                             };
+                            auto mayObjTypeGrabber = [&](AccessSummary* accSum)  -> TypeSummary & {
+                                return mustObjTypeGrabber(*((MayReadSummary *) accSum)->begin());
+                            };
+                            auto mustIndexGrabber = [&](AccessSummary* accSum) -> uint64_t  {
+                                return ((StructFieldSummary*) &(((ReadSummary *) accSum)->getField()))->getIndex();
+                            };
+                            auto mayIndexGrabber = [&](AccessSummary* accSum) -> uint64_t {
+                                return mustIndexGrabber(*((MayReadSummary *) accSum)->begin());
+                            };
                             auto fieldType = &accSum->getType();
-                            auto objectType = &(accSum->isMay() ? mayGrabber() : mustGrabber());
+                            auto objectType =(StructTypeSummary*) &(accSum->isMay() ?
+                                    mayObjTypeGrabber(accSum) :
+                                    mustObjTypeGrabber(accSum));
                             auto bitwidth = ((IntegerTypeSummary *) fieldType)->getBitWidth();
                             auto targetType = llvm::IntegerType::get(ctxt, bitwidth);
+                            auto fieldIndex = accSum->isMay() ?
+                                              mayIndexGrabber(accSum) :
+                                              mustIndexGrabber(accSum);
+                            //This should be the getObjectField
+                            auto fieldCallIns = dyn_cast<CallInst>(callIns->getArgOperand(0));
+                            auto baseObj = fieldCallIns->getArgOperand(0);
 
-                            std::set<PHINode *> visited;
-                            auto fieldWrapper =
-                                    parser->parseFieldWrapperChain(callIns->getArgOperand(0),
-                                                                   visited);
-                            auto gep = CreateGEPFromFieldWrapper(fieldWrapper,
-                                                                 builder,
-                                                                 replacementMapping);
+                            auto gep = CreateGEPFromFieldInfo(baseObj,objectType,fieldIndex,builder,replacementMapping);
                             auto loadInst =
                                     builder.CreateLoad(targetType, gep, "loadfromint");
                             replacementMapping[callIns] = loadInst;
@@ -905,34 +914,58 @@ namespace object_lowering {
         //  }
     } // endof BasicBlockTransformer
 
+    Value *ObjectLowering::CreateGEPFromFieldInfo(
+            Value* baseObjPtr,
+            StructTypeSummary* objectType,
+            uint64_t fieldIndex,
+            IRBuilder<> &builder,
+            std::map<Value *, Value *> &replacementMapping) {
+        auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
+        auto llvmType = nativeTypeConverter->getLLVMRepresentation(objectType);
+        std::vector<Value *> indices = {
+                llvm::ConstantInt::get(int32Ty, 0),
+                llvm::ConstantInt::get(int32Ty, fieldIndex)
+        };
+        if (replacementMapping.find(baseObjPtr) == replacementMapping.end()) {
+            errs() << "unable to find the base pointer " <<
+                   *baseObjPtr
+                   << "\n";
+            assert(false);
+        }
+        auto gep =
+                builder.CreateGEP(replacementMapping.at(baseObjPtr),
+                                  indices);
+        return gep;
+    }
+
     Value *ObjectLowering::CreateGEPFromFieldWrapper(
             FieldWrapper *fieldWrapper,
             IRBuilder<> &builder,
             std::map<Value *, Value *> &replacementMapping) {
-        return nullptr;
-        //  auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
+//        return nullptr;
+          auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
         /*errs() << "CreateGEPFromFieldWrapper\n";
         errs() << "\tField Wrapper Base " << *(fieldWrapper->baseObjPtr) << "\n";
         errs() << "\tField Wrapper obj type " << fieldWrapper->objectType->toString()
         << "\n"; errs() << "\tField Wrapper index " << fieldWrapper->fieldIndex <<
         "\n";*/
-        //  auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
-        //  std::vector<Value *> indices = {
-        //    llvm::ConstantInt::get(int32Ty, 0),
-        //    llvm::ConstantInt::get(int32Ty, fieldWrapper->fieldIndex)
-        //  };
-        //  if (replacementMapping.find(fieldWrapper->baseObjPtr)
-        //      == replacementMapping.end()) {
-        //    errs() << "unable to find the base pointer " <<
-        //    *fieldWrapper->baseObjPtr
-        //           << "\n";
-        //    assert(false);
-        //  }
-        //  auto llvmPtrType = PointerType::getUnqual(llvmType);
-        //  auto gep =
-        //  builder.CreateGEP(replacementMapping.at(fieldWrapper->baseObjPtr),
-        //                               indices);
-        //  return gep;
+          auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
+          std::vector<Value *> indices = {
+            llvm::ConstantInt::get(int32Ty, 0),
+            llvm::ConstantInt::get(int32Ty, fieldWrapper->fieldIndex)
+          };
+          if (replacementMapping.find(fieldWrapper->baseObjPtr)
+              == replacementMapping.end()) {
+            errs() << "unable to find the base pointer " <<
+            *fieldWrapper->baseObjPtr
+                   << "\n";
+            assert(false);
+          }
+          auto llvmPtrType = PointerType::getUnqual(llvmType);
+          auto gep =
+          builder.CreateGEP(replacementMapping.at(fieldWrapper->baseObjPtr),
+                                       indices);
+          return gep;
     }
 
     void ObjectLowering::findInstsToDelete(Value *i, std::set<Value *> &toDelete) {

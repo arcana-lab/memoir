@@ -82,6 +82,13 @@ namespace object_lowering {
                 IRBuilder<> &builder,
                 std::map<Value *, Value *> &replacementMapping);
 
+        Value *CreateGEPFromFieldInfo(
+                Value* baseObjPtr,
+                StructTypeSummary *objectType,
+                uint64_t fieldIndex,
+                IRBuilder<> &builder,
+                std::map<Value *, Value *> &replacementMapping);
+
         // recursively add users of `i` to `toDelete`
         void findInstsToDelete(Value *i, std::set<Value *> &toDelete);
     };
