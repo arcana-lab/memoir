@@ -75,24 +75,34 @@ private:
   llvm::Module &M;
 
   /*
-   * Memoized access summaries
+   * Memoized summaries
    */
   map<llvm::CallInst *, AccessSummary *> access_summaries;
+  map<llvm::CallInst *, set<AccessSummary *>> field_summaries;
+  map<llvm::Value *, set<AllocationSummary *>> allocation_summaries;
 
   /*
    * Internal helper functions
    */
-  set<FieldSummary *> getFieldSummaries(llvm::CallInst &call_inst);
-  set<FieldSummary *> getStructFieldSummaries(llvm::CallInst &call_inst);
-  set<FieldSummary *> getTensorElementSummaries(llvm::CallInst &call_inst);
-  set<AllocationSummary *> getAllocationSummaries(llvm::Value &value);
+  set<FieldSummary *> &getFieldSummaries(llvm::CallInst &call_inst);
+  set<FieldSummary *> &getStructFieldSummaries(llvm::CallInst &call_inst);
+  set<FieldSummary *> &getTensorElementSummaries(llvm::CallInst &call_inst);
+  set<AllocationSummary *> &getAllocationSummaries(llvm::Value &value);
+
   bool isRead(MemOIR_Func func_enum);
   bool isWrite(MemOIR_Func func_enum);
+
+  void invalidate();
 
   /*
    * Constructor
    */
   AccessAnalysis(llvm::Module &M);
+
+  /*
+   * Factory
+   */
+  static map<llvm::Module *, AccessAnalysis *> analyses;
 };
 
 /*
@@ -147,7 +157,7 @@ private:
 
   TensorElementSummary(llvm::CallInst &call_inst,
                        AllocationSummary &points_to,
-                       uint64_t index);
+                       std::vector<llvm::Value *> &indices);
 
   friend class AccessAnalysis;
 };
@@ -247,6 +257,7 @@ private:
 protected:
   WriteSummary(llvm::CallInst &call_inst,
                PointsToInfo points_to_info,
+               llvm::Value &value_written,
                FieldSummary &field);
 
   friend class AccessAnalysis;
@@ -279,7 +290,7 @@ protected:
  *
  * Represents a write access to MemOIR object that may occur.
  */
-class MayWriteSummary {
+class MayWriteSummary : public AccessSummary {
 public:
   typedef set<WriteSummary *>::const_iterator iterator;
 
@@ -291,6 +302,7 @@ private:
 
 protected:
   MayWriteSummary(llvm::CallInst &call_inst,
+                  llvm::Value &value_written,
                   set<ReadSummary *> &may_write_summaries);
 
   friend class AccessAnalysis;

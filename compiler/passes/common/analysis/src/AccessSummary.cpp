@@ -59,8 +59,10 @@ TypeSummary &ReadSummary::getType() {
  */
 WriteSummary::WriteSummary(llvm::CallInst &call_inst,
                            PointsToInfo points_to_info,
+                           llvm::Value &value_written,
                            FieldSummary &field)
   : field(field),
+    value_written(value_written),
     AccessSummary(call_inst, points_to_info, AccessInfo::Write) {
   // Do nothing.
 }
@@ -101,8 +103,10 @@ MayReadSummary::iterator MayReadSummary::end() {
  */
 MayWriteSummary::MayWriteSummary(
     llvm::CallInst &call_inst,
+    llvm::Value &value_written,
     std::unordered_set<WriteSummary *> &may_write_summaries)
   : may_write_summaries(may_write_summaries),
+    value_written(value_written),
     AccessSummary(call_inst, PointsToInfo::May, AccessInfo::Write) {
   // Do nothing.
 }

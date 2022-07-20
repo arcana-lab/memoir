@@ -11,6 +11,9 @@ AllocationSummary::AllocationSummary(Module &M) : M(M) {
           continue;
         }
 
+        /*
+         * Build the AllocationSummary for this call instruction.
+         */
         this->getAllocationSummary(*call_inst);
       }
     }
@@ -23,8 +26,8 @@ AllocationSummary *AllocationAnalysis::getAllocationSummary(
    * Look up the call instruction to see if we have a
    *   memoized AllocationSummary.
    */
-  auto found_summary = allocation_summaries.find(&call_inst);
-  if (found_summary != allocation_summaries.end()) {
+  auto found_summary = this->allocation_summaries.find(&call_inst);
+  if (found_summary != this->allocation_summaries.end()) {
     return found_summary.second;
   }
 
@@ -35,7 +38,7 @@ AllocationSummary *AllocationAnalysis::getAllocationSummary(
   auto callee = call_inst.getCalledFunction();
 
   /*
-   * If the callee is an indirect call, then return a nullptr
+   * If the callee is an indirect call, then return a nullptr.
    * We don't handle indirect calls at the moment as they should
    *   be statically resolved.
    */
@@ -52,20 +55,20 @@ AllocationSummary *AllocationAnalysis::getAllocationSummary(
   AllocationSummary *allocation_summary;
   switch (callee_enum) {
     case MemOIR_Func::ALLOCATE_STRUCT:
-      allocation_summary = getStructAllocationSummary(call_inst);
+      allocation_summary = this->getStructAllocationSummary(call_inst);
       break;
     case MemOIR_Func::ALLOCATE_TENSOR:
-      allocation_summary = getTensorAllocationSummary(call_inst);
+      allocation_summary = this->getTensorAllocationSummary(call_inst);
       break;
   }
 
   /*
    * Memoize the AllocationSummary we just built.
    */
-  allocation_summaries[&call_inst] = allocation_summary;
+  this->allocation_summaries[&call_inst] = allocation_summary;
 
   /*
-   * Return the AllocationSummary
+   * Return the AllocationSummary.
    */
   return allocation_summary;
 }
@@ -73,18 +76,22 @@ AllocationSummary *AllocationAnalysis::getAllocationSummary(
 AllocationSummary *AllocationAnalysis::getStructAllocationSummary(
     CallInst &call_inst) {
   /*
-   * Determine the type summary
+   * Get the Type value from the call.
    */
   auto type_value = call_inst.getArgOperand(0);
   assert(type_value && "in AllocationAnalysis::getStructAllocationSummary"
          && "type argument to call instruction is null");
 
-  auto type_summary = getTypeSummary(*type_value);
+  /*
+   * Determine the type summary.
+   */
+  auto &type_analysis = TypeAnalysis::get(this->M);
+  auto type_summary = type_analysis.getTypeSummary(*type_value);
   assert(type_summary && "in AllocationAnalysis::getStructAllocationSummary"
          && "type summary for struct allocation not found");
 
   /*
-   * Create the allocation
+   * Create the allocation.
    */
   return new StructAllocationSummary(type_summary);
 }
@@ -92,12 +99,16 @@ AllocationSummary *AllocationAnalysis::getStructAllocationSummary(
 AllocationSummary *AllocationAnalysis::getTensorAllocationSummary(
     CallInst &call_inst) {
   /*
-   * Determine the type summary
+   * Get the Type value from the call.
    */
   auto type_value = call_inst.getArgOperand(0);
   assert(type_value && "in AllocationAnalysis::getTensorAllocationSummary"
          && "type argument to call instruction is null");
 
+  /*
+   * Determine the type summary.
+   */
+  auto &type_analysis = TypeAnalysis::get(this->M);
   auto element_type_summary = getTypeSummary(*type_value);
   assert(element_type_summary
          && "in AllocationAnalysis::getTensorAllocationSummary"
@@ -135,13 +146,7 @@ AllocationSummary *AllocationAnalysis::getTensorAllocationSummary(
   return new TensorAllocationSummary(type_summary, length_of_dimensions);
 }
 
-TypeSummary *AllocationSummary::getTypeSummary(Value &V) {
-
-  /*
-   * Get the TypeAnalysis class.
-   */
-  auto &type_analysis = TypeAnalysis::get(this->M);
-
+TypeSummary *AllocationAnalysis::getTypeSummary(llvm::Value &V) {
   /*
    * Trace back the value to find the associated
    *   TypeSummary, if it exists.
@@ -152,7 +157,7 @@ TypeSummary *AllocationSummary::getTypeSummary(Value &V) {
    *   get its TypeSummary and we are done.
    */
   if (auto call_inst = dyn_cast<CallInst>(&V)) {
-    return type_analysis.getTypeSummary(call_inst);
+    return this->getTypeSummary(*call_inst);
   }
 
   /*
@@ -170,8 +175,12 @@ TypeSummary *AllocationSummary::getTypeSummary(Value &V) {
       }
     }
 
-    assert(global && "in AllocationAnalysis::getTypeSummary"
-           && "cannot find the global variable used for the allocation");
+    /*
+     * If we still cannot find the GlobalVariable, return NULL.
+     */
+    if (!global) {
+      return nullptr;
+    }
 
     /*
      * Find the original store for this global variable.
@@ -183,7 +192,7 @@ TypeSummary *AllocationSummary::getTypeSummary(Value &V) {
         assert(store_call && "in AllocationAnalysis::getTypeSummary"
                && "original store to type's global is not a call");
 
-        return type_analysis.getTypeSummary(store_call);
+        return this->getTypeSummary(store_call);
       }
 
       // TODO: handle GEP's here, hasn't broken yet.
@@ -195,10 +204,34 @@ TypeSummary *AllocationSummary::getTypeSummary(Value &V) {
   return nullptr;
 }
 
-AllocationAnalysis &AllocationAnalysis::get(Module &M) {
-  auto singleton = AllocationAnalysis(M);
+void AllocationAnalysis::invalidate() {
+  // TODO
+  return;
+}
 
-  return singleton;
+/*
+ * Singleton
+ */
+AllocationAnalysis &AllocationAnalysis::get(Module &M) {
+  auto found_analysis = AllocationAnalysis::analyses.find(&M);
+  if (found_analysis != AllocationAnalysis::analyses.end()) {
+    return *(found_analysis.second);
+  }
+
+  auto new_analysis = new AllocationAnalysis(M);
+  AllocationAnalysis::analyses[&M] = new_analysis;
+
+  return *new_analysis;
+}
+
+void AllocationAnalysis::invalidate(Module &M) {
+  auto found_analysis = AllocationAnalysis::analyses.find(&M);
+  if (found_analysis != AllocationAnalysis::analyses.end()) {
+    auto &analysis = *(found_analysis.second);
+    analysis.invalidate();
+  }
+
+  return;
 }
 
 } // namespace llvm::memoir
