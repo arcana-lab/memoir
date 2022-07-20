@@ -108,8 +108,7 @@ AllocationSummary *AllocationAnalysis::getTensorAllocationSummary(
   /*
    * Determine the type summary.
    */
-  auto &type_analysis = TypeAnalysis::get(this->M);
-  auto element_type_summary = getTypeSummary(*type_value);
+  auto element_type_summary = this->getTypeSummary(*type_value);
   assert(element_type_summary
          && "in AllocationAnalysis::getTensorAllocationSummary"
          && "element type summary for tensor not found");
