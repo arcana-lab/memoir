@@ -1,28 +1,26 @@
 #include <iostream>
 
-#include "object_ir.h"
+#include "memoir.h"
 
-using namespace objectir;
+using namespace memoir;
 
-Type *innerTy = getObjectType(1, getUInt64Type());
+Type *innerTy = defineStructType("Foo", 1, UInt64Type());
 
-Type *objTy = getObjectType(3,
-                            getUInt64Type(),
-                            getUInt64Type(),
-                            getUInt64Type());
+Type *objTy =
+    defineStructType("Bar", 3, UInt64Type(), UInt64Type(), UInt64Type());
 
 uint64_t foo(Field *fld) {
-  assertFieldType(getUInt64Type(), fld);
+  assertType(UInt64Type(), fld);
   writeUInt64(fld, readUInt64(fld) + 1);
   return readUInt64(fld);
 }
 
 int main() {
-  Object *myObj = buildObject(objTy);
+  Object *myObj = allocateStruct(objTy);
 
-  Field *field1 = getObjectField(myObj, 0);
-  Field *field2 = getObjectField(myObj, 1);
-  Field *field3 = getObjectField(myObj, 2);
+  Field *field1 = getStructField(myObj, 0);
+  Field *field2 = getStructField(myObj, 1);
+  Field *field3 = getStructField(myObj, 2);
 
   writeUInt64(field1, 123);
   writeUInt64(field2, 456);

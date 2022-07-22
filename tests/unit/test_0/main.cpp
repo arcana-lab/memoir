@@ -1,14 +1,11 @@
 #include <iostream>
 
-#include "object_ir.h"
+#include "memoir.h"
 
-using namespace objectir;
+using namespace memoir;
 
-Type *objTy = defineStructType("Foo",
-                               3,
-                               getUInt64Type(),
-                               getUInt64Type(),
-                               getUInt64Type());
+Type *objTy =
+    defineStructType("Foo", 3, UInt64Type(), UInt64Type(), UInt64Type());
 
 int main() {
   Object *myObj = allocateStruct(objTy);
