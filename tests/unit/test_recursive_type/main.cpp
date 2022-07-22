@@ -1,69 +1,65 @@
 #include <iostream>
 
-#include "object_ir.h"
+#include "memoir.h"
 
-using namespace objectir;
+using namespace memoir;
 
 Type *aTy =
-    nameObjectType("A",
-                   2,
-                   getUInt64Type(),
-                   getPointerType(getNamedType("B")));
+    defineStructType("A", 2, UInt64Type(), ReferenceType(StructType("B")));
 
-Type *bTy =
-    nameObjectType("B",
-                   2,
-                   getPointerType(getNamedType("A")),
-                   getPointerType(getNamedType("B")));
+Type *bTy = defineStructType("B",
+                             2,
+                             ReferenceType(StructType("A")),
+                             ReferenceType(StructType("B")));
 
 int main() {
-  Object *myA = buildObject(aTy);
-  Object *myA2 = buildObject(aTy);
-  Object *myB = buildObject(bTy);
-  Object *myB2 = buildObject(bTy);
+  Object *myA = allocateStruct(aTy);
+  Object *myA2 = allocateStruct(aTy);
+  Object *myB = allocateStruct(bTy);
+  Object *myB2 = allocateStruct(bTy);
 
-  Field *aField1 = getObjectField(myA, 0);
-  Field *aField2 = getObjectField(myA, 1);
+  Field *aField1 = getStructField(myA, 0);
+  Field *aField2 = getStructField(myA, 1);
 
   // a->i = 0;
   writeUInt64(aField1, 0);
   // a->b = &b;
-  writePointer(aField2, myB);
+  writeReference(aField2, myB);
 
-  Field *bField1 = getObjectField(myB, 0);
-  Field *bField2 = getObjectField(myB, 1);
+  Field *bField1 = getStructField(myB, 0);
+  Field *bField2 = getStructField(myB, 1);
 
   // b->a = &a;
-  writePointer(bField1, myA);
+  writeReference(bField1, myA);
   // b->b = &b2;
-  writePointer(bField2, myB2);
+  writeReference(bField2, myB2);
 
-  Field *a2Field1 = getObjectField(myA2, 0);
-  Field *a2Field2 = getObjectField(myA2, 1);
+  Field *a2Field1 = getStructField(myA2, 0);
+  Field *a2Field2 = getStructField(myA2, 1);
 
   // a2->i = 1;
   writeUInt64(a2Field1, 1);
   // a2->b = &b2;
-  writePointer(a2Field2, myB2);
+  writeReference(a2Field2, myB2);
 
-  Field *b2Field1 = getObjectField(myB2, 0);
-  Field *b2Field2 = getObjectField(myB2, 1);
+  Field *b2Field1 = getStructField(myB2, 0);
+  Field *b2Field2 = getStructField(myB2, 1);
 
   // b2->a = &a2;
-  writePointer(b2Field1, myA2);
+  writeReference(b2Field1, myA2);
   // b2->b = &b;
-  writePointer(b2Field2, myB);
+  writeReference(b2Field2, myB);
 
   // print(b2->b->a->i)
   // b2->b
-  Object *ptrToB = readPointer(b2Field2);
+  Object *ptrToB = readReference(b2Field2);
 
   // b2->b->a
-  Field *tmpField = getObjectField(ptrToB, 0);
-  Object *ptrToA = readPointer(tmpField);
+  Field *tmpField = getStructField(ptrToB, 0);
+  Object *ptrToA = readReference(tmpField);
 
   // b2->b->a->i
-  tmpField = getObjectField(ptrToA, 0);
+  tmpField = getStructField(ptrToA, 0);
   uint64_t value = readUInt64(tmpField);
 
   // Expect 0 to be printed

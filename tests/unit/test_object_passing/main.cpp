@@ -1,31 +1,29 @@
 #include <iostream>
 
-#include "object_ir.h"
+#include "memoir.h"
 
-using namespace objectir;
+using namespace memoir;
 
-Type *objTy = getObjectType(3,
-                            getUInt64Type(),
-                            getUInt64Type(),
-                            getUInt64Type());
+Type *objTy =
+    defineStructType("Foo", 3, UInt64Type(), UInt64Type(), UInt64Type());
 
 Object *main_foo(Object *myObj) {
   setReturnType(objTy);
   assertType(objTy, myObj);
 
-  Field *field1 = getObjectField(myObj, 0);
-  Field *field2 = getObjectField(myObj, 1);
-  Field *field3 = getObjectField(myObj, 2);
+  Field *field1 = getStructField(myObj, 0);
+  Field *field2 = getStructField(myObj, 1);
+  Field *field3 = getStructField(myObj, 2);
 
   uint64_t read1 = readUInt64(field1);
   uint64_t read2 = readUInt64(field2);
   uint64_t read3 = readUInt64(field3);
 
-  Object *newObj = buildObject(objTy);
+  Object *newObj = allocateStruct(objTy);
 
-  Field *newField1 = getObjectField(newObj, 0);
-  Field *newField2 = getObjectField(newObj, 1);
-  Field *newField3 = getObjectField(newObj, 2);
+  Field *newField1 = getStructField(newObj, 0);
+  Field *newField2 = getStructField(newObj, 1);
+  Field *newField3 = getStructField(newObj, 2);
 
   writeUInt64(newField1, read1 + read2);
   writeUInt64(newField2, read2 + read3);
@@ -36,13 +34,13 @@ Object *main_foo(Object *myObj) {
 
 int main() {
 
-  Object *myObj = buildObject(objTy);
+  Object *myObj = allocateStruct(objTy);
 
-  //std::cerr << myObj->toString() << "\n";
+  // std::cerr << myObj->toString() << "\n";
 
-  Field *field1 = getObjectField(myObj, 0);
-  Field *field2 = getObjectField(myObj, 1);
-  Field *field3 = getObjectField(myObj, 2);
+  Field *field1 = getStructField(myObj, 0);
+  Field *field2 = getStructField(myObj, 1);
+  Field *field3 = getStructField(myObj, 2);
 
   writeUInt64(field1, 123);
   writeUInt64(field2, 456);
@@ -50,9 +48,9 @@ int main() {
 
   Object *newObj = main_foo(myObj);
 
-  Field *newField1 = getObjectField(newObj, 0);
-  Field *newField2 = getObjectField(newObj, 1);
-  Field *newField3 = getObjectField(newObj, 2);
+  Field *newField1 = getStructField(newObj, 0);
+  Field *newField2 = getStructField(newObj, 1);
+  Field *newField3 = getStructField(newObj, 2);
 
   uint64_t old1 = readUInt64(field1);
   uint64_t old2 = readUInt64(field2);
