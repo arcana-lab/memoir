@@ -20,9 +20,10 @@ std::string StructAllocationSummary::toString(std::string indent) const {
   llvm::raw_string_ostream call_ss(call_str);
   call_ss << this->getCallInst();
 
-  str = "(struct \n" + indent + "  LLVM: " + call_ss.str() + "\n" + indent
-        + "  type: " + this->getType().toString(indent + "        ") + "\n"
-        + ")";
+  str = "(struct \n" + indent + "  LLVM: " + call_ss.str() + "\n";
+  str += indent + "  type: \n";
+  str += indent + "  " + this->getType().toString(indent + "        ") + "\n";
+  str += indent + ")";
 
   return str;
 }
@@ -32,19 +33,20 @@ std::string TensorAllocationSummary::toString(std::string indent) const {
   llvm::raw_string_ostream call_ss(call_str);
   call_ss << this->getCallInst();
 
-  str = "(tensor \n" + indent + "  LLVM: " + call_ss.str() + "\n" + indent
-        + "  dimensions: \n";
+  str = "(tensor \n";
+  str += indent + "  LLVM: " + call_ss.str() + "\n";
+  str += indent + "  dimensions: \n";
   int i = 0;
   for (auto length : this->length_of_dimensions) {
     std::string length_str;
     llvm::raw_string_ostream length_ss(length_str);
     length_ss << *length;
 
-    str += indent + "    dimension " + std::to_string(i) + ": "
-           + length_ss.str() + "\n";
+    str +=
+        indent + "    dimension " + std::to_string(i) + ": " + call_str + "\n";
     i++;
   }
-  str += ")";
+  str += indent + ")";
 
   return str;
 }

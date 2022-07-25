@@ -16,23 +16,25 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
 }
 
 std::string StructFieldSummary::toString(std::string indent) const {
-  std::string str;
-  str = "(struct field: \n" + indent
-        + "  type: " + this->getType().toString(indent + "          ") + "\n"
-        + indent + "  allocation: "
-        + this->pointsTo().toString(indent + "                ") + "\n" + indent
-        + "  index: " + std::to_string(this->getIndex()) + "\n" + indent + ")";
+  std::string str = "";
+  str += "(struct field: \n";
+  str += indent + "  type: " + this->getType().toString(indent + "  ") + "\n";
+  str += indent + "  allocation: \n";
+  str += indent + "  " + this->pointsTo().toString(indent + "  ") + "\n";
+  str += indent + "  index: " + std::to_string(this->index) + "\n";
+  str += indent + ")";
 
   return str;
 }
 
 std::string TensorElementSummary::toString(std::string indent) const {
-  std::string str;
-  str = "(struct field: \n" + indent
-        + "  type: " + this->getType().toString(indent + "        ") + "\n"
-        + indent + "  allocation: "
-        + this->pointsTo().toString(indent + "              ") + "\n" + indent
-        + "  indices: " + "\n";
+  std::string str = "";
+  str += "(struct field: \n";
+  str += indent + "  type: \n";
+  str += indent + "  " + this->type.toString(indent + "  ") + "\n";
+  str += indent + "  allocation: \n";
+  str += indent + "  " + this->points_to.toString(indent + "  ") + "\n";
+  str += indent + "  indices: " + "\n";
   for (auto i = 0; i < this->getNumberOfDimensions(); i++) {
     std::string value_str;
     llvm::raw_string_ostream value_ss(value_str);
