@@ -9,11 +9,11 @@ TypeSummary::TypeSummary(TypeCode code) : code(code) {
   // Do nothing.
 }
 
-TypeCode TypeSummary::getCode() {
+TypeCode TypeSummary::getCode() const {
   return this->code;
 }
 
-bool TypeSummary::equals(TypeSummary *other) {
+bool TypeSummary::equals(TypeSummary *other) const {
   return this == other;
 }
 
@@ -65,6 +65,18 @@ StructTypeSummary::StructTypeSummary(std::string name,
   // Do nothing.
 }
 
+std::string StructTypeSummary::getName() const {
+  return this->name;
+}
+
+TypeSummary &StructTypeSummary::getField(uint64_t field_index) const {
+  return *(this->field_types.at(field_index));
+}
+
+uint64_t StructTypeSummary::getNumFields() const {
+  return this->field_types.size();
+}
+
 map<std::string, StructTypeSummary *>
     StructTypeSummary::defined_type_summaries = {};
 
@@ -93,6 +105,23 @@ TensorTypeSummary &TensorTypeSummary::get(TypeSummary &element_type,
 //     std::vector<uint64_t> &length_of_dimensions) {
 //   return new TensorTypeSummary(element_type, length_of_dimensions);
 // }
+
+TypeSummary &TensorTypeSummary::getElementType() const {
+  return this->element_type;
+}
+
+uint64_t TensorTypeSummary::getNumDimensions() const {
+  return this->num_dimensions;
+}
+
+bool TensorTypeSummary::isStaticLength() const {
+  return this->is_static_length;
+}
+
+uint64_t TensorTypeSummary::getLengthOfDimension(
+    uint64_t dimension_index) const {
+  return this->length_of_dimensions.at(dimension_index);
+}
 
 TensorTypeSummary::TensorTypeSummary(TypeSummary &element_type,
                                      uint64_t num_dimensions)
@@ -139,7 +168,7 @@ ReferenceTypeSummary::ReferenceTypeSummary(TypeSummary &referenced_type)
   // Do nothing.
 }
 
-TypeSummary &ReferenceTypeSummary::getReferencedType() {
+TypeSummary &ReferenceTypeSummary::getReferencedType() const {
   return this->referenced_type;
 }
 
@@ -174,11 +203,11 @@ IntegerTypeSummary::IntegerTypeSummary(unsigned bitwidth, bool is_signed)
   // Do nothing.
 }
 
-unsigned IntegerTypeSummary::getBitWidth() {
+unsigned IntegerTypeSummary::getBitWidth() const {
   return this->bitwidth;
 }
 
-bool IntegerTypeSummary::isSigned() {
+bool IntegerTypeSummary::isSigned() const {
   return this->is_signed;
 }
 

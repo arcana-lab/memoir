@@ -104,10 +104,10 @@ enum TypeCode {
 
 struct TypeSummary {
 public:
-  TypeCode getCode();
+  TypeCode getCode() const;
 
   // TODO: change this to be an operator== override
-  bool equals(TypeSummary *other);
+  bool equals(TypeSummary *other) const;
   virtual std::string toString(std::string indent = "") const = 0;
 
   friend std::ostream &operator<<(std::ostream &os, const TypeSummary &ts);
@@ -129,9 +129,9 @@ public:
   static StructTypeSummary &get(std::string name,
                                 std::vector<TypeSummary *> &field_types);
 
-  std::string getName();
-  TypeSummary &getField(uint64_t field_index);
-  uint64_t getNumFields();
+  std::string getName() const;
+  TypeSummary &getField(uint64_t field_index) const;
+  uint64_t getNumFields() const;
 
   std::string toString(std::string indent = "") const override;
 
@@ -153,10 +153,10 @@ public:
   // static TensorTypeSummary &get(TypeSummary &element_type,
   //                               std::vector<uint64_t> &length_of_dimensions);
 
-  TypeSummary &getElementType();
-  uint64_t getNumDimensions();
-  bool isStaticLength();
-  uint64_t getLengthOfDimension(uint64_t dimension_index);
+  TypeSummary &getElementType() const;
+  uint64_t getNumDimensions() const;
+  bool isStaticLength() const;
+  uint64_t getLengthOfDimension(uint64_t dimension_index) const;
 
   std::string toString(std::string indent = "") const override;
 
@@ -180,7 +180,7 @@ struct ReferenceTypeSummary : public TypeSummary {
 public:
   static ReferenceTypeSummary &get(TypeSummary &referenced_type);
 
-  TypeSummary &getReferencedType();
+  TypeSummary &getReferencedType() const;
 
   std::string toString(std::string indent = "") const override;
 
@@ -198,8 +198,8 @@ struct IntegerTypeSummary : public TypeSummary {
 public:
   static IntegerTypeSummary &get(unsigned bitwidth, bool is_signed);
 
-  unsigned getBitWidth();
-  bool isSigned();
+  unsigned getBitWidth() const;
+  bool isSigned() const;
 
   std::string toString(std::string indent = "") const override;
 

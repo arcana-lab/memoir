@@ -20,11 +20,29 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
 }
 
 std::string StructTypeSummary::toString(std::string indent) const {
-  return "(struct)";
+  std::string str = "";
+
+  str += "(struct\n";
+  for (auto field_type : this->field_types) {
+    auto field_str = field_type->toString(indent + "  ");
+    str += indent + "  " + field_str + "\n";
+  }
+  str += indent + ")";
+
+  return str;
 }
 
 std::string TensorTypeSummary::toString(std::string indent) const {
-  return "(tensor)";
+  std::string str;
+
+  str = "(tensor\n";
+  str += indent + "  element type: \n";
+  str += indent + "    " + this->element_type.toString(indent + "  ") + "\n";
+  str += indent + "  # of dimensions: " + std::to_string(this->num_dimensions)
+         + "\n";
+  str += indent + ")";
+
+  return str;
 }
 
 std::string IntegerTypeSummary::toString(std::string indent) const {
@@ -46,10 +64,13 @@ std::string DoubleTypeSummary::toString(std::string indent) const {
 }
 
 std::string ReferenceTypeSummary::toString(std::string indent) const {
-  std::string str = "";
-  str += "(reference: ";
+  std::string str;
+
+  str = "(reference: ";
   str += indent + "  " + this->referenced_type.toString(indent + "  ") + "\n";
   str += indent + ")";
+
+  return str;
 }
 
 } // namespace llvm::memoir
