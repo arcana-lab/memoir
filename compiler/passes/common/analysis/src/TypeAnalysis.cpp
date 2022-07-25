@@ -1,49 +1,154 @@
 #include "common/analysis/TypeAnalysis.hpp"
 
+#include "common/utility/Metadata.hpp"
+
 namespace llvm::memoir {
 
 TypeAnalysis::TypeAnalysis(Module &M) : M(M) {
-  this->primitive_type_summaries = {
-    { UINT64_TYPE, IntegerTypeSummary::get(64, false) },
-    { UINT32_TYPE, IntegerTypeSummary::get(32, false) },
-    { UINT16_TYPE, IntegerTypeSummary::get(16, false) },
-    { UINT8_TYPE, IntegerTypeSummary::get(8, false) },
-    { INT64_TYPE, IntegerTypeSummary::get(64, true) },
-    { INT32_TYPE, IntegerTypeSummary::get(32, true) },
-    { INT16_TYPE, IntegerTypeSummary::get(16, true) },
-    { INT8_TYPE, IntegerTypeSummary::get(8, true) },
-    { FLOAT_TYPE, FloatTypeSummary::get() },
-    { DOUBLE_TYPE, DoubleTypeSummary::get() },
-  };
-
-  /*
-   * Analyze the program.
-   */
-  for (auto &F : M) {
-    for (auto &BB : F) {
-      for (auto &I : BB) {
-        auto call_inst = dyn_cast<CallInst>(&I);
-        if (!call_inst) {
-          continue;
-        }
-
-        /*
-         * Analyze the call.
-         * The TypeSummary will be memoized
-         */
-        this->getTypeSummary(call_inst);
-      }
-    }
-  }
+  // Do nothing.
 }
 
-TypeSummary *TypeAnalysis::getTypeSummary(llvm::CallInst &call_inst) {
+TypeSummary *TypeAnalysis::getTypeSummary(llvm::Value &V) {
+  /*
+   * Trace back the value to find the associated
+   *   TypeSummary, if it exists.
+   */
+
+  /*
+   * If we have a call instruction,
+   *  - get its TypeSummary, if it is a MemOIR call, return it.
+   *  - otherwise, we need to recurse on the function callee.
+   */
+  if (auto call_inst = dyn_cast<CallInst>(&V)) {
+    auto const &type_summary = this->getMemOIRTypeSummary(*call_inst);
+    if (type_summary) {
+      return type_summary;
+    }
+
+    /*
+     * Get the callee, sanity check that it is a direct call and non-empty.
+     *
+     * TODO: add support for indirect call
+     * TODO: add support for intrinsics and library calls, requires knowledge of
+     *       how they work.
+     */
+    auto callee = call_inst->getCalledFunction();
+    if (!callee) {
+      return nullptr;
+    }
+
+    if (MetadataManager::hasMetadata(*callee, MetadataType::INTERNAL)) {
+      return nullptr;
+    }
+
+    if (callee->empty()) {
+      return nullptr;
+    }
+
+    /*
+     * Fetch the return values from the callee.
+     */
+    set<llvm::Value *> callee_return_values = {};
+    for (auto &BB : *callee) {
+      auto terminator = BB.getTerminator();
+      if (auto return_inst = dyn_cast<ReturnInst>(terminator)) {
+        auto return_value = return_inst->getReturnValue();
+        assert(return_value
+               && "in AccessAnalysis::getAllocationSummaries"
+                  "LLVM return value of function is NULL");
+        callee_return_values.insert(return_value);
+      }
+    }
+
+    /*
+     * Recurse on the return values of the call instruction.
+     */
+    TypeSummary *call_type_summary = nullptr;
+    for (auto callee_return_value : callee_return_values) {
+      auto return_type_summary = this->getTypeSummary(*callee_return_value);
+
+      /*
+       * If there is no TypeSummary for the return value, return NULL.
+       */
+      if (!return_type_summary) {
+        return nullptr;
+      }
+
+      /*
+       * Save the first TypeSummary we find.
+       */
+      if (!call_type_summary) {
+        call_type_summary = return_type_summary;
+        continue;
+      }
+
+      /*
+       * If the return type summary and the call type summary are not the same,
+       *   error. We must be statically typed.
+       */
+      if (!return_type_summary->equals(call_type_summary)) {
+        return nullptr;
+      }
+    }
+
+    /*
+     * Return the call's TypeSummary.
+     */
+    return call_type_summary;
+  }
+
+  /*
+   * If we have load instruction, trace back to its
+   *   global variable and find the original store to it.
+   */
+  if (auto load_inst = dyn_cast<LoadInst>(&V)) {
+    auto load_ptr = load_inst->getPointerOperand();
+
+    auto global = dyn_cast<GlobalVariable>(load_ptr);
+    if (!global) {
+      if (auto load_gep = dyn_cast<GetElementPtrInst>(load_ptr)) {
+        auto gep_ptr = load_gep->getPointerOperand();
+        global = dyn_cast<GlobalVariable>(gep_ptr);
+      }
+    }
+
+    /*
+     * If we still cannot find the GlobalVariable, return NULL.
+     */
+    if (!global) {
+      return nullptr;
+    }
+
+    /*
+     * Find the original store for this global variable.
+     */
+    for (auto user : global->users()) {
+      if (auto store_inst = dyn_cast<StoreInst>(user)) {
+        auto store_value = store_inst->getValueOperand();
+        auto store_call = dyn_cast<CallInst>(store_value);
+        assert(store_call
+               && "in TypeAnalysis::getTypeSummary"
+                  "original store to type's global is not a call");
+
+        return this->getTypeSummary(*store_call);
+      }
+
+      // TODO: handle GEP's here, hasn't broken yet.
+    }
+  }
+
+  // TODO: handle PHI and select nodes
+
+  return nullptr;
+}
+
+TypeSummary *TypeAnalysis::getMemOIRTypeSummary(llvm::CallInst &call_inst) {
   /*
    * Look up the call instruction to see if we have a memoized TypeSummary.
    */
   auto found_summary = type_summaries.find(&call_inst);
   if (found_summary != type_summaries.end()) {
-    return found_summary.second;
+    return found_summary->second;
   }
 
   /*
@@ -61,8 +166,7 @@ TypeSummary *TypeAnalysis::getTypeSummary(llvm::CallInst &call_inst) {
     return nullptr;
   }
 
-  auto callee_name = callee->getName();
-  auto callee_enum = getMemOIREnum(callee_name);
+  auto callee_enum = getMemOIREnum(*callee);
 
   /*
    * Build the TypeSummary for the given MemOIR type call.
@@ -79,24 +183,24 @@ TypeSummary *TypeAnalysis::getTypeSummary(llvm::CallInst &call_inst) {
     case MemOIR_Func::INT8_TYPE:
     case MemOIR_Func::FLOAT_TYPE:
     case MemOIR_Func::DOUBLE_TYPE:
-      type_summary = getPrimitiveTypeSummary(callee_enum);
+      type_summary = &getPrimitiveTypeSummary(callee_enum);
       break;
     case MemOIR_Func::INTEGER_TYPE:
-      type_summary = getIntegerTypeSummary(call_inst);
+      type_summary = &getIntegerTypeSummary(call_inst);
       break;
     case MemOIR_Func::REFERENCE_TYPE:
-      type_summary = getReferenceTypeSummary(call_inst);
+      type_summary = &getReferenceTypeSummary(call_inst);
       break;
     case MemOIR_Func::STRUCT_TYPE:
-      type_summary = getStructTypeSummary(call_inst);
+      type_summary = &getStructTypeSummary(call_inst);
       break;
     case MemOIR_Func::TENSOR_TYPE:
-      type_summary = getTensorTypeSummary(call_inst);
+      type_summary = &getTensorTypeSummary(call_inst);
       break;
     case MemOIR_Func::DEFINE_STRUCT_TYPE:
-      type_summary = defineStructTypeSummary(call_inst);
+      type_summary = &defineStructTypeSummary(call_inst);
       break;
-    case MemOIR_Func::NONE:
+    default:
       type_summary = nullptr;
       break;
   }
@@ -104,7 +208,7 @@ TypeSummary *TypeAnalysis::getTypeSummary(llvm::CallInst &call_inst) {
   /*
    * Memoize the TypeSummary we just built.
    */
-  auto type_summaries[&call_inst] = type_summary;
+  this->type_summaries[&call_inst] = type_summary;
 
   /*
    * Return the TypeSummary
@@ -112,18 +216,36 @@ TypeSummary *TypeAnalysis::getTypeSummary(llvm::CallInst &call_inst) {
   return type_summary;
 }
 
-TypeSummary *getPrimitiveTypeSummary(MemOIR_Func function_enum) {
-  auto found_primitive = primitive_type_summaries.find(function_enum);
-  if (found_primitive != primitive_type_summaries.end()) {
-    auto primitive_type_summary = found_primitive.end();
-    return primitive_type_summary;
+TypeSummary &TypeAnalysis::getPrimitiveTypeSummary(MemOIR_Func function_enum) {
+  switch (function_enum) {
+    case UINT64_TYPE:
+      return IntegerTypeSummary::get(64, false);
+    case UINT32_TYPE:
+      return IntegerTypeSummary::get(32, false);
+    case UINT16_TYPE:
+      return IntegerTypeSummary::get(16, false);
+    case UINT8_TYPE:
+      return IntegerTypeSummary::get(8, false);
+    case INT64_TYPE:
+      return IntegerTypeSummary::get(64, true);
+    case INT32_TYPE:
+      return IntegerTypeSummary::get(32, true);
+    case INT16_TYPE:
+      return IntegerTypeSummary::get(16, true);
+    case INT8_TYPE:
+      return IntegerTypeSummary::get(8, true);
+    case FLOAT_TYPE:
+      return FloatTypeSummary::get();
+    case DOUBLE_TYPE:
+      return DoubleTypeSummary::get();
+    default:
+      assert(false
+             && "in TypeSummary::getPrimitiveTypeSummary"
+                "TypeAnalysis and getTypeSummary have a mismatch");
   }
-
-  assert(false && "in TypeSummary::getPrimitiveTypeSummary"
-         && "TypeAnalysis and getTypeSummary have a mismatch");
 }
 
-TypeSummary *getIntegerTypeSummary(llvm::CallInst &call_inst) {
+TypeSummary &TypeAnalysis::getIntegerTypeSummary(llvm::CallInst &call_inst) {
   auto bitwidth_value = call_inst.getArgOperand(0);
   auto bitwidth_constant = dyn_cast<ConstantInt>(bitwidth_value);
   assert(bitwidth_constant && "in TypeAnalysis::getIntegerTypeSummary"
@@ -140,26 +262,26 @@ TypeSummary *getIntegerTypeSummary(llvm::CallInst &call_inst) {
   return IntegerTypeSummary::get(bitwidth, is_signed);
 }
 
-TypeSummary *getReferenceTypeSummary(llvm::CallInst &call_inst) {
+TypeSummary &TypeAnalysis::getReferenceTypeSummary(llvm::CallInst &call_inst) {
   auto referenced_type_value = call_inst.getArgOperand(0);
   auto referenced_type_call = dyn_cast<CallInst>(referenced_type_value);
   assert(referenced_type_call && "in TypeAnalysis::getTypeSummary"
          && "referenced type is not a call");
 
-  auto referenced_type = getTypeSummary(referenced_type_call);
+  auto referenced_type = getTypeSummary(*referenced_type_call);
   assert(referenced_type && "in TypeAnalysis::getTypeSummary"
          && "referenced type does not have a type summary");
 
-  return ReferenceTypeSummary::get(referenced_type);
+  return ReferenceTypeSummary::get(*referenced_type);
 }
 
-TypeSummary *getStructTypeSummary(llvm::CallInst &call_inst) {
+TypeSummary &TypeAnalysis::getStructTypeSummary(llvm::CallInst &call_inst) {
   auto name_value = call_inst.getArgOperand(0);
 
   GlobalVariable *name_global;
   auto name_gep = dyn_cast<GetElementPtrInst>(name_value);
   if (name_gep) {
-    name_ptr = name_gep->getPointerOperand();
+    auto name_ptr = name_gep->getPointerOperand();
     name_global = dyn_cast<GlobalVariable>(name_ptr);
   } else {
     name_global = dyn_cast<GlobalVariable>(name_value);
@@ -178,20 +300,34 @@ TypeSummary *getStructTypeSummary(llvm::CallInst &call_inst) {
   return StructTypeSummary::get(name);
 }
 
-TypeSummary *getTensorTypeSummary(llvm::CallInst &call_inst) {
-  auto contained_value = call_inst.getArgOperand(0);
-  auto contained_call = dyn_cast<CallInst>(referenced_value);
-  assert(contained_call && "in TypeAnalysis::getTypeSummary"
-         && "contained type of tensor type is not a call instruction");
+TypeSummary &TypeAnalysis::getTensorTypeSummary(llvm::CallInst &call_inst) {
+  auto element_value = call_inst.getArgOperand(0);
+  auto element_call = dyn_cast<CallInst>(element_value);
+  assert(element_call
+         && "in TypeAnalysis::getTypeSummary"
+            "element type of tensor type is not a call instruction");
 
-  auto contained_type = getTypeSummary(contained_call);
-  assert(contained_type && "in TypeAnalysis::getTypeSummary"
-         && "contained type does not have a type summary");
+  auto element_type = this->getTypeSummary(*element_call);
+  assert(element_type
+         && "in TypeAnalysis::getTypeSummary"
+            "element type does not have a type summary");
 
-  return TensorType::get(contained_type);
+  auto num_dimensions_value = call_inst.getArgOperand(1);
+  assert(num_dimensions_value
+         && "in TypeAnalysis::getTensorTypeSummary"
+            "number of dimensions is NULL");
+
+  auto num_dimensions_constant = dyn_cast<ConstantInt>(num_dimensions_value);
+  assert(num_dimensions_constant
+         && "in TypeAnalysis::getTensorTypeSummary"
+            "number of dimensions is not a constant");
+
+  auto num_dimensions = num_dimensions_constant->getZExtValue();
+
+  return TensorTypeSummary::get(*element_type, num_dimensions);
 }
 
-TypeSummary *defineStructTypeSummary(llvm::CallInst &call_inst) {
+TypeSummary &TypeAnalysis::defineStructTypeSummary(llvm::CallInst &call_inst) {
   /*
    * Get the name of the Struct Type.
    */
@@ -200,7 +336,7 @@ TypeSummary *defineStructTypeSummary(llvm::CallInst &call_inst) {
   GlobalVariable *name_global;
   auto name_gep = dyn_cast<GetElementPtrInst>(name_value);
   if (name_gep) {
-    name_ptr = name_gep->getPointerOperand();
+    auto name_ptr = name_gep->getPointerOperand();
     name_global = dyn_cast<GlobalVariable>(name_ptr);
   } else {
     name_global = dyn_cast<GlobalVariable>(name_value);
@@ -225,13 +361,13 @@ TypeSummary *defineStructTypeSummary(llvm::CallInst &call_inst) {
   assert(num_fields_constant && "in TypeAnalysis::defineStructTypeSummary"
          && "number of fields is not a constant integer");
 
-  auto num_fields = num_fields_constant.getZExtValue();
+  auto num_fields = num_fields_constant->getZExtValue();
 
   /*
    * Determine the field types.
    */
   std::vector<TypeSummary *> field_type_summaries;
-  for (auto field_index = 0; i < num_fields; i++) {
+  for (auto field_index = 0; field_index < num_fields; field_index++) {
     auto arg_operand_index = field_index + 2;
     auto field_value = call_inst.getArgOperand(arg_operand_index);
     auto field_call = dyn_cast<CallInst>(field_value);
@@ -248,16 +384,38 @@ TypeSummary *defineStructTypeSummary(llvm::CallInst &call_inst) {
   /*
    * Build the Struct Type summary.
    */
-  auto type_summary = StructTypeSummary::get(name, field_types);
-  type_summaries[&call_inst] = type_summary;
+  auto &type_summary = StructTypeSummary::get(name, field_type_summaries);
+  type_summaries[&call_inst] = &type_summary;
 
   return type_summary;
 }
 
-TypeAnalysis &TypeAnalysis::get(Module &M) {
-  static TypeAnalysis singleton(M);
-
-  return singleton;
+void TypeAnalysis::invalidate() {
+  this->type_summaries.clear();
+  return;
 }
+
+TypeAnalysis &TypeAnalysis::get(Module &M) {
+  auto found_analysis = TypeAnalysis::analyses.find(&M);
+  if (found_analysis != TypeAnalysis::analyses.end()) {
+    return *(found_analysis->second);
+  }
+
+  auto new_analysis = new TypeAnalysis(M);
+  TypeAnalysis::analyses[&M] = new_analysis;
+  return *new_analysis;
+}
+
+void TypeAnalysis::invalidate(Module &M) {
+  auto found_analysis = TypeAnalysis::analyses.find(&M);
+  if (found_analysis != TypeAnalysis::analyses.end()) {
+    auto &analysis = *(found_analysis->second);
+    analysis.invalidate();
+  }
+
+  return;
+}
+
+map<llvm::Module *, TypeAnalysis *> TypeAnalysis::analyses = {};
 
 } // namespace llvm::memoir

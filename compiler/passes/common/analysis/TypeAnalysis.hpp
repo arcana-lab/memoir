@@ -5,6 +5,10 @@
 #include <iostream>
 #include <string>
 
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Module.h"
+
 #include "common/support/InternalDatatypes.hpp"
 #include "common/utility/FunctionNames.hpp"
 
@@ -34,19 +38,16 @@ public:
    */
   static TypeAnalysis &get(Module &M);
 
+  static void invalidate(Module &M);
+
   /*
    * Query the Type Summary for the given LLVM Value
    */
-  TypeSummary *getTypeSummary(llvm::CallInst &call_inst);
+  TypeSummary *getTypeSummary(llvm::Value &value);
 
   /*
    * Helper functions
    */
-  static bool isObjectType(TypeSummary *type);
-
-  static bool isPrimitiveType(TypeSummary *type);
-
-  static bool isStubType(TypeSummary *type);
 
   /*
    * This class is not cloneable nor assignable
@@ -55,29 +56,41 @@ public:
   void operator=(const TypeAnalysis &) = delete;
 
 private:
+  /*
+   * Passed state
+   */
   Module &M;
 
-  map<llvm::CallInst *, TypeSummary *> type_summaries;
+  /*
+   * Internal state
+   */
+  map<llvm::Value *, TypeSummary *> type_summaries;
 
-  map<MemOIR_Func, TypeSummary *> primitive_type_summaries;
+  /*
+   * Internal helper functions
+   */
+  TypeSummary *getMemOIRTypeSummary(llvm::CallInst &call_inst);
 
-  TypeSummary *getPrimitiveTypeSummary(llvm::CallInst &call_inst);
+  TypeSummary &getPrimitiveTypeSummary(MemOIR_Func function_enum);
 
-  TypeSummary *getIntegerTypeSummary(llvm::CallInst &call_inst);
+  TypeSummary &getIntegerTypeSummary(llvm::CallInst &call_inst);
 
-  TypeSummary *getFloatTypeSummary(llvm::CallInst &call_inst);
+  TypeSummary &getReferenceTypeSummary(llvm::CallInst &call_inst);
 
-  TypeSummary *getDoubleTypeSummary(llvm::CallInst &call_inst);
+  TypeSummary &getStructTypeSummary(llvm::CallInst &call_inst);
 
-  TypeSummary *getReferenceTypeSummary(llvm::CallInst &call_inst);
+  TypeSummary &getTensorTypeSummary(llvm::CallInst &call_inst);
 
-  TypeSummary *getStructTypeSummary(llvm::CallInst &call_inst);
+  TypeSummary &defineStructTypeSummary(llvm::CallInst &call_inst);
 
-  TypeSummary *getTensorTypeSummary(llvm::CallInst &call_inst);
-
-  TypeSummary *defineStructTypeSummary(llvm::CallInst &call_inst);
-
+  /*
+   * Private constructor and logistics
+   */
   TypeAnalysis(llvm::Module &M);
+
+  void invalidate();
+
+  static map<llvm::Module *, TypeAnalysis *> analyses;
 };
 
 enum TypeCode {
@@ -93,122 +106,139 @@ struct TypeSummary {
 public:
   TypeCode getCode();
 
-  virtual bool equals(Type *other) = 0;
-  virtual std::string toString(std::string indent = "") = 0;
+  // TODO: change this to be an operator== override
+  bool equals(TypeSummary *other);
+  virtual std::string toString(std::string indent = "") const = 0;
 
   friend std::ostream &operator<<(std::ostream &os, const TypeSummary &ts);
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                       const TypeSummary &ts);
+  friend bool operator<(const TypeSummary &l, const TypeSummary &r);
 
-private:
+protected:
   TypeCode code;
 
-  TypeSummary(TypeCode code, std::string name);
   TypeSummary(TypeCode code);
+
+  friend class TypeAnalysis;
 };
 
 struct StructTypeSummary : public TypeSummary {
 public:
-  static TypeSummary *get(std::string name);
-  static TypeSummary *get(std::string name,
-                          std::vector<TypeSummary *> &field_types);
+  static StructTypeSummary &get(std::string name);
+  static StructTypeSummary &get(std::string name,
+                                std::vector<TypeSummary *> &field_types);
 
   std::string getName();
-  TypeSummary *getField(uint64_t field_index);
+  TypeSummary &getField(uint64_t field_index);
   uint64_t getNumFields();
 
-  bool equals(TypeSummary *other);
-  std::string toString(std::string indent = "") override;
+  std::string toString(std::string indent = "") const override;
 
-private:
-  static map<std::string, StructTypeSummary *> defined_type_summaries;
-
+protected:
   std::string name;
   std::vector<TypeSummary *> field_types;
 
+  static map<std::string, StructTypeSummary *> defined_type_summaries;
+
   StructTypeSummary(std::string name, std::vector<TypeSummary *> &field_types);
+
+  friend class TypeAnalysis;
 };
 
 struct TensorTypeSummary : public TypeSummary {
 public:
-  static TypeSummary *get(TypeSummary *element_type, uint64_t num_dimensions);
-  static TypeSummary *get(TypeSummary *element_type,
-                          std::vector<uint64_t> &length_of_dimensions);
+  static TensorTypeSummary &get(TypeSummary &element_type,
+                                uint64_t num_dimensions);
+  // static TensorTypeSummary &get(TypeSummary &element_type,
+  //                               std::vector<uint64_t> &length_of_dimensions);
 
-  TypeSummary *getElementType();
+  TypeSummary &getElementType();
   uint64_t getNumDimensions();
   bool isStaticLength();
   uint64_t getLengthOfDimension(uint64_t dimension_index);
 
-  bool equals(Type *other);
-  std::string toString(std::string indent = "") override;
+  std::string toString(std::string indent = "") const override;
 
-private:
-  TypeSummary *element_type;
+protected:
+  TypeSummary &element_type;
   uint64_t num_dimensions;
   bool is_static_length;
   std::vector<uint64_t> length_of_dimensions;
 
-  TensorTypeSummary(Type *element_type, uint64_t num_dimensions);
-  TensorTypeSummary(Type *element_type,
-                    std::vector<uint64_t> &length_of_dimensions);
+  static map<TypeSummary *, map<uint64_t, TensorTypeSummary *>>
+      tensor_type_summaries;
+
+  TensorTypeSummary(TypeSummary &element_type, uint64_t num_dimensions);
+  // TensorTypeSummary(TypeSummary *element_type,
+  //                   std::vector<uint64_t> &length_of_dimensions);
+
+  friend class TypeAnalysis;
 };
 
 struct ReferenceTypeSummary : public TypeSummary {
 public:
-  static TypeSummary *get(TypeSummary *referenced_type);
+  static ReferenceTypeSummary &get(TypeSummary &referenced_type);
 
-  TypeSummary *getReferencedType();
+  TypeSummary &getReferencedType();
 
-  bool equals(TypeSummary *other);
-  std::string toString(std::string indent = "") override;
+  std::string toString(std::string indent = "") const override;
 
-private:
-  TypeSummary *referenced_type;
+protected:
+  TypeSummary &referenced_type;
 
-  ReferenceTypeSummary(TypeSummary *referenced_type);
+  static map<TypeSummary *, ReferenceTypeSummary *> reference_type_summaries;
+
+  ReferenceTypeSummary(TypeSummary &referenced_type);
+
+  friend class TypeAnalysis;
 };
 
 struct IntegerTypeSummary : public TypeSummary {
 public:
-  static TypeSummary *get(unsigned bitwidth, bool is_signed);
+  static IntegerTypeSummary &get(unsigned bitwidth, bool is_signed);
 
   unsigned getBitWidth();
   bool isSigned();
 
-  bool equals(TypeSummary *other);
-  std::string toString(std::string indent = "") override;
+  std::string toString(std::string indent = "") const override;
 
-private:
+protected:
   unsigned bitwidth;
   bool is_signed;
 
   static map<unsigned, /* bitwidth */
              map<bool, /* is signed? */
-                 TypeSummary *>>
+                 IntegerTypeSummary *>>
       integer_type_summaries;
 
   IntegerTypeSummary(unsigned bitwidth, bool is_signed);
+
+  friend class TypeAnalysis;
 };
 
 struct FloatTypeSummary : public TypeSummary {
 public:
-  static TypeSummary *get();
+  static FloatTypeSummary &get();
 
-  bool equals(TypeSummary *other);
-  std::string toString(std::string indent = "") override;
+  std::string toString(std::string indent = "") const override;
 
-private:
+protected:
   FloatTypeSummary();
+
+  friend class TypeAnalysis;
 };
 
 struct DoubleTypeSummary : public TypeSummary {
 public:
-  static TypeSummary *get();
+  static DoubleTypeSummary &get();
 
-  bool equals(TypeSummary *other);
-  std::string toString(std::string indent = "") override;
+  std::string toString(std::string indent = "") const override;
 
-private:
+protected:
   DoubleTypeSummary();
+
+  friend class TypeAnalysis;
 };
 
 } // namespace llvm::memoir
