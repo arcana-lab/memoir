@@ -5,16 +5,20 @@ namespace llvm::memoir {
 /*
  * Field Summary base class implementation
  */
-AllocationCode FieldSummary::getCode() {
+AllocationCode FieldSummary::getCode() const {
   return this->points_to.getCode();
 }
 
-AllocationSummary &FieldSummary::pointsTo() {
+AllocationSummary &FieldSummary::pointsTo() const {
   return this->points_to;
 }
 
-TypeSummary &FieldSummary::getType() {
-  return this->type.getType();
+TypeSummary &FieldSummary::getType() const {
+  return this->type;
+}
+
+llvm::CallInst &FieldSummary::getCallInst() const {
+  return this->call_inst;
 }
 
 FieldSummary::FieldSummary(llvm::CallInst &call_inst,
@@ -36,7 +40,7 @@ StructFieldSummary::StructFieldSummary(llvm::CallInst &call_inst,
   // Do nothing.
 }
 
-uint64_t StructFieldSummary::getIndex() {
+uint64_t StructFieldSummary::getIndex() const {
   return this->index;
 }
 
@@ -51,17 +55,17 @@ TensorElementSummary::TensorElementSummary(llvm::CallInst &call_inst,
   // Do nothing.
 }
 
-uint64_t TensorElementSummary::getNumberOfDimensions() {
+uint64_t TensorElementSummary::getNumberOfDimensions() const {
   return this->indices.size();
 }
 
-llvm::Value &TensorElementSummary::getIndex(uint64_t dimension_index) {
+llvm::Value &TensorElementSummary::getIndex(uint64_t dimension_index) const {
   assert(dimension_index < this->indices.size()
          && "in TensorElementSummary::getIndex"
          && "dimension out of range of tensor");
 
-  auto &value = this->indices.at(dimension_index);
-  return value;
+  auto value = this->indices.at(dimension_index);
+  return *value;
 }
 
 } // namespace llvm::memoir
