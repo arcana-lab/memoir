@@ -1,38 +1,52 @@
 #include "common/analysis/AllocationAnalysis.hpp"
 
+#include <sstream>
+
 namespace llvm::memoir {
 
-std::ostream AllocationSummary::operator<<(ostream &os,
-                                           const AllocationSummary &summary) {
+std::ostream &operator<<(std::ostream &os, const AllocationSummary &summary) {
   os << summary.toString();
   return os;
 }
 
-std::string StructAllocationSummary::toString(std::string indent) {
-  std::stringstream sstream;
-  sstream << "(struct" << std::endl
-          << indent << "  LLVM: " << this->getCallInst() << std::endl
-          << indent
-          << "  type: " << this->getTypeSummary().toString(indent + "        ")
-          << std::endl
-          << ")";
-
-  return sstream.str();
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                              const AllocationSummary &summary) {
+  os << summary.toString();
+  return os;
 }
 
-std::string TensorAllocationSummary::toString(std::string indent) {
-  std::stringstream sstream;
-  sstream << "(tensor" << std::endl
-          << indent << "  LLVM: " << this->getCallInst() << std::endl
-          << indent << "  dimensions: " << std::endl;
-  auto i = 0;
+std::string StructAllocationSummary::toString(std::string indent) const {
+  std::string str, call_str;
+  llvm::raw_string_ostream call_ss(call_str);
+  call_ss << this->getCallInst();
+
+  str = "(struct \n" + indent + "  LLVM: " + call_ss.str() + "\n" + indent
+        + "  type: " + this->getType().toString(indent + "        ") + "\n"
+        + ")";
+
+  return str;
+}
+
+std::string TensorAllocationSummary::toString(std::string indent) const {
+  std::string str, call_str;
+  llvm::raw_string_ostream call_ss(call_str);
+  call_ss << this->getCallInst();
+
+  str = "(tensor \n" + indent + "  LLVM: " + call_ss.str() + "\n" + indent
+        + "  dimensions: \n";
+  int i = 0;
   for (auto length : this->length_of_dimensions) {
-    sstream << indent << "    dimension " << i << ": " << *length << std::endl;
+    std::string length_str;
+    llvm::raw_string_ostream length_ss(length_str);
+    length_ss << *length;
+
+    str += indent + "    dimension " + std::to_string(i) + ": "
+           + length_ss.str() + "\n";
     i++;
   }
-  sstream << ")";
+  str += ")";
 
-  return sstream.str();
+  return str;
 }
 
 } // namespace llvm::memoir
