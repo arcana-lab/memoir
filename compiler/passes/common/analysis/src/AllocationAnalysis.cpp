@@ -264,6 +264,14 @@ set<AllocationSummary *> &AllocationAnalysis::getAllocationSummaries(
      */
     return switch_allocation_summaries;
   }
+
+  /*
+   * Otherwise, this can't be an allocation summary.
+   * Return NULL.
+   */
+  auto &value_allocation_summaries = this->allocation_summaries[&value];
+  value_allocation_summaries.clear();
+  return value_allocation_summaries;
 }
 
 AllocationSummary *AllocationAnalysis::getAllocationSummary(
