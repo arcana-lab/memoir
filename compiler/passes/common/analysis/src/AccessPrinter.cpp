@@ -21,7 +21,7 @@ std::string MustReadSummary::toString(std::string indent) const {
   str = "(must read: \n";
   str += indent + "  LLVM: " + call_ss.str() + "\n";
   str += indent + "  field: \n";
-  str += indent + "  " + this->getField().toString(indent + "  ") + "\n";
+  str += indent + "    " + this->getField().toString(indent + "    ") + "\n";
   str += indent + ")";
 
   return str;
@@ -35,7 +35,7 @@ std::string MustWriteSummary::toString(std::string indent) const {
   str = "(must write: \n";
   str += indent + "  LLVM: " + call_ss.str() + "\n";
   str += indent + "  field: \n";
-  str += indent + "  " + this->getField().toString(indent + "  ") + "\n";
+  str += indent + "    " + this->getField().toString(indent + "    ") + "\n";
   str += indent + ")";
 
   return str;
@@ -49,7 +49,7 @@ std::string MayReadSummary::toString(std::string indent) const {
   str = "(may read: \n" + indent + "  LLVM: " + call_str + "\n";
   for (auto iter = this->cbegin(); iter != this->cend(); ++iter) {
     auto read_summary = *iter;
-    str += indent + read_summary->toString(indent + "  ") + "\n";
+    str += indent + "  " + read_summary->toString(indent + "    ") + "\n";
   }
   str += indent + ")";
 
@@ -63,7 +63,7 @@ std::string MayWriteSummary::toString(std::string indent) const {
   str += "(may write: \n" + indent + "  LLVM: " + call_ss.str() + "\n";
   for (auto iter = this->cbegin(); iter != this->cend(); ++iter) {
     auto write_summary = *iter;
-    str += indent + write_summary->toString(indent + "  ") + "\n";
+    str += indent + "  " + write_summary->toString(indent + "    ") + "\n";
   }
   str += indent + ")";
 

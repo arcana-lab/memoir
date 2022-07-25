@@ -22,7 +22,7 @@ std::string StructAllocationSummary::toString(std::string indent) const {
 
   str = "(struct \n" + indent + "  LLVM: " + call_ss.str() + "\n";
   str += indent + "  type: \n";
-  str += indent + "  " + this->getType().toString(indent + "        ") + "\n";
+  str += indent + "  " + this->getType().toString(indent + "  ") + "\n";
   str += indent + ")";
 
   return str;
