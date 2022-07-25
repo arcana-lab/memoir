@@ -342,13 +342,15 @@ TypeSummary &TypeAnalysis::defineStructTypeSummary(llvm::CallInst &call_inst) {
     name_global = dyn_cast<GlobalVariable>(name_value);
   }
 
-  assert(name_global && "in TypeAnalysis::getTypeSummary"
-         && "struct type lookup is not a global variable");
+  assert(name_global
+         && "in TypeAnalysis::getTypeSummary"
+            "struct type lookup is not a global variable");
 
   auto name_init = name_global->getInitializer();
   auto name_constant = dyn_cast<ConstantDataArray>(name_init);
-  assert(name_constant && "in TypeAnalysis::getTypeSummary"
-         && "struct type lookup is not a constant array");
+  assert(name_constant
+         && "in TypeAnalysis::getTypeSummary"
+            "struct type lookup is not a constant array");
 
   auto name = name_constant->getAsCString();
 
@@ -358,8 +360,9 @@ TypeSummary &TypeAnalysis::defineStructTypeSummary(llvm::CallInst &call_inst) {
    */
   auto num_fields_value = call_inst.getArgOperand(1);
   auto num_fields_constant = dyn_cast<ConstantInt>(num_fields_value);
-  assert(num_fields_constant && "in TypeAnalysis::defineStructTypeSummary"
-         && "number of fields is not a constant integer");
+  assert(num_fields_constant
+         && "in TypeAnalysis::defineStructTypeSummary"
+            "number of fields is not a constant integer");
 
   auto num_fields = num_fields_constant->getZExtValue();
 
@@ -370,13 +373,14 @@ TypeSummary &TypeAnalysis::defineStructTypeSummary(llvm::CallInst &call_inst) {
   for (auto field_index = 0; field_index < num_fields; field_index++) {
     auto arg_operand_index = field_index + 2;
     auto field_value = call_inst.getArgOperand(arg_operand_index);
-    auto field_call = dyn_cast<CallInst>(field_value);
-    assert(field_call && "in TypeAnalysis::defineStructTypeSummary"
-           && "field is not a call instruction");
+    assert(field_value
+           && "in TypeAnalysis::defineStructTypeSummary"
+              "field is NULL");
 
-    auto field_type_summary = getTypeSummary(*field_call);
-    assert(field_type_summary && "in TypeAnalysis::defineStructTypeSummary"
-           && "field does not have a type summary");
+    auto field_type_summary = this->getTypeSummary(*field_value);
+    assert(field_type_summary
+           && "in TypeAnalysis::defineStructTypeSummary"
+              "field does not have a type summary");
 
     field_type_summaries.push_back(field_type_summary);
   }
