@@ -19,7 +19,50 @@
 #  include <unordered_set>
 #endif
 
+#include <functional>
+#include <memory>
+#include <optional>
+#include <type_traits>
+
 namespace llvm::memoir {
+
+/*
+ * We use references in all places where possible.
+ */
+template <typename T>
+using opt = std::optional<T>;
+
+template <typename T>
+using ref = std::reference_wrapper<T>;
+
+template <typename T>
+using opt_ref = std::optional<std::reference_wrapper<T>>;
+
+template <typename T>
+using unique = std::unique_ptr<T>;
+
+template <typename T>
+using shared = std::shared_ptr<T>;
+
+template <typename T>
+using weak = std::weak_ptr<T>;
+
+/*
+ * Some utility types that let us unwrap the inner type from a
+ * reference_wrapper.
+ */
+template <typename T>
+struct unwrap_ref {
+  using type = T;
+};
+
+template <typename T>
+struct unwrap_ref<std::reference_wrapper<T>> {
+  using type = T &;
+};
+
+template <typename T>
+using unwrap_ref_type = typename unwrap_ref<T>::type;
 
 /*
  * Define the internal types used for debug vs release versions
@@ -28,18 +71,21 @@ namespace llvm::memoir {
  *   otherwise, for release, we want to use the unordered versions as
  *   they are faster.
  */
-template <typename T, typename U>
+
 #if DEBUG
-using map = std::map<T, U>;
+template <typename T, typename U>
+using map = std::map<T, U, std::less<unwrap_ref_type<T>>>;
 #else
-using map = std::unordered_map<T, U>;
+template <typename T, typename U>
+using map = std::unordered_map<T, U, std::hash<unwrap_ref_type<T>>>;
 #endif
 
-template <typename T>
 #if DEBUG
-using set = std::set<T>;
+template <typename T>
+using set = std::set<T, std::less<unwrap_ref_type<T>>>;
 #else
-using set = std::unordered_set<T>;
+template <typename T>
+using set = std::unordered_set<T, std::hash<unwrap_ref_type<T>>>;
 #endif
 
 } // namespace llvm::memoir
