@@ -29,7 +29,7 @@ std::string TensorTypeSummary::toString(std::string indent) const {
 
 std::string IntegerTypeSummary::toString(std::string indent) const {
   std::string str = "";
-  if (this->is_signed) {
+  if (!this->is_signed) {
     str += "u";
   }
   str += "int";
