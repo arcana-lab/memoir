@@ -2,82 +2,65 @@
 
 namespace llvm::memoir {
 
-std::ostream &AccessSummary::operator<<(std::ostream &os,
-                                        const AccessSummary &summary) {
+std::ostream &operator<<(std::ostream &os, const AccessSummary &summary) {
   os << summary.toString();
   return os;
 }
 
-std::string ReadSummary::toString(std::string indent) {
-  std::stringstream sstream;
-  if (this->isMust()) {
-    sstream << "(must read: " << std::endl
-            << indent << "  LLVM: " << this->call_inst << std::endl
-            << indent
-            << "  field: " << this->getField().toString(indent + "         ")
-            << std::endl
-            << indent << ")";
-  } else {
-    sstream << std::endl
-            << indent << "(read: " << std::endl
-            << indent
-            << "  field: " << this->getField().toString(indent + "         ")
-            << std::endl
-            << indent << ")";
-  }
-
-  return sstream.str();
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                              const AccessSummary &summary) {
+  os << summary.toString();
+  return os;
 }
 
-std::string WriteSummary::toString(std::string indent) {
-  std::stringstream sstream;
-  if (this->isMust()) {
-    sstream << "(must write: " << std::endl
-            << indent << "  LLVM: " << this->call_inst << std::endl
-            << indent
-            << "  field: " << this->getField().toString(indent + "         ")
-            << std::endl
-            << indent << "  value written: " << this->getValueWritten()
-            << std::endl
-            << ")";
-  } else {
-    sstream << std::endl
-            << indent << "(write: " << std::endl
-            << indent
-            << "  field: " << this->getField().toString(indent + "         ")
-            << std::endl
-            << indent << "  value written: " << this->getValueWritten()
-            << std::endl
-            << indent << ")";
-  }
+std::string MustReadSummary::toString(std::string indent) const {
+  std::string str, call_str;
+  llvm::raw_string_ostream call_ss(call_str);
+  call_ss << this->getCallInst();
+  str = "(must read: \n" + indent + "  LLVM: " + call_ss.str() + "\n" + indent
+        + "  field: " + this->getField().toString(indent + "         ") + "\n"
+        + indent + ")";
 
-  return sstream.str();
+  return str;
 }
 
-std::string MayReadSummary::toString(std::string indent) {
-  std::stringstream sstream;
-  sstream << "(may read: " << std::endl
-          << indent << "  LLVM: " << this->call_inst << std::endl;
-  for (auto iter = this->begin(); iter != this->end(); ++iter) {
+std::string MustWriteSummary::toString(std::string indent) const {
+  std::string str, call_str;
+  llvm::raw_string_ostream call_ss(call_str);
+  call_ss << this->getCallInst();
+  str = "(must write: \n" + indent + "  LLVM: " + call_ss.str() + "\n" + indent
+        + "  field: " + this->getField().toString(indent + "         ") + "\n"
+        + indent + ")";
+
+  return str;
+}
+
+std::string MayReadSummary::toString(std::string indent) const {
+  std::string str, call_str;
+  llvm::raw_string_ostream call_ss(call_str);
+  call_ss << this->getCallInst();
+  str = "(may read: \n" + indent + "  LLVM: " + call_ss.str() + "\n";
+  for (auto iter = this->cbegin(); iter != this->cend(); ++iter) {
     auto read_summary = *iter;
-    sstream << indent << read_summary->toString(indent + "  ") << std::endl;
+    str += indent + read_summary->toString(indent + "  ") + "\n";
   }
-  sstream << indent << ")";
+  str += indent + ")";
 
-  return sstream.str();
+  return str;
 }
 
-std::string MayWriteSummary::toString(std::string indent) {
-  std::stringstream sstream;
-  sstream << "(may write: " << std::endl
-          << indent << "  LLVM: " << this->call_inst << std::endl;
-  for (auto iter = this->begin(); iter != this->end(); ++iter) {
+std::string MayWriteSummary::toString(std::string indent) const {
+  std::string str, call_str;
+  llvm::raw_string_ostream call_ss(call_str);
+  call_ss << this->getCallInst();
+  str += "(may write: \n" + indent + "  LLVM: " + call_ss.str() + "\n";
+  for (auto iter = this->cbegin(); iter != this->cend(); ++iter) {
     auto write_summary = *iter;
-    sstream << indent << write_summary->toString(indent + "  ") << std::endl;
+    str += indent + write_summary->toString(indent + "  ") + "\n";
   }
-  sstream << indent << ")";
+  str += indent + ")";
 
-  return sstream.str();
+  return str;
 }
 
 } // namespace llvm::memoir
