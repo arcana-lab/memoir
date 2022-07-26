@@ -228,6 +228,27 @@ set<FieldSummary *> &AccessAnalysis::getFieldSummaries(llvm::Value &value) {
     return phi_field_summaries;
   }
 
+  /*
+   * Handle lossless cast instructions
+   */
+  if (auto cast_inst = dyn_cast<CastInst>(&value)) {
+    /*
+     * If the cast instruction is not lossless, return the empty set.
+     */
+    if (!cast_inst->isLosslessCast()) {
+      auto &cast_field_summaries = this->field_summaries[&value];
+      cast_field_summaries.clear();
+      return cast_field_summaries;
+    }
+
+    auto cast_value = cast_inst->getOperand(0);
+    assert(cast_value
+           && "in AccessAnalysis::getFieldSummaries"
+              "value to be casted by cast inst is NULL");
+
+    return this->getFieldSummaries(*cast_value);
+  }
+
   /* TODO
    * Handle load inst
    */
@@ -298,10 +319,7 @@ set<FieldSummary *> &AccessAnalysis::getStructFieldSummaries(
   assert(allocation_arg
          && "in AccessAnalysis::getStructFieldSummaries"
             "LLVM value being passed into getStructField is NULL");
-
-  auto &allocation_analysis = AllocationAnalysis::get(M);
-  auto &allocation_summaries =
-      allocation_analysis.getAllocationSummaries(*allocation_arg);
+  auto &object_summaries = this->getObjectSummaries(*allocation_arg);
 
   /*
    * Determine the field index being accessed.
@@ -318,9 +336,9 @@ set<FieldSummary *> &AccessAnalysis::getStructFieldSummaries(
    * Build the field summaries for the given struct field access
    */
   auto &field_summaries = this->field_summaries[&call_inst];
-  for (auto allocation_summary : allocation_summaries) {
+  for (auto object_summary : object_summaries) {
     auto field_summary =
-        new StructFieldSummary(call_inst, *allocation_summary, field_index);
+        new StructFieldSummary(call_inst, *object_summary, field_index);
     field_summaries.insert(field_summary);
   }
 
@@ -337,9 +355,7 @@ set<FieldSummary *> &AccessAnalysis::getTensorElementSummaries(
          && "in AccessAnalysis::getTensorElementSummaries"
             "LLVM value being passed into getTensorElement is NULL");
 
-  auto &allocation_analysis = AllocationAnalysis::get(M);
-  auto &allocation_summaries =
-      allocation_analysis.getAllocationSummaries(*allocation_arg);
+  auto object_summaries = this->getObjectSummaries(*allocation_arg);
 
   /*
    * Determine the indices being accessed.
@@ -351,13 +367,130 @@ set<FieldSummary *> &AccessAnalysis::getTensorElementSummaries(
    * Build the field summaries for the given tensor element access.
    */
   auto &field_summaries = this->field_summaries[&call_inst];
-  for (auto allocation_summary : allocation_summaries) {
+  for (auto object_summary : object_summaries) {
     auto field_summary =
-        new TensorElementSummary(call_inst, *allocation_summary, indices);
+        new TensorElementSummary(call_inst, *object_summary, indices);
     field_summaries.insert(field_summary);
   }
 
   return field_summaries;
+}
+
+set<ObjectSummary *> &AccessAnalysis::getReadStructSummaries(
+    llvm::CallInst &call_inst) {
+  /*
+   * See if we have a memoized set of ObjectSummaries for this CallInst.
+   *  - If we do, return it.
+   *  - Otherwise, create the NestedStructSummaries.
+   */
+  auto found_summaries = this->nested_object_summaries.find(&call_inst);
+  if (found_summaries != this->nested_object_summaries.end()) {
+    return found_summaries->second;
+  }
+
+  /*
+   * Determine the FieldSummaries this readStruct could be accessing.
+   */
+  auto field_arg = call_inst.getArgOperand(0);
+  auto &field_summaries = this->getFieldSummaries(*field_arg);
+
+  /*
+   * Build NestedStructSummaries for the given FieldSummaries.
+   */
+  auto &nested_object_summaries = this->nested_object_summaries[&call_inst];
+  auto &object_summaries = this->object_summaries[&call_inst];
+  for (auto field_summary : field_summaries) {
+    /*
+     * Create the new NestedObjectSummary
+     */
+    auto object_summary = new NestedStructSummary(call_inst, *field_summary);
+
+    /*
+     * Store the owned NestedObjectSummary pointer
+     */
+    nested_object_summaries.insert(object_summary);
+
+    /*
+     * Store the shared NestedObjectSummary pointer
+     */
+    object_summaries.insert(object_summary);
+  }
+}
+
+set<ObjectSummary *> &AccessAnalysis::getReadTensorSummaries(
+    llvm::CallInst &call_inst) {
+  /*
+   * Constant length tensors are currently unsupported,
+   *   readTensor call is current unsupported, always returns an empty set.
+   */
+  auto &nested_object_summary = this->nested_object_summaries[&call_inst];
+  nested_object_summary.clear();
+  return nested_object_summary;
+}
+
+set<ObjectSummary *> &AccessAnalysis::getObjectSummaries(llvm::Value &value) {
+  /*
+   * See if we have a memoized set of ObjectSummaries for this LLVM Value.
+   *  - If we do, return it.
+   *  - Otherwise, we will build them.
+   */
+  auto found_summaries = this->object_summaries.find(&value);
+  if (found_summaries != this->object_summaries.end()) {
+    return found_summaries->second;
+  }
+
+  /*
+   * Check if the value is a call to readStruct or readTensor
+   *  - If it is, fetch the NestedStructSummaries for it.
+   */
+  if (auto call_inst = dyn_cast<CallInst>(&value)) {
+    auto callee_enum = getMemOIREnum(*call_inst);
+
+    switch (callee_enum) {
+      case MemOIR_Func::READ_STRUCT:
+        return this->getReadStructSummaries(*call_inst);
+      case MemOIR_Func::READ_TENSOR:
+        return this->getReadTensorSummaries(*call_inst);
+      default:
+        break;
+    }
+  }
+
+  /*
+   * Otherwise, fetch the AllocationSummaries and wrap them in
+   *   BaseObjectSummaries.
+   */
+  auto &allocation_analysis = AllocationAnalysis::get(M);
+  auto &allocation_summaries =
+      allocation_analysis.getAllocationSummaries(value);
+
+  /*
+   * Wrap each of the bare AllocationSummaries with a BaseObjectSummary
+   */
+  auto &object_summaries = this->object_summaries[&value];
+  for (auto allocation_summary : allocation_summaries) {
+    /*
+     * See if we have a memoized ObjectSummary for this AllocationSummary.
+     *  - If we do, use it.
+     *  - Otherwise, build it and memoize it.
+     */
+    BaseObjectSummary *base_object_summary;
+    auto found_summary = this->base_object_summaries.find(allocation_summary);
+    if (found_summary != this->base_object_summaries.end()) {
+      base_object_summary = found_summary->second;
+    } else {
+      base_object_summary = new BaseObjectSummary(*allocation_summary);
+
+      this->base_object_summaries[allocation_summary] = base_object_summary;
+    }
+
+    object_summaries.insert(base_object_summary);
+  }
+
+  /*
+   * Return a set of the ObjectSummaries
+   */
+  return object_summaries;
 }
 
 bool AccessAnalysis::isRead(MemOIR_Func func_enum) {
