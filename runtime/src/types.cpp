@@ -2,7 +2,7 @@
 
 #include "types.h"
 
-namespace objectir {
+namespace memoir {
 
 TypeCode Type::getCode() {
   return this->code;
@@ -14,9 +14,8 @@ TypeCode Type::getCode() {
 bool isObjectType(Type *type) {
   TypeCode code = type->getCode();
   switch (code) {
-    case ObjectTy:
-    case ArrayTy:
-    case UnionTy:
+    case StructTy:
+    case TensorTy:
     case StubTy:
       return true;
     default:
@@ -30,6 +29,7 @@ bool isIntrinsicType(Type *type) {
     case IntegerTy:
     case FloatTy:
     case DoubleTy:
+    case ReferenceTy:
       return true;
     default:
       return false;
@@ -49,6 +49,27 @@ bool isStubType(Type *type) {
 /*
  * Type base class
  */
+std::unordered_map<std::string, Type *> &Type::named_types() {
+  static std::unordered_map<std::string, Type *> named_types_map;
+
+  return named_types_map;
+}
+
+Type *Type::find(std::string name) {
+  auto &named_types_map = Type::named_types();
+  auto found_named = named_types_map.find(name);
+  if (found_named != named_types_map.end()) {
+    return found_named->second;
+  }
+
+  return nullptr;
+}
+
+void Type::define(std::string name, Type *type_to_define) {
+  auto &named_types_map = Type::named_types();
+  named_types_map[name] = type_to_define;
+}
+
 Type::Type(TypeCode code, std::string name) : code(code) {
   // Do nothing
 }
@@ -57,143 +78,143 @@ Type::Type(TypeCode code) : Type::Type(code, "") {
   // Do nothing
 }
 
-Type::~Type() {
-  // Do nothing
-}
-
 /*
- * Object Type
+ * Struct Type
  */
+Type *StructType::get(std::string name, std::vector<Type *> &field_types) {
+  auto found_type = Type::find(name);
+  if (found_type) {
+    return found_type;
+  }
 
-ObjectType::ObjectType(std::string name)
-  : Type(TypeCode::ObjectTy, name) {
+  auto new_struct = new StructType(name, field_types);
+
+  Type::define(name, new_struct);
+
+  return new_struct;
+}
+
+StructType::StructType(std::string name, std::vector<Type *> &field_types)
+  : Type(TypeCode::StructTy, name),
+    fields(field_types) {
   // Do nothing.
 }
 
-ObjectType::ObjectType() : ObjectType::ObjectType("") {
-  // Do nothing.
-}
-
-ObjectType::~ObjectType() {
-  for (auto field : this->fields) {
-    // delete field;
-  }
-}
-
-Type *ObjectType::resolve() {
-  if (resolved) {
-    return this;
-  }
-  resolved = true;
-  for (auto it = this->fields.begin();
-       it != this->fields.end();
-       ++it) {
-    *it = (*it)->resolve();
+Type *StructType::resolve() {
+  for (auto field_iter = this->fields.begin(); field_iter != this->fields.end();
+       ++field_iter) {
+    *field_iter = (*field_iter)->resolve();
   }
 
   return this;
 }
 
-bool ObjectType::equals(Type *other) {
+bool StructType::equals(Type *other) {
   return (this == other);
 }
 
 /*
- * Array Type
+ * Tensor Type
  */
-ArrayType::ArrayType(Type *type, std::string name)
-  : Type(TypeCode::ArrayTy, name),
-    elementType(type) {
-  // Do nothing.
+Type *TensorType::get(Type *element_type, uint64_t num_dimensions) {
+  return new TensorType(element_type, num_dimensions);
 }
 
-ArrayType::ArrayType(Type *type)
-  : ArrayType::ArrayType(type, "") {
-  // Do nothing.
+Type *TensorType::get(Type *element_type,
+                      uint64_t num_dimensions,
+                      std::vector<uint64_t> &length_of_dimensions) {
+  return new TensorType(element_type, num_dimensions, length_of_dimensions);
 }
 
-ArrayType::~ArrayType() {
-  // Do nothing.
-}
+TensorType::TensorType(Type *type, uint64_t num_dimensions)
+  : Type(TypeCode::TensorTy),
+    element_type(type),
+    num_dimensions(num_dimensions),
+    is_static_length(false) {}
 
-Type *ArrayType::resolve() {
-  if (resolved) {
-    return this;
-  }
-  resolved = true;
-  this->elementType = this->elementType->resolve();
+TensorType::TensorType(Type *type,
+                       uint64_t num_dimensions,
+                       std::vector<uint64_t> &length_of_dimensions)
+  : Type(TypeCode::TensorTy),
+    element_type(type),
+    num_dimensions(num_dimensions),
+    is_static_length(true),
+    length_of_dimensions(length_of_dimensions) {}
+
+Type *TensorType::resolve() {
+  this->element_type = this->element_type->resolve();
   return this;
 }
 
-bool ArrayType::equals(Type *other) {
-  return (this == other);
-}
-
-/*
- * Union Type
- */
-UnionType::UnionType(std::string name)
-  : Type(TypeCode::UnionTy, name) {
-  // Do nothing.
-}
-
-UnionType::UnionType() : UnionType::UnionType("") {
-  // Do nothing.
-}
-
-UnionType::~UnionType() {
-  for (auto member : this->members) {
-    // delete member;
+bool TensorType::equals(Type *other) {
+  if (this->getCode() != other->getCode()) {
+    return false;
   }
-}
 
-Type *UnionType::resolve() {
-  // TODO: resolve members
-  if (resolved) {
-    return this;
+  auto other_as_tensor = (TensorType *)other;
+  auto other_num_dimensions = other_as_tensor->num_dimensions;
+  if (this->num_dimensions != other_num_dimensions) {
+    return false;
   }
-  resolved = true;
 
-  return this;
-}
-
-bool UnionType::equals(Type *other) {
-  return (this == other);
+  auto other_element_type = other_as_tensor->element_type;
+  return this->element_type->equals(other_element_type);
 }
 
 /*
  * Integer Type
  */
-IntegerType::IntegerType(uint64_t bitwidth, bool isSigned)
+Type *IntegerType::get(unsigned bitwidth, bool is_signed) {
+  static std::unordered_map<
+      // bitwidth
+      unsigned,
+      std::unordered_map<
+          // is_signed
+          bool,
+          IntegerType *>>
+      integer_types;
+
+  auto found_bitwidth = integer_types.find(bitwidth);
+  if (found_bitwidth != integer_types.end()) {
+    auto bitwidth_types = found_bitwidth->second;
+    auto found_signed = bitwidth_types.find(is_signed);
+    if (found_signed != bitwidth_types.end()) {
+      auto integer_type = found_signed->second;
+      return integer_type;
+    }
+  }
+
+  auto new_integer_type = new IntegerType(bitwidth, is_signed);
+  integer_types[bitwidth][is_signed] = new_integer_type;
+  return new_integer_type;
+}
+
+IntegerType::IntegerType(unsigned bitwidth, bool is_signed)
   : Type(TypeCode::IntegerTy),
     bitwidth(bitwidth),
-    isSigned(isSigned) {
+    is_signed(is_signed) {
   // Do nothing.
 }
 
-IntegerType::~IntegerType() {
-  // Do nothing
-}
-
 Type *IntegerType::resolve() {
-  if (resolved) {
-    return this;
-  }
-  resolved = true;
   return this;
 }
 
 bool IntegerType::equals(Type *other) {
+  if (this == other) {
+    return true;
+  }
+
   if (this->getCode() != other->getCode()) {
     return false;
   }
 
-  auto otherInt = (IntegerType *)other;
-  if (this->bitwidth != otherInt->bitwidth) {
+  auto other_as_int = (IntegerType *)other;
+  if (this->bitwidth != other_as_int->bitwidth) {
     return false;
   }
 
-  if (this->isSigned != otherInt->isSigned) {
+  if (this->is_signed != other_as_int->is_signed) {
     return false;
   }
 
@@ -203,19 +224,17 @@ bool IntegerType::equals(Type *other) {
 /*
  * Float Type
  */
+Type *FloatType::get() {
+  static FloatType float_type;
+
+  return &float_type;
+}
+
 FloatType::FloatType() : Type(TypeCode::FloatTy) {
   // Do nothing.
 }
 
-FloatType::~FloatType() {
-  // Do nothing;
-}
-
 Type *FloatType::resolve() {
-  if (resolved) {
-    return this;
-  }
-  resolved = true;
   return this;
 }
 
@@ -226,20 +245,17 @@ bool FloatType::equals(Type *other) {
 /*
  * Double Type
  */
+Type *DoubleType::get() {
+  static DoubleType double_type;
+
+  return &double_type;
+}
+
 DoubleType::DoubleType() : Type(TypeCode::DoubleTy) {
   // Do nothing.
 }
 
-DoubleType::~DoubleType() {
-  // Do nothing.
-}
-
 Type *DoubleType::resolve() {
-  if (resolved) {
-    return this;
-  }
-  resolved = true;
-
   return this;
 }
 
@@ -248,67 +264,79 @@ bool DoubleType::equals(Type *other) {
 }
 
 /*
- * Pointer Type
+ * Reference Type
  */
-PointerType::PointerType(Type *containedType)
-  : Type(TypeCode::PointerTy),
-    containedType(containedType) {
-  if (!isObjectType(containedType)) {
-    std::cerr
-        << "ERROR: Contained type of pointer is not an object!\n";
+Type *ReferenceType::get(Type *referenced_type) {
+  return new ReferenceType(referenced_type);
+}
+
+ReferenceType::ReferenceType(Type *referenced_type)
+  : Type(TypeCode::ReferenceTy),
+    referenced_type(referenced_type) {
+  if (!isObjectType(referenced_type)) {
+    std::cerr << "ERROR: Contained type of reference is not an object!\n";
     exit(1);
   }
 }
 
-PointerType::~PointerType() {
-  // Do nothing.
-}
-
-Type *PointerType::resolve() {
-  if (resolved) {
-    return this;
-  }
-  resolved = true;
-
-  this->containedType = this->containedType->resolve();
+Type *ReferenceType::resolve() {
+  this->referenced_type = this->referenced_type->resolve();
   return this;
 }
 
-bool PointerType::equals(Type *other) {
+bool ReferenceType::equals(Type *other) {
   if (this->getCode() != other->getCode()) {
     return false;
   }
 
-  auto otherPtr = (PointerType *)other;
-  auto thisContained = this->containedType;
-  auto otherContained = otherPtr->containedType;
-  return thisContained->equals(otherContained);
+  auto other_ref = (ReferenceType *)other;
+  auto this_referenced_type = this->referenced_type;
+  auto other_referenced_type = other_ref->referenced_type;
+  return this_referenced_type->equals(other_referenced_type);
 }
 
 /*
  * Stub Type
  */
-StubType::StubType(std::string name)
-  : Type(TypeCode::StubTy),
-    name(name) {
+std::unordered_map<std::string, Type *> StubType::stub_types;
+
+Type *StubType::get(std::string name) {
+  auto found_resolved = Type::find(name);
+  if (found_resolved) {
+    return found_resolved;
+  }
+
+  auto found_stub = StubType::stub_types.find(name);
+  if (found_stub != StubType::stub_types.end()) {
+    return found_stub->second;
+  }
+
+  auto new_stub = new StubType(name);
+
+  StubType::stub_types[name] = new_stub;
+
+  return new_stub;
+}
+
+StubType::StubType(std::string name) : Type(TypeCode::StubTy), name(name) {
   // Do nothing.
 }
 
 Type *StubType::resolve() {
-  if (resolved) {
-    return this;
+  auto found_resolved = Type::find(this->name);
+  if (found_resolved) {
+    this->resolved_type = found_resolved;
+    return found_resolved;
   }
-  resolved = true;
 
-  // Resolve the stub type.
-  if (!this->resolvedType) {
-    std::cerr
-        << "ERROR: " << name
-        << " is not resolved to a type before it's use.";
+  // Unable to resolve the stub type, error.
+  if (!this->resolved_type) {
+    std::cerr << "ERROR: " << name
+              << " is not resolved to a type before it's use.";
     exit(1);
   }
 
-  return this->resolvedType;
+  return this->resolved_type;
 }
 
 bool StubType::equals(Type *other) {
@@ -316,4 +344,4 @@ bool StubType::equals(Type *other) {
   return (this->name == otherStub->name);
 }
 
-} // namespace objectir
+} // namespace memoir

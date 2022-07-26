@@ -1,0 +1,475 @@
+#include "common/analysis/AccessAnalysis.hpp"
+#include "common/utility/Metadata.hpp"
+
+namespace llvm::memoir {
+
+AccessAnalysis::AccessAnalysis(Module &M) : M(M) {
+  // Do nothing.
+}
+
+AccessSummary *AccessAnalysis::getAccessSummary(llvm::Value &value) {
+  /*
+   * Check if we have a memoized AccessSummary for this LLVM Value.
+   * If we do, return it.
+   */
+  auto found_summary = this->access_summaries.find(&value);
+  if (found_summary != this->access_summaries.end()) {
+    return found_summary->second;
+  }
+
+  /*
+   * Check that this value is a call instruction.
+   * If it is, see if it has an AccessSummary.
+   * If it isnt, then this value doesn't have an AccessSummary, return nullptr.
+   */
+  if (auto call_inst = dyn_cast<CallInst>(&value)) {
+    return this->getAccessSummaryForCall(*call_inst);
+  }
+
+  /*
+   * Otherwise, this isn't a MemOIR access, return NULL.
+   */
+  return nullptr;
+}
+
+AccessSummary *AccessAnalysis::getAccessSummaryForCall(
+    llvm::CallInst &call_inst) {
+  /*
+   * Look up the call instruction to see if we have already created an
+   *   AccessSummary for it.
+   */
+  auto found_summary = this->access_summaries.find(&call_inst);
+  if (found_summary != this->access_summaries.end()) {
+    return found_summary->second;
+  }
+
+  /*
+   * If the call instruction is not memoized,
+   *   then we need to create its AccessSummary.
+   */
+  auto callee = call_inst.getCalledFunction();
+
+  /*
+   * If the callee is an indirect call, then return a nullptr
+   * We don't handle indirect calls at the moment as they should
+   *   be statically resolved.
+   */
+  if (callee == nullptr) {
+    return nullptr;
+  }
+
+  auto callee_enum = getMemOIREnum(*callee);
+
+  /*
+   * If the callee is not a MemOIR access, return NULL.
+   */
+  if (!isAccess(callee_enum)) {
+    return nullptr;
+  }
+
+  /*
+   * Get the FieldSummary/ies for the given MemOIR access call.
+   */
+  auto field_arg = call_inst.getArgOperand(0);
+  assert(field_arg
+         && "in AccessAnalysis::getAccessSummary"
+            "field passed into MemOIR access is NULL");
+
+  auto &field_summaries = this->getFieldSummaries(*field_arg);
+  assert(!field_summaries.empty()
+         && "in AccessAnalysis::getAccessSummary"
+            "found no possible field summaries for the given MemOIR access");
+
+  /*
+   * If the access is a read, create a ReadSummary for it.
+   */
+  if (isRead(callee_enum)) {
+    /*
+     * If there is only one possible field, return a MUST ReadSummary.
+     */
+    if (field_summaries.size() == 1) {
+      auto field_summary = *(field_summaries.begin());
+
+      auto read_summary = new MustReadSummary(call_inst, *field_summary);
+      this->access_summaries[&call_inst] = read_summary;
+
+      return read_summary;
+    }
+
+    /*
+     * Get the TypeSummary of the first field.
+     */
+    auto first_field_summary = *(field_summaries.begin());
+    auto &type_summary = (*first_field_summary).getType();
+
+    /*
+     * If there are more than one possible fields, return a MAY ReadSummary.
+     */
+    auto may_read_summary =
+        new MayReadSummary(call_inst, type_summary, field_summaries);
+    this->access_summaries[&call_inst] = may_read_summary;
+
+    return may_read_summary;
+  }
+
+  /*
+   * If the access is a write, create a WriteSummary for it.
+   */
+  if (isWrite(callee_enum)) {
+    /*
+     * Get the value being written
+     */
+    auto value_written = call_inst.getArgOperand(1);
+    assert(value_written
+           && "in AccessAnalysis::getAccessSummary"
+              "value being written is NULL");
+
+    /*
+     * If there is only one possible field, return a MUST WriteSummary.
+     */
+    if (field_summaries.size() == 1) {
+      auto field_summary = *(field_summaries.begin());
+
+      auto write_summary =
+          new MustWriteSummary(call_inst, *field_summary, *value_written);
+      this->access_summaries[&call_inst] = write_summary;
+
+      return write_summary;
+    }
+
+    /*
+     * Get the TypeSummary of the first field.
+     */
+    auto first_field_summary = *(field_summaries.begin());
+    auto &type_summary = (*first_field_summary).getType();
+
+    /*
+     * If there are more than one possible fields, return a MAY WriteSummary.
+     */
+    auto may_write_summary = new MayWriteSummary(call_inst,
+                                                 type_summary,
+                                                 field_summaries,
+                                                 *value_written);
+    this->access_summaries[&call_inst] = may_write_summary;
+
+    return may_write_summary;
+  }
+
+  /*
+   * If we fell through for whatever reason, return NULL.
+   */
+  return nullptr;
+}
+
+set<FieldSummary *> &AccessAnalysis::getFieldSummaries(llvm::Value &value) {
+  /*
+   * Check if we have a memoized set of field summaries for this value.
+   * If we do, return it.
+   */
+  auto found_summaries = this->field_summaries.find(&value);
+  if (found_summaries != this->field_summaries.end()) {
+    return found_summaries->second;
+  }
+
+  /*
+   * If this is a call instruction either
+   *  - Get the field summaries if its a MemOIR call
+   *  - Get the field summaries for the function's return values
+   */
+  if (auto call_inst = dyn_cast<CallInst>(&value)) {
+    auto callee = call_inst->getCalledFunction();
+
+    // TODO
+    if (callee == nullptr) {
+      return this->field_summaries[&value];
+    }
+
+    if (isMemOIRCall(*callee)) {
+      return this->getFieldSummariesForCall(*call_inst);
+    }
+
+    set<llvm::Value *> return_values;
+    for (auto &BB : *callee) {
+      auto terminator = BB.getTerminator();
+      if (auto return_inst = dyn_cast<ReturnInst>(terminator)) {
+        auto return_value = return_inst->getReturnValue();
+        return_values.insert(return_value);
+      }
+    }
+
+    auto &call_field_summaries = this->field_summaries[&value];
+    for (auto return_value : return_values) {
+      assert(return_value
+             && "in AccessAnalysis::getFieldSummaries"
+                "return value is NULL");
+      auto &return_field_summaries = this->getFieldSummaries(*return_value);
+      call_field_summaries.insert(return_field_summaries.begin(),
+                                  return_field_summaries.end());
+    }
+
+    return call_field_summaries;
+  }
+
+  /*
+   * Handle PHI node
+   */
+  if (auto phi_node = dyn_cast<PHINode>(&value)) {
+    auto &phi_field_summaries = this->field_summaries[&value];
+    for (auto &incoming_use : phi_node->incoming_values()) {
+      auto incoming_value = incoming_use.get();
+      assert(incoming_value
+             && "in AccessAnalysis::getFieldSummaries"
+                "incoming value to PHI node is NULL");
+
+      auto &incoming_field_summaries = this->getFieldSummaries(*incoming_value);
+      phi_field_summaries.insert(incoming_field_summaries.begin(),
+                                 incoming_field_summaries.end());
+    }
+    return phi_field_summaries;
+  }
+
+  /* TODO
+   * Handle load inst
+   */
+
+  /* TODO
+   * Handle argument
+   */
+
+  /*
+   * Otherwise, this value has no field summaries, return the empty set.
+   */
+  auto &field_summaries = this->field_summaries[&value];
+  field_summaries.clear();
+  return field_summaries;
+}
+
+set<FieldSummary *> &AccessAnalysis::getFieldSummariesForCall(
+    llvm::CallInst &call_inst) {
+  /*
+   * Look up the call instruction to see if we have already created an
+   *   AccessSummary for it.
+   */
+  auto found_summary = this->field_summaries.find(&call_inst);
+  if (found_summary != this->field_summaries.end()) {
+    return found_summary->second;
+  }
+
+  /*
+   * Create the Field Summary/ies for the call instruction.
+   */
+  auto callee = call_inst.getCalledFunction();
+
+  /*
+   * If the callee is an indirect call, then return a nullptr
+   * We don't handle indirect calls at the moment as they should
+   *   be statically resolved.
+   */
+  if (callee == nullptr) {
+    auto &field_summaries = this->field_summaries[&call_inst];
+    field_summaries.clear();
+    return field_summaries;
+  }
+
+  auto callee_enum = getMemOIREnum(*callee);
+
+  /*
+   * Build the Field Summary/ies for the given MemOIR function
+   * If this is not a call to a MemOIR field, then return the empty set.
+   */
+  switch (callee_enum) {
+    case MemOIR_Func::GET_STRUCT_FIELD:
+      return this->getStructFieldSummaries(call_inst);
+    case MemOIR_Func::GET_TENSOR_ELEMENT:
+      return this->getTensorElementSummaries(call_inst);
+    default:
+      auto &field_summaries = this->field_summaries[&call_inst];
+      field_summaries.clear();
+      return field_summaries;
+  }
+}
+
+set<FieldSummary *> &AccessAnalysis::getStructFieldSummaries(
+    llvm::CallInst &call_inst) {
+  /*
+   * Determine the possible Allocation's that this field belongs to.
+   */
+  auto allocation_arg = call_inst.getArgOperand(0);
+  assert(allocation_arg
+         && "in AccessAnalysis::getStructFieldSummaries"
+            "LLVM value being passed into getStructField is NULL");
+
+  auto &allocation_analysis = AllocationAnalysis::get(M);
+  auto &allocation_summaries =
+      allocation_analysis.getAllocationSummaries(*allocation_arg);
+
+  /*
+   * Determine the field index being accessed.
+   */
+  auto field_index_arg = call_inst.getArgOperand(1);
+  auto field_index_constant = dyn_cast<ConstantInt>(field_index_arg);
+  assert(field_index_constant
+         && "in AccessAnalysis::getStructFieldSummaries"
+            "field index for getStructField is not constant");
+
+  auto field_index = field_index_constant->getZExtValue();
+
+  /*
+   * Build the field summaries for the given struct field access
+   */
+  auto &field_summaries = this->field_summaries[&call_inst];
+  for (auto allocation_summary : allocation_summaries) {
+    auto field_summary =
+        new StructFieldSummary(call_inst, *allocation_summary, field_index);
+    field_summaries.insert(field_summary);
+  }
+
+  return field_summaries;
+}
+
+set<FieldSummary *> &AccessAnalysis::getTensorElementSummaries(
+    llvm::CallInst &call_inst) {
+  /*
+   * Determine the possible allocations that this tensor element belongs to.
+   */
+  auto allocation_arg = call_inst.getArgOperand(0);
+  assert(allocation_arg
+         && "in AccessAnalysis::getTensorElementSummaries"
+            "LLVM value being passed into getTensorElement is NULL");
+
+  auto &allocation_analysis = AllocationAnalysis::get(M);
+  auto &allocation_summaries =
+      allocation_analysis.getAllocationSummaries(*allocation_arg);
+
+  /*
+   * Determine the indices being accessed.
+   */
+  std::vector<llvm::Value *> indices(call_inst.arg_begin(),
+                                     call_inst.arg_end());
+
+  /*
+   * Build the field summaries for the given tensor element access.
+   */
+  auto &field_summaries = this->field_summaries[&call_inst];
+  for (auto allocation_summary : allocation_summaries) {
+    auto field_summary =
+        new TensorElementSummary(call_inst, *allocation_summary, indices);
+    field_summaries.insert(field_summary);
+  }
+
+  return field_summaries;
+}
+
+bool AccessAnalysis::isRead(MemOIR_Func func_enum) {
+  switch (func_enum) {
+    case MemOIR_Func::READ_INTEGER:
+    case MemOIR_Func::READ_UINT64:
+    case MemOIR_Func::READ_UINT32:
+    case MemOIR_Func::READ_UINT16:
+    case MemOIR_Func::READ_UINT8:
+    case MemOIR_Func::READ_INT64:
+    case MemOIR_Func::READ_INT32:
+    case MemOIR_Func::READ_INT16:
+    case MemOIR_Func::READ_INT8:
+    case MemOIR_Func::READ_FLOAT:
+    case MemOIR_Func::READ_DOUBLE:
+    case MemOIR_Func::READ_REFERENCE:
+    case MemOIR_Func::READ_STRUCT:
+    case MemOIR_Func::READ_TENSOR:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool AccessAnalysis::isWrite(MemOIR_Func func_enum) {
+  switch (func_enum) {
+    case MemOIR_Func::WRITE_INTEGER:
+    case MemOIR_Func::WRITE_UINT64:
+    case MemOIR_Func::WRITE_UINT32:
+    case MemOIR_Func::WRITE_UINT16:
+    case MemOIR_Func::WRITE_UINT8:
+    case MemOIR_Func::WRITE_INT64:
+    case MemOIR_Func::WRITE_INT32:
+    case MemOIR_Func::WRITE_INT16:
+    case MemOIR_Func::WRITE_INT8:
+    case MemOIR_Func::WRITE_FLOAT:
+    case MemOIR_Func::WRITE_DOUBLE:
+    case MemOIR_Func::WRITE_REFERENCE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool AccessAnalysis::isAccess(MemOIR_Func func_enum) {
+  switch (func_enum) {
+    case MemOIR_Func::READ_INTEGER:
+    case MemOIR_Func::READ_UINT64:
+    case MemOIR_Func::READ_UINT32:
+    case MemOIR_Func::READ_UINT16:
+    case MemOIR_Func::READ_UINT8:
+    case MemOIR_Func::READ_INT64:
+    case MemOIR_Func::READ_INT32:
+    case MemOIR_Func::READ_INT16:
+    case MemOIR_Func::READ_INT8:
+    case MemOIR_Func::READ_FLOAT:
+    case MemOIR_Func::READ_DOUBLE:
+    case MemOIR_Func::READ_REFERENCE:
+    case MemOIR_Func::READ_STRUCT:
+    case MemOIR_Func::READ_TENSOR:
+    case MemOIR_Func::WRITE_INTEGER:
+    case MemOIR_Func::WRITE_UINT64:
+    case MemOIR_Func::WRITE_UINT32:
+    case MemOIR_Func::WRITE_UINT16:
+    case MemOIR_Func::WRITE_UINT8:
+    case MemOIR_Func::WRITE_INT64:
+    case MemOIR_Func::WRITE_INT32:
+    case MemOIR_Func::WRITE_INT16:
+    case MemOIR_Func::WRITE_INT8:
+    case MemOIR_Func::WRITE_FLOAT:
+    case MemOIR_Func::WRITE_DOUBLE:
+    case MemOIR_Func::WRITE_REFERENCE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+/*
+ * Logistics
+ */
+void AccessAnalysis::invalidate() {
+  this->access_summaries.clear();
+  this->field_summaries.clear();
+
+  return;
+}
+
+/*
+ * Singleton
+ */
+AccessAnalysis &AccessAnalysis::get(Module &M) {
+  auto found_analysis = AccessAnalysis::analyses.find(&M);
+  if (found_analysis != AccessAnalysis::analyses.end()) {
+    return *(found_analysis->second);
+  }
+
+  auto new_analysis = new AccessAnalysis(M);
+  AccessAnalysis::analyses[&M] = new_analysis;
+  return *new_analysis;
+}
+
+void AccessAnalysis::invalidate(Module &M) {
+  auto found_analysis = AccessAnalysis::analyses.find(&M);
+  if (found_analysis != AccessAnalysis::analyses.end()) {
+    auto &analysis = *(found_analysis->second);
+    analysis.invalidate();
+  }
+
+  return;
+}
+
+map<llvm::Module *, AccessAnalysis *> AccessAnalysis::analyses = {};
+
+} // namespace llvm::memoir

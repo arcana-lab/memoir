@@ -1,16 +1,14 @@
+#include "memoir.h"
 #include <iostream>
-#include "object_ir.h"
 
-using namespace objectir;
+using namespace memoir;
 
-Type *type = getObjectType(2,
-                           getUInt64Type(),
-                           getUInt64Type());
+Type *type = defineStructType("Foo", 2, UInt64Type(), UInt64Type());
 
-int main () {
-  Object *object = buildObject(type);
-  Field *field1 = getObjectField(object, 0);
-  Field *field2 = getObjectField(object, 1);
+int main() {
+  Object *object = allocateStruct(type);
+  Field *field1 = getStructField(object, 0);
+  Field *field2 = getStructField(object, 1);
   writeUInt64(field1, rand());
   writeUInt64(field2, rand());
 

@@ -1,20 +1,18 @@
 #include <iostream>
 
-#include "object_ir.h"
+#include "memoir.h"
 
-using namespace objectir;
+using namespace memoir;
 
-Type *objTy = getObjectType(1,
-                            getUInt64Type());
+Type *objTy = defineStructType("Foo", 1, UInt64Type());
 
 int main() {
-  Object *myObj1 = buildObject(objTy);
- Object *myObj2 = buildObject(objTy);
- Object *myObj3; // = buildObject(objTy);
+  Object *myObj1 = allocateStruct(objTy);
+  Object *myObj2 = allocateStruct(objTy);
+  Object *myObj3; // = allocateStruct(objTy);
 
-
-  Field *field1 = getObjectField(myObj1, 0);
-  Field *field2 = getObjectField(myObj2, 0);
+  Field *field1 = getStructField(myObj1, 0);
+  Field *field2 = getStructField(myObj2, 0);
 
   writeUInt64(field1, 123);
   writeUInt64(field2, 456);
@@ -25,5 +23,4 @@ int main() {
     myObj3 = myObj1;
   }
   deleteObject(myObj3);
-
 }

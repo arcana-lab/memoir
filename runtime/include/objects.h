@@ -1,3 +1,5 @@
+#ifndef MEMOIR_OBJECTS_H
+#define MEMOIR_OBJECTS_H
 #pragma once
 
 /*
@@ -16,16 +18,25 @@
 #include "objects.h"
 #include "types.h"
 
-#ifdef __cplusplus
-namespace objectir {
-#endif
+namespace memoir {
 
-struct Field {
+struct Object {
 public:
   Type *type;
 
+  static Object *init(Type *type);
+
+  // Construction
+  Object(Type *type);
+
+  // Typing
   Type *getType();
 
+  std::string toString();
+};
+
+struct Field : public Object {
+public:
   Field(Type *type);
 
   static Field *createField(Type *type);
@@ -33,54 +44,30 @@ public:
   virtual std::string toString() = 0;
 };
 
-struct Object {
+struct Struct : public Object {
 public:
-  Type *type;
   std::vector<Field *> fields;
 
   // Construction
-  Object(Type *type);
-  ~Object();
+  Struct(Type *type);
 
   // Access
-  Field *readField(uint64_t fieldNo);
-  void writeField(uint64_t fieldNo, Field *field);
-
-  // Typing
-  Type *getType();
+  Field *readField(uint64_t field_index);
 
   std::string toString();
 };
 
-struct Array : public Object {
+struct Tensor : public Object {
 public:
-  uint64_t length;
+  std::vector<Field *> fields;
+  std::vector<uint64_t> length_of_dimensions;
 
   // Construction
-  Array(Type *t, uint64_t length);
+  Tensor(Type *type);
+  Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions);
 
   // Access
-  Field *getElement(uint64_t index);
-  Field *setElement(uint64_t index);
-
-  std::string toString();
-};
-
-// Union
-struct Union : public Object {
-public:
-  std::vector<Field *> members;
-
-  // Construction
-  Union(Type *t);
-  ~Union();
-
-  // Access
-  Field *readField(uint64_t fieldNo);
-  void writeField(uint64_t fieldNo, Field *field);
-
-  // Typing
-  Type *getType();
+  Field *getElement(std::vector<uint64_t> &indices);
 
   std::string toString();
 };
@@ -90,16 +77,12 @@ struct IntegerField : public Field {
 public:
   uint64_t value;
 
-  // Construction
-  IntegerField(Type *t);
-  IntegerField(Type *t, uint64_t init);
-  IntegerField(uint64_t init,
-               uint64_t bitwidth,
-               bool isSigned);
-
-  // Access
   uint64_t readValue();
-  void writeValue(uint64_t);
+  void writeValue(uint64_t value);
+
+  // Construction
+  IntegerField(Type *type);
+  IntegerField(Type *type, uint64_t init);
 
   std::string toString();
 };
@@ -109,13 +92,12 @@ struct FloatField : public Field {
 public:
   float value;
 
+  float readValue();
+  void writeValue(float value);
+
   // Construction
   FloatField(Type *type);
   FloatField(Type *type, float init);
-
-  // Access
-  float readValue();
-  void writeValue(float value);
 
   std::string toString();
 };
@@ -125,43 +107,59 @@ struct DoubleField : public Field {
 public:
   double value;
 
+  double readValue();
+  void writeValue(double value);
+
   // Construction
   DoubleField(Type *type);
   DoubleField(Type *type, double init);
-
-  // Access
-  double readField();
-  void writeField(double value);
 
   std::string toString();
 };
 
 // Nested object
-struct ObjectField : public Field {
+struct StructField : public Field {
 public:
-  Object *value;
+  Struct *value;
+
+  Struct *readValue();
 
   // Construction
-  ObjectField(Type *type);
-  ObjectField(Object *init);
+  StructField(Type *type);
+  StructField(Type *type, Struct *init);
+
+  std::string toString();
+};
+
+// Nested tensor
+struct TensorField : public Field {
+public:
+  Tensor *value;
+
+  Tensor *readValue();
+
+  // Construction
+  TensorField(Type *type);
+  TensorField(Type *type, Tensor *init);
 
   std::string toString();
 };
 
 // Indirection pointer
-struct PointerField : public Field {
+struct ReferenceField : public Field {
 public:
   Object *value;
 
-  // Construction
-  PointerField(Type *type);
+  Object *readValue();
+  void writeValue(Object *value);
 
-  void writeField(Object *value);
-  Object *readField();
+  // Construction
+  ReferenceField(Type *type);
+  ReferenceField(Type *type, Object *init);
 
   std::string toString();
 };
 
-#ifdef __cplusplus
-} // namespace objectir
+} // namespace memoir
+
 #endif

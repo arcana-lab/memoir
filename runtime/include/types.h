@@ -1,9 +1,11 @@
+#ifndef MEMOIR_TYPES_H
+#define MEMOIR_TYPES_H
 #pragma once
 
 /*
  * Object representation recognizable by LLVM IR
  * This file describes the Type interface for the
- * object-ir library.
+ * MemOIR library.
  *
  * Author(s): Tommy McMichen
  * Created: Mar 7, 2022
@@ -13,117 +15,130 @@
 #include <unordered_map>
 #include <vector>
 
-namespace objectir {
+namespace memoir {
 
 enum TypeCode {
-  ObjectTy,
-  ArrayTy,
-  UnionTy,
+  StructTy,
+  TensorTy,
   IntegerTy,
   FloatTy,
   DoubleTy,
-  PointerTy,
+  ReferenceTy,
   StubTy,
 };
 
 struct Type {
-protected:
-  TypeCode code;
-  std::string name;
-  bool resolved;
-
 public:
   TypeCode getCode();
   bool hasName();
   std::string getName();
 
-  Type(TypeCode code, std::string name);
-  Type(TypeCode code);
-  ~Type();
+  static Type *find(std::string name);
+  static void define(std::string name, Type *type_to_define);
 
   virtual Type *resolve() = 0;
   virtual bool equals(Type *other) = 0;
   virtual std::string toString() = 0;
 
-  friend class Object;
-  friend class Field;
+protected:
+  Type(TypeCode code, std::string name);
+  Type(TypeCode code);
+
+private:
+  TypeCode code;
+  std::string name;
+
+  static std::unordered_map<std::string, Type *> &named_types();
 };
 
-struct ObjectType : public Type {
+struct StructType : public Type {
+public:
+  static Type *get(std::string name, std::vector<Type *> &field_types);
+
   std::vector<Type *> fields;
 
-  ObjectType(std::string name);
-  ObjectType();
-  ~ObjectType();
-
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  StructType(std::string name, std::vector<Type *> &field_types);
 };
 
-struct ArrayType : public Type {
-  Type *elementType;
+struct TensorType : public Type {
+public:
+  static Type *get(Type *element_type, uint64_t num_dimensions);
+  static Type *get(Type *element_type,
+                   uint64_t num_dimensions,
+                   std::vector<uint64_t> &length_of_dimensions);
 
-  ArrayType(Type *elementType, std::string name);
-  ArrayType(Type *elementType);
-  ~ArrayType();
-
-  Type *resolve();
-  bool equals(Type *other);
-  std::string toString();
-};
-
-struct UnionType : public Type {
-  std::vector<Type *> members;
-
-  UnionType(std::string name);
-  UnionType();
-  ~UnionType();
+  Type *element_type;
+  uint64_t num_dimensions;
+  bool is_static_length;
+  std::vector<uint64_t> length_of_dimensions;
 
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  TensorType(Type *element_type, uint64_t num_dimensions);
+  TensorType(Type *element_type,
+             uint64_t num_dimensions,
+             std::vector<uint64_t> &length_of_dimensions);
 };
 
 struct IntegerType : public Type {
-  uint64_t bitwidth;
-  bool isSigned;
+public:
+  static Type *get(unsigned bitwidth, bool is_signed);
 
-  IntegerType(uint64_t bitwidth, bool isSigned);
-  ~IntegerType();
+  unsigned bitwidth;
+  bool is_signed;
 
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  IntegerType(unsigned bitwidth, bool is_signed);
 };
 
 struct FloatType : public Type {
-  FloatType();
-  ~FloatType();
+public:
+  static Type *get();
 
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  FloatType();
 };
 
 struct DoubleType : public Type {
-  DoubleType();
-  ~DoubleType();
+public:
+  static Type *get();
 
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  DoubleType();
 };
 
-struct PointerType : public Type {
-  Type *containedType;
+struct ReferenceType : public Type {
+public:
+  static Type *get(Type *referenced_type);
 
-  PointerType(Type *containedType);
-  ~PointerType();
+  Type *referenced_type;
 
   Type *resolve();
   bool equals(Type *other);
   std::string toString();
+
+private:
+  ReferenceType(Type *referenced_type);
 };
 
 /*
@@ -138,37 +153,22 @@ struct PointerType : public Type {
  * work.
  */
 struct StubType : public Type {
+public:
+  static Type *get(std::string name);
+
   std::string name;
 
-  Type *resolvedType;
-
-  StubType(std::string name);
-  ~StubType();
+  Type *resolved_type;
 
   Type *resolve();
   bool equals(Type *other);
 
   std::string toString();
-};
-
-/*
- * Type Factory
- *
- * The Type factory allows the runtime to resolve
- * named types since they don't have a static view
- * of the program.
- */
-class TypeFactory {
-public:
-  static TypeFactory *getInstance();
-
-  void registerType(std::string name, Type *type);
-  Type *getType(std::string name);
 
 private:
-  TypeFactory();
+  StubType(std::string name);
 
-  std::unordered_map<std::string, Type *> nameToType;
+  static std::unordered_map<std::string, Type *> stub_types;
 };
 
 /*
@@ -180,4 +180,6 @@ bool isIntrinsicType(Type *type);
 
 bool isStubType(Type *type);
 
-} // namespace objectir
+} // namespace memoir
+
+#endif

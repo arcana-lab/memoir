@@ -1,10 +1,13 @@
 #include <iostream>
 
-#include "object_ir.h"
+#include "memoir.h"
 
-using namespace objectir;
+using namespace memoir;
 
 #define ARR_LEN 1000
+
+Type *objTy =
+    defineStructType("Foo", 3, UInt64Type(), UInt64Type(), UInt64Type());
 
 int main(int argc, char **argv) {
 
@@ -15,23 +18,16 @@ int main(int argc, char **argv) {
     iterations = (uint64_t)atoi(argv[1]);
   }
 
-  Type *objTy = getObjectType(3,
-                              getUInt64Type(),
-                              getUInt64Type(),
-                              getUInt64Type());
-  Type *arrayTy = getArrayType(objTy);
-
-  Array *myArr = buildArray(arrayTy, iterations);
+  auto myArr = allocateTensor(objTy, 1, iterations);
 
   // Initialize each object
   for (int i = 0; i < iterations; i++) {
-    Object *elem = buildObject(objTy);
+    auto elem = getTensorElement(myArr, i);
+    auto strct = readStruct(elem);
 
-    writeUInt64(getObjectField(elem, 0), rand());
-    writeUInt64(getObjectField(elem, 1), rand());
-    writeUInt64(getObjectField(elem, 2), rand());
-
-    writeObject(getArrayElement(myArr, i), elem);
+    writeUInt64(getStructField(strct, 0), rand());
+    writeUInt64(getStructField(strct, 1), rand());
+    writeUInt64(getStructField(strct, 2), rand());
   }
 
   /*
@@ -46,12 +42,11 @@ int main(int argc, char **argv) {
 
   // Perform computation for field 1
   for (int i = 0; i < iterations; i++) {
-    auto obj1 = readObject(getArrayElement(myArr, i));
-    auto obj2 = readObject(
-        getArrayElement(myArr, (i - 1) % iterations));
+    auto obj1 = readStruct(getTensorElement(myArr, i));
+    auto obj2 = readStruct(getTensorElement(myArr, (i - 1) % iterations));
 
-    auto field1 = getObjectField(obj1, 0);
-    auto field2 = getObjectField(obj2, 0);
+    auto field1 = getStructField(obj1, 0);
+    auto field2 = getStructField(obj2, 0);
 
     uint64_t a1 = readUInt64(field1);
     uint64_t a2 = readUInt64(field2);
@@ -71,12 +66,11 @@ int main(int argc, char **argv) {
   */
 
   for (int i = 0; i < iterations; i++) {
-    auto obj1 = readObject(getArrayElement(myArr, i));
-    auto obj2 = readObject(
-        getArrayElement(myArr, (i + 1) % iterations));
+    auto obj1 = readStruct(getTensorElement(myArr, i));
+    auto obj2 = readStruct(getTensorElement(myArr, (i + 1) % iterations));
 
-    auto field1 = getObjectField(obj1, 1);
-    auto field2 = getObjectField(obj2, 1);
+    auto field1 = getStructField(obj1, 1);
+    auto field2 = getStructField(obj2, 1);
 
     uint64_t b1 = readUInt64(field1);
     uint64_t b2 = readUInt64(field2);
@@ -97,11 +91,11 @@ int main(int argc, char **argv) {
   }
   */
   for (int i = 0; i < iterations; i++) {
-    auto obj = readObject(getArrayElement(myArr, i));
+    auto obj = readStruct(getTensorElement(myArr, i));
 
-    auto fieldA = getObjectField(obj, 0);
-    auto fieldB = getObjectField(obj, 1);
-    auto fieldC = getObjectField(obj, 2);
+    auto fieldA = getStructField(obj, 0);
+    auto fieldB = getStructField(obj, 1);
+    auto fieldC = getStructField(obj, 2);
 
     uint64_t a = readUInt64(fieldA);
     uint64_t b = readUInt64(fieldB);
@@ -127,9 +121,9 @@ int main(int argc, char **argv) {
   */
   uint64_t max = 0;
   for (int i = 0; i < iterations; i++) {
-    auto obj = readObject(getArrayElement(myArr, i));
+    auto obj = readStruct(getTensorElement(myArr, i));
 
-    auto fieldC = getObjectField(obj, 2);
+    auto fieldC = getStructField(obj, 2);
 
     uint64_t c = readUInt64(fieldC);
 

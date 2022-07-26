@@ -1,6 +1,6 @@
 # MemOIR Description
 
-This is the working description of the Memory Object IR (MOIR).
+This is the working description of the Memory Object IR (MemOIR).
 
 ### Defining Struct Types
 A struct type describes a memory object with a statically known, finite number of heterogeneously typed fields. Each struct type must be named, and can be referenced recursively with the `StructType(name)` method.
@@ -105,7 +105,5 @@ a container that hold homogeneously typed elements contiguously in memory.
 
 ### Type Checking
 `assertType(type, object)`
-
-`assertFieldType(type, field)`
 
 `setReturnType(type)`

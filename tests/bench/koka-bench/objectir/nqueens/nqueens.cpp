@@ -3,9 +3,9 @@
 // since many subsolutions are shared
 #include <iostream>
 
-#include "object_ir.h"
+#include "memoir.h"
 
-using namespace objectir;
+using namespace memoir;
 
 /*
 template <typename T>
@@ -24,18 +24,18 @@ public:
 };
 */
 
-Type *ListOfInts = nameObjectType( // List<int>
+Type *ListOfInts = defineStructType( // List<int>
     "IntList",
     2,
-    getUInt32Type(),                        // head
-    getPointerType(getNamedType("IntList")) // tail
+    UInt32Type(),                        // head
+    ReferenceType(StructType("IntList")) // tail
 );
 
-Type *ListOfLists = nameObjectType( // List<List<int> *>
+Type *ListOfLists = defineStructType( // List<List<int> *>
     "ListList",
     2,
-    getPointerType(getNamedType("IntList")), // head
-    getPointerType(getNamedType("ListList")) // tail
+    ReferenceType(StructType("IntList")), // head
+    ReferenceType(StructType("ListList")) // tail
 );
 
 /*
@@ -49,12 +49,12 @@ Object *Cons_int(uint32_t hd, Object *tl) {
   setReturnType(ListOfInts);
   assertType(ListOfInts, tl);
 
-  Object *newList = buildObject(ListOfInts);
-  Field *headFld = getObjectField(newList, 0);
-  Field *tailFld = getObjectField(newList, 1);
+  Object *newList = allocateStruct(ListOfInts);
+  Field *headFld = getStructField(newList, 0);
+  Field *tailFld = getStructField(newList, 1);
 
   writeUInt32(headFld, hd);
-  writePointer(tailFld, tl);
+  writeReference(tailFld, tl);
 
   return newList;
 }
@@ -64,12 +64,12 @@ Object *Cons_list(Object *hd, Object *tl) {
   assertType(ListOfInts, hd);
   assertType(ListOfLists, tl);
 
-  Object *newList = buildObject(ListOfLists);
-  Field *headFld = getObjectField(newList, 0);
-  Field *tailFld = getObjectField(newList, 1);
+  Object *newList = allocateStruct(ListOfLists);
+  Field *headFld = getStructField(newList, 0);
+  Field *tailFld = getStructField(newList, 1);
 
-  writePointer(headFld, hd);
-  writePointer(tailFld, tl);
+  writeReference(headFld, hd);
+  writeReference(tailFld, tl);
 
   return newList;
 }
@@ -139,8 +139,7 @@ bool safe(uint32_t queen, Object *xs) {
     Field *headFld = getObjectField(cur, 0);
     uint32_t q = readUInt32(headFld);
 
-    if (queen == q || queen == (q + diag)
-        || queen == (q - diag)) {
+    if (queen == q || queen == (q + diag) || queen == (q - diag)) {
       return false;
     }
 
@@ -153,9 +152,7 @@ bool safe(uint32_t queen, Object *xs) {
   return true;
 }
 
-Object *append_safe(uint32_t k,
-                    Object *soln,
-                    Object *solns) {
+Object *append_safe(uint32_t k, Object *soln, Object *solns) {
   setReturnType(ListOfLists);
   assertType(ListOfInts, soln);
   assertType(ListOfLists, solns);
@@ -193,12 +190,12 @@ Object *extend(uint32_t n, Object *solns) {
   Object *acc = NULL;
   Object *cur = solns;
   while (cur != NULL) {
-    //Object *soln = cur->head;
+    // Object *soln = cur->head;
     Field *headFld = getObjectField(cur, 0);
     Object *soln = readPointer(headFld);
-    
+
     acc = append_safe(n, soln, acc);
-    
+
     // cur = cur->tail;
     Field *tailFld = getObjectField(cur, 1);
     cur = readPointer(tailFld);
@@ -219,9 +216,9 @@ list<list<uint32_t> *> *find_solutions(uint32_t n) {
 */
 Object *find_solutions(uint32_t n) {
   setReturnType(ListOfLists);
-  
+
   uint32_t k = 0;
-  //list<list<uint32_t> *> *acc =
+  // list<list<uint32_t> *> *acc =
   //    Cons<list<uint32_t> *>(NULL, NULL);
   Object *acc = buildObject(ListOfLists);
   while (k < n) {
@@ -230,7 +227,6 @@ Object *find_solutions(uint32_t n) {
   }
   return acc;
 }
-
 
 uint32_t nqueens(uint32_t n) {
   return len_list(find_solutions(n));

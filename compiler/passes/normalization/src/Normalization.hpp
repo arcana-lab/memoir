@@ -10,7 +10,7 @@
 
 #include <unordered_set>
 
-#include "common/support/Metadata.hpp"
+#include "common/utility/Metadata.hpp"
 
 /*
  * Pass to normalize the object-ir runtime and object-ir programs.

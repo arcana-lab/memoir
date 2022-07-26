@@ -1,13 +1,18 @@
 #pragma once
 
-#include "Parser.hpp"
-#include "Utils.hpp"
-#include "noelle/core/Noelle.hpp"
-#include "types.hpp"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
 
-#include "common/support/Metadata.hpp"
+#include "common/analysis/AccessAnalysis.hpp"
+#include "common/analysis/AllocationAnalysis.hpp"
+#include "common/analysis/TypeAnalysis.hpp"
+#include "common/utility/FunctionNames.hpp"
+#include "common/utility/Metadata.hpp"
+#include "noelle/core/Noelle.hpp"
+
+#include "Parser.hpp"
+#include "Utils.hpp"
+#include "types.hpp"
 
 /*
  * Pass to perform lowering from object-ir to LLVM IR
@@ -15,6 +20,8 @@
  * Author: Tommy McMichen
  * Created: March 29, 2022
  */
+
+#include "common/analysis/TypeAnalysis.hpp"
 
 namespace object_lowering {
 

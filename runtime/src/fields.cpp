@@ -2,64 +2,112 @@
 
 #include "objects.h"
 
-using namespace objectir;
+namespace memoir {
 
-Field::Field(Type *type) : type(type) {}
+/*
+ * Field Constructors
+ */
+Field::Field(Type *type) : Object(type) {}
 
-IntegerField::IntegerField(Type *type) : Field(type), value(0) {}
+IntegerField::IntegerField(Type *type) : IntegerField(type, 0) {}
 
 IntegerField::IntegerField(Type *type, uint64_t init)
   : Field(type),
     value(init) {}
 
-IntegerField::IntegerField(uint64_t init, uint64_t bitwidth, bool isSigned)
-  : Field(new IntegerType(bitwidth, isSigned)),
-    value(init) {}
-
-FloatField::FloatField(Type *type) : Field(type), value(0.0) {}
+FloatField::FloatField(Type *type) : FloatField(type, 0.0) {}
 
 FloatField::FloatField(Type *type, float init) : Field(type), value(init) {}
 
-DoubleField::DoubleField(Type *type) : Field(type), value(0.0) {}
+DoubleField::DoubleField(Type *type) : DoubleField(type, 0.0) {}
 
 DoubleField::DoubleField(Type *type, double init) : Field(type), value(init) {}
 
-ObjectField::ObjectField(Type *type) : Field(type) {
-  this->value = new Object(type);
-}
+StructField::StructField(Type *type) : StructField(type, new Struct(type)) {}
 
-ObjectField::ObjectField(Object *obj) : Field(obj->getType()), value(obj) {}
+StructField::StructField(Type *type, Struct *init) : Field(type), value(init) {}
 
-PointerField::PointerField(Type *type) : Field(type), value(nullptr) {}
+TensorField::TensorField(Type *type) : TensorField(type, new Tensor(type)) {}
 
-void PointerField::writeField(Object *value) {
+TensorField::TensorField(Type *type, Tensor *init) : Field(type), value(init) {}
+
+ReferenceField::ReferenceField(Type *type) : ReferenceField(type, nullptr) {}
+
+ReferenceField::ReferenceField(Type *type, Object *init)
+  : Field(type),
+    value(init) {}
+
+/*
+ * Field Accessors
+ */
+void IntegerField::writeValue(uint64_t value) {
   this->value = value;
 }
 
-Object *PointerField::readField() {
+uint64_t IntegerField::readValue() {
   return this->value;
 }
 
-Type *Field::getType() {
-  return this->type;
+void FloatField::writeValue(float value) {
+  this->value = value;
 }
 
-Field *Field::createField(Type *type) {
-  auto resolvedType = type->resolve();
+float FloatField::readValue() {
+  return this->value;
+}
 
-  switch (resolvedType->getCode()) {
-    case TypeCode::ObjectTy:
-    case TypeCode::ArrayTy:
-    case TypeCode::UnionTy:
-      return new ObjectField(resolvedType);
+void DoubleField::writeValue(double value) {
+  this->value = value;
+}
+
+double DoubleField::readValue() {
+  return this->value;
+}
+
+Struct *StructField::readValue() {
+  return this->value;
+}
+
+Tensor *TensorField::readValue() {
+  return this->value;
+}
+
+void ReferenceField::writeValue(Object *value) {
+  this->value = value;
+}
+
+Object *ReferenceField::readValue() {
+  return this->value;
+}
+
+/*
+ * Field factory method
+ */
+
+Field *Field::createField(Type *type) {
+  auto resolved_type = type->resolve();
+
+  switch (resolved_type->getCode()) {
+    case TypeCode::StructTy:
+      return new StructField(resolved_type);
+    case TypeCode::TensorTy: {
+      auto tensor_type = (TensorType *)type;
+      if (!tensor_type->is_static_length) {
+        std::cerr << "ERROR: Field of tensor type is not of static length\n";
+        exit(1);
+      }
+      auto &length_of_dimensions = tensor_type->length_of_dimensions;
+      auto tensor = new Tensor(resolved_type, length_of_dimensions);
+      return new TensorField(resolved_type, tensor);
+    }
     case TypeCode::IntegerTy:
-      return new IntegerField(resolvedType);
+      return new IntegerField(resolved_type);
     case TypeCode::FloatTy:
-      return new FloatField(resolvedType);
+      return new FloatField(resolved_type);
     case TypeCode::DoubleTy:
-      return new DoubleField(resolvedType);
-    case TypeCode::PointerTy:
-      return new PointerField(resolvedType);
+      return new DoubleField(resolved_type);
+    case TypeCode::ReferenceTy:
+      return new ReferenceField(resolved_type);
     case TypeCode::StubTy:
       std::cerr << "ERROR: Stub Type not resolved before field construction\n";
       exit(1);
@@ -68,3 +116,5 @@ Field *Field::createField(Type *type) {
       exit(1);
   }
 }
+
+} // namespace memoir

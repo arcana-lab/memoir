@@ -1,4 +1,4 @@
-#include "common/support/Metadata.hpp"
+#include "common/utility/Metadata.hpp"
 
 namespace llvm {
 namespace memoir {
@@ -43,7 +43,7 @@ bool MetadataManager::hasMetadata(Instruction &I, MetadataType MT) {
  * Private and internal methods
  */
 
-void MetadataManager::setMetadata(Function &F, StringRef kind) {
+void MetadataManager::setMetadata(Function &F, std::string kind) {
   /*
    * Create the metadata
    */
@@ -59,11 +59,11 @@ void MetadataManager::setMetadata(Function &F, StringRef kind) {
   return;
 }
 
-bool MetadataManager::hasMetadata(Function &F, StringRef kind) {
+bool MetadataManager::hasMetadata(Function &F, std::string kind) {
   return (F.getMetadata(kind) != nullptr);
 }
 
-void MetadataManager::setMetadata(Instruction &I, StringRef kind) {
+void MetadataManager::setMetadata(Instruction &I, std::string kind) {
   /*
    * Create the metadata
    */
@@ -79,7 +79,7 @@ void MetadataManager::setMetadata(Instruction &I, StringRef kind) {
   return;
 }
 
-bool MetadataManager::hasMetadata(Instruction &I, StringRef kind) {
+bool MetadataManager::hasMetadata(Instruction &I, std::string kind) {
   return (I.getMetadata(kind) != nullptr);
 }
 
