@@ -34,11 +34,13 @@ enum MemOIR_Func {
 /*
  * Utility functions
  */
-bool isMemOIRCall(llvm::Function &function_name);
+bool isMemOIRCall(llvm::Function &function);
 
 bool isMemOIRCall(llvm::CallInst &call_inst);
 
-MemOIR_Func getMemOIREnum(llvm::Function &function_name);
+MemOIR_Func getMemOIREnum(llvm::Function &function);
+
+MemOIR_Func getMemOIREnum(llvm::CallInst &call_inst);
 
 llvm::Function *getMemOIRFunction(Module &M, MemOIR_Func function_enum);
 
