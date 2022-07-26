@@ -30,6 +30,8 @@ namespace llvm::memoir {
  * Stub types needed by the AccessAnalysis
  */
 class AccessSummary;
+class ObjectSummary;
+class BaseObjectSummary;
 class FieldSummary;
 
 /*
@@ -83,11 +85,17 @@ private:
   llvm::Module &M;
 
   /*
-   * Memoized summaries
-   * NOTE: the summaries are owned by the call that creates them
+   * Owned state
    */
   map<llvm::Value *, AccessSummary *> access_summaries;
   map<llvm::Value *, set<FieldSummary *>> field_summaries;
+  map<AllocationSummary *, BaseObjectSummary *> base_object_summaries;
+  map<llvm::CallInst *, set<ObjectSummary *>> nested_object_summaries;
+
+  /*
+   * Internal state
+   */
+  map<llvm::Value *, set<ObjectSummary *>> object_summaries;
 
   /*
    * Internal helper functions
@@ -96,6 +104,9 @@ private:
   set<FieldSummary *> &getFieldSummariesForCall(llvm::CallInst &call_inst);
   set<FieldSummary *> &getStructFieldSummaries(llvm::CallInst &call_inst);
   set<FieldSummary *> &getTensorElementSummaries(llvm::CallInst &call_inst);
+  set<ObjectSummary *> &getReadStructSummaries(llvm::CallInst &call_inst);
+  set<ObjectSummary *> &getReadTensorSummaries(llvm::CallInst &call_inst);
+  set<ObjectSummary *> &getObjectSummaries(llvm::Value &value);
 
   static bool isRead(MemOIR_Func func_enum);
   static bool isWrite(MemOIR_Func func_enum);
@@ -114,6 +125,83 @@ private:
   static map<llvm::Module *, AccessAnalysis *> analyses;
 };
 
+enum ObjectCode { BASE, NESTED_STRUCT };
+
+/*
+ * Object Summary
+ *
+ * Represents a dynamic instance of a MemOIR object.
+ */
+class ObjectSummary {
+public:
+  bool isNested() const;
+  ObjectCode getCode() const;
+  llvm::CallInst &getCallInst() const;
+
+  virtual AllocationSummary &getAllocation() const = 0;
+  virtual TypeSummary &getType() const = 0;
+
+  AllocationCode getAllocationCode() const;
+  TypeCode getTypeCode() const;
+
+  virtual std::string toString(std::string indent = "") const = 0;
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const ObjectSummary &summary);
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                       const ObjectSummary &summary);
+
+protected:
+  ObjectCode code;
+  llvm::CallInst &call_inst;
+
+  ObjectSummary(llvm::CallInst &call_inst, ObjectCode code = ObjectCode::BASE);
+
+  friend class AccessAnalysis;
+};
+
+/*
+ * Base Object Summary
+ *
+ * Represents a base allocation of a MemOIR object.
+ */
+class BaseObjectSummary : public ObjectSummary {
+public:
+  AllocationSummary &getAllocation() const override;
+  TypeSummary &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  AllocationSummary &allocation;
+
+  BaseObjectSummary(AllocationSummary &allocation);
+
+  friend class AccessAnalysis;
+};
+
+/*
+ * Nested Struct Summary
+ *
+ * Represents a nested struct within another MemOIR object.
+ * This could be a struct within a struct, an element of a
+ * tensor of structs, etc.
+ */
+class NestedStructSummary : public ObjectSummary {
+public:
+  FieldSummary &getField() const;
+  AllocationSummary &getAllocation() const override;
+  TypeSummary &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  FieldSummary &field;
+
+  NestedStructSummary(llvm::CallInst &call_inst, FieldSummary &field);
+
+  friend class AccessAnalysis;
+};
+
 /*
  * Field Summary
  *
@@ -121,10 +209,12 @@ private:
  */
 class FieldSummary {
 public:
-  AllocationCode getCode() const;
-  AllocationSummary &pointsTo() const;
-  TypeSummary &getType() const;
+  ObjectSummary &pointsTo() const;
+  AllocationSummary &getAllocation() const;
   llvm::CallInst &getCallInst() const;
+  TypeCode getTypeCode() const;
+
+  virtual TypeSummary &getType() const = 0;
 
   virtual std::string toString(std::string indent = "") const = 0;
   friend std::ostream &operator<<(std::ostream &os,
@@ -133,11 +223,10 @@ public:
                                        const FieldSummary &summary);
 
 protected:
-  AllocationSummary &points_to;
-  TypeSummary &type;
+  ObjectSummary &points_to;
   llvm::CallInst &call_inst;
 
-  FieldSummary(llvm::CallInst &call_inst, AllocationSummary &points_to);
+  FieldSummary(llvm::CallInst &call_inst, ObjectSummary &points_to);
 };
 
 /*
@@ -148,6 +237,7 @@ protected:
 class StructFieldSummary : public FieldSummary {
 public:
   uint64_t getIndex() const;
+  TypeSummary &getType() const;
 
   std::string toString(std::string indent = "") const override;
 
@@ -155,7 +245,7 @@ protected:
   uint64_t index;
 
   StructFieldSummary(llvm::CallInst &call_inst,
-                     AllocationSummary &points_to,
+                     ObjectSummary &points_to,
                      uint64_t index);
 
   friend class AccessAnalysis;
@@ -169,6 +259,7 @@ protected:
 class TensorElementSummary : public FieldSummary {
   llvm::Value &getIndex(uint64_t dimension_index) const;
   uint64_t getNumberOfDimensions() const;
+  TypeSummary &getType() const;
 
   std::string toString(std::string indent = "") const override;
 
@@ -176,7 +267,7 @@ protected:
   std::vector<llvm::Value *> indices;
 
   TensorElementSummary(llvm::CallInst &call_inst,
-                       AllocationSummary &points_to,
+                       ObjectSummary &points_to,
                        std::vector<llvm::Value *> &indices);
 
   friend class AccessAnalysis;
