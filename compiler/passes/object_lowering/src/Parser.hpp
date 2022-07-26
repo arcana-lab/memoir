@@ -3,6 +3,11 @@
 #include "noelle/core/Noelle.hpp"
 #include "Utils.hpp"
 #include "types.hpp"
+#include "common/analysis/AccessAnalysis.hpp"
+#include "common/analysis/AllocationAnalysis.hpp"
+#include "common/analysis/TypeAnalysis.hpp"
+
+using namespace llvm::memoir;
 
 namespace object_lowering {
 
@@ -29,8 +34,16 @@ public:
 
   // this function wraps over the second one ...
   // used by BBtransform/phi and parseFieldWrapperIns // REFACTOR: why is this Value*?
-  ObjectWrapper* parseObjectWrapperChain(Value *i, set<PHINode *> &visited); 
-  // create the ObjectWrapper* from the @buildObject CallInst ; do caching w/ buildObjMap
+  ObjectWrapper* parseObjectWrapperChain(Value *i, std::set<PHINode *> &visited);
+
+
+  StructTypeSummary* parseStructTypeSummaryChain(Value *i, std::set<PHINode *> &visited);
+
+  StructTypeSummary* parseStructTypeSummaryInstruction(CallInst* i, std::set<PHINode*> &visited);
+
+
+
+    // create the ObjectWrapper* from the @buildObject CallInst ; do caching w/ buildObjMap
   ObjectWrapper* parseObjectWrapperInstruction(CallInst* i, std::set<PHINode*> &visited);
 
   // create the fieldWrapper from @getObjectField CallInst // REFACTOR: maybe we should cache these too?
