@@ -11,9 +11,7 @@
 #include "common/utility/Metadata.hpp"
 #include "noelle/core/Noelle.hpp"
 
-#include "Parser.hpp"
-#include "Utils.hpp"
-#include "types.hpp"
+//#include "Parser.hpp"
 #include "NativeTypeConverter.h"
 
 /*
@@ -32,7 +30,7 @@ namespace object_lowering {
         Module &M;
         Noelle *noelle;
         ModulePass *mp;
-        Parser *parser;
+//        Parser *parser;
         NativeTypeConverter *nativeTypeConverter;
 
         // llvm Type*s
@@ -84,7 +82,7 @@ namespace object_lowering {
 
         Value *CreateGEPFromFieldInfo(
                 Value* baseObjPtr,
-                StructTypeSummary *objectType,
+                llvm::memoir::StructTypeSummary *objectType,
                 uint64_t fieldIndex,
                 IRBuilder<> &builder,
                 std::map<Value *, Value *> &replacementMapping);

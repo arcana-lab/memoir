@@ -42,7 +42,7 @@ namespace object_lowering {
                    && "Failed to retrieve Type**");
         }
 
-        this->parser = new Parser(M, noelle, mp, type_star_as_pointer);
+//        this->parser = new Parser(M, noelle, mp, type_star_as_pointer);
         this->nativeTypeConverter = new NativeTypeConverter(M, noelle);
     }
 
@@ -624,8 +624,13 @@ namespace object_lowering {
                 if (phi->getType() == object_star) {
 //          // errs() << "those two types as equal" <<"\n";
                     std::set<PHINode *> visited;
-//          ObjectWrapper *objw = parser->parseObjectWrapperChain(phi, visited);
-                    StructTypeSummary *sts = parser->parseStructTypeSummaryChain(phi, visited);
+                    auto &allocAna = memoir::AllocationAnalysis::get(M);
+                    auto setsofAlloc = allocAna.getAllocationSummaries(*phi);
+                    if (setsofAlloc.empty()) {
+                        assert(false && "there is no allocation associated with the phi node");
+                    }
+                    auto stype = &((*(setsofAlloc.begin()))->getType());
+                    auto *sts = dynamic_cast<StructTypeSummary *>(stype);
 
                     auto llvmType = nativeTypeConverter->getLLVMRepresentation(sts);
                     auto llvmPtrType = PointerType::getUnqual(llvmType);
@@ -641,9 +646,9 @@ namespace object_lowering {
                     continue;
                 auto calleeName = callee->getName().str();
 
-                if (!isMemOIRCall(calleeName)) {
+                if (!llvm::memoir::isMemOIRCall(*callee)) {
                     continue;
-//          if (clonedFunctionMap.find(callee) == clonedFunctionMap.end()) {
+/*          if (clonedFunctionMap.find(callee) == clonedFunctionMap.end()) {
 //            continue;
 //          }
 //          // this is a function call which passes or returns Object*s
@@ -666,21 +671,22 @@ namespace object_lowering {
 //            assert(new_callins->getType() == callIns->getType());
 //            ins.replaceAllUsesWith(new_callins);
 //          }
-//          replacementMapping[callIns] = new_callins;
-
+//          replacementMapping[callIns] = new_callins;*/
                 } else {
 
-                    auto calleeCategory = getMemOIREnum(calleeName);
+                    auto calleeCategory = llvm::memoir::getMemOIREnum(*callee);
                     switch (calleeCategory) {
                         case ALLOCATE_STRUCT: {
                             // create malloc based on the object's LLVMRepresentation ;
-//              bitcast
+                            //bitcast
                             // to a ptr to LLVMRepresentation
                             if (allocaBuildObj.find(callIns) != allocaBuildObj.end()) {
                                 continue;
                             }
                             std::set<PHINode *> visited;
-                            StructTypeSummary *sts = parser->parseStructTypeSummaryChain(phi, visited);
+                            auto &accAna = memoir::AllocationAnalysis::get(M);
+                            auto typ = &accAna.getAllocationSummary(*callIns)->getType();
+                            auto *sts =dynamic_cast<StructTypeSummary*>(typ);
                             auto llvmType = nativeTypeConverter->getLLVMRepresentation(sts);
                             auto llvmTypeSize = llvm::ConstantInt::get(
                                     int64Ty,
@@ -706,22 +712,21 @@ namespace object_lowering {
                         case WRITE_REFERENCE: {
                             auto &accAna = memoir::AccessAnalysis::get(M);
                             auto accSum = accAna.getAccessSummary(*callIns);
-
-                            auto mustObjTypeGrabber = [&](AccessSummary* accSum) -> TypeSummary & {
-                                return ((WriteSummary *) accSum)->getField().getType();
+                            auto mustObjTypeGrabber = [&](AccessSummary *accSum) -> TypeSummary & {
+                                return dynamic_cast<MustWriteSummary *>(accSum)->getField().getType();
                             };
-                            auto mayObjTypeGrabber = [&](AccessSummary* accSum)  -> TypeSummary & {
-                                return mustObjTypeGrabber(*((MayWriteSummary *) accSum)->begin());
+                            auto mayObjTypeGrabber = [&](AccessSummary *accSum) -> TypeSummary & {
+                                return (*(dynamic_cast<MayWriteSummary *>(accSum))->begin())->getType();
                             };
-                            auto mustIndexGrabber = [&](AccessSummary* accSum) -> uint64_t  {
-                                return ((StructFieldSummary*) &(((WriteSummary *) accSum)->getField()))->getIndex();
+                            auto mustIndexGrabber = [&](AccessSummary *accSum) -> uint64_t {
+                                return dynamic_cast<StructFieldSummary *>( &(((MustWriteSummary *) accSum)->getField()))->getIndex();
                             };
-                            auto mayIndexGrabber = [&](AccessSummary* accSum) -> uint64_t {
-                                return mustIndexGrabber(*((MayWriteSummary *) accSum)->begin());
+                            auto mayIndexGrabber = [&](AccessSummary *accSum) -> uint64_t {
+                                return dynamic_cast<StructFieldSummary *>((*((MayWriteSummary *) accSum)->begin()))->getIndex();
                             };
-                            auto objectType =(StructTypeSummary*) &(accSum->isMay() ?
-                                                                    mayObjTypeGrabber(accSum) :
-                                                                    mustObjTypeGrabber(accSum));
+                            auto objectType = dynamic_cast<StructTypeSummary *>( &(accSum->isMay() ?
+                                                                                   mayObjTypeGrabber(accSum) :
+                                                                                   mustObjTypeGrabber(accSum)));
                             auto fieldType = &accSum->getType();
                             auto fieldIndex = accSum->isMay() ?
                                               mayIndexGrabber(accSum) :
@@ -730,9 +735,10 @@ namespace object_lowering {
                             auto fieldCallIns = dyn_cast<CallInst>(callIns->getArgOperand(0));
                             auto baseObj = fieldCallIns->getArgOperand(0);
 
-                            auto gep = CreateGEPFromFieldInfo(baseObj,objectType,fieldIndex,builder,replacementMapping);
+                            auto gep = CreateGEPFromFieldInfo(baseObj, objectType, fieldIndex, builder,
+                                                              replacementMapping);
                             switch (fieldType->getCode()) {
-                                case llvm::memoir::ReferenceTy:{
+                                case llvm::memoir::ReferenceTy: {
                                     auto new_val = callIns->getArgOperand(1);
                                     if (replacementMapping.find(new_val) ==
                                         replacementMapping.end()) {
@@ -769,26 +775,26 @@ namespace object_lowering {
                         case READ_UINT16:
                         case READ_UINT32:
                         case READ_UINT64:
-                        case READ_REFERENCE:{
+                        case READ_REFERENCE: {
                             auto &accAna = memoir::AccessAnalysis::get(M);
                             auto accSum = accAna.getAccessSummary(*callIns);
 
-                            auto mustObjTypeGrabber = [&](AccessSummary* accSum) -> TypeSummary & {
-                                return ((ReadSummary *) accSum)->getField().getType();
+                            auto mustObjTypeGrabber = [&](AccessSummary *accSum) -> TypeSummary & {
+                                return dynamic_cast<MustReadSummary *>(accSum)->getField().getType();
                             };
-                            auto mayObjTypeGrabber = [&](AccessSummary* accSum)  -> TypeSummary & {
-                                return mustObjTypeGrabber(*((MayReadSummary *) accSum)->begin());
+                            auto mayObjTypeGrabber = [&](AccessSummary *accSum) -> TypeSummary & {
+                                return (*(dynamic_cast<MayReadSummary *>(accSum))->begin())->getType();
                             };
-                            auto mustIndexGrabber = [&](AccessSummary* accSum) -> uint64_t  {
-                                return ((StructFieldSummary*) &(((ReadSummary *) accSum)->getField()))->getIndex();
+                            auto mustIndexGrabber = [&](AccessSummary *accSum) -> uint64_t {
+                                return dynamic_cast<StructFieldSummary *>( &(((MustReadSummary *) accSum)->getField()))->getIndex();
                             };
-                            auto mayIndexGrabber = [&](AccessSummary* accSum) -> uint64_t {
-                                return mustIndexGrabber(*((MayReadSummary *) accSum)->begin());
+                            auto mayIndexGrabber = [&](AccessSummary *accSum) -> uint64_t {
+                                return dynamic_cast<StructFieldSummary *>((*((MayReadSummary *) accSum)->begin()))->getIndex();
                             };
                             auto fieldType = &accSum->getType();
-                            auto objectType =(StructTypeSummary*) &(accSum->isMay() ?
-                                    mayObjTypeGrabber(accSum) :
-                                    mustObjTypeGrabber(accSum));
+                            auto objectType = (StructTypeSummary *) &(accSum->isMay() ?
+                                                                      mayObjTypeGrabber(accSum) :
+                                                                      mustObjTypeGrabber(accSum));
                             auto fieldIndex = accSum->isMay() ?
                                               mayIndexGrabber(accSum) :
                                               mustIndexGrabber(accSum);
@@ -796,7 +802,8 @@ namespace object_lowering {
                             auto fieldCallIns = dyn_cast<CallInst>(callIns->getArgOperand(0));
                             auto baseObj = fieldCallIns->getArgOperand(0);
 
-                            auto gep = CreateGEPFromFieldInfo(baseObj,objectType,fieldIndex,builder,replacementMapping);
+                            auto gep = CreateGEPFromFieldInfo(baseObj, objectType, fieldIndex, builder,
+                                                              replacementMapping);
 
                             switch (fieldType->getCode()) {
                                 case llvm::memoir::IntegerTy: {
@@ -812,18 +819,19 @@ namespace object_lowering {
                                     auto loadInst = builder.CreateLoad(i8StarTy, gep,
                                                                        "loadfromPtr");
                                     // fetch the Type*, which should be a PointerTy/APointerType
-                                    auto refPtr = (ReferenceTypeSummary* ) fieldType;
+                                    auto refPtr = (ReferenceTypeSummary *) fieldType;
                                     // the pointsTo must be an ObjectType, which we can use to get
                                     //the
                                     // target type for bitcast
-                                    auto objTy =  refPtr->getReferencedType();
-                                    if (objTy->getCode() != llvm::memoir::StructTy) {
-                                        errs() << "BBTransform: " << objTy->toString()
+                                    auto &objTy = refPtr->getReferencedType();
+                                    if (objTy.getCode() != llvm::memoir::StructTy) {
+                                        errs() << "BBTransform: " << objTy.toString()
                                                << "not an object\n\n";
                                         assert(false);
                                         //todo: could be an array/tensor i suppose?
                                     }
-                                    auto llvmtype = nativeTypeConverter->getLLVMRepresentation((StructTypeSummary *) objTy);
+                                    auto llvmtype = nativeTypeConverter->getLLVMRepresentation(
+                                            dynamic_cast<StructTypeSummary *>(&objTy));
                                     auto bc_inst =
                                             builder.CreateBitCast(loadInst,
                                                                   PointerType::getUnqual(llvmtype));
@@ -928,8 +936,8 @@ namespace object_lowering {
     } // endof BasicBlockTransformer
 
     Value *ObjectLowering::CreateGEPFromFieldInfo(
-            Value* baseObjPtr,
-            StructTypeSummary* objectType,
+            Value *baseObjPtr,
+            StructTypeSummary *objectType,
             uint64_t fieldIndex,
             IRBuilder<> &builder,
             std::map<Value *, Value *> &replacementMapping) {

@@ -22,7 +22,7 @@ namespace object_lowering {
         auto numFields = sts->getNumFields();
         for(uint64_t fieldI =0; fieldI < numFields; fieldI++)
         {
-            auto fieldType = sts->getField(fieldI);
+            auto fieldType = &(sts->getField(fieldI));
             switch(fieldType->getCode())
             {
                 case llvm::memoir::ReferenceTy:{
@@ -36,7 +36,7 @@ namespace object_lowering {
                     break;
                 }
                 case memoir::StructTy: {
-                    types.push_back(getLLVMRepresentation((memoir::StructTypeSummary*) fieldType)));
+                    types.push_back(getLLVMRepresentation((memoir::StructTypeSummary*) fieldType));
                     break;
                 }
                 case memoir::TensorTy: {
@@ -45,16 +45,14 @@ namespace object_lowering {
                     break;
                 }
                 case memoir::FloatTy:
-                    //TODO:
-                    assert(false);
+                    types.push_back(llvm::Type::getFloatTy(M.getContext()));
                     break;
                 case memoir::DoubleTy:
-                    //TODO:
-                    assert(false);
+                    types.push_back(llvm::Type::getDoubleTy(M.getContext()));
                     break;
             }
         }
-        auto created = llvm::StructType::create(M.getContext(), types, "my_struct", false);
+        auto created = llvm::StructType::create(M.getContext(), types, "memoirStruct", false);
         cache[sts]= created;
         return created;
     }
