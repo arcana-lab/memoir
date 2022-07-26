@@ -2,12 +2,12 @@
 
 This is the working description of the Memory Object IR (MemOIR).
 
-### Defining Container Types
-`nameStructType(name, # of fields, *<field type, ...>*)`
+### Defining Struct Types
+A struct type describes a memory object with a statically known, finite number of heterogeneously typed fields. Each struct type must be named, and can be referenced recursively with the `StructType(name)` method.
 
-`defineStructType(# of fields, *<field type, ...>*)`
+`DefineStructType(name, # of fields, *<field type, ...>*)`
 
-`getNamedType(name)`
+`StructType(name)`
 
 ### Primitive Types
 `IntegerType(bitwidth, is signed?)`

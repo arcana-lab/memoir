@@ -2,13 +2,15 @@
 #define COMMON_METADATA_H
 #pragma once
 
+#include <string>
+
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <unordered_map>
+#include "common/support/InternalDatatypes.hpp"
 
 namespace llvm {
 namespace memoir {
@@ -49,15 +51,15 @@ public:
   void operator=(const MetadataManager &) = delete;
 
 private:
-  void setMetadata(Function &F, StringRef str);
+  void setMetadata(Function &F, std::string str);
 
-  bool hasMetadata(Function &F, StringRef str);
+  bool hasMetadata(Function &F, std::string str);
 
-  void setMetadata(Instruction &I, StringRef str);
+  void setMetadata(Instruction &I, std::string str);
 
-  bool hasMetadata(Instruction &I, StringRef str);
+  bool hasMetadata(Instruction &I, std::string str);
 
-  std::unordered_map<MetadataType, StringRef> MDtoString;
+  map<MetadataType, std::string> MDtoString;
 
   /*
    * Singleton

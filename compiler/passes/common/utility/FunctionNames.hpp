@@ -7,7 +7,7 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
-#include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
 /*
@@ -34,11 +34,13 @@ enum MemOIR_Func {
 /*
  * Utility functions
  */
-static bool isMemOIRCall(std::string function_name);
+bool isMemOIRCall(llvm::Function &function_name);
 
-static MemOIR_Func getMemOIREnum(std::string function_name);
+bool isMemOIRCall(llvm::CallInst &call_inst);
 
-static Function *getMemOIRFunction(Module &M, MemOIR_Func function_enum);
+MemOIR_Func getMemOIREnum(llvm::Function &function_name);
+
+llvm::Function *getMemOIRFunction(Module &M, MemOIR_Func function_enum);
 
 /*
  * Mapping from MemOIR function enum to function name as

@@ -2,12 +2,25 @@
 
 namespace llvm::memoir {
 
-bool isMemOIRCall(std::string function_name) {
+bool isMemOIRCall(llvm::Function &function) {
+  auto function_name = function.getName();
+
   return FunctionNamesToMemOIR.find(function_name)
          != FunctionNamesToMemOIR.end();
 }
 
-MemOIR_Func getMemOIREnum(std::string function_name) {
+bool isMemOIRCall(llvm::CallInst &call_inst) {
+  auto callee = call_inst.getCalledFunction();
+  if (callee == nullptr) {
+    return false;
+  }
+
+  return isMemOIRCall(*callee);
+}
+
+MemOIR_Func getMemOIREnum(llvm::Function &function) {
+  auto function_name = function.getName();
+
   auto found_iter = FunctionNamesToMemOIR.find(function_name);
   if (found_iter != FunctionNamesToMemOIR.end()) {
     auto found_enum = *found_iter;

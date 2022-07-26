@@ -2,11 +2,13 @@
 #define COMMON_ALLOCATIONANALYSIS_H
 #pragma once
 
-#include <unordered_map>
+#include <iostream>
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include "common/analysis/TypeAnalysis.hpp"
 #include "common/support/InternalDatatypes.hpp"
@@ -39,11 +41,19 @@ public:
    * Singleton access
    */
   static AllocationAnalysis &get(Module &M);
+  static void invalidate(Module &M);
 
   /*
-   * Top-level entry point.
+   * Top-level entry points.
+   *
+   * getAllocationSummaries
+   *   Get all possible allocation summaries held by this LLVM value.
+   *
+   * getAllocationSummary
+   *   Fet the allocation summary for the given MemOIR call.
    */
-  AllocationSummary *getAllocationSummary(CallInst &call_inst);
+  set<AllocationSummary *> &getAllocationSummaries(llvm::Value &value);
+  AllocationSummary *getAllocationSummary(llvm::CallInst &call_inst);
 
   /*
    * This class is not cloneable nor assignable.
@@ -55,29 +65,37 @@ private:
   /*
    * Passed state
    */
-  Module &M;
+  llvm::Module &M;
 
   /*
    * Memoized allocation summaries
    */
-  map<CallInst *, AllocationSummary *> allocation_summaries;
+  map<llvm::Value *, set<AllocationSummary *>> allocation_summaries;
+  map<llvm::CallInst *, AllocationSummary *> the_allocation_summaries;
 
   /*
    * Internal helper functions
    */
-  TypeSummary *getTypeSummary(Value &V);
+  AllocationSummary *getStructAllocationSummary(llvm::CallInst &call_inst);
+  AllocationSummary *getTensorAllocationSummary(llvm::CallInst &call_inst);
+  void invalidate();
 
   /*
    * Constructor
    */
-  AllocationAnalysis(Module &M);
+  AllocationAnalysis(llvm::Module &M);
+
+  /*
+   * Analyses
+   */
+  static map<llvm::Module *, AllocationAnalysis *> analyses;
 };
 
 /*
  * Allocation Code
  * Basic information about the class of object being allocated.
  */
-enum AllocationCode { StructAlloc, TensorAlloc };
+enum AllocationCode { STRUCT, TENSOR };
 
 /*
  * Allocation Summary
@@ -88,18 +106,24 @@ enum AllocationCode { StructAlloc, TensorAlloc };
  */
 struct AllocationSummary {
 public:
-  TypeSummary &getTypeSummary();
-  AllocationCode getCode();
-  CallInst &getCallInst();
+  TypeSummary &getType() const;
+  AllocationCode getCode() const;
+  llvm::CallInst &getCallInst() const;
 
-  virtual std::string toString() = 0;
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const AllocationSummary &as);
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                       const AllocationSummary &as);
+  virtual std::string toString(std::string indent = "") const = 0;
 
-private:
+protected:
   AllocationCode code;
-  TypeSummary &type_summary;
-  CallInst &call_inst;
+  TypeSummary &type;
+  llvm::CallInst &call_inst;
 
-  AllocationSummary(AllocationCode code, CallInst &call_inst);
+  AllocationSummary(llvm::CallInst &call_inst,
+                    AllocationCode code,
+                    TypeSummary &type);
 };
 
 /*
@@ -109,12 +133,10 @@ private:
  */
 struct StructAllocationSummary : public AllocationSummary {
 public:
-  static AllocationSummary &get(CallInst &call_inst);
+  std::string toString(std::string indent = "") const override;
 
-  std::string toString();
-
-private:
-  StructAllocationSummary(CallInst &call_inst);
+protected:
+  StructAllocationSummary(llvm::CallInst &call_inst, TypeSummary &type);
 
   friend class AllocationAnalysis;
 };
@@ -126,17 +148,18 @@ private:
  */
 struct TensorAllocationSummary : public AllocationSummary {
 public:
-  static AllocationSummary &get(
-      CallInst &call_inst,
-      std::vector<llvm::Value *> &length_of_dimensions);
+  TypeSummary &getElementType() const;
+  uint64_t getNumberOfDimensions() const;
+  llvm::Value *getLengthOfDimension(uint64_t dimension_index) const;
 
-  TypeSummary &element_type_summary;
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  TypeSummary &element_type;
   std::vector<llvm::Value *> length_of_dimensions;
 
-  std::string toString();
-
-private:
-  TensorAllocationSummary(CallInst &call_inst,
+  TensorAllocationSummary(llvm::CallInst &call_inst,
+                          TypeSummary &element_type,
                           std::vector<llvm::Value *> &length_of_dimensions);
 
   friend class AllocationAnalysis;

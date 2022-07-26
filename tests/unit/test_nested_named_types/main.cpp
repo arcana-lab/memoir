@@ -1,32 +1,27 @@
 #include <iostream>
+#include <string>
 
-#include "object_ir.h"
+#include "memoir.h"
 
-using namespace objectir;
+using namespace memoir;
 
 Type *aTy =
-    nameObjectType("A",
-                   2,
-                   getUInt64Type(),
-                   getPointerType(getNamedType("B")));
+    defineStructType("A", 2, UInt64Type(), ReferenceType(StructType("B")));
 
-Type *bTy =
-    nameObjectType("B",
-                   1,
-                   getUInt64Type());
+Type *bTy = defineStructType("B", 1, UInt64Type());
 
 int main() {
-  Object *myA = buildObject(aTy);
-  Object *myB = buildObject(bTy);
-  Field *aField1 = getObjectField(myA, 0);
-  Field *aField2 = getObjectField(myA, 1);
+  Object *myA = allocateStruct(aTy);
+  Object *myB = allocateStruct(bTy);
+  Field *aField1 = getStructField(myA, 0);
+  Field *aField2 = getStructField(myA, 1);
 
-  writeUInt64(aField1, 0);    // a->i = 0;
-  writePointer(aField2, myB); // a->b = &b;
+  writeUInt64(aField1, 0);      // a->i = 0;
+  writeReference(aField2, myB); // a->b = &b;
 
-  Field *bField1 = getObjectField(myB, 0);
+  Field *bField1 = getStructField(myB, 0);
   writeUInt64(bField1, 123);
-  Object *myBcopy = readPointer(aField2);
-  Field *bField1copy = getObjectField(myBcopy, 0);
-  std::cerr << readUInt64(bField1copy);
+  Object *myBcopy = readReference(aField2);
+  Field *bField1copy = getStructField(myBcopy, 0);
+  std::cerr << std::to_string(readUInt64(bField1copy));
 }

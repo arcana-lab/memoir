@@ -5,56 +5,63 @@ namespace llvm::memoir {
 /*
  * AllocationSummary implementation
  */
-AllocationSummary::AllocationSummary(AllocationCode code, CallInst &call_inst)
-  : code(code),
-    call_inst(call_inst) {
+AllocationSummary::AllocationSummary(CallInst &call_inst,
+                                     AllocationCode code,
+                                     TypeSummary &type)
+  : call_inst(call_inst),
+    code(code),
+    type(type) {
   // Do nothing.
 }
 
-AllocationCode AllocationSummary::getCode() {
+AllocationCode AllocationSummary::getCode() const {
   return this->code;
 }
 
-TypeSummary &AllocationSummary::getTypeSummary() {
-  return this->type_summary;
+TypeSummary &AllocationSummary::getType() const {
+  return this->type;
 }
 
-CallInst &AllocationSummary::getCallInst() {
+CallInst &AllocationSummary::getCallInst() const {
   return this->call_inst;
 }
 
 /*
  * StructAllocationSummary implementation
  */
-AllocationSummary &StructAllocationSummary::get(CallInst &call_inst) {
-  auto allocation_summary = new StructAllocationSummary(call_inst);
-
-  return *allocation_summary;
-}
-
-StructAllocationSummary::StructAllocationSummary(CallInst &call_inst)
-  : call_inst(call_inst) {
+StructAllocationSummary::StructAllocationSummary(CallInst &call_inst,
+                                                 TypeSummary &type)
+  : AllocationSummary(call_inst, AllocationCode::STRUCT, type) {
   // Do nothing.
 }
 
 /*
  * TensorAllocationSummary implementation
  */
-AllocationSummary &TensorAllocationSummary::get(
-    CallInst &call_inst,
-    std::vector<llvm::Value *> &length_of_dimensions) {
-  auto allocation_summary =
-      new TensorAllocationSummary(call_inst, length_of_dimensions);
-
-  return *allocation_summary;
-}
-
 TensorAllocationSummary::TensorAllocationSummary(
     CallInst &call_inst,
+    TypeSummary &element_type,
     std::vector<llvm::Value *> &length_of_dimensions)
-  : call_inst(call_inst),
-    length_of_dimensions(length_of_dimensions) {
+  : element_type(element_type),
+    length_of_dimensions(length_of_dimensions),
+    AllocationSummary(
+        call_inst,
+        AllocationCode::TENSOR,
+        TensorTypeSummary::get(element_type, length_of_dimensions.size())) {
   // Do nothing.
+}
+
+TypeSummary &TensorAllocationSummary::getElementType() const {
+  return this->element_type;
+}
+
+uint64_t TensorAllocationSummary::getNumberOfDimensions() const {
+  return this->length_of_dimensions.size();
+}
+
+llvm::Value *TensorAllocationSummary::getLengthOfDimension(
+    uint64_t dimension_index) const {
+  return this->length_of_dimensions[dimension_index];
 }
 
 } // namespace llvm::memoir
