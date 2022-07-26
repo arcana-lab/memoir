@@ -32,9 +32,9 @@ std::string TensorElementSummary::toString(std::string indent) const {
   std::string str = "";
   str += "(tensor element: \n";
   str += indent + "  type: \n";
-  str += indent + "    " + this->type.toString(indent + "    ") + "\n";
+  str += indent + "    " + this->getType().toString(indent + "    ") + "\n";
   str += indent + "  allocation: \n";
-  str += indent + "    " + this->points_to.toString(indent + "    ") + "\n";
+  str += indent + "    " + this->pointsTo().toString(indent + "    ") + "\n";
   str += indent + "  indices: " + "\n";
   for (auto i = 0; i < this->getNumberOfDimensions(); i++) {
     std::string value_str;
