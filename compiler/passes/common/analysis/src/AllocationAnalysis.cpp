@@ -266,6 +266,38 @@ set<AllocationSummary *> &AllocationAnalysis::getAllocationSummaries(
   }
 
   /*
+   * If we have a cast instruction:
+   *  - If it is lossless, return the empty set
+   *  - Otherwise, recurse on its operand
+   */
+  if (auto cast_inst = dyn_cast<CastInst>(&value)) {
+    auto &cast_allocation_summaries = this->allocation_summaries[&value];
+
+    /*
+     * If this is a lossy cast, return the empty set.
+     */
+    if (!cast_inst->isLosslessCast()) {
+      cast_allocation_summaries.clear();
+      return cast_allocation_summaries;
+    }
+
+    /*
+     * Otherwise, recurse on the operand to the cast instruction.
+     */
+    auto operand_value = cast_inst->getOperand(0);
+    assert(operand_value
+           && "in AllocationAnalysis::getAllocationSummaries"
+              "operand for CastInst is NULL");
+
+    auto &operand_allocation_summaries =
+        this->getAllocationSummaries(*operand_value);
+    cast_allocation_summaries.insert(operand_allocation_summaries.begin(),
+                                     operand_allocation_summaries.end());
+
+    return cast_allocation_summaries;
+  }
+
+  /*
    * Otherwise, this can't be an allocation summary.
    * Return NULL.
    */
@@ -397,6 +429,9 @@ AllocationSummary *AllocationAnalysis::getTensorAllocationSummary(
                                      length_of_dimensions);
 }
 
+/*
+ * Logistics
+ */
 void AllocationAnalysis::invalidate() {
   this->allocation_summaries.clear();
   // TODO: free all of the_allocation_summaries
