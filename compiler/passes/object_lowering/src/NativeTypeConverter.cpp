@@ -11,32 +11,32 @@ namespace object_lowering {
 
     }
 
-    llvm::StructType *NativeTypeConverter::getLLVMRepresentation(llvm::memoir::StructTypeSummary *sts) {
-        if(cache.find(sts)!= cache.end())
+    llvm::StructType *NativeTypeConverter::getLLVMRepresentation(llvm::memoir::StructTypeSummary &sts) {
+        if(cache.find(&sts)!= cache.end())
         {
-            return cache.at(sts);
+            return cache.at(&sts);
         }
 
         // create llvm::StructType
         std::vector<llvm::Type *> types;
-        auto numFields = sts->getNumFields();
+        auto numFields = sts.getNumFields();
         for(uint64_t fieldI =0; fieldI < numFields; fieldI++)
         {
-            auto fieldType = &(sts->getField(fieldI));
-            switch(fieldType->getCode())
+            auto &fieldType = sts.getField(fieldI);
+            switch(fieldType.getCode())
             {
                 case llvm::memoir::ReferenceTy:{
                     types.push_back(llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8)));
                     break;
                 }
                 case llvm::memoir::IntegerTy: {
-                    auto intType = (memoir::IntegerTypeSummary *) fieldType;
-                    auto bitwidth = intType->getBitWidth();
+                    auto intType = static_cast< memoir::IntegerTypeSummary &> (fieldType);
+                    auto bitwidth = intType.getBitWidth();
                     types.push_back(llvm::IntegerType::get(M.getContext(), bitwidth));
                     break;
                 }
                 case memoir::StructTy: {
-                    types.push_back(getLLVMRepresentation((memoir::StructTypeSummary*) fieldType));
+                    types.push_back(getLLVMRepresentation( static_cast< memoir::StructTypeSummary &> (fieldType)));
                     break;
                 }
                 case memoir::TensorTy: {
@@ -53,7 +53,7 @@ namespace object_lowering {
             }
         }
         auto created = llvm::StructType::create(M.getContext(), types, "memoirStruct", false);
-        cache[sts]= created;
+        cache[&sts]= created;
         return created;
     }
 }

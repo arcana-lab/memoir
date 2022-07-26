@@ -629,9 +629,8 @@ namespace object_lowering {
                     if (setsofAlloc.empty()) {
                         assert(false && "there is no allocation associated with the phi node");
                     }
-                    auto stype = &((*(setsofAlloc.begin()))->getType());
-                    auto *sts = dynamic_cast<StructTypeSummary *>(stype);
-
+                    auto &stype = (*(setsofAlloc.begin()))->getType();
+                    auto &sts = static_cast<StructTypeSummary&>(stype);
                     auto llvmType = nativeTypeConverter->getLLVMRepresentation(sts);
                     auto llvmPtrType = PointerType::getUnqual(llvmType);
                     auto newPhi =
@@ -685,8 +684,10 @@ namespace object_lowering {
                             }
                             std::set<PHINode *> visited;
                             auto &accAna = memoir::AllocationAnalysis::get(M);
-                            auto typ = &accAna.getAllocationSummary(*callIns)->getType();
-                            auto *sts =dynamic_cast<StructTypeSummary*>(typ);
+                            auto allocSum = accAna.getAllocationSummary(*callIns);
+                            assert(allocSum);
+;                           auto &typ = allocSum->getType();
+                            auto sts = static_cast<StructTypeSummary&> (typ);
                             auto llvmType = nativeTypeConverter->getLLVMRepresentation(sts);
                             auto llvmTypeSize = llvm::ConstantInt::get(
                                     int64Ty,
@@ -713,18 +714,18 @@ namespace object_lowering {
                             auto &accAna = memoir::AccessAnalysis::get(M);
                             auto accSum = accAna.getAccessSummary(*callIns);
                             auto mustObjTypeGrabber = [&](AccessSummary *accSum) -> TypeSummary & {
-                                return dynamic_cast<MustWriteSummary *>(accSum)->getField().getType();
+                                return static_cast<MustWriteSummary *>(accSum)->getField().getType();
                             };
                             auto mayObjTypeGrabber = [&](AccessSummary *accSum) -> TypeSummary & {
-                                return (*(dynamic_cast<MayWriteSummary *>(accSum))->begin())->getType();
+                                return (*(static_cast<MayWriteSummary *>(accSum))->begin())->getType();
                             };
                             auto mustIndexGrabber = [&](AccessSummary *accSum) -> uint64_t {
-                                return dynamic_cast<StructFieldSummary *>( &(((MustWriteSummary *) accSum)->getField()))->getIndex();
+                                return static_cast<StructFieldSummary *>( &(((MustWriteSummary *) accSum)->getField()))->getIndex();
                             };
                             auto mayIndexGrabber = [&](AccessSummary *accSum) -> uint64_t {
-                                return dynamic_cast<StructFieldSummary *>((*((MayWriteSummary *) accSum)->begin()))->getIndex();
+                                return static_cast<StructFieldSummary *>((*((MayWriteSummary *) accSum)->begin()))->getIndex();
                             };
-                            auto objectType = dynamic_cast<StructTypeSummary *>( &(accSum->isMay() ?
+                            auto objectType = static_cast<StructTypeSummary &>( (accSum->isMay() ?
                                                                                    mayObjTypeGrabber(accSum) :
                                                                                    mustObjTypeGrabber(accSum)));
                             auto fieldType = &accSum->getType();
@@ -735,7 +736,7 @@ namespace object_lowering {
                             auto fieldCallIns = dyn_cast<CallInst>(callIns->getArgOperand(0));
                             auto baseObj = fieldCallIns->getArgOperand(0);
 
-                            auto gep = CreateGEPFromFieldInfo(baseObj, objectType, fieldIndex, builder,
+                            auto gep = CreateGEPFromFieldInfo(baseObj, static_cast<StructTypeSummary&>(objectType), fieldIndex, builder,
                                                               replacementMapping);
                             switch (fieldType->getCode()) {
                                 case llvm::memoir::ReferenceTy: {
@@ -792,7 +793,7 @@ namespace object_lowering {
                                 return dynamic_cast<StructFieldSummary *>((*((MayReadSummary *) accSum)->begin()))->getIndex();
                             };
                             auto fieldType = &accSum->getType();
-                            auto objectType = (StructTypeSummary *) &(accSum->isMay() ?
+                            auto objectType = static_cast<StructTypeSummary &> (accSum->isMay() ?
                                                                       mayObjTypeGrabber(accSum) :
                                                                       mustObjTypeGrabber(accSum));
                             auto fieldIndex = accSum->isMay() ?
@@ -831,7 +832,7 @@ namespace object_lowering {
                                         //todo: could be an array/tensor i suppose?
                                     }
                                     auto llvmtype = nativeTypeConverter->getLLVMRepresentation(
-                                            dynamic_cast<StructTypeSummary *>(&objTy));
+                                            static_cast<StructTypeSummary &>(objTy));
                                     auto bc_inst =
                                             builder.CreateBitCast(loadInst,
                                                                   PointerType::getUnqual(llvmtype));
@@ -937,7 +938,7 @@ namespace object_lowering {
 
     Value *ObjectLowering::CreateGEPFromFieldInfo(
             Value *baseObjPtr,
-            StructTypeSummary *objectType,
+            StructTypeSummary &objectType,
             uint64_t fieldIndex,
             IRBuilder<> &builder,
             std::map<Value *, Value *> &replacementMapping) {

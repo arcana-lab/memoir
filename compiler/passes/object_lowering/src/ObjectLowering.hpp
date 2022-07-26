@@ -82,7 +82,7 @@ namespace object_lowering {
 
         Value *CreateGEPFromFieldInfo(
                 Value* baseObjPtr,
-                llvm::memoir::StructTypeSummary *objectType,
+                llvm::memoir::StructTypeSummary &objectType,
                 uint64_t fieldIndex,
                 IRBuilder<> &builder,
                 std::map<Value *, Value *> &replacementMapping);
