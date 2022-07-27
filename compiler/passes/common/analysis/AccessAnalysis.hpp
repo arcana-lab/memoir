@@ -257,6 +257,7 @@ protected:
  * Represents an element of a MemOIR tensor.
  */
 class TensorElementSummary : public FieldSummary {
+public:
   llvm::Value &getIndex(uint64_t dimension_index) const;
   uint64_t getNumberOfDimensions() const;
   TypeSummary &getType() const;
