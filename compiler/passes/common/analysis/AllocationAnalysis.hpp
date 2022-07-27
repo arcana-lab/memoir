@@ -108,7 +108,7 @@ struct AllocationSummary {
 public:
   TypeSummary &getType() const;
   AllocationCode getCode() const;
-  llvm::CallInst &getCallInst() const;
+  Llvm::CallInst &getCallInst() const;
 
   friend std::ostream &operator<<(std::ostream &os,
                                   const AllocationSummary &as);

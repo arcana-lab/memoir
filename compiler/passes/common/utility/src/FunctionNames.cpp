@@ -29,6 +29,16 @@ MemOIR_Func getMemOIREnum(llvm::Function &function) {
   return MemOIR_Func::NONE;
 }
 
+MemOIR_Func getMemOIREnum(llvm::CallInst &call_inst) {
+  auto callee = call_inst.getCalledFunction();
+
+  if (!callee) {
+    return MemOIR_Func::NONE;
+  }
+
+  return getMemOIREnum(*callee);
+}
+
 Function *getMemOIRFunction(Module &M, MemOIR_Func function_enum) {
   auto found_name = MemOIRToFunctionNames.find(function_enum);
   if (found_name == MemOIRToFunctionNames.end()) {
