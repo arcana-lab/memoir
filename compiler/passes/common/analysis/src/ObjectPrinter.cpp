@@ -26,9 +26,12 @@ std::string BaseObjectSummary::toString(std::string indent) const {
 
 std::string NestedStructSummary::toString(std::string indent) const {
   std::string str;
+
   str = "(nested struct\n";
   str += indent + "  field: " + this->field.toString(indent + "    ") + "\n";
   str += indent + ")";
+
+  return str;
 }
 
 } // namespace llvm::memoir
