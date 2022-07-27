@@ -14,11 +14,13 @@ namespace object_lowering {
     class NativeTypeConverter {
     public:
         NativeTypeConverter(Module &M, Noelle *noelle);
-        llvm::StructType* getLLVMRepresentation(llvm::memoir::StructTypeSummary& sts);
+        Type *getLLVMRepresentation(memoir::TypeSummary &ts);
     private:
         Module &M;
         Noelle *noelle;
-        std::map<llvm::memoir::StructTypeSummary*, llvm::StructType*> cache;
+        std::map<llvm::memoir::TypeSummary*, llvm::Type*> cache;
+        llvm::StructType* getLLVMRepresentation(llvm::memoir::StructTypeSummary& sts);
+
     };
 }
 

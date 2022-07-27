@@ -1,5 +1,6 @@
 #pragma once
 
+#include <utility>
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
 
@@ -79,11 +80,14 @@ namespace object_lowering {
 //                FieldWrapper *wrapper,
 //                IRBuilder<> &builder,
 //                std::map<Value *, Value *> &replacementMapping);
+        std::pair<Value*, memoir::TypeSummary&> GetGEPAndFieldSummary(
+                CallInst* callIns,
+                IRBuilder<> &builder,
+                std::map<Value *, Value *> &replacementMapping);
 
         Value *CreateGEPFromFieldInfo(
                 Value* baseObjPtr,
-                llvm::memoir::StructTypeSummary &objectType,
-                uint64_t fieldIndex,
+                std::vector<Value *> &indices,
                 IRBuilder<> &builder,
                 std::map<Value *, Value *> &replacementMapping);
 
