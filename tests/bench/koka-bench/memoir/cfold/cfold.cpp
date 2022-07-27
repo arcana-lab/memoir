@@ -13,13 +13,12 @@ enum Kind {
   Mul, // 3
 };
 
-Type *Expr = nameObjectType(
-    "Expr",         // merged subclasses
-    4,              // # fields
-    getUInt8Type(), // kind
-    getInt64Type(), // name/value
-    getPointerType(getNamedType("Expr")), // left
-    getPointerType(getNamedType("Expr"))  // right
+Type *Expr = nameObjectType("Expr",         // merged subclasses
+                            4,              // # fields
+                            getUInt8Type(), // kind
+                            getInt64Type(), // name/value
+                            getPointerType(getNamedType("Expr")), // left
+                            getPointerType(getNamedType("Expr"))  // right
 );
 
 /*
@@ -287,8 +286,7 @@ Object *const_folding(Object *e) {
       auto e2_rightFld = getObjectField(e2, 3);
       auto e2_right = readPointer(e2_rightFld);
       auto e2_right_kindFld = getObjectField(e2_right, 0);
-      auto e2_right_kind =
-          (Kind)readUInt8(e2_right_kindFld);
+      auto e2_right_kind = (Kind)readUInt8(e2_right_kindFld);
       if (e2_right_kind == Kind::Val) {
         auto b = e2;
         auto v = e2_right;
@@ -306,8 +304,7 @@ Object *const_folding(Object *e) {
         // return new AddExpr(
         //     new ValExpr(((ValExpr *)e1)->value +
         //     v->value), b->left);
-        return new_AddExpr(new_ValExpr(e1_value + v_value),
-                           b_left);
+        return new_AddExpr(new_ValExpr(e1_value + v_value), b_left);
       }
 
       auto e2_leftFld = getObjectField(e2, 2);
@@ -339,8 +336,7 @@ Object *const_folding(Object *e) {
         auto b_rightFld = getObjectField(b, 3);
         auto b_right = readPointer(b_rightFld);
 
-        return new_AddExpr(new_ValExpr(e1_value + v_value),
-                           b_right);
+        return new_AddExpr(new_ValExpr(e1_value + v_value), b_right);
       }
     }
 
@@ -375,13 +371,11 @@ Object *const_folding(Object *e) {
       auto e2_value = readInt64(e2_valueFld);
 
       return new_ValExpr(e1_value * e2_value);
-    } else if (e1_kind == Kind::Val
-               && e2_kind == Kind::Mul) {
+    } else if (e1_kind == Kind::Val && e2_kind == Kind::Mul) {
       auto e2_rightFld = getObjectField(e2, 3);
       auto e2_right = readPointer(e2_rightFld);
       auto e2_right_kindFld = getObjectField(e2_right, 0);
-      auto e2_right_kind =
-          (Kind)readUInt8(e2_right_kindFld);
+      auto e2_right_kind = (Kind)readUInt8(e2_right_kindFld);
 
       if (e2_right_kind == Kind::Val) {
         auto b = e2;
@@ -398,8 +392,7 @@ Object *const_folding(Object *e) {
         auto b_leftFld = getObjectField(e2, 2);
         auto b_left = readPointer(b_leftFld);
 
-        return new_MulExpr(new_ValExpr(e1_value * v_value),
-                           b_left);
+        return new_MulExpr(new_ValExpr(e1_value * v_value), b_left);
       }
 
       auto e2_leftFld = getObjectField(e2, 2);
@@ -421,8 +414,7 @@ Object *const_folding(Object *e) {
         auto b_rightFld = getObjectField(e2, 3);
         auto b_right = readPointer(b_rightFld);
 
-        return new_MulExpr(new_ValExpr(e1_value * v_value),
-                           b_right);
+        return new_MulExpr(new_ValExpr(e1_value * v_value), b_right);
       }
     }
 

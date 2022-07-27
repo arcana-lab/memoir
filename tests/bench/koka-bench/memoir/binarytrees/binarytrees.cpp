@@ -47,11 +47,10 @@ struct Node
     }
 };
 */
-Type *Node = nameObjectType(
-    "Node",
-    2,
-    getPointerType(getNamedType("Node")), // l
-    getPointerType(getNamedType("Node"))  // r
+Type *Node = nameObjectType("Node",
+                            2,
+                            getPointerType(getNamedType("Node")), // l
+                            getPointerType(getNamedType("Node"))  // r
 );
 
 int check(Object *node) {
@@ -92,7 +91,7 @@ Object *make(int d) {
   if (d > 0) {
     auto root_l_field = getObjectField(root, 0);
     auto root_r_field = getObjectField(root, 1);
-    
+
     writePointer(root_l_field, make(d - 1));
     writePointer(root_r_field, make(d - 1));
   } else {
@@ -108,8 +107,7 @@ Object *make(int d) {
 
 int run_parallel(unsigned depth,
                  int iterations,
-                 unsigned int workers =
-                     std::thread::hardware_concurrency()) {
+                 unsigned int workers = std::thread::hardware_concurrency()) {
   std::vector<std::thread> threads;
   threads.reserve(workers);
 
@@ -117,20 +115,19 @@ int run_parallel(unsigned depth,
   std::atomic_int output = 0;
 
   for (unsigned i = 0; i < workers; ++i) {
-    threads.push_back(
-        std::thread([&counter, depth, &output] {
-          std::pmr::unsynchronized_pool_resource upperPool;
-          MemoryPool pool{ &upperPool };
-          int checksum = 0;
+    threads.push_back(std::thread([&counter, depth, &output] {
+      std::pmr::unsynchronized_pool_resource upperPool;
+      MemoryPool pool{ &upperPool };
+      int checksum = 0;
 
-          while (--counter >= 0) {
-            Node *a = make(depth, pool);
-            checksum += a->check();
-            pool.release();
-          }
+      while (--counter >= 0) {
+        Node *a = make(depth, pool);
+        checksum += a->check();
+        pool.release();
+      }
 
-          output += checksum;
-        }));
+      output += checksum;
+    }));
   }
 
   for (unsigned i = 0; i < workers; ++i) {
@@ -144,8 +141,7 @@ constexpr auto MIN_DEPTH = 4;
 
 int main(int argc, char *argv[]) {
   const int max_depth =
-      std::max(MIN_DEPTH + 2,
-               (argc == 2 ? atoi(argv[1]) : 21));
+      std::max(MIN_DEPTH + 2, (argc == 2 ? atoi(argv[1]) : 21));
   const int stretch_depth = max_depth + 1;
 
   // Alloc then dealloc stretchdepth tree.
@@ -153,8 +149,7 @@ int main(int argc, char *argv[]) {
     MemoryPool store;
 
     Node *c = make(stretch_depth, store);
-    std::cout << "stretch tree of depth " << stretch_depth
-              << "\t "
+    std::cout << "stretch tree of depth " << stretch_depth << "\t "
               << "check: " << c->check() << std::endl;
   }
 
@@ -165,13 +160,12 @@ int main(int argc, char *argv[]) {
     const int iterations = 1 << (max_depth - d + MIN_DEPTH);
     auto const c = run_parallel(d, iterations);
 
-    std::cout << iterations << "\t trees of depth " << d
-              << "\t check: " << c << "\n";
+    std::cout << iterations << "\t trees of depth " << d << "\t check: " << c
+              << "\n";
   }
 
-  std::cout
-      << "long lived tree of depth " << max_depth << "\t "
-      << "check: " << (long_lived_tree->check()) << "\n";
+  std::cout << "long lived tree of depth " << max_depth << "\t "
+            << "check: " << (long_lived_tree->check()) << "\n";
 
   return 0;
 }

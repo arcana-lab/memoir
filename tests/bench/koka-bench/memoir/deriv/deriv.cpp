@@ -62,8 +62,7 @@ class BinExpr : public Expr {
 public:
   const Expr *left;
   const Expr *right;
-  BinExpr(Kind k, const Expr *e1, const Expr *e2)
-    : Expr(k) {
+  BinExpr(Kind k, const Expr *e1, const Expr *e2) : Expr(k) {
     this->left = e1;
     this->right = e2;
   }
@@ -82,8 +81,7 @@ static long pown(long x, long n) {
 
 static const Expr *add(const Expr *x, const Expr *y) {
   if (x->kind == Val && y->kind == Val) {
-    return new ValExpr(((ValExpr *)x)->value
-                       + ((ValExpr *)y)->value);
+    return new ValExpr(((ValExpr *)x)->value + ((ValExpr *)y)->value);
   } else if (x->kind == Val && ((ValExpr *)x)->value == 0) {
     return y;
   } else if (y->kind == Val && ((ValExpr *)y)->value == 0) {
@@ -95,13 +93,10 @@ static const Expr *add(const Expr *x, const Expr *y) {
     long lval = ((ValExpr *)((BinExpr *)y)->left)->value;
     return add(new ValExpr(((ValExpr *)x)->value + lval),
                ((BinExpr *)y)->right);
-  } else if (y->kind == Add
-             && ((BinExpr *)y)->left->kind == Val) {
-    return add(((BinExpr *)y)->left,
-               add(x, ((BinExpr *)y)->right));
+  } else if (y->kind == Add && ((BinExpr *)y)->left->kind == Val) {
+    return add(((BinExpr *)y)->left, add(x, ((BinExpr *)y)->right));
   } else if (x->kind == Add) {
-    return add(((BinExpr *)x)->left,
-               add(((BinExpr *)x)->right, y));
+    return add(((BinExpr *)x)->left, add(((BinExpr *)x)->right, y));
   } else {
     return new BinExpr(Add, x, y);
   }
@@ -109,8 +104,7 @@ static const Expr *add(const Expr *x, const Expr *y) {
 
 static const Expr *mul(const Expr *x, const Expr *y) {
   if (x->kind == Val && y->kind == Val) {
-    return new ValExpr(((ValExpr *)x)->value
-                       * ((ValExpr *)y)->value);
+    return new ValExpr(((ValExpr *)x)->value * ((ValExpr *)y)->value);
   } else if (x->kind == Val && ((ValExpr *)x)->value == 0) {
     return x;
   } else if (y->kind == Val && ((ValExpr *)y)->value == 0) {
@@ -126,13 +120,10 @@ static const Expr *mul(const Expr *x, const Expr *y) {
     long lval = ((ValExpr *)((BinExpr *)y)->left)->value;
     return mul(new ValExpr(((ValExpr *)x)->value * lval),
                ((BinExpr *)y)->right);
-  } else if (y->kind == Mul
-             && ((BinExpr *)y)->left->kind == Val) {
-    return mul(((BinExpr *)y)->left,
-               mul(x, ((BinExpr *)y)->right));
+  } else if (y->kind == Mul && ((BinExpr *)y)->left->kind == Val) {
+    return mul(((BinExpr *)y)->left, mul(x, ((BinExpr *)y)->right));
   } else if (x->kind == Mul) {
-    return mul(((BinExpr *)x)->left,
-               mul(((BinExpr *)x)->right, y));
+    return mul(((BinExpr *)x)->left, mul(((BinExpr *)x)->right, y));
   } else {
     return new BinExpr(Mul, x, y);
   }
@@ -140,8 +131,7 @@ static const Expr *mul(const Expr *x, const Expr *y) {
 
 static const Expr *powr(const Expr *x, const Expr *y) {
   if (x->kind == Val && y->kind == Val) {
-    return new ValExpr(
-        pown(((ValExpr *)x)->value, ((ValExpr *)y)->value));
+    return new ValExpr(pown(((ValExpr *)x)->value, ((ValExpr *)y)->value));
   } else if (y->kind == Val && ((ValExpr *)y)->value == 0) {
     return new ValExpr(1);
   } else if (y->kind == Val && ((ValExpr *)y)->value == 1) {
@@ -165,8 +155,7 @@ static const Expr *d(const char *x, const Expr *e) {
   if (e->kind == Val) {
     return new ValExpr(0);
   } else if (e->kind == Var) {
-    return new ValExpr(
-        strcmp(((VarExpr *)e)->name, x) == 0 ? 1 : 0);
+    return new ValExpr(strcmp(((VarExpr *)e)->name, x) == 0 ? 1 : 0);
   } else if (e->kind == Add) {
     const Expr *f = ((BinExpr *)e)->left;
     const Expr *g = ((BinExpr *)e)->right;
@@ -178,10 +167,9 @@ static const Expr *d(const char *x, const Expr *e) {
   } else if (e->kind == Pow) {
     const Expr *f = ((BinExpr *)e)->left;
     const Expr *g = ((BinExpr *)e)->right;
-    return mul(
-        powr(f, g),
-        add(mul(mul(g, d(x, f)), powr(f, new ValExpr(-1))),
-            mul(ln(f), d(x, g))));
+    return mul(powr(f, g),
+               add(mul(mul(g, d(x, f)), powr(f, new ValExpr(-1))),
+                   mul(ln(f), d(x, g))));
   } else { // if (e->kind==Ln) {
     const Expr *f = ((UnaryExpr *)e)->expr;
     return mul(d(x, f), powr(f, new ValExpr(-1)));

@@ -15,7 +15,7 @@
 using MemoryPool = std::pmr::monotonic_buffer_resource;
 using Lambda = std::function<void(void)>;
 
-template<typename T>
+template <typename T>
 class LockingQueue final {
 public:
   LockingQueue() = default;
@@ -91,10 +91,10 @@ struct Node {
 };
 
 namespace {
-  constexpr size_t LINE_SIZE = 64;
-  constexpr size_t SIZEOF_NODE = sizeof(Node);
-  constexpr auto MIN_DEPTH = 4;
-}
+constexpr size_t LINE_SIZE = 64;
+constexpr size_t SIZEOF_NODE = sizeof(Node);
+constexpr auto MIN_DEPTH = 4;
+} // namespace
 
 Node *make(const int d, MemoryPool &store) {
   Node *root = static_cast<Node *>(store.allocate(SIZEOF_NODE));
@@ -126,7 +126,8 @@ int main(int argc, char *argv[]) {
 
   // Buffer to store output of each thread.
   std::vector<char> buf(
-      static_cast<size_t>(LINE_SIZE * (max_depth + 1) * sizeof(char)), 0);
+      static_cast<size_t>(LINE_SIZE * (max_depth + 1) * sizeof(char)),
+      0);
 
   {
     ThreadPool pool;
@@ -147,7 +148,9 @@ int main(int argc, char *argv[]) {
         // each thread write to separate location
         sprintf(buf.data() + LINE_SIZE * d,
                 "%d\t trees of depth %d\t check: %d\n",
-                iterations, d, c);
+                iterations,
+                d,
+                c);
       });
     }
   }
