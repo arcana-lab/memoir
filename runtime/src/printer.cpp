@@ -81,8 +81,4 @@ std::string ReferenceType::toString() {
   return "(Type: (pointer " + this->referenced_type->toString() + ")";
 }
 
-std::string StubType::toString() {
-  return "(Type: stub)";
-}
-
 } // namespace memoir

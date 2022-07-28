@@ -24,45 +24,41 @@ enum TypeCode {
   FloatTy,
   DoubleTy,
   ReferenceTy,
-  StubTy,
+  NoneTy
 };
 
 struct Type {
 public:
   TypeCode getCode();
   bool hasName();
-  std::string getName();
+  const char *getName();
 
-  static Type *find(std::string name);
-  static void define(std::string name, Type *type_to_define);
-
-  virtual Type *resolve() = 0;
   virtual bool equals(Type *other) = 0;
   virtual std::string toString() = 0;
 
 protected:
-  Type(TypeCode code, std::string name);
+  Type(TypeCode code, const char *name);
   Type(TypeCode code);
 
 private:
   TypeCode code;
-  std::string name;
-
-  static std::unordered_map<std::string, Type *> &named_types();
+  const char *name;
 };
 
 struct StructType : public Type {
 public:
-  static Type *get(std::string name, std::vector<Type *> &field_types);
+  static Type *get(const char *name);
+  static Type *define(const char *name, std::vector<Type *> &field_types);
 
   std::vector<Type *> fields;
 
-  Type *resolve();
   bool equals(Type *other);
   std::string toString();
 
 private:
-  StructType(std::string name, std::vector<Type *> &field_types);
+  StructType(const char *name, std::vector<Type *> &field_types);
+
+  static std::unordered_map<const char *, Type *> &struct_types();
 };
 
 struct TensorType : public Type {
@@ -77,7 +73,6 @@ public:
   bool is_static_length;
   std::vector<uint64_t> length_of_dimensions;
 
-  Type *resolve();
   bool equals(Type *other);
   std::string toString();
 
@@ -95,7 +90,6 @@ public:
   unsigned bitwidth;
   bool is_signed;
 
-  Type *resolve();
   bool equals(Type *other);
   std::string toString();
 
@@ -107,7 +101,6 @@ struct FloatType : public Type {
 public:
   static Type *get();
 
-  Type *resolve();
   bool equals(Type *other);
   std::string toString();
 
@@ -119,7 +112,6 @@ struct DoubleType : public Type {
 public:
   static Type *get();
 
-  Type *resolve();
   bool equals(Type *other);
   std::string toString();
 
@@ -133,7 +125,6 @@ public:
 
   Type *referenced_type;
 
-  Type *resolve();
   bool equals(Type *other);
   std::string toString();
 
@@ -142,43 +133,11 @@ private:
 };
 
 /*
- * Stub Type
- *
- * The stub type is used to represent a named type that
- * hasn't been defined yet. Using a field of stub type
- * before the stub type is resolved will result in an error.
- *
- * NOTE: The stub type does not need to be represented in
- * the middle end, it is only necessary to make the runtime
- * work.
- */
-struct StubType : public Type {
-public:
-  static Type *get(std::string name);
-
-  std::string name;
-
-  Type *resolved_type;
-
-  Type *resolve();
-  bool equals(Type *other);
-
-  std::string toString();
-
-private:
-  StubType(std::string name);
-
-  static std::unordered_map<std::string, Type *> stub_types;
-};
-
-/*
  * Helper functions
  */
 bool isObjectType(Type *type);
 
 bool isIntrinsicType(Type *type);
-
-bool isStubType(Type *type);
 
 } // namespace memoir
 

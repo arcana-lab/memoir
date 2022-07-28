@@ -85,11 +85,9 @@ Object *ReferenceField::readValue() {
  */
 
 Field *Field::createField(Type *type) {
-  auto resolved_type = type->resolve();
-
-  switch (resolved_type->getCode()) {
+  switch (type->getCode()) {
     case TypeCode::StructTy:
-      return new StructField(resolved_type);
+      return new StructField(type);
     case TypeCode::TensorTy: {
       auto tensor_type = (TensorType *)type;
       if (!tensor_type->is_static_length) {
@@ -97,20 +95,17 @@ Field *Field::createField(Type *type) {
         exit(1);
       }
       auto &length_of_dimensions = tensor_type->length_of_dimensions;
-      auto tensor = new Tensor(resolved_type, length_of_dimensions);
-      return new TensorField(resolved_type, tensor);
+      auto tensor = new Tensor(type, length_of_dimensions);
+      return new TensorField(type, tensor);
     }
     case TypeCode::IntegerTy:
-      return new IntegerField(resolved_type);
+      return new IntegerField(type);
     case TypeCode::FloatTy:
-      return new FloatField(resolved_type);
+      return new FloatField(type);
     case TypeCode::DoubleTy:
-      return new DoubleField(resolved_type);
+      return new DoubleField(type);
     case TypeCode::ReferenceTy:
-      return new ReferenceField(resolved_type);
-    case TypeCode::StubTy:
-      std::cerr << "ERROR: Stub Type not resolved before field construction\n";
-      exit(1);
+      return new ReferenceField(type);
     default:
       std::cerr << "ERROR: Trying to create field of unknown type\n";
       exit(1);
