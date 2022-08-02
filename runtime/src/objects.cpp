@@ -9,13 +9,7 @@ Type *Object::getType() {
 }
 
 Object::Object(Type *type) : type(type) {
-  // Resolve the type.
-  TypeCode code = this->type->getCode();
-  if (code == TypeCode::StubTy) {
-    auto stub_type = (StubType *)(this->type);
-    auto resolved_type = stub_type->resolve();
-    this->type = resolved_type;
-  }
+  // Do nothing.
 }
 
 /*

@@ -9,6 +9,7 @@ AllocationAnalysis::AllocationAnalysis(Module &M) : M(M) {
 
 set<AllocationSummary *> &AllocationAnalysis::getAllocationSummaries(
     llvm::Value &value) {
+  errs() << "Checking alloc: " << value << "\n";
   /*
    * Check if we have a memoized set of Allocation Summaries for the
    * given LLVM value. If we do, return it.

@@ -25,14 +25,14 @@ Type *defineStructType(const char *name, int num_fields, ...) {
 
   va_end(args);
 
-  auto type = StructType::get(name, fields);
+  auto type = StructType::define(name, fields);
 
   return type;
 }
 
 __RUNTIME_ATTR
 Type *StructType(const char *name) {
-  return StubType::get(name);
+  return StructType::get(name);
 }
 
 __RUNTIME_ATTR

@@ -16,7 +16,6 @@ bool isObjectType(Type *type) {
   switch (code) {
     case StructTy:
     case TensorTy:
-    case StubTy:
       return true;
     default:
       return false;
@@ -36,41 +35,10 @@ bool isIntrinsicType(Type *type) {
   }
 }
 
-bool isStubType(Type *type) {
-  TypeCode code = type->getCode();
-  switch (code) {
-    case StubTy:
-      return true;
-    default:
-      return false;
-  }
-}
-
 /*
  * Type base class
  */
-std::unordered_map<std::string, Type *> &Type::named_types() {
-  static std::unordered_map<std::string, Type *> named_types_map;
-
-  return named_types_map;
-}
-
-Type *Type::find(std::string name) {
-  auto &named_types_map = Type::named_types();
-  auto found_named = named_types_map.find(name);
-  if (found_named != named_types_map.end()) {
-    return found_named->second;
-  }
-
-  return nullptr;
-}
-
-void Type::define(std::string name, Type *type_to_define) {
-  auto &named_types_map = Type::named_types();
-  named_types_map[name] = type_to_define;
-}
-
-Type::Type(TypeCode code, std::string name) : code(code) {
+Type::Type(TypeCode code, const char *name) : code(code) {
   // Do nothing
 }
 
@@ -81,32 +49,45 @@ Type::Type(TypeCode code) : Type::Type(code, "") {
 /*
  * Struct Type
  */
-Type *StructType::get(std::string name, std::vector<Type *> &field_types) {
-  auto found_type = Type::find(name);
-  if (found_type) {
-    return found_type;
-  }
+std::unordered_map<const char *, Type *> &StructType::struct_types() {
+  static std::unordered_map<const char *, Type *> struct_types;
 
-  auto new_struct = new StructType(name, field_types);
-
-  Type::define(name, new_struct);
-
-  return new_struct;
+  return struct_types;
 }
 
-StructType::StructType(std::string name, std::vector<Type *> &field_types)
+Type *StructType::get(const char *name) {
+  auto found_type = StructType::struct_types().find(name);
+  if (found_type != StructType::struct_types().end()) {
+    return found_type->second;
+  }
+
+  /*
+   * Create an empty struct type that will be resolved later.
+   */
+  std::vector<Type *> empty_fields;
+  empty_fields.clear();
+  auto empty_struct = new StructType(name, empty_fields);
+
+  StructType::struct_types()[name] = empty_struct;
+
+  return empty_struct;
+}
+
+Type *StructType::define(const char *name, std::vector<Type *> &field_types) {
+  auto struct_type = (StructType *)StructType::get(name);
+
+  /*
+   * Update the struct type entry with the field types
+   */
+  struct_type->fields = field_types;
+
+  return struct_type;
+}
+
+StructType::StructType(const char *name, std::vector<Type *> &field_types)
   : Type(TypeCode::StructTy, name),
     fields(field_types) {
   // Do nothing.
-}
-
-Type *StructType::resolve() {
-  for (auto field_iter = this->fields.begin(); field_iter != this->fields.end();
-       ++field_iter) {
-    *field_iter = (*field_iter)->resolve();
-  }
-
-  return this;
 }
 
 bool StructType::equals(Type *other) {
@@ -140,11 +121,6 @@ TensorType::TensorType(Type *type,
     num_dimensions(num_dimensions),
     is_static_length(true),
     length_of_dimensions(length_of_dimensions) {}
-
-Type *TensorType::resolve() {
-  this->element_type = this->element_type->resolve();
-  return this;
-}
 
 bool TensorType::equals(Type *other) {
   if (this->getCode() != other->getCode()) {
@@ -196,10 +172,6 @@ IntegerType::IntegerType(unsigned bitwidth, bool is_signed)
   // Do nothing.
 }
 
-Type *IntegerType::resolve() {
-  return this;
-}
-
 bool IntegerType::equals(Type *other) {
   if (this == other) {
     return true;
@@ -234,10 +206,6 @@ FloatType::FloatType() : Type(TypeCode::FloatTy) {
   // Do nothing.
 }
 
-Type *FloatType::resolve() {
-  return this;
-}
-
 bool FloatType::equals(Type *other) {
   return (this->getCode() == other->getCode());
 }
@@ -253,10 +221,6 @@ Type *DoubleType::get() {
 
 DoubleType::DoubleType() : Type(TypeCode::DoubleTy) {
   // Do nothing.
-}
-
-Type *DoubleType::resolve() {
-  return this;
 }
 
 bool DoubleType::equals(Type *other) {
@@ -279,11 +243,6 @@ ReferenceType::ReferenceType(Type *referenced_type)
   }
 }
 
-Type *ReferenceType::resolve() {
-  this->referenced_type = this->referenced_type->resolve();
-  return this;
-}
-
 bool ReferenceType::equals(Type *other) {
   if (this->getCode() != other->getCode()) {
     return false;
@@ -293,55 +252,6 @@ bool ReferenceType::equals(Type *other) {
   auto this_referenced_type = this->referenced_type;
   auto other_referenced_type = other_ref->referenced_type;
   return this_referenced_type->equals(other_referenced_type);
-}
-
-/*
- * Stub Type
- */
-std::unordered_map<std::string, Type *> StubType::stub_types;
-
-Type *StubType::get(std::string name) {
-  auto found_resolved = Type::find(name);
-  if (found_resolved) {
-    return found_resolved;
-  }
-
-  auto found_stub = StubType::stub_types.find(name);
-  if (found_stub != StubType::stub_types.end()) {
-    return found_stub->second;
-  }
-
-  auto new_stub = new StubType(name);
-
-  StubType::stub_types[name] = new_stub;
-
-  return new_stub;
-}
-
-StubType::StubType(std::string name) : Type(TypeCode::StubTy), name(name) {
-  // Do nothing.
-}
-
-Type *StubType::resolve() {
-  auto found_resolved = Type::find(this->name);
-  if (found_resolved) {
-    this->resolved_type = found_resolved;
-    return found_resolved;
-  }
-
-  // Unable to resolve the stub type, error.
-  if (!this->resolved_type) {
-    std::cerr << "ERROR: " << name
-              << " is not resolved to a type before it's use.";
-    exit(1);
-  }
-
-  return this->resolved_type;
-}
-
-bool StubType::equals(Type *other) {
-  auto otherStub = (StubType *)other;
-  return (this->name == otherStub->name);
 }
 
 } // namespace memoir
