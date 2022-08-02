@@ -14,7 +14,7 @@ namespace object_lowering {
     llvm::Type *NativeTypeConverter::getLLVMRepresentation(llvm::memoir::TypeSummary &ts)
     {
         errs() << "the type below has a type  " << ts.getCode() << "\n";
-        errs() << "getting llvm rep for this type " << ts.toString() << "\n";
+        errs() << "getting llvm rep for this type " << ts.toString() << "here \n";
         if(cache.find(&ts)!= cache.end())
         {
             return cache.at(&ts);
