@@ -28,11 +28,17 @@ __RUNTIME_ATTR Type *defineStructType(const char *name, int num_fields, ...);
 __RUNTIME_ATTR Type *StructType(const char *name);
 
 /*
- * Complex Types
+ * Tensor Type
+ * NOTE: if a dimension is of unknown length, it's dimension length is a
+ *   constant 0
  */
 __RUNTIME_ATTR Type *TensorType(Type *element_type,
                                 uint64_t num_dimensions,
                                 ...);
+
+/*
+ * Reference Type
+ */
 __RUNTIME_ATTR Type *ReferenceType(Type *referenced_type);
 
 /*
@@ -60,10 +66,11 @@ __ALLOC_ATTR __RUNTIME_ATTR Object *allocateTensor(Type *element_type,
                                                    ...);
 
 /*
- * Object accesses
+ * O.bject accesses
  */
 __RUNTIME_ATTR Field *getStructField(Object *object, uint64_t field_index);
 __RUNTIME_ATTR Field *getTensorElement(Object *tensor, ...);
+
 /*
  * Object destruction
  */
