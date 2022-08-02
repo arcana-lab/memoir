@@ -47,6 +47,21 @@ namespace object_lowering {
     }
 
     void ObjectLowering::analyze() {
+        for (auto &F : M) {
+            if (F.hasName()&&F.getName() == "main")
+            {
+                int count = 0;
+                for (auto &i : instructions(F))
+                {
+                    if(count ==5)
+                    {
+                        errs() << i;
+                    }
+
+                    count ++;
+                }
+            }
+        }
 
         // simple testing stuff to make sure it's working
 
