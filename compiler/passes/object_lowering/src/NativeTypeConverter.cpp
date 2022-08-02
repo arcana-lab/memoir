@@ -19,6 +19,7 @@ namespace object_lowering {
         {
             return cache.at(&ts);
         }
+        errs() << "gets here \n";
         llvm::Type * created;
         switch(ts.getCode())
         {
@@ -48,7 +49,7 @@ namespace object_lowering {
                 created = llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8));
                 break;
         }
-
+        errs() << "gets here \n";
         cache[&ts]= created;
         return created;
     }
