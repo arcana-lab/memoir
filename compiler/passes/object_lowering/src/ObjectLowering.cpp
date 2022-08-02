@@ -627,10 +627,9 @@ namespace object_lowering {
             // errs() << "encountering  instruction " << ins <<"\n";
             IRBuilder<> builder(&ins);
             if (auto phi = dyn_cast<PHINode>(&ins)) {
-                // errs()<< "The phi has type " << *phi->getType() <<"\n";
-                // errs() << "our type is " << *llvmObjectType << "\n";
+                 errs()<< "The phi has type " << *phi->getType() <<"\n";
                 if (phi->getType() == object_star) {
-//          // errs() << "those two types as equal" <<"\n";
+                    errs() << "and it's an object star" <<"\n";
                     std::set<PHINode *> visited;
                     auto &allocAna = memoir::AllocationAnalysis::get(M);
                     auto setsofAlloc = allocAna.getAllocationSummaries(*phi);
@@ -638,7 +637,6 @@ namespace object_lowering {
                         assert(false && "there is no allocation associated with the phi node");
                     }
                     auto &stype = (*(setsofAlloc.begin()))->getType();
-//                    auto &sts = static_cast<StructTypeSummary&>(stype);
                     auto llvmType = nativeTypeConverter->getLLVMRepresentation(stype);
                     auto llvmPtrType = PointerType::getUnqual(llvmType);
                     auto newPhi = builder.CreatePHI(llvmPtrType, phi->getNumIncomingValues());
