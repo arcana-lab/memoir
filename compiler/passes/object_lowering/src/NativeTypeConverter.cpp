@@ -23,9 +23,12 @@ namespace object_lowering {
             case memoir::StructTy:
                 created = getLLVMRepresentation(static_cast<memoir::StructTypeSummary&> (ts));
                 break;
-            case memoir::TensorTy:
-                assert(false && "tensor don't really have an llvm correspondance");
+            case memoir::TensorTy: {
+//                assert(false && "tensor don't really have an llvm correspondance");
+                auto tensorType = static_cast< memoir::TensorTypeSummary &> (ts);
+                created = getLLVMRepresentation(tensorType.getElementType());
                 break;
+            }
             case memoir::IntegerTy: {
                 auto intType = static_cast< memoir::IntegerTypeSummary &> (ts);
                 auto bitwidth = intType.getBitWidth();

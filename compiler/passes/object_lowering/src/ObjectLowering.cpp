@@ -169,13 +169,13 @@ namespace object_lowering {
     void ObjectLowering::cacheTypes() {
         //  errs() << "\n\nRunning ObjectLowering::cacheTypes\n";
         //
-        //  // collect all GlobalVals which are Type*
-        //  for (auto &globalVar : M.getGlobalList()) {
-        //    if (globalVar.getType() == type_star_star) {
-        //      typeDefs.push_back(&globalVar);
-        //    }
-        //  }
-        //
+          // collect all GlobalVals which are Type*
+          for (auto &globalVar : M.getGlobalList()) {
+            if (globalVar.getType() == type_star_star) {
+              typeDefs.push_back(&globalVar);
+            }
+          }
+
         //  std::map<string, AnalysisType *> namedTypeMap;
         //  std::vector<AnalysisType *> allTypes;
         //
@@ -405,34 +405,34 @@ namespace object_lowering {
             }
         }
 
-    // delete the Type* global variables
-    std::set<Value *> toDelete;
-    // start with the GVs
-    for (auto p : typeDefs)
-      toDelete.insert(p);
-    // recursively find all instructions to delete
-    for (auto p : typeDefs)
-      findInstsToDelete(p, toDelete);
+        // delete the Type* global variables
+        std::set<Value *> toDelete;
+        // start with the GVs
+        for (auto p: typeDefs)
+            toDelete.insert(p);
+        // recursively find all instructions to delete
+        for (auto p: typeDefs)
+            findInstsToDelete(p, toDelete);
 
-    // errs() << "ObjectLowing: deleting these instructions\n";
-    for (auto v : toDelete) {
-      // errs() << "\t" << *v << "\n";
-      if (auto i = dyn_cast<Instruction>(v)) {
-        i->replaceAllUsesWith(UndefValue::get(i->getType()));
-        i->eraseFromParent();
-      }
-    }
+        // errs() << "ObjectLowing: deleting these instructions\n";
+        for (auto v: toDelete) {
+            // errs() << "\t" << *v << "\n";
+            if (auto i = dyn_cast<Instruction>(v)) {
+                i->replaceAllUsesWith(UndefValue::get(i->getType()));
+                i->eraseFromParent();
+            }
+        }
 
-    for (GlobalValue *p : typeDefs) {
-      // errs() << "Dropping refs: " << *p << "\n";
-      p->dropAllReferences();
-      // errs() << "\terasing from parent\n";
-      p->eraseFromParent();
-    }
+        for (GlobalValue *p: typeDefs) {
+            // errs() << "Dropping refs: " << *p << "\n";
+            p->dropAllReferences();
+            // errs() << "\terasing from parent\n";
+            p->eraseFromParent();
+        }
 
-    for (auto const &x : clonedFunctionMap) {
-      x.first->eraseFromParent();
-    }
+//        for (auto const &x: clonedFunctionMap) {
+//            x.first->eraseFromParent();
+//        }
 
     }
 
@@ -543,62 +543,60 @@ namespace object_lowering {
                               replacementMapping,
                               phiNodesToPopulate,
                               allocBuildObjects);
-        /*
-        //
-        //  // repopulate incoming values of phi nodes
-        //  for (auto old_phi : phiNodesToPopulate) {
-        //    if (replacementMapping.find(old_phi) == replacementMapping.end()) {
-        //      errs() << "obj_lowering transform: no new phi found for " << *old_phi
-        //             << "\n";
-        //      assert(false);
-        //    }
-        //    auto new_phi = dyn_cast<PHINode>(replacementMapping[old_phi]);
-        //    assert(new_phi);
-        //    // errs() << "will replace `" << *old_phi << "` with: `" << *new_phi <<
-        //    // "\n";
-        //    for (size_t i = 0; i < old_phi->getNumIncomingValues(); i++) {
-        //      auto old_val = old_phi->getIncomingValue(i);
-        //      if (dyn_cast<ConstantPointerNull>(old_val)) {
-        //        auto new_val =
-        //            ConstantPointerNull::get(dyn_cast<PointerType>(new_phi->getType()));
-        //        new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
-        //      } else {
-        //        if (replacementMapping.find(old_val) == replacementMapping.end()) {
-        //          errs() << "obj_lowering transform: no new inst found for " <<
-        //          *old_val
-        //                 << "\n";
-        //          assert(false);
-        //        }
-        //        auto new_val = replacementMapping[old_val];
-        //        // errs() << "Replacing operand" << i << ": " << *old_val << " with:
-        //        "
-        //        // << *new_val << "\n";
-        //        new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
-        //      }
-        //    }
-        //    // errs() << "finished populating " << *new_phi << "\n";
-        //  }
-        //
-        //  // DELETE OBJECT IR INSTRUCTIONS
-        //  std::set<Value *> toDelete;
-        //  // start with instructions we already replaced
-        //  for (auto p : replacementMapping)
-        //    toDelete.insert(p.first);
-        //  // recursively find all instructions to delete
-        //  for (auto p : replacementMapping)
-        //    findInstsToDelete(p.first, toDelete);
-        //
-        //  // errs() << "ObjectLowing: deleting the following instructions\n";
-        //  for (auto v : toDelete) {
-        //    errs() << "deleting: " << *v << "\n";
-        //    if (auto i = dyn_cast<Instruction>(v)) {
-        //      i->replaceAllUsesWith(UndefValue::get(i->getType()));
-        //      i->eraseFromParent();
-        //    }
-        //  }
-        //
-        //  errs() << *f << "transformed function\n\n";
-         */
+
+
+        // repopulate incoming values of phi nodes
+        for (auto old_phi: phiNodesToPopulate) {
+            if (replacementMapping.find(old_phi) == replacementMapping.end()) {
+                errs() << "obj_lowering transform: no new phi found for " << *old_phi
+                       << "\n";
+                assert(false);
+            }
+            auto new_phi = dyn_cast<PHINode>(replacementMapping[old_phi]);
+            assert(new_phi);
+            // errs() << "will replace `" << *old_phi << "` with: `" << *new_phi <<
+            // "\n";
+            for (size_t i = 0; i < old_phi->getNumIncomingValues(); i++) {
+                auto old_val = old_phi->getIncomingValue(i);
+                if (dyn_cast<ConstantPointerNull>(old_val)) {
+                    auto new_val =
+                            ConstantPointerNull::get(dyn_cast<PointerType>(new_phi->getType()));
+                    new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
+                } else {
+                    if (replacementMapping.find(old_val) == replacementMapping.end()) {
+                        errs() << "obj_lowering transform: no new inst found for " <<
+                               *old_val
+                               << "\n";
+                        assert(false);
+                    }
+                    auto new_val = replacementMapping[old_val];
+                     errs() << "Replacing operand" << i << ": " << *old_val << " with: "  << *new_val << "\n";
+                    new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
+                }
+            }
+             errs() << "finished populating " << *new_phi << "\n";
+        }
+
+        // DELETE OBJECT IR INSTRUCTIONS
+        std::set<Value *> toDelete;
+        // start with instructions we already replaced
+        for (auto p: replacementMapping)
+            toDelete.insert(p.first);
+        // recursively find all instructions to delete
+        for (auto p: replacementMapping)
+            findInstsToDelete(p.first, toDelete);
+
+        // errs() << "ObjectLowing: deleting the following instructions\n";
+        for (auto v: toDelete) {
+            errs() << "deleting: " << *v << "\n";
+            if (auto i = dyn_cast<Instruction>(v)) {
+                i->replaceAllUsesWith(UndefValue::get(i->getType()));
+                i->eraseFromParent();
+            }
+        }
+
+        errs() << *f << "transformed function\n\n";
+
 
     } // endof transform
 
@@ -642,11 +640,11 @@ namespace object_lowering {
 //                    auto &sts = static_cast<StructTypeSummary&>(stype);
                     auto llvmType = nativeTypeConverter->getLLVMRepresentation(stype);
                     auto llvmPtrType = PointerType::getUnqual(llvmType);
-                    auto newPhi =
-                            builder.CreatePHI(llvmPtrType, phi->getNumIncomingValues());
-//          // errs() << "out of the old phi a new one is born" << *newPhi
-//          <<"\n"; phiNodesToPopulate.insert(phi); replacementMapping[phi] =
-//          newPhi;
+                    auto newPhi = builder.CreatePHI(llvmPtrType, phi->getNumIncomingValues());
+                    errs() << "out of the old phi a new one is born" << *newPhi
+                           << "\n";
+                    phiNodesToPopulate.insert(phi);
+                    replacementMapping[phi] = newPhi;
                 }
             } else if (auto callIns = dyn_cast<CallInst>(&ins)) {
                 auto callee = callIns->getCalledFunction();
@@ -898,17 +896,16 @@ namespace object_lowering {
                 }
             }
         }
-        //
-        //  // transform the children in dominator-order
-        //  auto node = DT.getNode(bb);
-        //  for (auto child : node->getChildren()) {
-        //    auto dominated = child->getBlock();
-        //    BasicBlockTransformer(DT,
-        //                          dominated,
-        //                          replacementMapping,
-        //                          phiNodesToPopulate,
-        //                          allocaBuildObj);
-        //  }
+          // transform the children in dominator-order
+          auto node = DT.getNode(bb);
+          for (auto child : node->getChildren()) {
+            auto dominated = child->getBlock();
+            BasicBlockTransformer(DT,
+                                  dominated,
+                                  replacementMapping,
+                                  phiNodesToPopulate,
+                                  allocaBuildObj);
+          }
     } // endof BasicBlockTransformer
 
     Value *ObjectLowering::CreateGEPFromFieldInfo(
@@ -927,6 +924,7 @@ namespace object_lowering {
                                   indices);
         return gep;
     }
+
 /*
 //    Value *ObjectLowering::CreateGEPFromFieldWrapper(
 //            FieldWrapper *fieldWrapper,
@@ -960,12 +958,12 @@ namespace object_lowering {
 */
 
     void ObjectLowering::findInstsToDelete(Value *i, std::set<Value *> &toDelete) {
-          for (auto u : i->users()) {
+        for (auto u: i->users()) {
             if (toDelete.find(u) != toDelete.end())
-              continue;
+                continue;
             toDelete.insert(u);
             findInstsToDelete(u, toDelete);
-          }
+        }
     }
 
     std::pair<Value *, memoir::TypeSummary &>
