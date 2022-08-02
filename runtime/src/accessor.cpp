@@ -48,7 +48,7 @@ Field *getTensorElement(Object *object, ...) {
 
   va_list args;
 
-  va_start(args, object);
+  va_start(args, num_dimensions);
 
   std::vector<uint64_t> indices;
   for (int i = 0; i < num_dimensions; i++) {
