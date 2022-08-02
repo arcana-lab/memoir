@@ -744,6 +744,9 @@ namespace object_lowering {
                         case WRITE_UINT16:
                         case WRITE_UINT32:
                         case WRITE_UINT64:
+                        case WRITE_FLOAT:
+                        case WRITE_INTEGER:
+                        case WRITE_DOUBLE:
                         case WRITE_REFERENCE: {
                             auto[gep, fieldType] = GetGEPAndFieldSummary(callIns, builder, replacementMapping);
                             switch (fieldType.getCode()) {
@@ -779,7 +782,11 @@ namespace object_lowering {
                         case READ_UINT16:
                         case READ_UINT32:
                         case READ_UINT64:
+                        case READ_FLOAT:
+                        case READ_DOUBLE:
                         case READ_STRUCT:
+                        case READ_TENSOR:
+                        case READ_INTEGER:
                         case READ_REFERENCE: {
                             auto[gep, fieldType] = GetGEPAndFieldSummary(callIns, builder, replacementMapping);
                             switch (fieldType.getCode()) {
@@ -839,8 +846,27 @@ namespace object_lowering {
                             replacementMapping[callIns] = free_inst;
                             break;
                         }
-                        default:
-                            continue;
+                        case DEFINE_STRUCT_TYPE:
+                        case STRUCT_TYPE:
+                        case TENSOR_TYPE:
+                        case REFERENCE_TYPE:
+                        case INTEGER_TYPE:
+                        case UINT64_TYPE:
+                        case UINT32_TYPE:
+                        case UINT16_TYPE:
+                        case UINT8_TYPE:
+                        case INT64_TYPE:
+                        case INT32_TYPE:
+                        case INT16_TYPE:
+                        case INT8_TYPE:
+                        case FLOAT_TYPE:
+                        case DOUBLE_TYPE:
+                        case GET_STRUCT_FIELD:
+                        case GET_TENSOR_ELEMENT:
+                        case ASSERT_TYPE:
+                        case SET_RETURN_TYPE:
+                        case NONE:
+                            break;
                     } // endof switch
                 }
             }
