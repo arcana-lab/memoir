@@ -52,7 +52,7 @@ namespace object_lowering {
     }
 
     llvm::StructType *NativeTypeConverter::getLLVMRepresentation(llvm::memoir::StructTypeSummary &sts) {
-
+        errs() << sts.toString() << "\n";
         // create llvm::StructType
         std::vector<llvm::Type *> types;
         auto numFields = sts.getNumFields();
