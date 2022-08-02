@@ -153,7 +153,7 @@ Object *allocateTensor(Type *element_type, uint64_t num_dimensions, ...) {
 
   va_end(args);
 
-  auto tensor_type = TensorType(element_type, num_dimensions);
+  auto tensor_type = TensorType::get(element_type, num_dimensions);
 
   auto tensor = new struct Tensor(tensor_type, length_of_dimensions);
 
