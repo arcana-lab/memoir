@@ -61,7 +61,7 @@ namespace object_lowering {
             auto &fieldType = sts.getField(fieldI);
             types.push_back(getLLVMRepresentation(fieldType));
         }
-        auto created = llvm::StructType::create(M.getContext(), types, "memoirStruct", false);
+        auto created = llvm::StructType::create(M.getContext(), types, "memoirStruct"+sts.getName(), false);
         return created;
     }
 }
