@@ -694,11 +694,12 @@ namespace object_lowering {
                             auto llvmTypeSize = llvm::ConstantInt::get(
                                     int64Ty,
                                     M.getDataLayout().getTypeAllocSize(llvmType));
+                            //todo: compute size at compile time
                             Value *oneValue = llvm::ConstantInt::get(int32Ty, 1);
                             auto finalVal = oneValue;
-                            for (unsigned long long i = 0; i < numdim; ++i) {
-                                finalVal = builder.CreateMul(finalVal, tensorAllocSum->getLengthOfDimension(i));
-                            }
+//                            for (unsigned long long i = 0; i < numdim; ++i) {
+//                                finalVal = builder.CreateMul(finalVal, tensorAllocSum->getLengthOfDimension(i));
+//                            }
                             std::vector<Value *> arguments{finalVal};
                             auto newMallocCall = builder.CreateCall(mallocf, arguments);
 
@@ -1002,6 +1003,7 @@ namespace object_lowering {
                 break;
             }
             case TENSOR: {
+                //todo: actual multiplication based on sizing info
                 auto tensorField = static_cast<TensorElementSummary &>(field);
                 auto ndim = tensorField.getNumberOfDimensions();
                 for (uint64_t i = 0; i < ndim; ++i) {
