@@ -68,6 +68,8 @@ public:
                    uint64_t num_dimensions,
                    std::vector<uint64_t> &length_of_dimensions);
 
+  static const uint64_t unknown_length;
+
   Type *element_type;
   uint64_t num_dimensions;
   bool is_static_length;
