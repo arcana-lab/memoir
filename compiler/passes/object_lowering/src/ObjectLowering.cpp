@@ -973,6 +973,7 @@ namespace object_lowering {
         auto &ctxt = M.getContext();
         auto int32Ty = llvm::Type::getInt32Ty(ctxt);
         auto &accAna = memoir::AccessAnalysis::get(M);
+        errs() << "Obtaining access analysis for the call ins "<< *callIns << "\n\n";
         auto accSum = accAna.getAccessSummary(*callIns);
         auto getFirstFieldSumMustRead = [&](AccessSummary *accSum) -> FieldSummary & {
             return static_cast<MustReadSummary *>(accSum)->getField();
