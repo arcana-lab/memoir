@@ -405,34 +405,35 @@ namespace object_lowering {
             }
         }
 
-//    // delete the Type* global variables
-//    std::set<Value *> toDelete;
-//    // start with the GVs
-//    for (auto p : typeDefs)
-//      toDelete.insert(p);
-//    // recursively find all instructions to delete
-//    for (auto p : typeDefs)
-//      findInstsToDelete(p, toDelete);
-//
-//    // errs() << "ObjectLowing: deleting these instructions\n";
-//    for (auto v : toDelete) {
-//      // errs() << "\t" << *v << "\n";
-//      if (auto i = dyn_cast<Instruction>(v)) {
-//        i->replaceAllUsesWith(UndefValue::get(i->getType()));
-//        i->eraseFromParent();
-//      }
-//    }
-//
-//    for (GlobalValue *p : typeDefs) {
-//      // errs() << "Dropping refs: " << *p << "\n";
-//      p->dropAllReferences();
-//      // errs() << "\terasing from parent\n";
-//      p->eraseFromParent();
-//    }
-//
-//    for (auto const &x : clonedFunctionMap) {
-//      x.first->eraseFromParent();
-//    }
+    // delete the Type* global variables
+    std::set<Value *> toDelete;
+    // start with the GVs
+    for (auto p : typeDefs)
+      toDelete.insert(p);
+    // recursively find all instructions to delete
+    for (auto p : typeDefs)
+      findInstsToDelete(p, toDelete);
+
+    // errs() << "ObjectLowing: deleting these instructions\n";
+    for (auto v : toDelete) {
+      // errs() << "\t" << *v << "\n";
+      if (auto i = dyn_cast<Instruction>(v)) {
+        i->replaceAllUsesWith(UndefValue::get(i->getType()));
+        i->eraseFromParent();
+      }
+    }
+
+    for (GlobalValue *p : typeDefs) {
+      // errs() << "Dropping refs: " << *p << "\n";
+      p->dropAllReferences();
+      // errs() << "\terasing from parent\n";
+      p->eraseFromParent();
+    }
+
+    for (auto const &x : clonedFunctionMap) {
+      x.first->eraseFromParent();
+    }
+
     }
 
     void ObjectLowering::FunctionTransform(Function *f) {
@@ -926,18 +927,18 @@ namespace object_lowering {
                                   indices);
         return gep;
     }
-
+/*
 //    Value *ObjectLowering::CreateGEPFromFieldWrapper(
 //            FieldWrapper *fieldWrapper,
 //            IRBuilder<> &builder,
 //            std::map<Value *, Value *> &replacementMapping) {
 ////        return nullptr;
 //          auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
-//        /*errs() << "CreateGEPFromFieldWrapper\n";
+//        errs() << "CreateGEPFromFieldWrapper\n";
 //        errs() << "\tField Wrapper Base " << *(fieldWrapper->baseObjPtr) << "\n";
 //        errs() << "\tField Wrapper obj type " << fieldWrapper->objectType->toString()
 //        << "\n"; errs() << "\tField Wrapper index " << fieldWrapper->fieldIndex <<
-//        "\n";*/
+//        "\n";
 //          auto llvmType = fieldWrapper->objectType->getLLVMRepresentation(M);
 //          std::vector<Value *> indices = {
 //            llvm::ConstantInt::get(int32Ty, 0),
@@ -956,14 +957,15 @@ namespace object_lowering {
 //                                       indices);
 //          return gep;
 //    }
+*/
 
     void ObjectLowering::findInstsToDelete(Value *i, std::set<Value *> &toDelete) {
-        //  for (auto u : i->users()) {
-        //    if (toDelete.find(u) != toDelete.end())
-        //      continue;
-        //    toDelete.insert(u);
-        //    findInstsToDelete(u, toDelete);
-        //  }
+          for (auto u : i->users()) {
+            if (toDelete.find(u) != toDelete.end())
+              continue;
+            toDelete.insert(u);
+            findInstsToDelete(u, toDelete);
+          }
     }
 
     std::pair<Value *, memoir::TypeSummary &>
