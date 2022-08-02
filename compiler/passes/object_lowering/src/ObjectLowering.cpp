@@ -842,7 +842,17 @@ namespace object_lowering {
                             continue;
                     } // endof switch
                 }
-            } else if (auto icmp = dyn_cast<ICmpInst>(&ins)) {
+            }
+            else if (auto bitcast = dyn_cast<BitCastInst>(&ins))
+            {
+                auto casted = bitcast->getOperand(0);
+                if (replacementMapping.find(casted) != replacementMapping.end())
+                {
+                    replacementMapping[bitcast] = replacementMapping[casted];
+                    errs() << *bitcast << "now is linked to the same entry as " << *casted << "which is " << *(replacementMapping[casted]) << "\n";
+                }
+            }
+            else if (auto icmp = dyn_cast<ICmpInst>(&ins)) {
                 if (icmp->getOperand(0)->getType() != object_star) {
                     continue;
                 }
