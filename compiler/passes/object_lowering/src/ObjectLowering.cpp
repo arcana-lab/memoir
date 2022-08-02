@@ -720,6 +720,7 @@ namespace object_lowering {
                             auto allocSum = accAna.getAllocationSummary(*callIns);
                             assert(allocSum);;
                             auto &typ = allocSum->getType();
+//                            typ.
                             auto llvmType = nativeTypeConverter->getLLVMRepresentation(typ);
                             auto llvmTypeSize = llvm::ConstantInt::get(
                                     int64Ty,
