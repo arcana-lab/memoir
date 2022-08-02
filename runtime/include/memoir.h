@@ -30,7 +30,9 @@ __RUNTIME_ATTR Type *StructType(const char *name);
 /*
  * Complex Types
  */
-__RUNTIME_ATTR Type *TensorType(Type *element_type, uint64_t num_dimensions);
+__RUNTIME_ATTR Type *TensorType(Type *element_type,
+                                uint64_t num_dimensions,
+                                ...);
 __RUNTIME_ATTR Type *ReferenceType(Type *referenced_type);
 
 /*
