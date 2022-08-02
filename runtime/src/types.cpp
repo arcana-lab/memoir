@@ -98,7 +98,13 @@ bool StructType::equals(Type *other) {
  * Tensor Type
  */
 Type *TensorType::get(Type *element_type, uint64_t num_dimensions) {
-  return new TensorType(element_type, num_dimensions);
+  std::vector<uint64_t> length_of_dimensions;
+
+  for (auto i = 0; i < num_dimensions; i++) {
+    length_of_dimensions.push_back(0);
+  }
+
+  return new TensorType(element_type, num_dimensions, length_of_dimensions);
 }
 
 Type *TensorType::get(Type *element_type,
@@ -119,8 +125,15 @@ TensorType::TensorType(Type *type,
   : Type(TypeCode::TensorTy),
     element_type(type),
     num_dimensions(num_dimensions),
-    is_static_length(true),
-    length_of_dimensions(length_of_dimensions) {}
+    length_of_dimensions(length_of_dimensions) {
+  this->is_static_length = true;
+  for (auto length : length_of_dimensions) {
+    if (length == 0) {
+      this->is_static_length = false;
+      break;
+    }
+  }
+}
 
 bool TensorType::equals(Type *other) {
   if (this->getCode() != other->getCode()) {
