@@ -624,7 +624,7 @@ namespace object_lowering {
                                         false);
         auto freef = M.getOrInsertFunction("free", freeFTY);
         for (auto &ins: *bb) {
-            // errs() << "encountering  instruction " << ins <<"\n";
+            errs() << "encountering  instruction " << ins <<"\n";
             IRBuilder<> builder(&ins);
             if (auto phi = dyn_cast<PHINode>(&ins)) {
                  errs()<< "The phi has type " << *phi->getType() <<"\n";
