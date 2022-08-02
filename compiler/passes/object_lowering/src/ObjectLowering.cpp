@@ -47,6 +47,20 @@ namespace object_lowering {
     }
 
     void ObjectLowering::analyze() {
+
+        for (auto &F : M) {
+            if(F.hasName() && F.getName()=="main")
+            {
+                for(auto &i : instructions(F))
+                {
+                    auto callins = dyn_cast<CallInst> (&i);
+                    auto &allocana = memoir::AllocationAnalysis::get(M);
+                    auto allocsum = allocana.getAllocationSummary(*callins);
+                    auto &type = allocsum->getType();
+                    errs() << type.toString() <<"\n";
+                }
+            }
+        }
         // simple testing stuff to make sure it's working
 
 //  auto &allocAna = memoir::AllocationAnalysis::get(M);
