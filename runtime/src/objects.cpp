@@ -104,8 +104,8 @@ Tensor::Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions)
 Field *Tensor::getElement(std::vector<uint64_t> &indices) {
   auto flattened_index = 0;
   auto last_dimension_length = 1;
-  for (auto i = 0; i < length_of_dimensions.size(); i++) {
-    auto dimension_length = length_of_dimensions[i];
+  for (auto i = 0; i < this->length_of_dimensions.size(); i++) {
+    auto dimension_length = this->length_of_dimensions[i];
     auto index = indices[i];
     if (index >= dimension_length) {
       std::cerr << "Tensor::getElement: Index out of range for tensor access\n";
