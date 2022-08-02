@@ -103,7 +103,7 @@ Type *TensorType::get(Type *element_type, uint64_t num_dimensions) {
   std::vector<uint64_t> length_of_dimensions;
 
   for (auto i = 0; i < num_dimensions; i++) {
-    length_of_dimensions.push_back(0);
+    length_of_dimensions.push_back(TensorType::unknown_length);
   }
 
   return new TensorType(element_type, num_dimensions, length_of_dimensions);
