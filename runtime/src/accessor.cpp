@@ -100,7 +100,7 @@ void writeUInt64(Field *field, uint64_t value) {
     IntegerField *intField = (IntegerField *)field;
     intField->value = value;
   } else {
-    std::cerr << "ERROR: Attempt to read UInt64 from non-integer field\n";
+    std::cerr << "ERROR: Attempt to write UInt64 from non-integer field\n";
     exit(1);
   }
 }
@@ -112,7 +112,7 @@ void writeUInt32(Field *field, uint32_t value) {
     IntegerField *intField = (IntegerField *)field;
     intField->value = (uint64_t)value;
   } else {
-    std::cerr << "ERROR: Attempt to read UInt32 from non-integer field\n";
+    std::cerr << "ERROR: Attempt to write UInt32 from non-integer field\n";
     exit(1);
   }
 }
@@ -124,7 +124,7 @@ void writeUInt16(Field *field, uint16_t value) {
     IntegerField *intField = (IntegerField *)field;
     intField->value = (uint64_t)value;
   } else {
-    std::cerr << "ERROR: Attempt to read UInt16 from non-integer field\n";
+    std::cerr << "ERROR: Attempt to write UInt16 from non-integer field\n";
     exit(1);
   }
 }
@@ -136,7 +136,7 @@ void writeUInt8(Field *field, uint8_t value) {
     IntegerField *intField = (IntegerField *)field;
     intField->value = (uint64_t)value;
   } else {
-    std::cerr << "ERROR: Attempt to read UInt8 from non-integer field\n";
+    std::cerr << "ERROR: Attempt to write UInt8 from non-integer field\n";
     exit(1);
   }
 }
@@ -149,7 +149,7 @@ void writeInt64(Field *field, int64_t value) {
     IntegerField *intField = (IntegerField *)field;
     intField->value = (uint64_t)value;
   } else {
-    std::cerr << "ERROR: Attempt to read Int64 from non-integer field\n";
+    std::cerr << "ERROR: Attempt to write Int64 from non-integer field\n";
     exit(1);
   }
 }
@@ -161,7 +161,7 @@ void writeInt32(Field *field, int32_t value) {
     IntegerField *intField = (IntegerField *)field;
     intField->value = (uint64_t)value;
   } else {
-    std::cerr << "ERROR: Attempt to read Int32 from non-integer field\n";
+    std::cerr << "ERROR: Attempt to write Int32 from non-integer field\n";
     exit(1);
   }
 }
@@ -173,7 +173,7 @@ void writeInt16(Field *field, int16_t value) {
     IntegerField *intField = (IntegerField *)field;
     intField->value = (uint64_t)value;
   } else {
-    std::cerr << "ERROR: Attempt to read Int16 from non-integer field\n";
+    std::cerr << "ERROR: Attempt to write Int16 from non-integer field\n";
     exit(1);
   }
 }
@@ -185,7 +185,7 @@ void writeInt8(Field *field, int8_t value) {
     IntegerField *intField = (IntegerField *)field;
     intField->value = (uint64_t)value;
   } else {
-    std::cerr << "ERROR: Attempt to read Int8 from non-integer field\n";
+    std::cerr << "ERROR: Attempt to write Int8 from non-integer field\n";
     exit(1);
   }
 }
@@ -198,7 +198,7 @@ void writeInteger(Field *field, uint64_t value) {
     IntegerField *intField = (IntegerField *)field;
     intField->value = (uint64_t)value;
   } else {
-    std::cerr << "ERROR: Attempt to read integer from non-integer field\n";
+    std::cerr << "ERROR: Attempt to write integer from non-integer field\n";
     exit(1);
   }
 }
@@ -211,7 +211,7 @@ void writeBoolean(Field *field, bool value) {
     IntegerField *intField = (IntegerField *)field;
     intField->value = (uint64_t)value;
   } else {
-    std::cerr << "ERROR: Attempt to read Int8 from non-integer field\n";
+    std::cerr << "ERROR: Attempt to write Int8 from non-integer field\n";
     exit(1);
   }
 }
@@ -220,11 +220,11 @@ void writeBoolean(Field *field, bool value) {
 __RUNTIME_ATTR
 void writeFloat(Field *field, float value) {
   TypeCode type = field->getType()->getCode();
-  if (type == TypeCode::IntegerTy) {
+  if (type == TypeCode::FloatTy) {
     FloatField *floatField = (FloatField *)field;
     floatField->value = value;
   } else {
-    std::cerr << "ERROR: Attempt to read float from non-float field\n";
+    std::cerr << "ERROR: Attempt to write float from non-float field\n";
     exit(1);
   }
 }
@@ -232,11 +232,11 @@ void writeFloat(Field *field, float value) {
 __RUNTIME_ATTR
 void writeDouble(Field *field, double value) {
   TypeCode type = field->getType()->getCode();
-  if (type == TypeCode::IntegerTy) {
+  if (type == TypeCode::DoubleTy) {
     DoubleField *doubleField = (DoubleField *)field;
     doubleField->value = value;
   } else {
-    std::cerr << "ERROR: Attempt to read double from non-double field\n";
+    std::cerr << "ERROR: Attempt to write double from non-double field\n";
     exit(1);
   }
 }
