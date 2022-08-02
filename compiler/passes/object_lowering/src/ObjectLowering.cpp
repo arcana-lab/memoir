@@ -53,11 +53,12 @@ namespace object_lowering {
             {
                 for(auto &i : instructions(F))
                 {
-                    auto callins = dyn_cast<CallInst> (&i);
-                    auto &allocana = memoir::AllocationAnalysis::get(M);
-                    auto allocsum = allocana.getAllocationSummary(*callins);
-                    auto &type = allocsum->getType();
-                    errs() << type.toString() <<"\n";
+                    if(auto callins = dyn_cast<CallInst> (&i)) {
+                        auto &allocana = memoir::AllocationAnalysis::get(M);
+                        auto allocsum = allocana.getAllocationSummary(*callins);
+                        auto &type = allocsum->getType();
+                        errs() << type.toString() << "\n";
+                    }
                 }
             }
         }
