@@ -58,9 +58,10 @@ namespace object_lowering {
         // create llvm::StructType
         std::vector<llvm::Type *> types;
         auto numFields = sts.getNumFields();
-        errs() << "The struct has " << numFields <<"Fields";
+        errs() << "The struct has " << numFields <<"Fields\n";
         for(uint64_t fieldI =0; fieldI < numFields; fieldI++)
         {
+            errs() << "checking field " << fieldI <<" of that struct \n";
             auto &fieldType = sts.getField(fieldI);
             types.push_back(getLLVMRepresentation(fieldType));
         }
