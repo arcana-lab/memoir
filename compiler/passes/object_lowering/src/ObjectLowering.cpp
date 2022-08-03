@@ -53,13 +53,12 @@ namespace object_lowering {
                 int count = 0;
                 for (auto &i : instructions(F))
                 {
-                    if(count ==5)
+                    if(count ==26)
                     {
-                        auto allocins = dyn_cast<CallInst>(&i);
-                        errs() << *allocins << "\n";
-                        auto &allocAna = memoir::AllocationAnalysis::get(M);
-                        auto &typsum = allocAna.getAllocationSummary(*allocins)->getType();
-                        errs() << typsum.toString() << "\n";
+                        auto accessIns = dyn_cast<CallInst>(&i);
+                        auto &access_analysis = memoir::AccessAnalysis::get(M);
+                        errs() << *accessIns << "\n";
+                        auto accessSum = access_analysis.getAccessSummary(*accessIns);
                     }
 
                     count ++;
