@@ -36,9 +36,9 @@ namespace {
 
 //      objectLowering->loopstructure();
 
-      objectLowering->analyze();
+//      objectLowering->analyze();
 //
-//      objectLowering->transform();
+      objectLowering->transform();
       
       return false;
     }
