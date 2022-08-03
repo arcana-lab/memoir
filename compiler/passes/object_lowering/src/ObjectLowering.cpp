@@ -56,7 +56,7 @@ namespace object_lowering {
                     if(count ==5)
                     {
                         auto allocins = dyn_cast<CallInst>(&i);
-                        errs() << allocins << "\n";
+                        errs() << *allocins << "\n";
                         auto &allocAna = memoir::AllocationAnalysis::get(M);
                         auto &typsum = allocAna.getAllocationSummary(*allocins)->getType();
                         errs() << typsum.toString() << "\n";
