@@ -9,7 +9,6 @@ AllocationAnalysis::AllocationAnalysis(Module &M) : M(M) {
 
 set<AllocationSummary *> &AllocationAnalysis::getAllocationSummaries(
     llvm::Value &value) {
-  errs() << "Checking alloc: " << value << "\n";
   /*
    * Check if we have a memoized set of Allocation Summaries for the
    * given LLVM value. If we do, return it.
@@ -296,6 +295,87 @@ set<AllocationSummary *> &AllocationAnalysis::getAllocationSummaries(
                                      operand_allocation_summaries.end());
 
     return cast_allocation_summaries;
+  }
+
+  /*
+   * If we have a function argument, recurse on its caller args.
+   */
+  if (auto argument = dyn_cast<Argument>(&value)) {
+
+    /*
+     * Collect all callers of this function in the program.
+     */
+    set<CallInst *> callers = {};
+    for (auto &F : M) {
+      if (MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
+        continue;
+      }
+
+      if (F.empty()) {
+        continue;
+      }
+
+      for (auto &BB : F) {
+        for (auto &I : BB) {
+          if (auto call_inst = dyn_cast<CallInst>(&I)) {
+
+            /*
+             * If this is an indirect call, check if its function type matches
+             * that of the argument's parent. If it does, it may call it.
+             */
+            if (call_inst->isIndirectCall()) {
+              auto caller_function_type = call_inst->getFunctionType();
+              auto callee = argument->getParent();
+              auto callee_function_type = callee->getFunctionType();
+
+              if (caller_function_type == callee_function_type) {
+                callers.insert(call_inst);
+              }
+
+              continue;
+            }
+
+            /*
+             * If this is not an indirect call, get its callee and check if it's
+             * the argument's parent function.
+             */
+            auto callee = call_inst->getCalledFunction();
+            if (callee == argument->getParent()) {
+              callers.insert(call_inst);
+            }
+          }
+        }
+      }
+    }
+
+    /*
+     * For each caller, iterate on its argument.
+     */
+    auto &argument_allocation_summaries = this->allocation_summaries[&value];
+    auto argument_index = argument->getArgNo();
+    for (auto caller : callers) {
+      auto caller_argument = caller->getArgOperand(argument_index);
+      assert(caller_argument
+             && "in AllocationAnalysis::getAllocationSummary"
+                "argument to caller is NULL!");
+
+      /*
+       * Recurse on the caller's argument(s)
+       */
+      auto &caller_allocation_summaries =
+          this->getAllocationSummaries(*caller_argument);
+
+      /*
+       * Union the caller's allocation summaries.
+       */
+      argument_allocation_summaries.insert(caller_allocation_summaries.begin(),
+                                           caller_allocation_summaries.end());
+    }
+
+    /*
+     * Return the allocation summaries for the argument
+     */
+    return argument_allocation_summaries;
   }
 
   /*
