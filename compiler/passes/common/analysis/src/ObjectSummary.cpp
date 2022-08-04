@@ -74,4 +74,26 @@ TypeSummary &NestedStructSummary::getType() const {
   return this->getField().getType();
 }
 
+/*
+ * NestedTensorSummary implementation
+ */
+NestedTensorSummary::NestedTensorSummary(llvm::CallInst &call_inst,
+                                         FieldSummary &field)
+  : field(field),
+    ObjectSummary(call_inst, ObjectCode::NESTED_TENSOR) {
+  // Do nothing.
+}
+
+FieldSummary &NestedTensorSummary::getField() const {
+  return this->field;
+}
+
+AllocationSummary &NestedTensorSummary::getAllocation() const {
+  return this->getField().getAllocation();
+}
+
+TypeSummary &NestedTensorSummary::getType() const {
+  return this->getField().getType();
+}
+
 } // namespace llvm::memoir
