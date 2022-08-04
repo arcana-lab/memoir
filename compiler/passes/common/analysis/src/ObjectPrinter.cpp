@@ -34,4 +34,14 @@ std::string NestedStructSummary::toString(std::string indent) const {
   return str;
 }
 
+std::string NestedTensorSummary::toString(std::string indent) const {
+  std::string str;
+
+  str = "(nested tensor\n";
+  str += indent + "  field: " + this->field.toString(indent + "    ") + "\n";
+  str += indent + ")";
+
+  return str;
+}
+
 } // namespace llvm::memoir
