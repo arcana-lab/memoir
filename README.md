@@ -16,8 +16,8 @@ To uninstall the existing build:
 
 ## TODOs
 - [ ] Support for static length tensors (on `static-tensor` branch)
-  - [ ] Add to runtime
-  - [ ] Add to common analyses
+  - [x] Add to runtime
+  - [x] Add to common analyses
   - [ ] Add to object lowering
 - [ ] Support for copy/clone (on `copy-and-clone` branch)
   - [ ] Ensure that this is needed by benchmarks
