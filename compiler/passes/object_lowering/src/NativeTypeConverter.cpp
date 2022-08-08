@@ -26,9 +26,17 @@ namespace object_lowering {
                 created = getLLVMRepresentation(static_cast<memoir::StructTypeSummary&> (ts));
                 break;
             case memoir::TensorTy: {
-//                assert(false && "tensor don't really have an llvm correspondance");
+//                assert(false && "tensor don't really have a llvm correspondence");
                 auto tensorType = static_cast< memoir::TensorTypeSummary &> (ts);
-                created = getLLVMRepresentation(tensorType.getElementType());
+                assert(tensorType.isStaticLength());
+                auto ndim = tensorType.getNumDimensions();
+                auto elemTy = getLLVMRepresentation(tensorType.getElementType());
+                auto atype = ArrayType::get(elemTy, tensorType.getLengthOfDimension(ndim-1));
+                for(auto i = ndim-2; i >=0; --i)
+                {
+                    atype = ArrayType::get(atype,tensorType.getLengthOfDimension(i));
+                }
+                created = atype;
                 break;
             }
             case memoir::IntegerTy: {

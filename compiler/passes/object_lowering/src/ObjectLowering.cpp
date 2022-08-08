@@ -655,6 +655,7 @@ namespace object_lowering {
                         assert(false && "there is no allocation associated with the phi node");
                     }
                     auto &stype = (*(setsofAlloc.begin()))->getType();
+                    //TODO: Ensure type consistency for tensors here
                     auto llvmType = nativeTypeConverter->getLLVMRepresentation(stype);
                     auto llvmPtrType = PointerType::getUnqual(llvmType);
                     auto newPhi = builder.CreatePHI(llvmPtrType, phi->getNumIncomingValues());
@@ -706,24 +707,48 @@ namespace object_lowering {
                             auto tensorAllocSum = static_cast<TensorAllocationSummary *>(allocSum);
                             auto numdim = tensorAllocSum->getNumberOfDimensions();
                             auto &eletype = tensorAllocSum->getElementType();
+                            auto &tensorType = static_cast<TensorTypeSummary &>(allocSum->getType());
                             Type *llvmType;
                             llvmType = nativeTypeConverter->getLLVMRepresentation(eletype);
                             auto llvmTypeSize = llvm::ConstantInt::get(
                                     int64Ty,
                                     M.getDataLayout().getTypeAllocSize(llvmType));
-                            //todo: compute size at compile time
-                            Value *oneValue = llvm::ConstantInt::get(int32Ty, 1);
-                            auto finalVal = oneValue;
-//                            for (unsigned long long i = 0; i < numdim; ++i) {
-//                                finalVal = builder.CreateMul(finalVal, tensorAllocSum->getLengthOfDimension(i));
-//                            }
-                            std::vector<Value *> arguments{finalVal};
-                            auto newMallocCall = builder.CreateCall(mallocf, arguments);
 
-                            auto bc_inst =
-                                    builder.CreateBitCast(newMallocCall,
-                                                          PointerType::getUnqual(llvmType));
-                            replacementMapping[callIns] = bc_inst;
+                            Value* finalSize;
+                            if(tensorType.isStaticLength())
+                            {
+                                uint64_t size = 1;
+                                for(unsigned long long i = 0; i < numdim; ++i)
+                                {
+                                    size = size* tensorType.getLengthOfDimension(i);
+                                }
+                                auto finalCountVal = llvm::ConstantInt::get(int64Ty, 1);
+
+                                finalSize = builder.CreateMul(finalCountVal ,llvmTypeSize);
+                            }
+                            else
+                            {
+                                finalSize = llvm::ConstantInt::get(int64Ty, 1);
+                                for (unsigned long long i = 0; i < numdim; ++i) {
+                                    finalSize = builder.CreateMul(finalSize, tensorAllocSum->getLengthOfDimension(i));
+                                }
+                                auto int64Size = llvm::ConstantInt::get( int64Ty,
+                                                                         M.getDataLayout().getTypeAllocSize(int64Ty));
+
+                                auto headerSize = builder.CreateMul(llvm::ConstantInt::get( int64Ty,numdim),
+                                                                    int64Size);
+                                finalSize = builder.CreateAdd(finalSize,headerSize);
+                            }
+                            std::vector<Value *> arguments{finalSize};
+                            auto newMallocCall = builder.CreateCall(mallocf, arguments);
+                            replacementMapping[callIns] = newMallocCall;
+                            if (!tensorType.isStaticLength()) {
+                                for (unsigned long long i = 0; i < numdim; ++i) {
+                                    Value* indexList[1] = {ConstantInt::get(int64Ty, i)};
+                                    auto gep = builder.CreateGEP(PointerType::getUnqual(int64Ty),newMallocCall,indexList);
+                                    auto storeIns = builder.CreateStore(tensorAllocSum->getLengthOfDimension(i),gep);
+                                }
+                            }
                             break;
                         }
                         case ALLOCATE_STRUCT: {
@@ -835,10 +860,8 @@ namespace object_lowering {
                                     break;
                                 }
                                 case StructTy:
-                                    replacementMapping[callIns] = gep;
-                                    break;
                                 case TensorTy:
-                                    assert(false);
+                                    replacementMapping[callIns] = gep;
                                     break;
                             }
                             break;
@@ -963,22 +986,7 @@ namespace object_lowering {
           }
     } // endof BasicBlockTransformer
 
-    Value *ObjectLowering::CreateGEPFromFieldInfo(
-            Value *baseObjPtr,
-            std::vector<Value *> &indices,
-            IRBuilder<> &builder,
-            std::map<Value *, Value *> &replacementMapping) {
-        if (replacementMapping.find(baseObjPtr) == replacementMapping.end()) {
-            errs() << "unable to find the base pointer " <<
-                   *baseObjPtr
-                   << "\n";
-            assert(false);
-        }
-        auto gep =
-                builder.CreateGEP(replacementMapping.at(baseObjPtr),
-                                  indices);
-        return gep;
-    }
+
 
 /*
 //    Value *ObjectLowering::CreateGEPFromFieldWrapper(
@@ -1026,6 +1034,7 @@ namespace object_lowering {
                                           std::map<Value *, Value *> &replacementMapping) {
         auto &ctxt = M.getContext();
         auto int32Ty = llvm::Type::getInt32Ty(ctxt);
+        auto int64Ty = llvm::Type::getInt64Ty(ctxt);
         auto &accAna = memoir::AccessAnalysis::get(M);
         errs() << "Obtaining access analysis for the call ins "<< *callIns << "\n\n";
         auto accSum = accAna.getAccessSummary(*callIns);
@@ -1045,30 +1054,65 @@ namespace object_lowering {
                       (accSum->isRead() ? getFirstFieldSumMayRead(accSum) : getFirstFieldSumMayWrite(accSum)) :
                       (accSum->isRead() ? getFirstFieldSumMustRead(accSum) : getFirstFieldSumMustWrite(accSum));
         auto &fieldType = accSum->getType();
+        auto llvmType = nativeTypeConverter->getLLVMRepresentation(fieldType);
         auto fieldCallIns = dyn_cast<CallInst>(callIns->getArgOperand(0));
         auto baseObj = fieldCallIns->getArgOperand(0);
         Value *gep;
-        std::vector<Value *> indices;
+        assert(replacementMapping.find(baseObj)!=replacementMapping.end());
+        auto replacedBaseObj = replacementMapping.at(baseObj);
         switch (field.getAllocation().getCode()) {
             case STRUCT: {
                 auto objField = static_cast<StructFieldSummary &>(field);
                 auto fieldIndex = objField.getIndex();
-                indices.push_back(llvm::ConstantInt::get(int32Ty, 0));
-                indices.push_back(llvm::ConstantInt::get(int32Ty, fieldIndex));
+                Value * indices[2] = {llvm::ConstantInt::get(int64Ty, 0),llvm::ConstantInt::get(int64Ty, fieldIndex)};
+                gep = builder.CreateGEP(replacedBaseObj,
+                                  indices);
                 break;
             }
             case TENSOR: {
                 //todo: actual multiplication based on sizing info
                 auto tensorField = static_cast<TensorElementSummary &>(field);
+                assert(tensorField.getTypeCode() == TensorTy);
+                auto tensorType =  static_cast<TensorTypeSummary &>(field.getType());
                 auto ndim = tensorField.getNumberOfDimensions();
-                for (uint64_t i = 0; i < ndim; ++i) {
-                    indices.push_back(&tensorField.getIndex(i));
+                Value* sizes[ndim];
+                if(tensorType.isStaticLength())
+                {
+                    for (uint64_t i = 0; i < ndim; ++i) {
+                        sizes[i] = llvm::ConstantInt::get(int64Ty, tensorType.getLengthOfDimension(i));
+                    }
+                    replacedBaseObj = builder.CreateBitCast(replacedBaseObj, PointerType::getUnqual(llvmType));
                 }
+                else{
+                    for (unsigned long long i = 0; i < ndim; ++i) {
+                        Value* indexList[1] = {ConstantInt::get(int64Ty, i)};
+                        auto sizeGEP = builder.CreateGEP(PointerType::getUnqual(int64Ty),replacedBaseObj,indexList);
+                        sizes[i] = builder.CreateLoad(sizeGEP);
+                    }
+                    Value* indexList[1] = {ConstantInt::get(int64Ty, ndim)};
+                    auto skipMetaDataGEP = builder.CreateGEP(PointerType::getUnqual(int64Ty),replacedBaseObj,indexList);
+                    replacedBaseObj =
+                            builder.CreateBitCast(skipMetaDataGEP,
+                                                  PointerType::getUnqual(llvmType));
+                }
+
+                Value* multiCumSizes[ndim];
+                multiCumSizes[ndim-1] = ConstantInt::get(int64Ty, 1);
+                for (unsigned long long i = ndim-2; i >= 0; --i) {
+                    multiCumSizes[i] = builder.CreateMul(multiCumSizes[i+1], sizes[i+1]);
+                }
+                Value* size = ConstantInt::get(int64Ty, 1);
+                for(unsigned long long dim =0; dim < ndim; ++dim)
+                {
+                    auto skipsInDim =builder.CreateMul(multiCumSizes[dim], &tensorField.getIndex(dim));
+                    size = builder.CreateAdd(size,skipsInDim);
+                }
+                Value * indices[1] = {size};
+                gep = builder.CreateGEP(replacedBaseObj,
+                                        indices);
                 break;
             }
         }
-        gep = CreateGEPFromFieldInfo(baseObj, indices, builder,
-                                     replacementMapping);
         std::pair<Value *, TypeSummary &> pair(gep, fieldType);
         return pair;
     }
