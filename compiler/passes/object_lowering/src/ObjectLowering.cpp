@@ -720,7 +720,7 @@ namespace object_lowering {
                                 uint64_t size = 1;
                                 for(unsigned long long i = 0; i < numdim; ++i)
                                 {
-                                    size = size* tensorType.getLengthOfDimension(i);
+                                    size = size * tensorType.getLengthOfDimension(i);
                                 }
                                 auto finalCountVal = llvm::ConstantInt::get(int64Ty, 1);
 
