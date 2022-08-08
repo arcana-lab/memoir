@@ -67,11 +67,11 @@ int main(int argc, char **argv) {
       writeUInt64(getTensorElement(holder, x, y), r);
     }
   }
-  
+
   auto max = 0;
   for (uint64_t x = 0; x < SIZE_X; x++) {
     for (uint64_t y = 0; y < SIZE_Y; y++) {
-      auto elem = readUInt64(getTensorElement(tensor, x, y));
+      auto elem = readUInt64(getTensorElement(holder, x, y));
       if (elem > max) {
         max = elem;
       }
