@@ -741,7 +741,9 @@ namespace object_lowering {
                             }
                             std::vector<Value *> arguments{finalSize};
                             auto newMallocCall = builder.CreateCall(mallocf, arguments);
-                            replacementMapping[callIns] = newMallocCall;
+                            auto llvmTypeTensor = nativeTypeConverter->getLLVMRepresentation(tensorType);
+                            auto bcInst = builder.CreateBitCast(newMallocCall,llvmTypeTensor);
+                            replacementMapping[callIns] = bcInst;
                             if (!tensorType.isStaticLength()) {
                                 for (unsigned long long i = 0; i < numdim; ++i) {
                                     Value* indexList[1] = {ConstantInt::get(int64Ty, i)};
@@ -749,6 +751,7 @@ namespace object_lowering {
                                     auto storeIns = builder.CreateStore(tensorAllocSum->getLengthOfDimension(i),gep);
                                 }
                             }
+
                             break;
                         }
                         case ALLOCATE_STRUCT: {

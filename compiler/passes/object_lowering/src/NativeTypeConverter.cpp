@@ -28,15 +28,18 @@ namespace object_lowering {
             case memoir::TensorTy: {
 //                assert(false && "tensor don't really have a llvm correspondence");
                 auto tensorType = static_cast< memoir::TensorTypeSummary &> (ts);
-                assert(tensorType.isStaticLength());
-                auto ndim = tensorType.getNumDimensions();
                 auto elemTy = getLLVMRepresentation(tensorType.getElementType());
-                auto atype = ArrayType::get(elemTy, tensorType.getLengthOfDimension(ndim-1));
-                for(auto i = ndim-2; i >=0; --i)
-                {
-                    atype = ArrayType::get(atype,tensorType.getLengthOfDimension(i));
+                if(tensorType.isStaticLength()) {
+                    auto ndim = tensorType.getNumDimensions();
+                    auto atype = ArrayType::get(elemTy, tensorType.getLengthOfDimension(ndim - 1));
+                    for (auto i = ndim - 2; i >= 0; --i) {
+                        atype = ArrayType::get(atype, tensorType.getLengthOfDimension(i));
+                    }
+                    created = atype;
                 }
-                created = atype;
+                else{
+                    created = llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8));
+                }
                 break;
             }
             case memoir::IntegerTy: {
