@@ -67,8 +67,15 @@ std::string ReferenceTypeSummary::toString(std::string indent) const {
   std::string str;
 
   str = "(reference: ";
-  str += indent + "  " + this->referenced_type.toString(indent + "  ") + "\n";
-  str += indent + ")";
+  if (this->referenced_type.getCode() == TypeCode::StructTy) {
+    auto &referenced_struct =
+        static_cast<StructTypeSummary &>(this->referenced_type);
+    str += referenced_struct.getName() + ")";
+  } else {
+    str += "\n";
+    str += indent + "  " + this->referenced_type.toString(indent + "  ") + "\n";
+    str += indent + ")";
+  }
 
   return str;
 }
