@@ -36,8 +36,21 @@ Type *StructType(const char *name) {
 }
 
 __RUNTIME_ATTR
-Type *TensorType(Type *type, uint64_t num_dimensions) {
-  return TensorType::get(type, num_dimensions);
+Type *TensorType(Type *type, uint64_t num_dimensions, ...) {
+  std::vector<uint64_t> length_of_dimensions;
+
+  va_list args;
+
+  va_start(args, num_dimensions);
+
+  for (int i = 0; i < num_dimensions; i++) {
+    auto arg = va_arg(args, uint64_t);
+    length_of_dimensions.push_back(arg);
+  }
+
+  va_end(args);
+
+  return TensorType::get(type, num_dimensions, length_of_dimensions);
 }
 
 __RUNTIME_ATTR
@@ -140,7 +153,7 @@ Object *allocateTensor(Type *element_type, uint64_t num_dimensions, ...) {
 
   va_end(args);
 
-  auto tensor_type = TensorType(element_type, num_dimensions);
+  auto tensor_type = TensorType::get(element_type, num_dimensions);
 
   auto tensor = new struct Tensor(tensor_type, length_of_dimensions);
 

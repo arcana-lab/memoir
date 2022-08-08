@@ -16,13 +16,13 @@ Object::Object(Type *type) : type(type) {
  * Struct Objects
  */
 Struct::Struct(Type *type) : Object(type) {
-  if (this->type->getCode() != TypeCode::StructTy) {
+  if (type->getCode() != TypeCode::StructTy) {
     std::cerr << "Trying to create a struct of non-struct type\n";
     exit(1);
   }
 
   // Initialize the fields
-  auto object_type = (StructType *)(this->type);
+  auto object_type = (StructType *)(type);
   for (auto field_type : object_type->fields) {
     auto field = Field::createField(field_type);
     this->fields.push_back(field);
@@ -42,7 +42,6 @@ Field *Struct::readField(uint64_t field_index) {
  * Tensor Objects
  */
 Tensor::Tensor(Type *type) : Object(type) {
-
   if (this->type->getCode() != TypeCode::TensorTy) {
     std::cerr << "Trying to create a tensor of non-tensor type\n";
     exit(1);
@@ -77,29 +76,36 @@ Tensor::Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions)
   }
 
   auto tensor_type = (TensorType *)(this->type);
-  auto inner_type = tensor_type->element_type;
+  auto element_type = tensor_type->element_type;
   auto num_dimensions = tensor_type->num_dimensions;
 
   if (num_dimensions < 1) {
     std::cerr << "Trying to create a tensor with 0 dimensions";
     exit(1);
   }
+
   // Initialize the tensor
-  for (auto dim_idx = 0; dim_idx < num_dimensions; dim_idx++) {
-    auto dimension_length = length_of_dimensions[0];
-    auto element_type = inner_type;
-    for (auto i = 0; i < dimension_length; i++) {
-      auto field = Field::createField(element_type);
-      this->fields.push_back(field);
-    }
+  auto flattened_length = 0;
+  auto last_dimension_length = 1;
+  for (auto i = 0; i < length_of_dimensions.size(); i++) {
+    auto dimension_length = length_of_dimensions[i];
+
+    flattened_length *= last_dimension_length;
+    flattened_length += dimension_length;
+    last_dimension_length = dimension_length;
+  }
+
+  for (auto i = 0; i < flattened_length; i++) {
+    auto field = Field::createField(element_type);
+    this->fields.push_back(field);
   }
 }
 
 Field *Tensor::getElement(std::vector<uint64_t> &indices) {
   auto flattened_index = 0;
   auto last_dimension_length = 1;
-  for (auto i = 0; i < length_of_dimensions.size(); i++) {
-    auto dimension_length = length_of_dimensions[i];
+  for (auto i = 0; i < this->length_of_dimensions.size(); i++) {
+    auto dimension_length = this->length_of_dimensions[i];
     auto index = indices[i];
     if (index >= dimension_length) {
       std::cerr << "Tensor::getElement: Index out of range for tensor access\n";

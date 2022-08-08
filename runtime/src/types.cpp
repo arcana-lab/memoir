@@ -97,8 +97,16 @@ bool StructType::equals(Type *other) {
 /*
  * Tensor Type
  */
+const uint64_t TensorType::unknown_length = 0;
+
 Type *TensorType::get(Type *element_type, uint64_t num_dimensions) {
-  return new TensorType(element_type, num_dimensions);
+  std::vector<uint64_t> length_of_dimensions;
+
+  for (auto i = 0; i < num_dimensions; i++) {
+    length_of_dimensions.push_back(TensorType::unknown_length);
+  }
+
+  return new TensorType(element_type, num_dimensions, length_of_dimensions);
 }
 
 Type *TensorType::get(Type *element_type,
@@ -107,20 +115,37 @@ Type *TensorType::get(Type *element_type,
   return new TensorType(element_type, num_dimensions, length_of_dimensions);
 }
 
-TensorType::TensorType(Type *type, uint64_t num_dimensions)
+TensorType::TensorType(Type *element_type, uint64_t num_dimensions)
   : Type(TypeCode::TensorTy),
-    element_type(type),
+    element_type(element_type),
     num_dimensions(num_dimensions),
-    is_static_length(false) {}
+    is_static_length(false) {
+  /*
+   * Build the length of dimensions with all unknowns.
+   */
+  for (auto i = 0; i < num_dimensions; i++) {
+    this->length_of_dimensions.push_back(TensorType::unknown_length);
+  }
+}
 
-TensorType::TensorType(Type *type,
+TensorType::TensorType(Type *element_type,
                        uint64_t num_dimensions,
                        std::vector<uint64_t> &length_of_dimensions)
   : Type(TypeCode::TensorTy),
-    element_type(type),
+    element_type(element_type),
     num_dimensions(num_dimensions),
-    is_static_length(true),
-    length_of_dimensions(length_of_dimensions) {}
+    length_of_dimensions(length_of_dimensions) {
+  /*
+   * Determine if all dimensions of the tensor are of static length.
+   */
+  this->is_static_length = true;
+  for (auto length : length_of_dimensions) {
+    if (length == TensorType::unknown_length) {
+      this->is_static_length = false;
+      break;
+    }
+  }
+}
 
 bool TensorType::equals(Type *other) {
   if (this->getCode() != other->getCode()) {
@@ -131,6 +156,14 @@ bool TensorType::equals(Type *other) {
   auto other_num_dimensions = other_as_tensor->num_dimensions;
   if (this->num_dimensions != other_num_dimensions) {
     return false;
+  }
+
+  for (auto i = 0; i < this->num_dimensions; i++) {
+    auto this_length = this->length_of_dimensions.at(i);
+    auto other_length = other_as_tensor->length_of_dimensions.at(i);
+    if (this_length != other_length) {
+      return false;
+    }
   }
 
   auto other_element_type = other_as_tensor->element_type;

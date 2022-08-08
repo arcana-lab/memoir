@@ -125,7 +125,7 @@ private:
   static map<llvm::Module *, AccessAnalysis *> analyses;
 };
 
-enum ObjectCode { BASE, NESTED_STRUCT };
+enum ObjectCode { BASE, NESTED_STRUCT, NESTED_TENSOR };
 
 /*
  * Object Summary
@@ -198,6 +198,32 @@ protected:
   FieldSummary &field;
 
   NestedStructSummary(llvm::CallInst &call_inst, FieldSummary &field);
+
+  friend class AccessAnalysis;
+};
+
+/*
+ * Nested Tensor Summary
+ *
+ * Represents a nested tensor within another MemOIR object.
+ * This could be a tensor within a struct, an element of a
+ * tensor of tensors, etc.
+ *
+ * NOTE: Nested Tensors must have a static length, otherwise it cannot be
+ * lowered to contiguous memory.
+ */
+class NestedTensorSummary : public ObjectSummary {
+public:
+  FieldSummary &getField() const;
+  AllocationSummary &getAllocation() const override;
+  TypeSummary &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  FieldSummary &field;
+
+  NestedTensorSummary(llvm::CallInst &call_inst, FieldSummary &field);
 
   friend class AccessAnalysis;
 };
