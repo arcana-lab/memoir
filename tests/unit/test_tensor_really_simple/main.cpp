@@ -68,17 +68,17 @@ int main(int argc, char **argv) {
     }
   }
 
-  auto max = 0;
-  for (uint64_t x = 0; x < SIZE_X; x++) {
-    for (uint64_t y = 0; y < SIZE_Y; y++) {
-      auto elem = readUInt64(getTensorElement(holder, x, y));
-      if (elem > max) {
-        max = elem;
-      }
-    }
-  }
+  // auto max = 0;
+  // for (uint64_t x = 0; x < SIZE_X; x++) {
+  //   for (uint64_t y = 0; y < SIZE_Y; y++) {
+  //     auto elem = readUInt64(getTensorElement(holder, x, y));
+  //     if (elem > max) {
+  //       max = elem;
+  //     }
+  //   }
+  // }
 
-  std::cout << "Result= " << max << "\n";
+  // std::cout << "Result= " << max << "\n";
 
   return 0;
 }
