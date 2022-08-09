@@ -677,6 +677,79 @@ set<ObjectSummary *> &AccessAnalysis::getReadReferenceSummaries(
   return referenced_object_summaries;
 }
 
+set<ObjectSummary *> &AccessAnalysis::getReadReferenceSummaries(
+    llvm::CallInst &call_inst) {
+  /*
+   * See if we have a memoized set of ObjectSummaries for this CallInst.
+   *  - If we do, return it.
+   *  - Otherwise, create the NestedStructSummaries.
+   */
+  auto found_summaries = this->object_summaries.find(&call_inst);
+  if (found_summaries != this->object_summaries.end()) {
+    return found_summaries->second;
+  }
+
+  /*
+   * Determine the FieldSummaries this readStruct could be accessing.
+   */
+  auto field_arg = call_inst.getArgOperand(0);
+  auto &field_summaries = this->getFieldSummaries(*field_arg);
+
+  /*
+   * Determine the possible accesses to the field summaries we may be accessing.
+   * For each writeReference access, union the object summaries that could be
+   * written to it.
+   */
+  auto referenced_object_summaries = this->object_summaries[&call_inst];
+  for (auto field_summary : field_summaries) {
+    assert(field_summary
+           && "in AccessAnalysis::getReadReferenceSummaries"
+              "field summary in set of field summaries is NULL!");
+    auto &access_summaries = getFieldAccesses(*field_summary);
+
+    for (auto access_summary : access_summaries) {
+      assert(access_summary
+             && "in AccessAnalysis::getReadReferenceSummaries"
+                "access summary in set of access summaries is NULL!");
+
+      if (!access_summary->isWrite()) {
+        continue;
+      }
+
+      /*
+       * Find all objects possibly being referenced
+       */
+      if (access_summary->isMust()) {
+        auto &must_write_summary =
+            static_cast<MustWriteSummary &>(*access_summary);
+
+        auto &value_written = must_write_summary.getValueWritten();
+
+        /*
+         * Union the referenced objects
+         */
+        auto &objects_referenced = this->getObjectSummaries(value_written);
+        referenced_object_summaries.insert(objects_referenced.begin(),
+                                           objects_referenced.end());
+      } else {
+        auto &may_write_summary =
+            static_cast<MayWriteSummary &>(*access_summary);
+
+        auto &value_written = may_write_summary.getValueWritten();
+
+        /*
+         * Union the referenced objects
+         */
+        auto &objects_referenced = this->getObjectSummaries(value_written);
+        referenced_object_summaries.insert(objects_referenced.begin(),
+                                           objects_referenced.end());
+      }
+    }
+  }
+
+  return referenced_object_summaries;
+}
+
 bool AccessAnalysis::isRead(MemOIR_Func func_enum) {
   switch (func_enum) {
     case MemOIR_Func::READ_INTEGER:
