@@ -71,6 +71,7 @@ public:
    */
   AccessSummary *getAccessSummary(llvm::Value &value);
   set<FieldSummary *> &getFieldSummaries(llvm::Value &value);
+  set<AccessSummary *> &getFieldAccesses(FieldSummary &field);
 
   /*
    * This class is not cloneable nor assignable.
@@ -96,6 +97,7 @@ private:
    * Internal state
    */
   map<llvm::Value *, set<ObjectSummary *>> object_summaries;
+  map<FieldSummary *, set<AccessSummary *>> field_accesses;
 
   /*
    * Internal helper functions
@@ -106,6 +108,7 @@ private:
   set<FieldSummary *> &getTensorElementSummaries(llvm::CallInst &call_inst);
   set<ObjectSummary *> &getReadStructSummaries(llvm::CallInst &call_inst);
   set<ObjectSummary *> &getReadTensorSummaries(llvm::CallInst &call_inst);
+  set<ObjectSummary *> &getReadReferenceSummaries(llvm::CallInst &call_inst);
   set<ObjectSummary *> &getObjectSummaries(llvm::Value &value);
 
   static bool isRead(MemOIR_Func func_enum);

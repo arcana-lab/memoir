@@ -32,9 +32,37 @@ AccessSummary *AccessAnalysis::getAccessSummary(llvm::Value &value) {
   return nullptr;
 }
 
+set<AccessSummary *> &AccessAnalysis::getFieldAccesses(FieldSummary &field) {
+  /*
+   * Check if we have a memoized set of AccessSummary(s) for this FieldSummary.
+   * If we do, return it.
+   */
+  auto found_accesses = this->field_accesses.find(&field);
+  if (found_accesses != this->field_accesses.end()) {
+    return found_accesses->second;
+  }
+
+  /*
+   * Track all uses of the original allocation to find accesses to this field.
+   *  - Track down the object summaries we are using, tracking the chain of
+   *    field accesses needed to recreate it.
+   */
+  auto &object_summary = field.pointsTo();
+  stack<FieldSummary *> field_stack = { &field };
+  while (object_summary.isNested()) {
+    static_cast<NestedStructSummary &>
+  }
+
+  /*
+   * If there is not a memoized set, then return the empty set and memoize it.
+   */
+  auto field_accesses = this->field_accesses[&field];
+  field_accesses.clear();
+  return field_accesses;
+}
+
 AccessSummary *AccessAnalysis::getAccessSummaryForCall(
     llvm::CallInst &call_inst) {
-  errs() << call_inst << "\n";
   /*
    * Look up the call instruction to see if we have already created an
    *   AccessSummary for it.
@@ -93,6 +121,7 @@ AccessSummary *AccessAnalysis::getAccessSummaryForCall(
 
       auto read_summary = new MustReadSummary(call_inst, *field_summary);
       this->access_summaries[&call_inst] = read_summary;
+      this->field_accesses[field_summary].insert(read_summary);
 
       return read_summary;
     }
@@ -109,6 +138,9 @@ AccessSummary *AccessAnalysis::getAccessSummaryForCall(
     auto may_read_summary =
         new MayReadSummary(call_inst, type_summary, field_summaries);
     this->access_summaries[&call_inst] = may_read_summary;
+    for (auto field_summary : field_summaries) {
+      this->field_accesses[field_summary].insert(may_read_summary);
+    }
 
     return may_read_summary;
   }
@@ -134,6 +166,7 @@ AccessSummary *AccessAnalysis::getAccessSummaryForCall(
       auto write_summary =
           new MustWriteSummary(call_inst, *field_summary, *value_written);
       this->access_summaries[&call_inst] = write_summary;
+      this->field_accesses[field_summary].insert(write_summary);
 
       return write_summary;
     }
@@ -152,6 +185,9 @@ AccessSummary *AccessAnalysis::getAccessSummaryForCall(
                                                  field_summaries,
                                                  *value_written);
     this->access_summaries[&call_inst] = may_write_summary;
+    for (auto field_summary : field_summaries) {
+      this->field_accesses[field_summary].insert(may_write_summary);
+    }
 
     return may_write_summary;
   }
@@ -400,8 +436,8 @@ set<ObjectSummary *> &AccessAnalysis::getObjectSummaries(llvm::Value &value) {
   }
 
   /*
-   * Check if the value is a call to readStruct or readTensor
-   *  - If it is, fetch the NestedStructSummaries for it.
+   * Check if the value is a call to readStruct, readTensor or readReference
+   *  - If it is, fetch the object summaries for it.
    */
   if (auto call_inst = dyn_cast<CallInst>(&value)) {
     auto callee_enum = getMemOIREnum(*call_inst);
@@ -411,6 +447,8 @@ set<ObjectSummary *> &AccessAnalysis::getObjectSummaries(llvm::Value &value) {
         return this->getReadStructSummaries(*call_inst);
       case MemOIR_Func::READ_TENSOR:
         return this->getReadTensorSummaries(*call_inst);
+      case MemOIR_Func::READ_REFERENCE:
+        return this->getReadReferenceSummaries(*call_inst);
       default:
         break;
     }
@@ -485,7 +523,6 @@ set<ObjectSummary *> &AccessAnalysis::getObjectSummaries(llvm::Value &value) {
 
 set<ObjectSummary *> &AccessAnalysis::getReadStructSummaries(
     llvm::CallInst &call_inst) {
-  errs() << call_inst << "\n";
   /*
    * See if we have a memoized set of ObjectSummaries for this CallInst.
    *  - If we do, return it.
@@ -501,7 +538,6 @@ set<ObjectSummary *> &AccessAnalysis::getReadStructSummaries(
    */
   auto field_arg = call_inst.getArgOperand(0);
   auto &field_summaries = this->getFieldSummaries(*field_arg);
-  errs() << "size: " << field_summaries.size() << "\n";
 
   /*
    * Build NestedStructSummaries for the given FieldSummaries.
@@ -537,6 +573,79 @@ set<ObjectSummary *> &AccessAnalysis::getReadTensorSummaries(
   auto &nested_object_summary = this->nested_object_summaries[&call_inst];
   nested_object_summary.clear();
   return nested_object_summary;
+}
+
+set<ObjectSummary *> &AccessAnalysis::getReadReferenceSummaries(
+    llvm::CallInst &call_inst) {
+  /*
+   * See if we have a memoized set of ObjectSummaries for this CallInst.
+   *  - If we do, return it.
+   *  - Otherwise, create the NestedStructSummaries.
+   */
+  auto found_summaries = this->object_summaries.find(&call_inst);
+  if (found_summaries != this->object_summaries.end()) {
+    return found_summaries->second;
+  }
+
+  /*
+   * Determine the FieldSummaries this readStruct could be accessing.
+   */
+  auto field_arg = call_inst.getArgOperand(0);
+  auto &field_summaries = this->getFieldSummaries(*field_arg);
+
+  /*
+   * Determine the possible accesses to the field summaries we may be accessing.
+   * For each writeReference access, union the object summaries that could be
+   * written to it.
+   */
+  auto referenced_object_summaries = this->object_summaries[&call_inst];
+  for (auto field_summary : field_summaries) {
+    assert(field_summary
+           && "in AccessAnalysis::getReadReferenceSummaries"
+              "field summary in set of field summaries is NULL!");
+    auto &access_summaries = getFieldAccesses(*field_summary);
+
+    for (auto access_summary : access_summaries) {
+      assert(access_summary
+             && "in AccessAnalysis::getReadReferenceSummaries"
+                "access summary in set of access summaries is NULL!");
+
+      if (!access_summary->isWrite()) {
+        continue;
+      }
+
+      /*
+       * Find all objects possibly being referenced
+       */
+      if (access_summary->isMust()) {
+        auto &must_write_summary =
+            static_cast<MustWriteSummary &>(*access_summary);
+
+        auto &value_written = must_write_summary.getValueWritten();
+
+        /*
+         * Union the referenced objects
+         */
+        auto &objects_referenced = this->getObjectSummaries(value_written);
+        referenced_object_summaries.insert(objects_referenced.begin(),
+                                           objects_referenced.end());
+      } else {
+        auto &may_write_summary =
+            static_cast<MayWriteSummary &>(*access_summary);
+
+        auto &value_written = may_write_summary.getValueWritten();
+
+        /*
+         * Union the referenced objects
+         */
+        auto &objects_referenced = this->getObjectSummaries(value_written);
+        referenced_object_summaries.insert(objects_referenced.begin(),
+                                           objects_referenced.end());
+      }
+    }
+  }
+
+  return referenced_object_summaries;
 }
 
 bool AccessAnalysis::isRead(MemOIR_Func func_enum) {
