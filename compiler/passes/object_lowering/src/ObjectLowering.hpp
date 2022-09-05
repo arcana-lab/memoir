@@ -93,6 +93,8 @@ namespace object_lowering {
 
         // recursively add users of `i` to `toDelete`
         void findInstsToDelete(Value *i, std::set<Value *> &toDelete);
+
+        bool isStaticTensor(memoir::TensorAllocationSummary *tas, vector<int64_t> &sizes);
     };
 
 } // namespace object_lowering

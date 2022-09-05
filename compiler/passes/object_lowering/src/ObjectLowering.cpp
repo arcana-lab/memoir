@@ -616,6 +616,21 @@ namespace object_lowering {
 
     } // endof transform
 
+    bool ObjectLowering::isStaticTensor(TensorAllocationSummary* tas, std::vector<int64_t>& sizes)
+    {
+        for(uint64_t dim = 0; dim < tas->getNumberOfDimensions(); ++dim)
+        {
+            auto length_dim_val = tas->getLengthOfDimension(dim);
+            auto length_dim_constantint = dyn_cast_or_null<ConstantInt>(length_dim_val);
+            if(length_dim_constantint == nullptr)
+            {
+                return false;
+            }
+            sizes.push_back(length_dim_constantint->getSExtValue());
+        }
+        return true;
+    }
+
     void ObjectLowering::BasicBlockTransformer(
             DominatorTree &DT,
             BasicBlock *bb,
