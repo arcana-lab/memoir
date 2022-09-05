@@ -729,13 +729,15 @@ namespace object_lowering {
                                     M.getDataLayout().getTypeAllocSize(llvmType));
 
                             Value *finalSize;
-                            if (tensorType.isStaticLength()) {
+                            std::vector<int64_t> sizes;
+                            auto isstatictensor = isStaticTensor(tensorAllocSum, sizes);
+                            if (isstatictensor) {
+                                assert(sizes.size() == numdim);
                                 uint64_t size = 1;
-                                for (unsigned long long i = 0; i < numdim; ++i) {
-                                    size = size * tensorType.getLengthOfDimension(i);
+                                for (uint64_t i = 0; i < numdim; ++i) {
+                                    size = size * sizes[i];
                                 }
                                 auto finalCountVal = llvm::ConstantInt::get(int64Ty, 1);
-
                                 finalSize = builder.CreateMul(finalCountVal, llvmTypeSize);
                             } else {
                                 finalSize = llvm::ConstantInt::get(int64Ty, 1);
@@ -758,7 +760,7 @@ namespace object_lowering {
                             replacementMapping[callIns] = bcInst;
 
                             errs() << "here3\n";
-                            if (!tensorType.isStaticLength()) {
+                            if (!isstatictensor) {
                                 for (unsigned long long i = 0; i < numdim; ++i) {
                                     Value *indexList[1] = {ConstantInt::get(int64Ty, i)};
                                     auto gep = builder.CreateGEP(PointerType::getUnqual(int64Ty), newMallocCall,
