@@ -88,6 +88,15 @@ template <typename T>
 using set = std::unordered_set<T, std::hash<unwrap_ref_type<T>>>;
 #endif
 
+template <typename T>
+using vector = std::vector<T>;
+
+template <typename T>
+using stack = std::stack<T>;
+
+template <typename T>
+using queue = std::queue<T>;
+
 } // namespace llvm::memoir
 
 #endif
