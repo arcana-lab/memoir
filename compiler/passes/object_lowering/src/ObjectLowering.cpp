@@ -1103,7 +1103,8 @@ namespace object_lowering {
                     }
                 }
                 errs() << "here5\n";
-                auto tensorType = static_cast<TensorTypeSummary &>(field.getType());
+                auto tensorType = static_cast<TensorTypeSummary &>(field.pointsTo().getType());
+//                auto tensorType = static_cast<TensorTypeSummary &>(field.getType());
                 errs() << "here6\n";
                 auto ndim = tensorField.getNumberOfDimensions();
                 Value *sizes[ndim];
