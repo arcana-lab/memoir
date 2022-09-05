@@ -58,5 +58,9 @@ $(BINARY): $(OBJ_FILE)
 
 clean:
 	rm -rf $(BUILD_DIR)
-	rm *.bc
-	rm *.ll
+	rm -f *.bc
+	rm -f *.ll
+	rm -f *.o
+	rm -f out.txt
+	rm -f default.profraw
+	rm -f toProfileBinary

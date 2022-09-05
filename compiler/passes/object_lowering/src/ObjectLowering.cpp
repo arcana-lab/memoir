@@ -1089,8 +1089,7 @@ namespace object_lowering {
             }
             case TENSOR: {
                 auto &allocAna = memoir::AllocationAnalysis::get(M);
-                auto tensorref = callIns->getArgOperand(0);
-                auto allocsums = allocAna.getAllocationSummaries(*tensorref);
+                auto allocsums = allocAna.getAllocationSummaries(*baseObj);
                 for (auto &allocsum : allocsums)
                 {
                     errs() << "here goes the alloc sum" << allocsum->getCallInst() << "\n";
