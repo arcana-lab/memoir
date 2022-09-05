@@ -1147,7 +1147,7 @@ namespace object_lowering {
                 errs() << "here7\n";
                 Value *size = ConstantInt::get(int64Ty, 0);
                 for (unsigned long long dim = 0; dim < ndim; ++dim) {
-                    errs() << "Dimension size" << dim << "represented by " <<   tensorField.getIndex(dim) << "\n"
+                    errs() << "Dimension size" << dim << "represented by " <<   tensorField.getIndex(dim) << "\n";
                     auto skipsInDim = builder.CreateMul(multiCumSizes[dim], &tensorField.getIndex(dim));
                     size = builder.CreateAdd(size, skipsInDim);
                 }
