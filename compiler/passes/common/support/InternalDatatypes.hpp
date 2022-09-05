@@ -23,6 +23,8 @@
 #include <memory>
 #include <optional>
 #include <type_traits>
+#include <stack>
+#include <queue>
 
 namespace llvm::memoir {
 
