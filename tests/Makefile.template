@@ -58,3 +58,5 @@ $(BINARY): $(OBJ_FILE)
 
 clean:
 	rm -rf $(BUILD_DIR)
+	rm *.bc
+	rm *.ll
