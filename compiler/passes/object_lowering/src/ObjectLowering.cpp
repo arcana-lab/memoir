@@ -55,7 +55,10 @@ namespace object_lowering {
                         auto accessIns = dyn_cast<CallInst>(&i);
                         auto &access_analysis = memoir::AccessAnalysis::get(M);
                         auto accessSum = access_analysis.getAccessSummary(*accessIns);
-                        errs() << "is must " << accessSum->isMust() << "\n";
+                        auto& field = static_cast<MustWriteSummary *>(accessSum)->getField();
+                        auto tensorField = static_cast<TensorElementSummary &>(field);
+                        errs() << "number of dimensions : "<<tensorField.getNumberOfDimensions() << "\n";
+                        errs() << "the value of the first index : "<< *tensorField.getIndex(0) << "\n";
                     }
 
                     count++;
