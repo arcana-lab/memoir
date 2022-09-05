@@ -1137,7 +1137,7 @@ namespace object_lowering {
 
                 Value *multiCumSizes[ndim];
                 multiCumSizes[ndim - 1] = ConstantInt::get(int64Ty, 1);
-                for (unsigned long long i = ndim - 2; i >= 0; --i) {
+                for (signed long long i = ndim - 2; i >= 0; --i) {
                     errs() << "dimention " << i << " uses" << *multiCumSizes[i + 1] << "and " << sizes[i + 1] << "\n";
                     multiCumSizes[i] = builder.CreateMul(multiCumSizes[i + 1], sizes[i + 1]);
                 }
