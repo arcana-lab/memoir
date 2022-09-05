@@ -47,21 +47,21 @@ namespace object_lowering {
     }
 
     void ObjectLowering::analyze() {
-//        for (auto &F: M) {
-//            if (F.hasName() && F.getName() == "main") {
-//                int count = 0;
-//                for (auto &i: instructions(F)) {
-//                    if (count == 26) {
-//                        auto accessIns = dyn_cast<CallInst>(&i);
-//                        auto &access_analysis = memoir::AccessAnalysis::get(M);
-//                        errs() << *accessIns << "\n";
-//                        auto accessSum = access_analysis.getAccessSummary(*accessIns);
-//                    }
-//
-//                    count++;
-//                }
-//            }
-//        }
+        for (auto &F: M) {
+            if (F.hasName() && F.getName() == "main") {
+                int count = 0;
+                for (auto &i: instructions(F)) {
+                    if (count == 2) {
+                        auto accessIns = dyn_cast<CallInst>(&i);
+                        auto &access_analysis = memoir::AccessAnalysis::get(M);
+                        auto accessSum = access_analysis.getAccessSummary(*accessIns);
+                        errs() << "is must " << accessSum->isMust() << "\n";
+                    }
+
+                    count++;
+                }
+            }
+        }
 
         // simple testing stuff to make sure it's working
 
