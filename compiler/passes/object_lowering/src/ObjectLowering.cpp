@@ -1102,6 +1102,7 @@ namespace object_lowering {
                         break;
                     }
                 }
+                errs() << "here5\n";
                 auto tensorType = static_cast<TensorTypeSummary &>(field.getType());
                 auto ndim = tensorField.getNumberOfDimensions();
                 Value *sizes[ndim];
@@ -1117,6 +1118,7 @@ namespace object_lowering {
                         }
                     }
                     replacedBaseObj = builder.CreateBitCast(replacedBaseObj, PointerType::getUnqual(llvmType));
+                    errs() << "now the base pointer is " << replacedBaseObj << "\n";
                 } else {
                     for (unsigned long long i = 0; i < ndim; ++i) {
                         Value *indexList[1] = {ConstantInt::get(int64Ty, i)};
