@@ -1120,7 +1120,7 @@ namespace object_lowering {
                         }
                     }
                     replacedBaseObj = builder.CreateBitCast(replacedBaseObj, PointerType::getUnqual(llvmType));
-                    errs() << "now the base pointer is " << replacedBaseObj << "\n";
+                    errs() << "now the base pointer is " << *replacedBaseObj << "\n";
                 } else {
                     for (unsigned long long i = 0; i < ndim; ++i) {
                         Value *indexList[1] = {ConstantInt::get(int64Ty, i)};
@@ -1140,6 +1140,7 @@ namespace object_lowering {
                 for (unsigned long long i = ndim - 2; i >= 0; --i) {
                     multiCumSizes[i] = builder.CreateMul(multiCumSizes[i + 1], sizes[i + 1]);
                 }
+                errs() << "here7\n";
                 Value *size = ConstantInt::get(int64Ty, 1);
                 for (unsigned long long dim = 0; dim < ndim; ++dim) {
                     auto skipsInDim = builder.CreateMul(multiCumSizes[dim], &tensorField.getIndex(dim));
