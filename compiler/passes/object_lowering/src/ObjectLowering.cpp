@@ -1089,7 +1089,6 @@ namespace object_lowering {
             }
             case TENSOR: {
                 auto tensorField = static_cast<TensorElementSummary &>(field);
-                assert(tensorField.getTypeCode() == TensorTy);
                 auto &allocAna = memoir::AllocationAnalysis::get(M);
                 auto allocsums = allocAna.getAllocationSummaries(*baseObj);
                 std::vector<int64_t > constantSizes;
