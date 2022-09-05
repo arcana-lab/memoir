@@ -716,12 +716,14 @@ namespace object_lowering {
                             auto &accAna = memoir::AllocationAnalysis::get(M);
                             auto allocSum = accAna.getAllocationSummary(*callIns);
                             assert(allocSum);
+                            errs() << "here0\n";
                             auto tensorAllocSum = static_cast<TensorAllocationSummary *>(allocSum);
                             auto numdim = tensorAllocSum->getNumberOfDimensions();
                             auto &eletype = tensorAllocSum->getElementType();
                             auto &tensorType = static_cast<TensorTypeSummary &>(allocSum->getType());
                             Type *llvmType;
                             llvmType = nativeTypeConverter->getLLVMRepresentation(eletype);
+                            errs() << "here1\n";
                             auto llvmTypeSize = llvm::ConstantInt::get(
                                     int64Ty,
                                     M.getDataLayout().getTypeAllocSize(llvmType));
@@ -747,11 +749,15 @@ namespace object_lowering {
                                                                     int64Size);
                                 finalSize = builder.CreateAdd(finalSize, headerSize);
                             }
+
+                            errs() << "here2\n";
                             std::vector<Value *> arguments{finalSize};
                             auto newMallocCall = builder.CreateCall(mallocf, arguments);
                             auto llvmTypeTensor = nativeTypeConverter->getLLVMRepresentation(tensorType);
                             auto bcInst = builder.CreateBitCast(newMallocCall, llvmTypeTensor);
                             replacementMapping[callIns] = bcInst;
+
+                            errs() << "here3\n";
                             if (!tensorType.isStaticLength()) {
                                 for (unsigned long long i = 0; i < numdim; ++i) {
                                     Value *indexList[1] = {ConstantInt::get(int64Ty, i)};
@@ -761,6 +767,7 @@ namespace object_lowering {
                                 }
                             }
 
+                            errs() << "here4\n";
                             break;
                         }
                         case ALLOCATE_STRUCT: {
