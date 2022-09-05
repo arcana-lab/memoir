@@ -47,21 +47,21 @@ namespace object_lowering {
     }
 
     void ObjectLowering::analyze() {
-        for (auto &F: M) {
-            if (F.hasName() && F.getName() == "main") {
-                int count = 0;
-                for (auto &i: instructions(F)) {
-                    if (count == 26) {
-                        auto accessIns = dyn_cast<CallInst>(&i);
-                        auto &access_analysis = memoir::AccessAnalysis::get(M);
-                        errs() << *accessIns << "\n";
-                        auto accessSum = access_analysis.getAccessSummary(*accessIns);
-                    }
-
-                    count++;
-                }
-            }
-        }
+//        for (auto &F: M) {
+//            if (F.hasName() && F.getName() == "main") {
+//                int count = 0;
+//                for (auto &i: instructions(F)) {
+//                    if (count == 26) {
+//                        auto accessIns = dyn_cast<CallInst>(&i);
+//                        auto &access_analysis = memoir::AccessAnalysis::get(M);
+//                        errs() << *accessIns << "\n";
+//                        auto accessSum = access_analysis.getAccessSummary(*accessIns);
+//                    }
+//
+//                    count++;
+//                }
+//            }
+//        }
 
         // simple testing stuff to make sure it's working
 
@@ -1088,22 +1088,34 @@ namespace object_lowering {
                 break;
             }
             case TENSOR: {
-                auto &allocAna = memoir::AllocationAnalysis::get(M);
-                auto allocsums = allocAna.getAllocationSummaries(*baseObj);
-                for (auto &allocsum : allocsums)
-                {
-                    errs() << "here goes the alloc sum" << allocsum->getCallInst() << "\n";
-                }
-                assert(0==1);
-
                 auto tensorField = static_cast<TensorElementSummary &>(field);
                 assert(tensorField.getTypeCode() == TensorTy);
+                auto &allocAna = memoir::AllocationAnalysis::get(M);
+                auto allocsums = allocAna.getAllocationSummaries(*baseObj);
+                std::vector<int64_t > constantSizes;
+                bool isstatic = false;
+                for (auto &allocsum : allocsums)
+                {
+                    auto tas = static_cast<TensorAllocationSummary *>(allocsum);
+                    isstatic = isStaticTensor(tas,constantSizes);
+                    if (isstatic)
+                    {
+                        break;
+                    }
+                }
                 auto tensorType = static_cast<TensorTypeSummary &>(field.getType());
                 auto ndim = tensorField.getNumberOfDimensions();
                 Value *sizes[ndim];
-                if (tensorType.isStaticLength()) {
-                    for (uint64_t i = 0; i < ndim; ++i) {
-                        sizes[i] = llvm::ConstantInt::get(int64Ty, tensorType.getLengthOfDimension(i));
+                if (isstatic) {
+                    if(tensorType.isStaticLength()) {
+                        for (uint64_t i = 0; i < ndim; ++i) {
+                            sizes[i] = llvm::ConstantInt::get(int64Ty, tensorType.getLengthOfDimension(i));
+                        }
+                    }else
+                    {
+                        for (uint64_t i = 0; i < ndim; ++i) {
+                            sizes[i] = llvm::ConstantInt::get(int64Ty, constantSizes[i]);
+                        }
                     }
                     replacedBaseObj = builder.CreateBitCast(replacedBaseObj, PointerType::getUnqual(llvmType));
                 } else {
