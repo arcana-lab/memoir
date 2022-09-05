@@ -51,7 +51,7 @@ namespace object_lowering {
             if (F.hasName() && F.getName() == "main") {
                 int count = 0;
                 for (auto &i: instructions(F)) {
-                    if (count == 2) {
+                    if (count == 3) {
                         auto accessIns = dyn_cast<CallInst>(&i);
                         auto &access_analysis = memoir::AccessAnalysis::get(M);
                         auto accessSum = access_analysis.getAccessSummary(*accessIns);
