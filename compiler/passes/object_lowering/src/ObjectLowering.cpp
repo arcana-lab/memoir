@@ -738,7 +738,7 @@ namespace object_lowering {
                                     errs() << "dimention " << i << "has size " << sizes[i] << "\n";
                                     size = size * sizes[i];
                                 }
-                                auto finalCountVal = llvm::ConstantInt::get(int64Ty, 1);
+                                auto finalCountVal = llvm::ConstantInt::get(int64Ty, size);
                                 finalSize = builder.CreateMul(finalCountVal, llvmTypeSize);
                             } else {
                                 finalSize = llvm::ConstantInt::get(int64Ty, 1);
