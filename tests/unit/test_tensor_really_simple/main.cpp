@@ -8,7 +8,7 @@ using namespace memoir;
 #define SIZE_Y 200
 #define ITERATIONS 100
 
-auto tensor_type = TensorType(StructType("Foo"), 2, SIZE_X, SIZE_Y);
+auto tensor_type = TensorType(UInt64Type(), 2, SIZE_X, SIZE_Y);
 
 // void init(Object *tensor) {
 //   assertType(tensor_type, tensor);
@@ -60,7 +60,7 @@ auto tensor_type = TensorType(StructType("Foo"), 2, SIZE_X, SIZE_Y);
 int main(int argc, char **argv) {
 
   auto holder = allocateTensor(UInt64Type(), 2, SIZE_X, SIZE_Y);
-
+  writeUInt64(getTensorElement(holder, 0, 0),1);
   // for (auto x = 0; x < SIZE_X; x++) {
   //   for (auto y = 0; y < SIZE_Y; y++) {
   //     auto r = x+y;
