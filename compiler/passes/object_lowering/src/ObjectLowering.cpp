@@ -752,7 +752,6 @@ namespace object_lowering {
                                                                     int64Size);
                                 finalSize = builder.CreateAdd(finalSize, headerSize);
                             }
-
                             errs() << "here2\n";
                             std::vector<Value *> arguments{finalSize};
                             auto newMallocCall = builder.CreateCall(mallocf, arguments);
@@ -1089,6 +1088,15 @@ namespace object_lowering {
                 break;
             }
             case TENSOR: {
+                auto &allocAna = memoir::AllocationAnalysis::get(M);
+                auto tensorref = callIns->getArgOperand(0);
+                auto allocsums = allocAna.getAllocationSummaries(*tensorref);
+                for (auto &allocsum : allocsums)
+                {
+                    errs() << "here goes the alloc sum" << allocsum->getCallInst() << "\n";
+                }
+                assert(0==1);
+
                 auto tensorField = static_cast<TensorElementSummary &>(field);
                 assert(tensorField.getTypeCode() == TensorTy);
                 auto tensorType = static_cast<TensorTypeSummary &>(field.getType());
