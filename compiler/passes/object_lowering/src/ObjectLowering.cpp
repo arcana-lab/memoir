@@ -594,22 +594,22 @@ namespace object_lowering {
         }
 
         // DELETE OBJECT IR INSTRUCTIONS
-        std::set<Value *> toDelete;
-        // start with instructions we already replaced
-        for (auto p: replacementMapping)
-            toDelete.insert(p.first);
-        // recursively find all instructions to delete
-        for (auto p: replacementMapping)
-            findInstsToDelete(p.first, toDelete);
-
-        // errs() << "ObjectLowing: deleting the following instructions\n";
-        for (auto v: toDelete) {
-            errs() << "deleting: " << *v << "\n";
-            if (auto i = dyn_cast<Instruction>(v)) {
-                i->replaceAllUsesWith(UndefValue::get(i->getType()));
-                i->eraseFromParent();
-            }
-        }
+//        std::set<Value *> toDelete;
+//        // start with instructions we already replaced
+//        for (auto p: replacementMapping)
+//            toDelete.insert(p.first);
+//        // recursively find all instructions to delete
+//        for (auto p: replacementMapping)
+//            findInstsToDelete(p.first, toDelete);
+//
+//        // errs() << "ObjectLowing: deleting the following instructions\n";
+//        for (auto v: toDelete) {
+//            errs() << "deleting: " << *v << "\n";
+//            if (auto i = dyn_cast<Instruction>(v)) {
+//                i->replaceAllUsesWith(UndefValue::get(i->getType()));
+//                i->eraseFromParent();
+//            }
+//        }
 
         errs() << *f << "transformed function\n\n";
 
@@ -818,6 +818,7 @@ namespace object_lowering {
                                 case IntegerTy: {
                                     auto storeInst =
                                             builder.CreateStore(callIns->getArgOperand(1), gep);
+                                    errs() << "the store ins for writing reference is " << *storeInst<< "\n";
                                     replacementMapping[callIns] = storeInst;
                                     break;
                                 }
