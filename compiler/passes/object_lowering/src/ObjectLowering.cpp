@@ -1106,7 +1106,7 @@ namespace object_lowering {
                 auto tensorType = static_cast<TensorTypeSummary &>(field.pointsTo().getType());
 //                auto tensorType = static_cast<TensorTypeSummary &>(field.getType());
                 errs() << "here6\n";
-                auto ndim = tensorField.getNumberOfDimensions();
+                auto ndim = tensorType.getNumDimensions();
                 errs() << "actual dims? " << ndim << "\n";
                 Value *sizes[ndim];
                 if (isstatic) {
