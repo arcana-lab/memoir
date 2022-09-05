@@ -58,7 +58,7 @@ namespace object_lowering {
                         auto& field = static_cast<MustWriteSummary *>(accessSum)->getField();
                         auto tensorField = static_cast<TensorElementSummary &>(field);
                         errs() << "number of dimensions : "<<tensorField.getNumberOfDimensions() << "\n";
-                        errs() << "the value of the first index : "<< *tensorField.getIndex(0) << "\n";
+                        errs() << "the value of the first index : "<< tensorField.getIndex(0) << "\n";
                     }
 
                     count++;
