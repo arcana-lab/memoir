@@ -735,6 +735,7 @@ namespace object_lowering {
                                 assert(sizes.size() == numdim);
                                 uint64_t size = 1;
                                 for (uint64_t i = 0; i < numdim; ++i) {
+                                    errs() << "dimention " << i << "has size " << sizes[i] << "\n";
                                     size = size * sizes[i];
                                 }
                                 auto finalCountVal = llvm::ConstantInt::get(int64Ty, 1);
