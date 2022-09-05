@@ -239,7 +239,7 @@ namespace object_lowering {
     } // endof cachetypes
 
     void ObjectLowering::inferArgTypes(llvm::Function *f,
-                                       vector<Type *> *arg_vector) {
+                                       memoir::vector<Type *> *arg_vector) {
         //  auto ft = f->getFunctionType();
         //  auto args = f->arg_begin();
         //  for (auto ogType : ft->params()) {
@@ -616,6 +616,21 @@ namespace object_lowering {
 
     } // endof transform
 
+    bool ObjectLowering::isStaticTensor(TensorAllocationSummary* tas, memoir::vector<int64_t>& sizes)
+    {
+        for(uint64_t dim = 0; dim < tas->getNumberOfDimensions(); ++dim)
+        {
+            auto length_dim_val = tas->getLengthOfDimension(dim);
+            auto length_dim_constantint = dyn_cast_or_null<ConstantInt>(length_dim_val);
+            if(length_dim_constantint == nullptr)
+            {
+                return false;
+            }
+            sizes.push_back(length_dim_constantint->getSExtValue());
+        }
+        return true;
+    }
+
     void ObjectLowering::BasicBlockTransformer(
             DominatorTree &DT,
             BasicBlock *bb,
@@ -694,7 +709,6 @@ namespace object_lowering {
 //          }
 //          replacementMapping[callIns] = new_callins;*/
                 } else {
-
                     auto calleeCategory = llvm::memoir::getMemOIREnum(*callee);
                     switch (calleeCategory) {
                         case ALLOCATE_TENSOR: {
