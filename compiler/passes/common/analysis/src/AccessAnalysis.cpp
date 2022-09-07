@@ -368,7 +368,7 @@ set<FieldSummary *> &AccessAnalysis::getTensorElementSummaries(
   /*
    * Determine the indices being accessed.
    */
-  std::vector<llvm::Value *> indices(call_inst.arg_begin(),
+  std::vector<llvm::Value *> indices(call_inst.arg_begin() + 1,
                                      call_inst.arg_end());
 
   /*
