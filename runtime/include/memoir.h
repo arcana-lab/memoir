@@ -24,30 +24,30 @@ extern "C" {
 /*
  * Struct Types
  */
-__RUNTIME_ATTR Type *defineStructType(const char *name, int num_fields, ...);
-__RUNTIME_ATTR Type *StructType(const char *name);
+__RUNTIME_ATTR Type **defineStructType(const char *name, int num_fields, ...);
+__RUNTIME_ATTR Type **StructType(const char *name);
 
 /*
  * Complex Types
  */
-__RUNTIME_ATTR Type *TensorType(Type **element_type, uint64_t num_dimensions);
-__RUNTIME_ATTR Type *ReferenceType(Type **referenced_type);
+__RUNTIME_ATTR Type **TensorType(Type **element_type, uint64_t num_dimensions);
+__RUNTIME_ATTR Type **ReferenceType(Type **referenced_type);
 
 /*
  * Primitive Types
  */
-__RUNTIME_ATTR Type *IntegerType(uint64_t bitwidth, bool is_signed);
-__RUNTIME_ATTR Type *UInt64Type();
-__RUNTIME_ATTR Type *UInt32Type();
-__RUNTIME_ATTR Type *UInt16Type();
-__RUNTIME_ATTR Type *UInt8Type();
-__RUNTIME_ATTR Type *Int64Type();
-__RUNTIME_ATTR Type *Int32Type();
-__RUNTIME_ATTR Type *Int16Type();
-__RUNTIME_ATTR Type *Int8Type();
-__RUNTIME_ATTR Type *BoolType();
-__RUNTIME_ATTR Type *FloatType();
-__RUNTIME_ATTR Type *DoubleType();
+__RUNTIME_ATTR Type **IntegerType(uint64_t bitwidth, bool is_signed);
+__RUNTIME_ATTR Type **UInt64Type();
+__RUNTIME_ATTR Type **UInt32Type();
+__RUNTIME_ATTR Type **UInt16Type();
+__RUNTIME_ATTR Type **UInt8Type();
+__RUNTIME_ATTR Type **Int64Type();
+__RUNTIME_ATTR Type **Int32Type();
+__RUNTIME_ATTR Type **Int16Type();
+__RUNTIME_ATTR Type **Int8Type();
+__RUNTIME_ATTR Type **BoolType();
+__RUNTIME_ATTR Type **FloatType();
+__RUNTIME_ATTR Type **DoubleType();
 
 /*
  * Object construction
