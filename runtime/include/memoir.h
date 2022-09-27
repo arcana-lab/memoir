@@ -30,8 +30,8 @@ __RUNTIME_ATTR Type *StructType(const char *name);
 /*
  * Complex Types
  */
-__RUNTIME_ATTR Type *TensorType(Type *element_type, uint64_t num_dimensions);
-__RUNTIME_ATTR Type *ReferenceType(Type *referenced_type);
+__RUNTIME_ATTR Type *TensorType(Type **element_type, uint64_t num_dimensions);
+__RUNTIME_ATTR Type *ReferenceType(Type **referenced_type);
 
 /*
  * Primitive Types
@@ -52,15 +52,15 @@ __RUNTIME_ATTR Type *DoubleType();
 /*
  * Object construction
  */
-__ALLOC_ATTR __RUNTIME_ATTR Object *allocateStruct(Type *type);
-__ALLOC_ATTR __RUNTIME_ATTR Object *allocateTensor(Type *element_type,
+__ALLOC_ATTR __RUNTIME_ATTR Object *allocateStruct(Type **type);
+__ALLOC_ATTR __RUNTIME_ATTR Object *allocateTensor(Type **element_type,
                                                    uint64_t num_dimensions,
                                                    ...);
 
 /*
  * Object accesses
  */
-__RUNTIME_ATTR Field *getStructField(Object *object, uint64_t field_index);
+__RUNTIME_ATTR Field *getStructField(Type **type, Object *object, uint64_t field_index);
 __RUNTIME_ATTR Field *getTensorElement(Object *tensor, ...);
 /*
  * Object destruction
@@ -70,8 +70,8 @@ __RUNTIME_ATTR void deleteObject(Object *object);
 /*
  * Type checking and function signatures
  */
-__RUNTIME_ATTR bool assertType(Type *type, Object *object);
-__RUNTIME_ATTR bool setReturnType(Type *type);
+__RUNTIME_ATTR bool assertType(Type **type, Object *object);
+__RUNTIME_ATTR bool setReturnType(Type **type);
 
 /*
  * Field accesses
