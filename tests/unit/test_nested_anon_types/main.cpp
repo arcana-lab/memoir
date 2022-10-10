@@ -6,16 +6,16 @@ using namespace memoir;
 
 Type *innerTy = defineStructType("Foo", 2, UInt64Type(), UInt64Type());
 
-Type *objTy = defineStructType("Bar", 2, UInt64Type(), ReferenceType(innerTy));
+Type *objTy = defineStructType("Bar", 2, UInt64Type(), ReferenceType(&innerTy));
 
 int main() {
 
-  Object *innerObj = allocateStruct(innerTy);
+  Object *innerObj = allocateStruct(&innerTy);
 
-  Object *myObj = allocateStruct(objTy);
+  Object *myObj = allocateStruct(&objTy);
 
-  Field *field1 = getStructField(myObj, 0);
-  Field *field2 = getStructField(myObj, 1);
+  Field *field1 = getStructField(&objTy, myObj, 0);
+  Field *field2 = getStructField(&objTy, myObj, 1);
 
   // Update the outer fields
   writeUInt64(field1, 123);
@@ -25,8 +25,8 @@ int main() {
   Object *deref = readReference(field2);
 
   // Fetch the fields of the inner object
-  Field *inner1 = getStructField(deref, 0);
-  Field *inner2 = getStructField(deref, 1);
+  Field *inner1 = getStructField(&innerTy, deref, 0);
+  Field *inner2 = getStructField(&innerTy, deref, 1);
 
   // Update the inner fields
   writeUInt64(inner1, 456);

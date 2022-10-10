@@ -24,11 +24,12 @@ typedef struct {
 } outerObject_t;
 #endif
 #ifdef OBJECT_IR
+auto strct = StructType("Foo");
 Type *outerObject_t = defineStructType("Bar",
                                        3,
                                        UInt64Type(),
                                        UInt64Type(),
-                                       ReferenceType(StructType("Foo")));
+                                       ReferenceType(&strct));
 #endif
 
 int main(int argc, char **argv) {
@@ -44,7 +45,7 @@ int main(int argc, char **argv) {
       (outerObject_t *)malloc(size * sizeof(outerObject_t));
 #endif
 #ifdef OBJECT_IR
-  Object *outerObjects = allocateTensor(outerObject_t, 1, size);
+  Object *outerObjects = allocateTensor(&outerObject_t, 1, size);
 #endif
 
 #ifdef CXX_SOURCE
@@ -52,7 +53,7 @@ int main(int argc, char **argv) {
       (innerObject_t *)malloc(size * sizeof(innerObject_t));
 #endif
 #ifdef OBJECT_IR
-  Object *innerObjects = allocateTensor(innerObject_t, 1, size);
+  Object *innerObjects = allocateTensor(&innerObject_t, 1, size);
 #endif
 
   // Assign inner objects to outer ones
@@ -62,7 +63,7 @@ int main(int argc, char **argv) {
 #endif
 #ifdef OBJECT_IR
     Object *outerObject = readStruct(getTensorElement(outerObjects, i));
-    Field *outerObjectField3 = getStructField(outerObject, 2);
+    Field *outerObjectField3 = getStructField(&outerObject_t, outerObject, 2);
     Object *innerObject = readStruct(getTensorElement(innerObjects, i));
     writeReference(outerObjectField3, innerObject);
 #endif
@@ -78,13 +79,14 @@ int main(int argc, char **argv) {
 #endif
 #ifdef OBJECT_IR
     Object *outerObject = readStruct(getTensorElement(outerObjects, i));
-    Field *outerObjectField1 = getStructField(outerObject, 0);
-    Field *outerObjectField2 = getStructField(outerObject, 1);
+    Field *outerObjectField1 = getStructField(&outerObject_t, outerObject, 0);
+    Field *outerObjectField2 = getStructField(&outerObject_t, outerObject, 1);
     writeUInt64(outerObjectField1, rand());
     writeUInt64(outerObjectField2, rand());
 
-    Object *innerObject = readReference(getStructField(outerObject, 2));
-    Field *innerObjectField = getStructField(innerObject, 0);
+    Object *innerObject =
+        readReference(getStructField(&outerObject_t, outerObject, 2));
+    Field *innerObjectField = getStructField(&innerObject_t, innerObject, 0);
     writeUInt64(innerObjectField,
                 readUInt64(outerObjectField1) + readUInt64(outerObjectField2));
 #endif
@@ -102,8 +104,9 @@ int main(int argc, char **argv) {
 #endif
 #ifdef OBJECT_IR
     Object *outerObject = readStruct(getTensorElement(outerObjects, i));
-    Object *innerObject = readReference(getStructField(outerObject, 2));
-    Field *innerField = getStructField(innerObject, 0);
+    Object *innerObject =
+        readReference(getStructField(&outerObject_t, outerObject, 2));
+    Field *innerField = getStructField(&innerObject_t, innerObject, 0);
     if (readUInt64(innerField) > max) {
       max = readUInt64(innerField);
       max_index = i;

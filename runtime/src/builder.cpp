@@ -36,8 +36,8 @@ Type *StructType(const char *name) {
 }
 
 __RUNTIME_ATTR
-Type *TensorType(Type *type, uint64_t num_dimensions) {
-  return TensorType::get(type, num_dimensions);
+Type *TensorType(Type **type, uint64_t num_dimensions) {
+  return TensorType::get(*type, num_dimensions);
 }
 
 __RUNTIME_ATTR
@@ -101,8 +101,8 @@ Type *DoubleType() {
 }
 
 __RUNTIME_ATTR
-Type *ReferenceType(Type *referenced_type) {
-  return ReferenceType::get(referenced_type);
+Type *ReferenceType(Type **referenced_type) {
+  return ReferenceType::get(*referenced_type);
 }
 
 /*
@@ -111,8 +111,8 @@ Type *ReferenceType(Type *referenced_type) {
  */
 __ALLOC_ATTR
 __RUNTIME_ATTR
-Object *allocateStruct(Type *type) {
-  auto strct = new struct Struct(type);
+Object *allocateStruct(Type **type) {
+  auto strct = new struct Struct(*type);
 
   return strct;
 }
@@ -126,7 +126,7 @@ Object *allocateStruct(Type *type) {
  */
 __ALLOC_ATTR
 __RUNTIME_ATTR
-Object *allocateTensor(Type *element_type, uint64_t num_dimensions, ...) {
+Object *allocateTensor(Type **element_type, uint64_t num_dimensions, ...) {
   std::vector<uint64_t> length_of_dimensions;
 
   va_list args;

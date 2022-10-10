@@ -10,17 +10,18 @@ Type *objTy =
     defineStructType("Bar", 3, UInt64Type(), UInt64Type(), UInt64Type());
 
 uint64_t foo(Field *fld) {
-  assertType(UInt64Type(), fld);
+  auto type = UInt64Type();
+  assertType(&type, fld);
   writeUInt64(fld, readUInt64(fld) + 1);
   return readUInt64(fld);
 }
 
 int main() {
-  Object *myObj = allocateStruct(objTy);
+  Object *myObj = allocateStruct(&objTy);
 
-  Field *field1 = getStructField(myObj, 0);
-  Field *field2 = getStructField(myObj, 1);
-  Field *field3 = getStructField(myObj, 2);
+  Field *field1 = getStructField(&objTy, myObj, 0);
+  Field *field2 = getStructField(&objTy, myObj, 1);
+  Field *field3 = getStructField(&objTy, myObj, 2);
 
   writeUInt64(field1, 123);
   writeUInt64(field2, 456);

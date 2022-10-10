@@ -36,18 +36,18 @@ __RUNTIME_ATTR Type *ReferenceType(Type **referenced_type);
 /*
  * Primitive Types
  */
-__RUNTIME_ATTR Type **IntegerType(uint64_t bitwidth, bool is_signed);
-__RUNTIME_ATTR Type **UInt64Type();
-__RUNTIME_ATTR Type **UInt32Type();
-__RUNTIME_ATTR Type **UInt16Type();
-__RUNTIME_ATTR Type **UInt8Type();
-__RUNTIME_ATTR Type **Int64Type();
-__RUNTIME_ATTR Type **Int32Type();
-__RUNTIME_ATTR Type **Int16Type();
-__RUNTIME_ATTR Type **Int8Type();
-__RUNTIME_ATTR Type **BoolType();
-__RUNTIME_ATTR Type **FloatType();
-__RUNTIME_ATTR Type **DoubleType();
+__RUNTIME_ATTR Type *IntegerType(uint64_t bitwidth, bool is_signed);
+__RUNTIME_ATTR Type *UInt64Type();
+__RUNTIME_ATTR Type *UInt32Type();
+__RUNTIME_ATTR Type *UInt16Type();
+__RUNTIME_ATTR Type *UInt8Type();
+__RUNTIME_ATTR Type *Int64Type();
+__RUNTIME_ATTR Type *Int32Type();
+__RUNTIME_ATTR Type *Int16Type();
+__RUNTIME_ATTR Type *Int8Type();
+__RUNTIME_ATTR Type *BoolType();
+__RUNTIME_ATTR Type *FloatType();
+__RUNTIME_ATTR Type *DoubleType();
 
 /*
  * Object construction
@@ -60,7 +60,9 @@ __ALLOC_ATTR __RUNTIME_ATTR Object *allocateTensor(Type **element_type,
 /*
  * Object accesses
  */
-__RUNTIME_ATTR Field *getStructField(Type **type, Object *object, uint64_t field_index);
+__RUNTIME_ATTR Field *getStructField(Type **type,
+                                     Object *object,
+                                     uint64_t field_index);
 __RUNTIME_ATTR Field *getTensorElement(Object *tensor, ...);
 /*
  * Object destruction

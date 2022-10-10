@@ -9,11 +9,11 @@ Type *objTy =
     defineStructType("Foo", 3, UInt64Type(), UInt64Type(), UInt64Type());
 
 long main_2(Object *obj) {
-  assertType(objTy, obj);
+  assertType(&objTy, obj);
   long k = 0;
   for (int i = 0; i < 10; i++) {
-    Object *obj = allocateStruct(objTy);
-    Field *f = getStructField(obj, 0);
+    Object *obj = allocateStruct(&objTy);
+    Field *f = getStructField(&objTy, obj, 0);
     writeUInt64(f, 10000);
     k += readUInt64(f);
   }
@@ -22,7 +22,7 @@ long main_2(Object *obj) {
 
 int main() {
 
-  Object *obj = allocateStruct(objTy);
+  Object *obj = allocateStruct(&objTy);
 
   std::cerr << main_2(obj);
   // int counter = 0;

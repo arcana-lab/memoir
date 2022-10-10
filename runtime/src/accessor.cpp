@@ -19,9 +19,8 @@ extern "C" {
  * Object accesses
  */
 __RUNTIME_ATTR
-Field *getStructField(Object *object, uint64_t field_index) {
-  auto type = object->getType();
-  if (type->getCode() != TypeCode::StructTy) {
+Field *getStructField(Type **type, Object *object, uint64_t field_index) {
+  if ((*type)->getCode() != TypeCode::StructTy) {
     std::cerr << "getStructField: object is of non-struct type\n";
   }
 
@@ -72,12 +71,12 @@ Field *getTensorElement(Object *object, ...) {
  * Type checking
  */
 __RUNTIME_ATTR
-bool assertType(Type *type, Object *object) {
+bool assertType(Type **type, Object *object) {
   if (object == nullptr) {
-    return isObjectType(type);
+    return isObjectType(*type);
   }
 
-  if (!type->equals(object->getType())) {
+  if (!(*type)->equals(object->getType())) {
     std::cerr << "assertType: Object is not the correct type\n";
     exit(1);
   }
@@ -85,7 +84,7 @@ bool assertType(Type *type, Object *object) {
 }
 
 __RUNTIME_ATTR
-bool setReturnType(Type *type) {
+bool setReturnType(Type **type) {
   return true;
 }
 
