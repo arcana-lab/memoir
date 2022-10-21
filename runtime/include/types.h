@@ -64,23 +64,34 @@ private:
 struct TensorType : public Type {
 public:
   static Type *get(Type *element_type, uint64_t num_dimensions);
-  static Type *get(Type *element_type,
-                   uint64_t num_dimensions,
-                   std::vector<uint64_t> &length_of_dimensions);
 
   Type *element_type;
   uint64_t num_dimensions;
-  bool is_static_length;
-  std::vector<uint64_t> length_of_dimensions;
 
   bool equals(Type *other);
   std::string toString();
 
 private:
   TensorType(Type *element_type, uint64_t num_dimensions);
-  TensorType(Type *element_type,
-             uint64_t num_dimensions,
-             std::vector<uint64_t> &length_of_dimensions);
+};
+
+struct StaticTensorType : public Type {
+public:
+  static Type *get(Type *element_type,
+                   uint64_t num_dimensions,
+                   std::vector<uint64_t> &length_of_dimensions);
+
+  Type *element_type;
+  uint64_t num_dimensions;
+  std::vector<uint64_t> length_of_dimensions;
+
+  bool equals(Type *other);
+  std::string toString();
+
+private:
+  StaticTensorType(Type *element_type,
+                   uint64_t num_dimensions,
+                   std::vector<uint64_t> &length_of_dimensions);
 };
 
 struct IntegerType : public Type {
