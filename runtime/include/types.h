@@ -20,6 +20,7 @@ namespace memoir {
 enum TypeCode {
   StructTy,
   TensorTy,
+  StaticTensorTy,
   IntegerTy,
   FloatTy,
   DoubleTy,
