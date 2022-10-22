@@ -65,6 +65,10 @@ std::string TensorType::toString() {
   return "(Type: tensor)";
 }
 
+std::string StaticTensorType::toString() {
+  return "(Type: staticTensor)";
+}
+
 std::string IntegerType::toString() {
   return "(Type: integer)";
 }

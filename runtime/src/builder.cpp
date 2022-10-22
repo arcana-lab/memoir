@@ -41,6 +41,24 @@ Type *TensorType(Type **type, uint64_t num_dimensions) {
 }
 
 __RUNTIME_ATTR
+Type *StaticTensorType(Type **type, uint64_t num_dimensions, ...) {
+  std::vector<uint64_t> length_of_dimensions;
+
+  va_list args;
+
+  va_start(args, num_dimensions);
+
+  for (int i = 0; i < num_dimensions; i++) {
+    auto arg = va_arg(args, uint64_t *);
+    length_of_dimensions.push_back(arg);
+  }
+
+  va_end(args);
+
+  return StaticTensorType::get(*type, num_dimensions, length_of_dimensions);
+}
+
+__RUNTIME_ATTR
 Type *IntegerType(uint64_t bitwidth, bool isSigned) {
   return IntegerType::get(bitwidth, isSigned);
 }
@@ -126,7 +144,7 @@ Object *allocateStruct(Type **type) {
  */
 __ALLOC_ATTR
 __RUNTIME_ATTR
-Object *allocateTensor(Type **element_type, uint64_t num_dimensions, ...) {
+Object *allocateTensor(Type **tensor_type, ...) {
   std::vector<uint64_t> length_of_dimensions;
 
   va_list args;
@@ -140,9 +158,7 @@ Object *allocateTensor(Type **element_type, uint64_t num_dimensions, ...) {
 
   va_end(args);
 
-  auto tensor_type = TensorType(element_type, num_dimensions);
-
-  auto tensor = new struct Tensor(tensor_type, length_of_dimensions);
+  auto tensor = new Tensor(tensor_type, length_of_dimensions);
 
   return tensor;
 }

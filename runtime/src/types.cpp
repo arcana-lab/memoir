@@ -95,32 +95,16 @@ bool StructType::equals(Type *other) {
 }
 
 /*
- * Tensor Type
+ * Dynamic Tensor Type
  */
 Type *TensorType::get(Type *element_type, uint64_t num_dimensions) {
   return new TensorType(element_type, num_dimensions);
 }
 
-Type *TensorType::get(Type *element_type,
-                      uint64_t num_dimensions,
-                      std::vector<uint64_t> &length_of_dimensions) {
-  return new TensorType(element_type, num_dimensions, length_of_dimensions);
-}
-
 TensorType::TensorType(Type *type, uint64_t num_dimensions)
   : Type(TypeCode::TensorTy),
     element_type(type),
-    num_dimensions(num_dimensions),
-    is_static_length(false) {}
-
-TensorType::TensorType(Type *type,
-                       uint64_t num_dimensions,
-                       std::vector<uint64_t> &length_of_dimensions)
-  : Type(TypeCode::TensorTy),
-    element_type(type),
-    num_dimensions(num_dimensions),
-    is_static_length(true),
-    length_of_dimensions(length_of_dimensions) {}
+    num_dimensions(num_dimensions) {}
 
 bool TensorType::equals(Type *other) {
   if (this->getCode() != other->getCode()) {
@@ -135,6 +119,44 @@ bool TensorType::equals(Type *other) {
 
   auto other_element_type = other_as_tensor->element_type;
   return this->element_type->equals(other_element_type);
+}
+
+/*
+ * Static Tensor Type
+ */
+Type *StaticTensorType::get(Type *element_type,
+                            uint64_t num_dimensions,
+                            std::vector<uint64_t> &length_of_dimensions) {
+  return new StaticTensorType(element_type,
+                              num_dimensions,
+                              length_of_dimensions);
+}
+
+StaticTensorType::StaticTensorType(Type *type,
+                                   uint64_t num_dimensions,
+                                   std::vector<uint64_t> &length_of_dimensions)
+  : Type(TypeCode::StaticTensorTy),
+    element_type(type),
+    num_dimensions(num_dimensions),
+    length_of_dimensions(length_of_dimensions) {}
+
+bool StaticTensorType::equals(Type *other) {
+  if (this->getCode() != other->getCode()) {
+    return false;
+  }
+
+  auto other_as_tensor = (StaticTensorType *)other;
+  auto other_num_dimensions = other_as_tensor->num_dimensions;
+  if (this->num_dimensions != other_num_dimensions) {
+    return false;
+  }
+
+  auto other_element_type = other_as_tensor->element_type;
+  if (!this->element_type->equals(other_element_type)) {
+    return false;
+  }
+
+  return this->length_of_dimensions == other_as_tensor->length_of_dimensions;
 }
 
 /*

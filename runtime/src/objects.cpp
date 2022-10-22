@@ -41,44 +41,25 @@ Field *Struct::readField(uint64_t field_index) {
 /*
  * Tensor Objects
  */
-Tensor::Tensor(Type *type) : Object(type) {
-
-  if (this->type->getCode() != TypeCode::TensorTy) {
-    std::cerr << "Trying to create a tensor of non-tensor type\n";
-    exit(1);
-  }
-
-  auto tensor_type = (TensorType *)(this->type);
-  auto element_type = tensor_type->element_type;
-  auto num_dimensions = tensor_type->num_dimensions;
-  this->length_of_dimensions = tensor_type->length_of_dimensions;
-
-  if (num_dimensions < 1) {
-    std::cerr << "Trying to create a tensor with 0 dimensions";
-    exit(1);
-  }
-
-  // Initialize the tensor
-  for (auto dimension_length : this->length_of_dimensions) {
-    for (auto i = 0; i < dimension_length; i++) {
-      auto field = Field::createField(element_type);
-      this->fields.push_back(field);
-    }
-  }
-}
-
 Tensor::Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions)
   : Object(type),
     length_of_dimensions(length_of_dimensions) {
 
+  Type *inner_type;
+  uint64_t num_dimensions;
+
   if (this->type->getCode() != TypeCode::TensorTy) {
+    auto tensor_type = (TensorType *)(this->type);
+    inner_type = tensor_type->element_type;
+    num_dimensions = tensor_type->num_dimensions;
+  } else if (this->type->getCode() != TypeCode::StaticTensorTy) {
+    auto tensor_type = (StaticTensorType *)(this - type);
+    inner_type = tensor_type->element_type;
+    num_dimensions = tensor_type->num_dimensions;
+  } else {
     std::cerr << "Trying to create a tensor of non-tensor type\n";
     exit(1);
   }
-
-  auto tensor_type = (TensorType *)(this->type);
-  auto inner_type = tensor_type->element_type;
-  auto num_dimensions = tensor_type->num_dimensions;
 
   if (num_dimensions < 1) {
     std::cerr << "Trying to create a tensor with 0 dimensions";
