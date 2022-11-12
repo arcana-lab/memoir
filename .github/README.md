@@ -1,4 +1,4 @@
-# MemOIR
+![memoir logo](memoir_logo.png)
 A case for memory object representation in the LLVM IR
 
 ## Building
@@ -13,11 +13,3 @@ To clean the build:
 
 To uninstall the existing build:
 `make uninstall`
-
-## TODOs
-- [ ] Support for static length tensors (on `static-tensor` branch)
-  - [x] Add to runtime
-  - [x] Add to common analyses
-  - [ ] Add to object lowering
-- [ ] Support for copy/clone (on `copy-and-clone` branch)
-  - [ ] Ensure that this is needed by benchmarks
