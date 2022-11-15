@@ -53,9 +53,10 @@ TypeSummary *TypeAnalysis::getTypeSummary(llvm::Value &V) {
       auto terminator = BB.getTerminator();
       if (auto return_inst = dyn_cast<ReturnInst>(terminator)) {
         auto return_value = return_inst->getReturnValue();
-        assert(return_value
-               && "in AccessAnalysis::getAllocationSummaries"
-                  "LLVM return value of function is NULL");
+        if (!return_value) {
+          return nullptr;
+        }
+
         callee_return_values.insert(return_value);
       }
     }
@@ -136,6 +137,10 @@ TypeSummary *TypeAnalysis::getTypeSummary(llvm::Value &V) {
       // TODO: handle GEP's here, hasn't broken yet.
     }
   }
+
+  /*
+   * TODO: Handle function arguments by looking at assertType and setReturnType.
+   */
 
   // TODO: handle PHI and select nodes
 

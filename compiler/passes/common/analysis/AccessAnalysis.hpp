@@ -33,6 +33,8 @@ class AccessSummary;
 class ObjectSummary;
 class BaseObjectSummary;
 class FieldSummary;
+class StructFieldSummary;
+class TensorElementSummary;
 
 /*
  * Access Analysis
@@ -60,18 +62,47 @@ public:
   static AccessAnalysis &get(Module &M);
   static void invalidate(Module &M);
 
-  /*
-   * Top-level entry point
+  /**
+   * Get the access summary for the given memoir call.
    *
-   * getAccessSummary
-   *   Get the access summary for the given MemOIR call.
-   *
-   * getFieldSummaries
-   *   Get all possible fields held by this LLVM Value.
+   * @param value A reference to an llvm Value.
+   * @return The access summary, or NULL if value is not a memoir call.
    */
   AccessSummary *getAccessSummary(llvm::Value &value);
+
+  /**
+   * Get the field summaries for a given llvm Value.
+   *
+   * @param value A reference to an llvm Value.
+   * @return A reference to a set of field summaries that this value represents,
+   *         if value is not a memoir field, this is an empty set.
+   */
   set<FieldSummary *> &getFieldSummaries(llvm::Value &value);
+
+  /**
+   * Get the object summaries for a given llvm Value.
+   *
+   * @param value A reference to an llvm Value.
+   * @return A reference to a set of object summaries that this value
+   *         represents, if value is not a memoir field, this is an empty set.
+   */
+  set<ObjectSummary *> &getObjectSummaries(llvm::Value &value);
+
+  /**
+   * Get all accesses to a given field.
+   *
+   * @param field A reference to a memoir field summary.
+   * @returns A reference to a set of access summaries.
+   */
   set<AccessSummary *> &getFieldAccesses(FieldSummary &field);
+
+  /**
+   * Get all fields of a given object.
+   *
+   * @param object A reference to a memoir field summary.
+   * @returns A reference to a set of access summaries.
+   */
+  set<FieldSummary *> &getObjectFields(ObjectSummary &object);
 
   /*
    * This class is not cloneable nor assignable.
@@ -88,16 +119,30 @@ private:
   /*
    * Owned state
    */
-  map<llvm::Value *, AccessSummary *> access_summaries;
-  map<llvm::Value *, set<FieldSummary *>> field_summaries;
   map<AllocationSummary *, BaseObjectSummary *> base_object_summaries;
-  map<llvm::CallInst *, set<ObjectSummary *>> nested_object_summaries;
+  map<FieldSummary *, ObjectSummary *> nested_object_summaries;
+  map<llvm::CallInst *, map<FieldSummary *, ReferencedObjectSummary *>>
+      reference_summaries;
+  map<ObjectSummary *, set<FieldSummary *>> field_summaries;
+  map<llvm::Value *, AccessSummary *> access_summaries;
 
   /*
    * Internal state
    */
-  map<llvm::Value *, set<ObjectSummary *>> object_summaries;
+  map<llvm::Value *, set<FieldSummary *>> value_to_field_summaries;
+  map<llvm::Value *, set<ObjectSummary *>> value_to_object_summaries;
   map<FieldSummary *, set<AccessSummary *>> field_accesses;
+  map<ReferencedObjectSummary *, set<FieldSummary *>> fields_to_reconcile;
+
+  /*
+   * Analysis driver functions
+   */
+  void initialize();
+  void analyze();
+  void analyzeObjects();
+  void analyzeFields();
+  void reconcileReferences();
+  void analyzeAccesses();
 
   /*
    * Internal helper functions
@@ -109,7 +154,15 @@ private:
   set<ObjectSummary *> &getReadStructSummaries(llvm::CallInst &call_inst);
   set<ObjectSummary *> &getReadTensorSummaries(llvm::CallInst &call_inst);
   set<ObjectSummary *> &getReadReferenceSummaries(llvm::CallInst &call_inst);
-  set<ObjectSummary *> &getObjectSummaries(llvm::Value &value);
+
+  /*
+   * Memoize and build functions
+   */
+  StructFieldSummary &fetchOrCreateStructFieldSummary(ObjectSummary &object,
+                                                      uint64_t field_index);
+  TensorElementSummary &fetchOrCreateTensorElementSummary(
+      ObjectSummary &object,
+      vector<llvm::Value *> &indices);
 
   static bool isRead(MemOIR_Func func_enum);
   static bool isWrite(MemOIR_Func func_enum);
@@ -128,7 +181,7 @@ private:
   static map<llvm::Module *, AccessAnalysis *> analyses;
 };
 
-enum ObjectCode { BASE, NESTED_STRUCT, NESTED_TENSOR };
+enum ObjectCode { BASE, NESTED, REFERENCED, DEF_PHI, USE_PHI };
 
 /*
  * Object Summary
@@ -137,9 +190,8 @@ enum ObjectCode { BASE, NESTED_STRUCT, NESTED_TENSOR };
  */
 class ObjectSummary {
 public:
-  bool isNested() const;
   ObjectCode getCode() const;
-  llvm::CallInst &getCallInst() const;
+  bool isNested() const;
 
   virtual AllocationSummary &getAllocation() const = 0;
   virtual TypeSummary &getType() const = 0;
@@ -155,9 +207,8 @@ public:
 
 protected:
   ObjectCode code;
-  llvm::CallInst &call_inst;
 
-  ObjectSummary(llvm::CallInst &call_inst, ObjectCode code = ObjectCode::BASE);
+  ObjectSummary(bool is_nested);
 
   friend class AccessAnalysis;
 };
@@ -183,13 +234,13 @@ protected:
 };
 
 /*
- * Nested Struct Summary
+ * Nested Object Summary
  *
- * Represents a nested struct within another MemOIR object.
+ * Represents a nested object within another MemOIR object.
  * This could be a struct within a struct, an element of a
  * tensor of structs, etc.
  */
-class NestedStructSummary : public ObjectSummary {
+class NestedObjectSummary : public ObjectSummary {
 public:
   FieldSummary &getField() const;
   AllocationSummary &getAllocation() const override;
@@ -200,33 +251,28 @@ public:
 protected:
   FieldSummary &field;
 
-  NestedStructSummary(llvm::CallInst &call_inst, FieldSummary &field);
+  NestedObjectSummary(FieldSummary &field);
 
   friend class AccessAnalysis;
 };
 
 /*
- * Nested Tensor Summary
+ * Referenced Object Summary
  *
- * Represents a nested tensor within another MemOIR object.
- * This could be a tensor within a struct, an element of a
- * tensor of tensors, etc.
- *
- * NOTE: Nested Tensors must have a static length, otherwise it cannot be
- * lowered to contiguous memory.
+ * Represents an object or set of objects referenced by another MemOIR object.
+ * This summary is flow-sensitive.
  */
-class NestedTensorSummary : public ObjectSummary {
+class ReferencedObjectSummary : public ObjectSummary {
 public:
+  llvm::CallInst &getCallInst() const;
   FieldSummary &getField() const;
   AllocationSummary &getAllocation() const override;
   TypeSummary &getType() const override;
 
-  std::string toString(std::string indent = "") const override;
-
 protected:
+  llvm::CallInst &call_inst;
   FieldSummary &field;
-
-  NestedTensorSummary(llvm::CallInst &call_inst, FieldSummary &field);
+  set<ObjectSummary *> referenced_objects;
 
   friend class AccessAnalysis;
 };
@@ -253,9 +299,8 @@ public:
 
 protected:
   ObjectSummary &points_to;
-  llvm::CallInst &call_inst;
 
-  FieldSummary(llvm::CallInst &call_inst, ObjectSummary &points_to);
+  FieldSummary(ObjectSummary &points_to);
 };
 
 /*
@@ -264,8 +309,7 @@ protected:
  * Represents a field of a MemOIR struct.
  */
 class StructFieldSummary : public FieldSummary {
-public:
-  uint64_t getIndex() const;
+  ublic : uint64_t getIndex() const;
   TypeSummary &getType() const;
 
   std::string toString(std::string indent = "") const override;
@@ -273,9 +317,7 @@ public:
 protected:
   uint64_t index;
 
-  StructFieldSummary(llvm::CallInst &call_inst,
-                     ObjectSummary &points_to,
-                     uint64_t index);
+  StructFieldSummary(ObjectSummary &points_to, uint64_t index);
 
   friend class AccessAnalysis;
 };
@@ -294,23 +336,12 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  std::vector<llvm::Value *> indices;
+  vector<llvm::Value *> indices;
 
-  TensorElementSummary(llvm::CallInst &call_inst,
-                       ObjectSummary &points_to,
-                       std::vector<llvm::Value *> &indices);
+  TensorElementSummary(ObjectSummary &points_to,
+                       vector<llvm::Value *> &indices);
 
   friend class AccessAnalysis;
-};
-
-/*
- * Points To Info
- * The lack of a points-to relation implies that an access NEVER points to the
- * given allocation.
- */
-enum PointsToInfo {
-  MUST,
-  MAY,
 };
 
 /*
@@ -336,14 +367,27 @@ class AccessSummary {
 public:
   bool isMust() const;
   bool isMay() const;
-  PointsToInfo getPointsToInfo() const;
 
   bool isRead() const;
   bool isWrite() const;
   AccessInfo getAccessInfo() const;
 
   llvm::CallInst &getCallInst() const;
-  virtual TypeSummary &getType() const = 0;
+  TypeSummary &getType() const;
+
+  /*
+   * Returns the single field that MUST be read.
+   * If more than one field may be read, return NULL.
+   */
+  FieldSummary *getSingleField() const;
+
+  typedef set<FieldSummary *>::iterator iterator;
+  typedef set<FieldSummary *>::const_iterator const_iterator;
+
+  iterator begin();
+  iterator end();
+  const_iterator cbegin() const;
+  const_iterator cend() const;
 
   friend bool operator<(const AccessSummary &l, const AccessSummary &r);
   friend std::ostream &operator<<(std::ostream &os, const AccessSummary &as);
@@ -352,9 +396,11 @@ public:
   virtual std::string toString(std::string indent = "") const = 0;
 
 private:
-  PointsToInfo points_to_info;
-  AccessInfo access_info;
   llvm::CallInst &call_inst;
+  TypeSummary &type;
+  set<FieldSummary *> fields_accessed;
+
+  AccessInfo access_info;
 
 protected:
   AccessSummary(llvm::CallInst &call_inst,
@@ -365,109 +411,37 @@ protected:
 };
 
 /*
- * Must Read Access Summary
+ * Read Access Summary
  *
- * Represents a read access to a MemOIR field that must occur.
+ * Represents a read access to a MemOIR field.
  */
-class MustReadSummary : public AccessSummary {
+class ReadSummary : public AccessSummary {
 public:
-  FieldSummary &getField() const;
-  TypeSummary &getType() const override;
-
   std::string toString(std::string indent = "") const override;
 
 protected:
-  FieldSummary &field;
-
-  MustReadSummary(llvm::CallInst &call_inst, FieldSummary &field);
+  ReadSummary(llvm::CallInst &call_inst, set<FieldSummary *> &fields_read);
 
   friend class AccessAnalysis;
 };
 
 /*
- * Must Write Summary
+ * Write Access Summary
  *
- * Represents a write access to a MemOIR field that must occur.
+ * Represents a write access to MemOIR field.
  */
-class MustWriteSummary : public AccessSummary {
+class WriteSummary : public AccessSummary {
 public:
-  TypeSummary &getType() const override;
-  FieldSummary &getField() const;
   llvm::Value &getValueWritten() const;
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  FieldSummary &field;
   llvm::Value &value_written;
 
-  MustWriteSummary(llvm::CallInst &call_inst,
-                   FieldSummary &field,
-                   llvm::Value &value_written);
-
-  friend class AccessAnalysis;
-};
-
-/*
- * May Read Access Summary
- *
- * Represents a read access to a MemOIR field that may occur.
- */
-class MayReadSummary : public AccessSummary {
-public:
-  typedef set<FieldSummary *>::iterator iterator;
-  typedef set<FieldSummary *>::const_iterator const_iterator;
-
-  iterator begin();
-  iterator end();
-  const_iterator cbegin() const;
-  const_iterator cend() const;
-
-  TypeSummary &getType() const override;
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  TypeSummary &type;
-  set<FieldSummary *> may_read_summaries;
-
-  MayReadSummary(llvm::CallInst &call_inst,
-                 TypeSummary &type_summary,
-                 set<FieldSummary *> &may_read_summaries);
-
-  friend class AccessAnalysis;
-};
-
-/*
- * May Write Summary
- *
- * Represents a write access to MemOIR field that may occur.
- */
-class MayWriteSummary : public AccessSummary {
-public:
-  typedef set<FieldSummary *>::iterator iterator;
-  typedef set<FieldSummary *>::const_iterator const_iterator;
-
-  iterator begin();
-  iterator end();
-
-  const_iterator cbegin() const;
-  const_iterator cend() const;
-
-  TypeSummary &getType() const override;
-  llvm::Value &getValueWritten() const;
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  TypeSummary &type;
-  set<FieldSummary *> may_write_summaries;
-  llvm::Value &value_written;
-
-  MayWriteSummary(llvm::CallInst &call_inst,
-                  TypeSummary &type_summary,
-                  set<FieldSummary *> &may_write_summaries,
-                  llvm::Value &value_written);
+  WriteSummary(llvm::CallInst &call_inst,
+               set<FieldSummary *> &fields_written,
+               llvm::Value &value_written);
 
   friend class AccessAnalysis;
 };

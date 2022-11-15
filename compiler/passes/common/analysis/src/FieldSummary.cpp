@@ -6,9 +6,7 @@ namespace llvm::memoir {
  * Field Summary base class implementation
  */
 
-FieldSummary::FieldSummary(llvm::CallInst &call_inst, ObjectSummary &points_to)
-  : call_inst(call_inst),
-    points_to(points_to) {
+FieldSummary::FieldSummary(ObjectSummary &points_to) : points_to(points_to) {
   // Do nothing.
 }
 
@@ -24,17 +22,11 @@ AllocationSummary &FieldSummary::getAllocation() const {
   return this->points_to.getAllocation();
 }
 
-llvm::CallInst &FieldSummary::getCallInst() const {
-  return this->call_inst;
-}
-
 /*
  * Struct Field Summary implementation
  */
-StructFieldSummary::StructFieldSummary(llvm::CallInst &call_inst,
-                                       ObjectSummary &points_to,
-                                       uint64_t index)
-  : FieldSummary(call_inst, points_to),
+StructFieldSummary::StructFieldSummary(ObjectSummary &points_to, uint64_t index)
+  : FieldSummary(points_to),
     index(index) {
   // Do nothing.
 }
@@ -52,10 +44,9 @@ TypeSummary &StructFieldSummary::getType() const {
 /*
  * Tensor Element Summary implementation
  */
-TensorElementSummary::TensorElementSummary(llvm::CallInst &call_inst,
-                                           ObjectSummary &points_to,
+TensorElementSummary::TensorElementSummary(ObjectSummary &points_to,
                                            std::vector<llvm::Value *> &indices)
-  : FieldSummary(call_inst, points_to),
+  : FieldSummary(points_to),
     indices(indices) {
   // Do nothing.
 }

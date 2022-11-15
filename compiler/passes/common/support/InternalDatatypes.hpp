@@ -19,6 +19,10 @@
 #  include <unordered_set>
 #endif
 
+#include <queue>
+#include <stack>
+#include <vector>
+
 #include <functional>
 #include <memory>
 #include <optional>
