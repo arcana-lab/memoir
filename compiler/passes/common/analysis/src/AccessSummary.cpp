@@ -6,20 +6,22 @@ namespace llvm::memoir {
  * Access Summary base class implementation
  */
 AccessSummary::AccessSummary(CallInst &call_inst,
+                             set<FieldSummary *> &fields_accessed,
                              PointsToInfo points_to_info,
                              AccessInfo access_info)
   : call_inst(call_inst),
+    fields_accessed(fields_accessed),
     points_to_info(points_to_info),
     access_info(access_info) {
   // Do nothing.
 }
 
 bool AccessSummary::isMust() const {
-  return (this->points_to_info == PointsToInfo::MUST);
+  return (this->fields_accessed.size() == 1);
 }
 
 bool AccessSummary::isMay() const {
-  return (this->points_to_info == PointsToInfo::MAY);
+  return !(this->isMust());
 }
 
 PointsToInfo AccessSummary::getPointsToInfo() const {
@@ -42,113 +44,71 @@ llvm::CallInst &AccessSummary::getCallInst() const {
   return this->call_inst;
 }
 
+TypeSummary &AccessSummary::getType() const {
+  auto first_field = *(this->fields);
+  return first_field->getType();
+}
+
+FieldSummary *AccessSummary::getSingleField() const {
+  if (this->isMay()) {
+    return nullptr;
+  }
+
+  return *(this->begin());
+}
+
+AccessSummary::iterator AccessSummary::begin() {
+  return this->fields_accessed.begin();
+}
+
+AccessSummary::iterator AccessSummary::end() {
+  return this->fields_accessed.end();
+}
+
+AccessSummary::const_iterator AccessSummary::cbegin() const {
+  return this->fields_accessed.cbegin();
+}
+
+AccessSummary::const_iterator AccessSummary::cend() const {
+  return this->fields_accessed.cend();
+}
+
 /*
  * Read Summary implementation
  */
-MustReadSummary::MustReadSummary(llvm::CallInst &call_inst, FieldSummary &field)
-  : field(field),
-    AccessSummary(call_inst, PointsToInfo::MUST, AccessInfo::READ) {
+ReadSummary::ReadSummary(llvm::CallInst &call_inst,
+                         set<FieldSummary *> &may_read_fields)
+  : AccessSummary(call_inst, may_read_fields, AccessInfo::READ) {
   // Do nothing.
 }
 
-FieldSummary &MustReadSummary::getField() const {
-  return this->field;
-}
-
-TypeSummary &MustReadSummary::getType() const {
-  return this->field.getType();
+ReadSummary::ReadSummary(llvm::CallInst &call_inst,
+                         FieldSummary &must_read_field)
+  : AccessSummary(call_inst, { &must_read_field }, AccessInfo::READ) {
+  // Do nothing.
 }
 
 /*
- * Write Summary implementation
+ *  Write Summary implementation
  */
-MustWriteSummary::MustWriteSummary(llvm::CallInst &call_inst,
-                                   FieldSummary &field,
-                                   llvm::Value &value_written)
-  : field(field),
-    value_written(value_written),
-    AccessSummary(call_inst, PointsToInfo::MUST, AccessInfo::WRITE) {
+WriteSummary::WriteSummary(llvm::CallInst &call_inst,
+                           set<FieldSummary *> &may_write_fields,
+                           llvm::Value &value_written)
+  : value_written(value_written),
+    AccessSummary(call_inst, may_write_fields, AccessInfo::WRITE) {
   // Do nothing.
 }
 
-llvm::Value &MustWriteSummary::getValueWritten() const {
+WriteSummary::WriteSummary(llvm::CallInst &call_inst,
+                           FieldSummary &must_write_field,
+                           llvm::Value &value_written)
+  : value_written(value_written),
+    AccessSummary(call_inst, { &must_write_field }, AccessInfo::WRITE) {
+  // Do nothing.
+}
+
+TypeSummary &WriteSummary::getValueWritten() const {
   return this->value_written;
-}
-
-FieldSummary &MustWriteSummary::getField() const {
-  return this->field;
-}
-
-TypeSummary &MustWriteSummary::getType() const {
-  return this->field.getType();
-}
-
-/*
- * May Read Summary implementation
- */
-MayReadSummary::MayReadSummary(
-    llvm::CallInst &call_inst,
-    TypeSummary &type,
-    std::unordered_set<FieldSummary *> &may_read_summaries)
-  : type(type),
-    may_read_summaries(may_read_summaries),
-    AccessSummary(call_inst, PointsToInfo::MAY, AccessInfo::READ) {
-  // Do nothing.
-}
-
-MayReadSummary::iterator MayReadSummary::begin() {
-  return this->may_read_summaries.begin();
-}
-
-MayReadSummary::iterator MayReadSummary::end() {
-  return this->may_read_summaries.end();
-}
-
-MayReadSummary::const_iterator MayReadSummary::cbegin() const {
-  return this->may_read_summaries.cbegin();
-}
-
-MayReadSummary::const_iterator MayReadSummary::cend() const {
-  return this->may_read_summaries.cend();
-}
-
-TypeSummary &MayReadSummary::getType() const {
-  return this->type;
-}
-
-/*
- * May Write Summary implementation
- */
-MayWriteSummary::MayWriteSummary(
-    llvm::CallInst &call_inst,
-    TypeSummary &type,
-    std::unordered_set<FieldSummary *> &may_write_summaries,
-    llvm::Value &value_written)
-  : type(type),
-    may_write_summaries(may_write_summaries),
-    value_written(value_written),
-    AccessSummary(call_inst, PointsToInfo::MAY, AccessInfo::WRITE) {
-  // Do nothing.
-}
-
-MayWriteSummary::iterator MayWriteSummary::begin() {
-  return may_write_summaries.begin();
-}
-
-MayWriteSummary::iterator MayWriteSummary::end() {
-  return may_write_summaries.end();
-}
-
-MayWriteSummary::const_iterator MayWriteSummary::cbegin() const {
-  return may_write_summaries.cbegin();
-}
-
-MayWriteSummary::const_iterator MayWriteSummary::cend() const {
-  return may_write_summaries.cend();
-}
-
-TypeSummary &MayWriteSummary::getType() const {
-  return this->type;
 }
 
 } // namespace llvm::memoir

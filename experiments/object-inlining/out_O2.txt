@@ -1,0 +1,28 @@
+./baseline 1000000 ;
+Baseline
+Iterations=1000000
+TOTAL Time= 17.493000 ms
+BUILD Time= 0.001000 ms
+ EXEC Time= 17.492001 ms
+
+./obj_inlining 1000000 ;
+Object Inlining
+Iterations=1000000
+TOTAL Time= 17.399000 ms
+BUILD Time= 0.001000 ms
+ EXEC Time= 17.398001 ms
+
+./baseline 1000000000 ;
+Baseline
+Iterations=1000000000
+TOTAL Time= 15960.083984 ms
+BUILD Time= 0.001000 ms
+ EXEC Time= 15960.083008 ms
+
+./obj_inlining 1000000000
+Object Inlining
+Iterations=1000000000
+TOTAL Time= 15952.635742 ms
+BUILD Time= 0.001000 ms
+ EXEC Time= 15952.634766 ms
+

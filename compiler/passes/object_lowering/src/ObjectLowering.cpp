@@ -221,7 +221,7 @@ void ObjectLowering::cacheTypes() {
 } // endof cachetypes
 
 void ObjectLowering::inferArgTypes(llvm::Function *f,
-                                   vector<Type *> *arg_vector) {
+                                   std::vector<Type *> *arg_vector) {
   //  auto ft = f->getFunctionType();
   //  auto args = f->arg_begin();
   //  for (auto ogType : ft->params()) {

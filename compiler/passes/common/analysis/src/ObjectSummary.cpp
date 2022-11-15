@@ -1,30 +1,25 @@
 #include "common/analysis/AccessAnalysis.hpp"
 
 namespace llvm::memoir {
+
 /*
  * ObjectSummary implementation
  */
-ObjectSummary::ObjectSummary(llvm::CallInst &call_inst, ObjectCode code)
-  : call_inst(call_inst),
-    code(code) {
+ObjectSummary::ObjectSummary(ObjectCode code) : code(code) {
   // Do nothing.
-}
-
-bool ObjectSummary::isNested() const {
-  switch (this->code) {
-    case ObjectCode::NESTED_STRUCT:
-      return true;
-    default:
-      return false;
-  }
 }
 
 ObjectCode ObjectSummary::getCode() const {
   return this->code;
 }
 
-llvm::CallInst &ObjectSummary::getCallInst() const {
-  return this->call_inst;
+bool ObjectSummary::isNested() const {
+  switch (this->code) {
+    case NESTED:
+      return true;
+    default:
+      return false;
+  }
 }
 
 AllocationCode ObjectSummary::getAllocationCode() const {
@@ -40,7 +35,7 @@ TypeCode ObjectSummary::getTypeCode() const {
  */
 BaseObjectSummary::BaseObjectSummary(AllocationSummary &allocation)
   : allocation(allocation),
-    ObjectSummary(allocation.getCallInst(), ObjectCode::BASE) {
+    ObjectSummary(ObjectCode::BASE) {
   // Do nothing.
 }
 
@@ -53,47 +48,35 @@ TypeSummary &BaseObjectSummary::getType() const {
 }
 
 /*
- * NestedStructSummary implementation
+ * NestedObjectSummary implementation
  */
-NestedStructSummary::NestedStructSummary(llvm::CallInst &call_inst,
-                                         FieldSummary &field)
+NestedObjectSummary::NestedObjectSummary(FieldSummary &field)
   : field(field),
-    ObjectSummary(call_inst, ObjectCode::NESTED_STRUCT) {
+    ObjectSummary(ObjectCode::NESTED) {
   // Do nothing.
 }
 
-FieldSummary &NestedStructSummary::getField() const {
+FieldSummary &NestedObjectSummary::getField() const {
   return this->field;
 }
 
-AllocationSummary &NestedStructSummary::getAllocation() const {
+AllocationSummary &NestedObjectSummary::getAllocation() const {
   return this->getField().getAllocation();
 }
 
-TypeSummary &NestedStructSummary::getType() const {
+TypeSummary &NestedObjectSummary::getType() const {
   return this->getField().getType();
 }
 
 /*
- * NestedTensorSummary implementation
+ * ReferencedObjectSummary implementation
  */
-NestedTensorSummary::NestedTensorSummary(llvm::CallInst &call_inst,
-                                         FieldSummary &field)
-  : field(field),
-    ObjectSummary(call_inst, ObjectCode::NESTED_TENSOR) {
-  // Do nothing.
-}
-
-FieldSummary &NestedTensorSummary::getField() const {
-  return this->field;
-}
-
-AllocationSummary &NestedTensorSummary::getAllocation() const {
-  return this->getField().getAllocation();
-}
-
-TypeSummary &NestedTensorSummary::getType() const {
-  return this->getField().getType();
+ReferencedObjectSummary::ReferencedObjectSummary(llvm::CallInst &call_inst,
+                                                 FieldSummary &field)
+  : ObjectSummary(ObjectCode::REFERENCED),
+    call_inst(call_inst),
+    field(field) {
+  this->referenced_objects.clear();
 }
 
 } // namespace llvm::memoir
