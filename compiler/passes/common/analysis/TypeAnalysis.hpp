@@ -232,14 +232,12 @@ public:
   static SequenceTypeSummary &get(TypeSummary &key_type,
                                   TypeSummary &value_type);
 
-  TypeSummary &getKeyType() const;
-  TypeSummary &getValueType() const;
+  TypeSummary &getElementType() const;
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  TypeSummary &key_type;
-  TypeSummary &value_type;
+  TypeSummary &element_type;
 
   static map<TypeSummary *, SequenceTypeSummary *> assoc_array_type_summaries;
 
