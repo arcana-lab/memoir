@@ -180,6 +180,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
+  TypeSummary &key_type;
+  TypeSummary &value_type;
+
   AssocArrayAllocationSummary(llvm::CallInst &call_inst,
                               TypeSummary &key_type,
                               TypeSummary &value_type);
@@ -199,7 +202,10 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  SequenceAllocationSummary(llvm::CallInst &call_inst, TypeSummary &type);
+  TypeSummary &element_type;
+
+  SequenceAllocationSummary(llvm::CallInst &call_inst,
+                            TypeSummary &element_type);
 
   friend class AllocationAnalysis;
 };
