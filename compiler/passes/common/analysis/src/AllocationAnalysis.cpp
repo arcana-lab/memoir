@@ -510,6 +510,24 @@ AllocationSummary *AllocationAnalysis::getTensorAllocationSummary(
                                      length_of_dimensions);
 }
 
+AllocationSummary *AllocationAnalysis::getAssocArrayAllocationSummary(
+    CallInst &call_inst) {
+  /*
+   * TODO
+   */
+
+  return nullptr;
+}
+
+AllocationSummary *AllocationAnalysis::getSequenceAllocationSummary(
+    CallInst &call_inst) {
+  /*
+   * TODO
+   */
+
+  return nullptr;
+}
+
 /*
  * Logistics
  */
