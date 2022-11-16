@@ -309,7 +309,8 @@ protected:
  * Represents a field of a MemOIR struct.
  */
 class StructFieldSummary : public FieldSummary {
-  ublic : uint64_t getIndex() const;
+public:
+  uint64_t getIndex() const;
   TypeSummary &getType() const;
 
   std::string toString(std::string indent = "") const override;
