@@ -78,6 +78,8 @@ private:
    */
   AllocationSummary *getStructAllocationSummary(llvm::CallInst &call_inst);
   AllocationSummary *getTensorAllocationSummary(llvm::CallInst &call_inst);
+  AllocationSummary *getAssocArrayAllocationSummary(llvm::CallInst &call_inst);
+  AllocationSummary *getSequenceAllocationSummary(llvm::CallInst &call_inst);
   void invalidate();
 
   /*
@@ -95,7 +97,7 @@ private:
  * Allocation Code
  * Basic information about the class of object being allocated.
  */
-enum AllocationCode { STRUCT, TENSOR };
+enum AllocationCode { STRUCT, TENSOR, ASSOC_ARRAY, SEQUENCE };
 
 /*
  * Allocation Summary
@@ -161,6 +163,43 @@ protected:
   TensorAllocationSummary(llvm::CallInst &call_inst,
                           TypeSummary &element_type,
                           std::vector<llvm::Value *> &length_of_dimensions);
+
+  friend class AllocationAnalysis;
+};
+
+/*
+ * Associative Array Allocation Summary
+ *
+ * Represents an allocation of a MemOIR associative array.
+ */
+struct AssocArrayAllocationSummary : public AllocationSummary {
+public:
+  TypeSummary &getKeyType() const;
+  TypeSummary &getValueType() const;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  AssocArrayAllocationSummary(llvm::CallInst &call_inst,
+                              TypeSummary &key_type,
+                              TypeSummary &value_type);
+
+  friend class AllocationAnalysis;
+};
+
+/*
+ * Sequence Allocation Summary
+ *
+ * Represents an allocation of a MemOIR associative array.
+ */
+struct SequenceAllocationSummary : public AllocationSummary {
+public:
+  TypeSummary &getElementType() const;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  SequenceAllocationSummary(llvm::CallInst &call_inst, TypeSummary &type);
 
   friend class AllocationAnalysis;
 };
