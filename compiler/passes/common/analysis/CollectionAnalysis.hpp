@@ -122,14 +122,7 @@ protected:
   TypeSummary &type;
   unsigned field_index;
 
-  /*
-   * A mapping from (Struct Type, Field Index) to FieldArraySummary
-   */
-  static std::unordered_map<std::pair<TypeSummary *, unsigned>,
-                            FieldArraySummary *>
-      field_array_summaries
-
-      friend class CollectionAnalysis;
+  friend class CollectionAnalysis;
 }
 
 class ControlPHISummary : public CollectionSummary {
