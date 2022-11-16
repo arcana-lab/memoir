@@ -77,6 +77,11 @@ public:
   CollectionCode getCode() const;
 
   bool operator==(const CollectionSummary &other) const;
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const AllocationSummary &as);
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                       const AllocationSummary &as);
+  virtual std::string toString(std::string indent = "") const = 0;
 
 protected:
   CollectionCode code;
@@ -91,6 +96,7 @@ public:
   AllocationSummary &getAllocation() const;
 
   bool operator==(const DefPHISummary &other) const;
+  std::string toString(std::string indent = "") const;
 
 protected:
   AllocationSummary &allocation;
@@ -108,6 +114,7 @@ public:
   unsigned getIndex() const;
 
   bool operator==(const DefPHISummary &other) const;
+  std::string toString(std::string indent = "") const;
 
 protected:
   FieldArraySummary(TypeSummary &type, unsigned field_index);
@@ -135,6 +142,7 @@ public:
   llvm::PHINode &getPHI() const;
 
   bool operator==(const ControlPHISummary &other) const;
+  std::string toString(std::string indent = "") const;
 
 protected:
   llvm::PHINode &phi_node;
@@ -153,6 +161,7 @@ public:
   AccessSummary &getAccess();
 
   bool operator==(const DefPHISummary &other) const;
+  std::string toString(std::string indent = "") const;
 
 protected:
   CollectionSummary &collection;
@@ -169,6 +178,7 @@ public:
   AccessSummary &getAccess();
 
   bool operator==(const UsePHISummary &other) const;
+  std::string toString(std::string indent = "") const;
 
 protected:
   CollectionSummary &collection;
