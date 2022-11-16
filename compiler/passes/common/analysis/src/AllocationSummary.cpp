@@ -64,4 +64,43 @@ llvm::Value *TensorAllocationSummary::getLengthOfDimension(
   return this->length_of_dimensions[dimension_index];
 }
 
+/*
+ * AssocArrayAllocationSummary implementation
+ */
+AssocArrayAllocationSummary::AssocArrayAllocationSummary(
+    llvm::CallInst &call_inst,
+    TypeSummary &key_type,
+    TypeSummary &value_type)
+  : key_type(key_type),
+    value_type(value_type),
+    AllocationSummary(call_inst,
+                      AllocationCode::ASSOC_ARRAY,
+                      AssocArrayTypeSummary::get(key_type, value_type)) {
+  // Do nothing.
+}
+
+TypeSummary &AssocArrayAllocationSummary::getKeyType() const {
+  return this->key_type;
+}
+
+TypeSummary &AssocArrayAllocationSummary::getValueType() const {
+  return this->value_type;
+}
+
+/*
+ * SequenceAllocationSummary implementation
+ */
+SequenceAllocationSummary::SequenceAllocationSummary(llvm::CallInst &call_inst,
+                                                     TypeSummary &element_type)
+  : element_type(element_type),
+    AllocationSummary(call_inst,
+                      AllocationCode::SEQUENCE,
+                      SequenceTypeSummary(element_type)) {
+  // Do nothing.
+}
+
+TypeSummary &SequenceAllocationSummary::getElementType() const {
+  return this->element_type;
+}
+
 } // namespace llvm::memoir
