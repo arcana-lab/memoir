@@ -37,9 +37,50 @@ std::string TensorTypeSummary::toString(std::string indent) const {
 
   str = "(tensor\n";
   str += indent + "  element type: \n";
-  str += indent + "    " + this->element_type.toString(indent + "  ") + "\n";
+  str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
   str += indent + "  # of dimensions: " + std::to_string(this->num_dimensions)
          + "\n";
+  str += indent + ")";
+
+  return str;
+}
+
+std::string StaticTensorTypeSummary::toString(std::string indent) const {
+  std::string str;
+
+  str = "(static tensor\n";
+  str += indent + "  element type: \n";
+  str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
+  str += indent + "  # of dimensions: "
+         + std::to_string(this->getNumDimensions()) + "\n";
+  for (auto dim = 0; dim < this->length_of_dimensions.size(); dim++) {
+    str += indent + "  dimension " + std::to_string(dim) + ": "
+           + std::to_string(this->length_of_dimensions.at(dim)) + "\n";
+  }
+  str += indent + ")";
+
+  return str;
+}
+
+std::string AssocArrayTypeSummary::toString(std::string indent) const {
+  std::string str;
+
+  str = "(associative array\n";
+  str += indent + "  key type: \n";
+  str += indent + "    " + this->key_type.toString(indent + "    ") + "\n";
+  str += indent + "  value type: \n";
+  str += indent + "    " + this->value_type.toString(indent + "    ") + "\n";
+  str += indent + ")";
+
+  return str;
+}
+
+std::string AssocArrayTypeSummary::toString(std::string indent) const {
+  std::string str;
+
+  str = "(sequence\n";
+  str += indent + "  element type: \n";
+  str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
   str += indent + ")";
 
   return str;

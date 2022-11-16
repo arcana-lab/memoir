@@ -81,6 +81,12 @@ private:
 
   TypeSummary &getTensorTypeSummary(llvm::CallInst &call_inst);
 
+  TypeSummary &getStaticTensorTypeSummary(llvm::CallInst &call_inst);
+
+  TypeSummary &getAssocArrayTypeSummary(llvm::CallInst &call_inst);
+
+  TypeSummary &getSequenceTypeSummary(llvm::CallInst &call_inst);
+
   TypeSummary &defineStructTypeSummary(llvm::CallInst &call_inst);
 
   /*
@@ -96,6 +102,9 @@ private:
 enum TypeCode {
   StructTy,
   TensorTy,
+  StaticTensorTy,
+  AssocArrayTy,
+  SequenceTy,
   IntegerTy,
   FloatTy,
   DoubleTy,
@@ -127,21 +136,29 @@ struct StructTypeSummary : public TypeSummary {
 public:
   static StructTypeSummary &get(std::string name);
   static StructTypeSummary &get(std::string name,
-                                std::vector<TypeSummary *> &field_types);
+                                std::vector<TypeSummary *> &field_types,
+                                llvm::CallInst &call_inst);
 
   std::string getName() const;
   TypeSummary &getField(uint64_t field_index) const;
+  FieldArraySummary &getFieldArray(uint64_t field_index) const;
   uint64_t getNumFields() const;
+  llvm::CallInst &getCall() const;
 
   std::string toString(std::string indent = "") const override;
 
 protected:
+  llvm::CallInst *call_inst;
   std::string name;
-  std::vector<TypeSummary *> field_types;
+  vector<TypeSummary *> field_types;
+  vector<FieldArraySummary *> field_arrays;
 
   static map<std::string, StructTypeSummary *> defined_type_summaries;
 
   StructTypeSummary(std::string name, std::vector<TypeSummary *> &field_types);
+  StructTypeSummary(std::string name,
+                    vector<TypeSummary *> &field_types,
+                    llvm::CallInst &call_inst);
 
   friend class TypeAnalysis;
 };
@@ -150,28 +167,83 @@ struct TensorTypeSummary : public TypeSummary {
 public:
   static TensorTypeSummary &get(TypeSummary &element_type,
                                 uint64_t num_dimensions);
-  // static TensorTypeSummary &get(TypeSummary &element_type,
-  //                               std::vector<uint64_t> &length_of_dimensions);
 
   TypeSummary &getElementType() const;
   uint64_t getNumDimensions() const;
-  bool isStaticLength() const;
-  uint64_t getLengthOfDimension(uint64_t dimension_index) const;
 
   std::string toString(std::string indent = "") const override;
 
 protected:
   TypeSummary &element_type;
   uint64_t num_dimensions;
-  bool is_static_length;
-  std::vector<uint64_t> length_of_dimensions;
 
   static map<TypeSummary *, map<uint64_t, TensorTypeSummary *>>
       tensor_type_summaries;
 
   TensorTypeSummary(TypeSummary &element_type, uint64_t num_dimensions);
-  // TensorTypeSummary(TypeSummary *element_type,
-  //                   std::vector<uint64_t> &length_of_dimensions);
+
+  friend class TypeAnalysis;
+};
+
+struct StaticTensorTypeSummary : public TypeSummary {
+public:
+  llvm::CallInst &getCall() const;
+  TypeSummary &getElementType() const;
+  uint64_t getNumDimensions() const;
+  uint64_t getLengthOfDimension(uint64_t dimension_index) const;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  TypeSummary &element_type;
+  llvm::CallInst &call_inst;
+  vector<uint64_t> length_of_dimensions;
+
+  StaticTensorTypeSummary(TypeSummary &element_type,
+                          std::vector<uint64_t> &length_of_dimensions);
+
+  friend class TypeAnalysis;
+}
+
+struct AssocArrayTypeSummary : public TypeSummary {
+public:
+  static AssocArrayTypeSummary &get(TypeSummary &key_type,
+                                    TypeSummary &value_type);
+
+  TypeSummary &getKeyType() const;
+  TypeSummary &getValueType() const;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  TypeSummary &key_type;
+  TypeSummary &value_type;
+
+  static map<TypeSummary *, map<TypeSummary *, AssocArrayTypeSummary *>>
+      assoc_array_type_summaries;
+
+  AssocArrayTypeSummary(TypeSummary &key_type, TypeSummary &value_type);
+
+  friend class TypeAnalysis;
+};
+
+struct SequenceTypeSummary : public TypeSummary {
+public:
+  static SequenceTypeSummary &get(TypeSummary &key_type,
+                                  TypeSummary &value_type);
+
+  TypeSummary &getKeyType() const;
+  TypeSummary &getValueType() const;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  TypeSummary &key_type;
+  TypeSummary &value_type;
+
+  static map<TypeSummary *, SequenceTypeSummary *> assoc_array_type_summaries;
+
+  SequenceTypeSummary(TypeSummary &element_type);
 
   friend class TypeAnalysis;
 };
