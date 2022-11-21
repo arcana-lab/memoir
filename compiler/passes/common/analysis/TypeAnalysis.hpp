@@ -1,5 +1,5 @@
-#ifndef COMMON_TYPES_H
-#define COMMON_TYPES_H
+#ifndef COMMON_TYPEANALYSIS_H
+#define COMMON_TYPEANALYSIS_H
 #pragma once
 
 #include <iostream>
@@ -9,6 +9,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
+#include "common/analysis/CollectionAnalysis.hpp"
 #include "common/support/InternalDatatypes.hpp"
 #include "common/utility/FunctionNames.hpp"
 
@@ -22,6 +23,7 @@
 namespace llvm::memoir {
 
 class TypeSummary;
+class FieldArraySummary;
 
 /*
  * Type Analysis
@@ -132,18 +134,37 @@ protected:
   friend class TypeAnalysis;
 };
 
+class FieldArraySummary;
+
 struct StructTypeSummary : public TypeSummary {
 public:
   static StructTypeSummary &get(std::string name);
   static StructTypeSummary &get(std::string name,
                                 std::vector<TypeSummary *> &field_types,
                                 llvm::CallInst &call_inst);
+  static StructTypeSummary &get(std::string name,
+                                std::vector<TypeSummary *> &field_types,
+                                TypeSummary &container);
 
   std::string getName() const;
-  TypeSummary &getField(uint64_t field_index) const;
-  FieldArraySummary &getFieldArray(uint64_t field_index) const;
   uint64_t getNumFields() const;
-  llvm::CallInst &getCall() const;
+  bool fieldIsANestedStruct(uint64_t field_index) const;
+  TypeSummary &getField(uint64_t field_index) const;
+  bool isFieldArray(uint64_t field_index) const;
+  FieldArraySummary &getFieldArray(uint64_t field_index) const;
+
+  /*
+   * If this is a base Struct Type
+   */
+  bool isBase() const;
+  llvm::CallInst &getCallInst() const;
+
+  /*
+   * If this is a nested Struct Type
+   */
+  bool isNested() const;
+  StructTypeSummary &getContainer() const;
+  uint64_t getContainerFieldIndex() const;
 
   std::string toString(std::string indent = "") const override;
 
@@ -153,12 +174,23 @@ protected:
   vector<TypeSummary *> field_types;
   vector<FieldArraySummary *> field_arrays;
 
+  StructTypeSummary *container;
+  uint64_t field_index_of_container;
+
   static map<std::string, StructTypeSummary *> defined_type_summaries;
 
-  StructTypeSummary(std::string name, std::vector<TypeSummary *> &field_types);
   StructTypeSummary(std::string name,
                     vector<TypeSummary *> &field_types,
+                    vector<FieldArraySummary *> &field_arrays);
+  StructTypeSummary(std::string name,
+                    vector<TypeSummary *> &field_types,
+                    vector<FieldArraySummary *> &field_arrays,
                     llvm::CallInst &call_inst);
+  StructTypeSummary(std::string name,
+                    vector<TypeSummary *> &field_types,
+                    vector<FieldArraySummary *> &field_arrays,
+                    StructTypeSummary &container,
+                    uint64_t field_index_of_container);
 
   friend class TypeAnalysis;
 };
@@ -203,7 +235,7 @@ protected:
                           std::vector<uint64_t> &length_of_dimensions);
 
   friend class TypeAnalysis;
-}
+};
 
 struct AssocArrayTypeSummary : public TypeSummary {
 public:
