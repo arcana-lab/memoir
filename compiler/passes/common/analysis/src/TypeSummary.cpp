@@ -20,24 +20,44 @@ bool TypeSummary::equals(TypeSummary *other) const {
 /*
  * Struct Type Summary implementation
  */
-StructTypeSummary &StructTypeSummary::get(
-    std::string name,
-    std::vector<TypeSummary *> &field_types,
-    llvm::CallInst &call_inst) {
+StructTypeSummary &StructTypeSummary::get(std::string name,
+                                          vector<TypeSummary *> &field_types,
+                                          llvm::CallInst &call_inst) {
   /*
    * See if this StructType is already defined.
    * If it is, and its fields are not intialized, then initialize it.
    */
   auto found_type_summary = defined_type_summaries.find(name);
   if (found_type_summary != defined_type_summaries.end()) {
-    auto defined_type_summary = found_type_summary->second;
+    auto &defined_type_summary = *(found_type_summary->second);
     if (defined_type_summary->getNumFields() == 0) {
-      defined_type_summary->field_types = field_types;
-      defined_type_summary->call_inst = &call_inst;
+      defined_type_summary.field_types = field_types;
+      defined_type_summary.call_inst = &call_inst;
+
+      auto field_index = 0;
+      for (auto field_type : field_types) {
+        auto new_field_array = new FieldArraySummary(field_type,
+                                                     defined_type_summary,
+                                                     field_index++);
+        defined_type_summary.field_arrays.push_back(new_field_array);
+      }
+
+      return defined_type_summary;
     }
   }
 
   auto new_type_summary = new StructTypeSummary(name, field_types, call_inst);
+
+  /*
+   * Build the field arrays for this struct type.
+   */
+  auto field_index = 0;
+  for (auto field_type : field_types) {
+    auto new_field_array =
+        new FieldArraySummary(field_type, defined_type_summary, field_index++);
+    new_type_summary->field_arrays.push_back(new_field_array);
+  }
+
   defined_type_summaries[name] = new_type_summary;
   return *new_type_summary;
 }
@@ -53,32 +73,61 @@ StructTypeSummary &StructTypeSummary::get(std::string name) {
     return *(found_type_summary->second);
   }
 
-  auto empty_fields = std::vector<TypeSummary *>();
-  auto new_type_summary = new StructTypeSummary(name, empty_fields);
+  auto empty_field_types = vector<TypeSummary *>();
+  auto empty_field_arrays = vector<FieldArraySummary *>();
+  auto new_type_summary =
+      new StructTypeSummary(name, empty_field_types, empty_field_arrays);
   defined_type_summaries[name] = new_type_summary;
   return *new_type_summary;
 }
 
 StructTypeSummary::StructTypeSummary(std::string name,
-                                     std::vector<TypeSummary *> &field_types)
+                                     vector<TypeSummary *> &field_types,
+                                     vector<FieldArraySummary *> &field_arrays)
   : name(name),
     field_types(field_types),
+    field_arrays(field_arrays),
+    call_inst(nullptr),
+    container(nullptr),
     TypeSummary(TypeCode::StructTy) {
   // Do nothing.
 }
 
 StructTypeSummary::StructTypeSummary(std::string name,
-                                     std::vector<TypeSummary *> &field_types,
+                                     vector<TypeSummary *> &field_types,
+                                     vector<FieldArraySummary *> &field_arrays,
                                      llvm::CallInst &call_inst)
   : name(name),
     field_types(field_types),
+    field_arrays(field_arrays),
     call_inst(&call_inst),
+    container(nullptr),
+    field_index_of_container(0),
+    TypeSummary(TypeCode::StructTy) {
+  // Do nothing.
+}
+
+StructTypeSummary::StructTypeSummary(std::string name,
+                                     vector<TypeSummary *> &field_types,
+                                     vector<FieldArraySummary *> &field_arrays,
+                                     StructTypeSummary &container,
+                                     uint64_t field_index_of_container)
+  : name(name),
+    field_types(field_types),
+    field_arrays(field_arrays),
+    call_inst(nullptr),
+    container(&container),
+    field_index_of_container(field_index_of_container),
     TypeSummary(TypeCode::StructTy) {
   // Do nothing.
 }
 
 std::string StructTypeSummary::getName() const {
   return this->name;
+}
+
+bool StructTypeSummary::fieldIsANestedStruct(uint64_t field_index) const {
+  return !(this->isFieldArray(field_index));
 }
 
 TypeSummary &StructTypeSummary::getField(uint64_t field_index) const {
@@ -89,11 +138,43 @@ uint64_t StructTypeSummary::getNumFields() const {
   return this->field_types.size();
 }
 
-llvm::CallInst &StructTypeSummary::getCall() const {
-  assert(this->call_inst != nullptr
+bool StructTypeSummary::isFieldArray(uint64_t field_index) const {
+  return (this->field_arrays.at(field_index) != nullptr);
+}
+
+FieldArraySummary &StructTypeSummary::getFieldArray(
+    uint64_t field_index) const {
+  assert(
+      this->isFieldArray(field_index)
+      && "in StructTypeSummary::getFieldArray"
+         "field index does not contain a field array, did you check StructTypeSummary::isFieldArray?");
+  return (this->field_arrays.at(field_index) != nullptr);
+}
+
+bool StructTypeSummary::isBase() const {
+  return (this->call_inst != nullptr);
+}
+
+llvm::CallInst &StructTypeSummary::getCallInst() const {
+  assert(this->isBase()
          && "in StructTypeSummary::getCall"
             "call to defineStructType has not been resolved yet");
   return *(this->call_inst);
+}
+
+bool StructTypeSummary::isNested() const {
+  return (container != nullptr);
+}
+
+StructTypeSummary &StructTypeSummary::getContainer() const {
+  assert(this->isNested()
+         && "in StructTypeSummary::getContainer"
+            "trying to get container of non-nested struct type");
+  return *(this->container);
+}
+
+uint64_t StructTypeSummary::getContainerFieldIndex() const {
+  return this->field_index_of_container;
 }
 
 map<std::string, StructTypeSummary *>
