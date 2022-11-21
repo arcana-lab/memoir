@@ -3,41 +3,19 @@
 namespace llvm::memoir {
 
 /*
- * Access Summary base class implementation
+ * AccessSummary base class implementation
  */
-AccessSummary::AccessSummary(CallInst &call_inst,
-                             set<FieldSummary *> &fields_accessed,
-                             PointsToInfo points_to_info,
-                             AccessInfo access_info)
-  : call_inst(call_inst),
-    fields_accessed(fields_accessed),
-    points_to_info(points_to_info),
-    access_info(access_info) {
+AccessSummary::AccessSummary(AccessCode code,
+                             CallInst &call_inst,
+                             CollectionSummary &collection_accessed)
+  : code(code),
+    call_inst(call_inst),
+    collection_accessed(collection_accessed) {
   // Do nothing.
 }
 
-bool AccessSummary::isMust() const {
-  return (this->fields_accessed.size() == 1);
-}
-
-bool AccessSummary::isMay() const {
-  return !(this->isMust());
-}
-
-PointsToInfo AccessSummary::getPointsToInfo() const {
-  return this->points_to_info;
-}
-
-bool AccessSummary::isRead() const {
-  return (this->access_info == AccessInfo::READ);
-}
-
-bool AccessSummary::isWrite() const {
-  return (this->access_info == AccessInfo::WRITE);
-}
-
-AccessInfo AccessSummary::getAccessInfo() const {
-  return this->access_info;
+CollectionSummary &AccessSummary::getCollection() const {
+  return this->collection_accessed;
 }
 
 llvm::CallInst &AccessSummary::getCallInst() const {
@@ -45,70 +23,227 @@ llvm::CallInst &AccessSummary::getCallInst() const {
 }
 
 TypeSummary &AccessSummary::getType() const {
-  auto first_field = *(this->fields);
-  return first_field->getType();
+  return this->getCollection().getElementType();
 }
 
-FieldSummary *AccessSummary::getSingleField() const {
-  if (this->isMay()) {
-    return nullptr;
-  }
-
-  return *(this->begin());
+bool AccessSummary::isRead() const {
+  return !(this->isWrite());
 }
 
-AccessSummary::iterator AccessSummary::begin() {
-  return this->fields_accessed.begin();
+bool AccessSummary::isWrite() const {
+  return (this->access_info & AccessMask::WRITE_MASK);
 }
 
-AccessSummary::iterator AccessSummary::end() {
-  return this->fields_accessed.end();
+bool AccessSummary::isAssociative() const {
+  return (this->access_info & AccessMask::ASSOC_MASK);
 }
 
-AccessSummary::const_iterator AccessSummary::cbegin() const {
-  return this->fields_accessed.cbegin();
+bool AccessSummary::isIndexed() const {
+  return (this->access_info & AccessMask::INDEXED_MASK);
 }
 
-AccessSummary::const_iterator AccessSummary::cend() const {
-  return this->fields_accessed.cend();
+bool AccessSummary::isSlice() const {
+  return (this->access_info & AccessMask::SLICE_MASK);
 }
 
-/*
- * Read Summary implementation
- */
-ReadSummary::ReadSummary(llvm::CallInst &call_inst,
-                         set<FieldSummary *> &may_read_fields)
-  : AccessSummary(call_inst, may_read_fields, AccessInfo::READ) {
-  // Do nothing.
-}
-
-ReadSummary::ReadSummary(llvm::CallInst &call_inst,
-                         FieldSummary &must_read_field)
-  : AccessSummary(call_inst, { &must_read_field }, AccessInfo::READ) {
-  // Do nothing.
+AccessInfo AccessSummary::getAccessInfo() const {
+  return this->access_info;
 }
 
 /*
- *  Write Summary implementation
+ * ReadSummary implementation
  */
-WriteSummary::WriteSummary(llvm::CallInst &call_inst,
-                           set<FieldSummary *> &may_write_fields,
-                           llvm::Value &value_written)
-  : value_written(value_written),
-    AccessSummary(call_inst, may_write_fields, AccessInfo::WRITE) {
+ReadSummary::ReadSummary(AccessMask mask,
+                         llvm::CallInst &call_inst,
+                         CollectionSummary &collection_accessed,
+                         llvm::Value &value_read)
+  : value_read(value_read),
+    AccessSummary((AccessMask::READ_MASK | mask),
+                  call_inst,
+                  collection_accessed) {
   // Do nothing.
 }
 
-WriteSummary::WriteSummary(llvm::CallInst &call_inst,
-                           FieldSummary &must_write_field,
+llvm::Value &ReadSummary::getValueRead() const {
+  return this->value_read;
+}
+
+/*
+ *  WriteSummary implementation
+ */
+WriteSummary::WriteSummary(AccessMask mask,
+                           llvm::CallInst &call_inst,
+                           CollectionSummary &collection_accessed,
                            llvm::Value &value_written)
   : value_written(value_written),
-    AccessSummary(call_inst, { &must_write_field }, AccessInfo::WRITE) {
+    AccessSummary((AccessMask::WRITE_MASK | mask),
+                  call_inst,
+                  collection_accessed) {
   // Do nothing.
 }
 
-TypeSummary &WriteSummary::getValueWritten() const {
+llvm::Value &WriteSummary::getValueWritten() const {
   return this->value_written;
+}
+
+/*
+ * IndexedReadSummary implementation
+ */
+IndexedReadSummary::IndexedReadSummary(llvm::CallInst &call_inst,
+                                       CollectionSummary &collection_accessed,
+                                       llvm::Value &value_read,
+                                       vector<llvm::Value *> &indices)
+  : indices(indices),
+    WriteSummary(AccessMask::INDEXED_MASK,
+                 call_inst,
+                 collection_accessed,
+                 value_read) {
+  // Do nothing.
+}
+
+uint64_t IndexedReadSummary::getNumDimensions() const {
+  return this->indices.size();
+}
+
+llvm::Value &IndexedReadSummary::getIndexValue(uint64_t dim_idx) const {
+  assert((dim_idx < this->getNumDimensions())
+         && "in IndexedReadSummary::getIndexValue"
+            "index out of range!");
+
+  auto index = this->indices.at(dim_idx);
+  assert((index != nullptr)
+         && "in IndexedReadSummary::getIndexValue"
+            "llvm Value at index is NULL!");
+
+  return *index;
+}
+
+/*
+ * IndexedWriteSummary implementation
+ */
+IndexedWriteSummary::IndexedWriteSummary(llvm::CallInst &call_inst,
+                                         CollectionSummary &collection_accessed,
+                                         llvm::Value &value_read,
+                                         vector<llvm::Value *> &indices)
+  : indices(indices),
+    WriteSummary(AccessMask::INDEXED_MASK,
+                 call_inst,
+                 collection_accessed,
+                 value_read) {
+  // Do nothing.
+}
+
+uint64_t IndexedWriteSummary::getNumDimensions() const {
+  return this->indices.size();
+}
+
+llvm::Value &IndexedWriteSummary::getIndexValue(uint64_t dim_idx) const {
+  assert((dim_idx < this->getNumDimensions())
+         && "in IndexedWriteSummary::getIndexValue"
+            "index out of range!");
+
+  auto index = this->indices.at(dim_idx);
+  assert((index != nullptr)
+         && "in IndexedWriteSummary::getIndexValue"
+            "llvm Value at index is NULL!");
+
+  return *index;
+}
+
+/*
+ * AssocReadSummary implementation
+ */
+AssocReadSummary::AssocReadSummary(llvm::CallInst &call_inst,
+                                   CollectionSummary &collection_accessed,
+                                   llvm::Value &value_read,
+                                   StructSummary &key)
+  : key(key),
+    ReadSummary(AccessMask::ASSOC_MASK,
+                call_inst,
+                collection_accessed,
+                value_read) {
+  // Do nothing.
+}
+
+StructSummary &getKey() const {
+  return this->key;
+}
+
+TypeSummary &getKeyType() const {
+  return this->getKey()->getType();
+}
+
+/*
+ * AssocWriteSummary implementation
+ */
+AssocWriteSummary::AssocWriteSummary(llvm::CallInst &call_inst,
+                                     CollectionSummary &collection_accessed,
+                                     llvm::Value &value_written,
+                                     StructSummary &key)
+  : key(key),
+    WriteSummary(AccessMask::ASSOC_MASK,
+                 call_inst,
+                 collection_accessed,
+                 value_written) {
+  // Do nothing.
+}
+
+StructSummary &getKey() const {
+  return this->key();
+}
+
+TypeSummary &getKeyType() const {
+  return this->getKey().getType();
+}
+
+/*
+ * SliceReadSummary implementation
+ */
+SliceReadSummary::SliceReadSummary(llvm::CallInst &call_inst,
+                                   CollectionSummary &collection_accessed,
+                                   llvm::Value &value_read,
+                                   llvm::Value &left,
+                                   llvm::Value &right)
+  : left(left),
+    right(right),
+    ReadSummary(AccessMask::SLICE_MASK,
+                call_inst,
+                collection_accessed,
+                value_read) {
+  // Do nothing.
+}
+
+llvm::Value &SliceReadSummary::getLeft() const {
+  return this->left;
+}
+
+llvm::Value &SliceReadSummary::getRight() const {
+  return this->right;
+}
+
+/*
+ * SliceWriteSummary implementation
+ */
+SliceWriteSummary::SliceWriteSummary(llvm::CallInst &call_inst,
+                                     CollectionSummary &collection_accessed,
+                                     llvm::Value &value_written,
+                                     llvm::Value &left,
+                                     llvm::Value &right)
+  : left(left),
+    right(right),
+    WriteSummary(AccessMask::SLICE_MASK,
+                 call_inst,
+                 collection_accessed,
+                 value_written) {
+  // Do nothing.
+}
+
+llvm::Value &SliceWriteSummary::getLeft() const {
+  return this->left;
+}
+
+llvm::Value &SliceWriteSummary::getRight() const {
+  return this->right;
 }
 
 } // namespace llvm::memoir
