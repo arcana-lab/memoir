@@ -97,7 +97,20 @@ private:
  * Allocation Code
  * Basic information about the class of object being allocated.
  */
-enum AllocationCode { STRUCT, TENSOR, ASSOC_ARRAY, SEQUENCE };
+enum AllocationMask {
+  STRUCT_MASK = 1,
+  COLLECTION_MASK = 2,
+  TENSOR_MASK = 4,
+  ASSOC_ARRAY_MASK = 8,
+  SEQUENCE_MASK = 16,
+};
+enum AllocationCode {
+  STRUCT = AllocationMask::STRUCT_MASK,
+  TENSOR = (AllocationMask::COLLECTION_MASK | AllocationMask::TENSOR_MASK),
+  ASSOC_ARRAY =
+      (AllocationMask::COLLECTION_MASK | AllocationMask::ASSOC_ARRAY_MASK),
+  SEQUENCE = (AllocationMask::COLLECTION_MASK | AllocationMask::SEQUENCE_MASK),
+};
 
 /*
  * Allocation Summary
@@ -111,6 +124,12 @@ public:
   TypeSummary &getType() const;
   AllocationCode getCode() const;
   llvm::CallInst &getCallInst() const;
+
+  bool isStruct() const;
+  bool isCollection() const;
+  bool isTensor() const;
+  bool isAssocArray() const;
+  bool isSequence() const;
 
   friend std::ostream &operator<<(std::ostream &os,
                                   const AllocationSummary &as);
@@ -144,15 +163,32 @@ protected:
 };
 
 /*
+ * Collection Allocation Summary
+ *
+ * Represents an allocation of a MemOIR collection.
+ */
+struct CollectionAllocationSummary : public AllocationSummary {
+public:
+  virtual TypeSummary &getElementType() const = 0;
+
+protected:
+  CollectionAllocationSummary(llvm::CallInst &,
+                              AllocationCode code,
+                              TypeSummary &type);
+
+  friend class AllocationAnalysis;
+};
+
+/*
  * Tensor Allocation Summary
  *
  * Represents an allocation of a MemOIR tensor
  */
-struct TensorAllocationSummary : public AllocationSummary {
+struct TensorAllocationSummary : public CollectionAllocationSummary {
 public:
-  TypeSummary &getElementType() const;
+  TypeSummary &getElementType() const override;
   uint64_t getNumberOfDimensions() const;
-  llvm::Value *getLengthOfDimension(uint64_t dimension_index) const;
+  llvm::Value &getLengthOfDimension(uint64_t dimension_index) const;
 
   std::string toString(std::string indent = "") const override;
 
@@ -172,10 +208,11 @@ protected:
  *
  * Represents an allocation of a MemOIR associative array.
  */
-struct AssocArrayAllocationSummary : public AllocationSummary {
+struct AssocArrayAllocationSummary : public CollectionAllocationSummary {
 public:
   TypeSummary &getKeyType() const;
   TypeSummary &getValueType() const;
+  TypeSummary &getElementType() const override;
 
   std::string toString(std::string indent = "") const override;
 
@@ -195,9 +232,9 @@ protected:
  *
  * Represents an allocation of a MemOIR associative array.
  */
-struct SequenceAllocationSummary : public AllocationSummary {
+struct SequenceAllocationSummary : public CollectionAllocationSummary {
 public:
-  TypeSummary &getElementType() const;
+  TypeSummary &getElementType() const override;
 
   std::string toString(std::string indent = "") const override;
 

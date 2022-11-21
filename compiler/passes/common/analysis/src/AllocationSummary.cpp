@@ -36,6 +36,17 @@ StructAllocationSummary::StructAllocationSummary(CallInst &call_inst,
 }
 
 /*
+ * CollectionAllocationSummary implementationn
+ */
+CollectionAllocationSummary::CollectionAllocationSummary(
+    llvm::CallInst &call_inst,
+    AllocationCode code,
+    TypeSummary &type)
+  : AllocationSummary(call_inst, code, type) {
+  // Do nothing.
+}
+
+/*
  * TensorAllocationSummary implementation
  */
 TensorAllocationSummary::TensorAllocationSummary(
@@ -44,7 +55,7 @@ TensorAllocationSummary::TensorAllocationSummary(
     std::vector<llvm::Value *> &length_of_dimensions)
   : element_type(element_type),
     length_of_dimensions(length_of_dimensions),
-    AllocationSummary(
+    CollectionAllocationSummary(
         call_inst,
         AllocationCode::TENSOR,
         TensorTypeSummary::get(element_type, length_of_dimensions.size())) {
@@ -61,7 +72,16 @@ uint64_t TensorAllocationSummary::getNumberOfDimensions() const {
 
 llvm::Value *TensorAllocationSummary::getLengthOfDimension(
     uint64_t dimension_index) const {
-  return this->length_of_dimensions[dimension_index];
+  assert(dimension_index < this->getNumberOfDimensions()
+         && "in TensorAllocationSummary::getLengthOfDimension"
+            "index out of range");
+
+  auto length_of_dimension = this->length_of_dimensions.at(dimension_index);
+  assert((length_of_dimension != nullptr)
+         && "in TensorAllocationSummary::getLengthOfDimension"
+            "llvm Value for length of dimension is NULL!");
+
+  return *length_of_dimension;
 }
 
 /*
@@ -73,9 +93,10 @@ AssocArrayAllocationSummary::AssocArrayAllocationSummary(
     TypeSummary &value_type)
   : key_type(key_type),
     value_type(value_type),
-    AllocationSummary(call_inst,
-                      AllocationCode::ASSOC_ARRAY,
-                      AssocArrayTypeSummary::get(key_type, value_type)) {
+    CollectionAllocationSummary(
+        call_inst,
+        AllocationCode::ASSOC_ARRAY,
+        AssocArrayTypeSummary::get(key_type, value_type)) {
   // Do nothing.
 }
 
@@ -87,15 +108,19 @@ TypeSummary &AssocArrayAllocationSummary::getValueType() const {
   return this->value_type;
 }
 
+TypeSummary &AssocArrayAllocationSummary::getElementType() const {
+  return this->getValueType();
+}
+
 /*
  * SequenceAllocationSummary implementation
  */
 SequenceAllocationSummary::SequenceAllocationSummary(llvm::CallInst &call_inst,
                                                      TypeSummary &element_type)
   : element_type(element_type),
-    AllocationSummary(call_inst,
-                      AllocationCode::SEQUENCE,
-                      SequenceTypeSummary(element_type)) {
+    CollectionAllocationSummary(call_inst,
+                                AllocationCode::SEQUENCE,
+                                SequenceTypeSummary(element_type)) {
   // Do nothing.
 }
 
