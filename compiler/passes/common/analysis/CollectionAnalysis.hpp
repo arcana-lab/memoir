@@ -1,5 +1,5 @@
-#ifndef COMMON_ACCESSANALYSIS_H
-#define COMMON_ACCESSANALYSIS_H
+#ifndef COMMON_COLLECTIONANALYSIS_H
+#define COMMON_COLLECTIONANALYSIS_H
 #pragma once
 
 #include <iostream>
@@ -26,6 +26,12 @@
  */
 
 namespace llvm::memoir {
+
+class TypeSummary;
+class AccessSummary;
+class AllocationSummary;
+class CollectionAllocationSummary;
+class CollectionSummary;
 
 class CollectionAnalysis {
 public:
@@ -74,6 +80,8 @@ enum CollectionCode {
 
 class CollectionSummary {
 public:
+  virtual TypeSummary &getElementType() const = 0;
+
   CollectionCode getCode() const;
 
   bool operator==(const CollectionSummary &other) const;
@@ -93,13 +101,14 @@ protected:
 
 class BaseCollectionSummary : public CollectionSummary {
 public:
-  AllocationSummary &getAllocation() const;
+  CollectionAllocationSummary &getAllocation() const;
+  TypeSummary &getElementType() const override;
 
-  bool operator==(const DefPHISummary &other) const;
+  bool operator==(const BaseCollectionSummary &other) const;
   std::string toString(std::string indent = "") const;
 
 protected:
-  AllocationSummary &allocation;
+  CollectionAllocationSummary &allocation;
 
   BaseCollectionSummary(AllocationSummary &allocation);
 
@@ -108,22 +117,28 @@ protected:
 
 class FieldArraySummary : public CollectionSummary {
 public:
-  static FieldArraySummary &get(TypeSummary &type, unsigned field_index);
+  static FieldArraySummary &get(TypeSummary &struct_type, unsigned field_index);
 
   TypeSummary &getType() const;
+  TypeSummary &getStructType() const;
   unsigned getIndex() const;
 
-  bool operator==(const DefPHISummary &other) const;
+  TypeSummary &getElementType() const override;
+
+  bool operator==(const FieldArraySummary &other) const;
   std::string toString(std::string indent = "") const;
 
 protected:
-  FieldArraySummary(TypeSummary &type, unsigned field_index);
-
   TypeSummary &type;
+  TypeSummary &struct_type;
   unsigned field_index;
 
+  FieldArraySummary(TypeSummary &field_type,
+                    TypeSummary &struct_type,
+                    unsigned field_index);
+
   friend class CollectionAnalysis;
-}
+};
 
 class ControlPHISummary : public CollectionSummary {
 public:
@@ -134,24 +149,27 @@ public:
   unsigned getNumIncoming() const;
   llvm::PHINode &getPHI() const;
 
+  TypeSummary &getElementType() const override;
+
   bool operator==(const ControlPHISummary &other) const;
   std::string toString(std::string indent = "") const;
 
 protected:
   llvm::PHINode &phi_node;
-  std::unordered_map<llvm::BasicBlock *, CollectionSummary *> incoming
+  map<llvm::BasicBlock *, CollectionSummary *> incoming;
 
-  ControlPHISummary(
-      llvm::PHINode phi_node,
-      std::unordered_map<llvm::BasicBlock *, CollectionSummary *> &incoming);
+  ControlPHISummary(llvm::PHINode phi_node,
+                    map<llvm::BasicBlock *, CollectionSummary *> &incoming);
 
   friend class CollectionAnalysis;
 };
 
 class DefPHISummary : public CollectionSummary {
 public:
-  CollectionSummary &getCollection();
-  AccessSummary &getAccess();
+  CollectionSummary &getCollection() const;
+  AccessSummary &getAccess() const;
+
+  TypeSummary &getElementType() const override;
 
   bool operator==(const DefPHISummary &other) const;
   std::string toString(std::string indent = "") const;
@@ -167,8 +185,10 @@ protected:
 
 class UsePHISummary : public CollectionSummary {
 public:
-  CollectionSummary &getCollection();
-  AccessSummary &getAccess();
+  CollectionSummary &getCollection() const;
+  AccessSummary &getAccess() const;
+
+  TypeSummary &getElementType() const override;
 
   bool operator==(const UsePHISummary &other) const;
   std::string toString(std::string indent = "") const;

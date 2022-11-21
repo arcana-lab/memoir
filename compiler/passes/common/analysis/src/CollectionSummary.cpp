@@ -42,14 +42,19 @@ bool CollectionSummary::operator==(const CollectionSummary &other) const {
 /*
  * BaseCollectionSummary implementation
  */
-BaseCollectionSummary::BaseCollectionSummary(AllocationSummary &allocation)
+BaseCollectionSummary::BaseCollectionSummary(
+    CollectionAllocationSummary &allocation)
   : allocation(allocation),
     CollectionSummary(CollectionCode::BASE) {
   // Do nothing.
 }
 
-AllocationSummary &BaseCollectionSummary::getAllocation() const {
+CollectionAllocationSummary &BaseCollectionSummary::getAllocation() const {
   return this->allocation;
+}
+
+TypeSummary &BaseCollectionSummary::getElementType() const {
+  return this->getAllocation().getElementType();
 }
 
 bool BaseCollectionSummary::operator==(
@@ -60,8 +65,16 @@ bool BaseCollectionSummary::operator==(
 /*
  * FieldArraySummary implementation
  */
-FieldArraySummary::FieldArraySummary(TypeSummary &type, unsigned field_index)
-  : type(type),
+FieldArraySummary &FieldArraySummary::get(TypeSummary &struct_type,
+                                          unsigned field_index) {
+  return struct_type.getFieldArray(field_index);
+}
+
+FieldArraySummary::FieldArraySummary(TypeSummary &field_type,
+                                     TypeSummary &struct_type,
+                                     unsigned field_index)
+  : field_type(field_type),
+    struct_type(struct_type),
     field_index(field_index),
     CollectionSummary(CollectionCode::FIELD_ARRAY) {
   // Do nothing.
@@ -78,6 +91,10 @@ unsigned FieldArraySummary::getIndex() const {
 bool FieldArraySummary::operator==(const FieldArraySummary &other) const {
   return (this->getIndex() == other.getIndex())
          && (this->getType() == other.getType());
+}
+
+TypeSummary &TypeSummary::getElementType() const {
+  return this->type;
 }
 
 /*
@@ -128,6 +145,10 @@ unsigned ControlPHISummary::getNumIncoming() const {
   return this->getPHI().getNumIncomingValue();
 }
 
+TypeSummary &ControlPHISummary::getElementType() const {
+  return this->getIncomingCollection(0).getElementType();
+}
+
 bool ControlPHISummary::operator==(const ControlPHISummary &other) const {
   return &(this->getPHI()) == &(other.getPHI());
 }
@@ -149,6 +170,10 @@ CollectionSummary &DefPHISummary::getCollection() const {
 
 AccessSummary &DefPHISummary::getAccess() const {
   return this->access;
+}
+
+TypeSummary &DefPHISummary::getElementType() const {
+  return this->getCollection().getElementType();
 }
 
 bool DefPHISummary::operator==(const DefPHISummary &other) const {
@@ -173,6 +198,10 @@ CollectionSummary &UsePHISummary::getCollection() const {
 
 AccessSummary &UsePHISummary::getAccess() const {
   return this->access;
+}
+
+TypeSummary &UsePHISummary::getElementType() const {
+  return this->getCollection().getElementType();
 }
 
 bool UsePHISummary::operator==(const UsePHISummary &other) const {
