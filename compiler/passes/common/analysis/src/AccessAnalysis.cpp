@@ -37,12 +37,7 @@ void AccessAnalysis::analyze() {
    * Analyze all of the objects present in the program, both allocations and
    * nested objects.
    */
-  analyzeObjects();
-
-  /*
-   * Analyze the fields of the objects present in the program.
-   */
-  analyzeFields();
+  analyzeStructs();
 
   /*
    * Reconcile the objects that are accessed through references.
@@ -164,7 +159,6 @@ void AccessAnalysis::invalidate(Module &M) {
 
 void AccessAnalysis::invalidate() {
   this->access_summaries.clear();
-  this->field_summaries.clear();
 
   return;
 }
