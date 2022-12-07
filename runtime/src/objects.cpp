@@ -5,12 +5,28 @@
 
 namespace memoir {
 
+/*
+ * Abstract Object implementation
+ */
+
 Type *Object::get_type() const {
   return this->type;
 }
 
 Object::Object(Type *type) : type(type) {
   // Do nothing.
+}
+
+bool Object::is_collection() const {
+  return false;
+}
+
+bool Object::is_struct() const {
+  return false;
+}
+
+bool Object::is_element() const {
+  return false;
 }
 
 /*
@@ -59,11 +75,19 @@ bool Struct::equals(const Object *other) const {
   return (this == other);
 }
 
+bool Struct::is_struct() const {
+  return true;
+}
+
 /*
  * Collection Objects
  */
 Collection::Collection(Type *type) : Object(type) {
   // Do nothing.
+}
+
+bool Collection::is_collection() const {
+  return true;
 }
 
 /*

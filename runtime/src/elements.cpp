@@ -248,6 +248,13 @@ Object *Element::get_slice(va_list args, uint8_t num_args) {
 }
 
 /*
+ * Helper Functions
+ */
+bool Element::is_element() const {
+  return true;
+}
+
+/*
  * Element factory method
  */
 Element *Element::create(Type *type) {
