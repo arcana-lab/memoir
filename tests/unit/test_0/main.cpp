@@ -13,9 +13,9 @@ Type *objTy = MEMOIR_FUNC(define_struct_type)("Foo",
 int main() {
   Object *myObj = MEMOIR_FUNC(allocate_struct)(objTy);
 
-  MEMOIR_FUNC(write_u64)(123, myObj, 1);
-  MEMOIR_FUNC(write_u64)(456, myObj, 2);
-  MEMOIR_FUNC(write_u64)(789, myObj, 3);
+  MEMOIR_FUNC(write_u64)(123, myObj, 0);
+  MEMOIR_FUNC(write_u64)(456, myObj, 1);
+  MEMOIR_FUNC(write_u64)(789, myObj, 2);
 
   uint64_t read1 = MEMOIR_FUNC(read_u64)(myObj, 0);
   uint64_t read2 = MEMOIR_FUNC(read_u64)(myObj, 1);
