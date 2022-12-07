@@ -1,48 +1,51 @@
-#include "objects.h"
 #include <iostream>
+
+#include "internal.h"
+#include "objects.h"
+#include "types.h"
 
 namespace memoir {
 
-std::string IntegerField::toString() {
+std::string IntegerElement::to_string() {
   return "integer";
 }
 
-std::string FloatField::toString() {
+std::string FloatElement::to_string() {
   return "float";
 }
 
-std::string DoubleField::toString() {
+std::string DoubleElement::to_string() {
   return "double";
 }
 
-std::string StructField::toString() {
+std::string StructElement::to_string() {
   return "struct";
 }
 
-std::string TensorField::toString() {
+std::string TensorElement::to_string() {
   return "tensor";
 }
 
-std::string ReferenceField::toString() {
+std::string ReferenceElement::to_string() {
   return "reference";
 }
 
-std::string Struct::toString() {
+std::string Struct::to_string() {
   std::string str = "(Struct: \n";
   for (auto field : this->fields) {
     str += "  (Field: ";
     str += "    ";
-    str += field->toString();
+    str += field->to_string();
     str += "  )\n";
   }
   str += ")\n";
   return str;
 }
 
-std::string Tensor::toString() {
+std::string Tensor::to_string() {
   std::string str = "(Tensor: \n";
   str += "  (type: ";
-  str += type->toString();
+  str += type->to_string();
   str += ")\n";
   str += "  (length: ";
   // str += length;
@@ -50,35 +53,61 @@ std::string Tensor::toString() {
   return str;
 }
 
-std::string StructType::toString() {
-  std::string str = "(Object: \n";
+std::string AssocArray::to_string() {
+  return "(AssocArray)";
+}
+
+std::string Sequence::to_string() {
+  return "(Sequence)";
+}
+
+/*
+ * Types
+ */
+std::string StructType::to_string() {
+  std::string str = "(Struct: \n";
   for (auto field : this->fields) {
     str += "  (Field: \n";
-    str += "    " + field->toString();
+    str += "    " + field->to_string();
     str += "  )\n";
   }
   str += ")\n";
   return str;
 }
 
-std::string TensorType::toString() {
+std::string TensorType::to_string() {
   return "(Type: tensor)";
 }
 
-std::string IntegerType::toString() {
+std::string AssocArrayType::to_string() {
+  return "(Type: assoc array \n  (Key: " + this->key_type->to_string()
+         + "  )\n"
+           "   (Value: "
+         + this->value_type->to_string() + "))";
+}
+
+std::string SequenceType::to_string() {
+  return "(Type: sequence (Element: " + this->element_type->to_string() + "))";
+}
+
+std::string IntegerType::to_string() {
   return "(Type: integer)";
 }
 
-std::string FloatType::toString() {
+std::string FloatType::to_string() {
   return "(Type: float)";
 }
 
-std::string DoubleType::toString() {
+std::string DoubleType::to_string() {
   return "(Type: double)";
 }
 
-std::string ReferenceType::toString() {
-  return "(Type: (pointer " + this->referenced_type->toString() + ")";
+std::string PointerType::to_string() {
+  return "(Type: pointer)";
+}
+
+std::string ReferenceType::to_string() {
+  return "(Type: (ref " + this->referenced_type->to_string() + ")";
 }
 
 } // namespace memoir
