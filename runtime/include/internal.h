@@ -5,11 +5,13 @@
   if (!cond) {                                                                 \
     fprintf(stderr, "\x1b[31m-----[ MemOIR Assert Failed ]-----\x1b[0m\n");    \
     fprintf(stderr, "%s @ line %d\n", __FILE__, __LINE__);                     \
-    fprintf(stderr, "in %s", __PRETTY_FUNCTION__);                             \
-    fprintf(stderr, "%s (%s is false)", msg, #cond);                           \
+    fprintf(stderr, "in %s\n", __PRETTY_FUNCTION__);                           \
+    fprintf(stderr, "%s (%s is false)\n", msg, #cond);                         \
     fprintf(stderr, "\x1b[31m----------------------------------\x1b[0m\n");    \
     exit(EXIT_FAILURE);                                                        \
   }
+
+#define MEMOIR_UNREACHABLE(msg) MEMOIR_ASSERT(false, msg);
 
 #define MEMOIR_ACCESS_CHECK(obj)                                               \
   MEMOIR_ASSERT((obj != nullptr), "Attempt to access NULL object")
