@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "objects.h"
@@ -20,144 +21,304 @@
 
 namespace memoir {
 
+struct Element;
+struct Type;
+struct StructType;
+struct TensorType;
+struct AssocArrayType;
+struct SequenceType;
+struct IntegerType;
+struct FloatType;
+struct DoubleType;
+struct PointerType;
+struct ReferenceType;
+
 struct Object {
 public:
+  // Owned state
+
+  // Borrowed state
   Type *type;
 
-  static Object *init(Type *type);
-
   // Construction
+  static Object *init(Type *type);
   Object(Type *type);
 
+  // Access
+  virtual Element *get_element(va_list args) = 0;
+  virtual Object *get_slice(va_list args, uint8_t num_args) = 0;
+  virtual Object *join(va_list args, uint8_t num_args) = 0;
+  virtual bool equals(const Object *other) const = 0;
+
   // Typing
-  Type *getType();
+  Type *get_type() const;
+  bool is_collection() const;
+  bool is_struct() const;
+  bool is_element() const;
 
-  std::string toString();
-};
-
-struct Field : public Object {
-public:
-  Field(Type *type);
-
-  static Field *createField(Type *type);
-
-  virtual std::string toString() = 0;
+  virtual std::string to_string() = 0;
 };
 
 struct Struct : public Object {
 public:
-  std::vector<Field *> fields;
+  // Owned state
+  std::vector<Element *> fields;
+
+  // Borrowed state
 
   // Construction
   Struct(Type *type);
+  Object *join(va_list args, uint8_t num_args) override;
 
   // Access
-  Field *readField(uint64_t field_index);
+  Element *get_field(uint64_t field_index) const;
+  Element *get_element(va_list args) override;
+  Object *get_slice(va_list args, uint8_t num_args) override;
 
-  std::string toString();
+  bool equals(const Object *other) const override;
+
+  // Debug
+  std::string to_string() override;
 };
 
-struct Tensor : public Object {
+struct Collection : public Object {
 public:
-  std::vector<Field *> fields;
+  // Access
+  virtual Type *get_element_type() const = 0;
+
+  // Construction
+  Collection(Type *type);
+};
+
+struct Tensor : public Collection {
+public:
+  // Owned state
+  std::vector<Element *> tensor;
   std::vector<uint64_t> length_of_dimensions;
+
+  // Borrowed state
 
   // Construction
   Tensor(Type *type);
   Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions);
 
   // Access
-  Field *getElement(std::vector<uint64_t> &indices);
+  Element *get_tensor_element(std::vector<uint64_t> &indices) const;
+  Element *get_element(va_list args) override;
+  Object *get_slice(va_list args, uint8_t num_args) override;
+  Object *join(va_list args, uint8_t num_args) override;
+  Type *get_element_type() const override;
 
-  std::string toString();
+  bool equals(const Object *other) const override;
+
+  // Debug
+  std::string to_string() override;
+};
+
+struct AssocArray : public Collection {
+public:
+  using key_t = std::add_pointer<Object>::type;
+  using value_t = std::add_pointer<Element>::type;
+  using key_value_pair_t = std::unordered_map<key_t, value_t>::value_type;
+
+  // Owned state
+  std::unordered_map<key_t, value_t> assoc_array;
+
+  // Borrowed state
+
+  // Construction
+  AssocArray(Type *type);
+  Object *join(va_list args, uint8_t num_args) override;
+
+  // Access
+  Element *get_element(va_list args) override;
+  Object *get_slice(va_list args, uint8_t num_args) override;
+  AssocArray::key_value_pair_t &get_pair(Object *key);
+  Type *get_element_type() const override;
+  Type *get_key_type() const;
+  Type *get_value_type() const;
+
+  bool equals(const Object *other) const override;
+
+  // Debug
+  std::string to_string() override;
+};
+
+struct Sequence : public Collection {
+public:
+  // Owned state
+  std::vector<Element *> sequence;
+
+  // Construction
+  Sequence(Type *type, uint64_t init_size);
+  Object *join(va_list args, uint8_t num_args) override;
+  static Object *join(SequenceType *type,
+                      std::vector<Sequence *> sequences_to_join);
+
+  // Access
+  Element *get_element(va_list args) override;
+  Element *get_element(uint64_t index);
+  Object *get_slice(va_list args, uint8_t num_args) override;
+  Object *get_slice(int64_t left_index, int64_t right_index);
+  Type *get_element_type() const override;
+
+  bool equals(const Object *other) const override;
+
+  // Debug
+  std::string to_string() override;
+};
+
+// Abstract Element
+struct Element : public Object {
+public:
+  // Construction
+  static Element *create(Type *type);
+  virtual Element *clone() const = 0;
+  Object *join(va_list args, uint8_t num_args) override;
+
+  // Access
+  Element *get_element(va_list args) override;
+  Object *get_slice(va_list args, uint8_t num_args) override;
+
+protected:
+  Element(Type *type);
 };
 
 // Integer
-struct IntegerField : public Field {
+struct IntegerElement : public Element {
 public:
   uint64_t value;
 
-  uint64_t readValue();
-  void writeValue(uint64_t value);
+  uint64_t read_value() const;
+  void write_value(uint64_t value);
+  bool equals(const Object *other) const override;
 
   // Construction
-  IntegerField(Type *type);
-  IntegerField(Type *type, uint64_t init);
+  IntegerElement(IntegerType *type);
+  IntegerElement(IntegerType *type, uint64_t init);
+  Element *clone() const override;
 
-  std::string toString();
+  // Debug
+  std::string to_string() override;
 };
 
 // Floating point
-struct FloatField : public Field {
+struct FloatElement : public Element {
 public:
   float value;
 
-  float readValue();
-  void writeValue(float value);
+  float read_value() const;
+  void write_value(float value);
+  bool equals(const Object *other) const override;
 
   // Construction
-  FloatField(Type *type);
-  FloatField(Type *type, float init);
+  FloatElement(FloatType *type);
+  FloatElement(FloatType *type, float init);
+  Element *clone() const override;
 
-  std::string toString();
+  // Debug
+  std::string to_string() override;
 };
 
 // Double-precision floating point
-struct DoubleField : public Field {
+struct DoubleElement : public Element {
 public:
   double value;
 
-  double readValue();
-  void writeValue(double value);
+  double read_value() const;
+  void write_value(double value);
+  bool equals(const Object *other) const override;
 
   // Construction
-  DoubleField(Type *type);
-  DoubleField(Type *type, double init);
+  DoubleElement(DoubleType *type);
+  DoubleElement(DoubleType *type, double init);
+  Element *clone() const override;
 
-  std::string toString();
+  // Debug
+  std::string to_string() override;
 };
 
-// Nested object
-struct StructField : public Field {
+// Pointer to non-memoir memory
+struct PointerElement : public Element {
 public:
-  Struct *value;
+  void *value;
 
-  Struct *readValue();
-
-  // Construction
-  StructField(Type *type);
-  StructField(Type *type, Struct *init);
-
-  std::string toString();
-};
-
-// Nested tensor
-struct TensorField : public Field {
-public:
-  Tensor *value;
-
-  Tensor *readValue();
+  // Access
+  void *read_value() const;
+  void write_value(void *value);
+  bool equals(const Object *other) const override;
 
   // Construction
-  TensorField(Type *type);
-  TensorField(Type *type, Tensor *init);
+  PointerElement(PointerType *type);
+  PointerElement(PointerType *type, void *init);
+  Element *clone() const override;
 
-  std::string toString();
+  // Debug
+  std::string to_string() override;
 };
 
-// Indirection pointer
-struct ReferenceField : public Field {
+// Reference to memoir object
+struct ReferenceElement : public Element {
 public:
   Object *value;
 
-  Object *readValue();
-  void writeValue(Object *value);
+  Object *read_value() const;
+  void write_value(Object *value);
+  bool equals(const Object *other) const override;
 
   // Construction
-  ReferenceField(Type *type);
-  ReferenceField(Type *type, Object *init);
+  ReferenceElement(ReferenceType *type);
+  ReferenceElement(ReferenceType *type, Object *init);
+  Element *clone() const override;
 
-  std::string toString();
+  // Debug
+  std::string to_string() override;
+};
+
+// Nested object
+struct ObjectElement : public Element {
+public:
+  // Access
+  virtual Object *read_value() const = 0;
+  bool equals(const Object *other) const override;
+
+  // Construction
+  ObjectElement(Type *type);
+
+  // Debug
+  std::string to_string() override;
+};
+
+struct StructElement : public ObjectElement {
+public:
+  Struct *value;
+
+  // Access
+  Object *read_value() const override;
+
+  // Construction
+  StructElement(StructType *type);
+  StructElement(StructType *type, Struct *init);
+  Element *clone() const override;
+
+  // Debug
+  std::string to_string() override;
+};
+
+struct TensorElement : public ObjectElement {
+public:
+  Tensor *value;
+
+  // Access
+  Object *read_value() const override;
+
+  // Construction
+  TensorElement(TensorType *type);
+  TensorElement(TensorType *type, Tensor *init);
+  Element *clone() const override;
+
+  // Debug
+  std::string to_string() override;
 };
 
 } // namespace memoir

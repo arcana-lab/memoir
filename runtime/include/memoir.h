@@ -11,6 +11,8 @@
  * Created: Mar 4, 2022
  */
 
+#include <cstdarg>
+
 #include "objects.h"
 #include "types.h"
 
@@ -18,118 +20,188 @@ namespace memoir {
 extern "C" {
 
 #define __RUNTIME_ATTR                                                         \
-  __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))
+  __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))       \
+      __attribute__((optnone))
 #define __ALLOC_ATTR __declspec(allocator)
+
+#define MEMOIR_FUNC(name) memoir_##name
 
 /*
  * Struct Types
  */
-__RUNTIME_ATTR Type *defineStructType(const char *name, int num_fields, ...);
-__RUNTIME_ATTR Type *StructType(const char *name);
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(define_struct_type)(const char *name, int num_fields, ...);
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(struct_type)(const char *name);
 
 /*
- * Tensor Type
- * NOTE: if a dimension is of unknown length, it's dimension length is a
- *   constant 0
+ * Static-length Tensor Type
  */
-__RUNTIME_ATTR Type *TensorType(Type *element_type,
-                                uint64_t num_dimensions,
-                                ...);
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(static_tensor_type)(Type *element_type,
+                                      uint64_t num_dimensions,
+                                      ...);
+
+/*
+ * Collection Types
+ */
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(tensor_type)(Type *element_type, uint64_t num_dimensions);
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(assoc_array_type)(Type *key_type, Type *value_type);
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(sequence_type)(Type *element_type);
 
 /*
  * Reference Type
  */
-__RUNTIME_ATTR Type *ReferenceType(Type *referenced_type);
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(ref_type)(Type *referenced_type);
 
 /*
  * Primitive Types
  */
-__RUNTIME_ATTR Type *IntegerType(uint64_t bitwidth, bool is_signed);
-__RUNTIME_ATTR Type *UInt64Type();
-__RUNTIME_ATTR Type *UInt32Type();
-__RUNTIME_ATTR Type *UInt16Type();
-__RUNTIME_ATTR Type *UInt8Type();
-__RUNTIME_ATTR Type *Int64Type();
-__RUNTIME_ATTR Type *Int32Type();
-__RUNTIME_ATTR Type *Int16Type();
-__RUNTIME_ATTR Type *Int8Type();
-__RUNTIME_ATTR Type *BoolType();
-__RUNTIME_ATTR Type *FloatType();
-__RUNTIME_ATTR Type *DoubleType();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(u64_type)();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(u32_type)();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(u16_type)();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(u8_type)();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(i64_type)();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(i32_type)();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(i16_type)();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(i8_type)();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(bool_type)();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(f32_type)();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(f64_type)();
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(ptr_type)();
 
 /*
  * Object construction
  */
-__ALLOC_ATTR __RUNTIME_ATTR Object *allocateStruct(Type *type);
-__ALLOC_ATTR __RUNTIME_ATTR Object *allocateTensor(Type *element_type,
-                                                   uint64_t num_dimensions,
-                                                   ...);
-
-/*
- * O.bject accesses
- */
-__RUNTIME_ATTR Field *getStructField(Object *object, uint64_t field_index);
-__RUNTIME_ATTR Field *getTensorElement(Object *tensor, ...);
+__ALLOC_ATTR
+__RUNTIME_ATTR
+Object *MEMOIR_FUNC(allocate_struct)(Type *type);
+__ALLOC_ATTR
+__RUNTIME_ATTR
+Object *MEMOIR_FUNC(allocate_tensor)(Type *element_type,
+                                     uint64_t num_dimensions,
+                                     ...);
+__ALLOC_ATTR
+__RUNTIME_ATTR
+Object *MEMOIR_FUNC(allocate_assoc_array)(Type *key_type, Type *value_type);
+__ALLOC_ATTR
+__RUNTIME_ATTR
+Object *MEMOIR_FUNC(allocate_sequence)(Type *element_type,
+                                       uint64_t initial_size);
 
 /*
  * Object destruction
  */
-__RUNTIME_ATTR void deleteObject(Object *object);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(delete_object)(Object *object);
+
+/*
+ * Collection operations
+ */
+__RUNTIME_ATTR
+Object *MEMOIR_FUNC(get_slice)(Object *object_to_slice, ...);
+__RUNTIME_ATTR
+Object *MEMOIR_FUNC(join)(
+    uint8_t number_of_objects, // inclusive of the object_to_join
+    Object *object_to_join,
+    ...);
 
 /*
  * Type checking and function signatures
  */
-__RUNTIME_ATTR bool assertType(Type *type, Object *object);
-__RUNTIME_ATTR bool setReturnType(Type *type);
+__RUNTIME_ATTR
+bool MEMOIR_FUNC(assert_type)(Type *type, Object *object);
+__RUNTIME_ATTR
+bool MEMOIR_FUNC(set_return_type)(Type *type);
 
 /*
- * Field accesses
+ * Element accesses
  */
 // Unsigned integer access
-__RUNTIME_ATTR void writeUInt64(Field *field, uint64_t value);
-__RUNTIME_ATTR void writeUInt32(Field *field, uint32_t value);
-__RUNTIME_ATTR void writeUInt16(Field *field, uint16_t value);
-__RUNTIME_ATTR void writeUInt8(Field *field, uint8_t value);
-__RUNTIME_ATTR uint64_t readUInt64(Field *field);
-__RUNTIME_ATTR uint32_t readUInt32(Field *field);
-__RUNTIME_ATTR uint16_t readUInt16(Field *field);
-__RUNTIME_ATTR uint8_t readUInt8(Field *field);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_u64)(uint64_t value, Object *object_to_access, ...);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_u32)(uint32_t value, Object *object_to_access, ...);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_u16)(uint16_t value, Object *object_to_access, ...);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_u8)(uint8_t value, Object *object_to_access, ...);
+__RUNTIME_ATTR
+uint64_t MEMOIR_FUNC(read_u64)(Object *object_to_access, ...);
+__RUNTIME_ATTR
+uint32_t MEMOIR_FUNC(read_u32)(Object *object_to_access, ...);
+__RUNTIME_ATTR
+uint16_t MEMOIR_FUNC(read_u16)(Object *object_to_access, ...);
+__RUNTIME_ATTR
+uint8_t MEMOIR_FUNC(read_u8)(Object *object_to_access, ...);
 
 // Signed integer access
-__RUNTIME_ATTR void writeInt64(Field *field, int64_t value);
-__RUNTIME_ATTR void writeInt32(Field *field, int32_t value);
-__RUNTIME_ATTR void writeInt16(Field *field, int16_t value);
-__RUNTIME_ATTR void writeInt8(Field *field, int8_t value);
-__RUNTIME_ATTR int64_t readInt64(Field *field);
-__RUNTIME_ATTR int32_t readInt32(Field *field);
-__RUNTIME_ATTR int16_t readInt16(Field *field);
-__RUNTIME_ATTR int8_t readInt8(Field *field);
-
-// General integer access
-// NOTE: you must cast the output of these function calls to the
-//   actual integer type you wish to use. These functions use uint64_t
-//   to be more general purpose and easier to compile for since they
-//   should be rare.
-__RUNTIME_ATTR void writeInteger(Field *field, uint64_t value);
-__RUNTIME_ATTR uint64_t readInteger(Field *field);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_i64)(int64_t value, Object *object_to_access, ...);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_i32)(int32_t value, Object *object_to_access, ...);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_i16)(int16_t value, Object *object_to_access, ...);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_i8)(int8_t value, Object *object_to_access, ...);
+__RUNTIME_ATTR
+int64_t MEMOIR_FUNC(read_i64)(Object *object_to_access, ...);
+__RUNTIME_ATTR
+int32_t MEMOIR_FUNC(read_i32)(Object *object_to_access, ...);
+__RUNTIME_ATTR
+int16_t MEMOIR_FUNC(read_i16)(Object *object_to_access, ...);
+__RUNTIME_ATTR
+int8_t MEMOIR_FUNC(read_i8)(Object *object_to_access, ...);
 
 // Boolean access
-__RUNTIME_ATTR void writeBool(Field *field, bool value);
-__RUNTIME_ATTR bool readBool(Field *field);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_bool)(bool value, Object *object_to_access, ...);
+__RUNTIME_ATTR
+bool MEMOIR_FUNC(read_bool)(Object *object_to_access, ...);
 
 // Floating point access
-__RUNTIME_ATTR void writeFloat(Field *field, float value);
-__RUNTIME_ATTR void writeDouble(Field *field, double value);
-__RUNTIME_ATTR float readFloat(Field *field);
-__RUNTIME_ATTR double readDouble(Field *field);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_f64)(double value, Object *object_to_access, ...);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_f32)(float value, Object *object_to_access, ...);
+__RUNTIME_ATTR
+double MEMOIR_FUNC(read_f64)(Object *object_to_access, ...);
+__RUNTIME_ATTR
+float MEMOIR_FUNC(read_f32)(Object *object_to_access, ...);
+
+// Reference access
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_ref)(Object *object_to_reference,
+                            Object *object_to_access,
+                            ...);
+__RUNTIME_ATTR
+Object *MEMOIR_FUNC(read_ref)(Object *object_to_access, ...);
+
+// C Pointer access, these may NOT reference memoir objects
+__RUNTIME_ATTR
+void MEMOIR_FUNC(write_ptr)(void *pointer, Object *object_to_access, ...);
+__RUNTIME_ATTR
+void *MEMOIR_FUNC(read_ptr)(Object *object_to_access, ...);
 
 // Nested object access
-__RUNTIME_ATTR Struct *readStruct(Field *field);
-__RUNTIME_ATTR Tensor *readTensor(Field *field);
-
-// Pointer access
-__RUNTIME_ATTR void writeReference(Field *field, Object *object_to_reference);
-__RUNTIME_ATTR Object *readReference(Field *field);
+__RUNTIME_ATTR
+Object *MEMOIR_FUNC(get_object)(Object *object_to_access, ...);
 
 } // extern "C"
 } // namespace memoir
