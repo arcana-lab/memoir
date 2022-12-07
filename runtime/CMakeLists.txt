@@ -10,7 +10,8 @@ set(HEADER_FILES
 
 set(PRIVATE_HEADER_FILES
   include/objects.h
-  include/types.h)
+  include/types.h
+  include/utils.h)
 
 set(SRC_FILES
   src/accessor.cpp
