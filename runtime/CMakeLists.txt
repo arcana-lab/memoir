@@ -15,7 +15,7 @@ set(PRIVATE_HEADER_FILES
 set(SRC_FILES
   src/accessor.cpp
   src/builder.cpp
-  src/fields.cpp
+  src/elements.cpp
   src/objects.cpp
   src/printer.cpp
   src/types.cpp)
