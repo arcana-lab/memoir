@@ -26,6 +26,10 @@ std::string TensorElement::to_string() {
   return "tensor";
 }
 
+std::string PointerElement::to_string() {
+  return "pointer";
+}
+
 std::string ReferenceElement::to_string() {
   return "reference";
 }
