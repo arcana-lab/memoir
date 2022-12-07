@@ -4,23 +4,22 @@
 
 using namespace memoir;
 
-Type *objTy = defineStructType("Foo", 1, UInt64Type());
+Type *objTy =
+    MEMOIR_FUNC(define_struct_type)("Foo", 1, MEMOIR_FUNC(u64_type)());
 
 int main() {
-  Object *myObj1 = allocateStruct(objTy);
-  Object *myObj2 = allocateStruct(objTy);
+  Object *myObj1 = MEMOIR_FUNC(allocate_struct)(objTy);
+  Object *myObj2 = MEMOIR_FUNC(allocate_struct)(objTy);
   Object *myObj3; // = allocateStruct(objTy);
 
-  Field *field1 = getStructField(myObj1, 0);
-  Field *field2 = getStructField(myObj2, 0);
+  MEMOIR_FUNC(write_u64)(123, myObj1, 0);
+  MEMOIR_FUNC(write_u64)(456, myObj2, 0);
 
-  writeUInt64(field1, 123);
-  writeUInt64(field2, 456);
-
-  if (readUInt64(field1) == 0) {
+  if (MEMOIR_FUNC(read_u64)(myObj1, 0) == 0) {
     myObj3 = myObj2;
   } else {
     myObj3 = myObj1;
   }
-  deleteObject(myObj3);
+
+  MEMOIR_FUNC(delete_object)(myObj3);
 }
