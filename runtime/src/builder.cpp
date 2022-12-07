@@ -1,6 +1,7 @@
 #include <iostream>
 #include <stdarg.h>
 
+#include "internal.h"
 #include "memoir.h"
 
 namespace memoir {
@@ -11,7 +12,7 @@ extern "C" {
  * Type construction
  */
 __RUNTIME_ATTR
-Type *defineStructType(const char *name, int num_fields, ...) {
+Type *MEMOIR_FUNC(define_struct_type)(const char *name, int num_fields, ...) {
   std::vector<Type *> fields;
 
   va_list args;
@@ -31,12 +32,14 @@ Type *defineStructType(const char *name, int num_fields, ...) {
 }
 
 __RUNTIME_ATTR
-Type *StructType(const char *name) {
+Type *MEMOIR_FUNC(struct_type)(const char *name) {
   return StructType::get(name);
 }
 
 __RUNTIME_ATTR
-Type *TensorType(Type *type, uint64_t num_dimensions, ...) {
+Type *MEMOIR_FUNC(static_tensor_type)(Type *type,
+                                      uint64_t num_dimensions,
+                                      ...) {
   std::vector<uint64_t> length_of_dimensions;
 
   va_list args;
@@ -54,92 +57,98 @@ Type *TensorType(Type *type, uint64_t num_dimensions, ...) {
 }
 
 __RUNTIME_ATTR
-Type *IntegerType(uint64_t bitwidth, bool isSigned) {
-  return IntegerType::get(bitwidth, isSigned);
+Type *MEMOIR_FUNC(tensor_type)(Type *element_type, uint64_t num_dimensions) {
+  return TensorType::get(element_type, num_dimensions);
 }
 
 __RUNTIME_ATTR
-Type *UInt64Type() {
+Type *MEMOIR_FUNC(assoc_array_type)(Type *key_type, Type *value_type) {
+  return AssocArrayType::get(key_type, value_type);
+}
+
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(sequence_type)(Type *element_type) {
+  return SequenceType::get(element_type);
+}
+
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(u64_type)() {
   return IntegerType::get(64, false);
 }
 
 __RUNTIME_ATTR
-Type *UInt32Type() {
+Type *MEMOIR_FUNC(u32_type)() {
   return IntegerType::get(32, false);
 }
 
 __RUNTIME_ATTR
-Type *UInt16Type() {
+Type *MEMOIR_FUNC(u16_type)() {
   return IntegerType::get(16, false);
 }
 
 __RUNTIME_ATTR
-Type *UInt8Type() {
+Type *MEMOIR_FUNC(u8_type)() {
   return IntegerType::get(8, false);
 }
 
 __RUNTIME_ATTR
-Type *Int64Type() {
+Type *MEMOIR_FUNC(i64_type)() {
   return IntegerType::get(64, true);
 }
 
 __RUNTIME_ATTR
-Type *Int32Type() {
+Type *MEMOIR_FUNC(i32_type)() {
   return IntegerType::get(32, true);
 }
 
 __RUNTIME_ATTR
-Type *Int16Type() {
+Type *MEMOIR_FUNC(i16_type)() {
   return IntegerType::get(16, true);
 }
 
 __RUNTIME_ATTR
-Type *Int8Type() {
+Type *MEMOIR_FUNC(i8_type)() {
   return IntegerType::get(8, true);
 }
 
 __RUNTIME_ATTR
-Type *BoolType() {
+Type *MEMOIR_FUNC(bool_type)() {
   return IntegerType::get(1, false);
 }
 
 __RUNTIME_ATTR
-Type *FloatType() {
+Type *MEMOIR_FUNC(f32_type)() {
   return FloatType::get();
 }
 
 __RUNTIME_ATTR
-Type *DoubleType() {
+Type *MEMOIR_FUNC(f64_type)() {
   return DoubleType::get();
 }
 
 __RUNTIME_ATTR
-Type *ReferenceType(Type *referenced_type) {
+Type *MEMOIR_FUNC(ptr_type)() {
+  return PointerType::get();
+}
+
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(ref_type)(Type *referenced_type) {
   return ReferenceType::get(referenced_type);
 }
 
-/*
- * Struct allocation
- *   allocateStruct(struct type)
- */
 __ALLOC_ATTR
 __RUNTIME_ATTR
-Object *allocateStruct(Type *type) {
+Object *MEMOIR_FUNC(allocate_struct)(Type *type) {
   auto strct = new struct Struct(type);
 
   return strct;
 }
 
-/*
- * Tensor allocation
- *   allocateTensor(
- *     element type,
- *     number of dimensions,
- *     <length of dimension, ...>)
- */
 __ALLOC_ATTR
 __RUNTIME_ATTR
-Object *allocateTensor(Type *element_type, uint64_t num_dimensions, ...) {
+Object *MEMOIR_FUNC(allocate_tensor)(Type *element_type,
+                                     uint64_t num_dimensions,
+                                     ...) {
   std::vector<uint64_t> length_of_dimensions;
 
   va_list args;
@@ -160,8 +169,46 @@ Object *allocateTensor(Type *element_type, uint64_t num_dimensions, ...) {
   return tensor;
 }
 
+__ALLOC_ATTR
 __RUNTIME_ATTR
-void deleteObject(Object *obj) {
+Object *MEMOIR_FUNC(allocate_assoc_array)(Type *key_type, Type *value_type) {
+  auto assoc_array_type = AssocArrayType::get(key_type, value_type);
+
+  auto assoc_array = new struct AssocArray(assoc_array_type);
+
+  return assoc_array;
+}
+
+__ALLOC_ATTR
+__RUNTIME_ATTR
+Object *MEMOIR_FUNC(allocate_sequence)(Type *element_type, uint64_t init_size) {
+  auto sequence_type = SequenceType::get(element_type);
+
+  auto sequence = new struct Sequence(sequence_type, init_size);
+
+  return sequence;
+}
+
+__RUNTIME_ATTR
+Object *MEMOIR_FUNC(join)(uint8_t number_of_objects,
+                          Object *object_to_join,
+                          ...) {
+  MEMOIR_ASSERT((object_to_join != nullptr),
+                "Attempt to join with NULL object.");
+
+  va_list args;
+
+  va_start(args, object_to_join);
+
+  auto joined_object = object_to_join->join(args, number_of_objects - 1);
+
+  va_end(args);
+
+  return joined_object;
+}
+
+__RUNTIME_ATTR
+void MEMOIR_FUNC(delete_object)(Object *obj) {
   delete obj;
 }
 
