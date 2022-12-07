@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 if [ $# -lt 1 ] ; then
-    echo "This script will normalize the bitcode for usage in ObjectIR and NOELLE passes." ;
+    echo "This script will normalize the bitcode for usage in MemOIR and NOELLE passes." ;
     echo "  USAGE: `basename $0` <IR_FILE> [<OPTIONS, ...>]" ;
 fi
 

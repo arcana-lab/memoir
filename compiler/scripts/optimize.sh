@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 if [ $# -lt 1 ] ; then
-    echo "This script will run ObjectIR optimizations and lower to LLVM IR." ;
+    echo "This script will run MemOIR optimizations and lower to LLVM IR." ;
     echo "  USAGE: `basename $0` <IR_FILE> [<OPTIONS, ...>]" ;
 fi
 
