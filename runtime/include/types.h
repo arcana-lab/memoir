@@ -15,14 +15,21 @@
 #include <unordered_map>
 #include <vector>
 
+#include "objects.h"
+
 namespace memoir {
+
+struct Collection;
 
 enum TypeCode {
   StructTy,
   TensorTy,
+  AssocArrayTy,
+  SequenceTy,
   IntegerTy,
   FloatTy,
   DoubleTy,
+  PointerTy,
   ReferenceTy,
   NoneTy
 };
@@ -34,7 +41,7 @@ public:
   const char *getName();
 
   virtual bool equals(Type *other) = 0;
-  virtual std::string toString() = 0;
+  virtual std::string to_string() = 0;
 
 protected:
   Type(TypeCode code, const char *name);
@@ -45,15 +52,18 @@ private:
   const char *name;
 };
 
+/*
+ * Struct Type
+ */
 struct StructType : public Type {
 public:
-  static Type *get(const char *name);
-  static Type *define(const char *name, std::vector<Type *> &field_types);
+  static StructType *get(const char *name);
+  static StructType *define(const char *name, std::vector<Type *> &field_types);
 
   std::vector<Type *> fields;
 
-  bool equals(Type *other);
-  std::string toString();
+  bool equals(Type *other) override;
+  std::string to_string() override;
 
 private:
   StructType(const char *name, std::vector<Type *> &field_types);
@@ -61,12 +71,15 @@ private:
   static std::unordered_map<const char *, Type *> &struct_types();
 };
 
+/*
+ * Collection Types
+ */
 struct TensorType : public Type {
 public:
-  static Type *get(Type *element_type, uint64_t num_dimensions);
-  static Type *get(Type *element_type,
-                   uint64_t num_dimensions,
-                   std::vector<uint64_t> &length_of_dimensions);
+  static TensorType *get(Type *element_type, uint64_t num_dimensions);
+  static TensorType *get(Type *element_type,
+                         uint64_t num_dimensions,
+                         std::vector<uint64_t> &length_of_dimensions);
 
   static const uint64_t unknown_length;
 
@@ -75,8 +88,8 @@ public:
   bool is_static_length;
   std::vector<uint64_t> length_of_dimensions;
 
-  bool equals(Type *other);
-  std::string toString();
+  bool equals(Type *other) override;
+  std::string to_string() override;
 
 private:
   TensorType(Type *element_type, uint64_t num_dimensions);
@@ -85,15 +98,45 @@ private:
              std::vector<uint64_t> &length_of_dimensions);
 };
 
+struct AssocArrayType : public Type {
+public:
+  static AssocArrayType *get(Type *key_type, Type *value_type);
+
+  Type *key_type;
+  Type *value_type;
+
+  bool equals(Type *other) override;
+  std::string to_string() override;
+
+private:
+  AssocArrayType(Type *key_type, Type *value_type);
+};
+
+struct SequenceType : public Type {
+public:
+  static SequenceType *get(Type *element_type);
+
+  Type *element_type;
+
+  bool equals(Type *other) override;
+  std::string to_string() override;
+
+private:
+  SequenceType(Type *element_type);
+};
+
+/*
+ * Primitive Types
+ */
 struct IntegerType : public Type {
 public:
-  static Type *get(unsigned bitwidth, bool is_signed);
+  static IntegerType *get(unsigned bitwidth, bool is_signed);
 
   unsigned bitwidth;
   bool is_signed;
 
-  bool equals(Type *other);
-  std::string toString();
+  bool equals(Type *other) override;
+  std::string to_string() override;
 
 private:
   IntegerType(unsigned bitwidth, bool is_signed);
@@ -101,10 +144,10 @@ private:
 
 struct FloatType : public Type {
 public:
-  static Type *get();
+  static FloatType *get();
 
-  bool equals(Type *other);
-  std::string toString();
+  bool equals(Type *other) override;
+  std::string to_string() override;
 
 private:
   FloatType();
@@ -112,23 +155,34 @@ private:
 
 struct DoubleType : public Type {
 public:
-  static Type *get();
+  static DoubleType *get();
 
-  bool equals(Type *other);
-  std::string toString();
+  bool equals(Type *other) override;
+  std::string to_string() override;
 
 private:
   DoubleType();
 };
 
+struct PointerType : public Type {
+public:
+  static PointerType *get();
+
+  bool equals(Type *other) override;
+  std::string to_string() override;
+
+private:
+  PointerType();
+};
+
 struct ReferenceType : public Type {
 public:
-  static Type *get(Type *referenced_type);
+  static ReferenceType *get(Type *referenced_type);
 
   Type *referenced_type;
 
-  bool equals(Type *other);
-  std::string toString();
+  bool equals(Type *other) override;
+  std::string to_string() override;
 
 private:
   ReferenceType(Type *referenced_type);
