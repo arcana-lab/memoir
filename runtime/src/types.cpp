@@ -39,7 +39,7 @@ bool isIntrinsicType(Type *type) {
 /*
  * Type base class
  */
-Type::Type(TypeCode code, const char *name) : code(code) {
+Type::Type(TypeCode code, const char *name) : code(code), name(name) {
   // Do nothing
 }
 
