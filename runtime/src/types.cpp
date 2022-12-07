@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "internal.h"
 #include "types.h"
 
 namespace memoir {
@@ -55,10 +56,10 @@ std::unordered_map<const char *, Type *> &StructType::struct_types() {
   return struct_types;
 }
 
-Type *StructType::get(const char *name) {
+StructType *StructType::get(const char *name) {
   auto found_type = StructType::struct_types().find(name);
   if (found_type != StructType::struct_types().end()) {
-    return found_type->second;
+    return static_cast<StructType *>(found_type->second);
   }
 
   /*
@@ -73,7 +74,8 @@ Type *StructType::get(const char *name) {
   return empty_struct;
 }
 
-Type *StructType::define(const char *name, std::vector<Type *> &field_types) {
+StructType *StructType::define(const char *name,
+                               std::vector<Type *> &field_types) {
   auto struct_type = (StructType *)StructType::get(name);
 
   /*
@@ -99,7 +101,7 @@ bool StructType::equals(Type *other) {
  */
 const uint64_t TensorType::unknown_length = 0;
 
-Type *TensorType::get(Type *element_type, uint64_t num_dimensions) {
+TensorType *TensorType::get(Type *element_type, uint64_t num_dimensions) {
   std::vector<uint64_t> length_of_dimensions;
 
   for (auto i = 0; i < num_dimensions; i++) {
@@ -109,9 +111,9 @@ Type *TensorType::get(Type *element_type, uint64_t num_dimensions) {
   return new TensorType(element_type, num_dimensions, length_of_dimensions);
 }
 
-Type *TensorType::get(Type *element_type,
-                      uint64_t num_dimensions,
-                      std::vector<uint64_t> &length_of_dimensions) {
+TensorType *TensorType::get(Type *element_type,
+                            uint64_t num_dimensions,
+                            std::vector<uint64_t> &length_of_dimensions) {
   return new TensorType(element_type, num_dimensions, length_of_dimensions);
 }
 
@@ -171,9 +173,57 @@ bool TensorType::equals(Type *other) {
 }
 
 /*
+ * Associative Array Type
+ */
+AssocArrayType *AssocArrayType::get(Type *key_type, Type *value_type) {
+  // TODO, make these unique
+  return new AssocArrayType(key_type, value_type);
+}
+
+AssocArrayType::AssocArrayType(Type *key_type, Type *value_type)
+  : Type(TypeCode::AssocArrayTy),
+    key_type(key_type),
+    value_type(value_type) {
+  // Do nothing.
+}
+
+bool AssocArrayType::equals(Type *other) {
+  if (this->getCode() != other->getCode()) {
+    return false;
+  }
+
+  auto other_type = static_cast<AssocArrayType *>(other);
+  return ((this->key_type == other_type->key_type)
+          && (this->value_type == other_type->value_type));
+}
+
+/*
+ * Sequence Type
+ */
+SequenceType *SequenceType::get(Type *element_type) {
+  // TODO, make these unique
+  return new SequenceType(element_type);
+}
+
+SequenceType::SequenceType(Type *element_type)
+  : Type(TypeCode::SequenceTy),
+    element_type(element_type) {
+  // Do nothing.
+}
+
+bool SequenceType::equals(Type *other) {
+  if (this->getCode() != other->getCode()) {
+    return false;
+  }
+
+  auto other_type = static_cast<SequenceType *>(other);
+  return (this->element_type == other_type->element_type);
+}
+
+/*
  * Integer Type
  */
-Type *IntegerType::get(unsigned bitwidth, bool is_signed) {
+IntegerType *IntegerType::get(unsigned bitwidth, bool is_signed) {
   static std::unordered_map<
       // bitwidth
       unsigned,
@@ -229,7 +279,7 @@ bool IntegerType::equals(Type *other) {
 /*
  * Float Type
  */
-Type *FloatType::get() {
+FloatType *FloatType::get() {
   static FloatType float_type;
 
   return &float_type;
@@ -246,7 +296,7 @@ bool FloatType::equals(Type *other) {
 /*
  * Double Type
  */
-Type *DoubleType::get() {
+DoubleType *DoubleType::get() {
   static DoubleType double_type;
 
   return &double_type;
@@ -261,19 +311,34 @@ bool DoubleType::equals(Type *other) {
 }
 
 /*
+ * Pointer Type
+ */
+PointerType *PointerType::get() {
+  static PointerType pointer_type;
+
+  return &pointer_type;
+}
+
+PointerType::PointerType() : Type(TypeCode::PointerTy) {
+  // Do nothing
+}
+
+bool PointerType::equals(Type *other) {
+  return (this->getCode() == other->getCode());
+}
+
+/*
  * Reference Type
  */
-Type *ReferenceType::get(Type *referenced_type) {
+ReferenceType *ReferenceType::get(Type *referenced_type) {
   return new ReferenceType(referenced_type);
 }
 
 ReferenceType::ReferenceType(Type *referenced_type)
   : Type(TypeCode::ReferenceTy),
     referenced_type(referenced_type) {
-  if (!isObjectType(referenced_type)) {
-    std::cerr << "ERROR: Contained type of reference is not an object!\n";
-    exit(1);
-  }
+  MEMOIR_ASSERT(isObjectType(referenced_type),
+                "Attempt to define reference type to non-memoir Object.");
 }
 
 bool ReferenceType::equals(Type *other) {
