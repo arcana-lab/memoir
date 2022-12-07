@@ -52,9 +52,9 @@ public:
 
   // Typing
   Type *get_type() const;
-  bool is_collection() const;
-  bool is_struct() const;
-  bool is_element() const;
+  virtual bool is_collection() const;
+  virtual bool is_struct() const;
+  virtual bool is_element() const;
 
   virtual std::string to_string() = 0;
 };
@@ -75,6 +75,7 @@ public:
   Element *get_element(va_list args) override;
   Object *get_slice(va_list args, uint8_t num_args) override;
 
+  bool is_struct() const override;
   bool equals(const Object *other) const override;
 
   // Debug
@@ -85,6 +86,7 @@ struct Collection : public Object {
 public:
   // Access
   virtual Type *get_element_type() const = 0;
+  bool is_collection() const override;
 
   // Construction
   Collection(Type *type);
@@ -179,6 +181,8 @@ public:
   // Access
   Element *get_element(va_list args) override;
   Object *get_slice(va_list args, uint8_t num_args) override;
+
+  bool is_element() const override;
 
 protected:
   Element(Type *type);
@@ -284,9 +288,6 @@ public:
 
   // Construction
   ObjectElement(Type *type);
-
-  // Debug
-  std::string to_string() override;
 };
 
 struct StructElement : public ObjectElement {
