@@ -33,7 +33,7 @@ bool Object::is_element() const {
  * Struct Objects
  */
 Struct::Struct(Type *type) : Object(type) {
-  MEMOIR_ASSERT((type->getCode() != TypeCode::StructTy),
+  MEMOIR_ASSERT((type->getCode() == TypeCode::StructTy),
                 "Trying to create a struct of non-struct type");
 
   // Initialize the fields
@@ -58,15 +58,15 @@ Element *Struct::get_element(va_list args) {
 }
 
 Object *Struct::get_slice(va_list args, uint8_t num_args) {
-  MEMOIR_ASSERT(false,
-                "Attempt to perform slice operation on struct, UNSUPPORTED");
+  MEMOIR_UNREACHABLE(
+      "Attempt to perform slice operation on struct, UNSUPPORTED");
 
   return nullptr;
 }
 
 Object *Struct::join(va_list args, uint8_t num_args) {
-  MEMOIR_ASSERT(false,
-                "Attempt to perfrom join operation on struct, UNSUPPORTED");
+  MEMOIR_UNREACHABLE(
+      "Attempt to perfrom join operation on struct, UNSUPPORTED");
 
   return nullptr;
 }
@@ -94,7 +94,7 @@ bool Collection::is_collection() const {
  * Tensor Objects
  */
 Tensor::Tensor(Type *type) : Collection(type) {
-  MEMOIR_ASSERT((this->type->getCode() != TypeCode::TensorTy),
+  MEMOIR_ASSERT((this->type->getCode() == TypeCode::TensorTy),
                 "Trying to create a tensor of non-tensor type");
 
   auto tensor_type = (TensorType *)(this->type);
@@ -151,7 +151,7 @@ Element *Tensor::get_tensor_element(std::vector<uint64_t> &indices) const {
   for (auto i = 0; i < this->length_of_dimensions.size(); i++) {
     auto dimension_length = this->length_of_dimensions[i];
     auto index = indices[i];
-    MEMOIR_ASSERT((index >= dimension_length),
+    MEMOIR_ASSERT((index < dimension_length),
                   "Index out of range for tensor access");
 
     flattened_index *= last_dimension_length;
@@ -168,21 +168,21 @@ Element *Tensor::get_element(va_list args) {
   std::vector<uint64_t> indices = {};
   for (auto i = 0; i < num_dimensions; i++) {
     auto index = va_arg(args, uint64_t);
-    indices[i] = index;
+    indices.push_back(index);
   }
 
   return this->get_tensor_element(indices);
 }
 
 Object *Tensor::get_slice(va_list args, uint8_t num_args) {
-  MEMOIR_ASSERT(false, "Attempt to get slice of tensor, UNSUPPORTED");
+  MEMOIR_UNREACHABLE("Attempt to get slice of tensor, UNSUPPORTED");
 
   return nullptr;
 }
 
 Object *Tensor::join(va_list args, uint8_t num_args) {
-  MEMOIR_ASSERT(false,
-                "Attempt to perfrom join operation on tensor, UNSUPPORTED");
+  MEMOIR_UNREACHABLE(
+      "Attempt to perfrom join operation on tensor, UNSUPPORTED");
 
   return nullptr;
 }
@@ -304,7 +304,7 @@ Element *AssocArray::get_element(va_list args) {
       break;
     }
     default: {
-      MEMOIR_ASSERT(false, "Attempt to get element with unknown key type");
+      MEMOIR_UNREACHABLE("Attempt to get element with unknown key type");
     }
   }
 
@@ -312,15 +312,13 @@ Element *AssocArray::get_element(va_list args) {
 }
 
 Object *AssocArray::get_slice(va_list args, uint8_t num_args) {
-  MEMOIR_ASSERT(false,
-                "Attempt to get slice of associative array, UNSUPPORTED");
+  MEMOIR_UNREACHABLE("Attempt to get slice of associative array, UNSUPPORTED");
 
   return nullptr;
 }
 
 Object *AssocArray::join(va_list args, uint8_t num_args) {
-  MEMOIR_ASSERT(
-      false,
+  MEMOIR_UNREACHABLE(
       "Attempt to perfrom join operation on associative array, UNSUPPORTED");
 
   return nullptr;
