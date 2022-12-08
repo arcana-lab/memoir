@@ -191,9 +191,9 @@ private:
 /*
  * Helper functions
  */
-bool isObjectType(Type *type);
+bool is_object_type(Type *type);
 
-bool isIntrinsicType(Type *type);
+bool is_intrinsic_type(Type *type);
 
 } // namespace memoir
 
