@@ -52,46 +52,6 @@ AccessSummary *AccessAnalysis::getAccessSummary(llvm::Value &value) {
   return nullptr;
 }
 
-set<AccessSummary *> &AccessAnalysis::getFieldAccesses(FieldSummary &field) {
-  /*
-   * Check if we have a memoized set of AccessSummary(s) for this FieldSummary.
-   * If we do, return it.
-   */
-  auto found_accesses = this->field_accesses.find(&field);
-  if (found_accesses != this->field_accesses.end()) {
-    return found_accesses->second;
-  }
-
-  /*
-   * Initialize the field accesses for this field summary.
-   */
-  auto &field_accesses = this->field_accesses[&field];
-  field_accesses.clear();
-
-  /*
-   * Track all uses of the original allocation to find accesses to this field.
-   *  - Track down the object summaries we are using, tracking the chain of
-   *    field accesses needed to recreate it.
-   */
-  stack<FieldSummary *> field_stack;
-  field_stack.push(&field);
-
-  auto &object_summary = field.pointsTo();
-  while (object_summary.isNested()) {
-    auto &nested_struct_summary =
-        static_cast<NestedObjectSummary &>(object_summary);
-    auto &field_summary = nested_struct_summary.getField();
-    field_stack.push(&field_summary);
-
-    object_summary = field_summary.pointsTo();
-  }
-
-  /*
-   * Return the field accesses for this field summary.
-   */
-  return field_accesses;
-}
-
 AccessSummary *AccessAnalysis::getAccessSummaryForCall(
     llvm::CallInst &call_inst) {
   /*
@@ -111,7 +71,7 @@ AccessSummary *AccessAnalysis::getAccessSummaryForCall(
 
   /*
    * If the callee is an indirect call, then return a nullptr
-   * We don't handle indirect calls at the moment as they should
+   * We don't handle indirect calls at the moment as memoir calls should
    *   be statically resolved.
    */
   if (callee == nullptr) {
