@@ -194,18 +194,18 @@ void MEMOIR_FUNC(write_u64)(uint64_t value, Object *object_to_access, ...);
 
 __RUNTIME_ATTR
 void MEMOIR_FUNC(write_u32)(uint32_t value, Object *object_to_access, ...);
-#define memoir_write_u64(val, object, ...)                                     \
-  MEMOIR_FUNC(write_u64)((uint64_t)val, (Object *)object, __VA_ARGS__)
+#define memoir_write_u32(val, object, ...)                                     \
+  MEMOIR_FUNC(write_u32)((uint64_t)val, (Object *)object, __VA_ARGS__)
 
 __RUNTIME_ATTR
 void MEMOIR_FUNC(write_u16)(uint16_t value, Object *object_to_access, ...);
-#define memoir_write_u64(val, object, ...)                                     \
-  MEMOIR_FUNC(write_u64)((uint64_t)val, (Object *)object, __VA_ARGS__)
+#define memoir_write_u16(val, object, ...)                                     \
+  MEMOIR_FUNC(write_u16)((uint64_t)val, (Object *)object, __VA_ARGS__)
 
 __RUNTIME_ATTR
 void MEMOIR_FUNC(write_u8)(uint8_t value, Object *object_to_access, ...);
-#define memoir_write_u64(val, object, ...)                                     \
-  MEMOIR_FUNC(write_u64)((uint64_t)val, (Object *)object, __VA_ARGS__)
+#define memoir_write_u8(val, object, ...)                                      \
+  MEMOIR_FUNC(write_u8)((uint64_t)val, (Object *)object, __VA_ARGS__)
 
 __RUNTIME_ATTR
 uint64_t MEMOIR_FUNC(read_u64)(Object *object_to_access, ...);
@@ -215,7 +215,7 @@ uint64_t MEMOIR_FUNC(read_u64)(Object *object_to_access, ...);
 __RUNTIME_ATTR
 uint32_t MEMOIR_FUNC(read_u32)(Object *object_to_access, ...);
 #define memoir_read_u32(object, ...)                                           \
-  MEMOIR_FUNC(read_u64)((Object *)object, __VA_ARGS__)
+  MEMOIR_FUNC(read_u32)((Object *)object, __VA_ARGS__)
 
 __RUNTIME_ATTR
 uint16_t MEMOIR_FUNC(read_u16)(Object *object_to_access, ...);
