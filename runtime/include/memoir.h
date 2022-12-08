@@ -73,7 +73,7 @@ Type *MEMOIR_FUNC(sequence_type)(Type *element_type);
  */
 __RUNTIME_ATTR
 Type *MEMOIR_FUNC(ref_type)(Type *referenced_type);
-#define memoir_ref_type(referenced_type) MEMOIR_FUNC(ref_type)(referenced_type)
+#define memoir_ref_t(referenced_type) MEMOIR_FUNC(ref_type)(referenced_type)
 
 /*
  * Primitive Types
