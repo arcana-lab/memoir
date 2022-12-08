@@ -219,7 +219,7 @@ AssocArray::key_value_pair_t &AssocArray::get_pair(Object *key) {
   }
 
   // Create a new key-value pair and return it.
-  this->assoc_array[key] = nullptr;
+  this->assoc_array[key] = Element::create(this->get_value_type());
 
   return *(this->assoc_array.find(key));
 }
@@ -231,15 +231,19 @@ Element *AssocArray::get_element(va_list args) {
   switch (key_type->getCode()) {
     case TypeCode::StructTy: {
       key = va_arg(args, Object *);
+      break;
     }
     case TypeCode::TensorTy: {
       key = va_arg(args, Object *);
+      break;
     }
     case TypeCode::AssocArrayTy: {
       key = va_arg(args, Object *);
+      break;
     }
     case TypeCode::SequenceTy: {
       key = va_arg(args, Object *);
+      break;
     }
     case TypeCode::IntegerTy: {
       auto integer_type = static_cast<IntegerType *>(key_type);
