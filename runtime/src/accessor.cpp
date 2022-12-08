@@ -23,7 +23,7 @@ extern "C" {
 __RUNTIME_ATTR
 bool MEMOIR_FUNC(assert_type)(Type *type, Object *object) {
   if (object == nullptr) {
-    return isObjectType(type);
+    return is_object_type(type);
   }
 
   MEMOIR_ASSERT((type->equals(object->get_type())),

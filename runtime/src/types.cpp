@@ -12,18 +12,20 @@ TypeCode Type::getCode() {
 /*
  * Helper functions
  */
-bool isObjectType(Type *type) {
+bool is_object_type(Type *type) {
   TypeCode code = type->getCode();
   switch (code) {
     case StructTy:
     case TensorTy:
+    case AssocArrayTy:
+    case SequenceTy:
       return true;
     default:
       return false;
   }
 }
 
-bool isIntrinsicType(Type *type) {
+bool is_intrinsic_type(Type *type) {
   TypeCode code = type->getCode();
   switch (code) {
     case IntegerTy:
@@ -337,7 +339,7 @@ ReferenceType *ReferenceType::get(Type *referenced_type) {
 ReferenceType::ReferenceType(Type *referenced_type)
   : Type(TypeCode::ReferenceTy),
     referenced_type(referenced_type) {
-  MEMOIR_ASSERT(isObjectType(referenced_type),
+  MEMOIR_ASSERT(is_object_type(referenced_type),
                 "Attempt to define reference type to non-memoir Object.");
 }
 
