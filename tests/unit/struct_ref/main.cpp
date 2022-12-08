@@ -7,7 +7,7 @@ using namespace memoir;
 Type *innerTy = memoir_define_struct_type("Foo", memoir_u64_t, memoir_u64_t);
 
 Type *objTy =
-    memoir_define_struct_type("Bar", memoir_u64_t, memoir_ref_type(innerTy));
+    memoir_define_struct_type("Bar", memoir_u64_t, memoir_ref_t(innerTy));
 
 int main() {
 
