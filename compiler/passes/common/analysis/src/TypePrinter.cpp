@@ -104,6 +104,10 @@ std::string DoubleTypeSummary::toString(std::string indent) const {
   return "double";
 }
 
+std::string PointerTypeSummary::toString(std::string indent) const {
+  return "pointer";
+}
+
 std::string ReferenceTypeSummary::toString(std::string indent) const {
   std::string str;
 

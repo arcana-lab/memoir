@@ -343,6 +343,18 @@ protected:
   friend class TypeAnalysis;
 };
 
+struct PointerTypeSummary : public TypeSummary {
+public:
+  static PointerTypeSummary &get();
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  PointerTypeSummary();
+
+  friend class TypeAnalysis;
+};
+
 } // namespace llvm::memoir
 
 #endif // COMMON_TYPES_H

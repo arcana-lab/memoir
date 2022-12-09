@@ -423,4 +423,17 @@ DoubleTypeSummary::DoubleTypeSummary() : TypeSummary(TypeCode::DoubleTy) {
   // Do nothing.
 }
 
+/*
+ * Pointer Type Summary implementation
+ */
+PointerTypeSummary &PointerTypeSummary &get() {
+  static PointerTypeSummary the_pointer_type_summary;
+
+  return the_pointer_type_summary;
+}
+
+PointerTypeSummary::PointerTypeSummary() : TypeSummary(TypeCode::PointerTy) {
+  // Do nothing.
+}
+
 } // namespace llvm::memoir

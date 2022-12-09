@@ -127,11 +127,10 @@ TypeSummary *TypeAnalysis::getTypeSummary(llvm::Value &V) {
       if (auto store_inst = dyn_cast<StoreInst>(user)) {
         auto store_value = store_inst->getValueOperand();
         auto store_call = dyn_cast<CallInst>(store_value);
-        assert(store_call
-               && "in TypeAnalysis::getTypeSummary"
-                  "original store to type's global is not a call");
+        MEMOIR_NULL_CHECK(store_call,
+                          "original store to type's global is not a call");
 
-        return this->getTypeSummary(*store_call);
+        return this->get_type_summary(*store_call);
       }
 
       // TODO: handle GEP's here, hasn't broken yet.
@@ -188,10 +187,8 @@ TypeSummary *TypeAnalysis::getMemOIRTypeSummary(llvm::CallInst &call_inst) {
     case MemOIR_Func::INT8_TYPE:
     case MemOIR_Func::FLOAT_TYPE:
     case MemOIR_Func::DOUBLE_TYPE:
+    case MemOIR_Func::POINTER_TYPE:
       type_summary = &getPrimitiveTypeSummary(callee_enum);
-      break;
-    case MemOIR_Func::INTEGER_TYPE:
-      type_summary = &getIntegerTypeSummary(call_inst);
       break;
     case MemOIR_Func::REFERENCE_TYPE:
       type_summary = &getReferenceTypeSummary(call_inst);
@@ -201,6 +198,12 @@ TypeSummary *TypeAnalysis::getMemOIRTypeSummary(llvm::CallInst &call_inst) {
       break;
     case MemOIR_Func::TENSOR_TYPE:
       type_summary = &getTensorTypeSummary(call_inst);
+      break;
+    case MemOIR_Func::ASSOC_ARRAY_TYPE:
+      type_summary = &getAssocArrayTypeSummary(call_inst);
+      break;
+    case MemOIR_Func::SEQUENCE_TYPE:
+      type_summary = &getSequenceTypeSummary(call_inst);
       break;
     case MemOIR_Func::DEFINE_STRUCT_TYPE:
       type_summary = &defineStructTypeSummary(call_inst);
@@ -243,23 +246,23 @@ TypeSummary &TypeAnalysis::getPrimitiveTypeSummary(MemOIR_Func function_enum) {
       return FloatTypeSummary::get();
     case DOUBLE_TYPE:
       return DoubleTypeSummary::get();
+    case POINTER_TYPE:
+      return PointerTypeSummary::get();
     default:
-      assert(false
-             && "in TypeSummary::getPrimitiveTypeSummary"
-                "TypeAnalysis and getTypeSummary have a mismatch");
+      MEMOIR_UNREACHABLE("TypeAnalysis and getTypeSummary have a mismatch");
   }
 }
 
 TypeSummary &TypeAnalysis::getIntegerTypeSummary(llvm::CallInst &call_inst) {
   auto bitwidth_value = call_inst.getArgOperand(0);
   auto bitwidth_constant = dyn_cast<ConstantInt>(bitwidth_value);
-  assert(bitwidth_constant && "in TypeAnalysis::getIntegerTypeSummary"
-         && "bitwidth of integer type is not a constant int");
+  MEMOIR_NULL_CHECK(bitwidth_constant,
+                    "bitwidth of integer type is not a constant int");
 
   auto is_signed_value = call_inst.getArgOperand(1);
   auto is_signed_constant = dyn_cast<ConstantInt>(is_signed_value);
-  assert(is_signed_constant && "in TypeAnalysis::getIntegerTypeSummary"
-         && "sign of integer type is not a constant int");
+  MEMOIR_NULL_CHECK(is_signed_constant,
+                    "sign of integer type is not a constant int");
 
   auto bitwidth = bitwidth_constant->getZExtValue();
   auto is_signed = (is_signed_constant->getZExtValue() == 0) ? false : true;
@@ -270,12 +273,11 @@ TypeSummary &TypeAnalysis::getIntegerTypeSummary(llvm::CallInst &call_inst) {
 TypeSummary &TypeAnalysis::getReferenceTypeSummary(llvm::CallInst &call_inst) {
   auto referenced_type_value = call_inst.getArgOperand(0);
   auto referenced_type_call = dyn_cast<CallInst>(referenced_type_value);
-  assert(referenced_type_call && "in TypeAnalysis::getTypeSummary"
-         && "referenced type is not a call");
+  MEMOIR_NULL_CHECK(referenced_type_call."referenced type is not a call");
 
   auto referenced_type = getTypeSummary(*referenced_type_call);
-  assert(referenced_type && "in TypeAnalysis::getTypeSummary"
-         && "referenced type does not have a type summary");
+  MEMOIR_NULL_CHECK(referenced_type,
+                    "referenced type does not have a type summary");
 
   return ReferenceTypeSummary::get(*referenced_type);
 }
@@ -292,13 +294,12 @@ TypeSummary &TypeAnalysis::getStructTypeSummary(llvm::CallInst &call_inst) {
     name_global = dyn_cast<GlobalVariable>(name_value);
   }
 
-  assert(name_global && "in TypeAnalysis::getTypeSummary"
-         && "struct type lookup is not a global variable");
+  MEMOIR_NULL_CHECK(name_global, "struct type lookup is not a global variable");
 
   auto name_init = name_global->getInitializer();
   auto name_constant = dyn_cast<ConstantDataArray>(name_init);
-  assert(name_constant && "in TypeAnalysis::getTypeSummary"
-         && "struct type lookup is not a constant array");
+  MEMOIR_NULL_CHECK(name_constant,
+                    "struct type lookup is not a constant array");
 
   auto name = name_constant->getAsCString();
 
@@ -308,28 +309,56 @@ TypeSummary &TypeAnalysis::getStructTypeSummary(llvm::CallInst &call_inst) {
 TypeSummary &TypeAnalysis::getTensorTypeSummary(llvm::CallInst &call_inst) {
   auto element_value = call_inst.getArgOperand(0);
   auto element_call = dyn_cast<CallInst>(element_value);
-  assert(element_call
-         && "in TypeAnalysis::getTypeSummary"
-            "element type of tensor type is not a call instruction");
+  MEMOIR_NULL_CHECK(element_call,
+                    "element type of tensor type is not a call instruction");
 
   auto element_type = this->getTypeSummary(*element_call);
-  assert(element_type
-         && "in TypeAnalysis::getTypeSummary"
-            "element type does not have a type summary");
+  MEMOIR_NULL_CHECK(element_type, "element type does not have a type summary");
 
   auto num_dimensions_value = call_inst.getArgOperand(1);
-  assert(num_dimensions_value
-         && "in TypeAnalysis::getTensorTypeSummary"
-            "number of dimensions is NULL");
+  MEMOIR_NULL_CHECK(num_dimensions_value, "number of dimensions is NULL");
 
   auto num_dimensions_constant = dyn_cast<ConstantInt>(num_dimensions_value);
-  assert(num_dimensions_constant
-         && "in TypeAnalysis::getTensorTypeSummary"
-            "number of dimensions is not a constant");
+  MEMOIR_NULL_CHECK(num_dimensions_constant,
+                    "number of dimensions is not a constant");
 
   auto num_dimensions = num_dimensions_constant->getZExtValue();
 
   return TensorTypeSummary::get(*element_type, num_dimensions);
+}
+
+TypeSummary &TypeAnalysis::getAssocArrayTypeSummary(llvm::CallInst &call_inst) {
+  auto key_value = call_inst.getArgOperand(0);
+  auto key_call = dyn_cast<CallInst>(key_value);
+  MEMOIR_NULL_CHECK(
+      key_call,
+      "key type of associative array type is not a call instruction");
+
+  auto key_type = this->getTypeSummary(*key_call);
+  MEMOIR_NULL_CHECK(key_type, "key type does not have a type summary");
+
+  auto value_value = call_inst.getArgOperand(0);
+  auto value_call = dyn_cast<CallInst>(value_value);
+  MEMOIR_NULL_CHECK(
+      value_call,
+      "value type of associative array type is not a call instruction");
+
+  auto value_type = this->getTypeSummary(*value_call);
+  MEMOIR_NULL_CHECK(value_type, "value type does not have a type summary");
+
+  return AssocArrayTypeSummary::get(*key_type, *value_type);
+}
+
+TypeSummary &TypeAnalysis::getSequenceTypeSummary(llvm::CallInst &call_inst) {
+  auto element_value = call_inst.getArgOperand(0);
+  auto element_call = dyn_cast<CallInst>(element_value);
+  MEMOIR_NULL_CHECK(element_call,
+                    "element type of tensor type is not a call instruction");
+
+  auto element_type = this->getTypeSummary(*element_call);
+  MEMOIR_NULL_CHECK(element_type, "element type does not have a type summary");
+
+  return SequenceTypeSummary::get(*element_type);
 }
 
 TypeSummary &TypeAnalysis::defineStructTypeSummary(llvm::CallInst &call_inst) {
@@ -346,16 +375,12 @@ TypeSummary &TypeAnalysis::defineStructTypeSummary(llvm::CallInst &call_inst) {
   } else {
     name_global = dyn_cast<GlobalVariable>(name_value);
   }
-
-  assert(name_global
-         && "in TypeAnalysis::getTypeSummary"
-            "struct type lookup is not a global variable");
+  MEMOIR_NULL_CHECK(name_global, "struct type lookup is not a global variable");
 
   auto name_init = name_global->getInitializer();
   auto name_constant = dyn_cast<ConstantDataArray>(name_init);
-  assert(name_constant
-         && "in TypeAnalysis::getTypeSummary"
-            "struct type lookup is not a constant array");
+  MEMOIR_NULL_CHECK(name_constant,
+                    "struct type lookup is not a constant array");
 
   auto name = name_constant->getAsCString();
 
@@ -365,9 +390,8 @@ TypeSummary &TypeAnalysis::defineStructTypeSummary(llvm::CallInst &call_inst) {
    */
   auto num_fields_value = call_inst.getArgOperand(1);
   auto num_fields_constant = dyn_cast<ConstantInt>(num_fields_value);
-  assert(num_fields_constant
-         && "in TypeAnalysis::defineStructTypeSummary"
-            "number of fields is not a constant integer");
+  MEMOIR_NULL_CHECK(num_fields_constant,
+                    "number of fields is not a constant integer");
 
   auto num_fields = num_fields_constant->getZExtValue();
 
@@ -378,14 +402,10 @@ TypeSummary &TypeAnalysis::defineStructTypeSummary(llvm::CallInst &call_inst) {
   for (auto field_index = 0; field_index < num_fields; field_index++) {
     auto arg_operand_index = field_index + 2;
     auto field_value = call_inst.getArgOperand(arg_operand_index);
-    assert(field_value
-           && "in TypeAnalysis::defineStructTypeSummary"
-              "field is NULL");
+    MEMOIR_NULL_CHECK(field_value, "field is NULL");
 
     auto field_type_summary = this->getTypeSummary(*field_value);
-    assert(field_type_summary
-           && "in TypeAnalysis::defineStructTypeSummary"
-              "field does not have a type summary");
+    MEMOIR_NULL_CHECK(field_type_summary, "field does not have a type summary");
 
     field_type_summaries.push_back(field_type_summary);
   }
@@ -401,6 +421,7 @@ TypeSummary &TypeAnalysis::defineStructTypeSummary(llvm::CallInst &call_inst) {
 
 void TypeAnalysis::invalidate() {
   this->type_summaries.clear();
+
   return;
 }
 
