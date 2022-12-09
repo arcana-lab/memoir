@@ -189,6 +189,7 @@ Object *MEMOIR_FUNC(allocate_sequence)(Type *element_type, uint64_t init_size) {
   return sequence;
 }
 
+__ALLOC_ATTR
 __RUNTIME_ATTR
 Object *MEMOIR_FUNC(join)(uint8_t number_of_objects,
                           Object *object_to_join,
@@ -205,6 +206,22 @@ Object *MEMOIR_FUNC(join)(uint8_t number_of_objects,
   va_end(args);
 
   return joined_object;
+}
+
+__ALLOC_ATTR
+__RUNTIME_ATTR
+Object *MEMOIR_FUNC(get_slice)(Object *object_to_slice, ...) {
+  MEMOIR_ASSERT((object_to_slice != nullptr), "Attempt to slice NULL object");
+
+  va_list args;
+
+  va_start(args, object_to_slice);
+
+  auto sliced_object = object_to_slice->get_slice(args);
+
+  va_end(args);
+
+  return sliced_object;
 }
 
 __RUNTIME_ATTR
