@@ -443,7 +443,7 @@ Object *Sequence::join(va_list args, uint8_t num_args) {
                 "No arguments given to join operation on a sequence.");
 
   SequenceType *sequence_type = nullptr;
-  std::vector<Sequence *> sequences_to_join = {};
+  std::vector<Sequence *> sequences_to_join = { this };
   for (auto i = 0; i < num_args; i++) {
     auto arg = va_arg(args, Object *);
     MEMOIR_ASSERT((arg != nullptr),
