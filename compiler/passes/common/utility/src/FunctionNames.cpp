@@ -2,14 +2,14 @@
 
 namespace llvm::memoir {
 
-bool isMemOIRCall(llvm::Function &function) {
+bool is_memoir_call(llvm::Function &function) {
   auto function_name = function.getName();
 
   return FunctionNamesToMemOIR.find(function_name)
          != FunctionNamesToMemOIR.end();
 }
 
-bool isMemOIRCall(llvm::CallInst &call_inst) {
+bool is_memoir_call(llvm::CallInst &call_inst) {
   auto callee = call_inst.getCalledFunction();
   if (callee == nullptr) {
     return false;
@@ -18,7 +18,7 @@ bool isMemOIRCall(llvm::CallInst &call_inst) {
   return isMemOIRCall(*callee);
 }
 
-MemOIR_Func getMemOIREnum(llvm::Function &function) {
+MemOIR_Func get_memoir_enum(llvm::Function &function) {
   auto function_name = function.getName();
 
   auto found_iter = FunctionNamesToMemOIR.find(function_name);
@@ -29,7 +29,7 @@ MemOIR_Func getMemOIREnum(llvm::Function &function) {
   return MemOIR_Func::NONE;
 }
 
-MemOIR_Func getMemOIREnum(llvm::CallInst &call_inst) {
+MemOIR_Func get_memoir_enum(llvm::CallInst &call_inst) {
   auto callee = call_inst.getCalledFunction();
 
   if (!callee) {
@@ -39,7 +39,7 @@ MemOIR_Func getMemOIREnum(llvm::CallInst &call_inst) {
   return getMemOIREnum(*callee);
 }
 
-Function *getMemOIRFunction(Module &M, MemOIR_Func function_enum) {
+Function *get_memoir_function(Module &M, MemOIR_Func function_enum) {
   auto found_name = MemOIRToFunctionNames.find(function_enum);
   if (found_name == MemOIRToFunctionNames.end()) {
     return nullptr;
@@ -51,7 +51,7 @@ Function *getMemOIRFunction(Module &M, MemOIR_Func function_enum) {
   return function;
 }
 
-bool isPrimitiveType(MemOIR_Func function_enum) {
+bool is_primitive_type(MemOIR_Func function_enum) {
   switch (function_enum) {
     case UINT64_TYPE:
     case UINT32_TYPE:
@@ -64,13 +64,30 @@ bool isPrimitiveType(MemOIR_Func function_enum) {
     case FLOAT_TYPE:
     case DOUBLE_TYPE:
       return true;
+    default:
+      return false;
   }
-
-  return false;
 }
 
-bool isObjectType(MemOIR_Func function_enum) {}
+bool is_object_type(MemOIR_Func function_enum) {
+  switch (function_enum) {
+    case STRUCT_TYPE:
+    case TENSOR_TYPE:
+    case ASSOC_ARRAY_TYPE:
+    case SEQUENCE_TYPE:
+      return true;
+    default:
+      return false;
+  }
+}
 
-bool isReferenceType(MemOIR_Func function_enum) {}
+bool is_reference_type(MemOIR_Func function_enum) {
+  switch (function_enum) {
+    case REFERENCE_TYPE:
+      return true;
+    default:
+      return false;
+  }
+}
 
 }; // namespace llvm::memoir

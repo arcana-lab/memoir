@@ -21,6 +21,12 @@
  */
 
 namespace llvm::memoir {
+
+/*
+ * Macro to apply the memoir prefix to the function name
+ */
+#define MEMOIR_FUNC(name) memoir__##name
+
 /*
  * Enum of MemOIR functions
  */
@@ -34,28 +40,34 @@ enum MemOIR_Func {
 /*
  * Utility functions
  */
-bool isMemOIRCall(llvm::Function &function);
+bool is_memoir_call(llvm::Function &function);
 
-bool isMemOIRCall(llvm::CallInst &call_inst);
+bool is_memoir_call(llvm::CallInst &call_inst);
 
-MemOIR_Func getMemOIREnum(llvm::Function &function);
+MemOIR_Func get_memoir_enum(llvm::Function &function);
 
-MemOIR_Func getMemOIREnum(llvm::CallInst &call_inst);
+MemOIR_Func get_memoir_enum(llvm::CallInst &call_inst);
 
-llvm::Function *getMemOIRFunction(Module &M, MemOIR_Func function_enum);
+llvm::Function *get_memoir_function(Module &M, MemOIR_Func function_enum);
+
+bool is_primitive_type(MemOIR_Func function_enum);
+
+bool is_object_type(MemOIR_Func function_enum);
+
+bool is_reference_type(MemOIR_Func function_enum);
 
 /*
  * Mapping from MemOIR function enum to function name as
  * string and vice versa
  */
-static std::unordered_map<MemOIR_Func, std::string> MemOIRToFunctionNames = {
-#define X(MemOIR_Enum, MemOIR_Str) { MemOIR_Enum, MemOIR_Str },
+static std::unordered_map<MemOIR_Func, std::string> memoir_to_function_names = {
+#define X(MemOIR_Enum, MemOIR_Str) { MemOIR_Enum, #MemOIR_Str },
 #include "FunctionNames.def"
 #undef X
 };
 
-static std::unordered_map<std::string, MemOIR_Func> FunctionNamesToMemOIR = {
-#define X(MemOIR_Enum, MemOIR_Str) { MemOIR_Str, MemOIR_Enum },
+static std::unordered_map<std::string, MemOIR_Func> function_names_to_memoir = {
+#define X(MemOIR_Enum, MemOIR_Str) { #MemOIR_Str, MemOIR_Enum },
 #include "FunctionNames.def"
 #undef X
 };
