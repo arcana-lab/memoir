@@ -57,7 +57,7 @@ Element *Struct::get_element(va_list args) {
   return this->get_field(field_index);
 }
 
-Object *Struct::get_slice(va_list args, uint8_t num_args) {
+Object *Struct::get_slice(va_list args) {
   MEMOIR_UNREACHABLE(
       "Attempt to perform slice operation on struct, UNSUPPORTED");
 
@@ -174,7 +174,7 @@ Element *Tensor::get_element(va_list args) {
   return this->get_tensor_element(indices);
 }
 
-Object *Tensor::get_slice(va_list args, uint8_t num_args) {
+Object *Tensor::get_slice(va_list args) {
   MEMOIR_UNREACHABLE("Attempt to get slice of tensor, UNSUPPORTED");
 
   return nullptr;
@@ -315,7 +315,7 @@ Element *AssocArray::get_element(va_list args) {
   return this->get_pair(key).second;
 }
 
-Object *AssocArray::get_slice(va_list args, uint8_t num_args) {
+Object *AssocArray::get_slice(va_list args) {
   MEMOIR_UNREACHABLE("Attempt to get slice of associative array, UNSUPPORTED");
 
   return nullptr;
@@ -381,14 +381,15 @@ Object *Sequence::get_slice(int64_t left_index, int64_t right_index) {
    * of sequence. NOTE: this is a reverse operation.
    */
   if (right_index < 0) {
-    auto offset_from_end = 1 - right_index;
-    right_index = this->sequence.size() - offset_from_end;
+    right_index = this->sequence.size() + right_index + 1;
   }
 
   if (left_index < 0) {
-    auto offset_from_end = 1 - left_index;
-    left_index = this->sequence.size() - offset_from_end;
+    left_index = this->sequence.size() + left_index + 1;
   }
+
+  std::cerr << "Slicing sequence from " << std::to_string(left_index) << " : "
+            << std::to_string(right_index) << "\n";
 
   /*
    * If right index < left index, create a reverse sequence from right to
@@ -414,11 +415,7 @@ Object *Sequence::get_slice(int64_t left_index, int64_t right_index) {
   }
 }
 
-Object *Sequence::get_slice(va_list args, uint8_t num_args) {
-  MEMOIR_ASSERT(
-      (num_args == 2),
-      "Incorrect number of arguments to slice operation on a sequence.");
-
+Object *Sequence::get_slice(va_list args) {
   auto left_index = va_arg(args, int64_t);
   auto right_index = va_arg(args, int64_t);
 
