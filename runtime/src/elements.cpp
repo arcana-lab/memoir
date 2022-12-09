@@ -240,7 +240,7 @@ Element *Element::get_element(va_list args) {
   return this;
 }
 
-Object *Element::get_slice(va_list args, uint8_t num_args) {
+Object *Element::get_slice(va_list args) {
   MEMOIR_ASSERT(false,
                 "Attempt to perform slice operation on element, UNSUPPORTED");
 
