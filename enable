@@ -9,4 +9,4 @@ if [ -f ${PERONI_LLVM} ] ; then
    source ${PERONI_LLVM} ;
 fi
 
-echo "ObjectIR toolchain is sourced." ;
+echo "MemOIR toolchain sourced." ;
