@@ -1,6 +1,8 @@
 #ifndef MEMOIR_INTERNAL_H
 #define MEMOIR_INTERNAL_H
 
+#include <cstdio>
+
 #define MEMOIR_ASSERT(cond, msg)                                               \
   if (!cond) {                                                                 \
     fprintf(stderr, "\x1b[31m-----[ MemOIR Assert Failed ]-----\x1b[0m\n");    \
