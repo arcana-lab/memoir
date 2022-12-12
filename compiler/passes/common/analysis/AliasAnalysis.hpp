@@ -27,24 +27,25 @@
 
 namespace llvm::memoir {
 
-/*
- * Alias Info
- */
-enum AliasInfo { NONE, MAY, MUST };
+// /*
+//  * Alias Info
+//  */
+// enum AliasInfo { NONE, MAY, MUST };
 
-/*
- * Alias Analysis
- *
- * This alias analysis provides alias information about MemOIR fields.
- */
-class AliasAnalysis {
-public:
-  /*
-   * Returns true if this_field aliases with the other_field.
-   * This relationship is commutative.
-   */
-  static AliasInfo aliases(FieldSummary &this_field, FieldSummary &other_field);
-}
+// /*
+//  * Alias Analysis
+//  *
+//  * This alias analysis provides alias information about MemOIR fields.
+//  */
+// class AliasAnalysis {
+// public:
+//   /*
+//    * Returns true if this_field aliases with the other_field.
+//    * This relationship is commutative.
+//    */
+//   static AliasInfo aliases(FieldSummary &this_field, FieldSummary
+//   &other_field);
+// }
 
 } // namespace llvm::memoir
 
