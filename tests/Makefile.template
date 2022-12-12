@@ -3,9 +3,8 @@ GIT_ROOT=
 BUILD_DIR=build
 
 CC=clang++
-NOELLE_NORM=noelle-norm
 LL=llvm-link
-OPT=$(GIT_ROOT)/compiler/scripts/optimize.sh
+OPT=$(GIT_ROOT)/compiler/scripts/memoir-opt
 
 LIBS=-lm -lstdc++
 CFLAGS=-I$(GIT_ROOT)/install/include -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(LIBS)
@@ -26,7 +25,7 @@ CPP_BITCODES :=  $(patsubst %.cpp,$(BUILD_DIR)/%.bc,$(CPPFILES))
 
 all: setup optimize compile test
 
-noopt: setup compile test
+noopt: setup baseline compile test
 
 setup: $(BUILD_DIR)
 
@@ -38,8 +37,8 @@ test: compile
 optimize: $(IR_FILE_OPT)
 	cp $< $(IR_FILE)
 
-baseline: $(IR_FILE_INPUT)
-	cp $< $(IR_FILE)
+baseline: $(IR_FILE_INPUT) $(IR_FILE_RUNTIME)
+	$(LL) $^ -o $(IR_FILE)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -50,14 +49,11 @@ $(C_BITCODES): $(BUILD_DIR)/%.bc : %.c
 $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
 
-$(IR_FILE_PROGRAM): $(C_BITCODES) $(CPP_BITCODES)
+$(IR_FILE_INPUT): $(C_BITCODES) $(CPP_BITCODES)
 	$(LL) $^ -o $@
 
 $(IR_FILE_RUNTIME):
 	make -C $(GIT_ROOT)
-
-$(IR_FILE_INPUT): $(IR_FILE_PROGRAM) # $(IR_FILE_RUNTIME)
-	$(LL) $^ -o $@
 
 $(IR_FILE_OPT): $(IR_FILE_INPUT)
 	$(OPT) $< $@
