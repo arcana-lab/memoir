@@ -29,14 +29,8 @@ echo "Normalize Bitcode (I: ${IR_FILE}, O: ${IR_FILE_NOELLE_NORM})" ;
 noelle-norm ${IR_FILE} -o ${IR_FILE};
 cp ${IR_FILE} ${IR_FILE_NOELLE_NORM} ;
 
-PROF_FILE="${OUT_DIR}/toProfileBinary" ;
 IR_FILE_PROF=${OUT_DIR}/${IR_FILE_FILENAME}_prof.bc ;
-echo "Profile Bitcode (I: ${IR_FILE}, O: ${IR_FILE_PROF})" ;
-noelle-prof-coverage ${IR_FILE} ${PROF_FILE} -lm -lstdc++ ;
-./${PROF_FILE} ;
-mv default.profraw ${OUT_DIR}/default.profraw
-noelle-meta-prof-embed ${OUT_DIR}/default.profraw ${IR_FILE} -o ${IR_FILE};
-cp ${IR_FILE} ${IR_FILE_PROF} ;
+${GIT_ROOT}/compiler/scripts/profile.sh ${IR_FILE} ${IR_FILE_PROF} ;
 
 cp ${IR_FILE} ${IR_FILE_OUT} ;
 
