@@ -48,7 +48,7 @@ struct ExamplePass : public ModulePass {
       for (auto &BB : F) {
         for (auto &I : BB) {
           if (auto call_inst = dyn_cast<CallInst>(&I)) {
-            if (!isMemOIRCall(*call_inst)) {
+            if (!FunctionNames::is_memoir_call(*call_inst)) {
               continue;
             }
 
@@ -70,7 +70,7 @@ struct ExamplePass : public ModulePass {
       for (auto &BB : F) {
         for (auto &I : BB) {
           if (auto call_inst = dyn_cast<CallInst>(&I)) {
-            if (!isMemOIRCall(*call_inst)) {
+            if (!FunctionNames::is_memoir_call(*call_inst)) {
               continue;
             }
 
@@ -93,7 +93,7 @@ struct ExamplePass : public ModulePass {
       for (auto &BB : F) {
         for (auto &I : BB) {
           if (auto call_inst = dyn_cast<CallInst>(&I)) {
-            if (!isMemOIRCall(*call_inst)) {
+            if (!FunctionNames::is_memoir_call(*call_inst)) {
               continue;
             }
 
