@@ -21,15 +21,15 @@ set(SRC_FILES
   src/printer.cpp
   src/types.cpp)
 
-add_library(memoir_library STATIC ${SRC_FILES})
-target_include_directories(memoir_library PUBLIC include/)
-set_target_properties(memoir_library PROPERTIES
+add_library(MemOIR STATIC ${SRC_FILES})
+target_include_directories(MemOIR PUBLIC include/)
+set_target_properties(MemOIR PROPERTIES
   LINKER_LANGUAGE CXX
   PUBLIC_HEADER "${HEADER_FILES}"
   PRIVATE_HEADER "${PRIVATE_HEADER_FILES}")
 
 install(
-  TARGETS memoir_library
+  TARGETS MemOIR
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
@@ -37,14 +37,14 @@ install(
 
 llvmir_attach_bc_target(
   TARGET memoir_bitcodes
-  DEPENDS memoir_library)
+  DEPENDS MemOIR)
 
 llvmir_attach_link_target(
   TARGET memoir
   DEPENDS memoir_bitcodes
   OUTPUT_DIR ${CMAKE_INSTALL_LIBDIR})
 
-add_dependencies(memoir memoir_library)
+add_dependencies(memoir MemOIR)
 
 set_property(TARGET memoir_bitcodes PROPERTY
   EXCLUDE_FROM_ALL OFF)
