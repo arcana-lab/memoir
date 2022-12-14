@@ -16,7 +16,7 @@ OUTPUT_IR_FILE="$2" ;
 echo "Running MemOIR optimization pipeline (I: ${INPUT_IR_FILE}, O: ${OUTPUT_IR_FILE})" ;
 
 # Normalize the bitcode
-${GIT_ROOT}/compiler/scripts/normalize.sh ${INPUT_IR_FILE} ${OUTPUT_IR_FILE} ;
+${GIT_ROOT}/compiler/scripts/memoir-norm ${INPUT_IR_FILE} ${OUTPUT_IR_FILE} ;
 
 # Lower the bitcode
-${GIT_ROOT}/compiler/scripts/lower.sh ${INPUT_IR_FILE} ${OUTPUT_IR_FILE} ;
+${GIT_ROOT}/compiler/scripts/memoir-lower ${INPUT_IR_FILE} ${OUTPUT_IR_FILE} ;
