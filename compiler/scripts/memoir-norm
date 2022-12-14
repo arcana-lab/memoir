@@ -30,7 +30,7 @@ noelle-norm ${IR_FILE} -o ${IR_FILE};
 cp ${IR_FILE} ${IR_FILE_NOELLE_NORM} ;
 
 IR_FILE_PROF=${OUT_DIR}/${IR_FILE_FILENAME}_prof.bc ;
-${GIT_ROOT}/compiler/scripts/profile.sh ${IR_FILE} ${IR_FILE_PROF} ;
+${GIT_ROOT}/compiler/scripts/memoir-prof ${IR_FILE} ${IR_FILE_PROF} ;
 
 cp ${IR_FILE} ${IR_FILE_OUT} ;
 
