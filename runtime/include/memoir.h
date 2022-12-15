@@ -165,23 +165,6 @@ __RUNTIME_ATTR bool MEMOIR_FUNC(set_return_type)(Type *type);
                                             ...);
 #include "types.def"
 
-#define memoir_struct_read(ty, strct, field_index)                             \
-  MEMOIR_FUNC(struct_read_##ty)(strct, (unsigned)field_index)
-#define memoir_index_read(ty, cllct, ...)                                      \
-  MEMOIR_FUNC(index_read_##ty)(cllct, CAST_TO_SIZE_T(__VA_ARGS__))
-#define memoir_assoc_read(ty, cllct, key)                                      \
-  MEMOIR_FUNC(assoc_read_##ty)(cllct, key)
-#define memoir_struct_write(ty, val, strct, field_index)                       \
-  MEMOIR_FUNC(struct_write_##ty)(val, strct, (unsigned)field_index)
-#define memoir_index_write(ty, val, cllct, ...)                                \
-  MEMOIR_FUNC(index_write_##ty)(val, cllct, CAST_TO_SIZE_T(__VA_ARGS__))
-#define memoir_assoc_write(ty, val, cllct, key)                                \
-  MEMOIR_FUNC(assoc_write_##ty)(val, cllct, key)
-#define memoir_struct_get(ty, strct, field_index)                              \
-  MEMOIR_FUNC(struct_get_##ty)(strct, (unsigned)field_index)
-#define memoir_index_get(ty, cllct, ...)                                       \
-  MEMOIR_FUNC(index_get_##ty)(cllct, CAST_TO_SIZE_T(__VA_ARGS__))
-#define memoir_assoc_get(ty, cllct, key) MEMOIR_FUNC(assoc_get_##ty)(cllct, key)
 } // extern "C"
 } // namespace memoir
 
