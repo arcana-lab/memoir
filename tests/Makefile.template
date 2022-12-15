@@ -32,7 +32,7 @@ setup: $(BUILD_DIR)
 compile: $(BUILD_DIR) $(BINARY)
 
 test: compile
-	$(BINARY) &> out.txt
+	$(BINARY) 2>&1 | tee test.out
 
 optimize: $(IR_FILE_OPT)
 	cp $< $(IR_FILE)
