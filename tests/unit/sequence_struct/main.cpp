@@ -21,27 +21,27 @@ int main() {
 
   std::cout << "\nIntializing elements\n";
 
-  auto obj0 = memoir_get_object(seq, 0);
-  memoir_write_u64(VAL0_0, obj0, 0);
-  memoir_write_u64(VAL0_1, obj0, 1);
-  auto obj1 = memoir_get_object(seq, 1);
-  memoir_write_u64(VAL1_0, obj1, 0);
-  memoir_write_u64(VAL1_1, obj1, 1);
-  auto obj2 = memoir_get_object(seq, 2);
-  memoir_write_u64(VAL2_0, obj2, 0);
-  memoir_write_u64(VAL2_1, obj2, 1);
+  auto obj0 = memoir_index_get(struct, seq, 0);
+  memoir_struct_write(u64, VAL0_0, obj0, 0);
+  memoir_struct_write(u64, VAL0_1, obj0, 1);
+  auto obj1 = memoir_index_get(struct, seq, 1);
+  memoir_struct_write(u64, VAL1_0, obj1, 0);
+  memoir_struct_write(u64, VAL1_1, obj1, 1);
+  auto obj2 = memoir_index_get(struct, seq, 2);
+  memoir_struct_write(u64, VAL2_0, obj2, 0);
+  memoir_struct_write(u64, VAL2_1, obj2, 1);
 
   std::cout << "\nReading sequence\n";
 
-  obj0 = memoir_get_object(seq, 0);
-  auto read0_0 = memoir_read_u64(obj0, 0);
-  auto read0_1 = memoir_read_u64(obj0, 1);
-  obj1 = memoir_get_object(seq, 1);
-  auto read1_0 = memoir_read_u64(obj1, 0);
-  auto read1_1 = memoir_read_u64(obj1, 1);
-  obj2 = memoir_get_object(seq, 2);
-  auto read2_0 = memoir_read_u64(obj2, 0);
-  auto read2_1 = memoir_read_u64(obj2, 1);
+  obj0 = memoir_index_get(struct, seq, 0);
+  auto read0_0 = memoir_struct_read(u64, obj0, 0);
+  auto read0_1 = memoir_struct_read(u64, obj0, 1);
+  obj1 = memoir_index_get(struct, seq, 1);
+  auto read1_0 = memoir_struct_read(u64, obj1, 0);
+  auto read1_1 = memoir_struct_read(u64, obj1, 1);
+  obj2 = memoir_index_get(struct, seq, 2);
+  auto read2_0 = memoir_struct_read(u64, obj2, 0);
+  auto read2_1 = memoir_struct_read(u64, obj2, 1);
 
   std::cout << " Result:\n";
   std::cout << "  HEAD -> " << std::to_string(read0_0) << ", "
