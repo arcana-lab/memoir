@@ -13,15 +13,15 @@ int main() {
 
   auto seq = memoir_allocate_sequence(memoir_u64_t, 3);
 
-  memoir_write_u64(VAL0, seq, 0);
-  memoir_write_u64(VAL1, seq, 1);
-  memoir_write_u64(VAL2, seq, 2);
+  memoir_index_write(u64, VAL0, seq, 0);
+  memoir_index_write(u64, VAL1, seq, 1);
+  memoir_index_write(u64, VAL2, seq, 2);
 
   std::cout << "\nReading sequence\n";
 
-  auto read0 = memoir_read_u64(seq, 0);
-  auto read1 = memoir_read_u64(seq, 1);
-  auto read2 = memoir_read_u64(seq, 2);
+  auto read0 = memoir_index_read(u64, seq, 0);
+  auto read1 = memoir_index_read(u64, seq, 1);
+  auto read2 = memoir_index_read(u64, seq, 2);
 
   std::cout << " Result:\n";
   std::cout << "  HEAD -> " << std::to_string(read0) << "\n";
