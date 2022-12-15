@@ -193,6 +193,10 @@ private:
  */
 bool is_object_type(Type *type);
 
+bool is_struct_type(Type *type);
+
+bool is_collection_type(Type *type);
+
 bool is_intrinsic_type(Type *type);
 
 } // namespace memoir
