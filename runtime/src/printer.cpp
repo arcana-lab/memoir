@@ -26,6 +26,14 @@ std::string TensorElement::to_string() {
   return "tensor";
 }
 
+std::string AssocArrayElement::to_string() {
+  return "assoc array";
+}
+
+std::string SequenceElement::to_string() {
+  return "sequence";
+}
+
 std::string PointerElement::to_string() {
   return "pointer";
 }
