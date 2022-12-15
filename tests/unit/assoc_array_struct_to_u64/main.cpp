@@ -17,23 +17,23 @@ int main() {
   auto obj1 = memoir_allocate_struct(objTy);
   auto obj2 = memoir_allocate_struct(objTy);
 
-  memoir_write_u64(1, obj0, 0);
-  memoir_write_u64(2, obj1, 0);
-  memoir_write_u64(3, obj2, 0);
+  memoir_struct_write(u64, 1, obj0, 0);
+  memoir_struct_write(u64, 2, obj1, 0);
+  memoir_struct_write(u64, 3, obj2, 0);
 
   std::cout << "Initializing map\n";
 
   auto map = memoir_allocate_assoc_array(objTy, memoir_u64_t);
 
-  memoir_write_u64(VAL0, map, obj0);
-  memoir_write_u64(VAL1, map, obj1);
-  memoir_write_u64(VAL2, map, obj2);
+  memoir_assoc_write(u64, VAL0, map, obj0);
+  memoir_assoc_write(u64, VAL1, map, obj1);
+  memoir_assoc_write(u64, VAL2, map, obj2);
 
   std::cout << "Reading map\n";
 
-  auto read0 = memoir_read_u64(map, obj0);
-  auto read1 = memoir_read_u64(map, obj1);
-  auto read2 = memoir_read_u64(map, obj2);
+  auto read0 = memoir_assoc_read(u64, map, obj0);
+  auto read1 = memoir_assoc_read(u64, map, obj1);
+  auto read2 = memoir_assoc_read(u64, map, obj2);
 
   std::cout << " Result:\n";
   std::cout << "  obj0 -> " << std::to_string(read0) << "\n";
