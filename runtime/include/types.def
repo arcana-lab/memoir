@@ -1,0 +1,55 @@
+#ifndef HANDLE_TYPE
+#define HANDLE_TYPE(TYPE_NAME, C_TYPE) /* NO HANDLING */
+#endif
+HANDLE_TYPE(u64, uint64_t)
+HANDLE_TYPE(u32, uint32_t)
+HANDLE_TYPE(u16, uint16_t)
+HANDLE_TYPE(u8, uint8_t)
+HANDLE_TYPE(i64, int64_t)
+HANDLE_TYPE(i32, int32_t)
+HANDLE_TYPE(i16, int16_t)
+HANDLE_TYPE(i8, int8_t)
+HANDLE_TYPE(bool, bool)
+HANDLE_TYPE(f64, double)
+HANDLE_TYPE(f32, float)
+HANDLE_TYPE(ptr, void *)
+HANDLE_TYPE(struct_ref, Struct *)
+HANDLE_TYPE(collection_ref, Collection *)
+#undef HANDLE_TYPE
+
+#ifndef HANDLE_INTEGER_TYPE
+#define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BITWIDTH, IS_SIGNED) /* NO HANDLING */
+#endif
+HANDLE_INTEGER_TYPE(u64, uint64_t, 64, false)
+HANDLE_INTEGER_TYPE(u32, uint32_t, 32, false)
+HANDLE_INTEGER_TYPE(u16, uint16_t, 16, false)
+HANDLE_INTEGER_TYPE(u8, uint8_t, 8, false)
+HANDLE_INTEGER_TYPE(i64, int64_t, 64, true)
+HANDLE_INTEGER_TYPE(i32, int32_t, 32, true)
+HANDLE_INTEGER_TYPE(i16, int16_t, 16, true)
+HANDLE_INTEGER_TYPE(i8, int8_t, 8, true)
+#undef HANDLE_INTEGER_TYPE
+
+#ifndef HANDLE_PRIMITIVE_TYPE
+#define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX) /* NO HANDLING */
+#endif
+HANDLE_PRIMITIVE_TYPE(f64, double, Double)
+HANDLE_PRIMITIVE_TYPE(f32, float, Float)
+HANDLE_PRIMITIVE_TYPE(ptr, void *, Pointer)
+
+#ifndef HANDLE_REFERENCE_TYPE
+#define HANDLE_REFERENCE_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX) /* NO HANDLING */
+#endif
+HANDLE_REFERENCE_TYPE(struct_ref, Struct *, Struct)
+HANDLE_REFERENCE_TYPE(collection_ref, Collection *, Collection)
+
+#ifndef HANDLE_NESTED_TYPE
+#define HANDLE_NESTED_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX) /* NO HANDLING */
+#endif
+HANDLE_NESTED_TYPE(struct, Struct *, Struct)
+HANDLE_NESTED_TYPE(collection, Collection *, Collection)
+
+#undef HANDLE_TYPE
+#undef HANDLE_PRIMITIVE_TYPE
+#undef HANDLE_REFERENCE_TYPE
+#undef HANDLE_NESTED_TYPE
