@@ -269,8 +269,6 @@ bool MEMOIR_FUNC(set_return_type)(Type *type) {
 /*
  * Reference accessors have same handling as primitive types
  */
-#define MEMOIR_Struct_CHECK MEMOIR_STRUCT_CHECK
-#define MEMOIR_Collection_CHECK MEMOIR_COLLECTION_CHECK
 #define HANDLE_REFERENCE_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX)                 \
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(Struct * struct_to_access,       \
@@ -279,7 +277,7 @@ bool MEMOIR_FUNC(set_return_type)(Type *type) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element);                                    \
+    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
                                                                                \
     auto typed_element = static_cast<ReferenceElement *>(element);             \
     return (C_TYPE)typed_element->read_value();                                \
@@ -293,7 +291,7 @@ bool MEMOIR_FUNC(set_return_type)(Type *type) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element);                                    \
+    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
                                                                                \
     auto typed_element = static_cast<ReferenceElement *>(element);             \
     typed_element->write_value(value);                                         \
@@ -312,7 +310,7 @@ bool MEMOIR_FUNC(set_return_type)(Type *type) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element);                                    \
+    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
                                                                                \
     auto typed_element = static_cast<ReferenceElement *>(element);             \
     return (C_TYPE)typed_element->read_value();                                \
@@ -332,7 +330,7 @@ bool MEMOIR_FUNC(set_return_type)(Type *type) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element);                                    \
+    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
                                                                                \
     auto typed_element = static_cast<ReferenceElement *>(element);             \
     typed_element->write_value(value);                                         \
@@ -351,7 +349,7 @@ bool MEMOIR_FUNC(set_return_type)(Type *type) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element);                                    \
+    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
                                                                                \
     auto typed_element = static_cast<ReferenceElement *>(element);             \
     return (C_TYPE)typed_element->read_value();                                \
@@ -371,7 +369,7 @@ bool MEMOIR_FUNC(set_return_type)(Type *type) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element);                                    \
+    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
                                                                                \
     auto typed_element = static_cast<ReferenceElement *>(element);             \
     typed_element->write_value(value);                                         \
@@ -380,6 +378,8 @@ bool MEMOIR_FUNC(set_return_type)(Type *type) {
 /*
  * Nested object accesses
  */
+#define MEMOIR_Struct_CHECK MEMOIR_STRUCT_CHECK
+#define MEMOIR_Collection_CHECK MEMOIR_COLLECTION_CHECK
 #define HANDLE_NESTED_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX)                    \
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(struct_get_##TYPE_NAME)(Struct * struct_to_access,        \
