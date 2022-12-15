@@ -25,6 +25,28 @@ bool is_object_type(Type *type) {
   }
 }
 
+bool is_struct_type(Type *type) {
+  TypeCode code = type->getCode();
+  switch (code) {
+    case StructTy:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool is_collection_type(Type *type) {
+  TypeCode code = type->getCode();
+  switch (code) {
+    case TensorTy:
+    case AssocArrayTy:
+    case SequenceTy:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool is_intrinsic_type(Type *type) {
   TypeCode code = type->getCode();
   switch (code) {
