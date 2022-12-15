@@ -30,6 +30,15 @@
   MEMOIR_ASSERT(is_object_type(obj->get_type()),                               \
                 "Element is not a nested object")
 
+#define MEMOIR_STRUCT_CHECK(obj)                                               \
+  MEMOIR_ASSERT((obj != nullptr), "Attempt to get NULL object");               \
+  MEMOIR_ASSERT(is_struct_type(obj->get_type()), "Element is not a struct type")
+
+#define MEMOIR_COLLECTION_CHECK(obj)                                           \
+  MEMOIR_ASSERT((obj != nullptr), "Attempt to get NULL object");               \
+  MEMOIR_ASSERT(is_collection_type(obj->get_type()),                           \
+                "Element is not of collection type")
+
 #define MEMOIR_INTEGER_CHECK(obj, bw, s, name)                                 \
   MEMOIR_TYPE_CHECK(obj, TypeCode::IntegerTy);                                 \
   auto integer_type = static_cast<IntegerType *>(type);                        \
