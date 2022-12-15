@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "memoir.h"
+#include "ccmemoir.h"
 
 using namespace memoir;
 
