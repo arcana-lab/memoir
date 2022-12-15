@@ -45,9 +45,6 @@ public:
   Object(Type *type);
 
   // Access
-  virtual Element *get_element(va_list args) = 0;
-  virtual Object *get_slice(va_list args) = 0;
-  virtual Object *join(va_list args, uint8_t num_args) = 0;
   virtual bool equals(const Object *other) const = 0;
 
   // Typing
@@ -68,13 +65,9 @@ public:
 
   // Construction
   Struct(Type *type);
-  Object *join(va_list args, uint8_t num_args) override;
 
   // Access
   Element *get_field(uint64_t field_index) const;
-  Element *get_element(va_list args) override;
-  Object *get_slice(va_list args) override;
-
   bool is_struct() const override;
   bool equals(const Object *other) const override;
 
@@ -85,6 +78,9 @@ public:
 struct Collection : public Object {
 public:
   // Access
+  virtual Element *get_element(va_list args) = 0;
+  virtual Collection *get_slice(va_list args) = 0;
+  virtual Collection *join(va_list args, uint8_t num_args) = 0;
   virtual Type *get_element_type() const = 0;
   bool is_collection() const override;
 
@@ -104,11 +100,13 @@ public:
   Tensor(Type *type);
   Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions);
 
+  // Operations
+  Collection *get_slice(va_list args) override;
+  Collection *join(va_list args, uint8_t num_args) override;
+
   // Access
   Element *get_tensor_element(std::vector<uint64_t> &indices) const;
   Element *get_element(va_list args) override;
-  Object *get_slice(va_list args) override;
-  Object *join(va_list args, uint8_t num_args) override;
   Type *get_element_type() const override;
 
   bool equals(const Object *other) const override;
@@ -130,11 +128,13 @@ public:
 
   // Construction
   AssocArray(Type *type);
-  Object *join(va_list args, uint8_t num_args) override;
+
+  // Operations
+  Collection *join(va_list args, uint8_t num_args) override;
+  Collection *get_slice(va_list args) override;
 
   // Access
   Element *get_element(va_list args) override;
-  Object *get_slice(va_list args) override;
   AssocArray::key_value_pair_t &get_pair(Object *key);
   Type *get_element_type() const override;
   Type *get_key_type() const;
@@ -153,15 +153,15 @@ public:
 
   // Construction
   Sequence(Type *type, uint64_t init_size);
-  Object *join(va_list args, uint8_t num_args) override;
-  static Object *join(SequenceType *type,
-                      std::vector<Sequence *> sequences_to_join);
+  Collection *join(va_list args, uint8_t num_args) override;
+  static Collection *join(SequenceType *type,
+                          std::vector<Sequence *> sequences_to_join);
+  Collection *get_slice(va_list args) override;
+  Collection *get_slice(int64_t left_index, int64_t right_index);
 
   // Access
   Element *get_element(va_list args) override;
   Element *get_element(uint64_t index);
-  Object *get_slice(va_list args) override;
-  Object *get_slice(int64_t left_index, int64_t right_index);
   Type *get_element_type() const override;
 
   bool equals(const Object *other) const override;
@@ -176,11 +176,6 @@ public:
   // Construction
   static Element *create(Type *type);
   virtual Element *clone() const = 0;
-  Object *join(va_list args, uint8_t num_args) override;
-
-  // Access
-  Element *get_element(va_list args) override;
-  Object *get_slice(va_list args) override;
 
   bool is_element() const override;
 
@@ -279,23 +274,14 @@ public:
   std::string to_string() override;
 };
 
-// Nested object
-struct ObjectElement : public Element {
-public:
-  // Access
-  virtual Object *read_value() const = 0;
-  bool equals(const Object *other) const override;
-
-  // Construction
-  ObjectElement(Type *type);
-};
-
-struct StructElement : public ObjectElement {
+// Nested objects
+struct StructElement : public Element {
 public:
   Struct *value;
 
   // Access
-  Object *read_value() const override;
+  Struct *read_value() const;
+  bool equals(const Object *other) const override;
 
   // Construction
   StructElement(StructType *type);
@@ -306,16 +292,60 @@ public:
   std::string to_string() override;
 };
 
-struct TensorElement : public ObjectElement {
+struct CollectionElement : public Element {
+public:
+  // Access
+  virtual Collection *read_value() const = 0;
+  bool equals(const Object *other) const override;
+
+  // Construction
+  CollectionElement(Type *type);
+
+  // Debug
+};
+
+struct TensorElement : public CollectionElement {
 public:
   Tensor *value;
 
   // Access
-  Object *read_value() const override;
+  Collection *read_value() const override;
 
   // Construction
   TensorElement(TensorType *type);
   TensorElement(TensorType *type, Tensor *init);
+  Element *clone() const override;
+
+  // Debug
+  std::string to_string() override;
+};
+
+struct AssocArrayElement : public CollectionElement {
+public:
+  AssocArray *value;
+
+  // Access
+  Collection *read_value() const override;
+
+  // Construction
+  AssocArrayElement(AssocArrayType *type);
+  AssocArrayElement(AssocArrayType *type, AssocArray *init);
+  Element *clone() const override;
+
+  // Debug
+  std::string to_string() override;
+};
+
+struct SequenceElement : public CollectionElement {
+public:
+  Sequence *value;
+
+  // Access
+  Collection *read_value() const override;
+
+  // Construction
+  SequenceElement(SequenceType *type);
+  SequenceElement(SequenceType *type, Sequence *init);
   Element *clone() const override;
 
   // Debug
