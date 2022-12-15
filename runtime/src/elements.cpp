@@ -64,18 +64,18 @@ PointerElement::PointerElement(PointerType *type, void *init)
   // Do nothing.
 }
 
-ObjectElement::ObjectElement(Type *type) : Element(type) {
-  // Do nothing.
-}
-
 StructElement::StructElement(StructType *type)
   : StructElement(type, new Struct(type)) {
   // Do nothing.
 }
 
 StructElement::StructElement(StructType *type, Struct *init)
-  : ObjectElement(type),
+  : Element(type),
     value(init) {
+  // Do nothing.
+}
+
+CollectionElement::CollectionElement(Type *type) : Element(type) {
   // Do nothing.
 }
 
@@ -85,7 +85,29 @@ TensorElement::TensorElement(TensorType *type)
 }
 
 TensorElement::TensorElement(TensorType *type, Tensor *init)
-  : ObjectElement(type),
+  : CollectionElement(type),
+    value(init) {
+  // Do nothing.
+}
+
+AssocArrayElement::AssocArrayElement(AssocArrayType *type)
+  : AssocArrayElement(type, new AssocArray(type)) {
+  // Do nothing.
+}
+
+AssocArrayElement::AssocArrayElement(AssocArrayType *type, AssocArray *init)
+  : CollectionElement(type),
+    value(init) {
+  // Do nothing.
+}
+
+SequenceElement::SequenceElement(SequenceType *type)
+  : SequenceElement(type, new Sequence(type, 0)) {
+  // Do nothing.
+}
+
+SequenceElement::SequenceElement(SequenceType *type, Sequence *init)
+  : CollectionElement(type),
     value(init) {
   // Do nothing.
 }
@@ -133,11 +155,19 @@ void *PointerElement::read_value() const {
   return this->value;
 }
 
-Object *StructElement::read_value() const {
+Struct *StructElement::read_value() const {
   return this->value;
 }
 
-Object *TensorElement::read_value() const {
+Collection *TensorElement::read_value() const {
+  return this->value;
+}
+
+Collection *AssocArrayElement::read_value() const {
+  return this->value;
+}
+
+Collection *SequenceElement::read_value() const {
   return this->value;
 }
 
@@ -189,6 +219,25 @@ Element *TensorElement::clone() const {
   return new TensorElement(type, cloned_tensor);
 }
 
+Element *AssocArrayElement::clone() const {
+  auto type = static_cast<AssocArrayType *>(this->get_type());
+  auto cloned_assoc_array = new AssocArray(type);
+  cloned_assoc_array->assoc_array.clear();
+  cloned_assoc_array->assoc_array.insert(this->value->assoc_array.begin(),
+                                         this->value->assoc_array.end());
+  return new AssocArrayElement(type, cloned_assoc_array);
+}
+
+Element *SequenceElement::clone() const {
+  auto type = static_cast<SequenceType *>(this->get_type());
+  auto cloned_sequence = new Sequence(type, 0);
+  cloned_sequence->sequence.clear();
+  cloned_sequence->sequence.insert(cloned_sequence->sequence.begin(),
+                                   this->value->sequence.begin(),
+                                   this->value->sequence.end());
+  return new SequenceElement(type, cloned_sequence);
+}
+
 /*
  * Element equality
  */
@@ -222,29 +271,12 @@ bool ReferenceElement::equals(const Object *other) const {
   return (this->read_value() == other_element->read_value());
 }
 
-bool ObjectElement::equals(const Object *other) const {
+bool StructElement::equals(const Object *other) const {
   return (this == other);
 }
 
-/*
- * Element operations
- */
-Object *Element::join(va_list args, uint8_t num_args) {
-  MEMOIR_ASSERT(false,
-                "Attempt to perform join operation on element, UNSUPPORTED");
-
-  return nullptr;
-}
-
-Element *Element::get_element(va_list args) {
-  return this;
-}
-
-Object *Element::get_slice(va_list args) {
-  MEMOIR_ASSERT(false,
-                "Attempt to perform slice operation on element, UNSUPPORTED");
-
-  return nullptr;
+bool CollectionElement::equals(const Object *other) const {
+  return (this == other);
 }
 
 /*
