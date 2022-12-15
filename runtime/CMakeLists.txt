@@ -6,12 +6,15 @@ set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -g")
 include_directories(include)
 
 set(HEADER_FILES
-  include/memoir.h)
+  include/memoir.h
+  include/cmemoir.h
+  )
 
 set(PRIVATE_HEADER_FILES
   include/objects.h
   include/types.h
-  include/utils.h)
+  include/utils.h
+  include/types.def)
 
 set(SRC_FILES
   src/accessor.cpp
