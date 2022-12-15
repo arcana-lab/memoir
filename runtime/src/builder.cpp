@@ -71,6 +71,7 @@ Type *MEMOIR_FUNC(sequence_type)(Type *element_type) {
   return SequenceType::get(element_type);
 }
 
+// TODO: autogenerate theses with types.def
 __RUNTIME_ATTR
 Type *MEMOIR_FUNC(u64_type)() {
   return IntegerType::get(64, false);
@@ -138,7 +139,7 @@ Type *MEMOIR_FUNC(ref_type)(Type *referenced_type) {
 
 __ALLOC_ATTR
 __RUNTIME_ATTR
-Object *MEMOIR_FUNC(allocate_struct)(Type *type) {
+Struct *MEMOIR_FUNC(allocate_struct)(Type *type) {
   auto strct = new struct Struct(type);
 
   return strct;
@@ -146,9 +147,9 @@ Object *MEMOIR_FUNC(allocate_struct)(Type *type) {
 
 __ALLOC_ATTR
 __RUNTIME_ATTR
-Object *MEMOIR_FUNC(allocate_tensor)(Type *element_type,
-                                     uint64_t num_dimensions,
-                                     ...) {
+Collection *MEMOIR_FUNC(allocate_tensor)(Type *element_type,
+                                         uint64_t num_dimensions,
+                                         ...) {
   std::vector<uint64_t> length_of_dimensions;
 
   va_list args;
@@ -171,7 +172,8 @@ Object *MEMOIR_FUNC(allocate_tensor)(Type *element_type,
 
 __ALLOC_ATTR
 __RUNTIME_ATTR
-Object *MEMOIR_FUNC(allocate_assoc_array)(Type *key_type, Type *value_type) {
+Collection *MEMOIR_FUNC(allocate_assoc_array)(Type *key_type,
+                                              Type *value_type) {
   auto assoc_array_type = AssocArrayType::get(key_type, value_type);
 
   auto assoc_array = new struct AssocArray(assoc_array_type);
@@ -181,7 +183,8 @@ Object *MEMOIR_FUNC(allocate_assoc_array)(Type *key_type, Type *value_type) {
 
 __ALLOC_ATTR
 __RUNTIME_ATTR
-Object *MEMOIR_FUNC(allocate_sequence)(Type *element_type, uint64_t init_size) {
+Collection *MEMOIR_FUNC(allocate_sequence)(Type *element_type,
+                                           uint64_t init_size) {
   auto sequence_type = SequenceType::get(element_type);
 
   auto sequence = new struct Sequence(sequence_type, init_size);
@@ -191,17 +194,18 @@ Object *MEMOIR_FUNC(allocate_sequence)(Type *element_type, uint64_t init_size) {
 
 __ALLOC_ATTR
 __RUNTIME_ATTR
-Object *MEMOIR_FUNC(join)(uint8_t number_of_objects,
-                          Object *object_to_join,
-                          ...) {
-  MEMOIR_ASSERT((object_to_join != nullptr),
+Collection *MEMOIR_FUNC(join)(uint8_t number_of_collections,
+                              Collection *collection_to_join,
+                              ...) {
+  MEMOIR_ASSERT((collection_to_join != nullptr),
                 "Attempt to join with NULL object.");
 
   va_list args;
 
-  va_start(args, object_to_join);
+  va_start(args, collection_to_join);
 
-  auto joined_object = object_to_join->join(args, number_of_objects - 1);
+  auto joined_object =
+      collection_to_join->join(args, number_of_collections - 1);
 
   va_end(args);
 
@@ -210,14 +214,15 @@ Object *MEMOIR_FUNC(join)(uint8_t number_of_objects,
 
 __ALLOC_ATTR
 __RUNTIME_ATTR
-Object *MEMOIR_FUNC(get_slice)(Object *object_to_slice, ...) {
-  MEMOIR_ASSERT((object_to_slice != nullptr), "Attempt to slice NULL object");
+Collection *MEMOIR_FUNC(get_slice)(Collection *collection_to_slice, ...) {
+  MEMOIR_ASSERT((collection_to_slice != nullptr),
+                "Attempt to slice NULL object");
 
   va_list args;
 
-  va_start(args, object_to_slice);
+  va_start(args, collection_to_slice);
 
-  auto sliced_object = object_to_slice->get_slice(args);
+  auto sliced_object = collection_to_slice->get_slice(args);
 
   va_end(args);
 
@@ -225,8 +230,13 @@ Object *MEMOIR_FUNC(get_slice)(Object *object_to_slice, ...) {
 }
 
 __RUNTIME_ATTR
-void MEMOIR_FUNC(delete_object)(Object *obj) {
-  delete obj;
+void MEMOIR_FUNC(delete_struct)(Struct *strct) {
+  delete strct;
+}
+
+__RUNTIME_ATTR
+void MEMOIR_FUNC(delete_collection)(Collection *cllct) {
+  delete cllct;
 }
 
 } // extern "C"
