@@ -51,26 +51,6 @@ Element *Struct::get_field(uint64_t field_index) const {
   return this->fields.at(field_index);
 }
 
-Element *Struct::get_element(va_list args) {
-  auto field_index = va_arg(args, uint64_t);
-
-  return this->get_field(field_index);
-}
-
-Object *Struct::get_slice(va_list args) {
-  MEMOIR_UNREACHABLE(
-      "Attempt to perform slice operation on struct, UNSUPPORTED");
-
-  return nullptr;
-}
-
-Object *Struct::join(va_list args, uint8_t num_args) {
-  MEMOIR_UNREACHABLE(
-      "Attempt to perfrom join operation on struct, UNSUPPORTED");
-
-  return nullptr;
-}
-
 bool Struct::equals(const Object *other) const {
   return (this == other);
 }
@@ -174,13 +154,13 @@ Element *Tensor::get_element(va_list args) {
   return this->get_tensor_element(indices);
 }
 
-Object *Tensor::get_slice(va_list args) {
+Collection *Tensor::get_slice(va_list args) {
   MEMOIR_UNREACHABLE("Attempt to get slice of tensor, UNSUPPORTED");
 
   return nullptr;
 }
 
-Object *Tensor::join(va_list args, uint8_t num_args) {
+Collection *Tensor::join(va_list args, uint8_t num_args) {
   MEMOIR_UNREACHABLE(
       "Attempt to perfrom join operation on tensor, UNSUPPORTED");
 
@@ -212,7 +192,7 @@ AssocArray::key_value_pair_t &AssocArray::get_pair(Object *key) {
   // Find the key if it already exists
   for (auto it = this->assoc_array.begin(); it != this->assoc_array.end();
        ++it) {
-    auto pair = *it;
+    auto &pair = *it;
     if (key->equals(pair.first)) {
       return pair;
     }
@@ -315,13 +295,13 @@ Element *AssocArray::get_element(va_list args) {
   return this->get_pair(key).second;
 }
 
-Object *AssocArray::get_slice(va_list args) {
+Collection *AssocArray::get_slice(va_list args) {
   MEMOIR_UNREACHABLE("Attempt to get slice of associative array, UNSUPPORTED");
 
   return nullptr;
 }
 
-Object *AssocArray::join(va_list args, uint8_t num_args) {
+Collection *AssocArray::join(va_list args, uint8_t num_args) {
   MEMOIR_UNREACHABLE(
       "Attempt to perfrom join operation on associative array, UNSUPPORTED");
 
@@ -373,7 +353,7 @@ Element *Sequence::get_element(va_list args) {
   return this->get_element(index);
 }
 
-Object *Sequence::get_slice(int64_t left_index, int64_t right_index) {
+Collection *Sequence::get_slice(int64_t left_index, int64_t right_index) {
   /*
    * Check for MAX values in the right and left index.
    *   If right index is NEGATIVE, create slice from left to end of
@@ -415,15 +395,15 @@ Object *Sequence::get_slice(int64_t left_index, int64_t right_index) {
   }
 }
 
-Object *Sequence::get_slice(va_list args) {
+Collection *Sequence::get_slice(va_list args) {
   auto left_index = va_arg(args, int64_t);
   auto right_index = va_arg(args, int64_t);
 
   return this->get_slice(left_index, right_index);
 }
 
-Object *Sequence::join(SequenceType *type,
-                       std::vector<Sequence *> sequences_to_join) {
+Collection *Sequence::join(SequenceType *type,
+                           std::vector<Sequence *> sequences_to_join) {
   auto new_sequence = new Sequence(type, 0);
 
   for (auto sequence_to_join : sequences_to_join) {
@@ -435,7 +415,7 @@ Object *Sequence::join(SequenceType *type,
   return new_sequence;
 }
 
-Object *Sequence::join(va_list args, uint8_t num_args) {
+Collection *Sequence::join(va_list args, uint8_t num_args) {
   MEMOIR_ASSERT((num_args > 0),
                 "No arguments given to join operation on a sequence.");
 
