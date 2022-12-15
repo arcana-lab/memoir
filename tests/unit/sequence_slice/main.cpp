@@ -13,15 +13,15 @@ int main() {
 
   auto seq = memoir_allocate_sequence(memoir_u64_t, 3);
 
-  memoir_write_u64(VAL0, seq, 0);
-  memoir_write_u64(VAL1, seq, 1);
-  memoir_write_u64(VAL2, seq, 2);
+  memoir_index_write(u64, VAL0, seq, 0);
+  memoir_index_write(u64, VAL1, seq, 1);
+  memoir_index_write(u64, VAL2, seq, 2);
 
   std::cout << "\nReading sequence\n";
 
-  auto read0 = memoir_read_u64(seq, 0);
-  auto read1 = memoir_read_u64(seq, 1);
-  auto read2 = memoir_read_u64(seq, 2);
+  auto read0 = memoir_index_read(u64, seq, 0);
+  auto read1 = memoir_index_read(u64, seq, 1);
+  auto read2 = memoir_index_read(u64, seq, 2);
 
   std::cout << "\nSlicing sequence\n";
 
@@ -30,13 +30,13 @@ int main() {
 
   std::cout << "\nReading slices\n";
 
-  auto read00 = memoir_read_u64(slice01, 0);
+  auto read00 = memoir_index_read(u64, slice01, 0);
   std::cerr << std::to_string(read00) << "\n";
-  auto read01 = memoir_read_u64(slice01, 1);
+  auto read01 = memoir_index_read(u64, slice01, 1);
   std::cerr << std::to_string(read01) << "\n";
-  auto read10 = memoir_read_u64(slice12, 0);
+  auto read10 = memoir_index_read(u64, slice12, 0);
   std::cerr << std::to_string(read10) << "\n";
-  auto read11 = memoir_read_u64(slice12, 1);
+  auto read11 = memoir_index_read(u64, slice12, 1);
   std::cerr << std::to_string(read11) << "\n";
 
   std::cout << "Result:\n";
