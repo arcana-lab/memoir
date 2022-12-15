@@ -56,20 +56,21 @@
 #define HAS_ARGS(...) BOOL(FIRST(_END_OF_ARGUMENTS_ __VA_ARGS__)())
 #define _END_OF_ARGUMENTS_() 0
 
-#define MAP(m, f, first, ...)         \
-  m(f, first)                          \
-  IF_ELSE(HAS_ARGS(__VA_ARGS__))(    \
-    DEFER2(_MAP)()(m, f, __VA_ARGS__) \
-  )(                                 \
-    /* Do nothing, just terminate */ \
+#define MAP(f, first, ...)            \
+  f(first)                            \
+  IF_ELSE(HAS_ARGS(__VA_ARGS__))(     \
+    , DEFER2(_MAP)()(f, __VA_ARGS__)  \
+  )(                                  \
+    /* Do nothing, just terminate */  \
   )
 #define _MAP() MAP
 
 #define apply_(f, x) f(x)
-#define apply(f, ...) EVAL(MAP(apply_, f, __VA_ARGS__))
+#define apply(f, ...) EVAL(MAP(f, __VA_ARGS__))
 // clang-format on
 
-#define CAST_TO_SIZE_T_(x) (size_t) x
+#define CAST_TO(type, x) (type)(x)
+#define CAST_TO_SIZE_T_(x) CAST_TO(size_t, x)
 #define CAST_TO_SIZE_T(...) apply(CAST_TO_SIZE_T_, __VA_ARGS__)
 
 #endif
