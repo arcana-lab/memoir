@@ -66,7 +66,10 @@
 #define _MAP() MAP
 
 #define apply_(f, x) f(x)
-#define apply(m, f, ...) EVAL(MAP(m, f, __VA_ARGS__))
+#define apply(f, ...) EVAL(MAP(apply_, f, __VA_ARGS__))
 // clang-format on
+
+#define CAST_TO_SIZE_T_(x) (size_t) x
+#define CAST_TO_SIZE_T(...) apply(CAST_TO_SIZE_T_, __VA_ARGS__)
 
 #endif
