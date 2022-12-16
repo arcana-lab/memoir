@@ -32,9 +32,9 @@ namespace llvm::memoir {
  * Enum of MemOIR functions
  */
 enum MemOIR_Func {
-#define X(MemOIR_Enum, MemOIR_Str) MemOIR_Enum,
+#define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) MemOIR_Enum,
 #include "FunctionNames.def"
-#undef X
+#undef HANDLE_INST
   NONE
 };
 
@@ -54,6 +54,8 @@ public:
   static llvm::Function *get_memoir_function(Module &M,
                                              MemOIR_Func function_enum);
 
+  static bool is_type(MemOIR_Func function_enum);
+
   static bool is_primitive_type(MemOIR_Func function_enum);
 
   static bool is_object_type(MemOIR_Func function_enum);
@@ -68,6 +70,8 @@ public:
 
   static bool is_write(MemOIR_Func function_enum);
 
+  static bool is_get(MemOIR_Func function_enum);
+
   /*
    * Mapping from MemOIR function enum to function name as
    * string and vice versa
@@ -78,15 +82,15 @@ public:
 };
 
 const map<MemOIR_Func, std::string> FunctionNames::memoir_to_function_names = {
-#define X(MemOIR_Enum, MemOIR_Str) { MemOIR_Enum, #MemOIR_Str },
+#define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) { MemOIR_Enum, #MemOIR_Str },
 #include "FunctionNames.def"
-#undef X
+#undef HANDLE_INST
 };
 
 const map<std::string, MemOIR_Func> FunctionNames::function_names_to_memoir = {
-#define X(MemOIR_Enum, MemOIR_Str) { #MemOIR_Str, MemOIR_Enum },
+#define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) { #MemOIR_Str, MemOIR_Enum },
 #include "FunctionNames.def"
-#undef X
+#undef HANDLE_INST
 };
 
 } // namespace llvm::memoir

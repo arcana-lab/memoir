@@ -129,6 +129,15 @@ bool FunctionNames::is_write(MemOIR_Func function_enum) {
   }
 }
 
+bool FunctionNames::is_get(MemOIR_Func function_enum) {
+  switch (function_enum) {
+    case GET_OBJECT:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool FunctionNames::is_type(MemOIR_Func function_enum) {
   switch (function_enum) {
     case UINT64_TYPE:
@@ -148,6 +157,30 @@ bool FunctionNames::is_type(MemOIR_Func function_enum) {
     case STATIC_TENSOR_TYPE:
     case ASSOC_ARRAY_TYPE:
     case SEQUENCE_TYPE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool FunctionNames::is_type(MemOIR_Func function_enum) {
+  switch (function_enum) {
+    case UINT64_TYPE:
+    case UINT32_TYPE:
+    case UINT16_TYPE:
+    case UINT8_TYPE:
+    case INT64_TYPE:
+    case INT32_TYPE:
+    case INT16_TYPE:
+    case INT8_TYPE:
+    case FLOAT_TYPE:
+    case DOUBLE_TYPE:
+    case POINTER_TYPE:
+    case STRUCT_TYPE:
+    case TENSOR_TYPE:
+    case ASSOC_ARRAY_TYPE:
+    case SEQUENCE_TYPE:
+    case REFERENCE_TYPE:
       return true;
     default:
       return false;
