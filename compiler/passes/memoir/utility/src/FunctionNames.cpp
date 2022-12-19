@@ -1,4 +1,4 @@
-#include "common/utility/FunctionNames.hpp"
+#include "memoir/utility/FunctionNames.hpp"
 
 namespace llvm::memoir {
 
