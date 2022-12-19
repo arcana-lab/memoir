@@ -19,7 +19,7 @@ void AccessAnalysis::analyzeAccesses() {
 
     for (auto &BB : F) {
       for (auto &I : BB) {
-        getAccessSummary(I);
+        this->getAccessSummary(I);
       }
     }
   }
@@ -30,7 +30,7 @@ void AccessAnalysis::analyzeAccesses() {
 AccessSummary *AccessAnalysis::getAccessSummary(llvm::Value &value) {
   /*
    * Check if we have a memoized AccessSummary for this LLVM Value.
-   * If we do, return it.
+   *  - If we do, return it.
    */
   auto found_summary = this->access_summaries.find(&value);
   if (found_summary != this->access_summaries.end()) {
@@ -39,8 +39,9 @@ AccessSummary *AccessAnalysis::getAccessSummary(llvm::Value &value) {
 
   /*
    * Check that this value is a call instruction.
-   * If it is, see if it has an AccessSummary.
-   * If it isnt, then this value doesn't have an AccessSummary, return nullptr.
+   *  - If it is, see if it has an AccessSummary.
+   *  - If it isnt, then this value doesn't have an AccessSummary,
+   *      return nullptr.
    */
   if (auto call_inst = dyn_cast<CallInst>(&value)) {
     return this->getAccessSummaryForCall(*call_inst);
@@ -83,27 +84,26 @@ AccessSummary *AccessAnalysis::getAccessSummaryForCall(
   /*
    * If the callee is not a MemOIR access, return NULL.
    */
-  if (!isAccess(callee_enum)) {
+  if (!FunctionNames::is_access(callee_enum)) {
     return nullptr;
   }
 
   /*
-   * Get the FieldSummary/ies for the given MemOIR access call.
-   */
-  auto field_arg = call_inst.getArgOperand(0);
-  assert(field_arg
-         && "in AccessAnalysis::getAccessSummary"
-            "field passed into MemOIR access is NULL");
-
-  auto &field_summaries = this->getFieldSummaries(*field_arg);
-  assert(!field_summaries.empty()
-         && "in AccessAnalysis::getAccessSummary"
-            "found no possible field summaries for the given MemOIR access");
-
-  /*
    * If the access is a read, create a ReadSummary for it.
    */
-  if (isRead(callee_enum)) {
+  if (FunctionNames::is_read(callee_enum)) {
+    /*
+     * Determine if this is a write to a struct or a collection.
+     */
+    auto field_arg = call_inst.getArgOperand(0);
+    MEMOIR_NULL_CHECK(field_arg,
+                      "collection passed into MemOIR access is NULL");
+
+    auto &collection_summaries = this->getCollectionSummary(*field_arg);
+    MEMOIR_ASSERT(
+        !field_summaries.empty(),
+        "found no possible field summaries for the given MemOIR access");
+
     /*
      * Create the Read Summary for this access.
      */
@@ -119,14 +119,23 @@ AccessSummary *AccessAnalysis::getAccessSummaryForCall(
   /*
    * If the access is a write, create a WriteSummary for it.
    */
-  if (isWrite(callee_enum)) {
+  if (FunctionNames::is_write(callee_enum)) {
+    /*
+     * Get the FieldSummary/ies for the given MemOIR access call.
+     */
+    auto field_arg = call_inst.getArgOperand(1);
+    MEMOIR_NULL_CHECK(field_arg, "field passed into MemOIR access is NULL");
+
+    auto &field_summaries = this->getCollectionSummary(*field_arg);
+    MEMOIR_ASSERT(
+        !field_summaries.empty(),
+        "found no possible field summaries for the given MemOIR access");
+
     /*
      * Get the value being written
      */
-    auto value_written = call_inst.getArgOperand(1);
-    assert(value_written
-           && "in AccessAnalysis::getAccessSummary"
-              "value being written is NULL");
+    auto value_written = call_inst.getArgOperand(0);
+    MEMOIR_NULL_CHECK(value_written, "value being written is NULL");
 
     /*
      * If there are more than one possible fields, return a MAY WriteSummary.
