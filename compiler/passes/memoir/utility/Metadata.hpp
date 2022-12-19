@@ -10,7 +10,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "common/support/InternalDatatypes.hpp"
+#include "memoir/support/InternalDatatypes.hpp"
 
 namespace llvm {
 namespace memoir {

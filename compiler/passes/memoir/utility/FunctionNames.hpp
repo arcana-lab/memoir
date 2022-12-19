@@ -9,7 +9,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
-#include "common/support/InternalDatatypes.hpp"
+#include "memoir/support/InternalDatatypes.hpp"
 
 /*
  * This file provides general utilities for determining if a function is a
@@ -33,7 +33,7 @@ namespace llvm::memoir {
  */
 enum MemOIR_Func {
 #define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) MemOIR_Enum,
-#include "common/ir/Instructions.def"
+#include "memoir/ir/Instructions.def"
 #undef HANDLE_INST
   NONE
 };
@@ -83,13 +83,13 @@ public:
 
 const map<MemOIR_Func, std::string> FunctionNames::memoir_to_function_names = {
 #define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) { MemOIR_Enum, #MemOIR_Str },
-#include "common/ir/Instructions.def"
+#include "memoir/ir/Instructions.def"
 #undef HANDLE_INST
 };
 
 const map<std::string, MemOIR_Func> FunctionNames::function_names_to_memoir = {
 #define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) { #MemOIR_Str, MemOIR_Enum },
-#include "common/ir/Instructions.def"
+#include "memoir/ir/Instructions.def"
 #undef HANDLE_INST
 };
 
