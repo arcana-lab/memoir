@@ -8,12 +8,12 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "common/utility/FunctionNames.hpp"
+#include "memoir/utility/FunctionNames.hpp"
 
-#include "common/ir/Collections.hpp"
-#include "common/ir/Function.hpp"
-#include "common/ir/Structs.hpp"
-#include "common/ir/Types.hpp"
+#include "memoir/ir/Collections.hpp"
+#include "memoir/ir/Function.hpp"
+#include "memoir/ir/Structs.hpp"
+#include "memoir/ir/Types.hpp"
 
 /*
  * MemOIR Instructions and a wrapper of an LLVM Instruction.

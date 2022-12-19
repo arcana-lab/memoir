@@ -1,4 +1,4 @@
-#include "common/ir/Structs.hpp"
+#include "memoir/ir/Structs.hpp"
 
 /*
  * This file contains a substrate for analyzing MemOIR structs.

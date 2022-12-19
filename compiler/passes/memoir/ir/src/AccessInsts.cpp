@@ -1,4 +1,4 @@
-#include "common/ir/Instructions.cpp"
+#include "memoir/ir/Instructions.cpp"
 
 /*
  * ReadInst implementation
