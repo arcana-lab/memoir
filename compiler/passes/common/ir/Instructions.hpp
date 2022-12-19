@@ -10,6 +10,9 @@
 
 #include "common/utility/FunctionNames.hpp"
 
+#include "common/ir/Collections.hpp"
+#include "common/ir/Function.hpp"
+#include "common/ir/Structs.hpp"
 #include "common/ir/Types.hpp"
 
 /*
@@ -21,17 +24,19 @@
 
 namespace llvm::memoir {
 
+struct MemOIRFunction;
+
 /*
  * Abstract MemOIR Instruction
  */
 struct MemOIRInst {
 public:
+  MemOIRFunction &getFunction() const;
   llvm::CallInst &getCallInst() const;
 
-  friend std::ostream &operator<<(std::ostream &os,
-                                  const AllocationSummary &as);
+  friend std::ostream &operator<<(std::ostream &os, const MemOIRInst &I);
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const AllocationSummary &as);
+                                       const MemOIRInst &I);
   virtual std::string toString(std::string indent = "") const = 0;
 
 protected:
@@ -217,8 +222,11 @@ protected:
   AllocInst(llvm::CallInst &call_inst);
 };
 
-struct StructAllocInst : public MemOIRInst {
+struct StructAllocInst : public AllocInst {
 public:
+  Struct &getStruct() const;
+
+  StructType &getStructType() const;
   Type &getType() const override;
   llvm::Value &getTypeOperand() const;
   llvm::Use &getTypeOperandAsUse() const;
@@ -229,9 +237,22 @@ protected:
   StructAllocInst(llvm::CallInst &call_inst);
 };
 
-struct TensorAllocInst : public AllocInst {
+struct CollectionAllocInst : public AllocInst {
 public:
+  virtual Collection &getCollection() const = 0;
+  virtual CollectionType &getCollectionType() const = 0;
+
   Type &getType() const override;
+
+protected:
+  CollectionAllocInst(llvm::CallInst &call_inst);
+};
+
+struct TensorAllocInst : public CollectionAllocInst {
+public:
+  Collection &getCollection() const override;
+  CollectionType &getCollectionType() const override;
+
   Type &getElementType() const;
   llvm::Value &getElementOperand() const;
   llvm::Use &getElementOperandAsUse() const;
@@ -247,12 +268,15 @@ protected:
   TensorAllocInst(llvm::CallInst &call_inst);
 };
 
-struct AssocArrayAllocInst : public MemOIRInst {
+struct AssocArrayAllocInst : public CollectionAllocInst {
 public:
-  Type &getType() const override;
+  Collection &getCollection() const override;
+  CollectionType &getCollectionType() const override;
+
   Type &getKeyType() const;
   llvm::Value &getKeyOperand() const;
   llvm::Use &getKeyOperandAsUse() const;
+
   Type &getValueType() const;
   llvm::Value &getValueOperand() const;
   llvm::Use &getValueOperandAsUse() const;
@@ -263,12 +287,15 @@ protected:
   AssocArrayAllocInst(llvm::CallInst &call_inst);
 };
 
-struct SequenceAllocInst : public MemOIRInst {
+struct SequenceAllocInst : public CollectionAllocInst {
 public:
-  Type &getType() const override;
+  Collection &getCollection() const override;
+  CollectionType &getCollectionType() const override;
+
   Type &getElementType() const;
   llvm::Value &getElementOperand() const;
   llvm::Use &getElementOperandAsUse() const;
+
   llvm::Value &getSizeOperand() const;
   llvm::Use &getSizeOperandAsUse() const;
 
@@ -281,28 +308,13 @@ protected:
  */
 struct AccessInst : public MemOIRInst {
 public:
-  enum AccessInfo {
-    READ,
-    WRITE,
-    GET,
-  };
-
-  enum IndexInfo {
-    STRUCT,
-    INDEX,
-    ASSOC,
-  };
+  virtual Collection &getCollectionAccessed() const = 0;
 
   virtual llvm::Value &getObjectOperand() const = 0;
   virtual llvm::Use &getObjectOperandAsUse() const = 0;
 
 protected:
-  AccessInfo access_info;
-  IndexInfo index_info;
-
-  AccessInst(llvm::CallInst &call_inst,
-             AccessInfo access_info,
-             IndexInfo index_info);
+  AccessInst(llvm::CallInst &call_inst);
 };
 
 /*
@@ -312,18 +324,24 @@ struct ReadInst : public AccessInst {
 public:
   llvm::Value &getValueRead() const;
   llvm::Value &getObjectOperand() const override;
-  llvm::Use &getObjectOperandAsUse() const;
+  llvm::Use &getObjectOperandAsUse() const override;
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  ReadInst(llvm::CallInst &call_inst, AccessInst::IndexInfo index_info);
+  ReadInst(llvm::CallInst &call_inst);
 };
 
 struct StructReadInst : public ReadInst {
 public:
-  llvm::Value &getFieldIndex() const;
-  llvm::Use &getFieldIndexAsUse() const;
+  Collection &getCollectionAccessed() const override;
+
+  FieldArray &getFieldArray() const;
+  Struct &getStructAccessed() const;
+
+  unsigned getFieldIndex() const;
+  llvm::Value &getFieldIndexOperand() const;
+  llvm::Use &getFieldIndexOperandAsUse() const;
 
   std::string toString(std::string indent = "") const override;
 
@@ -333,6 +351,8 @@ protected:
 
 struct IndexReadInst : public ReadInst {
 public:
+  Collection &getCollectionAccessed() const override;
+
   unsigned getNumberOfDimensions() const;
   llvm::Value &getIndexOfDimension(unsigned dim_idx) const;
   llvm::Use &getIndexOfDimensionAsUse(unsigned dim_idx) const;
@@ -345,6 +365,8 @@ protected:
 
 struct AssocReadInst : public ReadInst {
 public:
+  Collection &getCollectionAccessed() const override;
+
   llvm::Value &getKeyOperand() const;
   llvm::Use &getKeyOperandAsUse() const;
 
@@ -367,12 +389,17 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  WriteInst(llvm::CallInst &call_inst, AccessInst::IndexInfo index_info);
+  WriteInst(llvm::CallInst &call_inst);
 };
 
 struct StructWriteInst : public ReadInst {
 public:
-  unsigned &getFieldIndex() const;
+  Collection &getCollectionAccessed() const override;
+
+  FieldArray &getFieldArray() const;
+  Struct &getStructAccessed() const;
+
+  unsigned getFieldIndex() const;
   llvm::Value &getFieldIndexOperand() const;
   llvm::Use &getFieldIndexOperandAsUse() const;
 
@@ -384,6 +411,8 @@ protected:
 
 struct IndexWriteInst : public ReadInst {
 public:
+  Collection &getCollectionAccessed() const override;
+
   unsigned getNumberOfDimensions() const;
   llvm::Value &getIndexOfDimension(unsigned dim_idx) const;
   llvm::Use &getIndexOfDimensionAsUse(unsigned dim_idx) const;
@@ -396,6 +425,8 @@ protected:
 
 struct AssocWriteInst : public ReadInst {
 public:
+  Collection &getCollectionAccessed() const override;
+
   llvm::Value &getKeyOperand() const;
   llvm::Use &getKeyOperandAsUse() const;
 
@@ -417,11 +448,13 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  GetInst(llvm::CallInst &call_inst, InstIndexInfo index_info);
+  GetInst(llvm::CallInst &call_inst);
 };
 
 struct StructGetInst : public GetInst {
 public:
+  Collection &getCollectionAccessed() const override;
+
   unsigned getFieldIndex() const;
   llvm::Value &getFieldIndexOperand() const;
   llvm::Use &getFieldIndexOperandAsUse() const;
@@ -434,6 +467,8 @@ protected:
 
 struct IndexGetInst : public GetInst {
 public:
+  Collection &getCollectionAccessed() const override;
+
   unsigned getNumberOfDimensions() const;
   llvm::Value &getIndexOperand(unsigned dim_idx) const;
   llvm::Use &getIndexOperandAsUse(unsigned dim_idx) const;
@@ -446,6 +481,8 @@ protected:
 
 struct AssocGetInst : public GetInst {
 public:
+  Collection &getCollectionAccessed() const override;
+
   llvm::Value &getKeyOperand() const;
   llvm::Use &getKeyOperandAsUse() const;
 
@@ -458,27 +495,42 @@ protected:
 /*
  * Collection operations
  */
-struct DeleteInst : public MemOIRInst {
+struct DeleteStructInst : public MemOIRInst {
 public:
-  llvm::Value &getObjectOperand() const;
-  llvm::Use &getObjectOperandAsUse() const;
+  Struct &getStructDeleted() const;
+  llvm::Value &getStructOperand() const;
+  llvm::Use &getStructOperandAsUse() const;
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  DeleteInst(llvm::CallInst &call_inst);
+  DeleteStructInst(llvm::CallInst &call_inst);
+};
+
+struct DeleteCollectionInst : public MemOIRInst {
+public:
+  Collection &getCollectionDeleted() const;
+  llvm::Value &getCollectionOperand() const;
+  llvm::Use &getCollectionOperandAsUse() const;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  DeleteCollectionInst(llvm::CallInst &call_inst);
 };
 
 struct JoinInst : public MemOIRInst {
 public:
-  llvm::Value &getJoinedObject() const;
+  Collection &getCollection() const;
+  llvm::Value &getJoinedCollection() const;
 
   unsigned getNumberOfJoins() const;
   llvm::Value &getNumberOfJoinsOperand() const;
   llvm::Use &getNumberOfJoinsOperandAsUse() const;
 
-  llvm::Value &getObjectJoined(unsigned join_idx) const;
-  llvm::Use &getObjectJoinedAsUse(unsigned join_idx) const;
+  Collection &getCollectionJoined(unsigned join_index) const;
+  llvm::Value &getJoinedOperand(unsigned join_index) const;
+  llvm::Use &getJoinedOperandAsUse(unsigned join_index) const;
 
   std::string toString(std::string indent = "") const override;
 
@@ -488,10 +540,12 @@ protected:
 
 struct SliceInst : public MemOIRInst {
 public:
-  llvm::Value &getSlicedObject() const;
+  Collection &getSlice() const;
+  llvm::Value &getSlicedCollectionAsValue() const;
 
-  llvm::Value &getObjectOperand() const;
-  llvm::Use &getObjectOperandAsUse() const;
+  Collection &getCollection() const;
+  llvm::Value &getCollectionOperand() const;
+  llvm::Use &getCollectionOperandAsUse() const;
 
   llvm::Value &getBeginIndex() const;
   llvm::Use &getBeginIndexAsUse() const;
@@ -508,19 +562,36 @@ protected:
 /*
  * Type checking
  */
-struct AssertTypeInst : public MemOIRInst {
+struct AssertStructTypeInst : public MemOIRInst {
 public:
   Type &getType() const;
   llvm::Value &getTypeOperand() const;
   llvm::Use &getTypeOperandAsUse() const;
 
-  llvm::Value &getObjectOperand() const;
-  llvm::Use &getObjectOperandAsUse() const;
+  Struct &getStruct();
+  llvm::Value &getStructOperand() const;
+  llvm::Use &getStructOperandAsUse() const;
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssertTypeInst(llvm::CallInst &call_inst);
+  AssertStructTypeInst(llvm::CallInst &call_inst);
+};
+
+struct AssertCollectionTypeInst : public MemOIRInst {
+public:
+  Type &getType() const;
+  llvm::Value &getTypeOperand() const;
+  llvm::Use &getTypeOperandAsUse() const;
+
+  Collection &getCollection() const;
+  llvm::Value &getCollectionOperand() const;
+  llvm::Use &getCollectionOperandAsUse() const;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  AssertCollectionTypeInst(llvm::CallInst &call_inst);
 };
 
 struct ReturnTypeInst : public MemOIRInst {
