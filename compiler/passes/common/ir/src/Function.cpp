@@ -52,4 +52,15 @@ llvm::Type *MemOIRFunction::getReturnLLVMType() const {
   return this->getFunctionType().getReturnLLVMType();
 }
 
+MemOIRFunction::~MemOIRFunction() {
+  delete function_type;
+  for (auto memoir_inst : this->memoir_instructions) {
+    delete memoir_inst;
+  }
+  this->memoir_instructions.clear();
+}
+
+map<llvm::Function *, MemOIRFunction *>
+    MemOIRFunction::llvm_to_memoir_functions = {}
+
 } // namespace llvm::memoir
