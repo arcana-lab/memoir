@@ -6,7 +6,10 @@ namespace llvm::memoir {
 /*
  * Top-level initialization.
  */
-AccessAnalysis::AccessAnalysis(Module &M) : M(M) {
+AccessAnalysis::AccessAnalysis(Module &M)
+  : M(M),
+    type_analysis(TypeAnalysis::get(M)),
+    allocation_analysis(AllocationAnalysis::get(M)) {
   /*
    * Initialize the analysis.
    */
@@ -52,85 +55,6 @@ void AccessAnalysis::analyze() {
   errs() << "AccessAnalysis: done.\n";
 
   return;
-}
-
-/*
- * Utility Functions
- */
-bool AccessAnalysis::isRead(MemOIR_Func func_enum) {
-  switch (func_enum) {
-    case MemOIR_Func::READ_INTEGER:
-    case MemOIR_Func::READ_UINT64:
-    case MemOIR_Func::READ_UINT32:
-    case MemOIR_Func::READ_UINT16:
-    case MemOIR_Func::READ_UINT8:
-    case MemOIR_Func::READ_INT64:
-    case MemOIR_Func::READ_INT32:
-    case MemOIR_Func::READ_INT16:
-    case MemOIR_Func::READ_INT8:
-    case MemOIR_Func::READ_FLOAT:
-    case MemOIR_Func::READ_DOUBLE:
-    case MemOIR_Func::READ_REFERENCE:
-    case MemOIR_Func::READ_STRUCT:
-    case MemOIR_Func::READ_TENSOR:
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool AccessAnalysis::isWrite(MemOIR_Func func_enum) {
-  switch (func_enum) {
-    case MemOIR_Func::WRITE_INTEGER:
-    case MemOIR_Func::WRITE_UINT64:
-    case MemOIR_Func::WRITE_UINT32:
-    case MemOIR_Func::WRITE_UINT16:
-    case MemOIR_Func::WRITE_UINT8:
-    case MemOIR_Func::WRITE_INT64:
-    case MemOIR_Func::WRITE_INT32:
-    case MemOIR_Func::WRITE_INT16:
-    case MemOIR_Func::WRITE_INT8:
-    case MemOIR_Func::WRITE_FLOAT:
-    case MemOIR_Func::WRITE_DOUBLE:
-    case MemOIR_Func::WRITE_REFERENCE:
-      return true;
-    default:
-      return false;
-  }
-}
-
-bool AccessAnalysis::isAccess(MemOIR_Func func_enum) {
-  switch (func_enum) {
-    case MemOIR_Func::READ_INTEGER:
-    case MemOIR_Func::READ_UINT64:
-    case MemOIR_Func::READ_UINT32:
-    case MemOIR_Func::READ_UINT16:
-    case MemOIR_Func::READ_UINT8:
-    case MemOIR_Func::READ_INT64:
-    case MemOIR_Func::READ_INT32:
-    case MemOIR_Func::READ_INT16:
-    case MemOIR_Func::READ_INT8:
-    case MemOIR_Func::READ_FLOAT:
-    case MemOIR_Func::READ_DOUBLE:
-    case MemOIR_Func::READ_REFERENCE:
-    case MemOIR_Func::READ_STRUCT:
-    case MemOIR_Func::READ_TENSOR:
-    case MemOIR_Func::WRITE_INTEGER:
-    case MemOIR_Func::WRITE_UINT64:
-    case MemOIR_Func::WRITE_UINT32:
-    case MemOIR_Func::WRITE_UINT16:
-    case MemOIR_Func::WRITE_UINT8:
-    case MemOIR_Func::WRITE_INT64:
-    case MemOIR_Func::WRITE_INT32:
-    case MemOIR_Func::WRITE_INT16:
-    case MemOIR_Func::WRITE_INT8:
-    case MemOIR_Func::WRITE_FLOAT:
-    case MemOIR_Func::WRITE_DOUBLE:
-    case MemOIR_Func::WRITE_REFERENCE:
-      return true;
-    default:
-      return false;
-  }
 }
 
 /*
