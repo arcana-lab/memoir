@@ -17,16 +17,28 @@
 namespace llvm::memoir {
 
 enum TypeCode {
-  SequenceTy,
   IntegerTy,
   FloatTy,
   DoubleTy,
+  PointerTy,
   ReferenceTy,
   StructTy,
-  TensorTy,
   StaticTensorTy,
+  TensorTy,
   AssocArrayTy,
+  SequenceTy,
 };
+
+class IntegerType;
+class FloatType;
+class DoubleType;
+class PointerType;
+class ReferenceType;
+class StructType;
+class StaticTensorType;
+class TensorType;
+class AssocArrayType;
+class SequenceType;
 
 struct Type {
 public:
@@ -52,6 +64,11 @@ public:
   static AssocArrayType &get_assoc_array_type(Type &key_type, Type &value_type);
   static SequenceType &get_sequence_type(Type &element_type);
 
+  static bool is_primitive_type(Type &type);
+  static bool is_reference_type(Type &type);
+  static bool is_struct_type(Type &type);
+  static bool is_collection_type(Type &type);
+
   TypeCode getCode() const;
 
   // TODO: implement conversion to LLVM type
@@ -59,10 +76,9 @@ public:
 
   virtual std::string toString(std::string indent = "") const = 0;
 
-  friend std::ostream &operator<<(std::ostream &os, const TypeSummary &ts);
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const TypeSummary &ts);
-  friend bool operator<(const TypeSummary &l, const TypeSummary &r);
+  friend std::ostream &operator<<(std::ostream &os, const Type &T);
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Type &T);
+  friend bool operator<(const Type &L, const Type &R);
 
 protected:
   TypeCode code;
@@ -106,7 +122,7 @@ protected:
   DoubleType();
 
   friend class TypeAnalysis;
-}
+};
 
 struct PointerType : public Type {
 public:
@@ -143,8 +159,8 @@ public:
 
   llvm::CallInst &getCallInst() const;
   std::string getName() const;
-  size_t getNumFields() const;
-  Type &getFieldType(size_t field_index) const;
+  unsigned getNumFields() const;
+  Type &getFieldType(unsigned field_index) const;
 
   std::string toString(std::string indent = "") const override;
 
@@ -157,7 +173,7 @@ protected:
 
   StructType(std::string name,
              llvm::CallInst &call_inst,
-             vector<TypeSummary *> field_types);
+             vector<Type *> field_types);
 
   friend class TypeAnalysis;
 };
@@ -172,25 +188,39 @@ protected:
   friend class TypeAnalysis;
 };
 
-struct StaticTensorType : public Type {
+struct FieldArrayType : public CollectionType {
 public:
   Type &getElementType() const override;
-  size_t getNumberOfDimensions() const;
-  size_t getLengthOfDimension(size_t dimension_index) const;
+
+  StructType &getStructType() const;
+  unsigned getFieldIndex() const;
+
+protected:
+  StructType &struct_type;
+  unsigned field_index;
+
+  FieldArrayType(StructType &struct_type, unsigned field_index);
+};
+
+struct StaticTensorType : public CollectionType {
+public:
+  Type &getElementType() const override;
+  unsigned getNumberOfDimensions() const;
+  size_t getLengthOfDimension(unsigned dimension_index) const;
 
 protected:
   Type &element_type;
-  size_t number_of_dimensions;
+  unsigned number_of_dimensions;
   vector<size_t> length_of_dimensions;
 
   StaticTensorType(Type &element_type,
-                   size_t number_of_dimensions,
-                   vector<size_t> number_of_dimensions);
+                   unsigned number_of_dimensions,
+                   vector<size_t> length_of_dimensions);
 
   friend class TypeAnalysis;
 };
 
-struct TensorType : public Type {
+struct TensorType : public CollectionType {
 public:
   Type &getElementType() const override;
   unsigned getNumberOfDimensions() const;
@@ -206,7 +236,7 @@ protected:
   friend class TypeAnalysis;
 };
 
-struct AssocArrayType : public Type {
+struct AssocArrayType : public CollectionType {
 public:
   static AssocArrayType &get(Type &key_type, Type &value_type);
 
