@@ -1,6 +1,6 @@
-#include "common/ir/Function.hpp"
+#include "memoir/ir/Function.hpp"
 
-#include "common/support/Assert.hpp"
+#include "memoir/support/Assert.hpp"
 
 namespace llvm::memoir {
 

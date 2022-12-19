@@ -5,10 +5,10 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
 
-#include "common/ir/Instructions.hpp"
-#include "common/ir/Types.hpp"
+#include "memoir/ir/Instructions.hpp"
+#include "memoir/ir/Types.hpp"
 
-#include "common/support/InternalDatatypes.hpp"
+#include "memoir/support/InternalDatatypes.hpp"
 
 /*
  * MemOIR wrapper of an LLVM Function.

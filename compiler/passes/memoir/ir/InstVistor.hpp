@@ -26,7 +26,7 @@ public:
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   case MemOIR_Func::ENUM:                                                      \
     return DELEGATE(CLASS);
-#include "common/ir/Instructions.def"
+#include "memoir/ir/Instructions.def"
     }
   };
 
@@ -72,7 +72,7 @@ public:
   RetTy visit##CLASS(CLASS##Inst &I) {                                         \
     DELEGATE(GetInst);                                                         \
   };
-#include "common/ir/Instructions.def"
+#include "memoir/ir/Instructions.def"
 
 protected:
 }; // namespace llvm::memoir

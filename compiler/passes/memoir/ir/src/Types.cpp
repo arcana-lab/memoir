@@ -1,5 +1,5 @@
-#include "common/ir/Types.hpp"
-#include "common/support/Assert.hpp"
+#include "memoir/ir/Types.hpp"
+#include "memoir/support/Assert.hpp"
 
 /*
  * Static getter methods

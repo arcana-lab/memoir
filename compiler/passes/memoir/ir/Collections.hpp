@@ -4,10 +4,10 @@
 
 #include "llvm/IR/Argument.h"
 
-#include "common/support/Assert.hpp"
-#include "common/support/InternalDatatypes.hpp"
+#include "memoir/support/Assert.hpp"
+#include "memoir/support/InternalDatatypes.hpp"
 
-#include "common/ir/Types.hpp"
+#include "memoir/ir/Types.hpp"
 
 namespace llvm::memoir {
 

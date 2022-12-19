@@ -2,12 +2,12 @@
 #define COMMON_STRUCTS_H
 #pragma once
 
-#include "common/support/Assert.hpp"
-#include "common/support/InternalDatatypes.hpp"
+#include "memoir/support/Assert.hpp"
+#include "memoir/support/InternalDatatypes.hpp"
 
-#include "common/ir/Collections.hpp"
-#include "common/ir/Instructions.hpp"
-#include "common/ir/Types.hpp"
+#include "memoir/ir/Collections.hpp"
+#include "memoir/ir/Instructions.hpp"
+#include "memoir/ir/Types.hpp"
 
 /*
  * This file provides a substrate for MemOIR structs.

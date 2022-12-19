@@ -1,4 +1,4 @@
-#include "common/analysis/CollectionAnalysis.hpp"
+#include "memoir/analysis/CollectionAnalysis.hpp"
 
 namespace llvm::memoir {
 

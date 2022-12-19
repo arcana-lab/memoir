@@ -1,4 +1,4 @@
-#include "common/ir/Function.hpp"
+#include "memoir/ir/Function.hpp"
 
 namespace llvm::memoir {
 
