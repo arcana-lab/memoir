@@ -11,8 +11,13 @@ llvm::Value &AllocInst::getAllocation() const {
 /*
  * StructAllocInst implementation
  */
+Struct &StructAllocInst::getStruct() const {
+  // TODO: run the StructAnalysis
+  return;
+}
+
 Type &StructAllocInst::getType() const {
-  // TODO
+  // TODO: run the TypeAnalysis
   return;
 }
 
@@ -35,15 +40,27 @@ std::string StructAllocInst::toString(std::string indent = "") const {
 }
 
 /*
+ * CollectionInst implementation
+ */
+Type &CollectionInst::getType() const {
+  return this->getCollectionType();
+}
+
+/*
  * TensorAllocInst implementation
  */
-Type &TensorAllocInst::getType() const {
+Collection &TensorAllocInst::getCollection() const {
+  // TODO: run the AllocationAnalysis
+  return;
+}
+
+CollectionType &TensorAllocInst::getCollectionType() const {
   return Type::get_tensor_type(this->getElementType(),
                                this->getNumberOfDimensions());
 }
 
 Type &TensorAllocInst::getElementType() const {
-  // TODO
+  // TODO: run the TypeAnalysis
   return;
 }
 
@@ -104,12 +121,17 @@ std::string TensorAllocInst::toString(std::string indent = "") const {
 /*
  * AssocArrayAllocInst implementation
  */
-Type &AssocArrayAllocInst::getType() const {
+Collection &AssocArrayAllocInst::getCollection() const {
+  // TODO: run the AllocationAnalysis
+  return;
+}
+
+CollectionType &AssocArrayAllocInst::getCollectionType() const {
   return Type::get_assoc_array_type(this->getKeyType(), this->getValueType());
 }
 
 Type &AssocArrayAllocInst::getKeyType() const {
-  // TODO
+  // TODO: run the TypeAnalysis
   return;
 }
 
@@ -122,7 +144,7 @@ llvm::Use &AssocArrayAllocInst::getKeyOperandAsUse() const {
 }
 
 Type &AssocArrayAllocInst::getValueType() const {
-  // TODO
+  // TODO: run the TypeAnalysis
   return;
 }
 
@@ -147,12 +169,17 @@ std::string AssocArrayAllocInst::toString(std::string indent = "") const {
 /*
  * SequenceAllocInst implementation
  */
-Type &SequenceAllocInst::getType() const {
+Collection &SequenceAllocInst::getCollection() const {
+  // TODO: run the AllocationAnalysis
+  return;
+}
+
+CollectionType &SequenceAllocInst::getCollectionType() const {
   return Type::get_sequence_type(this->getElementType());
 }
 
 Type &SequenceAllocInst::getElementType() const {
-  // TODO
+  // TODO: run the TypeAnalysis
   return;
 }
 

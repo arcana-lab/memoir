@@ -3,6 +3,26 @@
 namespace llvm::memoir {
 
 /*
+ * Top-level methods
+ */
+MemOIRFunction &MemOIRInst::getFunction() const {
+  auto bb = this->getCallInst().getParent();
+  MEMOIR_ASSERT(
+      (bb != nullptr),
+      "Attempt to get function of instruction that has no basic block parent");
+
+  auto func = bb->getParent();
+  MEMOIR_ASSERT((func != nullptr),
+                "Attempt to get MemOIRFunction for NULL function");
+
+  return MemOIRFunc::get(*func);
+}
+
+llvm::CallInst &MemOIRInst::getCallInst() const {
+  return this->call_inst;
+}
+
+/*
  * Constructors
  */
 MemOIRInst::MemOIRInst(MemOIR_Func memoir_enum, llvm::CallInst &call_inst)

@@ -2,33 +2,81 @@
 
 namespace llvm::memoir {
 
-Type &AssertTypeInst::getType() const {
-  // TODO
+/*
+ * AssertStructTypeInst implementation
+ */
+Type &AssertStructTypeInst::getType() const {
+  // TODO: call the TypeAnalysis
   return;
 }
 
-llvm::Value &AssertTypeInst::getTypeOperand() const {
+llvm::Value &AssertStructTypeInst::getTypeOperand() const {
   return this->getTypeOperandAsUse().get();
 }
 
-llvm::Use &AssertTypeInst::getTypeOperandAsUse() const {
+llvm::Use &AssertStructTypeInst::getTypeOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(0);
 }
 
-llvm::Value &AssertTypeInst::getObjectOperand() const {
-  return this->getObjectOperandAsUse().get();
+Struct &AssertStructTypeInst::getStruct() const {
+  // TODO: call the StructAnalysis
+  return;
 }
 
-llvm::Use &AssertTypeInst::getObjectOperandAsUse() const {
+llvm::Value &AssertStructTypeInst::getStructOperand() const {
+  return this->getStructOperandAsUse().get();
+}
+
+llvm::Use &AssertStructTypeInst::getStructOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(1);
 }
 
-std::string AssertTypeInst::toString(std::string indent = "") const {
+std::string AssertStructTypeInst::toString(std::string indent = "") const {
   std::string str, llvm_str;
   llvm::raw_string_ostream llvm_ss(llvm_str);
   llvm_ss << this->getCallInst();
 
-  str = "AssertTypeInst: " + llvm_str;
+  str = "AssertStructTypeInst: " + llvm_str;
+
+  return str;
+}
+
+/*
+ * AssertCollectionTypeInst implementation
+ */
+
+Type &AssertCollectionTypeInst::getType() const {
+  // TODO: call the TypeAnalysis
+  return;
+}
+
+llvm::Value &AssertCollectionTypeInst::getTypeOperand() const {
+  return this->getTypeOperandAsUse().get();
+}
+
+llvm::Use &AssertCollectionTypeInst::getTypeOperandAsUse() const {
+  return this->getCallInst().getArgOperandUse(0);
+}
+
+Collection &AssertCollectionTypeInst::getCollection() const {
+  // TODO: call the CollectionAnalysis
+  return;
+}
+
+llvm::Value &AssertCollectionTypeInst::getCollectionOperand() const {
+  return this->getCollectionOperandAsUse().get();
+}
+
+llvm::Use &AssertCollectionTypeInst::getCollectionOperandAsUse() const {
+  return this->getCallInst().getArgOperandUse(1);
+}
+
+std::string AssertCollectionTypeInst::toString(std::string indent = "") const {
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "AssertCollectionTypeInst: " + llvm_str;
 
   return str;
 }
