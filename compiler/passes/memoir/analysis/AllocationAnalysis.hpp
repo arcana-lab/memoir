@@ -10,9 +10,9 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "common/analysis/TypeAnalysis.hpp"
-#include "common/support/InternalDatatypes.hpp"
-#include "common/utility/FunctionNames.hpp"
+#include "memoir/analysis/TypeAnalysis.hpp"
+#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/utility/FunctionNames.hpp"
 
 /*
  * This file provides a simple analysis to quickly find information

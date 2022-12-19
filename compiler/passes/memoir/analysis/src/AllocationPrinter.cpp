@@ -1,4 +1,4 @@
-#include "common/analysis/AllocationAnalysis.hpp"
+#include "memoir/analysis/AllocationAnalysis.hpp"
 
 #include <sstream>
 

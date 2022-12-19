@@ -1,4 +1,4 @@
-#include "common/analysis/AccessAnalysis.hpp"
+#include "memoir/analysis/AccessAnalysis.hpp"
 
 #include <sstream>
 
