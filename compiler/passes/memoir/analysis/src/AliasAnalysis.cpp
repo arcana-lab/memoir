@@ -1,4 +1,4 @@
-#include "common/analysis/AliasAnalysis.hpp"
+#include "memoir/analysis/AliasAnalysis.hpp"
 
 namespace llvm::memoir {
 

@@ -9,15 +9,15 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "common/support/Assert.hpp"
-#include "common/support/InternalDatatypes.hpp"
+#include "memoir/support/Assert.hpp"
+#include "memoir/support/InternalDatatypes.hpp"
 
-#include "common/utility/FunctionNames.hpp"
-#include "common/utility/Metadata.hpp"
+#include "memoir/utility/FunctionNames.hpp"
+#include "memoir/utility/Metadata.hpp"
 
-#include "common/analysis/AllocationAnalysis.hpp"
-#include "common/analysis/CollectionAnalysis.hpp"
-#include "common/analysis/TypeAnalysis.hpp"
+#include "memoir/analysis/AllocationAnalysis.hpp"
+#include "memoir/analysis/CollectionAnalysis.hpp"
+#include "memoir/analysis/TypeAnalysis.hpp"
 
 /*
  * This file provides a simple analysis interface to query information

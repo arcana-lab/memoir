@@ -1,5 +1,5 @@
-#include "common/analysis/AllocationAnalysis.hpp"
-#include "common/utility/Metadata.hpp"
+#include "memoir/analysis/AllocationAnalysis.hpp"
+#include "memoir/utility/Metadata.hpp"
 
 namespace llvm::memoir {
 

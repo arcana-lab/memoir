@@ -4,18 +4,18 @@
 
 #include <iostream>
 
-#include "common/support/InternalDatatypes.hpp"
+#include "memoir/support/InternalDatatypes.hpp"
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "common/utility/FunctionNames.hpp"
+#include "memoir/utility/FunctionNames.hpp"
 
-#include "common/analysis/AccessAnalysis.hpp"
-#include "common/analysis/AllocationAnalysis.hpp"
-#include "common/analysis/TypeAnalysis.hpp"
+#include "memoir/analysis/AccessAnalysis.hpp"
+#include "memoir/analysis/AllocationAnalysis.hpp"
+#include "memoir/analysis/TypeAnalysis.hpp"
 
 /*
  * This file provides a siumple analysis interface to query information about

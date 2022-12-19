@@ -1,6 +1,6 @@
-#include "common/analysis/TypeAnalysis.hpp"
+#include "memoir/analysis/TypeAnalysis.hpp"
 
-#include "common/utility/Metadata.hpp"
+#include "memoir/utility/Metadata.hpp"
 
 namespace llvm::memoir {
 

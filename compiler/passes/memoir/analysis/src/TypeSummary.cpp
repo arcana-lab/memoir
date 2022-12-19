@@ -1,4 +1,4 @@
-#include "common/analysis/TypeAnalysis.hpp"
+#include "memoir/analysis/TypeAnalysis.hpp"
 
 namespace llvm::memoir {
 

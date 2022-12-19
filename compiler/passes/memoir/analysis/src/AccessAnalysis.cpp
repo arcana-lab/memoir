@@ -1,5 +1,5 @@
-#include "common/analysis/AccessAnalysis.hpp"
-#include "common/utility/Metadata.hpp"
+#include "memoir/analysis/AccessAnalysis.hpp"
+#include "memoir/utility/Metadata.hpp"
 
 namespace llvm::memoir {
 

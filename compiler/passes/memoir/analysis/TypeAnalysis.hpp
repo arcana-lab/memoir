@@ -9,11 +9,11 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
-#include "common/ir/Types.hpp"
+#include "memoir/ir/Types.hpp"
 
-#include "common/analysis/CollectionAnalysis.hpp"
-#include "common/support/InternalDatatypes.hpp"
-#include "common/utility/FunctionNames.hpp"
+#include "memoir/analysis/CollectionAnalysis.hpp"
+#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/utility/FunctionNames.hpp"
 
 /*
  * A simple analysis to summarize the Types present in a program.
