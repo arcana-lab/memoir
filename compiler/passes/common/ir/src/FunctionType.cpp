@@ -38,4 +38,8 @@ llvm::Type *MemOIRFunctionType::getParamLLVMType(unsigned param_index) const {
   return this->getLLVMFunctionType().getParamType(param_index);
 }
 
+MemOIRFunctionType::~MemOIRFunctionType() {
+  // Do nothing.
+}
+
 } // namespace llvm::memoir

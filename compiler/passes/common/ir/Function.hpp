@@ -6,7 +6,6 @@
 #include "llvm/IR/Instruction.h"
 
 #include "common/ir/Instructions.hpp"
-#include "common/ir/Module.hpp"
 #include "common/ir/Types.hpp"
 
 #include "common/support/InternalDatatypes.hpp"
@@ -32,6 +31,9 @@ public:
   llvm::Type *getParamLLVMType(unsigned param_index) const;
 
 protected:
+  // Owned state
+
+  // Borrowed state
   llvm::FunctionType &FT;
   Type *return_type;
   vector<Type *> param_type;
@@ -39,15 +41,18 @@ protected:
   MemOIRFunctionType(llvm::FunctionType &FT,
                      Type *return_type,
                      vector<Type *> param_types);
+  ~MemOIRFunctionType();
 
   friend class MemOIRFunction;
 };
+
+struct MemOIRInst;
 
 struct MemOIRFunction {
 public:
   static MemOIRFunction &get(llvm::Function &F);
 
-  MemOIRModule &getParent() const;
+  llvm::Module &getParent() const;
 
   MemOIRFunctionType &getFunctionType() const;
   llvm::Function &getLLVMFunction() const;
@@ -60,14 +65,19 @@ public:
   llvm::Type *getReturnLLVMType() const;
 
 protected:
-  llvm::Function &F;
+  // Owned state
   MemOIRFunctionType *function_type;
-
   vector<MemOIRInst *> memoir_instructions;
 
-  map<llvm::Instruction *, MemOIRInst *> memoir_instructions;
+  // Borrowed state
+  llvm::Function &F;
+  map<llvm::Instruction *, MemOIRInst *> llvm_to_memoir_instructions;
+
+  // Global state
+  static map<llvm::Function *, MemOIRFunction *> llvm_to_memoir_functions;
 
   MemOIRFunction(llvm::Function &F);
+  ~MemOIRFunction();
 
   friend class MemOIRModule;
 };
