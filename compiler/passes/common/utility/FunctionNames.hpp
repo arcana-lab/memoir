@@ -33,7 +33,7 @@ namespace llvm::memoir {
  */
 enum MemOIR_Func {
 #define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) MemOIR_Enum,
-#include "FunctionNames.def"
+#include "common/ir/Instructions.def"
 #undef HANDLE_INST
   NONE
 };
@@ -83,13 +83,13 @@ public:
 
 const map<MemOIR_Func, std::string> FunctionNames::memoir_to_function_names = {
 #define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) { MemOIR_Enum, #MemOIR_Str },
-#include "FunctionNames.def"
+#include "common/ir/Instructions.def"
 #undef HANDLE_INST
 };
 
 const map<std::string, MemOIR_Func> FunctionNames::function_names_to_memoir = {
 #define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) { #MemOIR_Str, MemOIR_Enum },
-#include "FunctionNames.def"
+#include "common/ir/Instructions.def"
 #undef HANDLE_INST
 };
 
