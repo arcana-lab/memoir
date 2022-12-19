@@ -12,12 +12,17 @@
 
 #include "noelle/core/Noelle.hpp"
 
-#include "common/analysis/AccessAnalysis.hpp"
-#include "common/analysis/AllocationAnalysis.hpp"
-#include "common/analysis/TypeAnalysis.hpp"
-#include "common/support/InternalDatatypes.hpp"
-#include "common/utility/FunctionNames.hpp"
-#include "common/utility/Metadata.hpp"
+#include "memoir/ir/Function.hpp"
+#include "memoir/ir/Instructions.hpp"
+
+// #include "memoir/analysis/AccessAnalysis.hpp"
+// #include "memoir/analysis/AllocationAnalysis.hpp"
+// #include "memoir/analysis/TypeAnalysis.hpp"
+
+#include "memoir/support/InternalDatatypes.hpp"
+
+#include "memoir/utility/FunctionNames.hpp"
+#include "memoir/utility/Metadata.hpp"
 
 using namespace llvm::memoir;
 
@@ -35,76 +40,77 @@ struct ExamplePass : public ModulePass {
   bool runOnModule(Module &M) override {
     errs() << "Running example pass\n\n";
 
-    auto &type_analysis = TypeAnalysis::get(M);
-    auto &allocation_analysis = AllocationAnalysis::get(M);
-    auto &access_analysis = AccessAnalysis::get(M);
+    // auto &type_analysis = TypeAnalysis::get(M);
+    // auto &allocation_analysis = AllocationAnalysis::get(M);
+    // auto &access_analysis = AccessAnalysis::get(M);
 
-    errs() << "Fetching all Type Summaries\n\n";
-    for (auto &F : M) {
-      if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
-        continue;
-      }
+    // errs() << "Fetching all Type Summaries\n\n";
+    // for (auto &F : M) {
+    //   if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
+    //     continue;
+    //   }
 
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (auto call_inst = dyn_cast<CallInst>(&I)) {
-            if (!FunctionNames::is_memoir_call(*call_inst)) {
-              continue;
-            }
+    //   for (auto &BB : F) {
+    //     for (auto &I : BB) {
+    //       if (auto call_inst = dyn_cast<CallInst>(&I)) {
+    //         if (!FunctionNames::is_memoir_call(*call_inst)) {
+    //           continue;
+    //         }
 
-            if (auto type_summary = type_analysis.getTypeSummary(*call_inst)) {
-              errs() << "Found type summary for " << I << "\n";
-              errs() << *type_summary << "\n\n";
-            }
-          }
-        }
-      }
-    }
+    //         if (auto type_summary = type_analysis.getTypeSummary(*call_inst))
+    //         {
+    //           errs() << "Found type summary for " << I << "\n";
+    //           errs() << *type_summary << "\n\n";
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
 
-    errs() << "Fetching all Allocation Summaries\n\n";
-    for (auto &F : M) {
-      if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
-        continue;
-      }
+    // errs() << "Fetching all Allocation Summaries\n\n";
+    // for (auto &F : M) {
+    //   if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
+    //     continue;
+    //   }
 
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (auto call_inst = dyn_cast<CallInst>(&I)) {
-            if (!FunctionNames::is_memoir_call(*call_inst)) {
-              continue;
-            }
+    //   for (auto &BB : F) {
+    //     for (auto &I : BB) {
+    //       if (auto call_inst = dyn_cast<CallInst>(&I)) {
+    //         if (!FunctionNames::is_memoir_call(*call_inst)) {
+    //           continue;
+    //         }
 
-            if (auto allocation_summary =
-                    allocation_analysis.getAllocationSummary(*call_inst)) {
-              errs() << "Found allocation summary for " << I << "\n";
-              errs() << *allocation_summary << "\n\n";
-            }
-          }
-        }
-      }
-    }
+    //         if (auto allocation_summary =
+    //                 allocation_analysis.getAllocationSummary(*call_inst)) {
+    //           errs() << "Found allocation summary for " << I << "\n";
+    //           errs() << *allocation_summary << "\n\n";
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
 
-    errs() << "Fetching all Access Summaries\n\n";
-    for (auto &F : M) {
-      if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
-        continue;
-      }
+    // errs() << "Fetching all Access Summaries\n\n";
+    // for (auto &F : M) {
+    //   if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
+    //     continue;
+    //   }
 
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (auto call_inst = dyn_cast<CallInst>(&I)) {
-            if (!FunctionNames::is_memoir_call(*call_inst)) {
-              continue;
-            }
+    //   for (auto &BB : F) {
+    //     for (auto &I : BB) {
+    //       if (auto call_inst = dyn_cast<CallInst>(&I)) {
+    //         if (!FunctionNames::is_memoir_call(*call_inst)) {
+    //           continue;
+    //         }
 
-            if (auto access_summary = access_analysis.getAccessSummary(I)) {
-              errs() << "Found access summary for " << I << "\n";
-              errs() << *access_summary << "\n\n";
-            }
-          }
-        }
-      }
-    }
+    //         if (auto access_summary = access_analysis.getAccessSummary(I)) {
+    //           errs() << "Found access summary for " << I << "\n";
+    //           errs() << *access_summary << "\n\n";
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
 
     return false;
   }
