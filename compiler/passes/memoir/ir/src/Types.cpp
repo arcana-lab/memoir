@@ -75,6 +75,12 @@ ReferenceType &ReferenceType::get(Type &referenced_type) {
   return *new_type;
 }
 
+StructType &Type::define_struct_type(std::string *name,
+                                     llvm::CallInst &call_inst,
+                                     vector<Type *> field_types) {
+  return StructType::define(name, call_inst, field_types);
+}
+
 StructType &Type::get_struct_type(std::string *name) {
   return StructType::get(name);
 }
@@ -298,6 +304,8 @@ Type &StructType::getFieldType(size_t field_index) const {
   MEMOIR_ASSERT(
       (field_index < this->getNumFields()),
       "Attempt to get length of out-of-range field index for struct type");
+
+  return *(this->field_types[field_index]);
 }
 
 std::string StructType::toString(std::string indent) const {
