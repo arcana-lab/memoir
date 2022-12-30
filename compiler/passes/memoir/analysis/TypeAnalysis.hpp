@@ -33,7 +33,7 @@ namespace llvm::memoir {
  * This type analysis provides basic information about MemOIR
  *   types defined in the program.
  */
-class TypeAnalysis : InstVisitor<TypeAnalysis, TypeAnalysis::RetTy> {
+class TypeAnalysis : InstVisitor<TypeAnalysis, std::add_pointer_t<Type>> {
 public:
   using RetTy = std::add_pointer_t<Type>;
 
@@ -80,7 +80,14 @@ private:
   /*
    * Visitor functions
    */
-  RetTy visitIntegerTypeInst(IntegerTypeInst &I);
+  RetTy visitUInt64TypeInst(UInt64TypeInst &I);
+  RetTy visitUInt32TypeInst(UInt32TypeInst &I);
+  RetTy visitUInt16TypeInst(UInt16TypeInst &I);
+  RetTy visitUInt8TypeInst(UInt8TypeInst &I);
+  RetTy visitInt64TypeInst(Int64TypeInst &I);
+  RetTy visitInt32TypeInst(Int32TypeInst &I);
+  RetTy visitInt16TypeInst(Int16TypeInst &I);
+  RetTy visitInt8TypeInst(Int8TypeInst &I);
   RetTy visitFloatTypeInst(FloatTypeInst &I);
   RetTy visitDoubleTypeInst(DoubleTypeInst &I);
   RetTy visitPointerTypeInst(PointerTypeInst &I);
@@ -106,7 +113,7 @@ private:
    */
   TypeAnalysis();
 
-  void invalidate();
+  void _invalidate();
 };
 
 } // namespace llvm::memoir

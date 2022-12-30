@@ -24,10 +24,9 @@ RetTy *TypeAnalysis::getType(llvm::Value &V) {
   /*
    * TODO: Handle function arguments by looking at assertType.
    */
-
-  /*
-   * TODO: Handle function returns by looking at setReturnType.
-   */
+  if (auto arg = dyn_cast<llvm::Argument>(&V)) {
+    MEMOIR_UNREACHABLE("Handling for arguments is currently unsupported");
+  }
 
   return nullptr;
 }
@@ -274,6 +273,45 @@ RetTy TypeAnalysis::SequenceAllocInst(TensorAllocInst &I) {
 }
 
 /*
+ * Type Checking Instructions
+ */
+RetTy TypeAnalysis::visitAssertStructTypeInst(AssertStructTypeInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the type being checked.
+   */
+  auto type = this->getType(I.getTypeOperand());
+  MEMOIR_NULL_CHECK(type, "Type being asserted is NULL");
+
+  MEMOIZE_AND_RETURN(I, *type);
+}
+
+RetTy TypeAnalysis::visitAssertCollectionTypeInst(AssertCollectionTypeInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the type being checked.
+   */
+  auto type = this->getType(I.getTypeOperand());
+  MEMOIR_NULL_CHECK(type, "Type being asserted is NULL");
+
+  MEMOIZE_AND_RETURN(I, *type);
+}
+
+RetTy TypeAnalysis::visitReturnTypeInst(ReturnTypeInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the type being checked.
+   */
+  auto type = this->getType(I.getTypeOperand());
+  MEMOIR_NULL_CHECK(type, "Type being asserted is NULL");
+
+  MEMOIZE_AND_RETURN(I, *type);
+}
+
+/*
  * LLVM Instructions
  */
 RetTy TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
@@ -316,6 +354,15 @@ RetTy TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
   }
 }
 
+RetTy TypeAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
+  CHECK_MEMOIZED(I);
+
+  MEMOIR_UNREACHABLE(
+      "Handling for interprocedural type analysis is not implemented");
+
+  //  MEMOIZE_AND_RETURN(I, type);
+}
+
 /*
  * Internal helper functions
  */
@@ -343,9 +390,8 @@ void TypeAnalysis::memoize(MemOIRInst &I, Type &T) {
 /*
  * Singleton access
  */
-void TypeAnalysis::invalidate() {
-  this->type_summaries.clear();
-
+void TypeAnalysis::_invalidate() {
+  this->value_to_type.clear();
   return;
 }
 
@@ -354,13 +400,8 @@ TypeAnalysis &TypeAnalysis::get() {
   return TA;
 }
 
-void TypeAnalysis::invalidate(Module &M) {
-  auto found_analysis = TypeAnalysis::analyses.find(&M);
-  if (found_analysis != TypeAnalysis::analyses.end()) {
-    auto &analysis = *(found_analysis->second);
-    analysis.invalidate();
-  }
-
+void TypeAnalysis::invalidate() {
+  TypeAnalysis::get()._invalidate();
   return;
 }
 
