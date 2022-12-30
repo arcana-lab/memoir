@@ -13,7 +13,7 @@ add_llvm_library(
   ${PassName}
   MODULE
   ${PassSrc}
-  ${CommonSrc})
+  ${memoir_sources})
 
 install(TARGETS ${PassName}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
