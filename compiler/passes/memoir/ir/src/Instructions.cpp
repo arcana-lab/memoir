@@ -35,8 +35,42 @@ TypeInst::TypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {
   // Do nothing.
 }
 
-IntegerTypeInst::IntegerTypeInst(llvm::CallInst &call_inst)
+UInt64TypeInst::UInt64TypeInst(llvm::CallInst &call_inst)
   : TypeInst(call_inst) {
+  // Do nothing.
+}
+
+UInt32TypeInst::UInt32TypeInst(llvm::CallInst &call_inst)
+  : TypeInst(call_inst) {
+  // Do nothing.
+}
+
+UInt16TypeInst::UInt16TypeInst(llvm::CallInst &call_inst)
+  : TypeInst(call_inst) {
+  // Do nothing.
+}
+
+UInt8TypeInst::UInt8TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {
+  // Do nothing.
+}
+
+Int64TypeInst::Int64TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {
+  // Do nothing.
+}
+
+Int32TypeInst::Int32TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {
+  // Do nothing.
+}
+
+Int16TypeInst::Int16TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {
+  // Do nothing.
+}
+
+Int8TypeInst::Int8TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {
+  // Do nothing.
+}
+
+BoolTypeInst::BoolTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {
   // Do nothing.
 }
 
