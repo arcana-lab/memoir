@@ -51,6 +51,7 @@ struct MemOIRInst;
 struct MemOIRFunction {
 public:
   static MemOIRFunction &get(llvm::Function &F);
+  static Type *get_argument_type(llvm::Argument &A);
 
   llvm::Module &getParent() const;
 
