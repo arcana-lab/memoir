@@ -9,6 +9,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
+#include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Types.hpp"
 
 #include "memoir/analysis/CollectionAnalysis.hpp"
@@ -32,19 +33,21 @@ namespace llvm::memoir {
  * This type analysis provides basic information about MemOIR
  *   types defined in the program.
  */
-class TypeAnalysis {
+class TypeAnalysis : InstVisitor<TypeAnalysis, TypeAnalysis::RetTy> {
 public:
+  using RetTy = std::add_pointer_t<Type>;
+
   /*
    * Singleton access
    */
-  static TypeAnalysis &get(Module &M);
+  static TypeAnalysis &get();
 
-  static void invalidate(Module &M);
+  static void invalidate();
 
   /*
    * Query the Type Summary for the given LLVM Value
    */
-  TypeSummary *getTypeSummary(llvm::Value &value);
+  RetTy getType(llvm::Value &value);
 
   /*
    * Helper functions
@@ -60,44 +63,50 @@ private:
   /*
    * Passed state
    */
-  Module &M;
 
   /*
-   * Owned state
+   * Borrowed state
    */
-  map<llvm::Value *, Type *> type_summaries;
+  map<llvm::Value *, RetTy *> value_to_type;
 
   /*
    * Internal helper functions
    */
-  Type *getMemOIRType(llvm::CallInst &call_inst);
+  RetTy findExisting(llvm::Value &V);
+  RetTy findExisting(MemOIRInst &I);
+  void memoize(llvm::Value &V, Type &T);
+  void memoize(MemOIRInst &I, Type &T);
 
-  Type &getPrimitiveType(MemOIR_Func function_enum);
-
-  Type &getIntegerType(llvm::CallInst &call_inst);
-
-  Type &getReferenceType(llvm::CallInst &call_inst);
-
-  Type &getStructType(llvm::CallInst &call_inst);
-
-  Type &getTensorType(llvm::CallInst &call_inst);
-
-  Type &getStaticTensorType(llvm::CallInst &call_inst);
-
-  Type &getAssocArrayType(llvm::CallInst &call_inst);
-
-  Type &getSequenceType(llvm::CallInst &call_inst);
-
-  Type &defineStructType(llvm::CallInst &call_inst);
+  /*
+   * Visitor functions
+   */
+  RetTy visitIntegerTypeInst(IntegerTypeInst &I);
+  RetTy visitFloatTypeInst(FloatTypeInst &I);
+  RetTy visitDoubleTypeInst(DoubleTypeInst &I);
+  RetTy visitPointerTypeInst(PointerTypeInst &I);
+  RetTy visitReferenceTypeInst(ReferenceTypeInst &I);
+  RetTy visitDefineStructTypeInst(DefineStructTypeInst &I);
+  RetTy visitStructTypeInst(StructTypeInst &I);
+  RetTy visitStaticTensorTypeInst(StaticTensorTypeInst &I);
+  RetTy visitTensorTypeInst(TensorTypeInst &I);
+  RetTy visitAssocArrayTypeInst(AssocArrayTypeInst &I);
+  RetTy visitSequenceTypeInst(SequenceTypeInst &I);
+  RetTy visitStructAllocInst(StructAllocInst &I);
+  RetTy visitTensorAllocInst(TensorAllocInst &I);
+  RetTy visitAssocArrayAllocInst(AssocArrayAllocInst &I);
+  RetTy visitSequenceAllocInst(SequenceAllocInst &I);
+  RetTy visitAssertStructTypeInst(AssertStructTypeInst &I);
+  RetTy visitAssertCollectionTypeInst(AssertCollectionTypeInst &I);
+  RetTy visitReturnTypeInst(ReturnTypeInst &I);
+  RetTy visitLLVMCallInst(llvm::CallInst &I);
+  RetTy visitLoadInst(llvm::LoadInst &I);
 
   /*
    * Private constructor and logistics
    */
-  TypeAnalysis(llvm::Module &M);
+  TypeAnalysis();
 
   void invalidate();
-
-  static map<llvm::Module *, TypeAnalysis *> analyses;
 };
 
 } // namespace llvm::memoir
