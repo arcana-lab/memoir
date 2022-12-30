@@ -8,6 +8,15 @@ MemOIRFunction &MemOIRFunction::get(llvm::Function &F) {
   MemOIRModule::get(F.getParent()).getFunction(F);
 }
 
+Type *MemOIRFunction::get_argument_type(llvm::Argument &A) {
+  auto *llvm_func = A.getParent();
+  MEMOIR_NULL_CHECK(llvm_func,
+                    "Attempt to get argument type of unlinked argument");
+
+  auto &memoir_func = MemOIRFunction::get(*llvm_func);
+  return memoir_func.getArgumentType(A.getArgNo());
+}
+
 MemOIRFunction::MemOIRFunction(llvm::Function &F) : F(F) {
   auto llvm_function_type = F.getFunctionType();
   MEMOIR_NULL_CHECK(
