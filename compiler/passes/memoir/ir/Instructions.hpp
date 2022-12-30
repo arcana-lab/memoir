@@ -2,6 +2,8 @@
 #define COMMON_INSTRUCTIONS_H
 #pragma once
 
+#include <cstddef>
+
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -63,7 +65,11 @@ struct IntegerTypeInst : public TypeInst {
 public:
   Type &getType() const override;
   unsigned getBitwidth() const;
+  llvm::Value &getBitwidthOperand() const;
+  llvm::Use &getBitwidthOperandAsUse() const;
   bool isSigned() const;
+  llvm::Value &getIsSignedOperand() const;
+  llvm::Use &getIsSignedOperandAsUse() const;
 
   std::string toString(std::string indent = "") const override;
 
