@@ -61,20 +61,94 @@ protected:
   TypeInst(llvm::CallInst &call_inst);
 };
 
-struct IntegerTypeInst : public TypeInst {
+struct UInt64TypeInst : public TypeInst {
 public:
   Type &getType() const override;
-  unsigned getBitwidth() const;
-  llvm::Value &getBitwidthOperand() const;
-  llvm::Use &getBitwidthOperandAsUse() const;
-  bool isSigned() const;
-  llvm::Value &getIsSignedOperand() const;
-  llvm::Use &getIsSignedOperandAsUse() const;
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  IntegerTypeInst(llvm::CallInst &call_inst);
+  UInt64TypeInst(llvm::CallInst &call_inst);
+};
+
+struct UInt32TypeInst : public TypeInst {
+public:
+  Type &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  UInt32TypeInst(llvm::CallInst &call_inst);
+};
+
+struct UInt16TypeInst : public TypeInst {
+public:
+  Type &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  UInt16TypeInst(llvm::CallInst &call_inst);
+};
+
+struct UInt8TypeInst : public TypeInst {
+public:
+  Type &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  UInt8TypeInst(llvm::CallInst &call_inst);
+};
+
+struct Int64TypeInst : public TypeInst {
+public:
+  Type &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  Int64TypeInst(llvm::CallInst &call_inst);
+};
+
+struct Int32TypeInst : public TypeInst {
+public:
+  Type &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  Int32TypeInst(llvm::CallInst &call_inst);
+};
+
+struct Int16TypeInst : public TypeInst {
+public:
+  Type &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  Int16TypeInst(llvm::CallInst &call_inst);
+};
+
+struct Int8TypeInst : public TypeInst {
+public:
+  Type &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  Int8TypeInst(llvm::CallInst &call_inst);
+};
+
+struct BoolTypeInst : public TypeInst {
+public:
+  Type &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  BoolTypeInst(llvm::CallInst &call_inst);
 };
 
 struct FloatTypeInst : public TypeInst {
@@ -305,6 +379,8 @@ public:
   llvm::Value &getSizeOperand() const;
   llvm::Use &getSizeOperandAsUse() const;
 
+  std::string toString(std::string indent = "") const override;
+
 protected:
   SequenceAllocInst(llvm::CallInst &call_inst);
 };
@@ -398,7 +474,7 @@ protected:
   WriteInst(llvm::CallInst &call_inst);
 };
 
-struct StructWriteInst : public ReadInst {
+struct StructWriteInst : public WriteInst {
 public:
   Collection &getCollectionAccessed() const override;
 
@@ -415,7 +491,7 @@ protected:
   StructWriteInst(llvm::CallInst &call_inst);
 };
 
-struct IndexWriteInst : public ReadInst {
+struct IndexWriteInst : public WriteInst {
 public:
   Collection &getCollectionAccessed() const override;
 
@@ -429,7 +505,7 @@ protected:
   IndexWriteInst(llvm::CallInst &call_inst);
 };
 
-struct AssocWriteInst : public ReadInst {
+struct AssocWriteInst : public WriteInst {
 public:
   Collection &getCollectionAccessed() const override;
 

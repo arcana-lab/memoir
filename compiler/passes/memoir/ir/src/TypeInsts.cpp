@@ -10,113 +10,98 @@
  */
 
 /*
- * IntegerTypeInst implementation
+ * Common function implementations
  */
-Type &IntegerTypeInst::getType() const {
-  return TypeAnalysis::get().getType(this->getCallInst());
-}
+#define GET_TYPE_IMPL(CLASS_NAME)                                              \
+  Type &CLASS_NAME## ::getType() const {                                       \
+    return TypeAnalysis::get().getType(this->getCallInst());                   \
+  }
 
-unsigned IntegerTypeInst::getBitwidth() const {
-  auto bitwidth_value = this->getBitwidthOperand();
-  auto bitwidth_const = dyn_cast<ConstantInt>(&bitwidth_value);
-  MEMOIR_NULL_CHECK(bitwidth_const,
-                    "Attempt to create Integer Type of non-static bitwidth");
-
-  return bitwidth_const->getZExtValue();
-}
-
-llvm::Value &IntegerTypeInst::getBitwidthOperand() const {
-  return this->getBitwidthOperandAsUse().get();
-}
-
-llvm::Use &IntegerTypeInst::getBitwidthOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(0);
-}
-
-unsigned IntegerTypeInst::isSigned() const {
-  auto is_signed_value = this->getIsSignedOperand();
-  auto is_signed_const = dyn_cast<ConstantInt>(&is_signed_value);
-  MEMOIR_NULL_CHECK(is_signed_const,
-                    "Attempt to create Integer Type of non-static sign");
-
-  return is_signed_const->isOne();
-}
-
-llvm::Value &IntegerTypeInst::getIsSignedOperand() const {
-  return this->getIsSignedOperandAsUse().get();
-}
-
-llvm::Use &IntegerTypeInst::getIsSignedOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(1);
-}
-
-std::string IntegerTypeInst::toString(std::string indent = "") const {
+#define TO_STRING_IMPL(CLASS_NAME)
+std::string CLASS_NAME## ::toString(std::string indent = "") const {
   std::string str, llvm_str;
   llvm::raw_string_ostream llvm_ss(llvm_str);
   llvm_ss << this->getCallInst();
-
-  str = "IntegerTypeInst: " + llvm_str;
-
+  str = #CLASS_NAME ": " + llvm_str;
   return str;
 }
+
+/*
+ * UInt64TypeInst implementation
+ */
+GET_TYPE_IMPL(UInt64TypeInst)
+TO_STRING_IMPL(UInt64TypeInst)
+
+/*
+ * UInt32TypeInst implementation
+ */
+GET_TYPE_IMPL(UInt32TypeInst)
+TO_STRING_IMPL(UInt32TypeInst)
+
+/*
+ * UInt16TypeInst implementation
+ */
+GET_TYPE_IMPL(UInt16TypeInst)
+TO_STRING_IMPL(UInt16TypeInst)
+
+/*
+ * UInt8TypeInst implementation
+ */
+GET_TYPE_IMPL(UInt8TypeInst)
+TO_STRING_IMPL(UInt8TypeInst)
+
+/*
+ * Int64TypeInst implementation
+ */
+GET_TYPE_IMPL(Int64TypeInst)
+TO_STRING_IMPL(Int64TypeInst)
+
+/*
+ * Int32TypeInst implementation
+ */
+GET_TYPE_IMPL(Int32TypeInst)
+TO_STRING_IMPL(Int32TypeInst)
+
+/*
+ * Int16TypeInst implementation
+ */
+GET_TYPE_IMPL(Int16TypeInst)
+TO_STRING_IMPL(Int16TypeInst)
+
+/*
+ * Int8TypeInst implementation
+ */
+GET_TYPE_IMPL(Int8TypeInst)
+TO_STRING_IMPL(Int8TypeInst)
+
+/*
+ * BoolTypeInst implementation
+ */
+GET_TYPE_IMPL(BoolTypeInst)
+TO_STRING_IMPL(BoolTypeInst)
 
 /*
  * FloatType implementation
  */
-Type &FloatTypeInst::getType() const {
-  return TypeAnalysis::get().getType(this->getCallInst());
-}
-
-std::string FloatTypeInst::toString(std::string indent = "") const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "FloatTypeInst: " + llvm_str;
-
-  return str;
-}
+GET_TYPE_IMPL(FloatTypeInst)
+TO_STRING_IMPL(FloatTypeInst)
 
 /*
  * DoubleType implementation
  */
-Type &DoubleTypeInst::getType() const {
-  return TypeAnalysis::get().getType(this->getCallInst());
-}
-
-std::string DoubleTypeInst::toString(std::string indent = "") const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "DoubleTypeInst: " + llvm_str;
-
-  return str;
-}
+GET_TYPE_IMPL(DoubleTypeInst)
+TO_STRING_IMPL(DoubleTypeInst)
 
 /*
  * PointerType implementation
  */
-Type &PointerTypeInst::getType() const {
-  return TypeAnalysis::get().getType(this->getCallInst());
-}
-
-std::string PointerTypeInst::toString(std::string indent = "") const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "PointerTypeInst: " + llvm_str;
-
-  return str;
-}
+GET_TYPE_IMPL(PointerTypeInst)
+TO_STRING_IMPL(PointerTypeInst)
 
 /*
  * ReferenceType implementation
  */
-Type &ReferenceTypeInst::getType() const {
-  return TypeAnalysis::get().getType(this->getCallInst());
-}
+GET_TYPE_IMPL(ReferenceTypeInst)
 
 Type &ReferenceTypeInst::getReferencedType() const {
   return TypeAnalysis::get().getType(this->getReferencedTypeOperand());
@@ -130,22 +115,12 @@ llvm::Use &ReferenceTypeInst::getReferencedTypeAsUse() const {
   return this->getCallInst().getArgOperandUse(0);
 }
 
-std::string ReferenceTypeInst::toString(std::string indent = "") const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "ReferenceTypeInst: " + llvm_str;
-
-  return str;
-}
+TO_STRING_IMPL(ReferenceTypeInst)
 
 /*
  * DefineStructType implementation
  */
-Type &DefineStructTypeInst::getType() const {
-  return TypeAnalysis::get().get(this->getCallInst());
-}
+GET_TYPE_IMPL(DefineStructTypeInst)
 
 std::string DefineStructTypeInst::getName() const {
   auto name_value = this->getNameOperand();
@@ -214,22 +189,12 @@ llvm::Use &DefineStructTypeInst::getFieldTypeOperandAsUse(
   return this->getCallInst().getArgOperandUse(2 + field_index);
 }
 
-std::string DefineStructTypeInst::toString(std::string indent = "") const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "DefineStructTypeInst: " + llvm_str;
-
-  return str;
-}
+TO_STRING_IMPL(DefineStructTypeInst)
 
 /*
  * StructType implementation
  */
-Type &StructTypeInst::getType() const {
-  return TypeAnalysis::get().getType(this->getCallInst());
-}
+GET_TYPE_IMPL(StructTypeInst)
 
 std::string StructTypeInst::getName() const {
   auto name_value = this->getNameOperand();
@@ -261,22 +226,12 @@ llvm::Use &StructTypeInst::getNameOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(0);
 }
 
-std::string StructTypeInst::toString(std::string indent = "") const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "StructTypeInst: " + llvm_str;
-
-  return str;
-}
+TO_STRING_IMPL(StructTypeInst)
 
 /*
  * StaticTensorType implementation
  */
-Type &StaticTensorTypeInst::getType() const {
-  return TypeAnalysis::get().getType(this->getCallInst());
-}
+GET_TYPE_IMPL(StaticTensorTypeInst)
 
 Type &StaticTensorTypeInst::getElementType() const {
   return TypeAnalysis::get().getType(this->getElementTypeOperand());
@@ -341,22 +296,12 @@ llvm::Use &StaticTensorTypeInst::getLengthOfDimensionOperandAsUse(
   return this->getCallInst().getArgOperandUse(2 + dimension_index);
 }
 
-std::string StaticTensorTypeInst::toString(std::string indent = "") const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "StaticTensorTypeInst: " + llvm_str;
-
-  return str;
-}
+TO_STRING_IMPL(StaticTensorTypeInst)
 
 /*
  * TensorType implementation
  */
-Type &TensorTypeInst::getType() const {
-  return TypeAnalysis::get().getType(this->getCallInst());
-}
+GET_TYPE_IMPL(TensorTypeInst)
 
 Type &TensorTypeInst::getElementType() const {
   return TypeAnalysis::get().getType(this->getElementTypeOperand());
@@ -393,22 +338,12 @@ llvm::Use &TensorTypeInst::getNumberOfDimensionsOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(1);
 }
 
-std::string TensorTypeInst::toString(std::string indent = "") const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "TensorTypeInst: " + llvm_str;
-
-  return str;
-}
+TO_STRING_IMPL(TensorTypeInst);
 
 /*
  * AssocArrayType implementation
  */
-Type &AssocArrayTypeInst::getType() const {
-  return TypeAnalysis::get().getType(this->getCallInst());
-}
+GET_TYPE_IMPL(AssocArrayTypeInst)
 
 Type &AssocArrayTypeInst::getKeyType() const {
   return TypeAnalysis::get().getType(this->getKeyOperand());
@@ -434,22 +369,12 @@ llvm::Use &AssocArrayTypeInst::getValueOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(1);
 }
 
-std::string AssocArrayTypeInst::toString(std::string indent = "") const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "AssocArrayTypeInst: " + llvm_str;
-
-  return str;
-}
+TO_STRING_IMPL(AssocArrayTypeInst)
 
 /*
  * SequenceType implementation
  */
-Type &SequenceTypeInst::getType() const {
-  return TypeAnalysis::get().getType(this->getCallInst());
-}
+GET_TYPE_IMPL(SequenceTypeInst)
 
 Type &SequenceTypeInst::getElementType() const {
   return TypeAnalysis::get().getType(this->getElementOperand());
@@ -463,12 +388,4 @@ llvm::Use &SequenceTypeInst::getElementOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(0);
 }
 
-std::string SequenceTypeInst::toString(std::string indent = "") const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "SequenceTypeInst: " + llvm_str;
-
-  return str;
-}
+TO_STRING_IMPL(SequenceTypeInst)
