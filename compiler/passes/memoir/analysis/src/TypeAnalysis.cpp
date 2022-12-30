@@ -49,28 +49,40 @@ RetTy *TypeAnalysis::getType(llvm::Value &V) {
 /*
  * TypeInsts
  */
-RetTy TypeAnalysis::visitIntegerTypeInst(IntegerTypeInst &I) {
-  switch (I.getBitwidth()) {
-    case 64: {
-      return (I.isSigned()) ? Type::get_i64_type() : Type::get_u64_type();
-    }
-    case 32: {
-      return (I.isSigned()) ? Type::get_i32_type() : Type::get_u32_type();
-    }
-    case 16: {
-      return (I.isSigned()) ? Type::get_i16_type() : Type::get_u16_type();
-    }
-    case 8: {
-      return (I.isSigned()) ? Type::get_i8_type() : Type::get_u8_type();
-    }
-    case 1: {
-      MEMOIR_ASSERT(I.isSigned(), "Unsigned 1 bit integer is undefined");
-      return Type::get_i1_type();
-    }
-    default: {
-      MEMOIR_UNREACHABLE("Unknown integer type");
-    }
-  }
+RetTy TypeAnalysis::visitUInt64TypeInst(UInt64TypeInst &I) {
+  return &(Type::get_u64_type());
+}
+
+RetTy TypeAnalysis::visitUInt32TypeInst(UInt32TypeInst &I) {
+  return &(Type::get_u32_type());
+}
+
+RetTy TypeAnalysis::visitUInt16TypeInst(UInt16TypeInst &I) {
+  return &(Type::get_u16_type());
+}
+
+RetTy TypeAnalysis::visitUInt8TypeInst(UInt8TypeInst &I) {
+  return &(Type::get_u8_type());
+}
+
+RetTy TypeAnalysis::visitInt64TypeInst(Int64TypeInst &I) {
+  return &(Type::get_i64_type());
+}
+
+RetTy TypeAnalysis::visitInt32TypeInst(Int32TypeInst &I) {
+  return &(Type::get_i32_type());
+}
+
+RetTy TypeAnalysis::visitInt16TypeInst(Int16TypeInst &I) {
+  return &(Type::get_i16_type());
+}
+
+RetTy TypeAnalysis::visitInt8TypeInst(Int8TypeInst &I) {
+  return &(Type::get_i8_type());
+}
+
+RetTy TypeAnalysis::visitBoolTypeInst(BoolTypeInst &I) {
+  return &(Type::get_bool_type());
 }
 
 RetTy TypeAnalysis::visitFloatTypeInst(FloatTypeInst &I) {
