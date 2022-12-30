@@ -9,7 +9,7 @@ namespace llvm::memoir {
       static_cast<CLASS_TO_VISIT &>(I));
 
 template <typename SubClass, typename RetTy = void>
-struct InstVisitor : llvm::InstVisitor<SubClass, RetTy> {
+struct InstVisitor : llvm::InstVisitor<llvm::memoir::InstVisitor, RetTy> {
 public:
   RetTy visitCallInst(llvm::CallInst &I) {
     static_assert(std::is_base_of<InstVisitor, SubClass>::value,
@@ -36,37 +36,38 @@ public:
   RetTy visitMemOIRInst(MemOIRInst &I) {
     DELEGATE(Instruction);
   };
-#define HANDLE_INST(ENUM, FUNC, CLASS) RetTy visit##CLASS(CLASS##Inst &I);
-  RetTy visitTypeInst(TypeInst &I) {
-    DELEGATE(Instruction);
-  };
-#define HANDLE_TYPE_INST(ENUM, FUNC, CLASS)                                    \
-  RetTy visit##CLASS(CLASS##Inst &I) {                                         \
-    DELEGATE(TypeInst);                                                        \
-  };
-#define HANDLE_ALLOC_INST(ENUM, FUNC, CLASS)                                   \
-  RetTy visit##CLASS(CLASS##Inst &I) {                                         \
-    DELEGATE(AllocInst);                                                       \
-  };
   RetTy visitAccessInst(AccessInst &I) {
     DELEGATE(Instruction);
   };
   RetTy visitReadInst(ReadInst &I) {
     DELEGATE(AccessInst);
   };
+  RetTy visitWriteInst(WriteInst &I) {
+    DELEGATE(AccessInst);
+  };
+  RetTy visitGetInst(GetInst &I) {
+    DELEGATE(AccessInst);
+  };
+  RetTy visitTypeInst(TypeInst &I) {
+    DELEGATE(Instruction);
+  };
+#define HANDLE_INST(ENUM, FUNC, CLASS) // Stubs for base classes
+  RetTy visit##CLASS(CLASS##Inst &I);
+#define HANDLE_TYPE_INST(ENUM, FUNC, CLASS)                                    \
+  RetTy visit##CLASS##Inst(CLASS##Inst &I) {                                   \
+    DELEGATE(TypeInst);                                                        \
+  };
+#define HANDLE_ALLOC_INST(ENUM, FUNC, CLASS)                                   \
+  RetTy visit##CLASS(CLASS##Inst &I) {                                         \
+    DELEGATE(AllocInst);                                                       \
+  };
 #define HANDLE_READ_INST(ENUM, FUNC, CLASS)                                    \
   RetTy visit##CLASS(CLASS##Inst &I) {                                         \
     DELEGATE(ReadInst);                                                        \
   };
-  RetTy visitWriteInst(WriteInst &I) {
-    DELEGATE(AccessInst);
-  };
 #define HANDLE_WRITE_INST(ENUM, FUNC, CLASS)                                   \
   RetTy visit##CLASS(CLASS##Inst &I) {                                         \
     DELEGATE(WriteInst);                                                       \
-  };
-  RetTy visitGetInst(GetInst &I) {
-    DELEGATE(AccessInst);
   };
 #define HANDLE_GET_INST(ENUM, FUNC, CLASS)                                     \
   RetTy visit##CLASS(CLASS##Inst &I) {                                         \
@@ -75,7 +76,7 @@ public:
 #include "memoir/ir/Instructions.def"
 
 protected:
-}; // namespace llvm::memoir
+};
 
 } // namespace llvm::memoir
 
