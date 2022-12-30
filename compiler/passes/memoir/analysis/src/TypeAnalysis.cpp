@@ -33,6 +33,21 @@ RetTy *TypeAnalysis::getType(llvm::Value &V) {
 }
 
 /*
+ * Helper macros
+ */
+#define CHECK_MEMOIZED(I)                                                      \
+  /* See if an existing type exists, if it does, early return. */              \
+  if (auto found = this->find_existing(I)) {                                   \
+    return found;                                                              \
+  }
+
+#define MEMOIZE_AND_RETURN(I, T)                                               \
+  /* Memoize the type */                                                       \
+  this->memoize(I, type);                                                      \
+  /* Return */                                                                 \
+  return &type
+
+/*
  * TypeInsts
  */
 RetTy TypeAnalysis::visitIntegerTypeInst(IntegerTypeInst &I) {
@@ -80,12 +95,7 @@ RetTy TypeAnalysis::visitReferenceTypeInst(ReferenceTypeInst &I) {
 }
 
 RetTy TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
-  /*
-   * See if an existing type exisits.
-   */
-  if (auto found = this->find_existing(I)) {
-    return found;
-  }
+  CHECK_MEMOIZED(I);
 
   /*
    * Get the types of each field.
@@ -100,20 +110,11 @@ RetTy TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
    */
   auto &type = StructType::define(I.getCallInst(), I.getName(), field_types);
 
-  /*
-   * Memoize and return
-   */
-  this->memoize(I, type);
-  return &type;
+  MEMOIZE_AND_RETURN(I, type);
 }
 
 RetTy TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
-  /*
-   * See if an existing type exisits.
-   */
-  if (auto found = this->find_existing(I)) {
-    return found;
-  }
+  CHECK_MEMOIZED(I);
 
   /*
    * Get all users of the given name.
@@ -142,8 +143,9 @@ RetTy TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
 
       if (func_enum == MemOIR_Func::DEFINE_STRUCT_TYPE) {
         auto defined_type = this->getType(call);
-        this->memoize(I, defined_type);
-        return defined_type;
+        MEMOIR_NULL_CHECK(defined_type,
+                          "Could not determine the defined struct type");
+        MEMOIZE_AND_RETURN(I, *defined_type);
       }
     }
   }
@@ -153,12 +155,7 @@ RetTy TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
 }
 
 RetTy TypeAnalysis::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
-  /*
-   * See if an existing type exisits.
-   */
-  if (auto found = this->find_existing(I)) {
-    return found;
-  }
+  CHECK_MEMOIZED(I);
 
   /*
    * Get the length of dimensions
@@ -175,93 +172,118 @@ RetTy TypeAnalysis::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
                                      I.getNumberOfDimensions(),
                                      length_of_dimensions);
 
-  /*
-   * Memoize and return.
-   */
-  this->memoize(I, type);
-  return &type;
+  MEMOIZE_AND_RETURN(I, type);
 }
 
 RetTy TypeAnalysis::visitTensorTypeInst(TensorTypeInst &I) {
-  /*
-   * See if an existing type exisits.
-   */
-  if (auto found = this->find_existing(I)) {
-    return found;
-  }
+  CHECK_MEMOIZED(I);
 
   /*
    * Build the TensorType.
    */
   auto &type = TensorType::get(I.getElementType(), I.getNumberOfDimensions());
 
-  /*
-   * Memoize and return.
-   */
-  this->memoize(I, type);
-  return &type;
+  MEMOIZE_AND_RETURN(I, type);
 }
 
 RetTy TypeAnalysis::visitAssocArrayTypeInst(AssocArrayTypeInst &I) {
-  /*
-   * See if an existing type exisits.
-   */
-  if (auto found = this->find_existing(I)) {
-    return found;
-  }
+  CHECK_MEMOIZED(I);
 
   /*
    * Build the AssocArrayType.
    */
   auto &type = AssocArrayType::get(I.getKeyType(), I.getValueType());
 
-  /*
-   * Memoize and return.
-   */
-  this->memoize(I, type);
-  return &type;
+  MEMOIZE_AND_RETURN(I, type);
 }
 
 RetTy TypeAnalysis::visitSequenceTypeInst(SequenceTypeInst &I) {
-  /*
-   * See if an existing type exisits.
-   */
-  if (auto found = this->find_existing(I)) {
-    return found;
-  }
+  CHECK_MEMOIZED(I);
 
   /*
    * Build the SequenceType.
    */
   auto &type = SequenceType::get(I.getElementType());
 
-  /*
-   * Memoize and return.
-   */
-  this->memoize(I, type);
-  return &type;
+  MEMOIZE_AND_RETURN(I, type);
 }
 
 /*
  * AllocInsts
  */
+RetTy TypeAnalysis::visitStructAllocInst(StructAllocInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Recurse on the type operand.
+   */
+  auto type = this->getType(I.getTypeOperand());
+
+  MEMOIR_NULL_CHECK(type,
+                    "Could not determine the struct type being allocated");
+
+  MEMOIZE_AND_RETURN(I, *type);
+}
+
+RetTy TypeAnalysis::TensorAllocInst(TensorAllocInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the element type.
+   */
+  auto element_type = this->getType(I.getElementOperand());
+  MEMOIR_NULL_CHECK(element_type, "Element type of tensor allocation is NULL");
+
+  /*
+   * Build the TensorType.
+   */
+  auto &type = Type::get_tensor_type(*element_type, I.getNumberOfDimensions());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+RetTy TypeAnalysis::AssocArrayAllocInst(TensorAllocInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the Key and Value types.
+   */
+  auto key_type = this->getType(I.getKeyOperand());
+  MEMOIR_NULL_CHECK(key_type, "Key type of assoc array allocation is NULL");
+  auto value_type = this->getType(I.getValueOperand());
+  MEMOIR_NULL_CHECK(value_type, "Value type of assoc array allocation is NULL");
+
+  /*
+   * Build the AssocArrayType.
+   */
+  auto &type = Type::get_assoc_array_type(*key_type, *value_type);
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+RetTy TypeAnalysis::SequenceAllocInst(TensorAllocInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the element type.
+   */
+  auto element_type = this->getType(I.getElementOperand());
+  MEMOIR_NULL_CHECK(element_type, "Element type of sequence is NULL");
+
+  MEMOIZE_AND_RETURN(I, type);
+}
 
 /*
- * LLVM Insts
+ * LLVM Instructions
  */
-RetTy TypeAnalysis::visitLoadInst(llvm::LoadInst &load_inst) {
-  /*
-   * See if an existing type exisits.
-   */
-  if (auto found = this->find_existing(I)) {
-    return found;
-  }
+RetTy TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
+  CHECK_MEMOIZED(I);
 
   /*
    * If we have load instruction, trace back to its
    *   global variable and find the original store to it.
    */
-  auto load_ptr = load_inst->getPointerOperand();
+  auto load_ptr = I.getPointerOperand();
 
   auto global = dyn_cast<GlobalVariable>(load_ptr);
   if (!global) {
@@ -285,7 +307,11 @@ RetTy TypeAnalysis::visitLoadInst(llvm::LoadInst &load_inst) {
     if (auto store_inst = dyn_cast<StoreInst>(user)) {
       auto store_value = store_inst->getValueOperand();
 
-      return this->getType(store_value);
+      auto stored_type = this->getType(store_value);
+      MEMOIR_NULL_CHECK(stored_type,
+                        "Could not determine the type being loaded");
+
+      MEMOIZE_AND_RETURN(I, stored_type);
     }
   }
 }
