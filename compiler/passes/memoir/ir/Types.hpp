@@ -55,6 +55,9 @@ public:
   static DoubleType &get_f64_type();
   static PointerType &get_ptr_type();
   static ReferenceType &get_ref_type(Type &referenced_type);
+  static StructType &define_struct_type(llvm::CallInst &call_inst,
+                                        const char *name,
+                                        vector<Type *> field_types);
   static StructType &get_struct_type(const char *name);
   static StaticTensorType &get_static_tensor_type(
       Type &element_type,
@@ -154,7 +157,9 @@ protected:
 
 struct StructType : public Type {
 public:
-  static StructType &define(std::string name, vector<Type *> field_types);
+  static StructType &define(llvm::CallInst &call_inst,
+                            std::string name,
+                            vector<Type *> field_types);
   static StructType &get(std::string name);
 
   llvm::CallInst &getCallInst() const;
@@ -171,8 +176,8 @@ protected:
 
   static map<std::string, StructType *> defined_types;
 
-  StructType(std::string name,
-             llvm::CallInst &call_inst,
+  StructType(llvm::CallInst &call_inst,
+             std::string name,
              vector<Type *> field_types);
 
   friend class TypeAnalysis;
