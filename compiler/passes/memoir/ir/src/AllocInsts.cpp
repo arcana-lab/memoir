@@ -29,7 +29,7 @@ llvm::Use &StructAllocInst::getTypeOperandAsUse() const {
   return this->getCallInst().getOperandUse(0);
 }
 
-std::string StructAllocInst::toString(std::string indent = "") const {
+std::string StructAllocInst::toString(std::string indent) const {
   std::string str, llvm_str;
   llvm::raw_string_ostream llvm_ss(llvm_str);
   llvm_ss << this->getCallInst();
@@ -40,9 +40,9 @@ std::string StructAllocInst::toString(std::string indent = "") const {
 }
 
 /*
- * CollectionInst implementation
+ * CollectionAllocInst implementation
  */
-Type &CollectionInst::getType() const {
+Type &CollectionAllocInst::getType() const {
   return this->getCollectionType();
 }
 
@@ -60,8 +60,9 @@ CollectionType &TensorAllocInst::getCollectionType() const {
 }
 
 Type &TensorAllocInst::getElementType() const {
-  // TODO: run the TypeAnalysis
-  return;
+  auto type = TypeAnalysis::get().getType(this->getElementOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the element type");
+  return *type;
 }
 
 llvm::Value &TensorAllocInst::getElementOperand() const {
@@ -73,7 +74,7 @@ llvm::Use &TensorAllocInst::getElementOperandAsUse() const {
 }
 
 unsigned TensorAllocInst::getNumberOfDimensions() const {
-  auto num_dims_as_value = this->getNumberOfDimensionsOperand();
+  auto &num_dims_as_value = this->getNumberOfDimensionsOperand();
   auto num_dims_as_constant =
       dyn_cast<llvm::ConstantInt>(&num_dimensions_as_value);
   MEMOIR_NULL_CHECK(
@@ -108,7 +109,7 @@ llvm::Use &TensorAllocInst::getLengthOfDimensionOperandAsUse(
   return this->getCallInst().getArgOperandUse(2 + dimension_index);
 }
 
-std::string TensorAllocInst::toString(std::string indent = "") const {
+std::string TensorAllocInst::toString(std::string indent) const {
   std::string str, llvm_str;
   llvm::raw_string_ostream llvm_ss(llvm_str);
   llvm_ss << this->getCallInst();
@@ -131,12 +132,13 @@ CollectionType &AssocArrayAllocInst::getCollectionType() const {
 }
 
 Type &AssocArrayAllocInst::getKeyType() const {
-  // TODO: run the TypeAnalysis
-  return;
+  auto type = TypeAnalysis::get().getType(this->getKeyOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the Key type");
+  return *type;
 }
 
 llvm::Value &AssocArrayAllocInst::getKeyOperand() const {
-  return this->getKeyOperandAsUse().get();
+  return *(this->getKeyOperandAsUse().get());
 }
 
 llvm::Use &AssocArrayAllocInst::getKeyOperandAsUse() const {
@@ -144,19 +146,20 @@ llvm::Use &AssocArrayAllocInst::getKeyOperandAsUse() const {
 }
 
 Type &AssocArrayAllocInst::getValueType() const {
-  // TODO: run the TypeAnalysis
-  return;
+  auto type = TypeAnalysis::get().getType(this->getValueOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the Value type");
+  return *type;
 }
 
 llvm::Value &AssocArrayAllocInst::getValueOperand() const {
-  return this->getValueOperandAsUse().get();
+  return *(this->getValueOperandAsUse().get());
 }
 
 llvm::Use &AssocArrayAllocInst::getValueOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(1);
 }
 
-std::string AssocArrayAllocInst::toString(std::string indent = "") const {
+std::string AssocArrayAllocInst::toString(std::string indent) const {
   std::string str, llvm_str;
   llvm::raw_string_ostream llvm_ss(llvm_str);
   llvm_ss << this->getCallInst();
@@ -179,27 +182,28 @@ CollectionType &SequenceAllocInst::getCollectionType() const {
 }
 
 Type &SequenceAllocInst::getElementType() const {
-  // TODO: run the TypeAnalysis
-  return;
+  auto type = TypeAnalysis::get().getType(this->getElementOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the element type");
+  return *type;
 }
 
 llvm::Value &SequenceAllocInst::getElementOperand() const {
-  return this->getElementOperandAsUse().get();
+  return *(this->getElementOperandAsUse().get());
 }
 
 llvm::Use &SequenceAllocInst::getElementOperandAsUse() const {
-  return this->getCallInst().getArOperandUse(0);
+  return this->getCallInst().getArgOperandUse(0);
 }
 
 llvm::Value &SequenceAllocInst::getSizeOperand() const {
-  return this->getSizeOperandAsUse().get();
+  return *(this->getSizeOperandAsUse().get());
 }
 
 llvm::Use &SequenceAllocInst::getSizeOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(1);
 }
 
-std::string SequenceAllocInst::toString(std::string indent = "") const {
+std::string SequenceAllocInst::toString(std::string indent) const {
   std::string str, llvm_str;
   llvm::raw_string_ostream llvm_ss(llvm_str);
   llvm_ss << this->getCallInst();
