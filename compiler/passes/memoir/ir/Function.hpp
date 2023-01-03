@@ -17,6 +17,8 @@
  * Created: December 14, 2022
  */
 
+namespace llvm::memoir {
+
 struct MemOIRFunctionType {
 public:
   static MemOIRFunctionType &get(llvm::FunctionType &FT,
@@ -36,7 +38,7 @@ protected:
   // Borrowed state
   llvm::FunctionType &FT;
   Type *return_type;
-  vector<Type *> param_type;
+  vector<Type *> param_types;
 
   MemOIRFunctionType(llvm::FunctionType &FT,
                      Type *return_type,
@@ -60,7 +62,7 @@ public:
 
   unsigned getNumberOfArguments() const;
   Type *getArgumentType(unsigned arg_index) const;
-  llvm::Type *getArgumentLLVMType(unsigned arg_index);
+  llvm::Type *getArgumentLLVMType(unsigned arg_index) const;
   llvm::Argument &getArgument(unsigned arg_index) const;
   Type *getReturnType() const;
   llvm::Type *getReturnLLVMType() const;
@@ -79,8 +81,8 @@ protected:
 
   MemOIRFunction(llvm::Function &F);
   ~MemOIRFunction();
-
-  friend class MemOIRModule;
 };
+
+} // namespace llvm::memoir
 
 #endif
