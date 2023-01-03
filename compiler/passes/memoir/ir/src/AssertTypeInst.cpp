@@ -45,7 +45,6 @@ std::string AssertStructTypeInst::toString(std::string indent) const {
 /*
  * AssertCollectionTypeInst implementation
  */
-
 Type &AssertCollectionTypeInst::getType() const {
   return *(TypeAnalysis::get().getType(this->getTypeOperand()));
 }
