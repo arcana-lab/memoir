@@ -6,12 +6,11 @@ namespace llvm::memoir {
  * AssertStructTypeInst implementation
  */
 Type &AssertStructTypeInst::getType() const {
-  // TODO: call the TypeAnalysis
-  return;
+  return *(TypeAnalysis::get().getType(this->getTypeOperand()));
 }
 
 llvm::Value &AssertStructTypeInst::getTypeOperand() const {
-  return this->getTypeOperandAsUse().get();
+  return *(this->getTypeOperandAsUse().get());
 }
 
 llvm::Use &AssertStructTypeInst::getTypeOperandAsUse() const {
@@ -24,7 +23,7 @@ Struct &AssertStructTypeInst::getStruct() const {
 }
 
 llvm::Value &AssertStructTypeInst::getStructOperand() const {
-  return this->getStructOperandAsUse().get();
+  return *(this->getStructOperandAsUse().get());
 }
 
 llvm::Use &AssertStructTypeInst::getStructOperandAsUse() const {
@@ -46,12 +45,11 @@ std::string AssertStructTypeInst::toString(std::string indent = "") const {
  */
 
 Type &AssertCollectionTypeInst::getType() const {
-  // TODO: call the TypeAnalysis
-  return;
+  return *(TypeAnalysis::get().getType(this->getTypeOperand()));
 }
 
 llvm::Value &AssertCollectionTypeInst::getTypeOperand() const {
-  return this->getTypeOperandAsUse().get();
+  return *(this->getTypeOperandAsUse().get());
 }
 
 llvm::Use &AssertCollectionTypeInst::getTypeOperandAsUse() const {
@@ -64,7 +62,7 @@ Collection &AssertCollectionTypeInst::getCollection() const {
 }
 
 llvm::Value &AssertCollectionTypeInst::getCollectionOperand() const {
-  return this->getCollectionOperandAsUse().get();
+  return *(this->getCollectionOperandAsUse().get());
 }
 
 llvm::Use &AssertCollectionTypeInst::getCollectionOperandAsUse() const {
