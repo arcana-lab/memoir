@@ -25,8 +25,8 @@ MemOIRFunction::MemOIRFunction(llvm::Function &F) : F(F) {
   this->function_type = new MemOIRFunctionType(F.getFunctionType());
 }
 
-MemOIRModule &MemOIRFunction::getParent() const {
-  return MemOIRModule::get(this->F.getParent());
+llvm::Module &MemOIRFunction::getParent() const {
+  return this->getLLVMFunction()->getParent();
 }
 
 MemOIRFunctionType &MemOIRFunction::getFunctionType() const {
@@ -50,7 +50,7 @@ llvm::Type *MemOIRFunction::getArgumentLLVMType(unsigned arg_index) const {
 }
 
 llvm::Argument &MemOIRFunction::getArgument(unsigned arg_index) const {
-  return this->getLLVMFunction().getArg(arg_index);
+  return *(this->getLLVMFunction().arg_begin() + arg_index);
 }
 
 Type *MemOIRFunction::getReturnType() const {
@@ -70,6 +70,6 @@ MemOIRFunction::~MemOIRFunction() {
 }
 
 map<llvm::Function *, MemOIRFunction *>
-    MemOIRFunction::llvm_to_memoir_functions = {}
+    MemOIRFunction::llvm_to_memoir_functions = {};
 
 } // namespace llvm::memoir
