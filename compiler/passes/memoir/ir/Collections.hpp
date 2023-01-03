@@ -7,6 +7,7 @@
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 
+#include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/Types.hpp"
 
 namespace llvm::memoir {
@@ -22,7 +23,7 @@ enum CollectionCode {
   JOIN_PHI,
 };
 
-struct AllocInst;
+struct CollectionAllocInst;
 struct ReadInst;
 struct WriteInst;
 struct GetInst;
@@ -30,7 +31,7 @@ struct JoinInst;
 
 struct Collection {
 public:
-  virtual Type &getType() const = 0;
+  virtual CollectionType &getType() const = 0;
   virtual Type &getElementType() const = 0;
 
   CollectionCode getCode() const;
@@ -51,7 +52,7 @@ protected:
 
 struct BaseCollection : public Collection {
 public:
-  AllocInst &getAllocation() const;
+  CollectionAllocInst &getAllocation() const;
 
   CollectionType &getType() const override;
   Type &getElementType() const override;
@@ -60,9 +61,9 @@ public:
   std::string toString(std::string indent = "") const;
 
 protected:
-  AllocInst &allocation;
+  CollectionAllocInst &allocation;
 
-  BaseCollection(AllocInst &allocation);
+  BaseCollection(CollectionAllocInst &allocation);
 
   friend class CollectionAnalysis;
 };

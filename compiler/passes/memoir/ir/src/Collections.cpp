@@ -20,23 +20,26 @@ bool Collection::operator==(const Collection &other) const {
 
   switch (this->getCode()) {
     case CollectionCode::BASE:
-      return (static_cast<BaseCollection &>(*this)
-              == static_cast<BaseCollection &>(other));
+      return (static_cast<const BaseCollection &>(*this)
+              == static_cast<const BaseCollection &>(other));
     case CollectionCode::FIELD_ARRAY:
-      return (static_cast<FieldArray &>(*this)
-              == static_cast<FieldArray &>(other));
+      return (static_cast<const FieldArray &>(*this)
+              == static_cast<const FieldArray &>(other));
     case CollectionCode::NESTED:
-      return (static_cast<ControlPHI &>(*this)
-              == static_cast<ControlPHI &>(other));
+      return (static_cast<const ControlPHICollection &>(*this)
+              == static_cast<const ControlPHICollection &>(other));
     case CollectionCode::CONTROL_PHI:
-      return (static_cast<ControlPHI &>(*this)
-              == static_cast<ControlPHI &>(other));
+      return (static_cast<const ControlPHICollection &>(*this)
+              == static_cast<const ControlPHICollection &>(other));
     case CollectionCode::CALL_PHI:
-      return (static_cast<CallPHI &>(*this) == static_cast<CallPHI &>(other));
+      return (static_cast<const CallPHICollection &>(*this)
+              == static_cast<const CallPHICollection &>(other));
     case CollectionCode::DEF_PHI:
-      return (static_cast<DefPHI &>(*this) == static_cast<DefPHI &>(other));
+      return (static_cast<const DefPHICollection &>(*this)
+              == static_cast<const DefPHICollection &>(other));
     case CollectionCode::USE_PHI:
-      return (static_cast<UsePHI &>(*this) == static_cast<UsePHI &>(other));
+      return (static_cast<const UsePHICollection &>(*this)
+              == static_cast<const UsePHICollection &>(other));
     default:
       return true;
   }
@@ -55,13 +58,13 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Collection &C) {
 /*
  * BaseCollection implementation
  */
-BaseCollection::BaseCollection(CollectionAllocation &allocation)
+BaseCollection::BaseCollection(CollectionAllocInst &allocation)
   : allocation(allocation),
     Collection(CollectionCode::BASE) {
   // Do nothing.
 }
 
-AllocInst &BaseCollection::getAllocation() const {
+CollectionAllocInst &BaseCollection::getAllocation() const {
   return this->allocation;
 }
 
@@ -74,18 +77,30 @@ Type &BaseCollection::getElementType() const {
 }
 
 bool BaseCollection::operator==(const BaseCollection &other) const {
-  return getAllocation() == other.getAllocation();
+  return &(this->getAllocation()) == &(other.getAllocation());
 }
 
-std::string BaseCollection::toString(std::string indent = "") const {
+std::string BaseCollection::toString(std::string indent) const {
   return "base collection";
 }
 
 /*
  * FieldArray implementation
  */
-FieldArray &FieldArray::get(Type &struct_type, unsigned field_index) {
-  return struct_type.getFieldArray(field_index);
+FieldArray &FieldArray::get(StructType &struct_type, unsigned field_index) {
+  return FieldArray::get(FieldArrayType::get(struct_type, field_index));
+}
+
+FieldArray &FieldArray::get(FieldArrayType &type) {
+  auto found = FieldArray::field_array_type_to_field_array.find(&type);
+  if (found != FieldArray::field_array_type_to_field_array.end()) {
+    return *(found->second);
+  }
+
+  auto new_field_array = new FieldArray(type);
+  FieldArray::field_array_type_to_field_array[&type] = new_field_array;
+
+  return *new_field_array;
 }
 
 FieldArray::FieldArray(FieldArrayType &field_array_type)
@@ -98,7 +113,7 @@ CollectionType &FieldArray::getType() const {
   return this->type;
 }
 
-Type &FieldArray::getStructType() const {
+StructType &FieldArray::getStructType() const {
   return this->type.getStructType();
 }
 
@@ -106,16 +121,16 @@ unsigned FieldArray::getFieldIndex() const {
   return this->type.getFieldIndex();
 }
 
-Type &Type::getElementType() const {
+Type &FieldArray::getElementType() const {
   return this->type.getElementType();
 }
 
 bool FieldArray::operator==(const FieldArray &other) const {
-  return (this->getIndex() == other.getIndex())
-         && (this->getType() == other.getType());
+  return (this->getFieldIndex() == other.getFieldIndex())
+         && (&(this->getType()) == &(other.getType()));
 }
 
-std::string FieldArray::toString(std::string indent = "") const {
+std::string FieldArray::toString(std::string indent) const {
   return "field array";
 }
 
@@ -209,7 +224,7 @@ bool ControlPHICollection::operator==(const ControlPHI &other) const {
   return &(this->getPHI()) == &(other.getPHI());
 }
 
-std::string ControlPHICollection::toString(std::string indent = "") const {
+std::string ControlPHICollection::toString(std::string indent) const {
   return "control PHI";
 }
 
@@ -282,50 +297,56 @@ Type &CallPHICollection::getElementType() const {
 /*
  * DefPHI implementation
  */
-DefPHICollection::DefPHICollection(Collection &collection, WriteInst *access)
-  : collection(collection),
-    access(access),
+DefPHICollection::DefPHICollection(WriteInst &access)
+  : access(access),
     Collection(CollectionCode::DEF_PHI) {
   // Do nothing.
 }
 
 Collection &DefPHICollection::getCollection() const {
-  return this->collection;
+  return this->getAccess().getCollectionAccessed();
 }
 
-Access &DefPHICollection::getAccess() const {
+WriteInst &DefPHICollection::getAccess() const {
   return this->access;
+}
+
+CollectionType &DefPHICollection::getType() const {
+  return this->getCollection().getType();
 }
 
 Type &DefPHICollection::getElementType() const {
   return this->getCollection().getElementType();
 }
 
-bool DefPHICollection::operator==(const DefPHI &other) const {
-  return (this->getCollection() == other.getCollection())
-         && (this->getAccess() == other.getAccess());
+bool DefPHICollection::operator==(const DefPHICollection &other) const {
+  return (&(this->getCollection()) == &(other.getCollection()))
+         && (&(this->getAccess()) == &(other.getAccess()));
 }
 
-std::string DefPHICollection::toString(std::string indent = "") const {
+std::string DefPHICollection::toString(std::string indent) const {
   return "def PHI";
 }
 
 /*
  * UsePHI implementation
  */
-UsePHICollection::UsePHICollection(Collection &collection, Access &access)
-  : collection(collection),
-    access(access),
+UsePHICollection::UsePHICollection(ReadInst &access)
+  : access(access),
     Collection(CollectionCode::USE_PHI) {
   // Do nothing.
 }
 
 Collection &UsePHICollection::getCollection() const {
-  return this->collection;
+  return this->getAccess().getCollectionAccessed();
 }
 
-Access &UsePHICollection::getAccess() const {
+ReadInst &UsePHICollection::getAccess() const {
   return this->access;
+}
+
+CollectionType &UsePHICollection::getType() const {
+  return this->getCollection().getType();
 }
 
 Type &UsePHICollection::getElementType() const {
@@ -337,7 +358,7 @@ bool UsePHICollection::operator==(const UsePHI &other) const {
          && (this->getAccess() == other.getAccess());
 }
 
-std::string UsePHICollection::toString(std::string indent = "") const {
+std::string UsePHICollection::toString(std::string indent) const {
   return "use PHI";
 }
 
