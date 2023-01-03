@@ -35,6 +35,7 @@ class DoubleType;
 class PointerType;
 class ReferenceType;
 class StructType;
+class FieldArrayType;
 class StaticTensorType;
 class TensorType;
 class AssocArrayType;
@@ -59,6 +60,8 @@ public:
                                         const char *name,
                                         vector<Type *> field_types);
   static StructType &get_struct_type(const char *name);
+  static FieldArrayType &get_field_array_type(StructType &type,
+                                              unsigned field_index);
   static StaticTensorType &get_static_tensor_type(
       Type &element_type,
       vector<size_t> dimension_lengths);
@@ -195,6 +198,8 @@ protected:
 
 struct FieldArrayType : public CollectionType {
 public:
+  static FieldArrayType &get(StructType &struct_type, unsigned field_index);
+
   Type &getElementType() const override;
 
   StructType &getStructType() const;
@@ -203,6 +208,9 @@ public:
 protected:
   StructType &struct_type;
   unsigned field_index;
+
+  static map<StructType *, map<unsigned, FieldArrayType *>>
+      struct_to_field_array;
 
   FieldArrayType(StructType &struct_type, unsigned field_index);
 };

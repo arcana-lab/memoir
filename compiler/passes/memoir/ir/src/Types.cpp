@@ -110,6 +110,24 @@ StructType &StructType::get(std::string name) {
   return;
 }
 
+FieldArrayType &Type::get_field_array_type(StructType &struct_type,
+                                           unsigned field_index) {
+  return FieldArrayType::get(struct_type, field_index);
+}
+
+FieldArrayType &FieldArrayType::get(StructType &struct_type,
+                                    unsigned field_index) {
+  auto found_struct = FieldArrayType::struct_to_field_array.find(&struct_type);
+  if (found_struct != FieldArrayType::struct_to_field_array.end()) {
+    return *(found_struct->second());
+  }
+
+  auto type = new FieldArrayType(struct_type, field_index);
+  FieldArrayType::struct_to_field_array[&struct_type] = type;
+
+  return *type;
+}
+
 /*
  * Static checker methods
  */
