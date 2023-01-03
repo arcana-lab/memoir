@@ -62,6 +62,10 @@ llvm::CallInst &MemOIRInst::getCallInst() const {
   return this->call_inst;
 }
 
+MemOIR_Func MemOIRInst::getKind() const {
+  return this->memoir_enum;
+}
+
 /*
  * Constructors
  */

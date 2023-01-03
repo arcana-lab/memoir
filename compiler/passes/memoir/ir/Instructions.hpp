@@ -40,6 +40,7 @@ public:
 
   MemOIRFunction &getFunction() const;
   llvm::CallInst &getCallInst() const;
+  MemOIR_Func getKind() const;
 
   friend std::ostream &operator<<(std::ostream &os, const MemOIRInst &I);
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
@@ -47,7 +48,7 @@ public:
   virtual std::string toString(std::string indent = "") const = 0;
 
 protected:
-  MemOIR_Func memoir_enum;
+  const MemOIR_Func memoir_enum;
   llvm::CallInst &call_inst;
 
   MemOIRInst(MemOIR_Func memoir_enum, llvm::CallInst &call_inst);
@@ -62,6 +63,13 @@ struct TypeInst : public MemOIRInst {
 public:
   virtual Type &getType() const = 0;
 
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_TYPE_INST(ENUM, FUNC, CLASS)                                    \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -71,6 +79,10 @@ protected:
 struct UInt64TypeInst : public TypeInst {
 public:
   Type &getType() const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::UINT64_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -82,6 +94,10 @@ struct UInt32TypeInst : public TypeInst {
 public:
   Type &getType() const override;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::UINT32_TYPE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -91,6 +107,10 @@ protected:
 struct UInt16TypeInst : public TypeInst {
 public:
   Type &getType() const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::UINT16_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -102,6 +122,10 @@ struct UInt8TypeInst : public TypeInst {
 public:
   Type &getType() const override;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::UINT8_TYPE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -111,6 +135,10 @@ protected:
 struct Int64TypeInst : public TypeInst {
 public:
   Type &getType() const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::INT64_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -122,6 +150,10 @@ struct Int32TypeInst : public TypeInst {
 public:
   Type &getType() const override;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::INT32_TYPE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -131,6 +163,10 @@ protected:
 struct Int16TypeInst : public TypeInst {
 public:
   Type &getType() const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::INT16_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -142,6 +178,10 @@ struct Int8TypeInst : public TypeInst {
 public:
   Type &getType() const override;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::INT8_TYPE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -151,6 +191,10 @@ protected:
 struct BoolTypeInst : public TypeInst {
 public:
   Type &getType() const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::BOOL_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -162,6 +206,10 @@ struct FloatTypeInst : public TypeInst {
 public:
   Type &getType() const override;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::FLOAT_TYPE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -172,6 +220,10 @@ struct DoubleTypeInst : public TypeInst {
 public:
   Type &getType() const override;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::DOUBLE_TYPE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -181,6 +233,10 @@ protected:
 struct PointerTypeInst : public TypeInst {
 public:
   Type &getType() const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::POINTER_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -194,6 +250,10 @@ public:
   Type &getReferencedType() const;
   llvm::Value &getReferencedTypeOperand() const;
   llvm::Use &getReferencedTypeAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::REFERENCE_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -214,6 +274,10 @@ public:
   llvm::Value &getFieldTypeOperand(unsigned field_index) const;
   llvm::Use &getFieldTypeOperandAsUse(unsigned field_index) const;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::DEFINE_STRUCT_TYPE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -226,6 +290,10 @@ public:
   std::string getName() const;
   llvm::Value &getNameOperand() const;
   llvm::Use &getNameOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::STRUCT_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -246,6 +314,10 @@ public:
   llvm::Value &getNumberOfDimensionsOperand(unsigned dimension_index) const;
   llvm::Use &getNumberOfDimensionsOperandAsUse(unsigned dimension_index) const;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::STATIC_TENSOR_TYPE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -261,6 +333,10 @@ public:
   unsigned getNumberOfDimensions() const;
   llvm::Value &getNumberOfDimensionsOperand() const;
   llvm::Use &getNumberOfDimensionsOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::TENSOR_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -278,6 +354,10 @@ public:
   llvm::Value &getValueOperand() const;
   llvm::Use &getValueOperandAsUse() const;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::ASSOC_ARRAY_TYPE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -290,6 +370,10 @@ public:
   Type &getElementType() const;
   llvm::Value &getElementOperand() const;
   llvm::Use &getElementOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::SEQUENCE_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -305,6 +389,14 @@ public:
   llvm::Value &getAllocation() const;
   virtual Type &getType() const = 0;
 
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_ALLOC_INST(ENUM, FUNC, CLASS)                                   \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
+        false;
+  };
+
 protected:
   AllocInst(llvm::CallInst &call_inst);
 };
@@ -318,6 +410,10 @@ public:
   llvm::Value &getTypeOperand() const;
   llvm::Use &getTypeOperandAsUse() const;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::ALLOCATE_STRUCT);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -328,6 +424,14 @@ struct CollectionAllocInst : public AllocInst {
 public:
   virtual Collection &getCollection() const = 0;
   virtual CollectionType &getCollectionType() const = 0;
+
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_COLLECTION_ALLOC_INST(ENUM, FUNC, CLASS)                        \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
+        false;
+  };
 
   Type &getType() const override;
 
@@ -349,6 +453,10 @@ public:
   llvm::Value &getLengthOfDimensionOperand(unsigned dimension_index) const;
   llvm::Use &getLengthOfDimensionOperandAsUse(unsigned dimension_index) const;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::ALLOCATE_TENSOR);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -368,6 +476,10 @@ public:
   llvm::Value &getValueOperand() const;
   llvm::Use &getValueOperandAsUse() const;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::ALLOCATE_ASSOC_ARRAY);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -386,6 +498,10 @@ public:
   llvm::Value &getSizeOperand() const;
   llvm::Use &getSizeOperandAsUse() const;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::ALLOCATE_SEQUENCE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -402,6 +518,13 @@ public:
   virtual llvm::Value &getObjectOperand() const = 0;
   virtual llvm::Use &getObjectOperandAsUse() const = 0;
 
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_ACCESS_INST(ENUM, FUNC, CLASS)                                  \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
+
 protected:
   AccessInst(llvm::CallInst &call_inst);
 };
@@ -414,6 +537,13 @@ public:
   llvm::Value &getValueRead() const;
   llvm::Value &getObjectOperand() const override;
   llvm::Use &getObjectOperandAsUse() const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_READ_INST(ENUM, FUNC, CLASS)                                    \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -432,6 +562,13 @@ public:
   llvm::Value &getFieldIndexOperand() const;
   llvm::Use &getFieldIndexOperandAsUse() const;
 
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_STRUCT_READ_INST(ENUM, FUNC, CLASS)                             \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -446,6 +583,13 @@ public:
   llvm::Value &getIndexOfDimension(unsigned dim_idx) const;
   llvm::Use &getIndexOfDimensionAsUse(unsigned dim_idx) const;
 
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_INDEX_READ_INST(ENUM, FUNC, CLASS)                              \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -458,6 +602,13 @@ public:
 
   llvm::Value &getKeyOperand() const;
   llvm::Use &getKeyOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_ASSOC_READ_INST(ENUM, FUNC, CLASS)                              \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -474,6 +625,13 @@ public:
   llvm::Use &getValueWrittenAsUse() const;
   llvm::Value &getObjectOperand() const override;
   llvm::Use &getObjectOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_WRITE_INST(ENUM, FUNC, CLASS)                                   \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -492,6 +650,13 @@ public:
   llvm::Value &getFieldIndexOperand() const;
   llvm::Use &getFieldIndexOperandAsUse() const;
 
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_STRUCT_WRITE_INST(ENUM, FUNC, CLASS)                            \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -506,6 +671,13 @@ public:
   llvm::Value &getIndexOfDimension(unsigned dim_idx) const;
   llvm::Use &getIndexOfDimensionAsUse(unsigned dim_idx) const;
 
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_INDEX_WRITE_INST(ENUM, FUNC, CLASS)                             \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -518,6 +690,13 @@ public:
 
   llvm::Value &getKeyOperand() const;
   llvm::Use &getKeyOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_ASSOC_WRITE_INST(ENUM, FUNC, CLASS)                             \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -534,6 +713,13 @@ public:
   llvm::Value &getObjectOperand() const override;
   llvm::Use &getObjectOperandAsUse() const;
 
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_GET_INST(ENUM, FUNC, CLASS)                                     \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -547,6 +733,13 @@ public:
   unsigned getFieldIndex() const;
   llvm::Value &getFieldIndexOperand() const;
   llvm::Use &getFieldIndexOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_STRUCT_GET_INST(ENUM, FUNC, CLASS)                              \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -562,6 +755,13 @@ public:
   llvm::Value &getIndexOperand(unsigned dim_idx) const;
   llvm::Use &getIndexOperandAsUse(unsigned dim_idx) const;
 
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_INDEX_GET_INST(ENUM, FUNC, CLASS)                               \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -574,6 +774,13 @@ public:
 
   llvm::Value &getKeyOperand() const;
   llvm::Use &getKeyOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_ASSOC_GET_INST(ENUM, FUNC, CLASS)                               \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+        false;
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -590,6 +797,10 @@ public:
   llvm::Value &getStructOperand() const;
   llvm::Use &getStructOperandAsUse() const;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::DELETE_STRUCT);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -601,6 +812,10 @@ public:
   Collection &getCollectionDeleted() const;
   llvm::Value &getCollectionOperand() const;
   llvm::Use &getCollectionOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::DELETE_COLLECTION);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -619,6 +834,10 @@ public:
   Collection &getCollectionJoined(unsigned join_index) const;
   llvm::Value &getJoinedOperand(unsigned join_index) const;
   llvm::Use &getJoinedOperandAsUse(unsigned join_index) const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::JOIN);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -641,6 +860,10 @@ public:
   llvm::Value &getEndIndex() const;
   llvm::Use &getEndIndexAsUse() const;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::SLICE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -656,9 +879,13 @@ public:
   llvm::Value &getTypeOperand() const;
   llvm::Use &getTypeOperandAsUse() const;
 
-  Struct &getStruct();
+  Struct &getStruct() const;
   llvm::Value &getStructOperand() const;
   llvm::Use &getStructOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::ASSERT_STRUCT_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
@@ -676,6 +903,10 @@ public:
   llvm::Value &getCollectionOperand() const;
   llvm::Use &getCollectionOperandAsUse() const;
 
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::ASSERT_COLLECTION_TYPE);
+  };
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -687,6 +918,10 @@ public:
   Type &getType() const;
   llvm::Value &getTypeOperand() const;
   llvm::Use &getTypeOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::SET_RETURN_TYPE);
+  };
 
   std::string toString(std::string indent = "") const override;
 
