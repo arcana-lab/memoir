@@ -8,7 +8,7 @@ TypeAnalysis::TypeAnalysis() {
   // Do nothing.
 }
 
-RetTy *TypeAnalysis::getType(llvm::Value &V) {
+Type *TypeAnalysis::getType(llvm::Value &V) {
   /*
    * Trace back the value to find the associated
    *   Type, if it exists.
@@ -34,78 +34,83 @@ RetTy *TypeAnalysis::getType(llvm::Value &V) {
 /*
  * Helper macros
  */
-#define CHECK_MEMOIZED(I)                                                      \
+#define CHECK_MEMOIZED(V)                                                      \
   /* See if an existing type exists, if it does, early return. */              \
-  if (auto found = this->find_existing(I)) {                                   \
+  if (auto found = this->findExisting(V)) {                                    \
     return found;                                                              \
   }
 
-#define MEMOIZE_AND_RETURN(I, T)                                               \
+#define MEMOIZE_AND_RETURN(V, T)                                               \
   /* Memoize the type */                                                       \
-  this->memoize(I, type);                                                      \
+  this->memoize(V, T);                                                         \
   /* Return */                                                                 \
-  return &type
+  return T
+
+/*
+ * Base case
+ */
+Type *TypeAnalysis::visitInstruction(llvm::Instruction &I) {
+  return nullptr;
+}
 
 /*
  * TypeInsts
  */
-RetTy TypeAnalysis::visitUInt64TypeInst(UInt64TypeInst &I) {
+Type *TypeAnalysis::visitUInt64TypeInst(UInt64TypeInst &I) {
   return &(Type::get_u64_type());
 }
 
-RetTy TypeAnalysis::visitUInt32TypeInst(UInt32TypeInst &I) {
+Type *TypeAnalysis::visitUInt32TypeInst(UInt32TypeInst &I) {
   return &(Type::get_u32_type());
 }
 
-RetTy TypeAnalysis::visitUInt16TypeInst(UInt16TypeInst &I) {
+Type *TypeAnalysis::visitUInt16TypeInst(UInt16TypeInst &I) {
   return &(Type::get_u16_type());
 }
 
-RetTy TypeAnalysis::visitUInt8TypeInst(UInt8TypeInst &I) {
+Type *TypeAnalysis::visitUInt8TypeInst(UInt8TypeInst &I) {
   return &(Type::get_u8_type());
 }
 
-RetTy TypeAnalysis::visitInt64TypeInst(Int64TypeInst &I) {
+Type *TypeAnalysis::visitInt64TypeInst(Int64TypeInst &I) {
   return &(Type::get_i64_type());
 }
 
-RetTy TypeAnalysis::visitInt32TypeInst(Int32TypeInst &I) {
+Type *TypeAnalysis::visitInt32TypeInst(Int32TypeInst &I) {
   return &(Type::get_i32_type());
 }
 
-RetTy TypeAnalysis::visitInt16TypeInst(Int16TypeInst &I) {
+Type *TypeAnalysis::visitInt16TypeInst(Int16TypeInst &I) {
   return &(Type::get_i16_type());
 }
 
-RetTy TypeAnalysis::visitInt8TypeInst(Int8TypeInst &I) {
+Type *TypeAnalysis::visitInt8TypeInst(Int8TypeInst &I) {
   return &(Type::get_i8_type());
 }
 
-RetTy TypeAnalysis::visitBoolTypeInst(BoolTypeInst &I) {
-  return &(Type::get_bool_type());
+Type *TypeAnalysis::visitBoolTypeInst(BoolTypeInst &I) {
+  return &(Type::get_i1_type());
 }
 
-RetTy TypeAnalysis::visitFloatTypeInst(FloatTypeInst &I) {
+Type *TypeAnalysis::visitFloatTypeInst(FloatTypeInst &I) {
   return &(Type::get_f32_type());
 }
 
-RetTy TypeAnalysis::visitDoubleTypeInst(DoubleTypeInst &I) {
+Type *TypeAnalysis::visitDoubleTypeInst(DoubleTypeInst &I) {
   return &(Type::get_f64_type());
 }
 
-RetTy TypeAnalysis::visitPointerTypeInst(PointerTypeInst &I) {
+Type *TypeAnalysis::visitPointerTypeInst(PointerTypeInst &I) {
   return &(Type::get_ptr_type());
 }
 
-RetTy TypeAnalysis::visitReferenceTypeInst(ReferenceTypeInst &I) {
-  auto referenced_type = I.getReferencedType();
-  MEMOIR_NULL_CHECK(referenced_type,
-                    "Referenced type is an unknown LLVM Value");
+Type *TypeAnalysis::visitReferenceTypeInst(ReferenceTypeInst &I) {
+  auto &referenced_type = I.getReferencedType();
 
-  return &(Type::get_ref_type(*referenced_type));
+  return &(Type::get_ref_type(referenced_type));
 }
 
-RetTy TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
+Type *TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -113,7 +118,7 @@ RetTy TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
    */
   vector<Type *> field_types;
   for (auto field_idx = 0; field_idx < I.getNumberOfFields(); field_idx++) {
-    field_types.push_back(I.getFieldType(field_idx));
+    field_types.push_back(&(I.getFieldType(field_idx)));
   }
 
   /*
@@ -121,10 +126,10 @@ RetTy TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
    */
   auto &type = StructType::define(I.getCallInst(), I.getName(), field_types);
 
-  MEMOIZE_AND_RETURN(I, type);
+  MEMOIZE_AND_RETURN(I, &type);
 }
 
-RetTy TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
+Type *TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -137,7 +142,7 @@ RetTy TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
     if (auto *user_as_call = dyn_cast<llvm::CallInst>(user)) {
       call_inst_users.insert(user_as_call);
     } else if (auto *user_as_gep = dyn_cast<llvm::GetElementPtrInst>(user)) {
-      for (auto *gep_user : user_as_gep.users()) {
+      for (auto *gep_user : user_as_gep->users()) {
         if (auto *gep_user_as_call = dyn_cast<llvm::CallInst>(gep_user)) {
           call_inst_users.insert(gep_user_as_call);
         }
@@ -153,10 +158,10 @@ RetTy TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
       auto func_enum = FunctionNames::get_memoir_enum(*call);
 
       if (func_enum == MemOIR_Func::DEFINE_STRUCT_TYPE) {
-        auto defined_type = this->getType(call);
+        auto defined_type = this->getType(*call);
         MEMOIR_NULL_CHECK(defined_type,
                           "Could not determine the defined struct type");
-        MEMOIZE_AND_RETURN(I, *defined_type);
+        MEMOIZE_AND_RETURN(I, defined_type);
       }
     }
   }
@@ -165,7 +170,7 @@ RetTy TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
       "Could not find a definition for the given struct type name");
 }
 
-RetTy TypeAnalysis::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
+Type *TypeAnalysis::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -179,25 +184,25 @@ RetTy TypeAnalysis::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
   /*
    * Build the new type.
    */
-  auto &type = StaticTensorType::get(I.getElementType(),
-                                     I.getNumberOfDimensions(),
-                                     length_of_dimensions);
+  auto &type =
+      Type::get_static_tensor_type(I.getElementType(), length_of_dimensions);
 
-  MEMOIZE_AND_RETURN(I, type);
+  MEMOIZE_AND_RETURN(I, &type);
 }
 
-RetTy TypeAnalysis::visitTensorTypeInst(TensorTypeInst &I) {
+Type *TypeAnalysis::visitTensorTypeInst(TensorTypeInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
    * Build the TensorType.
    */
-  auto &type = TensorType::get(I.getElementType(), I.getNumberOfDimensions());
+  auto &type =
+      Type::get_tensor_type(I.getElementType(), I.getNumberOfDimensions());
 
-  MEMOIZE_AND_RETURN(I, type);
+  MEMOIZE_AND_RETURN(I, &type);
 }
 
-RetTy TypeAnalysis::visitAssocArrayTypeInst(AssocArrayTypeInst &I) {
+Type *TypeAnalysis::visitAssocArrayTypeInst(AssocArrayTypeInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -205,10 +210,10 @@ RetTy TypeAnalysis::visitAssocArrayTypeInst(AssocArrayTypeInst &I) {
    */
   auto &type = AssocArrayType::get(I.getKeyType(), I.getValueType());
 
-  MEMOIZE_AND_RETURN(I, type);
+  MEMOIZE_AND_RETURN(I, &type);
 }
 
-RetTy TypeAnalysis::visitSequenceTypeInst(SequenceTypeInst &I) {
+Type *TypeAnalysis::visitSequenceTypeInst(SequenceTypeInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -216,13 +221,13 @@ RetTy TypeAnalysis::visitSequenceTypeInst(SequenceTypeInst &I) {
    */
   auto &type = SequenceType::get(I.getElementType());
 
-  MEMOIZE_AND_RETURN(I, type);
+  MEMOIZE_AND_RETURN(I, &type);
 }
 
 /*
  * AllocInsts
  */
-RetTy TypeAnalysis::visitStructAllocInst(StructAllocInst &I) {
+Type *TypeAnalysis::visitStructAllocInst(StructAllocInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -233,10 +238,10 @@ RetTy TypeAnalysis::visitStructAllocInst(StructAllocInst &I) {
   MEMOIR_NULL_CHECK(type,
                     "Could not determine the struct type being allocated");
 
-  MEMOIZE_AND_RETURN(I, *type);
+  MEMOIZE_AND_RETURN(I, type);
 }
 
-RetTy TypeAnalysis::TensorAllocInst(TensorAllocInst &I) {
+Type *TypeAnalysis::visitTensorAllocInst(TensorAllocInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -250,10 +255,10 @@ RetTy TypeAnalysis::TensorAllocInst(TensorAllocInst &I) {
    */
   auto &type = Type::get_tensor_type(*element_type, I.getNumberOfDimensions());
 
-  MEMOIZE_AND_RETURN(I, type);
+  MEMOIZE_AND_RETURN(I, &type);
 }
 
-RetTy TypeAnalysis::AssocArrayAllocInst(TensorAllocInst &I) {
+Type *TypeAnalysis::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -269,10 +274,10 @@ RetTy TypeAnalysis::AssocArrayAllocInst(TensorAllocInst &I) {
    */
   auto &type = Type::get_assoc_array_type(*key_type, *value_type);
 
-  MEMOIZE_AND_RETURN(I, type);
+  MEMOIZE_AND_RETURN(I, &type);
 }
 
-RetTy TypeAnalysis::SequenceAllocInst(TensorAllocInst &I) {
+Type *TypeAnalysis::visitSequenceAllocInst(SequenceAllocInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -281,13 +286,18 @@ RetTy TypeAnalysis::SequenceAllocInst(TensorAllocInst &I) {
   auto element_type = this->getType(I.getElementOperand());
   MEMOIR_NULL_CHECK(element_type, "Element type of sequence is NULL");
 
-  MEMOIZE_AND_RETURN(I, type);
+  /*
+   * Build the SequenceType.
+   */
+  auto &type = Type::get_sequence_type(*element_type);
+
+  MEMOIZE_AND_RETURN(I, &type);
 }
 
 /*
  * Type Checking Instructions
  */
-RetTy TypeAnalysis::visitAssertStructTypeInst(AssertStructTypeInst &I) {
+Type *TypeAnalysis::visitAssertStructTypeInst(AssertStructTypeInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -296,10 +306,10 @@ RetTy TypeAnalysis::visitAssertStructTypeInst(AssertStructTypeInst &I) {
   auto type = this->getType(I.getTypeOperand());
   MEMOIR_NULL_CHECK(type, "Type being asserted is NULL");
 
-  MEMOIZE_AND_RETURN(I, *type);
+  MEMOIZE_AND_RETURN(I, type);
 }
 
-RetTy TypeAnalysis::visitAssertCollectionTypeInst(AssertCollectionTypeInst &I) {
+Type *TypeAnalysis::visitAssertCollectionTypeInst(AssertCollectionTypeInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -308,10 +318,10 @@ RetTy TypeAnalysis::visitAssertCollectionTypeInst(AssertCollectionTypeInst &I) {
   auto type = this->getType(I.getTypeOperand());
   MEMOIR_NULL_CHECK(type, "Type being asserted is NULL");
 
-  MEMOIZE_AND_RETURN(I, *type);
+  MEMOIZE_AND_RETURN(I, type);
 }
 
-RetTy TypeAnalysis::visitReturnTypeInst(ReturnTypeInst &I) {
+Type *TypeAnalysis::visitReturnTypeInst(ReturnTypeInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -320,13 +330,28 @@ RetTy TypeAnalysis::visitReturnTypeInst(ReturnTypeInst &I) {
   auto type = this->getType(I.getTypeOperand());
   MEMOIR_NULL_CHECK(type, "Type being asserted is NULL");
 
-  MEMOIZE_AND_RETURN(I, *type);
+  MEMOIZE_AND_RETURN(I, type);
 }
 
 /*
  * LLVM Instructions
  */
-RetTy TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
+Type *TypeAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * TODO
+   */
+
+  MEMOIR_UNREACHABLE(
+      "Handling for interprocedural type analysis is not yet implemented");
+
+  auto type = nullptr;
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
@@ -357,7 +382,7 @@ RetTy TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
     if (auto store_inst = dyn_cast<StoreInst>(user)) {
       auto store_value = store_inst->getValueOperand();
 
-      auto stored_type = this->getType(store_value);
+      auto stored_type = this->getType(*store_value);
       MEMOIR_NULL_CHECK(stored_type,
                         "Could not determine the type being loaded");
 
@@ -366,19 +391,50 @@ RetTy TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
   }
 }
 
-RetTy TypeAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
+Type *TypeAnalysis::visitPHINode(llvm::PHINode &I) {
   CHECK_MEMOIZED(I);
 
-  MEMOIR_UNREACHABLE(
-      "Handling for interprocedural type analysis is not implemented");
+  /*
+   * Get all incoming types.
+   */
+  set<Type *> incoming_types;
+  for (auto &incoming : I.incoming_values()) {
+    /*
+     * Get the incoming value.
+     */
+    MEMOIR_NULL_CHECK(incoming, "Incoming value to PHI node is NULL.");
+    auto &incoming_value = *(incoming.get());
 
-  //  MEMOIZE_AND_RETURN(I, type);
+    /*
+     * Get the Type of the incoming value.
+     */
+    auto incoming_type = this->getType(incoming_value);
+
+    /*
+     * Insert the incoming Type into the set of incoming types.
+     * NOTE: there should only be ONE type in the set after this loop.
+     */
+    incoming_types.insert(incoming_type);
+  }
+
+  /*
+   * Check that all incoming types are the same.
+   */
+  MEMOIR_ASSERT((incoming_types.size() == 1),
+                "Could not statically determine the type of PHI node.");
+
+  /*
+   * Get the single Type.
+   */
+  auto type = *(incoming_types.begin());
+
+  MEMOIZE_AND_RETURN(I, type);
 }
 
 /*
  * Internal helper functions
  */
-RetTy TypeAnalysis::findExisting(llvm::Value &V) {
+Type *TypeAnalysis::findExisting(llvm::Value &V) {
   auto found_type = this->value_to_type.find(&V);
   if (found_type != this->value_to_type.end()) {
     return found_type->second;
@@ -387,15 +443,15 @@ RetTy TypeAnalysis::findExisting(llvm::Value &V) {
   return nullptr;
 }
 
-RetTy TypeAnalysis::findExisting(MemOIRInst &I) {
+Type *TypeAnalysis::findExisting(MemOIRInst &I) {
   return this->findExisting(I.getCallInst());
 }
 
-void TypeAnalysis::memoize(llvm::Value &V, Type &T) {
-  this->value_to_type[&V] = &T;
+void TypeAnalysis::memoize(llvm::Value &V, Type *T) {
+  this->value_to_type[&V] = T;
 }
 
-void TypeAnalysis::memoize(MemOIRInst &I, Type &T) {
+void TypeAnalysis::memoize(MemOIRInst &I, Type *T) {
   this->memoize(I.getCallInst(), T);
 }
 

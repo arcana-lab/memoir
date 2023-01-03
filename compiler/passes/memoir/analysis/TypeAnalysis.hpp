@@ -33,10 +33,8 @@ namespace llvm::memoir {
  * This type analysis provides basic information about MemOIR
  *   types defined in the program.
  */
-class TypeAnalysis : InstVisitor<TypeAnalysis, std::add_pointer_t<Type>> {
+class TypeAnalysis : public llvm::memoir::InstVisitor<TypeAnalysis, Type *> {
 public:
-  using RetTy = std::add_pointer_t<Type>;
-
   /*
    * Singleton access
    */
@@ -47,7 +45,7 @@ public:
   /*
    * Query the Type Summary for the given LLVM Value
    */
-  RetTy getType(llvm::Value &value);
+  Type *getType(llvm::Value &value);
 
   /*
    * Helper functions
@@ -59,7 +57,7 @@ public:
   TypeAnalysis(TypeAnalysis &other) = delete;
   void operator=(const TypeAnalysis &) = delete;
 
-private:
+protected:
   /*
    * Passed state
    */
@@ -67,46 +65,52 @@ private:
   /*
    * Borrowed state
    */
-  map<llvm::Value *, RetTy *> value_to_type;
+  map<llvm::Value *, Type *> value_to_type;
 
   /*
    * Internal helper functions
    */
-  RetTy findExisting(llvm::Value &V);
-  RetTy findExisting(MemOIRInst &I);
-  void memoize(llvm::Value &V, Type &T);
-  void memoize(MemOIRInst &I, Type &T);
+  Type *findExisting(llvm::Value &V);
+  Type *findExisting(MemOIRInst &I);
+  void memoize(llvm::Value &V, Type *T);
+  void memoize(MemOIRInst &I, Type *T);
 
   /*
    * Visitor functions
    */
-  RetTy visitUInt64TypeInst(UInt64TypeInst &I);
-  RetTy visitUInt32TypeInst(UInt32TypeInst &I);
-  RetTy visitUInt16TypeInst(UInt16TypeInst &I);
-  RetTy visitUInt8TypeInst(UInt8TypeInst &I);
-  RetTy visitInt64TypeInst(Int64TypeInst &I);
-  RetTy visitInt32TypeInst(Int32TypeInst &I);
-  RetTy visitInt16TypeInst(Int16TypeInst &I);
-  RetTy visitInt8TypeInst(Int8TypeInst &I);
-  RetTy visitFloatTypeInst(FloatTypeInst &I);
-  RetTy visitDoubleTypeInst(DoubleTypeInst &I);
-  RetTy visitPointerTypeInst(PointerTypeInst &I);
-  RetTy visitReferenceTypeInst(ReferenceTypeInst &I);
-  RetTy visitDefineStructTypeInst(DefineStructTypeInst &I);
-  RetTy visitStructTypeInst(StructTypeInst &I);
-  RetTy visitStaticTensorTypeInst(StaticTensorTypeInst &I);
-  RetTy visitTensorTypeInst(TensorTypeInst &I);
-  RetTy visitAssocArrayTypeInst(AssocArrayTypeInst &I);
-  RetTy visitSequenceTypeInst(SequenceTypeInst &I);
-  RetTy visitStructAllocInst(StructAllocInst &I);
-  RetTy visitTensorAllocInst(TensorAllocInst &I);
-  RetTy visitAssocArrayAllocInst(AssocArrayAllocInst &I);
-  RetTy visitSequenceAllocInst(SequenceAllocInst &I);
-  RetTy visitAssertStructTypeInst(AssertStructTypeInst &I);
-  RetTy visitAssertCollectionTypeInst(AssertCollectionTypeInst &I);
-  RetTy visitReturnTypeInst(ReturnTypeInst &I);
-  RetTy visitLLVMCallInst(llvm::CallInst &I);
-  RetTy visitLoadInst(llvm::LoadInst &I);
+  Type *visitInstruction(Instruction &I);
+  Type *visitUInt64TypeInst(UInt64TypeInst &I);
+  Type *visitUInt32TypeInst(UInt32TypeInst &I);
+  Type *visitUInt16TypeInst(UInt16TypeInst &I);
+  Type *visitUInt8TypeInst(UInt8TypeInst &I);
+  Type *visitInt64TypeInst(Int64TypeInst &I);
+  Type *visitInt32TypeInst(Int32TypeInst &I);
+  Type *visitInt16TypeInst(Int16TypeInst &I);
+  Type *visitInt8TypeInst(Int8TypeInst &I);
+  Type *visitBoolTypeInst(BoolTypeInst &I);
+  Type *visitFloatTypeInst(FloatTypeInst &I);
+  Type *visitDoubleTypeInst(DoubleTypeInst &I);
+  Type *visitPointerTypeInst(PointerTypeInst &I);
+  Type *visitReferenceTypeInst(ReferenceTypeInst &I);
+  Type *visitDefineStructTypeInst(DefineStructTypeInst &I);
+  Type *visitStructTypeInst(StructTypeInst &I);
+  Type *visitStaticTensorTypeInst(StaticTensorTypeInst &I);
+  Type *visitTensorTypeInst(TensorTypeInst &I);
+  Type *visitAssocArrayTypeInst(AssocArrayTypeInst &I);
+  Type *visitSequenceTypeInst(SequenceTypeInst &I);
+  Type *visitStructAllocInst(StructAllocInst &I);
+  Type *visitTensorAllocInst(TensorAllocInst &I);
+  Type *visitAssocArrayAllocInst(AssocArrayAllocInst &I);
+  Type *visitSequenceAllocInst(SequenceAllocInst &I);
+  Type *visitAssertStructTypeInst(AssertStructTypeInst &I);
+  Type *visitAssertCollectionTypeInst(AssertCollectionTypeInst &I);
+  Type *visitReturnTypeInst(ReturnTypeInst &I);
+  Type *visitLLVMCallInst(llvm::CallInst &I);
+  Type *visitLoadInst(llvm::LoadInst &I);
+  Type *visitPHINode(llvm::PHINode &I);
+  Type *visitArgument(llvm::Argument &A);
+
+  friend class InstVisitor;
 
   /*
    * Private constructor and logistics
