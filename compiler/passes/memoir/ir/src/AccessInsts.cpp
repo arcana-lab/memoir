@@ -1,4 +1,6 @@
-#include "memoir/ir/Instructions.cpp"
+#include "memoir/ir/Instructions.hpp"
+
+namespace llvm::memoir {
 
 /*
  * ReadInst implementation
@@ -109,7 +111,8 @@ Collection &StructWriteInst::getCollectionAccessed() const {
 }
 
 FieldArray &StructWriteInst::getFieldArray() const {
-  return FieldArray::get(this->getStruct()->getType(), this->getFieldIndex());
+  return FieldArray::get(this->getStructAccessed()->getType(),
+                         this->getFieldIndex());
 }
 
 Struct &StructWriteInst::getStructAccessed() const {
@@ -118,7 +121,7 @@ Struct &StructWriteInst::getStructAccessed() const {
 }
 
 unsigned StructWriteInst::getFieldIndex() const {
-  auto field_index_as_value = this->getFieldIndexOperand();
+  auto &field_index_as_value = this->getFieldIndexOperand();
   auto field_index_as_constant =
       dyn_cast<llvm::ConstantInt>(&field_index_as_value);
   MEMOIR_NULL_CHECK(field_index_as_constant,
@@ -135,7 +138,7 @@ unsigned StructWriteInst::getFieldIndex() const {
 }
 
 llvm::Value &StructWriteInst::getFieldIndexOperand() const {
-  return this->getFieldIndexAsUse().get();
+  return *(this->getFieldIndexAsUse().get());
 }
 
 llvm::Use &StructWriteInst::getFieldIndexOperandAsUse() const {
@@ -253,3 +256,5 @@ llvm::Value &AssocGetInst::getKeyOperand() const {
 llvm::Use &AssocGetInst::getKeyOperandAsUse() const {
   return this->getCallInst().getArgOperandAsUse(1);
 }
+
+} // namespace llvm::memoir
