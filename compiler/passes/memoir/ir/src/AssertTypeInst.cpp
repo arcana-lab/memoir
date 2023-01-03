@@ -30,7 +30,7 @@ llvm::Use &AssertStructTypeInst::getStructOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(1);
 }
 
-std::string AssertStructTypeInst::toString(std::string indent = "") const {
+std::string AssertStructTypeInst::toString(std::string indent) const {
   std::string str, llvm_str;
   llvm::raw_string_ostream llvm_ss(llvm_str);
   llvm_ss << this->getCallInst();
@@ -69,7 +69,7 @@ llvm::Use &AssertCollectionTypeInst::getCollectionOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(1);
 }
 
-std::string AssertCollectionTypeInst::toString(std::string indent = "") const {
+std::string AssertCollectionTypeInst::toString(std::string indent) const {
   std::string str, llvm_str;
   llvm::raw_string_ostream llvm_ss(llvm_str);
   llvm_ss << this->getCallInst();
