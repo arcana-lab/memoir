@@ -27,12 +27,17 @@
 namespace llvm::memoir {
 
 struct MemOIRFunction;
+struct Collection;
+struct CollectionType;
+struct FieldArray;
 
 /*
  * Abstract MemOIR Instruction
  */
 struct MemOIRInst {
 public:
+  static MemOIRInst *get(llvm::Instruction &I);
+
   MemOIRFunction &getFunction() const;
   llvm::CallInst &getCallInst() const;
 
@@ -46,6 +51,8 @@ protected:
   llvm::CallInst &call_inst;
 
   MemOIRInst(MemOIR_Func memoir_enum, llvm::CallInst &call_inst);
+
+  static map<llvm::Instruction *, MemOIRInst *> llvm_to_memoir;
 };
 
 /*
@@ -604,7 +611,6 @@ protected:
 struct JoinInst : public MemOIRInst {
 public:
   Collection &getCollection() const;
-  llvm::Value &getJoinedCollection() const;
 
   unsigned getNumberOfJoins() const;
   llvm::Value &getNumberOfJoinsOperand() const;
