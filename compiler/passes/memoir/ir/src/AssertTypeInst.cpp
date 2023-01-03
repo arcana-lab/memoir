@@ -1,5 +1,7 @@
 #include "memoir/ir/Instructions.hpp"
 
+#include "memoir/analysis/TypeAnalysis.hpp"
+
 namespace llvm::memoir {
 
 /*
