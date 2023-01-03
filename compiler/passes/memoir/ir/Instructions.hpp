@@ -67,6 +67,7 @@ public:
     return
 #define HANDLE_TYPE_INST(ENUM, FUNC, CLASS)                                    \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -426,11 +427,11 @@ public:
   virtual CollectionType &getCollectionType() const = 0;
 
   static bool classof(const MemOIRInst *I) {
-    return
+    return (
 #define HANDLE_COLLECTION_ALLOC_INST(ENUM, FUNC, CLASS)                        \
   (I->getKind() == MemOIR_Func::ENUM) ||
 #include "memoir/ir/Instructions.def"
-        false;
+        false);
   };
 
   Type &getType() const override;
@@ -519,10 +520,11 @@ public:
   virtual llvm::Use &getObjectOperandAsUse() const = 0;
 
   static bool classof(const MemOIRInst *I) {
-    return
+    return (
 #define HANDLE_ACCESS_INST(ENUM, FUNC, CLASS)                                  \
   (I->getKind() == MemOIR_Func::ENUM) ||
-        false;
+#include "memoir/ir/Instructions.def"
+        false);
   };
 
 protected:
@@ -542,6 +544,7 @@ public:
     return
 #define HANDLE_READ_INST(ENUM, FUNC, CLASS)                                    \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -566,6 +569,7 @@ public:
     return
 #define HANDLE_STRUCT_READ_INST(ENUM, FUNC, CLASS)                             \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -587,6 +591,7 @@ public:
     return
 #define HANDLE_INDEX_READ_INST(ENUM, FUNC, CLASS)                              \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -607,6 +612,7 @@ public:
     return
 #define HANDLE_ASSOC_READ_INST(ENUM, FUNC, CLASS)                              \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -630,6 +636,7 @@ public:
     return
 #define HANDLE_WRITE_INST(ENUM, FUNC, CLASS)                                   \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -654,6 +661,7 @@ public:
     return
 #define HANDLE_STRUCT_WRITE_INST(ENUM, FUNC, CLASS)                            \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -675,6 +683,7 @@ public:
     return
 #define HANDLE_INDEX_WRITE_INST(ENUM, FUNC, CLASS)                             \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -695,6 +704,7 @@ public:
     return
 #define HANDLE_ASSOC_WRITE_INST(ENUM, FUNC, CLASS)                             \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -717,6 +727,7 @@ public:
     return
 #define HANDLE_GET_INST(ENUM, FUNC, CLASS)                                     \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -738,6 +749,7 @@ public:
     return
 #define HANDLE_STRUCT_GET_INST(ENUM, FUNC, CLASS)                              \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -759,6 +771,7 @@ public:
     return
 #define HANDLE_INDEX_GET_INST(ENUM, FUNC, CLASS)                               \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
@@ -779,6 +792,7 @@ public:
     return
 #define HANDLE_ASSOC_GET_INST(ENUM, FUNC, CLASS)                               \
   (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
         false;
   };
 
