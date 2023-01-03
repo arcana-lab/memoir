@@ -2,10 +2,15 @@
 #define COMMON_INST_VISITOR_H
 #pragma once
 
+#include "llvm/IR/InstVisitor.h"
+
+#include "memoir/ir/Instructions.hpp"
+
 namespace llvm::memoir {
 
 #define DELEGATE(CLASS_TO_VISIT)                                               \
-  return static_cast<SubClass *>(this)->visit##CLASS_TO_VISIT(CLASS_TO_VISIT(I))
+  return static_cast<SubClass *>(this)->visit##CLASS_TO_VISIT(                 \
+      static_cast<CLASS_TO_VISIT &>(*(MemOIRInst::get(I))))
 
 #define DELEGATE_MEMOIR(CLASS_TO_VISIT)                                        \
   return static_cast<SubClass *>(this)->visit##CLASS_TO_VISIT(                 \
@@ -16,8 +21,14 @@ namespace llvm::memoir {
       static_cast<CLASS_TO_VISIT &>(I.getCallInst()))
 
 template <typename SubClass, typename RetTy = void>
-struct InstVisitor : llvm::InstVisitor<SubClass, RetTy> {
+struct InstVisitor
+  : public llvm::InstVisitor<llvm::memoir::InstVisitor<SubClass, RetTy>,
+                             RetTy> {
 public:
+  RetTy visitInstruction(llvm::Instruction &I) {
+    return static_cast<SubClass *>(this)->visitInstruction(I);
+  }
+
   RetTy visitCallInst(llvm::CallInst &I) {
     static_assert(std::is_base_of<InstVisitor, SubClass>::value,
                   "Must pass the derived type to this template!");
