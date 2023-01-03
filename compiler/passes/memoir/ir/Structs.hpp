@@ -27,6 +27,8 @@ enum class StructCode {
   CALL_PHI
 };
 
+struct Collection;
+struct FieldArray;
 struct StructAllocInst;
 struct ReadInst;
 struct GetInst;
