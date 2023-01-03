@@ -2,11 +2,11 @@
 
 GIT_ROOT=`git rev-parse --show-toplevel` ;
 
-source ${GIT_ROOT}/compiler/noelle/enable ;
+. ${GIT_ROOT}/compiler/noelle/enable ;
 
 PERONI_LLVM=/project/extra/llvm/9.0.0/enable ;
 if [ -f ${PERONI_LLVM} ] ; then
-   source ${PERONI_LLVM} ;
+   . ${PERONI_LLVM} ;
 fi
 
 echo "MemOIR toolchain sourced." ;
