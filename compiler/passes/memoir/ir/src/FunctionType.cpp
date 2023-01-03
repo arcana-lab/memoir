@@ -31,7 +31,7 @@ Type *MemOIRFunctionType::getParamType(unsigned param_index) const {
   MEMOIR_ASSERT((param_index < this->param_types.size()),
                 "Attempt to get out-of-range parameter type");
 
-  return this->param_types.get(param_index);
+  return this->param_types.at(param_index);
 }
 
 llvm::Type *MemOIRFunctionType::getParamLLVMType(unsigned param_index) const {
