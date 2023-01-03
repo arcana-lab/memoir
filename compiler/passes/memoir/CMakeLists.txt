@@ -31,3 +31,7 @@ foreach(dir ${dirs})
   list(APPEND memoir_sources ${sources})
 endforeach()
 
+set_property(GLOBAL PROPERTY MEMOIR_SOURCES "${memoir_sources}")
+
+# Add all include directories
+get_property(memoir_sources GLOBAL PROPERTY MEMOIR_SOURCES)
