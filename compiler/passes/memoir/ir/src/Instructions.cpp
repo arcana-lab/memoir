@@ -2,6 +2,46 @@
 
 namespace llvm::memoir {
 
+MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
+  auto call_inst = dyn_cast<llvm::CallInst>(&I);
+  if (!call_inst) {
+    return nullptr;
+  }
+
+  if (!FunctionNames::is_memoir_call(*call_inst)) {
+    return nullptr;
+  }
+
+  auto memoir_enum = FunctionNames::get_memoir_enum(*call_inst);
+
+  /*
+   * Check if there is an existing MemOIRInst.
+   */
+  auto found = MemOIRInst::llvm_to_memoir.find(&I);
+  if (found != MemOIRInst::llvm_to_memoir.end()) {
+    auto &found_inst = *(found->second());
+    if (found_inst.memoir_enum == memoir_enum) {
+      return &found_inst;
+    }
+
+    /*
+     * If the enums don't match, erase the existing.
+     * TODO: actually delete the found instruction
+     */
+    MemOIRInst::llvm_to_memoir.erase(found);
+  }
+
+  switch (memoir_enum) {
+    default:
+      MEMOIR_UNREACHABLE("Unknown MemOIR instruction encountered");
+#define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
+  case MemOIR_Func::ENUM:                                                      \
+    auto memoir_inst = new CLASS(*call_inst);                                  \
+    MemOIRInst::llvm_to_memoir[&I] = memoir_inst;                              \
+    return memoir_inst;
+  }
+}
+
 /*
  * Top-level methods
  */
@@ -147,73 +187,57 @@ SequenceAllocInst::SequenceAllocInst(llvm::CallInst &call_inst)
   // Do nothing.
 }
 
-AccessInst::AccessInst(llvm::CallInst &call_inst,
-                       AccessInfo access_info,
-                       IndexInfo index_info)
-  : access_info(access_info),
-    index_info(index_info),
-    MemOIRInst(call_inst) {
+AccessInst::AccessInst(llvm::CallInst &call_inst) : access_info(access_info) {
   // Do nothing.
 }
 
-ReadInst::ReadInst(llvm::CallInst &call_inst, AccessInst::IndexInfo index_info)
-  : AccessInst(call_inst, AccessInst::AccessInfo::READ, index_info) {
+ReadInst::ReadInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {
   // Do nothing.
 }
 
 StructReadInst::StructReadInst(llvm::CallInst &call_inst)
-  : ReadInst(call_inst, AccessInst::IndexInfo::STRUCT) {
+  : ReadInst(call_inst) {
   // Do nothing.
 }
 
-IndexReadInst::IndexReadInst(llvm::CallInst &call_inst)
-  : ReadInst(call_inst, AccessInst::IndexInfo::INDEX) {
+IndexReadInst::IndexReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {
   // Do nothing.
 }
 
-AssocReadInst::AssocReadInst(llvm::CallInst &call_inst)
-  : ReadInst(call_inst, AccessInst::IndexInfo::ASSOC) {
+AssocReadInst::AssocReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {
   // Do nothing.
 }
 
-WriteInst::WriteInst(llvm::CallInst &call_inst,
-                     AccessInst::IndexInfo index_info)
-  : AccessInst(call_inst, AccessInst::AccessInfo::WRITE, index_info) {
+WriteInst::WriteInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {
   // Do nothing.
 }
 
 StructReadInst::StructReadInst(llvm::CallInst &call_inst)
-  : ReadInst(call_inst, AccessInst::IndexInfo::STRUCT) {
+  : ReadInst(call_inst) {
   // Do nothing.
 }
 
-IndexReadInst::IndexReadInst(llvm::CallInst &call_inst)
-  : ReadInst(call_inst, AccessInst::IndexInfo::INDEX) {
+IndexReadInst::IndexReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {
   // Do nothing.
 }
 
-AssocReadInst::AssocReadInst(llvm::CallInst &call_inst)
-  : ReadInst(call_inst, AccessInst::IndexInfo::ASSOC) {
+AssocReadInst::AssocReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {
   // Do nothing.
 }
 
-GetInst::GetInst(llvm::CallInst &call_inst, AccessInst::IndexInfo index_info)
-  : AccessInst(call_inst, AccessInst::AccessInfo::GET, index_info) {
+GetInst::GetInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {
   // Do nothing.
 }
 
-StructGetInst::StructGetInst(llvm::CallInst &call_inst)
-  : GetInst(call_inst, AccessInst::IndexInfo::STRUCT) {
+StructGetInst::StructGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {
   // Do nothing.
 }
 
-IndexGetInst::IndexGetInst(llvm::CallInst &call_inst)
-  : GetInst(call_inst, AccessInst::IndexInfo::INDEX) {
+IndexGetInst::IndexGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {
   // Do nothing.
 }
 
-AssocGetInst::AssocGetInst(llvm::CallInst &call_inst)
-  : GetInst(call_inst, AccessInst::IndexInfo::ASSOC) {
+AssocGetInst::AssocGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {
   // Do nothing.
 }
 
