@@ -17,7 +17,7 @@
 
 // #include "memoir/analysis/AccessAnalysis.hpp"
 // #include "memoir/analysis/AllocationAnalysis.hpp"
-// #include "memoir/analysis/TypeAnalysis.hpp"
+#include "memoir/analysis/TypeAnalysis.hpp"
 
 #include "memoir/support/InternalDatatypes.hpp"
 
@@ -40,32 +40,27 @@ struct ExamplePass : public ModulePass {
   bool runOnModule(Module &M) override {
     errs() << "Running example pass\n\n";
 
-    // auto &type_analysis = TypeAnalysis::get(M);
+    auto &type_analysis = TypeAnalysis::get();
     // auto &allocation_analysis = AllocationAnalysis::get(M);
     // auto &access_analysis = AccessAnalysis::get(M);
 
-    // errs() << "Fetching all Type Summaries\n\n";
-    // for (auto &F : M) {
-    //   if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
-    //     continue;
-    //   }
+    errs() << "Fetching all Type Summaries\n\n";
+    for (auto &F : M) {
+      if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
+        continue;
+      }
 
-    //   for (auto &BB : F) {
-    //     for (auto &I : BB) {
-    //       if (auto call_inst = dyn_cast<CallInst>(&I)) {
-    //         if (!FunctionNames::is_memoir_call(*call_inst)) {
-    //           continue;
-    //         }
-
-    //         if (auto type_summary = type_analysis.getTypeSummary(*call_inst))
-    //         {
-    //           errs() << "Found type summary for " << I << "\n";
-    //           errs() << *type_summary << "\n\n";
-    //         }
-    //       }
-    //     }
-    //   }
-    // }
+      for (auto &BB : F) {
+        for (auto &I : BB) {
+          if (auto type = type_analysis.getType(I)) {
+            errs() << "Found type for " << I << "\n";
+            errs() << *type << "\n\n";
+          } else {
+            errs() << "Instruction does not have a MemOIR type.";
+          }
+        }
+      }
+    }
 
     // errs() << "Fetching all Allocation Summaries\n\n";
     // for (auto &F : M) {
