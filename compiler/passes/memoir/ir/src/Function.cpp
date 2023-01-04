@@ -5,7 +5,14 @@
 namespace llvm::memoir {
 
 MemOIRFunction &MemOIRFunction::get(llvm::Function &F) {
-  MemOIRModule::get(F.getParent()).getFunction(F);
+  auto found = MemOIRFunction::llvm_to_memoir_functions.find(&F);
+  if (found != MemOIRFunction::llvm_to_memoir_functions.end()) {
+    return *(found->second);
+  }
+
+  auto new_memoir_function = new MemOIRFunction(F);
+  MemOIRFunction::llvm_to_memoir_functions[&F] = *new_memoir_function;
+  return *new_memoir_function;
 }
 
 Type *MemOIRFunction::get_argument_type(llvm::Argument &A) {
@@ -19,14 +26,23 @@ Type *MemOIRFunction::get_argument_type(llvm::Argument &A) {
 
 MemOIRFunction::MemOIRFunction(llvm::Function &F) : F(F) {
   auto llvm_function_type = F.getFunctionType();
+
   MEMOIR_NULL_CHECK(
       llvm_function_type,
       "Attempt to construct a MemOIRFunction with NULL FunctionType");
-  this->function_type = new MemOIRFunctionType(F.getFunctionType());
+
+  /*
+   * TODO: Perform type analysis on the arguments and return insts.
+   */
+  auto return_type = nullptr;
+  vector<Type *> param_types = {};
+
+  this->function_type =
+      MemOIRFunctionType::get(F.getFunctionType(), return_type, param_types);
 }
 
 llvm::Module &MemOIRFunction::getParent() const {
-  return this->getLLVMFunction()->getParent();
+  return this->getLLVMFunction().getParent();
 }
 
 MemOIRFunctionType &MemOIRFunction::getFunctionType() const {
