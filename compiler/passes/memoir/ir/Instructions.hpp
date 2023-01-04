@@ -845,7 +845,7 @@ public:
   llvm::Value &getNumberOfJoinsOperand() const;
   llvm::Use &getNumberOfJoinsOperandAsUse() const;
 
-  Collection &getCollectionJoined(unsigned join_index) const;
+  Collection &getJoinedCollection(unsigned join_index) const;
   llvm::Value &getJoinedOperand(unsigned join_index) const;
   llvm::Use &getJoinedOperandAsUse(unsigned join_index) const;
 
