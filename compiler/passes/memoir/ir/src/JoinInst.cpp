@@ -33,7 +33,7 @@ llvm::Use &JoinInst::getNumberOfJoinsOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(0);
 }
 
-Collection &JoinInst::getCollectionJoined(unsigned join_index) const {
+Collection &JoinInst::getJoinedCollection(unsigned join_index) const {
   // TODO: run CollectionAnalysis
   return;
 }
