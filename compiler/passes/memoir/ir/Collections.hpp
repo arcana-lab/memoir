@@ -12,29 +12,33 @@
 
 namespace llvm::memoir {
 
-enum CollectionCode {
-  BASE,
-  FIELD_ARRAY,
-  NESTED,
-  CONTROL_PHI,
-  CALL_PHI,
-  DEF_PHI,
-  USE_PHI,
-  JOIN_PHI,
-};
-
 struct CollectionAllocInst;
 struct ReadInst;
 struct WriteInst;
 struct GetInst;
 struct JoinInst;
 
+enum CollectionKind {
+  BASE,
+  FIELD_ARRAY,
+  NESTED,
+  CONTROL_PHI,
+  CALL_PHI,
+  ARG_PHI,
+  DEF_PHI,
+  USE_PHI,
+  JOIN_PHI,
+};
+
 struct Collection {
+private:
+  const CollectionKind code;
+
 public:
+  CollectionKind getKind() const;
+
   virtual CollectionType &getType() const = 0;
   virtual Type &getElementType() const = 0;
-
-  CollectionCode getCode() const;
 
   bool operator==(const Collection &other) const;
   friend std::ostream &operator<<(std::ostream &os, const Collection &as);
@@ -43,9 +47,7 @@ public:
   virtual std::string toString(std::string indent = "") const = 0;
 
 protected:
-  CollectionCode code;
-
-  Collection(CollectionCode code);
+  Collection(CollectionKind code);
 
   friend class CollectionAnalysis;
 };
@@ -56,6 +58,10 @@ public:
 
   CollectionType &getType() const override;
   Type &getElementType() const override;
+
+  static bool classof(Collection *C) {
+    return (C->getKind() == CollectionKind::BASE);
+  };
 
   bool operator==(const BaseCollection &other) const;
   std::string toString(std::string indent = "") const;
@@ -79,6 +85,10 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
+  static bool classof(Collection *C) {
+    return (C->getKind() == CollectionKind::FIELD_ARRAY);
+  };
+
   bool operator==(const FieldArray &other) const;
   std::string toString(std::string indent = "") const;
 
@@ -100,8 +110,15 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
+  static bool classof(Collection *C) {
+    return (C->getKind() == CollectionKind::NESTED);
+  };
+
+  bool operator==(const NestedCollection &other) const;
+  std::string toString(std::string indent = "") const;
+
 protected:
-  GetInst &get_inst;
+  GetInst &access;
 
   NestedCollection(GetInst &get_inst);
 
@@ -111,13 +128,17 @@ protected:
 struct ControlPHICollection : public Collection {
 public:
   Collection &getIncomingCollection(unsigned idx) const;
-  Collection &getIncomingCollectionForBlock(const llvm::BasicBlock &BB) const;
+  Collection &getIncomingCollectionForBlock(llvm::BasicBlock &BB) const;
   llvm::BasicBlock &getIncomingBlock(unsigned idx) const;
   unsigned getNumIncoming() const;
   llvm::PHINode &getPHI() const;
 
   CollectionType &getType() const override;
   Type &getElementType() const override;
+
+  static bool classof(Collection *C) {
+    return (C->getKind() == CollectionKind::CONTROL_PHI);
+  };
 
   bool operator==(const ControlPHICollection &other) const;
   std::string toString(std::string indent = "") const;
@@ -126,7 +147,7 @@ protected:
   llvm::PHINode &phi_node;
   map<llvm::BasicBlock *, Collection *> incoming;
 
-  ControlPHICollection(llvm::PHINode phi_node,
+  ControlPHICollection(llvm::PHINode &phi_node,
                        map<llvm::BasicBlock *, Collection *> &incoming);
 
   friend class CollectionAnalysis;
@@ -135,7 +156,33 @@ protected:
 struct CallPHICollection : public Collection {
 public:
   Collection &getIncomingCollection(unsigned idx) const;
-  Collection &getIncomingCollectionForCall(const llvm::BasicBlock &BB) const;
+  Collection &getIncomingCollectionForReturn(llvm::ReturnInst &I) const;
+  llvm::ReturnInst &getIncomingReturn(unsigned idx) const;
+  unsigned getNumIncoming() const;
+  llvm::CallBase &getCall() const;
+
+  CollectionType &getType() const override;
+
+  static bool classof(Collection *C) {
+    return (C->getKind() == CollectionKind::CALL_PHI);
+  };
+
+  bool operator==(const CallPHICollection &other) const;
+  std::string toString(std::string indent = "") const;
+
+protected:
+  llvm::CallBase &call;
+  vector<llvm::ReturnInst *> incoming_returns;
+  map<llvm::ReturnInst *, Collection *> incoming;
+
+  CallPHICollection(llvm::CallBase &call,
+                    map<llvm::ReturnInst *, Collection *> &incoming);
+};
+
+struct ArgPHICollection : public Collection {
+public:
+  Collection &getIncomingCollection(unsigned idx) const;
+  Collection &getIncomingCollectionForCall(llvm::CallBase &CB) const;
   llvm::CallBase &getIncomingCall(unsigned idx) const;
   unsigned getNumIncoming() const;
   llvm::Argument &getArgument() const;
@@ -143,7 +190,11 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
-  bool operator==(const ControlPHICollection &other) const;
+  static bool classof(Collection *C) {
+    return (C->getKind() == CollectionKind::ARG_PHI);
+  };
+
+  bool operator==(const ArgPHICollection &other) const;
   std::string toString(std::string indent = "") const;
 
 protected:
@@ -151,8 +202,8 @@ protected:
   vector<llvm::CallBase *> incoming_calls;
   map<llvm::CallBase *, Collection *> incoming;
 
-  CallPHICollection(llvm::Argument &argument,
-                    map<llvm::CallBase *, Collection *> &incoming);
+  ArgPHICollection(llvm::Argument &argument,
+                   map<llvm::CallBase *, Collection *> &incoming);
 
   friend class CollectionAnalysis;
 };
@@ -165,13 +216,17 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
+  static bool classof(Collection *C) {
+    return (C->getKind() == CollectionKind::DEF_PHI);
+  };
+
   bool operator==(const DefPHICollection &other) const;
   std::string toString(std::string indent = "") const;
 
 protected:
   WriteInst &access;
 
-  DefPHICollection(Collection &collection, WriteInst &access);
+  DefPHICollection(WriteInst &access);
 
   friend class CollectionAnalysis;
 };
@@ -188,9 +243,9 @@ public:
   std::string toString(std::string indent = "") const;
 
 protected:
-  ReadInst &read;
+  ReadInst &access;
 
-  UsePHICollection(Collection &collection, ReadInst &read);
+  UsePHICollection(ReadInst &read);
 
   friend class CollectionAnalysis;
 };
@@ -203,6 +258,13 @@ public:
 
   CollectionType &getType() const override;
   Type &getElementType() const override;
+
+  static bool classof(Collection *C) {
+    return (C->getKind() == CollectionKind::JOIN_PHI);
+  };
+
+  bool operator==(const JoinPHICollection &other) const;
+  std::string toString(std::string indent = "") const;
 
 protected:
   JoinInst &join_inst;
