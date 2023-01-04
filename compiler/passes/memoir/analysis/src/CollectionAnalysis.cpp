@@ -5,7 +5,7 @@ namespace llvm::memoir {
 /*
  * Initialization.
  */
-CollectionAnalysis::CollectionAnalysis(llvm::Module &M) : M(M) {
+CollectionAnalysis::CollectionAnalysis() {
   // Do nothing.
 }
 
@@ -16,8 +16,8 @@ Collection *CollectionAnalysis::analyze(llvm::Use &U) {
   return CollectionAnalysis::get().getCollection(U);
 }
 
-Collection *CollectionAnalysis::analyze(llvm::Argument &A) {
-  return CollectionAnalysis::get().getCollection(A);
+Collection *CollectionAnalysis::analyze(llvm::Value &V) {
+  return CollectionAnalysis::get().getCollection(V);
 }
 
 /*
@@ -27,7 +27,7 @@ Collection *CollectionAnalysis::getCollection(llvm::Use &U) {
   return nullptr;
 }
 
-Collection *CollectionAnalysis::getCollection(llvm::Argument &A) {
+Collection *CollectionAnalysis::getCollection(llvm::Value &V) {
   return nullptr;
 }
 

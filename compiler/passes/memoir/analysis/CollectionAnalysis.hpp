@@ -36,7 +36,7 @@ public:
 
   static Collection *analyze(llvm::Use &U);
 
-  static Collection *analyze(llvm::Argument &A);
+  static Collection *analyze(llvm::Value &V);
 
   static void invalidate();
 
@@ -49,12 +49,12 @@ public:
   Collection *getCollection(llvm::Use &use);
 
   /**
-   * Get the Collection for a given llvm Argument.
+   * Get the Collection for a given llvm Value.
    *
-   * @param arg A reference to an llvm Argument.
-   * @return The collection, or NULL if the Argument is not a memoir collection.
+   * @param value A reference to an llvm Value.
+   * @return The collection, or NULL if the Value is not a memoir collection.
    */
-  Collection *getCollection(llvm::Argument &arg);
+  Collection *getCollection(llvm::Value &value);
 
 private:
   /*
