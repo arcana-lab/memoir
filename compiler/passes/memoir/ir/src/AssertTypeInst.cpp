@@ -58,8 +58,10 @@ llvm::Use &AssertCollectionTypeInst::getTypeOperandAsUse() const {
 }
 
 Collection &AssertCollectionTypeInst::getCollection() const {
-  // TODO: call the CollectionAnalysis
-  return;
+  auto collection = CollectionAnalysis::analyze(this->getCollectionOperand());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine collection of assert type");
+  return *collection;
 }
 
 llvm::Value &AssertCollectionTypeInst::getCollectionOperand() const {
