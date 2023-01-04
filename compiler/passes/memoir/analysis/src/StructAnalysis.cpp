@@ -19,7 +19,7 @@ Struct *StructAnalysis::analyze(llvm::Value &V) {
 /*
  * Analysis
  */
-Struct StructAnalysis::getStruct(llvm::Value &V) {
+Struct *StructAnalysis::getStruct(llvm::Value &V) {
   return nullptr;
 }
 
