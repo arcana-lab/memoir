@@ -1,5 +1,9 @@
 #include "memoir/ir/Instructions.hpp"
 
+#include "memoir/analysis/CollectionAnalysis.hpp"
+#include "memoir/analysis/StructAnalysis.hpp"
+#include "memoir/analysis/TypeAnalysis.hpp"
+
 #include "memoir/support/Assert.hpp"
 
 namespace llvm::memoir {
@@ -12,17 +16,27 @@ llvm::Value &AllocInst::getAllocation() const {
  * StructAllocInst implementation
  */
 Struct &StructAllocInst::getStruct() const {
-  // TODO: run the StructAnalysis
-  return;
+  auto strct = StructAnalysis::analyze(this->getTypeOperand());
+  MEMOIR_NULL_CHECK(strct, "StructAnalysis returned NULL for StructAllocInst");
+
+  return *strct;
+}
+
+StructType &StructAllocInst::getStructType() const {
+  // TODO: convert this to a dyn_cast later.
+  return static_cast<StructType &>(this->getType());
 }
 
 Type &StructAllocInst::getType() const {
-  // TODO: run the TypeAnalysis
-  return;
+  auto type = TypeAnalysis::analyze(this->getTypeOperand());
+  MEMOIR_NULL_CHECK(
+      type,
+      "TypeAnalysis could not determine type for struct allocation");
+  return *type;
 }
 
 llvm::Value &StructAllocInst::getTypeOperand() const {
-  return this->getTypeOperandAsUse().get();
+  return *(this->getTypeOperandAsUse().get());
 }
 
 llvm::Use &StructAllocInst::getTypeOperandAsUse() const {
@@ -50,8 +64,10 @@ Type &CollectionAllocInst::getType() const {
  * TensorAllocInst implementation
  */
 Collection &TensorAllocInst::getCollection() const {
-  // TODO: run the AllocationAnalysis
-  return;
+  auto collection = CollectionAnalysis::analyze(this->getCallInst());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the Collection being allocated");
+  return *collection;
 }
 
 CollectionType &TensorAllocInst::getCollectionType() const {
@@ -66,7 +82,7 @@ Type &TensorAllocInst::getElementType() const {
 }
 
 llvm::Value &TensorAllocInst::getElementOperand() const {
-  return this->getElementOperandAsUse().get();
+  return *(this->getElementOperandAsUse().get());
 }
 
 llvm::Use &TensorAllocInst::getElementOperandAsUse() const {
@@ -75,8 +91,7 @@ llvm::Use &TensorAllocInst::getElementOperandAsUse() const {
 
 unsigned TensorAllocInst::getNumberOfDimensions() const {
   auto &num_dims_as_value = this->getNumberOfDimensionsOperand();
-  auto num_dims_as_constant =
-      dyn_cast<llvm::ConstantInt>(&num_dimensions_as_value);
+  auto num_dims_as_constant = dyn_cast<llvm::ConstantInt>(&num_dims_as_value);
   MEMOIR_NULL_CHECK(
       num_dims_as_constant,
       "Attempt to allocate a tensor with dynamic number of dimensions");
@@ -92,7 +107,7 @@ unsigned TensorAllocInst::getNumberOfDimensions() const {
 }
 
 llvm::Value &TensorAllocInst::getNumberOfDimensionsOperand() const {
-  return this->getNumberOfDimensionsOperandAsUse().get();
+  return *(this->getNumberOfDimensionsOperandAsUse().get());
 }
 
 llvm::Use &TensorAllocInst::getNumberOfDimensionsOperandAsUse() const {
@@ -101,11 +116,13 @@ llvm::Use &TensorAllocInst::getNumberOfDimensionsOperandAsUse() const {
 
 llvm::Value &TensorAllocInst::getLengthOfDimensionOperand(
     unsigned dimension_index) const {
-  return this->getLengthOfDimensionOperandAsUse(dimension_index).get();
+  return *(this->getLengthOfDimensionOperandAsUse(dimension_index).get());
 }
 
 llvm::Use &TensorAllocInst::getLengthOfDimensionOperandAsUse(
     unsigned dimension_index) const {
+  MEMOIR_ASSERT((dimension_index < this->getNumberOfDimensions()),
+                "Attempt to get length of out-of-bounds dimensions");
   return this->getCallInst().getArgOperandUse(2 + dimension_index);
 }
 
@@ -123,8 +140,10 @@ std::string TensorAllocInst::toString(std::string indent) const {
  * AssocArrayAllocInst implementation
  */
 Collection &AssocArrayAllocInst::getCollection() const {
-  // TODO: run the AllocationAnalysis
-  return;
+  auto collection = CollectionAnalysis::analyze(this->getCallInst());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the Collection being allocated");
+  return *collection;
 }
 
 CollectionType &AssocArrayAllocInst::getCollectionType() const {
@@ -173,8 +192,10 @@ std::string AssocArrayAllocInst::toString(std::string indent) const {
  * SequenceAllocInst implementation
  */
 Collection &SequenceAllocInst::getCollection() const {
-  // TODO: run the AllocationAnalysis
-  return;
+  auto collection = CollectionAnalysis::analyze(this->getCallInst());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the Collection being allocated");
+  return *collection;
 }
 
 CollectionType &SequenceAllocInst::getCollectionType() const {
