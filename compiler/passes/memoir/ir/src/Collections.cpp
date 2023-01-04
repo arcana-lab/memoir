@@ -5,39 +5,39 @@ namespace llvm::memoir {
 /*
  * Collection implementation
  */
-Collection::Collection(CollectionCode code) : code(code) {
+Collection::Collection(CollectionKind code) : code(code) {
   // Do nothing.
 }
 
-CollectionCode Collection::getCode() const {
+CollectionKind Collection::getKind() const {
   return this->code;
 }
 
 bool Collection::operator==(const Collection &other) const {
-  if (this->code != other.code) {
+  if (this->getKind() != other.getKind()) {
     return false;
   }
 
-  switch (this->getCode()) {
-    case CollectionCode::BASE:
+  switch (this->getKind()) {
+    case CollectionKind::BASE:
       return (static_cast<const BaseCollection &>(*this)
               == static_cast<const BaseCollection &>(other));
-    case CollectionCode::FIELD_ARRAY:
+    case CollectionKind::FIELD_ARRAY:
       return (static_cast<const FieldArray &>(*this)
               == static_cast<const FieldArray &>(other));
-    case CollectionCode::NESTED:
+    case CollectionKind::NESTED:
       return (static_cast<const ControlPHICollection &>(*this)
               == static_cast<const ControlPHICollection &>(other));
-    case CollectionCode::CONTROL_PHI:
+    case CollectionKind::CONTROL_PHI:
       return (static_cast<const ControlPHICollection &>(*this)
               == static_cast<const ControlPHICollection &>(other));
-    case CollectionCode::CALL_PHI:
+    case CollectionKind::CALL_PHI:
       return (static_cast<const CallPHICollection &>(*this)
               == static_cast<const CallPHICollection &>(other));
-    case CollectionCode::DEF_PHI:
+    case CollectionKind::DEF_PHI:
       return (static_cast<const DefPHICollection &>(*this)
               == static_cast<const DefPHICollection &>(other));
-    case CollectionCode::USE_PHI:
+    case CollectionKind::USE_PHI:
       return (static_cast<const UsePHICollection &>(*this)
               == static_cast<const UsePHICollection &>(other));
     default:
@@ -60,7 +60,7 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Collection &C) {
  */
 BaseCollection::BaseCollection(CollectionAllocInst &allocation)
   : allocation(allocation),
-    Collection(CollectionCode::BASE) {
+    Collection(CollectionKind::BASE) {
   // Do nothing.
 }
 
@@ -69,7 +69,7 @@ CollectionAllocInst &BaseCollection::getAllocation() const {
 }
 
 CollectionType &BaseCollection::getType() const {
-  return this->getAllocation().getType();
+  return this->getAllocation().getCollectionType();
 }
 
 Type &BaseCollection::getElementType() const {
@@ -105,7 +105,7 @@ FieldArray &FieldArray::get(FieldArrayType &type) {
 
 FieldArray::FieldArray(FieldArrayType &field_array_type)
   : type(field_array_type),
-    Collection(CollectionCode::FIELD_ARRAY) {
+    Collection(CollectionKind::FIELD_ARRAY) {
   // Do nothing.
 }
 
@@ -137,9 +137,9 @@ std::string FieldArray::toString(std::string indent) const {
 /*
  * NestedCollection implementation
  */
-NestedCollection::NestedCollection(GetInst &get_inst)
-  : get_inst(get_inst),
-    Collection(CollectionCode::NESTED) {
+NestedCollection::NestedCollection(GetInst &access)
+  : access(access),
+    Collection(CollectionKind::NESTED) {
   // Do nothing.
 }
 
@@ -153,38 +153,45 @@ Collection &NestedCollection::getNestingCollection() const {
 
 CollectionType &NestedCollection::getType() const {
   auto &nesting_type = this->getNestingCollection().getType();
-  MEMOIR_ASSERT((Type::is_collection_type(nested_element_type)),
-                "Attempt to construct NestedCollection for access to collection"
-                "of non-collection element type");
 
-  auto &nesting_collection_type = static_cast<CollectionType &>(nesting_type);
-  return nesting_collection_type.getElementType();
+  auto &nested_type = nesting_type.getElementType();
+  MEMOIR_ASSERT((Type::is_collection_type(nested_type)),
+                "Attempt to construct NestedCollection for access to collection"
+                " of non-collection element type");
+
+  return static_cast<CollectionType &>(nested_type);
 }
 
 Type &NestedCollection::getElementType() const {
   return this->getType().getElementType();
 }
 
+bool NestedCollection::operator==(const NestedCollection &other) const {
+  return (&(this->getAccess()) != &(other.getAccess()));
+}
+
+std::string NestedCollection::toString(std::string indent) const {
+  return "nested collection";
+}
+
 /*
  * ControlPHI implementationn
  */
 ControlPHICollection::ControlPHICollection(
-    llvm::PHINode *phi_node,
+    llvm::PHINode &phi_node,
     map<llvm::BasicBlock *, Collection *> &incoming)
   : phi_node(phi_node),
     incoming(incoming),
-    Collection(CollectionCode::CONTROL_PHI) {
+    Collection(CollectionKind::CONTROL_PHI) {
   // Do nothing.
 }
 
 Collection &ControlPHICollection::getIncomingCollection(unsigned idx) const {
-  auto &bb = this->getIncomingBlock(idx);
-
-  return this->getIncomingCollectionForBlock(bb);
+  return this->getIncomingCollectionForBlock(this->getIncomingBlock(idx));
 }
 
 Collection &ControlPHICollection::getIncomingCollectionForBlock(
-    const llvm::BasicBlock &bb) {
+    llvm::BasicBlock &bb) const {
   auto found_incoming = this->incoming.find(&bb);
   if (found_incoming == this->incoming.end()) {
     MEMOIR_UNREACHABLE(
@@ -209,7 +216,7 @@ llvm::BasicBlock &ControlPHICollection::getIncomingBlock(unsigned idx) const {
 }
 
 unsigned ControlPHICollection::getNumIncoming() const {
-  return this->getPHI().getNumIncomingValue();
+  return this->getPHI().getNumIncomingValues();
 }
 
 CollectionType &ControlPHICollection::getType() const {
@@ -220,7 +227,7 @@ Type &ControlPHICollection::getElementType() const {
   return this->getType().getElementType();
 }
 
-bool ControlPHICollection::operator==(const ControlPHI &other) const {
+bool ControlPHICollection::operator==(const ControlPHICollection &other) const {
   return &(this->getPHI()) == &(other.getPHI());
 }
 
@@ -232,20 +239,84 @@ std::string ControlPHICollection::toString(std::string indent) const {
  * CallPHI implementation
  */
 CallPHICollection::CallPHICollection(
+    llvm::CallBase &call,
+    map<llvm::ReturnInst *, Collection *> &incoming)
+  : call(call),
+    incoming(incoming),
+    Collection(CollectionKind::CALL_PHI) {
+  /*
+   * Initialize a partial ordering of the incoming returns.
+   */
+  for (auto it = incoming.begin(); it != incoming.end(); ++it) {
+    auto incoming_ret = it->first;
+    MEMOIR_NULL_CHECK(incoming_ret, "Incoming return is NULL!");
+    this->incoming_returns.push_back(incoming_ret);
+  }
+}
+
+Collection &CallPHICollection::getIncomingCollection(unsigned idx) const {
+  return this->getIncomingCollectionForReturn(this->getIncomingReturn(idx));
+}
+
+Collection &CallPHICollection::getIncomingCollectionForReturn(
+    llvm::ReturnInst &I) const {
+  auto found_incoming = this->incoming.find(&I);
+
+  MEMOIR_ASSERT((found_incoming != this->incoming.end()),
+                "Could not find an incoming collection for the given return");
+
+  return *(found_incoming->second);
+}
+
+llvm::ReturnInst &CallPHICollection::getIncomingReturn(unsigned idx) const {
+  MEMOIR_ASSERT((idx < this->getNumIncoming()),
+                "Attempt to get out-of-range incoming return");
+
+  return *(this->incoming_returns.at(idx));
+}
+
+unsigned CallPHICollection::getNumIncoming() const {
+  return this->incoming_returns.size();
+}
+
+CollectionType &CallPHICollection::getType() const {
+  MEMOIR_ASSERT(
+      (this->getNumIncoming() > 0),
+      "No incoming collections exist to determine the CallPHI's type");
+  return this->getIncomingCollection(0).getType();
+}
+
+bool CallPHICollection::operator==(const CallPHICollection &other) const {
+  return (&(this->getCall()) == &(other.getCall()));
+}
+
+std::string CallPHICollection::toString(std::string indent) const {
+  return "call PHI";
+}
+
+/*
+ * ArgPHI implementation
+ */
+ArgPHICollection::ArgPHICollection(
     llvm::Argument &argument,
     map<llvm::CallBase *, Collection *> &incoming)
   : argument(argument),
     incoming(incoming),
-    Collection(CollectionCode::CALL_PHI) {
-  // Do nothing.
+    Collection(CollectionKind::ARG_PHI) {
+  /*
+   * Initialize a partial ordering of the incoming calls.
+   */
+  for (auto it = incoming.begin(); it != incoming.end(); ++it) {
+    this->incoming_calls.push_back(it->first);
+  }
 }
 
-Collection &CallPHICollection::getIncomingCollection(unsigned idx) const {
+Collection &ArgPHICollection::getIncomingCollection(unsigned idx) const {
   return this->getIncomingCollectionForCall(this->getIncomingCall(idx));
 }
 
-Collection &CallPHICollection::getIncomingCollectionForCall(
-    const llvm::CallBase &CB) const {
+Collection &ArgPHICollection::getIncomingCollectionForCall(
+    llvm::CallBase &CB) const {
   auto found_incoming = this->incoming.find(&CB);
 
   MEMOIR_ASSERT((found_incoming != this->incoming.end()),
@@ -254,22 +325,22 @@ Collection &CallPHICollection::getIncomingCollectionForCall(
   return *(found_incoming->second);
 }
 
-llvm::CallBase &CallPHICollection::getIncomingCall(unsigned idx) const {
+llvm::CallBase &ArgPHICollection::getIncomingCall(unsigned idx) const {
   MEMOIR_ASSERT((idx < this->getNumIncoming()),
                 "Attempt to get incoming call for index out of range");
 
   return *(this->incoming_calls.at(idx));
 }
 
-unsigned CallPHICollection::getNumIncoming() const {
+unsigned ArgPHICollection::getNumIncoming() const {
   return this->incoming_calls.size();
 }
 
-llvm::Argument &CallPHICollection::getArgument() const {
+llvm::Argument &ArgPHICollection::getArgument() const {
   return this->argument;
 }
 
-CollectionType &CallPHICollection::getType() const {
+CollectionType &ArgPHICollection::getType() const {
   auto llvm_func = this->getArgument().getParent();
   MEMOIR_NULL_CHECK(
       llvm_func,
@@ -287,11 +358,19 @@ CollectionType &CallPHICollection::getType() const {
       (Type::is_collection_type(*memoir_arg_type)),
       "Attempt to get CollectionType of a non-collection MemOIR Type");
 
-  return *memoir_arg_type;
+  return static_cast<CollectionType &>(*memoir_arg_type);
 }
 
-Type &CallPHICollection::getElementType() const {
+Type &ArgPHICollection::getElementType() const {
   return this->getType().getElementType();
+}
+
+bool ArgPHICollection::operator==(const ArgPHICollection &other) const {
+  return (&(this->getArgument()) == &(other.getArgument()));
+}
+
+std::string ArgPHICollection::toString(std::string indent) const {
+  return "arg PHI collection";
 }
 
 /*
@@ -299,7 +378,7 @@ Type &CallPHICollection::getElementType() const {
  */
 DefPHICollection::DefPHICollection(WriteInst &access)
   : access(access),
-    Collection(CollectionCode::DEF_PHI) {
+    Collection(CollectionKind::DEF_PHI) {
   // Do nothing.
 }
 
@@ -333,7 +412,7 @@ std::string DefPHICollection::toString(std::string indent) const {
  */
 UsePHICollection::UsePHICollection(ReadInst &access)
   : access(access),
-    Collection(CollectionCode::USE_PHI) {
+    Collection(CollectionKind::USE_PHI) {
   // Do nothing.
 }
 
@@ -353,9 +432,9 @@ Type &UsePHICollection::getElementType() const {
   return this->getCollection().getElementType();
 }
 
-bool UsePHICollection::operator==(const UsePHI &other) const {
-  return (this->getCollection() == other.getCollection())
-         && (this->getAccess() == other.getAccess());
+bool UsePHICollection::operator==(const UsePHICollection &other) const {
+  return (&(this->getCollection()) == &(other.getCollection()))
+         && (&(this->getAccess()) == &(other.getAccess()));
 }
 
 std::string UsePHICollection::toString(std::string indent) const {
@@ -367,7 +446,7 @@ std::string UsePHICollection::toString(std::string indent) const {
  */
 JoinPHICollection::JoinPHICollection(JoinInst &join_inst)
   : join_inst(join_inst),
-    Collection(CollectionCode::JOIN_PHI) {
+    Collection(CollectionKind::JOIN_PHI) {
   // Do nothing.
 }
 
@@ -386,13 +465,21 @@ Collection &JoinPHICollection::getJoinedCollection(unsigned join_index) const {
 }
 
 CollectionType &JoinPHICollection::getType() const {
-  MEMOIR_ASSERT((this->getNumberOfJoinedCollections().size() > 0),
+  MEMOIR_ASSERT((this->getNumberOfJoinedCollections() > 0),
                 "Attempt to get type of join PHI with no arguments");
   return this->getJoinedCollection(0).getType();
 }
 
 Type &JoinPHICollection::getElementType() const {
   return this->getType().getElementType();
+}
+
+bool JoinPHICollection::operator==(const JoinPHICollection &other) const {
+  return (&(this->getJoin()) == &(other.getJoin()));
+}
+
+std::string JoinPHICollection::toString(std::string indent) const {
+  return "join PHI";
 }
 
 } // namespace llvm::memoir
