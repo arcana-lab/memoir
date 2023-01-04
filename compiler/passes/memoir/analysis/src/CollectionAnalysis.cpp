@@ -3,58 +3,31 @@
 namespace llvm::memoir {
 
 /*
- * Top-level initialization.
+ * Initialization.
  */
 CollectionAnalysis::CollectionAnalysis(llvm::Module &M) : M(M) {
-  /*
-   * Initialize the analysis.
-   */
-  this->initialize();
-
-  /*
-   * Perform the analysis.
-   */
-  this->analyze();
-}
-
-void CollectionAnalysis::initialize() {
-  errs() << "ColletionAnalysis: initialize.\n";
-
-  /*
-   * Perform all needed initialization for the CollectionAnalysis pass.
-   */
-  return;
+  // Do nothing.
 }
 
 /*
- * Top-level analysis.
+ * Queries
  */
-void CollectionAnalysis::analyze() {
-  errs() << "CollectionAnalysis: analyzing.\n";
+Collection *CollectionAnalysis::analyze(llvm::Use &U) {
+  return CollectionAnalysis::get().getCollection(U);
+}
 
-  /*
-   * Analyze all of the fields in the program.
-   */
-  analyzeFields();
-
-  return;
+Collection *CollectionAnalysis::analyze(llvm::Argument &A) {
+  return CollectionAnalysis::get().getCollection(A);
 }
 
 /*
- * Analysis drivers
+ * Analysis
  */
-void CollectionAnalysis::analyzeFields() {
-  errs() << "CollectionAnalysis: analyzing fields\n";
-
-  return;
+Collection *CollectionAnalysis::getCollection(llvm::Use &U) {
+  return nullptr;
 }
 
-/*
- * Qeueries
- */
-CollectionSummary *CollectionAnalysis::getCollectionSummary(
-    llvm::Value &value) {
-
+Collection *CollectionAnalysis::getCollection(llvm::Argument &A) {
   return nullptr;
 }
 
@@ -65,28 +38,16 @@ CollectionSummary *CollectionAnalysis::getCollectionSummary(
 /*
  * Management
  */
-CollectionAnalysis &CollectionAnalysis::get(Module &M) {
-  auto found_analysis = CollectionAnalysis::analyses.find(&M);
-  if (found_analysis != CollectionAnalysis::analyses.end()) {
-    return *(found_analysis->second);
-  }
-
-  auto new_analysis = new CollectionAnalysis(M);
-  CollectionAnalysis::analyses[&M] = new_analysis;
-  return *new_analysis;
-}
-
-void CollectionAnalysis::invalidate(Module &M) {
-  auto found_analysis = CollectionAnalysis::analyses.find(&M);
-  if (found_analysis != CollectionAnalysis::analyses.end()) {
-    auto &analysis = *(found_analysis->second);
-    analysis.invalidate();
-  }
-
-  return;
+CollectionAnalysis &CollectionAnalysis::get() {
+  CollectionAnalysis CA;
+  return CA;
 }
 
 void CollectionAnalysis::invalidate() {
+  CollectionAnalysis::get()._invalidate();
+}
+
+void CollectionAnalysis::_invalidate() {
   return;
 }
 
