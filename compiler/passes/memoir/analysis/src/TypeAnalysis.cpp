@@ -4,10 +4,23 @@
 
 namespace llvm::memoir {
 
+/*
+ * Initialization
+ */
 TypeAnalysis::TypeAnalysis() {
   // Do nothing.
 }
 
+/*
+ * Queries
+ */
+Type *TypeAnalysis::analyze(llvm::Value &V) {
+  return TypeAnalysis::get().getType(V);
+}
+
+/*
+ * Analysis
+ */
 Type *TypeAnalysis::getType(llvm::Value &V) {
   /*
    * Trace back the value to find the associated
@@ -456,7 +469,7 @@ void TypeAnalysis::memoize(MemOIRInst &I, Type *T) {
 }
 
 /*
- * Singleton access
+ * Management
  */
 void TypeAnalysis::_invalidate() {
   this->value_to_type.clear();

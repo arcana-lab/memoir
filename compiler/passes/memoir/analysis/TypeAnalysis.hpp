@@ -40,6 +40,8 @@ public:
    */
   static TypeAnalysis &get();
 
+  static Type *analyze(llvm::Value &V);
+
   static void invalidate();
 
   /*
