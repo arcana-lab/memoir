@@ -3,8 +3,7 @@
 namespace llvm::memoir {
 
 Struct &DeleteStructInst::getStructDeleted() const {
-  // TODO: run StructAnalysis.
-  return;
+  return StructAnalysis::analyze(this->getStructOperand());
 }
 
 llvm::Value &DeleteStructInst::getStructOperand() const {
@@ -23,6 +22,10 @@ std::string DeleteStructInst::toString(std::string indent) const {
   str = "DeleteStructInst: " + llvm_str;
 
   return str;
+}
+
+Collection &DeleteCollectionInst::getCollection() const {
+  return CollectionAnalysis::analyze(this->getCollectionOperandAsUse());
 }
 
 llvm::Value &DeleteCollectionInst::getCollectionOperand() const {
