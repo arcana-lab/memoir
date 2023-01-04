@@ -32,25 +32,31 @@ public:
   /*
    * Singleton access
    */
-  static CollectionAnalysis &get(Module &M);
+  static CollectionAnalysis &get();
 
-  static void invalidate(Module &M);
+  static Collection *analyze(llvm::Use &U);
+
+  static Collection *analyze(llvm::Argument &A);
+
+  static void invalidate();
 
   /**
-   * Get the CollectionSummary for a given memoir call.
+   * Get the Collection for a given llvm Use.
    *
-   * @param value A reference to an llvm Value
-   * @return The collection summary, or NULL if value is not a memoir call.
+   * @param use A reference to an llvm Use.
+   * @return The collection, or NULL if the Use is not a memoir collection.
    */
-  Collection *getCollectionSummary(llvm::Value &value);
+  Collection *getCollection(llvm::Use &use);
+
+  /**
+   * Get the Collection for a given llvm Argument.
+   *
+   * @param arg A reference to an llvm Argument.
+   * @return The collection, or NULL if the Argument is not a memoir collection.
+   */
+  Collection *getCollection(llvm::Argument &arg);
 
 private:
-  /*
-   * Top-level drivers
-   */
-  void initialize();
-  void analyze();
-
   /*
    * Analysis
    */
@@ -58,10 +64,9 @@ private:
   /*
    * Private constructor and logistics.
    */
-  CollectionAnalysis(llvm::Module &M);
-  std::unordered_map<llvm::Module *, CollectionAnalysis *> analyses;
+  CollectionAnalysis();
 
-  void invalidate();
+  void _invalidate();
 };
 
 } // namespace llvm::memoir
