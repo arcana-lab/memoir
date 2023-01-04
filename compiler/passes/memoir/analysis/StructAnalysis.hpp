@@ -2,8 +2,9 @@
 #define COMMON_STRUCTANALYSIS_H
 #pragma once
 
-#include "memoir/utility/Assert.hpp"
-#include "memoir/utility/InternalDataTypes.hpp"
+#include "memoir/support/Assert.hpp"
+
+#include "memoir/support/InternalDatatypes.hpp"
 
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/Structs.hpp"
