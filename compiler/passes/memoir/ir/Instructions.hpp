@@ -48,10 +48,9 @@ public:
   virtual std::string toString(std::string indent = "") const = 0;
 
 protected:
-  const MemOIR_Func memoir_enum;
   llvm::CallInst &call_inst;
 
-  MemOIRInst(MemOIR_Func memoir_enum, llvm::CallInst &call_inst);
+  MemOIRInst(llvm::CallInst &call_inst);
 
   static map<llvm::Instruction *, MemOIRInst *> llvm_to_memoir;
 };
