@@ -63,15 +63,13 @@ llvm::CallInst &MemOIRInst::getCallInst() const {
 }
 
 MemOIR_Func MemOIRInst::getKind() const {
-  return this->memoir_enum;
+  return FunctionNames::get_memoir_enum(this->getCallInst());
 }
 
 /*
  * Constructors
  */
-MemOIRInst::MemOIRInst(MemOIR_Func memoir_enum, llvm::CallInst &call_inst)
-  : memoir_enum(memoir_enum),
-    call_inst(call_inst) {
+MemOIRInst::MemOIRInst(llvm::CallInst &call_inst) : call_inst(call_inst) {
   // Do nothing.
 }
 
@@ -176,22 +174,27 @@ StructAllocInst::StructAllocInst(llvm::CallInst &call_inst)
   // Do nothing.
 }
 
-TensorAllocInst::TensorAllocInst(llvm::CallInst &call_inst)
+CollectionAllocInst::CollectionAllocInst(llvm::CallInst &call_inst)
   : AllocInst(call_inst) {
+  // Do nothing.
+}
+
+TensorAllocInst::TensorAllocInst(llvm::CallInst &call_inst)
+  : CollectionAllocInst(call_inst) {
   // Do nothing.
 }
 
 AssocArrayAllocInst::AssocArrayAllocInst(llvm::CallInst &call_inst)
-  : AllocInst(call_inst) {
+  : CollectionAllocInst(call_inst) {
   // Do nothing.
 }
 
 SequenceAllocInst::SequenceAllocInst(llvm::CallInst &call_inst)
-  : AllocInst(call_inst) {
+  : CollectionAllocInst(call_inst) {
   // Do nothing.
 }
 
-AccessInst::AccessInst(llvm::CallInst &call_inst) : access_info(access_info) {
+AccessInst::AccessInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {
   // Do nothing.
 }
 
