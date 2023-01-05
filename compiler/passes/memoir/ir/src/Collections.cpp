@@ -91,6 +91,9 @@ FieldArray &FieldArray::get(StructType &struct_type, unsigned field_index) {
   return FieldArray::get(FieldArrayType::get(struct_type, field_index));
 }
 
+map<FieldArrayType *, FieldArray *>
+    FieldArray::field_array_type_to_field_array = {};
+
 FieldArray &FieldArray::get(FieldArrayType &type) {
   auto found = FieldArray::field_array_type_to_field_array.find(&type);
   if (found != FieldArray::field_array_type_to_field_array.end()) {
