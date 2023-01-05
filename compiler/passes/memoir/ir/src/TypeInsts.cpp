@@ -1,6 +1,8 @@
-#include "Instructions.hpp"
-
 #include <limits>
+
+#include "memoir/ir/Instructions.hpp"
+
+#include "memoir/analysis/TypeAnalysis.hpp"
 
 /*
  * Implementation of the MemOIR Type Instructions.
@@ -9,22 +11,26 @@
  * Created: December 13, 2022
  */
 
+namespace llvm::memoir {
+
 /*
  * Common function implementations
  */
 #define GET_TYPE_IMPL(CLASS_NAME)                                              \
-  Type &CLASS_NAME## ::getType() const {                                       \
-    return TypeAnalysis::get().getType(this->getCallInst());                   \
+  Type &CLASS_NAME::getType() const {                                          \
+    auto type = TypeAnalysis::get().getType(this->getCallInst());              \
+    MEMOIR_NULL_CHECK(type, "Could not determine type of " #CLASS_NAME);       \
+    return *type;                                                              \
   }
 
-#define TO_STRING_IMPL(CLASS_NAME)
-std::string CLASS_NAME## ::toString(std::string indent = "") const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-  str = #CLASS_NAME ": " + llvm_str;
-  return str;
-}
+#define TO_STRING_IMPL(CLASS_NAME)                                             \
+  std::string CLASS_NAME::toString(std::string indent) const {                 \
+    std::string str, llvm_str;                                                 \
+    llvm::raw_string_ostream llvm_ss(llvm_str);                                \
+    llvm_ss << this->getCallInst();                                            \
+    str = #CLASS_NAME ": " + llvm_str;                                         \
+    return str;                                                                \
+  }
 
 /*
  * UInt64TypeInst implementation
@@ -104,11 +110,15 @@ TO_STRING_IMPL(PointerTypeInst)
 GET_TYPE_IMPL(ReferenceTypeInst)
 
 Type &ReferenceTypeInst::getReferencedType() const {
-  return TypeAnalysis::get().getType(this->getReferencedTypeOperand());
+  auto type = TypeAnalysis::get().getType(this->getReferencedTypeOperand());
+  MEMOIR_NULL_CHECK(
+      type,
+      "Could not determine the referenced type of ReferenceTypeInst");
+  return *type;
 }
 
 llvm::Value &ReferenceTypeInst::getReferencedTypeOperand() const {
-  return this->getReferencedTypeAsUse().get();
+  return *(this->getReferencedTypeAsUse().get());
 }
 
 llvm::Use &ReferenceTypeInst::getReferencedTypeAsUse() const {
@@ -123,15 +133,15 @@ TO_STRING_IMPL(ReferenceTypeInst)
 GET_TYPE_IMPL(DefineStructTypeInst)
 
 std::string DefineStructTypeInst::getName() const {
-  auto name_value = this->getNameOperand();
+  auto &name_value = this->getNameOperand();
 
   GlobalVariable *name_global;
-  auto name_gep = dyn_cast<GetElementPtrInst>(name_value);
+  auto name_gep = dyn_cast<GetElementPtrInst>(&name_value);
   if (name_gep) {
     auto name_ptr = name_gep->getPointerOperand();
     name_global = dyn_cast<GlobalVariable>(name_ptr);
   } else {
-    name_global = dyn_cast<GlobalVariable>(name_value);
+    name_global = dyn_cast<GlobalVariable>(&name_value);
   }
 
   MEMOIR_NULL_CHECK(name_global, "DefineStructTypeInst has NULL name");
@@ -145,7 +155,7 @@ std::string DefineStructTypeInst::getName() const {
 }
 
 llvm::Value &DefineStructTypeInst::getNameOperand() const {
-  return this->getNameOperandAsUse().get();
+  return *(this->getNameOperandAsUse().get());
 }
 
 llvm::Use &DefineStructTypeInst::getNameOperandAsUse() const {
@@ -153,7 +163,7 @@ llvm::Use &DefineStructTypeInst::getNameOperandAsUse() const {
 }
 
 unsigned DefineStructTypeInst::getNumberOfFields() const {
-  auto num_fields_value = this->getNumberOfFieldsOperand();
+  auto &num_fields_value = this->getNumberOfFieldsOperand();
 
   auto num_fields_const = dyn_cast<llvm::ConstantInt>(&num_fields_value);
   MEMOIR_NULL_CHECK(num_fields_const,
@@ -168,7 +178,7 @@ unsigned DefineStructTypeInst::getNumberOfFields() const {
 }
 
 llvm::Value &DefineStructTypeInst::getNumberOfFieldsOperand() const {
-  return this->getNumberOfFieldsOperandAsUse().get();
+  return *(this->getNumberOfFieldsOperandAsUse().get());
 }
 
 llvm::Use &DefineStructTypeInst::getNumberOfFieldsOperandAsUse() const {
@@ -176,12 +186,16 @@ llvm::Use &DefineStructTypeInst::getNumberOfFieldsOperandAsUse() const {
 }
 
 Type &DefineStructTypeInst::getFieldType(unsigned field_index) const {
-  return TypeAnalysis::get().getType(this->getFieldTypeOperand(field_index));
+  auto type =
+      TypeAnalysis::get().getType(this->getFieldTypeOperand(field_index));
+  MEMOIR_NULL_CHECK(type,
+                    "Could not determine field type of DefineStructTypeInst");
+  return *type;
 }
 
 llvm::Value &DefineStructTypeInst::getFieldTypeOperand(
     unsigned field_index) const {
-  return this->getFieldTypeOperandAsUse(field_index).get();
+  return *(this->getFieldTypeOperandAsUse(field_index).get());
 }
 
 llvm::Use &DefineStructTypeInst::getFieldTypeOperandAsUse(
@@ -197,15 +211,15 @@ TO_STRING_IMPL(DefineStructTypeInst)
 GET_TYPE_IMPL(StructTypeInst)
 
 std::string StructTypeInst::getName() const {
-  auto name_value = this->getNameOperand();
+  auto &name_value = this->getNameOperand();
 
   GlobalVariable *name_global;
-  auto name_gep = dyn_cast<GetElementPtrInst>(name_value);
+  auto name_gep = dyn_cast<GetElementPtrInst>(&name_value);
   if (name_gep) {
     auto name_ptr = name_gep->getPointerOperand();
     name_global = dyn_cast<GlobalVariable>(name_ptr);
   } else {
-    name_global = dyn_cast<GlobalVariable>(name_value);
+    name_global = dyn_cast<GlobalVariable>(&name_value);
   }
 
   MEMOIR_NULL_CHECK(name_global, "DefineStructTypeInst has NULL name");
@@ -219,7 +233,7 @@ std::string StructTypeInst::getName() const {
 }
 
 llvm::Value &StructTypeInst::getNameOperand() const {
-  return this->getNameOperandAsUse().get();
+  return *(this->getNameOperandAsUse().get());
 }
 
 llvm::Use &StructTypeInst::getNameOperandAsUse() const {
@@ -234,11 +248,14 @@ TO_STRING_IMPL(StructTypeInst)
 GET_TYPE_IMPL(StaticTensorTypeInst)
 
 Type &StaticTensorTypeInst::getElementType() const {
-  return TypeAnalysis::get().getType(this->getElementTypeOperand());
+  auto type = TypeAnalysis::analyze(this->getElementTypeOperand());
+  MEMOIR_NULL_CHECK(type,
+                    "Could not determine element type of StaticTensorTypeInst");
+  return *type;
 }
 
 llvm::Value &StaticTensorTypeInst::getElementTypeOperand() const {
-  return this->getElementTypeOperandAsUse().get();
+  return *(this->getElementTypeOperandAsUse().get());
 }
 
 llvm::Use &StaticTensorTypeInst::getElementTypeOperandAsUse() const {
@@ -246,7 +263,7 @@ llvm::Use &StaticTensorTypeInst::getElementTypeOperandAsUse() const {
 }
 
 unsigned StaticTensorTypeInst::getNumberOfDimensions() const {
-  auto dims_value = this->getNumberOfDimensionsOperand();
+  auto &dims_value = this->getNumberOfDimensionsOperand();
 
   auto dims_const = dyn_cast<llvm::ConstantInt>(&dims_value);
   MEMOIR_NULL_CHECK(
@@ -262,7 +279,7 @@ unsigned StaticTensorTypeInst::getNumberOfDimensions() const {
 }
 
 llvm::Value &StaticTensorTypeInst::getNumberOfDimensionsOperand() const {
-  return this->getNumberOfDimensionsOperandAsUse().get();
+  return *(this->getNumberOfDimensionsOperandAsUse().get());
 }
 
 llvm::Use &StaticTensorTypeInst::getNumberOfDimensionsOperandAsUse() const {
@@ -271,7 +288,7 @@ llvm::Use &StaticTensorTypeInst::getNumberOfDimensionsOperandAsUse() const {
 
 size_t StaticTensorTypeInst::getLengthOfDimension(
     unsigned dimension_index) const {
-  auto length_value = this->getLengthOfDimensionOperand(dimension_index);
+  auto &length_value = this->getLengthOfDimensionOperand(dimension_index);
 
   auto length_const = dyn_cast<llvm::ConstantInt>(&length_value);
   MEMOIR_NULL_CHECK(
@@ -288,7 +305,7 @@ size_t StaticTensorTypeInst::getLengthOfDimension(
 
 llvm::Value &StaticTensorTypeInst::getLengthOfDimensionOperand(
     unsigned dimension_index) const {
-  return this->getLengthOfDimensionOperandAsUse(dimension_index).get();
+  return *(this->getLengthOfDimensionOperandAsUse(dimension_index).get());
 }
 
 llvm::Use &StaticTensorTypeInst::getLengthOfDimensionOperandAsUse(
@@ -304,19 +321,21 @@ TO_STRING_IMPL(StaticTensorTypeInst)
 GET_TYPE_IMPL(TensorTypeInst)
 
 Type &TensorTypeInst::getElementType() const {
-  return TypeAnalysis::get().getType(this->getElementTypeOperand());
+  auto type = TypeAnalysis::get().getType(this->getElementOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the element type of TensorType");
+  return *type;
 }
 
-llvm::Value &TensorTypeInst::getElementTypeOperand() const {
-  return this->getElementTypeOperandAsUse().get();
+llvm::Value &TensorTypeInst::getElementOperand() const {
+  return *(this->getElementOperandAsUse().get());
 }
 
-llvm::Use &TensorTypeInst::getElementTypeOperandAsUse() const {
+llvm::Use &TensorTypeInst::getElementOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(0);
 }
 
 unsigned TensorTypeInst::getNumberOfDimensions() const {
-  auto dims_value = this->getNumberOfDimensionsOperand();
+  auto &dims_value = this->getNumberOfDimensionsOperand();
 
   auto dims_const = dyn_cast<llvm::ConstantInt>(&dims_value);
   MEMOIR_NULL_CHECK(dims_const,
@@ -331,7 +350,7 @@ unsigned TensorTypeInst::getNumberOfDimensions() const {
 }
 
 llvm::Value &TensorTypeInst::getNumberOfDimensionsOperand() const {
-  return this->getNumberOfDimensionsOperandAsUse().get();
+  return *(this->getNumberOfDimensionsOperandAsUse().get());
 }
 
 llvm::Use &TensorTypeInst::getNumberOfDimensionsOperandAsUse() const {
@@ -346,11 +365,13 @@ TO_STRING_IMPL(TensorTypeInst);
 GET_TYPE_IMPL(AssocArrayTypeInst)
 
 Type &AssocArrayTypeInst::getKeyType() const {
-  return TypeAnalysis::get().getType(this->getKeyOperand());
+  auto type = TypeAnalysis::get().getType(this->getKeyOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the key type of AssocArrayType");
+  return *type;
 }
 
 llvm::Value &AssocArrayTypeInst::getKeyOperand() const {
-  return this->getKeyOperandAsUse().get();
+  return *(this->getKeyOperandAsUse().get());
 }
 
 llvm::Use &AssocArrayTypeInst::getKeyOperandAsUse() const {
@@ -358,11 +379,14 @@ llvm::Use &AssocArrayTypeInst::getKeyOperandAsUse() const {
 }
 
 Type &AssocArrayTypeInst::getValueType() const {
-  return TypeAnalysis::get().getType(this->getValueOperand());
+  auto type = TypeAnalysis::get().getType(this->getValueOperand());
+  MEMOIR_NULL_CHECK(type,
+                    "Could not determine the value type of AssocArrayType");
+  return *type;
 }
 
 llvm::Value &AssocArrayTypeInst::getValueOperand() const {
-  return this->getValueOperandAsUse().get();
+  return *(this->getValueOperandAsUse().get());
 }
 
 llvm::Use &AssocArrayTypeInst::getValueOperandAsUse() const {
@@ -377,11 +401,13 @@ TO_STRING_IMPL(AssocArrayTypeInst)
 GET_TYPE_IMPL(SequenceTypeInst)
 
 Type &SequenceTypeInst::getElementType() const {
-  return TypeAnalysis::get().getType(this->getElementOperand());
+  auto type = TypeAnalysis::get().getType(this->getElementOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine element type of SequenceType");
+  return *type;
 }
 
 llvm::Value &SequenceTypeInst::getElementOperand() const {
-  return this->getElementOperandAsUse().get();
+  return *(this->getElementOperandAsUse().get());
 }
 
 llvm::Use &SequenceTypeInst::getElementOperandAsUse() const {
@@ -389,3 +415,5 @@ llvm::Use &SequenceTypeInst::getElementOperandAsUse() const {
 }
 
 TO_STRING_IMPL(SequenceTypeInst)
+
+} // namespace llvm::memoir
