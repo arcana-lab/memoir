@@ -19,8 +19,8 @@ MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
    */
   auto found = MemOIRInst::llvm_to_memoir.find(&I);
   if (found != MemOIRInst::llvm_to_memoir.end()) {
-    auto &found_inst = *(found->second());
-    if (found_inst.memoir_enum == memoir_enum) {
+    auto &found_inst = *(found->second);
+    if (found_inst.getKind() == memoir_enum) {
       return &found_inst;
     }
 
@@ -42,6 +42,8 @@ MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
   }
 }
 
+map<llvm::Instruction *, MemOIRInst *> MemOIRInst::llvm_to_memoir = {};
+
 /*
  * Top-level methods
  */
@@ -55,7 +57,7 @@ MemOIRFunction &MemOIRInst::getFunction() const {
   MEMOIR_ASSERT((func != nullptr),
                 "Attempt to get MemOIRFunction for NULL function");
 
-  return MemOIRFunc::get(*func);
+  return MemOIRFunction::get(*func);
 }
 
 llvm::CallInst &MemOIRInst::getCallInst() const {
@@ -219,16 +221,18 @@ WriteInst::WriteInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {
   // Do nothing.
 }
 
-StructReadInst::StructReadInst(llvm::CallInst &call_inst)
-  : ReadInst(call_inst) {
+StructWriteInst::StructWriteInst(llvm::CallInst &call_inst)
+  : WriteInst(call_inst) {
   // Do nothing.
 }
 
-IndexReadInst::IndexReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {
+IndexWriteInst::IndexWriteInst(llvm::CallInst &call_inst)
+  : WriteInst(call_inst) {
   // Do nothing.
 }
 
-AssocReadInst::AssocReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {
+AssocWriteInst::AssocWriteInst(llvm::CallInst &call_inst)
+  : WriteInst(call_inst) {
   // Do nothing.
 }
 
@@ -248,7 +252,13 @@ AssocGetInst::AssocGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {
   // Do nothing.
 }
 
-DeleteInst::DeleteInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {
+DeleteStructInst::DeleteStructInst(llvm::CallInst &call_inst)
+  : MemOIRInst(call_inst) {
+  // Do nothing.
+}
+
+DeleteCollectionInst::DeleteCollectionInst(llvm::CallInst &call_inst)
+  : MemOIRInst(call_inst) {
   // Do nothing.
 }
 
@@ -260,7 +270,12 @@ SliceInst::SliceInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {
   // Do nothing.
 }
 
-AssertTypeInst::AssertTypeInst(llvm::CallInst &call_inst)
+AssertStructTypeInst::AssertStructTypeInst(llvm::CallInst &call_inst)
+  : MemOIRInst(call_inst) {
+  // Do nothing.
+}
+
+AssertCollectionTypeInst::AssertCollectionTypeInst(llvm::CallInst &call_inst)
   : MemOIRInst(call_inst) {
   // Do nothing.
 }

@@ -30,6 +30,7 @@ struct MemOIRFunction;
 struct Collection;
 struct CollectionType;
 struct FieldArray;
+struct Struct;
 
 /*
  * Abstract MemOIR Instruction
@@ -69,8 +70,6 @@ public:
 #include "memoir/ir/Instructions.def"
         false;
   };
-
-  std::string toString(std::string indent = "") const override;
 
 protected:
   TypeInst(llvm::CallInst &call_inst);
@@ -311,8 +310,8 @@ public:
   llvm::Value &getNumberOfDimensionsOperand() const;
   llvm::Use &getNumberOfDimensionsOperandAsUse() const;
   size_t getLengthOfDimension(unsigned dimension_index) const;
-  llvm::Value &getNumberOfDimensionsOperand(unsigned dimension_index) const;
-  llvm::Use &getNumberOfDimensionsOperandAsUse(unsigned dimension_index) const;
+  llvm::Value &getLengthOfDimensionOperand(unsigned dimension_index) const;
+  llvm::Use &getLengthOfDimensionOperandAsUse(unsigned dimension_index) const;
 
   static bool classof(const MemOIRInst *I) {
     return (I->getKind() == MemOIR_Func::STATIC_TENSOR_TYPE);
@@ -547,8 +546,6 @@ public:
         false;
   };
 
-  std::string toString(std::string indent = "") const override;
-
 protected:
   ReadInst(llvm::CallInst &call_inst);
 };
@@ -556,8 +553,6 @@ protected:
 struct StructReadInst : public ReadInst {
 public:
   Collection &getCollectionAccessed() const override;
-
-  FieldArray &getFieldArray() const;
   Struct &getStructAccessed() const;
 
   unsigned getFieldIndex() const;
@@ -628,8 +623,9 @@ struct WriteInst : public AccessInst {
 public:
   llvm::Value &getValueWritten() const;
   llvm::Use &getValueWrittenAsUse() const;
+
   llvm::Value &getObjectOperand() const override;
-  llvm::Use &getObjectOperandAsUse() const;
+  llvm::Use &getObjectOperandAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
     return
@@ -639,8 +635,6 @@ public:
         false;
   };
 
-  std::string toString(std::string indent = "") const override;
-
 protected:
   WriteInst(llvm::CallInst &call_inst);
 };
@@ -649,7 +643,6 @@ struct StructWriteInst : public WriteInst {
 public:
   Collection &getCollectionAccessed() const override;
 
-  FieldArray &getFieldArray() const;
   Struct &getStructAccessed() const;
 
   unsigned getFieldIndex() const;
@@ -730,8 +723,6 @@ public:
         false;
   };
 
-  std::string toString(std::string indent = "") const override;
-
 protected:
   GetInst(llvm::CallInst &call_inst);
 };
@@ -739,6 +730,8 @@ protected:
 struct StructGetInst : public GetInst {
 public:
   Collection &getCollectionAccessed() const override;
+
+  Struct &getStructAccessed() const;
 
   unsigned getFieldIndex() const;
   llvm::Value &getFieldIndexOperand() const;
@@ -763,8 +756,8 @@ public:
   Collection &getCollectionAccessed() const override;
 
   unsigned getNumberOfDimensions() const;
-  llvm::Value &getIndexOperand(unsigned dim_idx) const;
-  llvm::Use &getIndexOperandAsUse(unsigned dim_idx) const;
+  llvm::Value &getIndexOfDimension(unsigned dim_idx) const;
+  llvm::Use &getIndexOfDimensionAsUse(unsigned dim_idx) const;
 
   static bool classof(const MemOIRInst *I) {
     return
@@ -861,7 +854,7 @@ protected:
 struct SliceInst : public MemOIRInst {
 public:
   Collection &getSlice() const;
-  llvm::Value &getSlicedCollectionAsValue() const;
+  llvm::Value &getSliceAsValue() const;
 
   Collection &getCollection() const;
   llvm::Value &getCollectionOperand() const;
