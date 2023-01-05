@@ -18,7 +18,11 @@ struct WriteInst;
 struct GetInst;
 struct JoinInst;
 
-enum CollectionKind {
+struct Type;
+struct CollectionType;
+struct FieldArrayType;
+
+enum class CollectionKind {
   BASE,
   FIELD_ARRAY,
   NESTED,
