@@ -1,61 +1,79 @@
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/Assert.hpp"
 
+#include "memoir/analysis/TypeAnalysis.hpp"
+
+namespace llvm::memoir {
+
 /*
  * Static getter methods
  */
 IntegerType &Type::get_u64_type() {
-  static IntegerType the_type(64, false);
-  return the_type;
+  return IntegerType::get<64, false>();
 }
 
 IntegerType &Type::get_u32_type() {
-  static IntegerType the_type(32, false);
-  return the_type;
+  return IntegerType::get<32, false>();
 }
 
 IntegerType &Type::get_u16_type() {
-  static IntegerType the_type(16, false);
-  return the_type;
+  return IntegerType::get<16, false>();
 }
 
 IntegerType &Type::get_u8_type() {
-  static IntegerType the_type(8, false);
-  return the_type;
+  return IntegerType::get<8, false>();
 }
 
 IntegerType &Type::get_i64_type() {
-  static IntegerType the_type(64, true);
-  return the_type;
+  return IntegerType::get<64, true>();
 }
 
 IntegerType &Type::get_i32_type() {
-  static IntegerType the_type(32, true);
-  return the_type;
+  return IntegerType::get<32, true>();
 }
 
 IntegerType &Type::get_i16_type() {
-  static IntegerType the_type(16, true);
-  return the_type;
+  return IntegerType::get<16, true>();
 }
 
 IntegerType &Type::get_i8_type() {
-  static IntegerType the_type(8, true);
-  return the_type;
+  return IntegerType::get<8, true>();
 }
 
 IntegerType &Type::get_i1_type() {
-  static IntegerType the_type(1, true);
+  return IntegerType::get<1, true>();
+}
+
+template <unsigned BW, bool S>
+IntegerType &IntegerType::get() {
+  static IntegerType the_type(BW, S);
   return the_type;
 }
 
 DoubleType &Type::get_f64_type() {
-  static DoubleType the_type();
+  return DoubleType::get();
+}
+
+DoubleType &DoubleType::get() {
+  static DoubleType the_type;
   return the_type;
 }
 
 FloatType &Type::get_f32_type() {
-  static FloatType the_type();
+  return FloatType::get();
+}
+
+FloatType &FloatType::get() {
+  static FloatType the_type;
+  return the_type;
+}
+
+PointerType &Type::get_ptr_type() {
+  return PointerType::get();
+}
+
+PointerType &PointerType::get() {
+  static PointerType the_type;
   return the_type;
 }
 
@@ -64,7 +82,7 @@ ReferenceType &Type::get_ref_type(Type &referenced_type) {
 }
 
 ReferenceType &ReferenceType::get(Type &referenced_type) {
-  auto found_type = ReferenceType::reference_types.find(&reference_types);
+  auto found_type = ReferenceType::reference_types.find(&referenced_type);
   if (found_type != ReferenceType::reference_types.end()) {
     return *(found_type->second);
   }
@@ -75,29 +93,36 @@ ReferenceType &ReferenceType::get(Type &referenced_type) {
   return *new_type;
 }
 
-StructType &Type::define_struct_type(std::string *name,
-                                     llvm::CallInst &call_inst,
+map<Type *, ReferenceType *> ReferenceType::reference_types = {};
+
+/*
+ * StructType implementation
+ */
+StructType &Type::define_struct_type(DefineStructTypeInst &definition,
+                                     std::string name,
                                      vector<Type *> field_types) {
-  return StructType::define(name, call_inst, field_types);
+  return StructType::define(definition, name, field_types);
 }
 
-StructType &Type::get_struct_type(std::string *name) {
+StructType &Type::get_struct_type(std::string name) {
   return StructType::get(name);
 }
 
-StructType &StructType::define(std::string name,
-                               llvm::CallInst &call_inst,
+StructType &StructType::define(DefineStructTypeInst &definition,
+                               std::string name,
                                vector<Type *> field_types) {
   auto found_type = StructType::defined_types.find(name);
   if (found_type != StructType::defined_types.end()) {
     return *(found_type->second);
   }
 
-  auto new_type = new StructType(name, call_inst, field_types);
+  auto new_type = new StructType(definition, name, field_types);
   StructType::defined_types[name] = new_type;
 
   return *new_type;
 }
+
+map<std::string, StructType *> StructType::defined_types = {};
 
 StructType &StructType::get(std::string name) {
   auto found_type = StructType::defined_types.find(name);
@@ -106,8 +131,6 @@ StructType &StructType::get(std::string name) {
   }
 
   MEMOIR_UNREACHABLE("Could not find a StructType of the given name");
-
-  return;
 }
 
 FieldArrayType &Type::get_field_array_type(StructType &struct_type,
@@ -119,24 +142,31 @@ FieldArrayType &FieldArrayType::get(StructType &struct_type,
                                     unsigned field_index) {
   auto found_struct = FieldArrayType::struct_to_field_array.find(&struct_type);
   if (found_struct != FieldArrayType::struct_to_field_array.end()) {
-    return *(found_struct->second());
+    auto &index_to_field_array = found_struct->second;
+    auto found_index = index_to_field_array.find(field_index);
+    if (found_index != index_to_field_array.end()) {
+      return *(found_index->second);
+    }
   }
 
   auto type = new FieldArrayType(struct_type, field_index);
-  FieldArrayType::struct_to_field_array[&struct_type] = type;
+  FieldArrayType::struct_to_field_array[&struct_type][field_index] = type;
 
   return *type;
 }
+
+map<StructType *, map<unsigned, FieldArrayType *>>
+    FieldArrayType::struct_to_field_array = {};
 
 /*
  * Static checker methods
  */
 bool Type::is_primitive_type(Type &type) {
-  switch (type->getCode()) {
-    case IntegerTy:
-    case FloatTy:
-    case DoubleTy:
-    case PointerTy:
+  switch (type.getCode()) {
+    case TypeCode::INTEGER:
+    case TypeCode::FLOAT:
+    case TypeCode::DOUBLE:
+    case TypeCode::POINTER:
       return true;
     default:
       return false;
@@ -144,8 +174,8 @@ bool Type::is_primitive_type(Type &type) {
 }
 
 bool Type::is_reference_type(Type &type) {
-  switch (type->getCode()) {
-    case ReferenceTy:
+  switch (type.getCode()) {
+    case TypeCode::REFERENCE:
       return true;
     default:
       return false;
@@ -153,8 +183,8 @@ bool Type::is_reference_type(Type &type) {
 }
 
 bool Type::is_struct_type(Type &type) {
-  switch (type->getCode()) {
-    case StructTy:
+  switch (type.getCode()) {
+    case TypeCode::STRUCT:
       return true;
     default:
       return false;
@@ -162,11 +192,11 @@ bool Type::is_struct_type(Type &type) {
 }
 
 bool Type::is_collection_type(Type &type) {
-  switch (type->getCode()) {
-    case StaticTensorTy:
-    case TensorTy:
-    case AssocArrayTy:
-    case SequenceTy:
+  switch (type.getCode()) {
+    case TypeCode::STATIC_TENSOR:
+    case TypeCode::TENSOR:
+    case TypeCode::ASSOC_ARRAY:
+    case TypeCode::SEQUENCE:
       return true;
     default:
       return false;
@@ -196,7 +226,7 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Type &T) {
 IntegerType::IntegerType(unsigned bitwidth, bool is_signed)
   : bitwidth(bitwidth),
     is_signed(is_signed),
-    Type(TypeCode::IntegerTy) {
+    Type(TypeCode::INTEGER) {
   // Do nothing.
 }
 
@@ -204,7 +234,7 @@ unsigned IntegerType::getBitWidth() const {
   return this->bitwidth;
 }
 
-bool IntegerType::is_signed() const {
+bool IntegerType::isSigned() const {
   return this->is_signed;
 }
 
@@ -229,7 +259,7 @@ std::string IntegerType::toString(std::string indent) const {
 /*
  * FloatType implementation
  */
-FloatType::FloatType() : Type(TypeCode::FloatTy) {
+FloatType::FloatType() : Type(TypeCode::FLOAT) {
   // Do nothing.
 }
 
@@ -244,7 +274,7 @@ std::string FloatType::toString(std::string indent) const {
 /*
  * DoubleType implementation
  */
-DoubleType::DoubleType() : Type(TypeCode::DoubleTy) {
+DoubleType::DoubleType() : Type(TypeCode::DOUBLE) {
   // Do nothing.
 }
 
@@ -259,7 +289,7 @@ std::string DoubleType::toString(std::string indent) const {
 /*
  * PointerType implementation
  */
-PointerType::PointerType() : Type(TypeCode::PointerTy) {
+PointerType::PointerType() : Type(TypeCode::POINTER) {
   // Do nothing.
 }
 
@@ -274,9 +304,9 @@ std::string PointerType::toString(std::string indent) const {
 /*
  * ReferenceType implementation
  */
-ReferenceType::ReferenceType(Type &type)
-  : type(type),
-    Type(TypeCode::ReferenceTy) {
+ReferenceType::ReferenceType(Type &referenced_type)
+  : referenced_type(referenced_type),
+    Type(TypeCode::REFERENCE) {
   // Do nothing.
 }
 
@@ -296,29 +326,29 @@ std::string ReferenceType::toString(std::string indent) const {
 /*
  * StructType implementation
  */
-StructType::StructType(llvm::CallInst &call_inst,
+StructType::StructType(DefineStructTypeInst &definition,
                        std::string name,
                        vector<Type *> field_types)
-  : call_inst(call_inst),
+  : definition(definition),
     name(name),
     field_types(field_types),
-    Type(TypeCode::StructTy) {
+    Type(TypeCode::STRUCT) {
   // Do nothing.
 }
 
-llvm::CallInst &StructType::getCallInst() const {
-  return this->call_inst;
+DefineStructTypeInst &StructType::getDefinition() const {
+  return this->definition;
 }
 
 std::string StructType::getName() const {
   return this->name;
 }
 
-size_t StructType::getNumFields() const {
+unsigned StructType::getNumFields() const {
   return this->field_types.size();
 }
 
-Type &StructType::getFieldType(size_t field_index) const {
+Type &StructType::getFieldType(unsigned field_index) const {
   MEMOIR_ASSERT(
       (field_index < this->getNumFields()),
       "Attempt to get length of out-of-range field index for struct type");
@@ -347,15 +377,52 @@ CollectionType::CollectionType(TypeCode code) : Type(code) {
 }
 
 /*
+ * FieldArrayType implementation
+ */
+FieldArrayType::FieldArrayType(StructType &struct_type, unsigned field_index)
+  : struct_type(struct_type),
+    field_index(field_index),
+    CollectionType(TypeCode::FIELD_ARRAY) {
+  // Do nothing.
+}
+
+Type &FieldArrayType::getElementType() const {
+  return this->getStructType().getFieldType(this->getFieldIndex());
+}
+
+StructType &FieldArrayType::getStructType() const {
+  return this->struct_type;
+}
+
+unsigned FieldArrayType::getFieldIndex() const {
+  return this->field_index;
+}
+
+std::string FieldArrayType::toString(std::string indent) const {
+  std::string str = "";
+
+  str += "(type: field array\n";
+  str += indent + "  struct type: \n";
+  str += indent + "    " + this->getStructType().toString(indent + "    ");
+  str += "\n";
+  str += indent + "  field index: \n";
+  str += indent + "    " + std::to_string(this->getFieldIndex());
+  str += "\n";
+  str += indent + ")\n";
+
+  return str;
+}
+
+/*
  * StaticTensorType implementation
  */
 StaticTensorType::StaticTensorType(Type &element_type,
-                                   size_t number_of_dimensions,
+                                   unsigned number_of_dimensions,
                                    vector<size_t> length_of_dimensions)
   : element_type(element_type),
     number_of_dimensions(number_of_dimensions),
     length_of_dimensions(length_of_dimensions),
-    CollectionType(TypeCode::StaticTensorTy) {
+    CollectionType(TypeCode::STATIC_TENSOR) {
   // Do nothing.
 }
 
@@ -363,11 +430,11 @@ Type &StaticTensorType::getElementType() const {
   return this->element_type;
 }
 
-size_t StaticTensorType::getNumberOfDimensions() const {
+unsigned StaticTensorType::getNumberOfDimensions() const {
   return this->number_of_dimensions;
 }
 
-size_t StaticTensorType::getLengthOfDimension(size_t dimension_index) const {
+size_t StaticTensorType::getLengthOfDimension(unsigned dimension_index) const {
   MEMOIR_ASSERT(
       (dimension_index < this->getNumberOfDimensions()),
       "Attempt to get length of out-of-range dimension index for static tensor type");
@@ -382,7 +449,7 @@ std::string StaticTensorType::toString(std::string indent) const {
   str += indent + "  element type: \n";
   str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
   str += indent + "  # of dimensions: "
-         + std::to_string(this->getNumDimensions()) + "\n";
+         + std::to_string(this->getNumberOfDimensions()) + "\n";
   for (auto dim = 0; dim < this->length_of_dimensions.size(); dim++) {
     str += indent + "  dimension " + std::to_string(dim) + ": "
            + std::to_string(this->length_of_dimensions.at(dim)) + "\n";
@@ -395,10 +462,10 @@ std::string StaticTensorType::toString(std::string indent) const {
 /*
  * TensorType implementation
  */
-TensorType::TensorType(Type &element_type, size_t number_of_dimensions)
+TensorType::TensorType(Type &element_type, unsigned number_of_dimensions)
   : element_type(element_type),
     number_of_dimensions(number_of_dimensions),
-    CollectionType(TypeCode::TensorTy) {
+    CollectionType(TypeCode::TENSOR) {
   // Do nothing.
 }
 
@@ -406,7 +473,7 @@ Type &TensorType::getElementType() const {
   return this->element_type;
 }
 
-size_t TensorType::getNumberOfDimensions() const {
+unsigned TensorType::getNumberOfDimensions() const {
   return this->getNumberOfDimensions();
 }
 
@@ -416,8 +483,8 @@ std::string TensorType::toString(std::string indent) const {
   str = "(type: tensor\n";
   str += indent + "  element type: \n";
   str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
-  str += indent + "  # of dimensions: " + std::to_string(this->num_dimensions)
-         + "\n";
+  str += indent + "  # of dimensions: "
+         + std::to_string(this->getNumberOfDimensions()) + "\n";
   str += indent + ")";
 
   return str;
@@ -429,7 +496,7 @@ std::string TensorType::toString(std::string indent) const {
 AssocArrayType::AssocArrayType(Type &key_type, Type &value_type)
   : key_type(key_type),
     value_type(value_type),
-    CollectionType(TypeCode::AssocArrayType) {
+    CollectionType(TypeCode::ASSOC_ARRAY) {
   // Do nothing.
 }
 
@@ -445,7 +512,7 @@ Type &AssocArrayType::getElementType() const {
   return this->getValueType();
 }
 
-std::string AssocArrayTypeSummary::toString(std::string indent) const {
+std::string AssocArrayType::toString(std::string indent) const {
   std::string str;
 
   str = "(type: associative array\n";
@@ -463,7 +530,7 @@ std::string AssocArrayTypeSummary::toString(std::string indent) const {
  */
 SequenceType::SequenceType(Type &element_type)
   : element_type(element_type),
-    CollectionType(TypeCode::SequenceTy) {
+    CollectionType(TypeCode::SEQUENCE) {
   // Do nothing.
 }
 
@@ -471,7 +538,7 @@ Type &SequenceType::getElementType() const {
   return this->element_type;
 }
 
-std::string AssocArrayTypeSummary::toString(std::string indent) const {
+std::string SequenceType::toString(std::string indent) const {
   std::string str;
 
   str = "(type: sequence\n";
@@ -481,3 +548,5 @@ std::string AssocArrayTypeSummary::toString(std::string indent) const {
 
   return str;
 }
+
+} // namespace llvm::memoir

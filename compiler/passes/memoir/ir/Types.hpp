@@ -14,32 +14,37 @@
 
 #include "memoir/utility/FunctionNames.hpp"
 
+#include "memoir/ir/Instructions.hpp"
+
 namespace llvm::memoir {
 
-enum TypeCode {
-  IntegerTy,
-  FloatTy,
-  DoubleTy,
-  PointerTy,
-  ReferenceTy,
-  StructTy,
-  StaticTensorTy,
-  TensorTy,
-  AssocArrayTy,
-  SequenceTy,
+enum class TypeCode {
+  INTEGER,
+  FLOAT,
+  DOUBLE,
+  POINTER,
+  REFERENCE,
+  STRUCT,
+  FIELD_ARRAY,
+  STATIC_TENSOR,
+  TENSOR,
+  ASSOC_ARRAY,
+  SEQUENCE,
 };
 
-class IntegerType;
-class FloatType;
-class DoubleType;
-class PointerType;
-class ReferenceType;
-class StructType;
-class FieldArrayType;
-class StaticTensorType;
-class TensorType;
-class AssocArrayType;
-class SequenceType;
+struct IntegerType;
+struct FloatType;
+struct DoubleType;
+struct PointerType;
+struct ReferenceType;
+struct StructType;
+struct FieldArrayType;
+struct StaticTensorType;
+struct TensorType;
+struct AssocArrayType;
+struct SequenceType;
+
+struct DefineStructTypeInst;
 
 struct Type {
 public:
@@ -56,10 +61,10 @@ public:
   static DoubleType &get_f64_type();
   static PointerType &get_ptr_type();
   static ReferenceType &get_ref_type(Type &referenced_type);
-  static StructType &define_struct_type(llvm::CallInst &call_inst,
-                                        const char *name,
+  static StructType &define_struct_type(DefineStructTypeInst &definition,
+                                        std::string name,
                                         vector<Type *> field_types);
-  static StructType &get_struct_type(const char *name);
+  static StructType &get_struct_type(std::string name);
   static FieldArrayType &get_field_array_type(StructType &type,
                                               unsigned field_index);
   static StaticTensorType &get_static_tensor_type(
@@ -96,6 +101,9 @@ protected:
 
 struct IntegerType : public Type {
 public:
+  template <unsigned BW, bool S>
+  static IntegerType &get();
+
   unsigned getBitWidth() const;
   bool isSigned() const;
 
@@ -112,6 +120,8 @@ protected:
 
 struct FloatType : public Type {
 public:
+  static FloatType &get();
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -122,6 +132,8 @@ protected:
 
 struct DoubleType : public Type {
 public:
+  static DoubleType &get();
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -132,6 +144,8 @@ protected:
 
 struct PointerType : public Type {
 public:
+  static PointerType &get();
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -160,12 +174,12 @@ protected:
 
 struct StructType : public Type {
 public:
-  static StructType &define(llvm::CallInst &call_inst,
+  static StructType &define(DefineStructTypeInst &definition,
                             std::string name,
                             vector<Type *> field_types);
   static StructType &get(std::string name);
 
-  llvm::CallInst &getCallInst() const;
+  DefineStructTypeInst &getDefinition() const;
   std::string getName() const;
   unsigned getNumFields() const;
   Type &getFieldType(unsigned field_index) const;
@@ -173,13 +187,13 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  llvm::CallInst &call_inst;
+  DefineStructTypeInst &definition;
   std::string name;
   vector<Type *> field_types;
 
   static map<std::string, StructType *> defined_types;
 
-  StructType(llvm::CallInst &call_inst,
+  StructType(DefineStructTypeInst &definition,
              std::string name,
              vector<Type *> field_types);
 
@@ -191,7 +205,7 @@ public:
   virtual Type &getElementType() const = 0;
 
 protected:
-  CollectionType();
+  CollectionType(TypeCode code);
 
   friend class TypeAnalysis;
 };
@@ -204,6 +218,8 @@ public:
 
   StructType &getStructType() const;
   unsigned getFieldIndex() const;
+
+  std::string toString(std::string indent = "") const override;
 
 protected:
   StructType &struct_type;
@@ -220,6 +236,8 @@ public:
   Type &getElementType() const override;
   unsigned getNumberOfDimensions() const;
   size_t getLengthOfDimension(unsigned dimension_index) const;
+
+  std::string toString(std::string indent = "") const override;
 
 protected:
   Type &element_type;
@@ -244,7 +262,7 @@ protected:
   Type &element_type;
   unsigned number_of_dimensions;
 
-  TensorType(Type &element_type, size_t number_of_dimensions);
+  TensorType(Type &element_type, unsigned number_of_dimensions);
 
   friend class TypeAnalysis;
 };
