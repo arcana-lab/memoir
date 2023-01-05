@@ -101,9 +101,6 @@ using stack = std::stack<T>;
 template <typename T>
 using queue = std::queue<T>;
 
-template <typename T, std::size_t Extent = std::dynamic_extent>
-using span = std::span<T, Extent>;
-
 } // namespace llvm::memoir
 
 #endif
