@@ -1,5 +1,7 @@
 #include "memoir/ir/Instructions.hpp"
 
+#include "memoir/analysis/CollectionAnalysis.hpp"
+#include "memoir/analysis/StructAnalysis.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
 
 namespace llvm::memoir {
@@ -20,8 +22,9 @@ llvm::Use &AssertStructTypeInst::getTypeOperandAsUse() const {
 }
 
 Struct &AssertStructTypeInst::getStruct() const {
-  // TODO: call the StructAnalysis
-  return;
+  auto strct = StructAnalysis::analyze(this->getStructOperand());
+  MEMOIR_NULL_CHECK(strct, "Could not determine struct to typecheck");
+  return *strct;
 }
 
 llvm::Value &AssertStructTypeInst::getStructOperand() const {
@@ -46,7 +49,9 @@ std::string AssertStructTypeInst::toString(std::string indent) const {
  * AssertCollectionTypeInst implementation
  */
 Type &AssertCollectionTypeInst::getType() const {
-  return *(TypeAnalysis::get().getType(this->getTypeOperand()));
+  auto type = TypeAnalysis::analyze(this->getTypeOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine type to assert");
+  return *type;
 }
 
 llvm::Value &AssertCollectionTypeInst::getTypeOperand() const {
