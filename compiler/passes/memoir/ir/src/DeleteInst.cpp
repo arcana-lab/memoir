@@ -1,9 +1,17 @@
 #include "memoir/ir/Instructions.hpp"
 
+#include "memoir/analysis/CollectionAnalysis.hpp"
+#include "memoir/analysis/StructAnalysis.hpp"
+
 namespace llvm::memoir {
 
+/*
+ * DeleteStructInst implementation
+ */
 Struct &DeleteStructInst::getStructDeleted() const {
-  return StructAnalysis::analyze(this->getStructOperand());
+  auto strct = StructAnalysis::analyze(this->getStructOperand());
+  MEMOIR_NULL_CHECK(strct, "Could not determine the struct being deleted");
+  return *strct;
 }
 
 llvm::Value &DeleteStructInst::getStructOperand() const {
@@ -24,8 +32,15 @@ std::string DeleteStructInst::toString(std::string indent) const {
   return str;
 }
 
-Collection &DeleteCollectionInst::getCollection() const {
-  return CollectionAnalysis::analyze(this->getCollectionOperandAsUse());
+/*
+ * DeleteCollectionInst implementation
+ */
+Collection &DeleteCollectionInst::getCollectionDeleted() const {
+  auto collection =
+      CollectionAnalysis::analyze(this->getCollectionOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the collection being deleted");
+  return *collection;
 }
 
 llvm::Value &DeleteCollectionInst::getCollectionOperand() const {
