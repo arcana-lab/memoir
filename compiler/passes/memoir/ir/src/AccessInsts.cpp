@@ -1,5 +1,8 @@
 #include "memoir/ir/Instructions.hpp"
 
+#include "memoir/analysis/CollectionAnalysis.hpp"
+#include "memoir/analysis/StructAnalysis.hpp"
+
 namespace llvm::memoir {
 
 /*
@@ -10,7 +13,7 @@ llvm::Value &ReadInst::getValueRead() const {
 }
 
 llvm::Value &ReadInst::getObjectOperand() const {
-  return this->getObjectOperandAsUse().get();
+  return *(this->getObjectOperandAsUse().get());
 }
 
 llvm::Use &ReadInst::getObjectOperandAsUse() const {
@@ -21,20 +24,20 @@ llvm::Use &ReadInst::getObjectOperandAsUse() const {
  * StructReadInst implementation
  */
 Collection &StructReadInst::getCollectionAccessed() const {
-  return this->getFieldArrayAccessed();
-}
-
-FieldArray &StructReadInst::getFieldArray() const {
-  return FieldArray::get(this->getStruct()->getType(), this->getFieldIndex());
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the struct being accessed");
+  return *collection;
 }
 
 Struct &StructReadInst::getStructAccessed() const {
-  // TODO: run the StructAnalysis
-  return;
+  auto strct = StructAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(strct, "Could not determine the struct being accessed");
+  return *strct;
 }
 
 unsigned StructReadInst::getFieldIndex() const {
-  auto field_index_as_value = this->getFieldIndexOperand();
+  auto &field_index_as_value = this->getFieldIndexOperand();
   auto field_index_as_constant =
       dyn_cast<llvm::ConstantInt>(&field_index_as_value);
   MEMOIR_NULL_CHECK(field_index_as_constant,
@@ -51,15 +54,26 @@ unsigned StructReadInst::getFieldIndex() const {
 }
 
 llvm::Value &StructReadInst::getFieldIndexOperand() const {
-  return this->getFieldIndexAsUse().get();
+  return *(this->getFieldIndexOperandAsUse().get());
 }
 
-llvm::Use &StructReadInst::getFieldIndexAsUse() const {
+llvm::Use &StructReadInst::getFieldIndexOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(1);
 }
+
+std::string StructReadInst::toString(std::string indent) const {
+  // TODO: flesh out.
+  return "struct read";
+}
+
+/*
+ * IndexReadInst implementation
+ */
 Collection &IndexReadInst::getCollectionAccessed() const {
-  // TODO: run the CollectionAnalysis
-  return;
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the collection being accessed");
+  return *collection;
 }
 
 unsigned IndexReadInst::getNumberOfDimensions() const {
@@ -67,31 +81,46 @@ unsigned IndexReadInst::getNumberOfDimensions() const {
 }
 
 llvm::Value &IndexReadInst::getIndexOfDimension(unsigned dim_idx) const {
-  return this->getIndexOfDimensionAsUse(dim_idx).get();
+  return *(this->getIndexOfDimensionAsUse(dim_idx).get());
 }
 
 llvm::Use &IndexReadInst::getIndexOfDimensionAsUse(unsigned dim_idx) const {
   return this->getCallInst().getArgOperandUse(1 + dim_idx);
 }
 
+std::string IndexReadInst::toString(std::string indent) const {
+  // TODO: flesh out.
+  return "index read";
+}
+
+/*
+ * AssocReadInst implementation
+ */
 Collection &AssocReadInst::getCollectionAccessed() const {
-  // TODO: run the CollectionAnalysis
-  return;
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the collection being accessed");
+  return *collection;
 }
 
 llvm::Value &AssocReadInst::getKeyOperand() const {
-  return this->getKeyOperandAsUse().get();
+  return *(this->getKeyOperandAsUse().get());
 }
 
 llvm::Use &AssocReadInst::getKeyOperandAsUse() const {
-  return this->getCallInst().getArgOperandAsUse(1);
+  return this->getCallInst().getArgOperandUse(1);
+}
+
+std::string AssocReadInst::toString(std::string indent) const {
+  // TODO: flesh out.
+  return "assoc read";
 }
 
 /*
  * WriteInst implementation
  */
 llvm::Value &WriteInst::getValueWritten() const {
-  return this->getValueWrittenAsUse().get();
+  return *(this->getValueWrittenAsUse().get());
 }
 
 llvm::Use &WriteInst::getValueWrittenAsUse() const {
@@ -99,25 +128,27 @@ llvm::Use &WriteInst::getValueWrittenAsUse() const {
 }
 
 llvm::Value &WriteInst::getObjectOperand() const {
-  return this->getObjectOperandAsUse().get();
+  return *(this->getObjectOperandAsUse().get());
 }
 
 llvm::Use &WriteInst::getObjectOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(1);
 }
 
+/*
+ * StructWriteInst implementation
+ */
 Collection &StructWriteInst::getCollectionAccessed() const {
-  return this->getFieldArray();
-}
-
-FieldArray &StructWriteInst::getFieldArray() const {
-  return FieldArray::get(this->getStructAccessed()->getType(),
-                         this->getFieldIndex());
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the struct being accessed");
+  return *collection;
 }
 
 Struct &StructWriteInst::getStructAccessed() const {
-  // TODO: run the StructAnalysis
-  return;
+  auto strct = StructAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(strct, "Could not determine struct being accessed");
+  return *strct;
 }
 
 unsigned StructWriteInst::getFieldIndex() const {
@@ -138,16 +169,26 @@ unsigned StructWriteInst::getFieldIndex() const {
 }
 
 llvm::Value &StructWriteInst::getFieldIndexOperand() const {
-  return *(this->getFieldIndexAsUse().get());
+  return *(this->getFieldIndexOperandAsUse().get());
 }
 
 llvm::Use &StructWriteInst::getFieldIndexOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(2);
 }
 
+std::string StructWriteInst::toString(std::string indent) const {
+  // TODO: flesh out.
+  return "struct write";
+}
+
+/*
+ * IndexWriteInst implementation
+ */
 Collection &IndexWriteInst::getCollectionAccessed() const {
-  // TODO: run the CollectionAnalysis
-  return;
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine collection being written to");
+  return *collection;
 }
 
 unsigned IndexWriteInst::getNumberOfDimensions() const {
@@ -155,24 +196,39 @@ unsigned IndexWriteInst::getNumberOfDimensions() const {
 }
 
 llvm::Value &IndexWriteInst::getIndexOfDimension(unsigned dim_idx) const {
-  return this->getIndexOfDimensionAsUse(dim_idx).get();
+  return *(this->getIndexOfDimensionAsUse(dim_idx).get());
 }
 
 llvm::Use &IndexWriteInst::getIndexOfDimensionAsUse(unsigned dim_idx) const {
   return this->getCallInst().getArgOperandUse(2 + dim_idx);
 }
 
+std::string IndexWriteInst::toString(std::string indent) const {
+  // TODO: flesh out.
+  return "index write";
+}
+
+/*
+ * AssocWriteInst implementation
+ */
 Collection &AssocWriteInst::getCollectionAccessed() const {
-  // TODO: run the CollectionAnalysis
-  return;
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine collection being written to");
+  return *collection;
 }
 
 llvm::Value &AssocWriteInst::getKeyOperand() const {
-  return this->getKeyOperandAsUse().get();
+  return *(this->getKeyOperandAsUse().get());
 }
 
 llvm::Use &AssocWriteInst::getKeyOperandAsUse() const {
-  return this->getCallInst().getArgOperandAsUse(2);
+  return this->getCallInst().getArgOperandUse(2);
+}
+
+std::string AssocWriteInst::toString(std::string indent) const {
+  // TODO: flesh out.
+  return "assoc write";
 }
 
 /*
@@ -183,27 +239,31 @@ llvm::Value &GetInst::getValueRead() const {
 }
 
 llvm::Value &GetInst::getObjectOperand() const {
-  return this->getObjectOperandAsUse().get();
+  return *(this->getObjectOperandAsUse().get());
 }
 
 llvm::Use &GetInst::getObjectOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(0);
 }
 
+/*
+ * StructGetInst implementation
+ */
 Collection &StructGetInst::getCollectionAccessed() const {
-  return this->getFieldArray();
-}
-
-FieldArray &StructGetInst::getFieldArray() const {
-  return FieldArray::get(this->getStruct()->getType(), this->getFieldIndex());
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the struct being accessed");
+  return *collection;
 }
 
 Struct &StructGetInst::getStructAccessed() const {
-  // TODO: run the StructAnalysis
-  return;
+  auto strct = StructAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(strct, "Could not determine the struct being accessed");
+  return *strct;
 }
+
 unsigned StructGetInst::getFieldIndex() const {
-  auto field_index_as_value = this->getFieldIndexOperand();
+  auto &field_index_as_value = this->getFieldIndexOperand();
   auto field_index_as_constant =
       dyn_cast<llvm::ConstantInt>(&field_index_as_value);
   MEMOIR_NULL_CHECK(field_index_as_constant,
@@ -220,16 +280,26 @@ unsigned StructGetInst::getFieldIndex() const {
 }
 
 llvm::Value &StructGetInst::getFieldIndexOperand() const {
-  return this->getFieldIndexAsUse().get();
+  return *(this->getFieldIndexOperandAsUse().get());
 }
 
 llvm::Use &StructGetInst::getFieldIndexOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(1);
 }
 
+std::string StructGetInst::toString(std::string indent) const {
+  // TODO: flesh out.
+  return "struct get";
+}
+
+/*
+ * IndexGetInst implementation
+ */
 Collection &IndexGetInst::getCollectionAccessed() const {
-  // TODO: run the CollectionAnalysis
-  return;
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the collection being accessed");
+  return *collection;
 }
 
 unsigned IndexGetInst::getNumberOfDimensions() const {
@@ -237,24 +307,39 @@ unsigned IndexGetInst::getNumberOfDimensions() const {
 }
 
 llvm::Value &IndexGetInst::getIndexOfDimension(unsigned dim_idx) const {
-  return this->getIndexOfDimensionAsUse(dim_idx).get();
+  return *(this->getIndexOfDimensionAsUse(dim_idx).get());
 }
 
 llvm::Use &IndexGetInst::getIndexOfDimensionAsUse(unsigned dim_idx) const {
   return this->getCallInst().getArgOperandUse(1 + dim_idx);
 }
 
+std::string IndexGetInst::toString(std::string indent) const {
+  // TODO: flesh out.
+  return "index get";
+}
+
+/*
+ * AssocGetInst implementation
+ */
 Collection &AssocGetInst::getCollectionAccessed() const {
-  // TODO: run the CollectionAnalysis
-  return;
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the collection being accessed");
+  return *collection;
 }
 
 llvm::Value &AssocGetInst::getKeyOperand() const {
-  return this->getKeyOperandAsUse().get();
+  return *(this->getKeyOperandAsUse().get());
 }
 
 llvm::Use &AssocGetInst::getKeyOperandAsUse() const {
-  return this->getCallInst().getArgOperandAsUse(1);
+  return this->getCallInst().getArgOperandUse(1);
+}
+
+std::string AssocGetInst::toString(std::string indent) const {
+  // TODO: flesh out.
+  return "assoc get";
 }
 
 } // namespace llvm::memoir
