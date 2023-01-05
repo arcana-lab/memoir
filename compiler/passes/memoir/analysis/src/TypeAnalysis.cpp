@@ -354,11 +354,8 @@ Type *TypeAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
 
   /*
    * TODO
+   * Implement interprocedural analysis.
    */
-
-  MEMOIR_UNREACHABLE(
-      "Handling for interprocedural type analysis is not yet implemented");
-
   auto type = nullptr;
 
   MEMOIZE_AND_RETURN(I, type);
