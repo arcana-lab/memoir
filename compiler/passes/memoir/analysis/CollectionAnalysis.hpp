@@ -13,7 +13,6 @@
 
 #include "memoir/ir/Collections.hpp"
 
-#include "memoir/analysis/AccessAnalysis.hpp"
 #include "memoir/analysis/AllocationAnalysis.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
 
