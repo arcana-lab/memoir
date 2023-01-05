@@ -1,4 +1,5 @@
 #include "memoir/ir/Structs.hpp"
+#include "memoir/ir/Instructions.hpp"
 
 /*
  * This file contains a substrate for analyzing MemOIR structs.
@@ -41,7 +42,7 @@ std::string BaseStruct::toString(std::string indent) const {
   std::string str;
 
   str = "(base struct\n";
-  str += indent + this->getAllocation().toString(indent) + "\n";
+  str += indent + this->getAllocInst().toString(indent) + "\n";
   str += indent + ")\n";
 
   return str;
@@ -50,9 +51,15 @@ std::string BaseStruct::toString(std::string indent) const {
 /*
  * ContainedStruct implementation
  */
-ContainedStruct::ContainedStruct(Read &access_to_container)
-  : access_to_container(access_to_container),
-    Struct(StructCode::CONTAINED) {
+
+ContainedStruct::ContainedStruct(GetInst &access_to_container, StructCode code)
+  : access(access_to_container),
+    Struct(code) {
+  // Do nothing.
+}
+
+ContainedStruct::ContainedStruct(GetInst &access_to_container)
+  : ContainedStruct(access_to_container, StructCode::CONTAINED) {
   // Do nothing.
 }
 
@@ -88,23 +95,34 @@ std::string ContainedStruct::toString(std::string indent) const {
 /*
  * NestedStruct implementation
  */
-NestedStruct::NestedStruct(Field &field)
-  : field(field),
-    Struct(StructCode::NESTED) {
+NestedStruct::NestedStruct(StructGetInst &access)
+  : ContainedStruct(access, StructCode::NESTED) {
   // Do nothing.
 }
 
-FieldArray &NestedStruct::getFieldArray() const {
-  return this->struct_container;
+StructGetInst &NestedStruct::getStructAccess() const {
+  auto &struct_get_inst = static_cast<StructGetInst &>(this->getAccess());
+  return struct_get_inst;
+}
+
+Struct &NestedStruct::getNestingStruct() const {
+  return this->getStructAccess().getStructAccessed();
+}
+
+Collection &NestedStruct::getNestingCollection() const {
+  return this->getStructAccess().getCollectionAccessed();
 }
 
 std::string NestedStruct::toString(std::string indent) const {
   std::string str;
 
   str = "(nested struct\n";
-  str += indent + "  field array: \n";
-  str +=
-      indent + "    " + this->getFieldArray().toString(indent + "    ") + "\n";
+  str += indent + "  nesting collection: \n";
+  str += indent + "    "
+         + this->getNestingCollection().toString(indent + "    ") + "\n";
+  str += indent + "  nesting struct: \n";
+  str += indent + "    " + this->getNestingStruct().toString(indent + "    ")
+         + "\n";
   str += indent + ")";
 
   return str;
@@ -113,7 +131,7 @@ std::string NestedStruct::toString(std::string indent) const {
 /*
  * ReferencedStruct implementation
  */
-ReferencedStruct::ReferencedStruct(Read &access)
+ReferencedStruct::ReferencedStruct(ReadInst &access)
   : access(access),
     Struct(StructCode::REFERENCED) {
   // Do nothing.
@@ -124,8 +142,9 @@ ReadInst &ReferencedStruct::getAccess() const {
 }
 
 ReferenceType &ReferencedStruct::getReferenceType() const {
-  auto &access_type = this->getAccess().getType();
-  MEMOIR_ASSERT((access_type.getCode() == TypeCode::ReferenceTy),
+  auto &access_type =
+      this->getAccess().getCollectionAccessed().getElementType();
+  MEMOIR_ASSERT(Type::is_reference_type(access_type),
                 "access is not to a reference type");
 
   return static_cast<ReferenceType &>(access_type);
@@ -156,7 +175,7 @@ Struct &ControlPHIStruct::getIncomingStruct(unsigned idx) const {
 }
 
 Struct &ControlPHIStruct::getIncomingStructForBlock(
-    const llvm::BasicBlock &BB) const {
+    llvm::BasicBlock &BB) const {
   auto found_struct = this->incoming.find(&BB);
   MEMOIR_ASSERT(
       (found_struct != this->incoming.end()),
@@ -173,7 +192,7 @@ llvm::BasicBlock &ControlPHIStruct::getIncomingBlock(unsigned idx) const {
 }
 
 unsigned ControlPHIStruct::getNumIncoming() const {
-  return this->phi_node.getNumIncoming();
+  return this->phi_node.getNumIncomingValues();
 }
 
 llvm::PHINode &ControlPHIStruct::getPHI() const {
@@ -213,25 +232,24 @@ Struct &CallPHIStruct::getIncomingStruct(uint64_t idx) const {
   return this->getIncomingStructForCall(incoming_call);
 }
 
-Struct &CallPHIStruct::getIncomingStructForCall(
-    const llvm::CallBase &call) const {
-  auto found_struct = this->incoming.find(&call);
+Struct &CallPHIStruct::getIncomingStructForCall(llvm::CallBase &CB) const {
+  auto found_struct = this->incoming.find(&CB);
   MEMOIR_ASSERT((found_struct != this->incoming.end()),
                 "no incoming struct for given call");
   return *(found_struct->second);
 }
 
-llvm::CallBase &CallPHIStruct::getIncomingCall(uint64 idx) const {
+llvm::CallBase &CallPHIStruct::getIncomingCall(uint64_t idx) const {
   MEMOIR_ASSERT((idx < this->getNumIncoming()), "index out of range");
 
   return *(this->incoming_calls.at(idx));
 }
 
-uint64_t CallPHIStructSUmmary::getNumIncoming() const {
+uint64_t CallPHIStruct::getNumIncoming() const {
   return this->incoming_calls.size();
 }
 
-Type &CallPHIStruct::getType() const {
+StructType &CallPHIStruct::getType() const {
   MEMOIR_ASSERT((this->getNumIncoming() > 0),
                 "no incoming structs for type information");
 
