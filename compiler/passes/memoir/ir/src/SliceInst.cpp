@@ -2,37 +2,53 @@
 
 #include "memoir/support/Assert.hpp"
 
+#include "memoir/analysis/CollectionAnalysis.hpp"
+
 namespace llvm::memoir {
 
-llvm::Value &SliceInst::getSlicedObject() const {
+Collection &SliceInst::getSlice() const {
+  auto collection = CollectionAnalysis::analyze(this->getSliceAsValue());
+  MEMOIR_NULL_CHECK(collection, "Could not determine the resulting slice");
+  return *collection;
+}
+
+llvm::Value &SliceInst::getSliceAsValue() const {
   return this->getCallInst();
 }
 
-llvm::Value &DeleteInst::getObjectOperand() const {
-  return this->getObjectOperandAsUse().get();
+Collection &SliceInst::getCollection() const {
+  auto collection =
+      CollectionAnalysis::analyze(this->getCollectionOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine the collection being sliced");
+  return *collection;
 }
 
-llvm::Use &DeleteInst::getObjectOperandAsUse() const {
+llvm::Value &SliceInst::getCollectionOperand() const {
+  return *(this->getCollectionOperandAsUse().get());
+}
+
+llvm::Use &SliceInst::getCollectionOperandAsUse() const {
   return this->getCallInst().getArgOperandUse(0);
 }
 
-llvm::Value &DeleteInst::getBeginIndex() const {
-  return this->getBeginIndexAsUse().get();
+llvm::Value &SliceInst::getBeginIndex() const {
+  return *(this->getBeginIndexAsUse().get());
 }
 
-llvm::Use &DeleteInst::getBeginIndexAsUse() const {
+llvm::Use &SliceInst::getBeginIndexAsUse() const {
   return this->getCallInst().getArgOperandUse(0);
 }
 
-llvm::Value &DeleteInst::getEndIndex() const {
-  return this->getEndIndexAsUse().get();
+llvm::Value &SliceInst::getEndIndex() const {
+  return *(this->getEndIndexAsUse().get());
 }
 
-llvm::Use &DeleteInst::getEndIndexAsUse() const {
+llvm::Use &SliceInst::getEndIndexAsUse() const {
   return this->getCallInst().getArgOperandUse(0);
 }
 
-std::string SliceInst::toString(std::string indent = "") const {
+std::string SliceInst::toString(std::string indent) const {
   std::string str, llvm_str;
   llvm::raw_string_ostream llvm_ss(llvm_str);
   llvm_ss << this->getCallInst();
