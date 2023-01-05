@@ -137,7 +137,7 @@ Type *TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
   /*
    * Build the StructType
    */
-  auto &type = StructType::define(I.getCallInst(), I.getName(), field_types);
+  auto &type = StructType::define(I, I.getName(), field_types);
 
   MEMOIZE_AND_RETURN(I, &type);
 }
