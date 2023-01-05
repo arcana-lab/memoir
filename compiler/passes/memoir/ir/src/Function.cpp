@@ -11,7 +11,7 @@ MemOIRFunction &MemOIRFunction::get(llvm::Function &F) {
   }
 
   auto new_memoir_function = new MemOIRFunction(F);
-  MemOIRFunction::llvm_to_memoir_functions[&F] = *new_memoir_function;
+  MemOIRFunction::llvm_to_memoir_functions[&F] = new_memoir_function;
   return *new_memoir_function;
 }
 
@@ -38,14 +38,16 @@ MemOIRFunction::MemOIRFunction(llvm::Function &F) : F(F) {
   vector<Type *> param_types = {};
 
   this->function_type =
-      MemOIRFunctionType::get(F.getFunctionType(), return_type, param_types);
+      &(MemOIRFunctionType::get(*llvm_function_type, return_type, param_types));
 }
 
 llvm::Module &MemOIRFunction::getParent() const {
-  return this->getLLVMFunction().getParent();
+  return *(this->getLLVMFunction().getParent());
 }
 
 MemOIRFunctionType &MemOIRFunction::getFunctionType() const {
+  MEMOIR_NULL_CHECK(this->function_type,
+                    "Could not determine the memoir function type");
   return *(this->function_type);
 }
 
