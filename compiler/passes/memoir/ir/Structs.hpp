@@ -27,11 +27,13 @@ enum class StructCode {
   CALL_PHI
 };
 
+struct ReferenceType;
 struct Collection;
 struct FieldArray;
 struct StructAllocInst;
 struct ReadInst;
 struct GetInst;
+struct StructGetInst;
 
 /*
  * Struct Summary
@@ -95,6 +97,7 @@ public:
 protected:
   GetInst &access;
 
+  ContainedStruct(GetInst &access_to_container, StructCode code);
   ContainedStruct(GetInst &access_to_container);
 
   friend class AccessAnalysis;
@@ -108,12 +111,14 @@ protected:
  */
 class NestedStruct : public ContainedStruct {
 public:
-  FieldArray &getFieldArray() const;
+  StructGetInst &getStructAccess() const;
+  Struct &getNestingStruct() const;
+  Collection &getNestingCollection() const;
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  NestedStruct(GetInst &access);
+  NestedStruct(StructGetInst &access);
 
   friend class AccessAnalysis;
 };
@@ -147,7 +152,7 @@ protected:
 class ControlPHIStruct : public Struct {
 public:
   Struct &getIncomingStruct(unsigned idx) const;
-  Struct &getIncomingStructForBlock(const llvm::BasicBlock &BB) const;
+  Struct &getIncomingStructForBlock(llvm::BasicBlock &BB) const;
   llvm::BasicBlock &getIncomingBlock(unsigned idx) const;
   unsigned getNumIncoming() const;
   llvm::PHINode &getPHI() const;
@@ -173,7 +178,7 @@ protected:
 class CallPHIStruct : public Struct {
 public:
   Struct &getIncomingStruct(uint64_t idx) const;
-  Struct &getIncomingStructForCall(const llvm::CallBase &BB) const;
+  Struct &getIncomingStructForCall(llvm::CallBase &BB) const;
   llvm::CallBase &getIncomingCall(uint64_t idx) const;
   uint64_t getNumIncoming() const;
   llvm::Argument &getArgument() const;
