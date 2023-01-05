@@ -81,18 +81,6 @@ public:
   static const map<std::string, MemOIR_Func> function_names_to_memoir;
 };
 
-const map<MemOIR_Func, std::string> FunctionNames::memoir_to_function_names = {
-#define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) { MemOIR_Enum, #MemOIR_Str },
-#include "memoir/ir/Instructions.def"
-#undef HANDLE_INST
-};
-
-const map<std::string, MemOIR_Func> FunctionNames::function_names_to_memoir = {
-#define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) { #MemOIR_Str, MemOIR_Enum },
-#include "memoir/ir/Instructions.def"
-#undef HANDLE_INST
-};
-
 } // namespace llvm::memoir
 
 #endif
