@@ -35,11 +35,15 @@ MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
     default:
       MEMOIR_UNREACHABLE("Unknown MemOIR instruction encountered");
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
-  case MemOIR_Func::ENUM:                                                      \
+  case MemOIR_Func::ENUM: {                                                    \
     auto memoir_inst = new CLASS(*call_inst);                                  \
     MemOIRInst::llvm_to_memoir[&I] = memoir_inst;                              \
-    return memoir_inst;
+    return memoir_inst;                                                        \
   }
+#include "memoir/ir/Instructions.def"
+  }
+
+  return nullptr;
 }
 
 map<llvm::Instruction *, MemOIRInst *> MemOIRInst::llvm_to_memoir = {};

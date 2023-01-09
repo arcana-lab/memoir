@@ -44,6 +44,7 @@ public:
   MemOIR_Func getKind() const;
 
   friend std::ostream &operator<<(std::ostream &os, const MemOIRInst &I);
+
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const MemOIRInst &I);
   virtual std::string toString(std::string indent = "") const = 0;
@@ -73,6 +74,8 @@ public:
 
 protected:
   TypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct UInt64TypeInst : public TypeInst {
@@ -87,6 +90,8 @@ public:
 
 protected:
   UInt64TypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct UInt32TypeInst : public TypeInst {
@@ -101,6 +106,8 @@ public:
 
 protected:
   UInt32TypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct UInt16TypeInst : public TypeInst {
@@ -115,6 +122,8 @@ public:
 
 protected:
   UInt16TypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct UInt8TypeInst : public TypeInst {
@@ -129,6 +138,8 @@ public:
 
 protected:
   UInt8TypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct Int64TypeInst : public TypeInst {
@@ -143,6 +154,8 @@ public:
 
 protected:
   Int64TypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct Int32TypeInst : public TypeInst {
@@ -157,6 +170,8 @@ public:
 
 protected:
   Int32TypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct Int16TypeInst : public TypeInst {
@@ -171,6 +186,8 @@ public:
 
 protected:
   Int16TypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct Int8TypeInst : public TypeInst {
@@ -185,6 +202,8 @@ public:
 
 protected:
   Int8TypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct BoolTypeInst : public TypeInst {
@@ -199,6 +218,8 @@ public:
 
 protected:
   BoolTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct FloatTypeInst : public TypeInst {
@@ -213,6 +234,8 @@ public:
 
 protected:
   FloatTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct DoubleTypeInst : public TypeInst {
@@ -227,6 +250,8 @@ public:
 
 protected:
   DoubleTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct PointerTypeInst : public TypeInst {
@@ -241,6 +266,8 @@ public:
 
 protected:
   PointerTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct ReferenceTypeInst : public TypeInst {
@@ -258,6 +285,8 @@ public:
 
 protected:
   ReferenceTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct DefineStructTypeInst : public TypeInst {
@@ -281,6 +310,8 @@ public:
 
 protected:
   DefineStructTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct StructTypeInst : public TypeInst {
@@ -298,6 +329,8 @@ public:
 
 protected:
   StructTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct StaticTensorTypeInst : public TypeInst {
@@ -321,6 +354,8 @@ public:
 
 protected:
   StaticTensorTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct TensorTypeInst : public TypeInst {
@@ -341,6 +376,8 @@ public:
 
 protected:
   TensorTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct AssocArrayTypeInst : public TypeInst {
@@ -361,6 +398,8 @@ public:
 
 protected:
   AssocArrayTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct SequenceTypeInst : public TypeInst {
@@ -378,6 +417,8 @@ public:
 
 protected:
   SequenceTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 /*
@@ -398,6 +439,8 @@ public:
 
 protected:
   AllocInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct StructAllocInst : public AllocInst {
@@ -417,6 +460,8 @@ public:
 
 protected:
   StructAllocInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct CollectionAllocInst : public AllocInst {
@@ -436,6 +481,8 @@ public:
 
 protected:
   CollectionAllocInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct TensorAllocInst : public CollectionAllocInst {
@@ -460,6 +507,8 @@ public:
 
 protected:
   TensorAllocInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct AssocArrayAllocInst : public CollectionAllocInst {
@@ -483,6 +532,8 @@ public:
 
 protected:
   AssocArrayAllocInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct SequenceAllocInst : public CollectionAllocInst {
@@ -505,6 +556,8 @@ public:
 
 protected:
   SequenceAllocInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 /*
@@ -527,6 +580,8 @@ public:
 
 protected:
   AccessInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 /*
@@ -548,6 +603,8 @@ public:
 
 protected:
   ReadInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct StructReadInst : public ReadInst {
@@ -571,6 +628,8 @@ public:
 
 protected:
   StructReadInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct IndexReadInst : public ReadInst {
@@ -593,6 +652,8 @@ public:
 
 protected:
   IndexReadInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct AssocReadInst : public ReadInst {
@@ -614,6 +675,8 @@ public:
 
 protected:
   AssocReadInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 /*
@@ -637,6 +700,8 @@ public:
 
 protected:
   WriteInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct StructWriteInst : public WriteInst {
@@ -661,6 +726,8 @@ public:
 
 protected:
   StructWriteInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct IndexWriteInst : public WriteInst {
@@ -683,6 +750,8 @@ public:
 
 protected:
   IndexWriteInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct AssocWriteInst : public WriteInst {
@@ -704,6 +773,8 @@ public:
 
 protected:
   AssocWriteInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 /*
@@ -725,6 +796,8 @@ public:
 
 protected:
   GetInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct StructGetInst : public GetInst {
@@ -749,6 +822,8 @@ public:
 
 protected:
   StructGetInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct IndexGetInst : public GetInst {
@@ -771,6 +846,8 @@ public:
 
 protected:
   IndexGetInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct AssocGetInst : public GetInst {
@@ -792,6 +869,8 @@ public:
 
 protected:
   AssocGetInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 /*
@@ -811,6 +890,8 @@ public:
 
 protected:
   DeleteStructInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct DeleteCollectionInst : public MemOIRInst {
@@ -827,6 +908,8 @@ public:
 
 protected:
   DeleteCollectionInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct JoinInst : public MemOIRInst {
@@ -849,6 +932,8 @@ public:
 
 protected:
   JoinInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct SliceInst : public MemOIRInst {
@@ -874,6 +959,8 @@ public:
 
 protected:
   SliceInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 /*
@@ -897,6 +984,8 @@ public:
 
 protected:
   AssertStructTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct AssertCollectionTypeInst : public MemOIRInst {
@@ -917,6 +1006,8 @@ public:
 
 protected:
   AssertCollectionTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 struct ReturnTypeInst : public MemOIRInst {
@@ -933,6 +1024,8 @@ public:
 
 protected:
   ReturnTypeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
 };
 
 } // namespace llvm::memoir
