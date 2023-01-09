@@ -56,7 +56,7 @@ struct ExamplePass : public ModulePass {
             errs() << "Found type for " << I << "\n";
             errs() << *type << "\n\n";
           } else {
-            errs() << "Instruction does not have a MemOIR type.";
+            errs() << "Instruction does not have a MemOIR type.\n";
           }
         }
       }
