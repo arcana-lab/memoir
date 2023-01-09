@@ -110,7 +110,7 @@ TO_STRING_IMPL(PointerTypeInst)
 GET_TYPE_IMPL(ReferenceTypeInst)
 
 Type &ReferenceTypeInst::getReferencedType() const {
-  auto type = TypeAnalysis::get().getType(this->getReferencedTypeOperand());
+  auto type = TypeAnalysis::analyze(this->getReferencedTypeOperand());
   MEMOIR_NULL_CHECK(
       type,
       "Could not determine the referenced type of ReferenceTypeInst");
@@ -186,8 +186,7 @@ llvm::Use &DefineStructTypeInst::getNumberOfFieldsOperandAsUse() const {
 }
 
 Type &DefineStructTypeInst::getFieldType(unsigned field_index) const {
-  auto type =
-      TypeAnalysis::get().getType(this->getFieldTypeOperand(field_index));
+  auto type = TypeAnalysis::analyze(this->getFieldTypeOperand(field_index));
   MEMOIR_NULL_CHECK(type,
                     "Could not determine field type of DefineStructTypeInst");
   return *type;
@@ -321,7 +320,7 @@ TO_STRING_IMPL(StaticTensorTypeInst)
 GET_TYPE_IMPL(TensorTypeInst)
 
 Type &TensorTypeInst::getElementType() const {
-  auto type = TypeAnalysis::get().getType(this->getElementOperand());
+  auto type = TypeAnalysis::analyze(this->getElementOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the element type of TensorType");
   return *type;
 }
@@ -365,7 +364,7 @@ TO_STRING_IMPL(TensorTypeInst);
 GET_TYPE_IMPL(AssocArrayTypeInst)
 
 Type &AssocArrayTypeInst::getKeyType() const {
-  auto type = TypeAnalysis::get().getType(this->getKeyOperand());
+  auto type = TypeAnalysis::analyze(this->getKeyOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the key type of AssocArrayType");
   return *type;
 }
@@ -379,7 +378,7 @@ llvm::Use &AssocArrayTypeInst::getKeyOperandAsUse() const {
 }
 
 Type &AssocArrayTypeInst::getValueType() const {
-  auto type = TypeAnalysis::get().getType(this->getValueOperand());
+  auto type = TypeAnalysis::analyze(this->getValueOperand());
   MEMOIR_NULL_CHECK(type,
                     "Could not determine the value type of AssocArrayType");
   return *type;
@@ -401,7 +400,7 @@ TO_STRING_IMPL(AssocArrayTypeInst)
 GET_TYPE_IMPL(SequenceTypeInst)
 
 Type &SequenceTypeInst::getElementType() const {
-  auto type = TypeAnalysis::get().getType(this->getElementOperand());
+  auto type = TypeAnalysis::analyze(this->getElementOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine element type of SequenceType");
   return *type;
 }
