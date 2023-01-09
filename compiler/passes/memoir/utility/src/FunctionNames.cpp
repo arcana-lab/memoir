@@ -3,10 +3,9 @@
 namespace llvm::memoir {
 
 bool FunctionNames::is_memoir_call(llvm::Function &function) {
-  auto function_name = function.getName();
+  auto memoir_enum = FunctionNames::get_memoir_enum(function);
 
-  return function_names_to_memoir.find(function_name)
-         != function_names_to_memoir.end();
+  return (memoir_enum != MemOIR_Func::NONE);
 }
 
 bool FunctionNames::is_memoir_call(llvm::CallInst &call_inst) {
