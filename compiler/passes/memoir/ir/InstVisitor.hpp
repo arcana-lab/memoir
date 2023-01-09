@@ -10,20 +10,20 @@ namespace llvm::memoir {
 
 #define DELEGATE(CLASS_TO_VISIT)                                               \
   return static_cast<SubClass *>(this)->visit##CLASS_TO_VISIT(                 \
-      static_cast<CLASS_TO_VISIT &>(*(MemOIRInst::get(I))))
+      static_cast<CLASS_TO_VISIT &>(I))
 
 #define DELEGATE_MEMOIR(CLASS_TO_VISIT)                                        \
   return static_cast<SubClass *>(this)->visit##CLASS_TO_VISIT(                 \
-      static_cast<CLASS_TO_VISIT &>(I))
+      static_cast<CLASS_TO_VISIT &>(*(MemOIRInst::get(I))))
 
 #define DELEGATE_LLVM(CLASS_TO_VISIT)                                          \
   return static_cast<SubClass *>(this)->visit##CLASS_TO_VISIT(                 \
       static_cast<CLASS_TO_VISIT &>(I.getCallInst()))
 
 template <typename SubClass, typename RetTy = void>
-struct InstVisitor
-  : public llvm::InstVisitor<llvm::memoir::InstVisitor<SubClass, RetTy>,
-                             RetTy> {
+struct InstVisitor : public llvm::InstVisitor<SubClass, RetTy> {
+  friend class llvm::InstVisitor<SubClass, RetTy>;
+
 public:
   RetTy visitInstruction(llvm::Instruction &I) {
     return static_cast<SubClass *>(this)->visitInstruction(I);
@@ -43,7 +43,7 @@ public:
         MEMOIR_UNREACHABLE("Unknown MemOIR instruction encountered!");
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   case MemOIR_Func::ENUM:                                                      \
-    DELEGATE(CLASS);
+    DELEGATE_MEMOIR(CLASS);
 #include "memoir/ir/Instructions.def"
     }
   };
@@ -56,46 +56,46 @@ public:
     DELEGATE_LLVM(Instruction);
   };
   RetTy visitAccessInst(AccessInst &I) {
-    DELEGATE_LLVM(Instruction);
+    DELEGATE(MemOIRInst);
   };
   RetTy visitReadInst(ReadInst &I) {
-    DELEGATE_MEMOIR(AccessInst);
+    DELEGATE(AccessInst);
   };
   RetTy visitStructReadInst(StructReadInst &I) {
-    DELEGATE_MEMOIR(ReadInst);
+    DELEGATE(ReadInst);
   };
   RetTy visitIndexReadInst(IndexReadInst &I) {
-    DELEGATE_MEMOIR(ReadInst);
+    DELEGATE(ReadInst);
   };
   RetTy visitAssocReadInst(AssocReadInst &I) {
-    DELEGATE_MEMOIR(ReadInst);
+    DELEGATE(ReadInst);
   };
   RetTy visitWriteInst(WriteInst &I) {
-    DELEGATE_MEMOIR(AccessInst);
+    DELEGATE(AccessInst);
   };
   RetTy visitStructWriteInst(StructWriteInst &I) {
-    DELEGATE_MEMOIR(WriteInst);
+    DELEGATE(WriteInst);
   };
   RetTy visitIndexWriteInst(IndexWriteInst &I) {
-    DELEGATE_MEMOIR(WriteInst);
+    DELEGATE(WriteInst);
   };
   RetTy visitAssocWriteInst(AssocWriteInst &I) {
-    DELEGATE_MEMOIR(WriteInst);
+    DELEGATE(WriteInst);
   };
   RetTy visitGetInst(GetInst &I) {
-    DELEGATE_MEMOIR(AccessInst);
+    DELEGATE(AccessInst);
   };
   RetTy visitStructGetInst(StructGetInst &I) {
-    DELEGATE_MEMOIR(GetInst);
+    DELEGATE(GetInst);
   };
   RetTy visitIndexGetInst(IndexGetInst &I) {
-    DELEGATE_MEMOIR(GetInst);
+    DELEGATE(GetInst);
   };
   RetTy visitAssocGetInst(AssocGetInst &I) {
-    DELEGATE_MEMOIR(GetInst);
+    DELEGATE(GetInst);
   };
   RetTy visitTypeInst(TypeInst &I) {
-    DELEGATE_LLVM(Instruction);
+    DELEGATE(MemOIRInst);
   };
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   RetTy visit##CLASS(CLASS &I) {                                               \
@@ -103,11 +103,11 @@ public:
   };
 #define HANDLE_TYPE_INST(ENUM, FUNC, CLASS)                                    \
   RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE_MEMOIR(TypeInst);                                                 \
+    DELEGATE(TypeInst);                                                        \
   };
 #define HANDLE_ALLOC_INST(ENUM, FUNC, CLASS)                                   \
   RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE_MEMOIR(AllocInst);                                                \
+    DELEGATE(AllocInst);                                                       \
   };
 #define HANDLE_ACCESS_INST(ENUM, FUNC, CLASS) /* No handling. */
 #include "memoir/ir/Instructions.def"

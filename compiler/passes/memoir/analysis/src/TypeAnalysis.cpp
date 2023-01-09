@@ -390,6 +390,8 @@ Type *TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
    */
   for (auto user : global->users()) {
     if (auto store_inst = dyn_cast<StoreInst>(user)) {
+      errs() << "Found store inst " << *store_inst << "\n";
+
       auto store_value = store_inst->getValueOperand();
 
       auto stored_type = this->getType(*store_value);
@@ -399,6 +401,11 @@ Type *TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
       MEMOIZE_AND_RETURN(I, stored_type);
     }
   }
+
+  /*
+   * Otherwise, return NULL.
+   */
+  return nullptr;
 }
 
 Type *TypeAnalysis::visitPHINode(llvm::PHINode &I) {

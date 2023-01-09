@@ -34,6 +34,9 @@ namespace llvm::memoir {
  *   types defined in the program.
  */
 class TypeAnalysis : public llvm::memoir::InstVisitor<TypeAnalysis, Type *> {
+  friend class llvm::memoir::InstVisitor<TypeAnalysis, Type *>;
+  friend class llvm::InstVisitor<TypeAnalysis, Type *>;
+
 public:
   /*
    * Singleton access
@@ -111,8 +114,6 @@ protected:
   Type *visitLoadInst(llvm::LoadInst &I);
   Type *visitPHINode(llvm::PHINode &I);
   Type *visitArgument(llvm::Argument &A);
-
-  friend class InstVisitor;
 
   /*
    * Private constructor and logistics
