@@ -3,13 +3,12 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
+#include "memoir/ir/InstVisitor.hpp"
 
 #include "noelle/core/Noelle.hpp"
 
-#include "ObjectLowering.hpp"
 
-using namespace llvm::noelle ;
-using namespace object_lowering;
+using namespace llvm::noelle;
 
 namespace {
 
@@ -30,16 +29,8 @@ namespace {
 
       auto &noelle = getAnalysis<Noelle>();
 
-      auto objectLowering = new object_lowering::ObjectLowering(M, &noelle, this);
+      llvm::errs() << "testing 123\n";
 
-//        objectLowering->dataflow(nullptr);
-
-//      objectLowering->loopstructure();
-
-      objectLowering->analyze();
-
-      objectLowering->transform();
-      
       return false;
     }
 
