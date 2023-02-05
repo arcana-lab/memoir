@@ -31,6 +31,8 @@ namespace {
 
       llvm::errs() << "testing 123\n";
 
+//      M.getFunction("main");
+
       return false;
     }
 
