@@ -19,7 +19,12 @@ namespace object_lowering {
         void BasicBlockTransformer(llvm::DominatorTree &DT,
                                    llvm::BasicBlock *bb,
                                    std::map<llvm::Value *, llvm::Value *> &replacementMapping,
-                                   std::set<llvm::PHINode *> &phiNodesToPopulate);
+                                   std::map<llvm::PHINode*, llvm::memoir::ControlPHIStruct*> & phiNodesReplacement);
+
+        llvm::Value * FindBasePointerForStruct(
+                llvm::memoir::Struct* structref,
+                std::map<llvm::Value *, llvm::Value *> &replacementMapping,
+                std::map<llvm::PHINode*, llvm::memoir::ControlPHIStruct*> & phiNodesReplacement);
 
     private:
         llvm::Module &M;

@@ -23,10 +23,55 @@ namespace object_lowering {
 
     }
 
+    llvm::Value *ObjectLowering::FindBasePointerForStruct(
+            memoir::Struct* struct_origin,
+            std::map<llvm::Value *, llvm::Value *> &replacementMapping,
+            std::map<llvm::PHINode*, memoir::ControlPHIStruct*> & phiNodesReplacement)
+    {
+        auto struct_code = struct_origin->getCode();
+        switch(struct_code)
+        {
+            case memoir::StructCode::BASE: {
+                auto base_struct_origin = static_cast<memoir::BaseStruct*>(struct_origin);
+                auto &allocInst = base_struct_origin->getAllocInst();
+                return replacementMapping[&allocInst.getCallInst()];
+            }
+            case memoir::StructCode::CONTAINED:
+            case memoir::StructCode::NESTED: {
+                //TODO: ask Tommy for help about GEP instruction offsetting.
+                auto nested_struct_origin = static_cast<memoir::ContainedStruct*>(struct_origin);
+                auto& parent_struct_get = nested_struct_origin->getAccess();
+                return replacementMapping[&parent_struct_get.getCallInst()];
+            }
+            case memoir::StructCode::REFERENCED: {
+                auto referenced_struct_origin = static_cast<memoir::ReferencedStruct*>(struct_origin);
+                auto& reference_struct_get =referenced_struct_origin->getAccess();
+                return replacementMapping[&reference_struct_get.getCallInst()];
+            }
+            case memoir::StructCode::CONTROL_PHI: {
+                auto control_phi_origin = static_cast<memoir::ControlPHIStruct *>(struct_origin);
+                auto &original_phi_node = control_phi_origin->getPHI();
+                auto struct_type = (memoir::StructType *) &control_phi_origin->getType();
+                auto struct_type_as_type = static_cast<memoir::Type *>(struct_type);
+                auto llvmType = nativeTypeConverter->getLLVMRepresentation(struct_type_as_type);
+                auto llvmPtrType = PointerType::getUnqual(llvmType);
+                IRBuilder<> builder(&original_phi_node);
+                auto newPhi = builder.CreatePHI(llvmPtrType, original_phi_node.getNumIncomingValues());
+                replacementMapping[&original_phi_node] = newPhi;
+                phiNodesReplacement[&original_phi_node] = control_phi_origin;
+                return newPhi;
+            }
+            case memoir::StructCode::CALL_PHI:
+                assert(false && "TODO for later");
+        }
+
+    }
+
+
     void ObjectLowering::BasicBlockTransformer(llvm::DominatorTree &DT,
                                                llvm::BasicBlock *bb,
                                                std::map<llvm::Value *, llvm::Value *> &replacementMapping,
-                                               std::set<llvm::PHINode *> &phiNodesToPopulate) {
+                                               std::map<llvm::PHINode*, memoir::ControlPHIStruct*> & phiNodesReplacement) {
         auto &ctxt = M.getContext();
         auto int64Ty = llvm::Type::getInt64Ty(ctxt);
         auto int32Ty = llvm::Type::getInt32Ty(ctxt);
@@ -92,8 +137,7 @@ namespace object_lowering {
                             int64Ty,
                             M.getDataLayout().getTypeAllocSize(llvmType));
                     Value *finalSize;
-                    std::vector<int64_t> sizes;
-                    finalSize = llvm::ConstantInt::get(int64Ty, 1);
+                    finalSize = llvmTypeSize;
                     auto numdim = alloc_tensor_ins->getNumberOfDimensions();
                     for (unsigned long long i = 0; i < numdim; ++i) {
                         finalSize = builder.CreateMul(finalSize, &alloc_tensor_ins->getLengthOfDimensionOperand(i));
@@ -109,7 +153,7 @@ namespace object_lowering {
                     auto bcInst = builder.CreateBitCast(newMallocCall, i8StarTy);
                     replacementMapping[&ins] = bcInst;
                     for (unsigned long long i = 0; i < numdim; ++i) {
-                        Value *indexList[1] = {ConstantInt::get(int64Ty, i)};
+                        std::vector<Value *> indexList{ConstantInt::get(int64Ty, i)};
                         auto gep = builder.CreateGEP(PointerType::getUnqual(int64Ty), newMallocCall,
                                                      indexList);
                         builder.CreateStore(&alloc_tensor_ins->getLengthOfDimensionOperand(i), gep);
@@ -133,7 +177,63 @@ namespace object_lowering {
                 case llvm::memoir::STRUCT_READ_STRUCT_REF:
                 case llvm::memoir::STRUCT_READ_COLLECTION_REF: {
                     auto struct_read_ins = static_cast<memoir::StructReadInst *>(mins);
+                    auto& struct_accessed = struct_read_ins->getStructAccessed();
+                    auto base_struct_ptr = FindBasePointerForStruct(&struct_accessed,
+                                                                    replacementMapping,
+                                                                    phiNodesReplacement);
+                    auto field_index = struct_read_ins->getFieldIndex();
+                    Value *indices[2] = {llvm::ConstantInt::get(int64Ty, 0), llvm::ConstantInt::get(int64Ty, field_index)};
+                    auto gep = builder.CreateGEP(base_struct_ptr,
+                                            indices);
 
+                    auto struct_type = (memoir::StructType*) &struct_read_ins->getStructAccessed().getType();
+                    auto &field_type = struct_type->getFieldType(field_index);
+                    switch(field_type.getCode()) {
+                        case memoir::TypeCode::INTEGER:
+                        case memoir::TypeCode::FLOAT:
+                        case memoir::TypeCode::DOUBLE:
+                        case memoir::TypeCode::POINTER: {
+                            auto targetType = nativeTypeConverter->getLLVMRepresentation(&field_type);
+                            auto loadInst =
+                                    builder.CreateLoad(targetType, gep, "baseload");
+                            replacementMapping[&ins] = loadInst;
+                            ins.replaceAllUsesWith(loadInst);
+                            continue;
+                        }
+                        case memoir::TypeCode::STATIC_TENSOR: {
+                            auto static_tensor_type = static_cast<memoir::StaticTensorType *>(&field_type);
+                            auto llvm_inner_type = nativeTypeConverter->getLLVMRepresentation((memoir::Type *)
+                                                                                                      &static_tensor_type->getElementType());
+                            auto bitcast_ins = builder.CreateBitCast(gep, PointerType::getUnqual(llvm_inner_type));
+                            replacementMapping[&ins] = bitcast_ins;
+                            continue;
+                        }
+                        case memoir::TypeCode::REFERENCE: {
+                            auto reference_type = static_cast<memoir::StaticTensorType *>(&field_type );
+                            auto elem_type = (memoir::Type *) &reference_type->getElementType();
+                            auto elem_type_llvm = nativeTypeConverter->getLLVMRepresentation(elem_type);
+                            auto loadInst =
+                                    builder.CreateLoad(llvm::PointerType::getUnqual(elem_type_llvm), gep, "baseload");
+                            replacementMapping[&ins] = loadInst;
+                            continue;
+                        }
+                        case memoir::TypeCode::STRUCT: {
+                            auto loadInst = builder.CreateLoad(i8StarTy, gep, "baseload");
+                            auto inner_struct_type = (memoir::Type *) (&field_type);
+                            auto llvm_struct_type = nativeTypeConverter->getLLVMRepresentation(inner_struct_type);
+                            auto bitcast = builder.CreateBitCast(gep, PointerType::getUnqual(llvm_struct_type));
+                            replacementMapping[&ins] = bitcast;
+                            continue;
+                        }
+                        case memoir::TypeCode::FIELD_ARRAY:
+                            assert(false && "Not currently supported");
+                        case memoir::TypeCode::TENSOR:
+                            assert(false && "only static tensors can be embedded");
+                        case memoir::TypeCode::ASSOC_ARRAY:
+                        case memoir::TypeCode::SEQUENCE:
+                            assert(false && "assoc and sequence should be lowered to tensors first. ");
+                    }
+                    
                     break;
                 }
                 case llvm::memoir::STRUCT_GET_STRUCT:
