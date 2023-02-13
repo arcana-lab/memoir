@@ -60,6 +60,9 @@
   MEMOIR_FUNC(allocate_tensor)                                                 \
   (element_type, MEMOIR_NARGS(__VA_ARGS__), CAST_TO_SIZE_T(__VA_ARGS__))
 
+#define memoir_allocate_sequence(element_type, initial_size)                   \
+  MEMOIR_FUNC(allocate_sequence)(element_type, initial_size)
+
 #define memoir_allocate_assoc_array(key_type, value_type)                      \
   MEMOIR_FUNC(allocate_assoc_array)(key_type, value_type)
 
