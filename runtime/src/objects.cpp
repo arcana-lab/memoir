@@ -361,14 +361,16 @@ Collection *Sequence::get_slice(int64_t left_index, int64_t right_index) {
    * of sequence. NOTE: this is a reverse operation.
    */
   if (right_index < 0) {
-    right_index = this->sequence.size() + right_index + 1;
+    right_index = this->sequence.size() + right_index;
   }
 
   if (left_index < 0) {
-    left_index = this->sequence.size() + left_index + 1;
+    left_index = this->sequence.size() + left_index;
   }
 
-  std::cerr << "Slicing sequence from " << std::to_string(left_index) << " : "
+  std::cerr << "Slicing sequence of size "
+            << std::to_string(this->sequence.size()) << " from "
+            << std::to_string(left_index) << " : "
             << std::to_string(right_index) << "\n";
 
   /*
@@ -377,15 +379,15 @@ Collection *Sequence::get_slice(int64_t left_index, int64_t right_index) {
    * Otherwise, get the slice inbetween the left and right index.
    */
   if (left_index > right_index) {
-    auto length = left_index - right_index;
+    auto length = left_index - right_index + 1;
     auto type = static_cast<SequenceType *>(this->get_type());
     auto slice = new Sequence(type, length);
-    for (auto i = 0; i < 0; i++) {
+    for (auto i = 0; i < length; i++) {
       slice->sequence[i] = this->get_element(left_index - i)->clone();
     }
     return slice;
   } else {
-    auto length = right_index - left_index;
+    auto length = right_index - left_index + 1;
     auto type = static_cast<SequenceType *>(this->get_type());
     auto slice = new Sequence(type, length);
     for (auto i = 0; i < length; i++) {
