@@ -95,9 +95,6 @@ ReferenceType &ReferenceType::get(Type &referenced_type) {
 
 map<Type *, ReferenceType *> ReferenceType::reference_types = {};
 
-/*
- * StructType implementation
- */
 StructType &Type::define_struct_type(DefineStructTypeInst &definition,
                                      std::string name,
                                      vector<Type *> field_types) {
@@ -157,6 +154,52 @@ FieldArrayType &FieldArrayType::get(StructType &struct_type,
 
 map<StructType *, map<unsigned, FieldArrayType *>>
     FieldArrayType::struct_to_field_array = {};
+
+/*
+ * AssocArrayType getter
+ */
+AssocArrayType &Type::get_assoc_array_type(Type &key_type, Type &value_type) {
+  return AssocArrayType::get(key_type, value_type);
+}
+
+AssocArrayType &AssocArrayType::get(Type &key_type, Type &value_type) {
+  auto found_key = AssocArrayType::assoc_array_types.find(&key_type);
+  if (found_key != AssocArrayType::assoc_array_types.end()) {
+    auto &key_to_value_map = found_key->second;
+    auto found_value = key_to_value_map.find(&value_type);
+    if (found_value != key_to_value_map.end()) {
+      return *(found_value->second);
+    }
+  }
+
+  auto type = new AssocArrayType(key_type, value_type);
+  AssocArrayType::assoc_array_types[&key_type][&value_type] = type;
+
+  return *type;
+}
+
+map<Type *, map<Type *, AssocArrayType *>>
+    AssocArrayType::assoc_array_types = {};
+
+/*
+ * SequenceType getter
+ */
+SequenceType &Type::get_sequence_type(Type &element_type) {
+  return SequenceType::get(element_type);
+}
+
+SequenceType &SequenceType::get(Type &element_type) {
+  auto found_element = SequenceType::sequence_types.find(&element_type);
+  if (found_element != SequenceType::sequence_types.end()) {
+    return *(found_element->second);
+  }
+
+  auto type = new SequenceType(element_type);
+  SequenceType::sequence_types[&element_type] = type;
+  return *type;
+}
+
+map<Type *, SequenceType *> SequenceType::sequence_types = {};
 
 /*
  * Static checker methods
