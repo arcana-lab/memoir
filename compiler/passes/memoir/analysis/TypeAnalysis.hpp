@@ -121,6 +121,8 @@ protected:
   TypeAnalysis();
 
   void _invalidate();
+
+  static TypeAnalysis *TA;
 };
 
 } // namespace llvm::memoir

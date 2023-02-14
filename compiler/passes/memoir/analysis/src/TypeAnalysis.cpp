@@ -480,9 +480,13 @@ void TypeAnalysis::_invalidate() {
   return;
 }
 
+TypeAnalysis *TypeAnalysis::TA = nullptr;
+
 TypeAnalysis &TypeAnalysis::get() {
-  static TypeAnalysis TA;
-  return TA;
+  if (TypeAnalysis::TA == nullptr) {
+    TypeAnalysis::TA = new TypeAnalysis();
+  }
+  return *(TypeAnalysis::TA);
 }
 
 void TypeAnalysis::invalidate() {
