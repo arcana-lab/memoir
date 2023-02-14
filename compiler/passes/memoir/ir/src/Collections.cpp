@@ -239,9 +239,9 @@ std::string ControlPHICollection::toString(std::string indent) const {
 }
 
 /*
- * CallPHI implementation
+ * RetPHI implementation
  */
-CallPHICollection::CallPHICollection(
+RetPHICollection::RetPHICollection(
     llvm::CallBase &call,
     map<llvm::ReturnInst *, Collection *> &incoming)
   : call(call),
@@ -257,11 +257,11 @@ CallPHICollection::CallPHICollection(
   }
 }
 
-Collection &CallPHICollection::getIncomingCollection(unsigned idx) const {
+Collection &RetPHICollection::getIncomingCollection(unsigned idx) const {
   return this->getIncomingCollectionForReturn(this->getIncomingReturn(idx));
 }
 
-Collection &CallPHICollection::getIncomingCollectionForReturn(
+Collection &RetPHICollection::getIncomingCollectionForReturn(
     llvm::ReturnInst &I) const {
   auto found_incoming = this->incoming.find(&I);
 
@@ -271,29 +271,28 @@ Collection &CallPHICollection::getIncomingCollectionForReturn(
   return *(found_incoming->second);
 }
 
-llvm::ReturnInst &CallPHICollection::getIncomingReturn(unsigned idx) const {
+llvm::ReturnInst &RetPHICollection::getIncomingReturn(unsigned idx) const {
   MEMOIR_ASSERT((idx < this->getNumIncoming()),
                 "Attempt to get out-of-range incoming return");
 
   return *(this->incoming_returns.at(idx));
 }
 
-unsigned CallPHICollection::getNumIncoming() const {
+unsigned RetPHICollection::getNumIncoming() const {
   return this->incoming_returns.size();
 }
 
-CollectionType &CallPHICollection::getType() const {
-  MEMOIR_ASSERT(
-      (this->getNumIncoming() > 0),
-      "No incoming collections exist to determine the CallPHI's type");
+CollectionType &RetPHICollection::getType() const {
+  MEMOIR_ASSERT((this->getNumIncoming() > 0),
+                "No incoming collections exist to determine the RetPHI's type");
   return this->getIncomingCollection(0).getType();
 }
 
-bool CallPHICollection::operator==(const CallPHICollection &other) const {
+bool RetPHICollection::operator==(const RetPHICollection &other) const {
   return (&(this->getCall()) == &(other.getCall()));
 }
 
-std::string CallPHICollection::toString(std::string indent) const {
+std::string RetPHICollection::toString(std::string indent) const {
   return "call PHI";
 }
 
