@@ -162,7 +162,7 @@ Struct *StructAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
     }
   }
 
-  auto return_phi_struct = new ReturnPHIStruct(I, incoming_returns, incoming);
+  auto return_phi_struct = new RetPHIStruct(I, incoming_returns, incoming);
 
   MEMOIZE_AND_RETURN(I, return_phi_struct);
 }
@@ -251,7 +251,7 @@ Struct *StructAnalysis::visitArgument(llvm::Argument &A) {
     }
   }
 
-  auto argument_phi_struct = new ArgumentPHIStruct(A, incoming_calls, incoming);
+  auto argument_phi_struct = new ArgPHIStruct(A, incoming_calls, incoming);
 
   MEMOIZE_AND_RETURN(A, argument_phi_struct);
 }
