@@ -13,6 +13,10 @@ namespace llvm::memoir {
 /*
  * Struct implementation
  */
+Struct::Struct(StructCode code) : code(code) {
+  // Do nothing.
+}
+
 StructCode Struct::getCode() const {
   return this->code;
 }
@@ -30,6 +34,12 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Struct &S) {
 /*
  * BaseStruct implementation
  */
+BaseStruct::BaseStruct(StructAllocInst &allocation)
+  : allocation(allocation),
+    Struct(StructCode::BASE) {
+  // Do nothing.
+}
+
 StructAllocInst &BaseStruct::getAllocInst() const {
   return this->allocation;
 }
