@@ -179,7 +179,7 @@ protected:
  * Represents a context-sensitive PHI for incoming structs along their call
  * edges for a given argument.
  */
-class ArgumentPHIStruct : public Struct {
+class ArgPHIStruct : public Struct {
 public:
   Struct &getIncomingStruct(uint64_t idx) const;
   Struct &getIncomingStructForCall(llvm::CallBase &BB) const;
@@ -196,9 +196,9 @@ protected:
   vector<llvm::CallBase *> incoming_calls;
   map<llvm::CallBase *, Struct *> incoming;
 
-  ArgumentPHIStruct(llvm::Argument &argument,
-                    vector<llvm::CallBase *> &incoming_calls,
-                    map<llvm::CallBase *, Struct *> &incoming);
+  ArgPHIStruct(llvm::Argument &argument,
+               vector<llvm::CallBase *> &incoming_calls,
+               map<llvm::CallBase *, Struct *> &incoming);
 
   friend class StructAnalysis;
 };
@@ -209,7 +209,7 @@ protected:
  * Represents a context-sensitive PHI for incoming structs along their return
  * edges for a given call.
  */
-class ReturnPHIStruct : public Struct {
+class RetPHIStruct : public Struct {
 public:
   Struct &getIncomingStruct(uint64_t idx) const;
   Struct &getIncomingStructForReturn(llvm::ReturnInst &RI) const;
@@ -226,9 +226,9 @@ protected:
   vector<llvm::ReturnInst *> incoming_returns;
   map<llvm::ReturnInst *, Struct *> incoming;
 
-  ReturnPHIStruct(llvm::CallBase &call,
-                  vector<llvm::ReturnInst *> &incoming_returns,
-                  map<llvm::ReturnInst *, Struct *> &incoming);
+  RetPHIStruct(llvm::CallBase &call,
+               vector<llvm::ReturnInst *> &incoming_returns,
+               map<llvm::ReturnInst *, Struct *> &incoming);
 
   friend class StructAnalysis;
 };
