@@ -64,7 +64,7 @@ public:
 
 protected:
   /*
-   * Passed state
+   * Owned state
    */
 
   /*
@@ -83,7 +83,7 @@ protected:
   /*
    * Visitor functions
    */
-  Type *visitInstruction(Instruction &I);
+  Type *visitInstruction(llvm::Instruction &I);
   Type *visitUInt64TypeInst(UInt64TypeInst &I);
   Type *visitUInt32TypeInst(UInt32TypeInst &I);
   Type *visitUInt16TypeInst(UInt16TypeInst &I);
@@ -121,6 +121,8 @@ protected:
   TypeAnalysis();
 
   void _invalidate();
+
+  static TypeAnalysis *TA;
 };
 
 } // namespace llvm::memoir

@@ -24,7 +24,8 @@ enum class StructCode {
   CONTAINED,
   REFERENCED,
   CONTROL_PHI,
-  CALL_PHI
+  ARGUMENT_PHI,
+  RETURN_PHI,
 };
 
 struct ReferenceType;
@@ -56,7 +57,7 @@ protected:
 
   Struct(StructCode code);
 
-  friend class AccessAnalysis;
+  friend class StructAnalysis;
 };
 
 /*
@@ -76,7 +77,7 @@ protected:
 
   BaseStruct(StructAllocInst &allocation);
 
-  friend class AccessAnalysis;
+  friend class StructAnalysis;
 };
 
 /*
@@ -100,7 +101,7 @@ protected:
   ContainedStruct(GetInst &access_to_container, StructCode code);
   ContainedStruct(GetInst &access_to_container);
 
-  friend class AccessAnalysis;
+  friend class StructAnalysis;
 };
 
 /*
@@ -120,7 +121,7 @@ public:
 protected:
   NestedStruct(StructGetInst &access);
 
-  friend class AccessAnalysis;
+  friend class StructAnalysis;
 };
 
 /*
@@ -133,15 +134,16 @@ class ReferencedStruct : public Struct {
 public:
   ReadInst &getAccess() const;
   ReferenceType &getReferenceType() const;
-
   StructType &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
 
 protected:
   ReadInst &access;
 
   ReferencedStruct(ReadInst &access);
 
-  friend class AccessAnalysis;
+  friend class StructAnalysis;
 };
 
 /*
@@ -159,6 +161,8 @@ public:
 
   StructType &getType() const override;
 
+  std::string toString(std::string indent = "") const override;
+
 protected:
   llvm::PHINode &phi_node;
   map<llvm::BasicBlock *, Struct *> incoming;
@@ -166,16 +170,16 @@ protected:
   ControlPHIStruct(llvm::PHINode &phi_node,
                    map<llvm::BasicBlock *, Struct *> &incoming);
 
-  friend class AccessAnalysis;
+  friend class StructAnalysis;
 };
 
 /*
- * Call PHI Struct Summary
+ * Argument PHI Struct Summary
  *
- * Represents a context-sensitive PHI for incoming stucts along their call edges
- * for a given argument.
+ * Represents a context-sensitive PHI for incoming structs along their call
+ * edges for a given argument.
  */
-class CallPHIStruct : public Struct {
+class ArgPHIStruct : public Struct {
 public:
   Struct &getIncomingStruct(uint64_t idx) const;
   Struct &getIncomingStructForCall(llvm::CallBase &BB) const;
@@ -185,16 +189,48 @@ public:
 
   StructType &getType() const override;
 
+  std::string toString(std::string indent = "") const override;
+
 protected:
   llvm::Argument &argument;
   vector<llvm::CallBase *> incoming_calls;
   map<llvm::CallBase *, Struct *> incoming;
 
-  CallPHIStruct(llvm::Argument &argument,
-                vector<llvm::CallBase *> &incoming_calls,
-                map<llvm::CallBase *, Struct *> &incoming);
+  ArgPHIStruct(llvm::Argument &argument,
+               vector<llvm::CallBase *> &incoming_calls,
+               map<llvm::CallBase *, Struct *> &incoming);
 
-  friend class AccessAnalysis;
+  friend class StructAnalysis;
+};
+
+/*
+ * Return PHI Struct Summary
+ *
+ * Represents a context-sensitive PHI for incoming structs along their return
+ * edges for a given call.
+ */
+class RetPHIStruct : public Struct {
+public:
+  Struct &getIncomingStruct(uint64_t idx) const;
+  Struct &getIncomingStructForReturn(llvm::ReturnInst &RI) const;
+  llvm::ReturnInst &getIncomingReturn(uint64_t idx) const;
+  uint64_t getNumIncoming() const;
+  llvm::CallBase &getCall() const;
+
+  StructType &getType() const override;
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  llvm::CallBase &call;
+  vector<llvm::ReturnInst *> incoming_returns;
+  map<llvm::ReturnInst *, Struct *> incoming;
+
+  RetPHIStruct(llvm::CallBase &call,
+               vector<llvm::ReturnInst *> &incoming_returns,
+               map<llvm::ReturnInst *, Struct *> &incoming);
+
+  friend class StructAnalysis;
 };
 
 } // namespace llvm::memoir

@@ -97,6 +97,9 @@ public:
   RetTy visitTypeInst(TypeInst &I) {
     DELEGATE(MemOIRInst);
   };
+  RetTy visitAllocInst(AllocInst &I) {
+    DELEGATE(MemOIRInst);
+  };
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   RetTy visit##CLASS(CLASS &I) {                                               \
     DELEGATE_LLVM(Instruction);                                                \

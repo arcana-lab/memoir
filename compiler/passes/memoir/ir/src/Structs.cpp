@@ -13,6 +13,10 @@ namespace llvm::memoir {
 /*
  * Struct implementation
  */
+Struct::Struct(StructCode code) : code(code) {
+  // Do nothing.
+}
+
 StructCode Struct::getCode() const {
   return this->code;
 }
@@ -30,6 +34,12 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Struct &S) {
 /*
  * BaseStruct implementation
  */
+BaseStruct::BaseStruct(StructAllocInst &allocation)
+  : allocation(allocation),
+    Struct(StructCode::BASE) {
+  // Do nothing.
+}
+
 StructAllocInst &BaseStruct::getAllocInst() const {
   return this->allocation;
 }
@@ -158,6 +168,16 @@ StructType &ReferencedStruct::getType() const {
   return static_cast<StructType &>(referenced_type);
 }
 
+std::string ReferencedStruct::toString(std::string indent) const {
+  std::string str;
+
+  // TODO: flesh out print info
+
+  str += "(referenced struct)";
+
+  return str;
+}
+
 /*
  * ControlPHIStruct implementation
  */
@@ -214,42 +234,52 @@ StructType &ControlPHIStruct::getType() const {
                      " all incoming edges are the control PHI");
 }
 
+std::string ControlPHIStruct::toString(std::string indent) const {
+  std::string str;
+
+  // TODO: flesh out print info
+
+  str += "(control phi struct)";
+
+  return str;
+}
+
 /*
- * CallPHIStruct implementation
+ * ArgPHIStruct implementation
  */
-CallPHIStruct::CallPHIStruct(llvm::Argument &argument,
-                             vector<llvm::CallBase *> &incoming_calls,
-                             map<llvm::CallBase *, Struct *> &incoming)
+ArgPHIStruct::ArgPHIStruct(llvm::Argument &argument,
+                           vector<llvm::CallBase *> &incoming_calls,
+                           map<llvm::CallBase *, Struct *> &incoming)
   : argument(argument),
     incoming_calls(incoming_calls),
     incoming(incoming),
-    Struct(StructCode::CALL_PHI) {
+    Struct(StructCode::ARGUMENT_PHI) {
   // Do nothing.
 }
 
-Struct &CallPHIStruct::getIncomingStruct(uint64_t idx) const {
+Struct &ArgPHIStruct::getIncomingStruct(uint64_t idx) const {
   auto &incoming_call = this->getIncomingCall(idx);
   return this->getIncomingStructForCall(incoming_call);
 }
 
-Struct &CallPHIStruct::getIncomingStructForCall(llvm::CallBase &CB) const {
+Struct &ArgPHIStruct::getIncomingStructForCall(llvm::CallBase &CB) const {
   auto found_struct = this->incoming.find(&CB);
   MEMOIR_ASSERT((found_struct != this->incoming.end()),
                 "no incoming struct for given call");
   return *(found_struct->second);
 }
 
-llvm::CallBase &CallPHIStruct::getIncomingCall(uint64_t idx) const {
+llvm::CallBase &ArgPHIStruct::getIncomingCall(uint64_t idx) const {
   MEMOIR_ASSERT((idx < this->getNumIncoming()), "index out of range");
 
   return *(this->incoming_calls.at(idx));
 }
 
-uint64_t CallPHIStruct::getNumIncoming() const {
+uint64_t ArgPHIStruct::getNumIncoming() const {
   return this->incoming_calls.size();
 }
 
-StructType &CallPHIStruct::getType() const {
+StructType &ArgPHIStruct::getType() const {
   MEMOIR_ASSERT((this->getNumIncoming() > 0),
                 "no incoming structs for type information");
 
@@ -260,8 +290,84 @@ StructType &CallPHIStruct::getType() const {
     }
   }
 
-  MEMOIR_UNREACHABLE("Unable to get type information for call PHI because"
-                     " all incoming edges are the call PHI");
+  MEMOIR_UNREACHABLE("Unable to get type information for argument PHI because"
+                     " all incoming edges are the argument PHI");
+}
+
+std::string ArgPHIStruct::toString(std::string indent) const {
+  std::string str;
+
+  // TODO: flesh out print info
+
+  str += "(argument phi struct)";
+
+  return str;
+}
+
+/*
+ * RetPHIStruct implementation
+ */
+RetPHIStruct::RetPHIStruct(llvm::CallBase &call,
+                           vector<llvm::ReturnInst *> &incoming_returns,
+                           map<llvm::ReturnInst *, Struct *> &incoming)
+  : call(call),
+    incoming_returns(incoming_returns),
+    incoming(incoming),
+    Struct(StructCode::RETURN_PHI) {
+  // Do nothing.
+}
+
+Struct &RetPHIStruct::getIncomingStruct(uint64_t idx) const {
+  auto &return_inst = this->getIncomingReturn(idx);
+  return this->getIncomingStructForReturn(return_inst);
+}
+
+Struct &RetPHIStruct::getIncomingStructForReturn(llvm::ReturnInst &RI) const {
+  auto found_struct = this->incoming.find(&RI);
+  MEMOIR_ASSERT(
+      (found_struct != this->incoming.end()),
+      "couldn't find an incoming struct summary for the given return instruction");
+
+  return *(found_struct->second);
+}
+
+llvm::ReturnInst &RetPHIStruct::getIncomingReturn(uint64_t idx) const {
+  MEMOIR_ASSERT((idx < this->getNumIncoming()), "index out of range");
+
+  return *(this->incoming_returns.at(idx));
+}
+
+uint64_t RetPHIStruct::getNumIncoming() const {
+  return this->incoming_returns.size();
+}
+
+llvm::CallBase &RetPHIStruct::getCall() const {
+  return this->call;
+}
+
+StructType &RetPHIStruct::getType() const {
+  MEMOIR_ASSERT((this->getNumIncoming() > 0),
+                "no incoming structs for type information");
+
+  for (auto i = 0; i < this->getNumIncoming(); i++) {
+    auto &incoming_struct = this->getIncomingStruct(i);
+    if (this != &incoming_struct) {
+      return incoming_struct.getType();
+    }
+  }
+
+  MEMOIR_UNREACHABLE("Unable to get type information for return PHI because"
+                     " all incoming edges are the return PHI");
+}
+
+std::string RetPHIStruct::toString(std::string indent) const {
+  std::string str;
+
+  // TODO: flesh out print info
+
+  str += "(return phi struct)";
+
+  return str;
 }
 
 } // namespace llvm::memoir

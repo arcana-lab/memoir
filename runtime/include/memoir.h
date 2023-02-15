@@ -94,8 +94,6 @@ __ALLOC_ATTR
 __RUNTIME_ATTR
 Collection *MEMOIR_FUNC(allocate_sequence)(Type *element_type,
                                            uint64_t initial_size);
-#define memoir_allocate_sequence(element_type, initial_size)                   \
-  MEMOIR_FUNC(allocate_sequence)(element_type, initial_size)
 
 /*
  * Object destruction

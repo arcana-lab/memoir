@@ -289,4 +289,14 @@ ReturnTypeInst::ReturnTypeInst(llvm::CallInst &call_inst)
   // Do nothing.
 }
 
+std::ostream &operator<<(std::ostream &os, const MemOIRInst &I) {
+  os << I.toString("");
+  return os;
+}
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemOIRInst &I) {
+  os << I.toString("");
+  return os;
+}
+
 } // namespace llvm::memoir

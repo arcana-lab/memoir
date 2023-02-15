@@ -1,8 +1,13 @@
 #!/bin/bash -e
 
-if [ $# -lt 1 ] ; then
+function usage {
     echo "This script will run MemOIR optimizations and lower to LLVM IR." ;
     echo "  USAGE: `basename $0` <INPUT IR FILE> <OUTPUT IR FILE> [<OPTIONS, ...>]" ;
+}
+
+if [[ $# -le 1 ]] ; then
+    usage
+    exit 1
 fi
 
 GIT_ROOT=`git rev-parse --show-toplevel` ;

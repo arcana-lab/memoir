@@ -157,7 +157,7 @@ protected:
   friend class CollectionAnalysis;
 };
 
-struct CallPHICollection : public Collection {
+struct RetPHICollection : public Collection {
 public:
   Collection &getIncomingCollection(unsigned idx) const;
   Collection &getIncomingCollectionForReturn(llvm::ReturnInst &I) const;
@@ -171,7 +171,7 @@ public:
     return (C->getKind() == CollectionKind::CALL_PHI);
   };
 
-  bool operator==(const CallPHICollection &other) const;
+  bool operator==(const RetPHICollection &other) const;
   std::string toString(std::string indent = "") const;
 
 protected:
@@ -179,8 +179,8 @@ protected:
   vector<llvm::ReturnInst *> incoming_returns;
   map<llvm::ReturnInst *, Collection *> incoming;
 
-  CallPHICollection(llvm::CallBase &call,
-                    map<llvm::ReturnInst *, Collection *> &incoming);
+  RetPHICollection(llvm::CallBase &call,
+                   map<llvm::ReturnInst *, Collection *> &incoming);
 };
 
 struct ArgPHICollection : public Collection {

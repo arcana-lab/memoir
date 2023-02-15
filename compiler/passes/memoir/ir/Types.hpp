@@ -281,7 +281,7 @@ protected:
   Type &key_type;
   Type &value_type;
 
-  static map<Type *, map<Type *, AssocArrayType *>> assoc_array_type_summaries;
+  static map<Type *, map<Type *, AssocArrayType *>> assoc_array_types;
 
   AssocArrayType(Type &key_type, Type &value_type);
 
@@ -299,7 +299,7 @@ public:
 protected:
   Type &element_type;
 
-  static map<Type *, SequenceType *> assoc_array_type_summaries;
+  static map<Type *, SequenceType *> sequence_types;
 
   SequenceType(Type &element_type);
 
