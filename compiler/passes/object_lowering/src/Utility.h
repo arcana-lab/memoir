@@ -8,7 +8,7 @@
 #define DEBUG_FUNC llvm::errs()
 
 class Utility {
-    static llvm::raw_ostream &debug() {
+    public static llvm::raw_ostream &debug() {
         return DEBUG_FUNC;
     }
 };

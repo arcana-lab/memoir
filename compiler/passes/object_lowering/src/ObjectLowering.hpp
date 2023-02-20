@@ -5,6 +5,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Dominators.h"
 #include "NativeTypeConverter.hpp"
+#include <functional>
 
 namespace object_lowering {
 
@@ -26,6 +27,15 @@ namespace object_lowering {
                 std::map<llvm::Value *, llvm::Value *> &replacementMapping,
                 std::map<llvm::PHINode*, llvm::memoir::ControlPHIStruct*> & phiNodesReplacement);
 
+        llvm::Value* FindBasePointerForTensor(
+                memoir::Collection* collection_origin,
+                std::map<llvm::Value *, llvm::Value *> &replacementMapping,
+                std::map<llvm::PHINode*, memoir::ControlPHICollection*> & phiNodesReplacement
+        );
+
+        llvm::Value* GetGEPForTensorUse( memoir::Collection* collection_origin,
+                                         std::map<llvm::Value *, llvm::Value *> &replacementMapping,
+                                         std::map<llvm::PHINode*, memoir::ControlPHICollection*> & phiNodesReplacement);
     private:
         llvm::Module &M;
         NativeTypeConverter* nativeTypeConverter;
