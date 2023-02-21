@@ -24,7 +24,7 @@ llvm::Use &ReadInst::getObjectOperandAsUse() const {
  * StructReadInst implementation
  */
 Collection &StructReadInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperand());
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
   MEMOIR_NULL_CHECK(collection,
                     "Could not determine the struct being accessed");
   return *collection;
@@ -139,7 +139,7 @@ llvm::Use &WriteInst::getObjectOperandAsUse() const {
  * StructWriteInst implementation
  */
 Collection &StructWriteInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperand());
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
   MEMOIR_NULL_CHECK(collection,
                     "Could not determine the struct being accessed");
   return *collection;
