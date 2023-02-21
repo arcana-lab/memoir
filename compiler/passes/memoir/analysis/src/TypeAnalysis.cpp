@@ -35,10 +35,26 @@ Type *TypeAnalysis::getType(llvm::Value &V) {
   }
 
   /*
-   * TODO: Handle function arguments by looking at assertType.
+   * Handle function arguments by looking at assertType.
    */
   if (auto arg = dyn_cast<llvm::Argument>(&V)) {
-    MEMOIR_UNREACHABLE("Handling for arguments is currently unsupported");
+    for (auto user : arg->users()) {
+      auto user_as_inst = dyn_cast<llvm::Instruction>(user);
+      if (!user_as_inst) {
+        continue;
+      }
+
+      if (auto memoir_inst = MemOIRInst::get(*user_as_inst)) {
+        if (auto assert_struct_type_inst =
+                dyn_cast<AssertStructTypeInst>(memoir_inst)) {
+          return this->visitAssertStructTypeInst(*assert_struct_type_inst);
+        } else if (auto assert_collection_type_inst =
+                       dyn_cast<AssertCollectionTypeInst>(memoir_inst)) {
+          return this->visitAssertCollectionTypeInst(
+              *assert_collection_type_inst);
+        }
+      }
+    }
   }
 
   return nullptr;
@@ -308,6 +324,37 @@ Type *TypeAnalysis::visitSequenceAllocInst(SequenceAllocInst &I) {
 }
 
 /*
+ * Join and Slice Instructions
+ */
+Type *TypeAnalysis::visitJoinInst(JoinInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the type of the incoming collections.
+   */
+  for (auto join_index = 0; join_index < I.getNumberOfJoins(); join_index++) {
+    // TODO: add type checking to ensure all inputs are the same type
+  }
+
+  auto type = this->getType(I.getJoinedOperand(0));
+  MEMOIR_NULL_CHECK(type, "Could not determine the incoming type for join!");
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitSliceInst(SliceInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the type of the sliced collection.
+   */
+  auto type = this->getType(I.getCollectionOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the incoming type for join!");
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+/*
  * Type Checking Instructions
  */
 Type *TypeAnalysis::visitAssertStructTypeInst(AssertStructTypeInst &I) {
@@ -421,6 +468,13 @@ Type *TypeAnalysis::visitPHINode(llvm::PHINode &I) {
      */
     MEMOIR_NULL_CHECK(incoming, "Incoming value to PHI node is NULL.");
     auto &incoming_value = *(incoming.get());
+
+    /* HACK
+     * Ignore incoming PHI nodes if there are other incoming nodes.
+     */
+    if (isa<PHINode>(incoming) && (I.getNumIncomingValues() > 1)) {
+      continue;
+    }
 
     /*
      * Get the Type of the incoming value.
