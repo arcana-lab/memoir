@@ -26,20 +26,32 @@ bool Collection::operator==(const Collection &other) const {
       return (static_cast<const FieldArray &>(*this)
               == static_cast<const FieldArray &>(other));
     case CollectionKind::NESTED:
-      return (static_cast<const ControlPHICollection &>(*this)
-              == static_cast<const ControlPHICollection &>(other));
+      return (static_cast<const NestedCollection &>(*this)
+              == static_cast<const NestedCollection &>(other));
+    case CollectionKind::REFERENCED:
+      return (static_cast<const ReferencedCollection &>(*this)
+              == static_cast<const ReferencedCollection &>(other));
     case CollectionKind::CONTROL_PHI:
       return (static_cast<const ControlPHICollection &>(*this)
               == static_cast<const ControlPHICollection &>(other));
-    case CollectionKind::CALL_PHI:
-      return (static_cast<const CallPHICollection &>(*this)
-              == static_cast<const CallPHICollection &>(other));
+    case CollectionKind::RET_PHI:
+      return (static_cast<const RetPHICollection &>(*this)
+              == static_cast<const RetPHICollection &>(other));
+    case CollectionKind::ARG_PHI:
+      return (static_cast<const ArgPHICollection &>(*this)
+              == static_cast<const ArgPHICollection &>(other));
     case CollectionKind::DEF_PHI:
       return (static_cast<const DefPHICollection &>(*this)
               == static_cast<const DefPHICollection &>(other));
     case CollectionKind::USE_PHI:
       return (static_cast<const UsePHICollection &>(*this)
               == static_cast<const UsePHICollection &>(other));
+    case CollectionKind::JOIN_PHI:
+      return (static_cast<const JoinPHICollection &>(*this)
+              == static_cast<const JoinPHICollection &>(other));
+    case CollectionKind::SLICE:
+      return (static_cast<const SliceCollection &>(*this)
+              == static_cast<const SliceCollection &>(other));
     default:
       return true;
   }
@@ -178,6 +190,51 @@ std::string NestedCollection::toString(std::string indent) const {
 }
 
 /*
+ * ReferencedCollection implementation
+ */
+ReferencedCollection::ReferencedCollection(ReadInst &access)
+  : access(access),
+    Collection(CollectionKind::REFERENCED) {
+  // Do nothing.
+}
+
+ReadInst &ReferencedCollection::getAccess() const {
+  return this->access;
+}
+
+ReferenceType &ReferencedCollection::getReferenceType() const {
+  auto &container_element_type =
+      this->getAccess().getCollectionAccessed().getElementType();
+  MEMOIR_ASSERT(
+      (Type::is_reference_type(container_element_type)),
+      "Attempt to construct ReferencedCollection for access to collection"
+      " of non-reference element type");
+
+  return static_cast<ReferenceType &>(container_element_type);
+}
+
+CollectionType &ReferencedCollection::getType() const {
+  auto &referenced_type = this->getReferenceType().getReferencedType();
+  MEMOIR_ASSERT((Type::is_collection_type(referenced_type)),
+                "Attempt to construct ReferencedCollection for access to"
+                " non-collection reference type");
+
+  return static_cast<CollectionType &>(referenced_type);
+}
+
+Type &ReferencedCollection::getElementType() const {
+  return this->getType().getElementType();
+}
+
+bool ReferencedCollection::operator==(const ReferencedCollection &other) const {
+  return (&(this->getAccess()) != &(other.getAccess()));
+}
+
+std::string ReferencedCollection::toString(std::string indent) const {
+  return "referenced collection";
+}
+
+/*
  * ControlPHI implementationn
  */
 ControlPHICollection::ControlPHICollection(
@@ -245,6 +302,7 @@ RetPHICollection::RetPHICollection(
     llvm::CallBase &call,
     map<llvm::ReturnInst *, Collection *> &incoming)
   : call(call),
+    incoming_returns(incoming_returns),
     incoming(incoming),
     Collection(CollectionKind::CALL_PHI) {
   /*
@@ -286,6 +344,10 @@ CollectionType &RetPHICollection::getType() const {
   MEMOIR_ASSERT((this->getNumIncoming() > 0),
                 "No incoming collections exist to determine the RetPHI's type");
   return this->getIncomingCollection(0).getType();
+}
+
+Type &RetPHICollection::getElementType() const {
+  return this->getType().getElementType();
 }
 
 bool RetPHICollection::operator==(const RetPHICollection &other) const {
@@ -482,6 +544,39 @@ bool JoinPHICollection::operator==(const JoinPHICollection &other) const {
 
 std::string JoinPHICollection::toString(std::string indent) const {
   return "join PHI";
+}
+
+/*
+ * SliceCollection implementation
+ */
+SliceCollection::SliceCollection(SliceInst &slice_inst)
+  : slice_inst(slice_inst),
+    Collection(CollectionKind::SLICE) {
+  // Do nothing.
+}
+
+SliceInst &SliceCollection::getSlice() const {
+  return this->slice_inst;
+}
+
+Collection &SliceCollection::getSlicedCollection() const {
+  return this->getSlice().getCollection();
+}
+
+CollectionType &SliceCollection::getType() const {
+  return this->getSlicedCollection().getType();
+}
+
+Type &SliceCollection::getElementType() const {
+  return this->getType().getElementType();
+}
+
+bool SliceCollection::operator==(const SliceCollection &other) const {
+  return (&(this->getSlice()) == &(other.getSlice()));
+}
+
+std::string SliceCollection::toString(std::string indent) const {
+  return "slice collection";
 }
 
 } // namespace llvm::memoir
