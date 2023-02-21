@@ -11,7 +11,7 @@ namespace object_lowering {
 
     class ObjectLowering {
     public:
-        ObjectLowering(llvm::Module &M);
+        ObjectLowering(llvm::Module &M, llvm::ModulePass *mp);
 
         void transform();
 
@@ -20,24 +20,27 @@ namespace object_lowering {
         void BasicBlockTransformer(llvm::DominatorTree &DT,
                                    llvm::BasicBlock *bb,
                                    std::map<llvm::Value *, llvm::Value *> &replacementMapping,
-                                   std::map<llvm::PHINode*, llvm::memoir::ControlPHIStruct*> & phiNodesReplacement);
+                                   std::set<llvm::memoir::ControlPHIStruct*> & phiNodesReplacementStruct,
+                                   std::set<llvm::memoir::ControlPHICollection*> & phiNodesReplacementCollection);
 
         llvm::Value * FindBasePointerForStruct(
                 llvm::memoir::Struct* structref,
                 std::map<llvm::Value *, llvm::Value *> &replacementMapping,
-                std::map<llvm::PHINode*, llvm::memoir::ControlPHIStruct*> & phiNodesReplacement);
+                std::set<llvm::memoir::ControlPHIStruct*> & phiNodesReplacement);
 
         llvm::Value* FindBasePointerForTensor(
-                memoir::Collection* collection_origin,
+                llvm::memoir::Collection* collection_origin,
                 std::map<llvm::Value *, llvm::Value *> &replacementMapping,
-                std::map<llvm::PHINode*, memoir::ControlPHICollection*> & phiNodesReplacement
+                std::set<llvm::memoir::ControlPHICollection*> & phiNodesReplacement
         );
 
-        llvm::Value* GetGEPForTensorUse( memoir::Collection* collection_origin,
+        llvm::Value* GetGEPForTensorUse( llvm::memoir::MemOIRInst* access_ins,
                                          std::map<llvm::Value *, llvm::Value *> &replacementMapping,
-                                         std::map<llvm::PHINode*, memoir::ControlPHICollection*> & phiNodesReplacement);
+                                         std::set<llvm::memoir::ControlPHICollection*> & phiNodesReplacement);
     private:
         llvm::Module &M;
+        llvm::ModulePass *mp;
         NativeTypeConverter* nativeTypeConverter;
+        std::set<llvm::Value*> toDeletes;
     };
 }

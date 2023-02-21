@@ -6,27 +6,97 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/InstIterator.h"
 #include "Utility.h"
+#include "memoir/utility/Metadata.hpp"
 
 
 using namespace llvm;
 
 namespace object_lowering {
-    ObjectLowering::ObjectLowering(llvm::Module &M) : M(M) {
+    ObjectLowering::ObjectLowering(llvm::Module &M, llvm::ModulePass *mp) : M(M), mp(mp) {
         nativeTypeConverter = new NativeTypeConverter(M);
     }
 
-    void ObjectLowering::transform() {
 
+    void findInstsToDelete(Value *i, std::set<Value *> &toDelete) {
+        for (auto u: i->users()) {
+            if (toDelete.find(u) != toDelete.end())
+                continue;
+            toDelete.insert(u);
+            findInstsToDelete(u, toDelete);
+        }
+    }
+
+
+    void ObjectLowering::transform() {
+        for (auto &f: M) {
+            if (!f.isDeclaration()) {
+                auto is_internal =
+                        memoir::MetadataManager::hasMetadata(f,
+                                                             memoir::MetadataType::INTERNAL);
+                if (is_internal || f.getName() != "main") {
+                    continue;
+                }
+                function_transform(&f);
+            }
+        }
+        for (auto v: toDeletes) {
+            // errs() << "\t" << *v << "\n";
+            if (auto i = dyn_cast<Instruction>(v)) {
+                i->replaceAllUsesWith(UndefValue::get(i->getType()));
+                i->eraseFromParent();
+            }
+        }
     }
 
     void ObjectLowering::function_transform(llvm::Function *f) {
+        Utility::debug() << "\n Starting transformation on " << f->getName() << "\n\n";
+        //
+        std::map<Value *, Value *> replacementMapping;
+        std::set<memoir::ControlPHIStruct*>  phiNodesReplacementStruct;
+        std::set<memoir::ControlPHICollection*> phiNodesReplacementCollection;
+
+        DominatorTree &DT =
+                mp->getAnalysis<DominatorTreeWrapperPass>(*f).getDomTree();
+        auto &entry = f->getEntryBlock();
+        BasicBlockTransformer(DT,
+                              &entry,
+                              replacementMapping,
+                              phiNodesReplacementStruct,
+                              phiNodesReplacementCollection);
+        std::set<llvm::PHINode*> old_phi_nodes;
+        for (auto control_phi_struct : phiNodesReplacementStruct) {
+            old_phi_nodes.insert(&control_phi_struct->getPHI());
+        }
+        for (auto control_phi_collection : phiNodesReplacementCollection) {
+            old_phi_nodes.insert(&control_phi_collection->getPHI());
+        }
+
+        for (auto old_phi : old_phi_nodes) {
+//            auto llvm
+            auto new_phi = dyn_cast<PHINode>(replacementMapping.at(old_phi));
+            for (unsigned int i = 0; i < old_phi->getNumIncomingValues(); i++) {
+                auto old_val = old_phi->getIncomingValue(i);
+                if (dyn_cast<ConstantPointerNull>(old_val)) {
+                    auto new_val =
+                            ConstantPointerNull::get(dyn_cast<PointerType>(new_phi->getType()));
+                    new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
+                } else {
+                    auto new_val = replacementMapping.at(old_val);
+                    new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
+                }
+            }
+        }
+        for (auto p: replacementMapping)
+        {
+            toDeletes.insert(p.first);
+        }
 
     }
 
     llvm::Value* ObjectLowering::FindBasePointerForTensor(
             memoir::Collection* collection_origin,
             std::map<llvm::Value *, llvm::Value *> &replacementMapping,
-            std::map<llvm::PHINode*, memoir::ControlPHICollection*> & phiNodesReplacement
+            std::set<memoir::ControlPHICollection*> & phiNodesReplacement
             )
     {
         auto collection_kind =  collection_origin->getKind();
@@ -53,21 +123,23 @@ namespace object_lowering {
                 IRBuilder<> builder(&original_phi_node);
                 auto newPhi = builder.CreatePHI(i8StarTy, original_phi_node.getNumIncomingValues());
                 replacementMapping[&original_phi_node] = newPhi;
-                phiNodesReplacement[&original_phi_node] = control_phi_origin;
+                phiNodesReplacement.insert( control_phi_origin);
                 return newPhi;
             }
             case memoir::CollectionKind::CALL_PHI:
             case memoir::CollectionKind::ARG_PHI:
                 assert(false && "TODO when adding interprocedural");
             case memoir::CollectionKind::DEF_PHI: {
-                auto def_phi_origin = static_cast<memoir::DefPHICollection *>(collection_origin);
-                return FindBasePointerForTensor(&def_phi_origin->getCollection(), replacementMapping,
-                                                phiNodesReplacement);
+                assert(false && "Lowering shouldn't enoucnter def phi");
+//                auto def_phi_origin = static_cast<memoir::DefPHICollection *>(collection_origin);
+//                return FindBasePointerForTensor(&def_phi_origin->getCollection(), replacementMapping,
+//                                                phiNodesReplacement);
             }
             case memoir::CollectionKind::USE_PHI: {
-                auto use_phi_origin = static_cast<memoir::UsePHICollection *>(collection_origin);
-                return FindBasePointerForTensor(&use_phi_origin->getCollection(), replacementMapping,
-                                                phiNodesReplacement);
+                assert(false && "Lowering shouldn't encounter use phi");
+//                auto use_phi_origin = static_cast<memoir::UsePHICollection *>(collection_origin);
+//                return FindBasePointerForTensor(&use_phi_origin->getCollection(), replacementMapping,
+//                                                phiNodesReplacement);
             }
             case memoir::CollectionKind::JOIN_PHI:
                 assert(false && "Joins should have been lowered down at this point");
@@ -80,7 +152,7 @@ namespace object_lowering {
     llvm::Value *ObjectLowering::FindBasePointerForStruct(
             memoir::Struct* struct_origin,
             std::map<llvm::Value *, llvm::Value *> &replacementMapping,
-            std::map<llvm::PHINode*, memoir::ControlPHIStruct*> & phiNodesReplacement)
+            std::set<memoir::ControlPHIStruct*> & phiNodesReplacement)
     {
         auto struct_code = struct_origin->getCode();
         switch(struct_code)
@@ -88,13 +160,13 @@ namespace object_lowering {
             case memoir::StructCode::BASE: {
                 auto base_struct_origin = static_cast<memoir::BaseStruct*>(struct_origin);
                 auto &allocInst = base_struct_origin->getAllocInst();
-                return replacementMapping[&allocInst.getCallInst()];
+                return replacementMapping.at(&allocInst.getCallInst());
             }
             case memoir::StructCode::CONTAINED:
             case memoir::StructCode::NESTED: {
                 auto nested_struct_origin = static_cast<memoir::ContainedStruct*>(struct_origin);
                 auto& parent_struct_get = nested_struct_origin->getAccess();
-                return replacementMapping[&parent_struct_get.getCallInst()];
+                return replacementMapping.at(&parent_struct_get.getCallInst());
             }
             case memoir::StructCode::REFERENCED: {
                 auto referenced_struct_origin = static_cast<memoir::ReferencedStruct*>(struct_origin);
@@ -111,7 +183,7 @@ namespace object_lowering {
                 IRBuilder<> builder(&original_phi_node);
                 auto newPhi = builder.CreatePHI(llvmPtrType, original_phi_node.getNumIncomingValues());
                 replacementMapping[&original_phi_node] = newPhi;
-                phiNodesReplacement[&original_phi_node] = control_phi_origin;
+                phiNodesReplacement.insert(control_phi_origin);
                 return newPhi;
             }
             case memoir::StructCode::ARGUMENT_PHI:
@@ -120,49 +192,42 @@ namespace object_lowering {
         }
 
     }
-    llvm::Value* ObjectLowering::GetGEPForTensorUse( memoir::Collection* collection_origin,
+    llvm::Value* ObjectLowering::GetGEPForTensorUse( memoir::MemOIRInst* access_ins,
                                                      std::map<llvm::Value *, llvm::Value *> &replacementMapping,
-                                                     std::map<llvm::PHINode*, memoir::ControlPHICollection*> & phiNodesReplacement) {
+                                                     std::set<memoir::ControlPHICollection*> & phiNodesReplacement) {
 
-        auto collection_kind = collection_origin->getKind();
+        std::vector<llvm::Value *> indicies;
+        Instruction* accessIns;
+        memoir::Collection* collection_origin;
+        if(memoir::IndexWriteInst::classof(access_ins)){
+            auto write_tensor = static_cast<memoir::IndexWriteInst *> (access_ins);
+            for (unsigned i = 0; i < write_tensor->getNumberOfDimensions(); ++i) {
+                indicies.push_back(&write_tensor->getIndexOfDimension(i));
+            }
+            collection_origin = &write_tensor->getCollectionAccessed();
+            accessIns = &write_tensor->getCallInst();
+        }else if( memoir::IndexReadInst::classof(access_ins)){
+            auto read_tensor = static_cast<memoir::IndexReadInst *> (access_ins);
+            for (unsigned i = 0; i < read_tensor->getNumberOfDimensions(); ++i) {
+                indicies.push_back(&read_tensor->getIndexOfDimension(i));
+            }
+            collection_origin = &read_tensor->getCollectionAccessed();
+            accessIns = &read_tensor->getCallInst();
+        }else if ( memoir::IndexGetInst::classof(access_ins)){
+            auto get_tensor = static_cast<memoir::IndexGetInst *> (access_ins);
+            for (unsigned i = 0; i < get_tensor->getNumberOfDimensions(); ++i) {
+                indicies.push_back(&get_tensor->getIndexOfDimension(i));
+            }
+            collection_origin = &get_tensor->getCollectionAccessed();
+            accessIns = &get_tensor->getCallInst();
+        }else{
+            assert(false && "instruction for this function must be a tensor operate memoir func");
+        }
+
+        auto collectionType = &collection_origin->getType();
+
         llvm::Value *baseTensorPtr = FindBasePointerForTensor(collection_origin, replacementMapping,
                                                               phiNodesReplacement);
-        std::vector<llvm::Value *> indicies;
-        memoir::CollectionType *collectionType;
-        Instruction* accessIns;
-        switch (collection_kind) {
-            case memoir::CollectionKind::DEF_PHI: {
-                auto def_phi_origin = static_cast<memoir::DefPHICollection *>(collection_origin);
-                auto write_tensor = static_cast<memoir::IndexWriteInst *> (&def_phi_origin->getAccess());
-                for (unsigned i = 0; i < write_tensor->getNumberOfDimensions(); ++i) {
-                    indicies.push_back(&write_tensor->getIndexOfDimension(i));
-                }
-                collectionType = &def_phi_origin->getType();
-                accessIns = &write_tensor->getCallInst();
-            }
-            case memoir::CollectionKind::USE_PHI: {
-                auto use_phi_origin = static_cast<memoir::UsePHICollection *>(collection_origin);
-                auto read_tensor = static_cast<memoir::IndexReadInst *> (&use_phi_origin->getAccess());
-                for (unsigned i = 0; i < read_tensor->getNumberOfDimensions(); ++i) {
-                    indicies.push_back(&read_tensor->getIndexOfDimension(i));
-                }
-                collectionType = &use_phi_origin->getType();
-                accessIns = &read_tensor->getCallInst();
-                break;
-            }
-            case memoir::CollectionKind::NESTED: {
-                auto nested_collection_origin = static_cast<memoir::NestedCollection *>(collection_origin);
-                auto get_tensor = static_cast<memoir::IndexGetInst *> (&nested_collection_origin->getAccess());
-                for (unsigned i = 0; i < get_tensor->getNumberOfDimensions(); ++i) {
-                    indicies.push_back(&get_tensor->getIndexOfDimension(i));
-                }
-                collectionType = &nested_collection_origin->getType();
-                accessIns = &get_tensor->getCallInst();
-                break;
-            }
-            default:
-                assert(false && "Should be unreachable here");
-        }
         auto elem_type = &collectionType->getElementType();
         IRBuilder<> builder(accessIns);
         auto llvm_tensor_elem_type_ptr = PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(elem_type));
@@ -214,10 +279,11 @@ namespace object_lowering {
     void ObjectLowering::BasicBlockTransformer(llvm::DominatorTree &DT,
                                                llvm::BasicBlock *bb,
                                                std::map<llvm::Value *, llvm::Value *> &replacementMapping,
-                                               std::map<llvm::PHINode*, memoir::ControlPHIStruct*> & phiNodesReplacement) {
+                                               std::set<memoir::ControlPHIStruct*> & phiNodesReplacementStruct,
+                                               std::set<memoir::ControlPHICollection*> & phiNodesReplacementCollection) {
         auto &ctxt = M.getContext();
         auto int64Ty = llvm::Type::getInt64Ty(ctxt);
-        auto int32Ty = llvm::Type::getInt32Ty(ctxt);
+//        auto int32Ty = llvm::Type::getInt32Ty(ctxt);
         auto i8Ty = llvm::IntegerType::get(ctxt, 8);
         auto i8StarTy = llvm::PointerType::getUnqual(i8Ty);
         auto voidTy = llvm::Type::getVoidTy(ctxt);
@@ -225,11 +291,11 @@ namespace object_lowering {
                 llvm::FunctionType::get(i8StarTy, ArrayRef<Type *>({int64Ty}),
                                         false);
         auto mallocf = M.getOrInsertFunction("malloc", mallocFTY);
-        auto freeFTY =
-                llvm::FunctionType::get(voidTy, ArrayRef<Type *>({i8StarTy}),
-                                        false);
+//        auto freeFTY =
+//                llvm::FunctionType::get(voidTy, ArrayRef<Type *>({i8StarTy}),
+//                                        false);
 
-        auto freef = M.getOrInsertFunction("free", freeFTY);
+//        auto freef = M.getOrInsertFunction("free", freeFTY);
         for (auto &ins: *bb) {
             IRBuilder<> builder(&ins);
             auto mins = memoir::MemOIRInst::get(ins);
@@ -345,7 +411,7 @@ namespace object_lowering {
                     }
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     replacementMapping,
-                                                                    phiNodesReplacement);
+                                                                    phiNodesReplacementStruct);
                     std::vector<Value*> indices = {llvm::ConstantInt::get(int64Ty, 0), llvm::ConstantInt::get(int64Ty, field_index)};
                     auto gep = builder.CreateGEP(base_struct_ptr,
                                             indices);
@@ -414,15 +480,14 @@ namespace object_lowering {
                     auto field_index = struct_read_ins->getFieldIndex();
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     replacementMapping,
-                                                                    phiNodesReplacement);
-                    Value *indices[2] = {llvm::ConstantInt::get(int64Ty, 0),
-                                         llvm::ConstantInt::get(int64Ty, field_index)};
+                                                                    phiNodesReplacementStruct);
+                    std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int64Ty, 0), llvm::ConstantInt::get(int64Ty, field_index)};
                     auto gep = builder.CreateGEP(base_struct_ptr,
                                                  indices);
                     auto struct_type = (memoir::StructType *) &struct_accessed->getType();
                     auto &field_type = struct_type->getFieldType(field_index);
                     Value* reference_value = field_type.getCode() == memoir::TypeCode::REFERENCE ?
-                            replacementMapping[&struct_read_ins->getValueWritten()] :
+                            replacementMapping.at(&struct_read_ins->getValueWritten()) :
                                              &struct_read_ins->getValueWritten();
                     auto storeInst = builder.CreateStore(reference_value, gep);
                     replacementMapping[&ins] = storeInst;
@@ -439,11 +504,37 @@ namespace object_lowering {
                 case llvm::memoir::INDEX_READ_DOUBLE:
                 case llvm::memoir::INDEX_READ_FLOAT:
                 case llvm::memoir::INDEX_READ_STRUCT_REF:
-                case llvm::memoir::INDEX_READ_COLLECTION_REF:
-                case llvm::memoir::INDEX_GET_STRUCT:
-                case llvm::memoir::INDEX_GET_COLLECTION:
-
+                case llvm::memoir::INDEX_READ_COLLECTION_REF: {
+                    auto gep = GetGEPForTensorUse(mins,replacementMapping,phiNodesReplacementCollection);
+                    auto index_read_ins = static_cast<memoir::IndexReadInst*>(mins);
+                    auto elem_type = &index_read_ins->getCollectionAccessed().getType().getElementType();
+                    auto llvm_elem_type = nativeTypeConverter->getLLVMRepresentation(elem_type);
+                    switch(mins->getKind())
+                    {
+                        case llvm::memoir::INDEX_READ_STRUCT_REF:
+                        case llvm::memoir::INDEX_READ_COLLECTION_REF:
+                        {
+                            auto loadInst = builder.CreateLoad(i8StarTy, gep,"refload");
+                            auto bc_inst =  builder.CreateBitCast(loadInst, PointerType::getUnqual(llvm_elem_type));
+                            replacementMapping[&ins] = bc_inst;
+                            break;
+                        }
+                        default:
+                        {
+                            auto loadInst = builder.CreateLoad(llvm_elem_type, gep, "baseload");
+                            replacementMapping[&ins] = loadInst;
+                            ins.replaceAllUsesWith(loadInst);
+                            break;
+                        }
+                    }
                     break;
+                }
+                case llvm::memoir::INDEX_GET_STRUCT:
+                case llvm::memoir::INDEX_GET_COLLECTION: {
+                    auto gep = GetGEPForTensorUse(mins, replacementMapping, phiNodesReplacementCollection);
+                    replacementMapping[&ins] = gep;
+                    break;
+                }
                 case llvm::memoir::INDEX_WRITE_UINT64:
                 case llvm::memoir::INDEX_WRITE_UINT32:
                 case llvm::memoir::INDEX_WRITE_UINT16:
@@ -456,8 +547,29 @@ namespace object_lowering {
                 case llvm::memoir::INDEX_WRITE_FLOAT:
                 case llvm::memoir::INDEX_WRITE_STRUCT_REF:
                 case llvm::memoir::INDEX_WRITE_COLLECTION_REF: {
-                    auto tensor_write_ins = static_cast<memoir::IndexWriteInst *>(mins);
-//                    tensor_write_ins->getCollectionAccessed()
+                    auto gep = GetGEPForTensorUse(mins,replacementMapping,phiNodesReplacementCollection);
+                    auto index_write_ins = static_cast<memoir::IndexWriteInst*>(mins);
+//                    auto elem_type = &index_write_ins->getCollectionAccessed().getType().getElementType();
+//                    auto llvm_elem_type = nativeTypeConverter->getLLVMRepresentation(elem_type);
+                    auto stored_val =  &index_write_ins->getValueWritten();
+                    switch(mins->getKind())
+                    {
+                        case llvm::memoir::INDEX_WRITE_STRUCT_REF:
+                        case llvm::memoir::INDEX_WRITE_COLLECTION_REF:
+                        {
+                            auto replPtr = replacementMapping.at(stored_val);
+                            auto bc_inst = builder.CreateBitCast(replPtr, i8StarTy);
+                            auto storeInst = builder.CreateStore(bc_inst, gep);
+                            replacementMapping[&ins] = storeInst;
+                            break;
+                        }
+                        default:
+                        {
+                            auto storeInst = builder.CreateStore(stored_val, gep);
+                            replacementMapping[&ins] = storeInst;
+                            break;
+                        }
+                    }
                     break;
                 }
                 case llvm::memoir::ASSOC_READ_UINT64:
@@ -509,6 +621,16 @@ namespace object_lowering {
                     break;
             }
 
+        }
+
+        auto node = DT.getNode(bb);
+        for (auto child: node->getChildren()) {
+            auto dominated = child->getBlock();
+            BasicBlockTransformer(DT,
+                                  dominated,
+                                  replacementMapping,
+                                  phiNodesReplacementStruct,
+                                  phiNodesReplacementCollection);
         }
     }
 

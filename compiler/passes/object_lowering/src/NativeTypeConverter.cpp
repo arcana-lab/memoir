@@ -54,7 +54,7 @@ namespace object_lowering {
                 created = atype;
                 break;
             }
-            //Returning an i8 here, but will have special handling code since the for the special sizing offsets
+            //Returning an i8* here, but will have special handling code since the for the special sizing offsets
             case llvm::memoir::TypeCode::TENSOR: {
                 created = llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8));
                 break;
