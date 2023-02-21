@@ -107,6 +107,8 @@ protected:
   Type *visitTensorAllocInst(TensorAllocInst &I);
   Type *visitAssocArrayAllocInst(AssocArrayAllocInst &I);
   Type *visitSequenceAllocInst(SequenceAllocInst &I);
+  Type *visitJoinInst(JoinInst &I);
+  Type *visitSliceInst(SliceInst &I);
   Type *visitAssertStructTypeInst(AssertStructTypeInst &I);
   Type *visitAssertCollectionTypeInst(AssertCollectionTypeInst &I);
   Type *visitReturnTypeInst(ReturnTypeInst &I);
