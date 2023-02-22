@@ -24,6 +24,10 @@ OUT_DIR=$(dirname ${IR_FILE_IN}) ;
 IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}_temp.bc ;
 cp ${IR_FILE_IN} ${IR_FILE} ;
 
+IR_FILE_MEM2REG=${OUT_DIR}/${IR_FILE_FILENAME}_mem2reg.bc ;
+opt -mem2reg ${IR_FILE} -o ${IR_FILE_MEM2REG} ;
+cp ${IR_FILE_MEM2REG} ${IR_FILE} ;
+
 IR_FILE_NOELLE_NORM=${OUT_DIR}/${IR_FILE_FILENAME}_noelle_norm.bc ;
 echo "Normalize Bitcode (I: ${IR_FILE}, O: ${IR_FILE_NOELLE_NORM})" ;
 noelle-norm ${IR_FILE} -o ${IR_FILE};
@@ -31,6 +35,9 @@ cp ${IR_FILE} ${IR_FILE_NOELLE_NORM} ;
 
 IR_FILE_PROF=${OUT_DIR}/${IR_FILE_FILENAME}_prof.bc ;
 ${GIT_ROOT}/compiler/scripts/memoir-prof ${IR_FILE} ${IR_FILE_PROF} ;
+
+IR_FILE_NORM=${OUT_DIR}/${IR_FILE_FILENAME}_norm.bc ;
+cp ${IR_FILE} ${IR_FILE_NORM} ;
 
 cp ${IR_FILE} ${IR_FILE_OUT} ;
 
