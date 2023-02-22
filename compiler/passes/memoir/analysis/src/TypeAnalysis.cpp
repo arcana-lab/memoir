@@ -42,8 +42,6 @@ Type *TypeAnalysis::getType(llvm::Value &V) {
    *   Type, if it exists.
    */
 
-  errs() << "getType: " << V << "\n";
-
   /*
    * If we have an instruction, visit it.
    */
@@ -56,7 +54,6 @@ Type *TypeAnalysis::getType(llvm::Value &V) {
    */
   if (auto arg = dyn_cast<llvm::Argument>(&V)) {
     for (auto user : arg->users()) {
-      errs() << *user << "\n";
       auto user_as_inst = dyn_cast<llvm::Instruction>(user);
       if (!user_as_inst) {
         continue;
@@ -443,14 +440,6 @@ Type *TypeAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
       returned_types.insert(this->getReturnType(F));
     }
 
-    for (auto t : returned_types) {
-      if (t) {
-        errs() << *t << "\n";
-      } else {
-        errs() << "null\n";
-      }
-    }
-
     MEMOIR_ASSERT((returned_types.size() == 1),
                   "Could not determine the return type for indirect call!");
   }
@@ -523,8 +512,6 @@ Type *TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
    */
   for (auto user : global->users()) {
     if (auto store_inst = dyn_cast<StoreInst>(user)) {
-      errs() << "Found store inst " << *store_inst << "\n";
-
       auto store_value = store_inst->getValueOperand();
 
       auto stored_type = this->getType(*store_value);
