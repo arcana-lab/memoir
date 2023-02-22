@@ -302,7 +302,6 @@ RetPHICollection::RetPHICollection(
     llvm::CallBase &call,
     map<llvm::ReturnInst *, Collection *> &incoming)
   : call(call),
-    incoming_returns(incoming_returns),
     incoming(incoming),
     Collection(CollectionKind::CALL_PHI) {
   /*
