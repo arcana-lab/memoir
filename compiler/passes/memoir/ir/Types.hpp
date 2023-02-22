@@ -109,7 +109,7 @@ public:
   bool isSigned() const;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::INTEGER_TYPE);
+    return (T->getCode() == TypeCode::INTEGER);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -128,7 +128,7 @@ public:
   static FloatType &get();
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::FLOAT_TYPE);
+    return (T->getCode() == TypeCode::FLOAT);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -144,7 +144,7 @@ public:
   static DoubleType &get();
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::DOUBLE_TYPE);
+    return (T->getCode() == TypeCode::DOUBLE);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -160,7 +160,7 @@ public:
   static PointerType &get();
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::POINTER_TYPE);
+    return (T->getCode() == TypeCode::POINTER);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -178,7 +178,7 @@ public:
   Type &getReferencedType() const;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::REFERENCED_TYPE);
+    return (T->getCode() == TypeCode::REFERENCE);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -206,7 +206,7 @@ public:
   Type &getFieldType(unsigned field_index) const;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::STRUCT_TYPE);
+    return (T->getCode() == TypeCode::STRUCT);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -233,11 +233,11 @@ public:
     switch (T->getCode()) {
       default:
         return false;
-      case TypeCode::FIELD_TYPE:
-      case TypeCode::STATIC_TENSOR_TYPE:
-      case TypeCode::TENSOR_TYPE:
-      case TypeCode::SEQUENCE_TYPE:
-      case TypeCode::ASSOC_ARRAY_TYPE:
+      case TypeCode::FIELD_ARRAY:
+      case TypeCode::STATIC_TENSOR:
+      case TypeCode::TENSOR:
+      case TypeCode::SEQUENCE:
+      case TypeCode::ASSOC_ARRAY:
         return true;
     };
   }
@@ -258,7 +258,7 @@ public:
   unsigned getFieldIndex() const;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::FIELD_TYPE);
+    return (T->getCode() == TypeCode::FIELD_ARRAY);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -280,7 +280,7 @@ public:
   size_t getLengthOfDimension(unsigned dimension_index) const;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::STATIC_TENSOR_TYPE);
+    return (T->getCode() == TypeCode::STATIC_TENSOR);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -303,7 +303,7 @@ public:
   unsigned getNumberOfDimensions() const;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::TENSOR_TYPE);
+    return (T->getCode() == TypeCode::TENSOR);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -326,7 +326,7 @@ public:
   Type &getElementType() const override;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::ASSOC_ARRAY_TYPE);
+    return (T->getCode() == TypeCode::ASSOC_ARRAY);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -349,7 +349,7 @@ public:
   Type &getElementType() const override;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::SEQUENCE_TYPE);
+    return (T->getCode() == TypeCode::SEQUENCE);
   }
 
   std::string toString(std::string indent = "") const override;
