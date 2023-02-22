@@ -71,6 +71,8 @@ protected:
    * Borrowed state
    */
   map<llvm::Value *, Type *> value_to_type;
+  map<llvm::PHINode *, set<Type *>> phi_edge_types;
+  map<llvm::PHINode *, set<llvm::Value *>> visited_phi_edges;
 
   /*
    * Internal helper functions
@@ -79,6 +81,7 @@ protected:
   Type *findExisting(MemOIRInst &I);
   void memoize(llvm::Value &V, Type *T);
   void memoize(MemOIRInst &I, Type *T);
+  Type *getReturnType(llvm::Function &F);
 
   /*
    * Visitor functions
