@@ -2,12 +2,25 @@
 
 #include "memoir/analysis/CollectionAnalysis.hpp"
 #include "memoir/analysis/StructAnalysis.hpp"
+#include "memoir/analysis/TypeAnalysis.hpp"
 
 namespace llvm::memoir {
 
 /*
  * ReadInst implementation
  */
+CollectionType &ReadInst::getCollectionType() const {
+  auto type = TypeAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine type of collection being read");
+
+  auto collection_type = dyn_cast<CollectionType>(type);
+  MEMOIR_NULL_CHECK(
+      collection_type,
+      "Type being accessed by read inst is not a collection type!");
+
+  return *collection_type;
+}
+
 llvm::Value &ReadInst::getValueRead() const {
   return this->getCallInst();
 }
@@ -28,6 +41,20 @@ Collection &StructReadInst::getCollectionAccessed() const {
   MEMOIR_NULL_CHECK(collection,
                     "Could not determine the struct being accessed");
   return *collection;
+}
+
+CollectionType &StructReadInst::getCollectionType() const {
+  auto type = TypeAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
+
+  auto struct_type = dyn_cast<StructType>(type);
+  MEMOIR_NULL_CHECK(struct_type,
+                    "Could not determine the struct type being accessed");
+
+  auto &field_array_type =
+      FieldArrayType::get(*struct_type, this->getFieldIndex());
+
+  return field_array_type;
 }
 
 Struct &StructReadInst::getStructAccessed() const {
@@ -119,6 +146,18 @@ std::string AssocReadInst::toString(std::string indent) const {
 /*
  * WriteInst implementation
  */
+CollectionType &WriteInst::getCollectionType() const {
+  auto type = TypeAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine type of collection being read");
+
+  auto collection_type = dyn_cast<CollectionType>(type);
+  MEMOIR_NULL_CHECK(
+      collection_type,
+      "Type being accessed by read inst is not a collection type!");
+
+  return *collection_type;
+}
+
 llvm::Value &WriteInst::getValueWritten() const {
   return *(this->getValueWrittenAsUse().get());
 }
@@ -143,6 +182,20 @@ Collection &StructWriteInst::getCollectionAccessed() const {
   MEMOIR_NULL_CHECK(collection,
                     "Could not determine the struct being accessed");
   return *collection;
+}
+
+CollectionType &StructWriteInst::getCollectionType() const {
+  auto type = TypeAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
+
+  auto struct_type = dyn_cast<StructType>(type);
+  MEMOIR_NULL_CHECK(struct_type,
+                    "Could not determine the struct type being accessed");
+
+  auto &field_array_type =
+      FieldArrayType::get(*struct_type, this->getFieldIndex());
+
+  return field_array_type;
 }
 
 Struct &StructWriteInst::getStructAccessed() const {
@@ -234,6 +287,18 @@ std::string AssocWriteInst::toString(std::string indent) const {
 /*
  * GetInst implementation
  */
+CollectionType &GetInst::getCollectionType() const {
+  auto type = TypeAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine type of collection being read");
+
+  auto collection_type = dyn_cast<CollectionType>(type);
+  MEMOIR_NULL_CHECK(
+      collection_type,
+      "Type being accessed by read inst is not a collection type!");
+
+  return *collection_type;
+}
+
 llvm::Value &GetInst::getValueRead() const {
   return this->getCallInst();
 }
@@ -254,6 +319,20 @@ Collection &StructGetInst::getCollectionAccessed() const {
   MEMOIR_NULL_CHECK(collection,
                     "Could not determine the struct being accessed");
   return *collection;
+}
+
+CollectionType &StructGetInst::getCollectionType() const {
+  auto type = TypeAnalysis::analyze(this->getObjectOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
+
+  auto struct_type = dyn_cast<StructType>(type);
+  MEMOIR_NULL_CHECK(struct_type,
+                    "Could not determine the struct type being accessed");
+
+  auto &field_array_type =
+      FieldArrayType::get(*struct_type, this->getFieldIndex());
+
+  return field_array_type;
 }
 
 Struct &StructGetInst::getStructAccessed() const {
