@@ -40,8 +40,11 @@ Collection *CollectionAnalysis::getCollection(llvm::Use &U) {
 
   // If we have disabled USE and DEF PHIs, analyze the value.
   if (!this->enable_use_phi && !this->enable_def_phi) {
-    return this->getCollection(used);
+    return this->getCollection(*used);
   }
+
+  MEMOIR_UNREACHABLE(
+      "USE PHI and DEF PHI are currently unsupported, please disable them.");
 
   // Inspect all uses of the same value to construct a path-sensitive analysis.
   auto user = U.getUser();
@@ -205,7 +208,7 @@ Collection *CollectionAnalysis::visitReadInst(ReadInst &I) {
    * Check the type of the ReadInst, if it's not a
    * collection reference type, return NULL.
    */
-  auto &accessed_type = I.getCollectionAccessed().getElementType();
+  auto &accessed_type = I.getCollectionType().getElementType();
   if (!Type::is_reference_type(accessed_type)) {
     return nullptr;
   }
@@ -273,15 +276,14 @@ Collection *CollectionAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
   CHECK_MEMOIZED(I);
 
   map<llvm::ReturnInst *, Collection *> incoming = {};
-
   auto callee = I.getCalledFunction();
   if (callee) {
     // Handle direct call.
     for (auto &BB : *callee) {
       auto terminator = BB.getTerminator();
       if (auto return_inst = dyn_cast<llvm::ReturnInst>(terminator)) {
-        auto incoming_struct = this->visitReturnInst(*return_inst);
-        incoming[return_inst] = incoming_struct;
+        auto incoming_collection = this->visitReturnInst(*return_inst);
+        incoming[return_inst] = incoming_collection;
       }
     }
   } else {
@@ -312,6 +314,18 @@ Collection *CollectionAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
         }
       }
     }
+  }
+
+  bool found_collection = false;
+  for (auto const &[return_inst, incoming_collection] : incoming) {
+    if (incoming_collection) {
+      found_collection = true;
+      break;
+    }
+  }
+
+  if (!found_collection) {
+    MEMOIZE_AND_RETURN(I, nullptr);
   }
 
   auto ret_phi_collection = new RetPHICollection(I, incoming);
@@ -459,7 +473,7 @@ CollectionAnalysis *CollectionAnalysis::CA = nullptr;
 
 CollectionAnalysis &CollectionAnalysis::get(Noelle &noelle) {
   if (CollectionAnalysis::CA == nullptr) {
-    CollectionAnalysis::CA = new CollectionAnalysis(noelle);
+    CollectionAnalysis::CA = new CollectionAnalysis(noelle, false, false);
   }
   return *(CollectionAnalysis::CA);
 }
