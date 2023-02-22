@@ -16,6 +16,7 @@
 #include "memoir/ir/Instructions.hpp"
 
 // #include "memoir/analysis/AccessAnalysis.hpp"
+#include "memoir/analysis/CollectionAnalysis.hpp"
 #include "memoir/analysis/StructAnalysis.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
 
@@ -40,9 +41,8 @@ struct ExamplePass : public ModulePass {
   bool runOnModule(Module &M) override {
     errs() << "Running example pass\n\n";
 
+    auto &noelle = getAnalysis<Noelle>();
     auto &type_analysis = TypeAnalysis::get();
-    // auto &allocation_analysis = AllocationAnalysis::get(M);
-    // auto &access_analysis = AccessAnalysis::get(M);
 
     errs() << "=========================================\n";
     errs() << "Fetching all Types\n\n";
@@ -86,6 +86,31 @@ struct ExamplePass : public ModulePass {
     }
     errs() << "=========================================\n\n";
 
+    errs() << "=========================================\n";
+    errs() << "Fetching all Collections\n\n";
+    auto &CA = CollectionAnalysis::get(noelle);
+    for (auto &F : M) {
+      if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
+        continue;
+      }
+
+      for (auto &BB : F) {
+        for (auto &I : BB) {
+          if (auto call_inst = dyn_cast<CallInst>(&I)) {
+            if (!FunctionNames::is_memoir_call(*call_inst)) {
+              continue;
+            }
+
+            if (auto cllct = CollectionAnalysis::analyze(*call_inst)) {
+              errs() << "Found collection for " << I << "\n";
+              errs() << *cllct << "\n\n";
+            }
+          }
+        }
+      }
+    }
+    errs() << "=========================================\n\n";
+
     // errs() << "Fetching all Access Summaries\n\n";
     // for (auto &F : M) {
     //   if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
@@ -112,6 +137,7 @@ struct ExamplePass : public ModulePass {
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<Noelle>();
     return;
   }
 };
