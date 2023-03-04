@@ -17,21 +17,26 @@ struct ReadInst;
 struct WriteInst;
 struct GetInst;
 struct JoinInst;
+struct SliceInst;
 
 struct Type;
 struct CollectionType;
 struct FieldArrayType;
+struct ReferenceType;
 
 enum class CollectionKind {
   BASE,
   FIELD_ARRAY,
   NESTED,
+  REFERENCED,
   CONTROL_PHI,
   CALL_PHI,
   ARG_PHI,
+  RET_PHI,
   DEF_PHI,
   USE_PHI,
   JOIN_PHI,
+  SLICE,
 };
 
 struct Collection {
@@ -126,7 +131,29 @@ protected:
 
   NestedCollection(GetInst &get_inst);
 
-  friend class NestedCollection;
+  friend class CollectionAnalysis;
+};
+
+struct ReferencedCollection : public Collection {
+public:
+  ReadInst &getAccess() const;
+  ReferenceType &getReferenceType() const;
+  CollectionType &getType() const override;
+  Type &getElementType() const override;
+
+  static bool classof(Collection *C) {
+    return (C->getKind() == CollectionKind::REFERENCED);
+  };
+
+  bool operator==(const ReferencedCollection &other) const;
+  std::string toString(std::string indent = "") const;
+
+protected:
+  ReadInst &access;
+
+  ReferencedCollection(ReadInst &read_inst);
+
+  friend class CollectionAnalysis;
 };
 
 struct ControlPHICollection : public Collection {
@@ -166,9 +193,10 @@ public:
   llvm::CallBase &getCall() const;
 
   CollectionType &getType() const override;
+  Type &getElementType() const override;
 
   static bool classof(Collection *C) {
-    return (C->getKind() == CollectionKind::CALL_PHI);
+    return (C->getKind() == CollectionKind::RET_PHI);
   };
 
   bool operator==(const RetPHICollection &other) const;
@@ -181,6 +209,8 @@ protected:
 
   RetPHICollection(llvm::CallBase &call,
                    map<llvm::ReturnInst *, Collection *> &incoming);
+
+  friend class CollectionAnalysis;
 };
 
 struct ArgPHICollection : public Collection {
@@ -274,6 +304,29 @@ protected:
   JoinInst &join_inst;
 
   JoinPHICollection(JoinInst &join_inst);
+
+  friend class CollectionAnalysis;
+};
+
+struct SliceCollection : public Collection {
+public:
+  SliceInst &getSlice() const;
+  Collection &getSlicedCollection() const;
+
+  CollectionType &getType() const override;
+  Type &getElementType() const override;
+
+  static bool classof(Collection *C) {
+    return (C->getKind() == CollectionKind::SLICE);
+  };
+
+  bool operator==(const SliceCollection &other) const;
+  std::string toString(std::string indent = "") const;
+
+protected:
+  SliceInst &slice_inst;
+
+  SliceCollection(SliceInst &slice_inst);
 
   friend class CollectionAnalysis;
 };

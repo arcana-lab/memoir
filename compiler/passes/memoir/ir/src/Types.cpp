@@ -263,6 +263,10 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Type &T) {
   return os;
 }
 
+TypeCode Type::getCode() const {
+  return this->code;
+}
+
 /*
  * IntegerType implementation
  */

@@ -10,9 +10,10 @@
     fprintf(stderr, "\n");                                                     \
     fprintf(stderr, "\x1b[31m====================================\n");         \
     fprintf(stderr, "\x1b[1;31mMemOIR Assert Failed!\x1b[0m\n");               \
-    fprintf(stderr, "\x1b[0;33m%s\x1b[0m\n", msg);                             \
+    fprintf(stderr, "  \x1b[1;33m%s\x1b[0m\n", msg);                           \
     fprintf(stderr, "  in \x1b[1;35m%s\x1b[0m\n", __PRETTY_FUNCTION__);        \
     fprintf(stderr, "  at \x0b[1;35m%s\x1b[0m\n", __LINE__);                   \
+    fprintf(stderr, "\x1b[31m====================================\n\n");       \
     assert(c);                                                                 \
   }
 

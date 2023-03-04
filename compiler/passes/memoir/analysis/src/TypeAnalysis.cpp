@@ -12,6 +12,21 @@ TypeAnalysis::TypeAnalysis() {
 }
 
 /*
+ * Helper macros
+ */
+#define CHECK_MEMOIZED(V)                                                      \
+  /* See if an existing type exists, if it does, early return. */              \
+  if (auto found = this->findExisting(V)) {                                    \
+    return found;                                                              \
+  }
+
+#define MEMOIZE_AND_RETURN(V, T)                                               \
+  /* Memoize the type */                                                       \
+  this->memoize(V, T);                                                         \
+  /* Return */                                                                 \
+  return T
+
+/*
  * Queries
  */
 Type *TypeAnalysis::analyze(llvm::Value &V) {
@@ -35,29 +50,33 @@ Type *TypeAnalysis::getType(llvm::Value &V) {
   }
 
   /*
-   * TODO: Handle function arguments by looking at assertType.
+   * Handle function arguments by looking at assertType.
    */
   if (auto arg = dyn_cast<llvm::Argument>(&V)) {
-    MEMOIR_UNREACHABLE("Handling for arguments is currently unsupported");
+    for (auto user : arg->users()) {
+      auto user_as_inst = dyn_cast<llvm::Instruction>(user);
+      if (!user_as_inst) {
+        continue;
+      }
+
+      if (auto memoir_inst = MemOIRInst::get(*user_as_inst)) {
+        if (auto assert_struct_type_inst =
+                dyn_cast<AssertStructTypeInst>(memoir_inst)) {
+          MEMOIZE_AND_RETURN(
+              V,
+              this->visitAssertStructTypeInst(*assert_struct_type_inst));
+        } else if (auto assert_collection_type_inst =
+                       dyn_cast<AssertCollectionTypeInst>(memoir_inst)) {
+          MEMOIZE_AND_RETURN(V,
+                             this->visitAssertCollectionTypeInst(
+                                 *assert_collection_type_inst));
+        }
+      }
+    }
   }
 
   return nullptr;
 }
-
-/*
- * Helper macros
- */
-#define CHECK_MEMOIZED(V)                                                      \
-  /* See if an existing type exists, if it does, early return. */              \
-  if (auto found = this->findExisting(V)) {                                    \
-    return found;                                                              \
-  }
-
-#define MEMOIZE_AND_RETURN(V, T)                                               \
-  /* Memoize the type */                                                       \
-  this->memoize(V, T);                                                         \
-  /* Return */                                                                 \
-  return T
 
 /*
  * Base case
@@ -308,6 +327,37 @@ Type *TypeAnalysis::visitSequenceAllocInst(SequenceAllocInst &I) {
 }
 
 /*
+ * Join and Slice Instructions
+ */
+Type *TypeAnalysis::visitJoinInst(JoinInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the type of the incoming collections.
+   */
+  for (auto join_index = 0; join_index < I.getNumberOfJoins(); join_index++) {
+    // TODO: add type checking to ensure all inputs are the same type
+  }
+
+  auto type = this->getType(I.getJoinedOperand(0));
+  MEMOIR_NULL_CHECK(type, "Could not determine the incoming type for join!");
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitSliceInst(SliceInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the type of the sliced collection.
+   */
+  auto type = this->getType(I.getCollectionOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the incoming type for join!");
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+/*
  * Type Checking Instructions
  */
 Type *TypeAnalysis::visitAssertStructTypeInst(AssertStructTypeInst &I) {
@@ -352,13 +402,85 @@ Type *TypeAnalysis::visitReturnTypeInst(ReturnTypeInst &I) {
 Type *TypeAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * TODO
-   * Implement interprocedural analysis.
-   */
-  auto type = nullptr;
+  // See if this CallInst returns a pointer type
+  auto function_type = I.getFunctionType();
+  MEMOIR_NULL_CHECK(function_type, "Found a call with NULL function type");
 
-  MEMOIZE_AND_RETURN(I, type);
+  auto llvm_return_type = function_type->getReturnType();
+  MEMOIR_NULL_CHECK(llvm_return_type, "Found a call with NULL return type");
+
+  if (!isa<llvm::PointerType>(llvm_return_type)) {
+    return nullptr;
+  }
+
+  // Analyze the call.
+  Type *return_type = nullptr;
+  auto callee = I.getCalledFunction();
+  if (callee) {
+    // Handle direct call.
+    return_type = this->getReturnType(*callee);
+  } else {
+    // Handle indirect call.
+    auto parent_bb = I.getParent();
+    MEMOIR_NULL_CHECK(parent_bb,
+                      "Could not determine the parent basic block of the call");
+    auto parent_function = parent_bb->getParent();
+    MEMOIR_NULL_CHECK(parent_function,
+                      "Could not determine the parent function of the call");
+    auto parent_module = parent_function->getParent();
+    MEMOIR_NULL_CHECK(parent_module,
+                      "Could not determine the parent module of the call");
+
+    set<Type *> returned_types; // should have a single item
+    for (auto &F : *parent_module) {
+      if (F.getFunctionType() != function_type) {
+        continue;
+      }
+
+      returned_types.insert(this->getReturnType(F));
+    }
+
+    MEMOIR_ASSERT((returned_types.size() == 1),
+                  "Could not determine the return type for indirect call!");
+  }
+
+  MEMOIZE_AND_RETURN(I, return_type);
+}
+
+Type *TypeAnalysis::getReturnType(llvm::Function &F) {
+  if (F.empty()) {
+    return nullptr;
+  }
+
+  // See if we have a to ReturnTypeInst we can use.
+  for (auto &BB : F) {
+    for (auto &I : BB) {
+      if (auto memoir_inst = MemOIRInst::get(I)) {
+        if (auto return_type_inst = dyn_cast<ReturnTypeInst>(memoir_inst)) {
+          return &(return_type_inst->getType());
+        }
+      }
+    }
+  }
+
+  // Otherwise, inspect all of the return statements to get the type.
+  set<Type *> returned_types; // should have a single item.
+  for (auto &BB : F) {
+    auto terminator = BB.getTerminator();
+    if (auto return_inst = dyn_cast<llvm::ReturnInst>(terminator)) {
+      auto return_value = return_inst->getReturnValue();
+      if (!return_value) {
+        returned_types.insert(nullptr);
+        continue;
+      }
+      returned_types.insert(this->getType(*return_value));
+    }
+  }
+
+  MEMOIR_ASSERT(returned_types.size() == 1,
+                "Could not determine a static type for the function!");
+
+  return *(returned_types.begin());
 }
 
 Type *TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
@@ -390,8 +512,6 @@ Type *TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
    */
   for (auto user : global->users()) {
     if (auto store_inst = dyn_cast<StoreInst>(user)) {
-      errs() << "Found store inst " << *store_inst << "\n";
-
       auto store_value = store_inst->getValueOperand();
 
       auto stored_type = this->getType(*store_value);
@@ -412,15 +532,37 @@ Type *TypeAnalysis::visitPHINode(llvm::PHINode &I) {
   CHECK_MEMOIZED(I);
 
   /*
+   * See if we already have an edge set for this PHI node
+   */
+  auto found_edge_types = this->phi_edge_types.find(&I);
+  if (found_edge_types == this->phi_edge_types.end()) {
+    this->phi_edge_types[&I] = {};
+    found_edge_types = this->phi_edge_types.find(&I);
+  }
+
+  set<Type *> &incoming_types = found_edge_types->second;
+
+  /*
    * Get all incoming types.
    */
-  set<Type *> incoming_types;
   for (auto &incoming : I.incoming_values()) {
     /*
      * Get the incoming value.
      */
     MEMOIR_NULL_CHECK(incoming, "Incoming value to PHI node is NULL.");
     auto &incoming_value = *(incoming.get());
+
+    /*
+     * Check if the incoming value has already been visited
+     */
+    if (visited_phi_edges.find(&I) != visited_phi_edges.end()) {
+      continue;
+    }
+
+    /*
+     * Add the incoming value to the list of visited edges.
+     */
+    visited_phi_edges[&I].insert(&incoming_value);
 
     /*
      * Get the Type of the incoming value.

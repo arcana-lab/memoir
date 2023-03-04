@@ -32,7 +32,7 @@ Struct *StructAnalysis::getStruct(llvm::Value &V) {
   }
 
   /*
-   * TODO: Handle function arguments by constructing an ArgPHI
+   * Handle function arguments by constructing an ArgPHI
    */
   if (auto arg = dyn_cast<llvm::Argument>(&V)) {
     return this->visitArgument(*arg);

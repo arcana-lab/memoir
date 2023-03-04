@@ -7,6 +7,10 @@ using namespace memoir;
 #define K 5
 
 memoir::Collection *qsort(memoir::Collection *seq_to_sort, size_t n) {
+  // Type information
+  memoir_assert_collection_type(memoir_sequence_type(memoir_u64_t),
+                                seq_to_sort);
+
   // Perform quicksort
   if (n < 2) {
     return seq_to_sort;

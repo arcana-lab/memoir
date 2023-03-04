@@ -10,6 +10,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"
@@ -107,6 +108,10 @@ public:
   unsigned getBitWidth() const;
   bool isSigned() const;
 
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::INTEGER);
+  }
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -122,6 +127,10 @@ struct FloatType : public Type {
 public:
   static FloatType &get();
 
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::FLOAT);
+  }
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -134,6 +143,10 @@ struct DoubleType : public Type {
 public:
   static DoubleType &get();
 
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::DOUBLE);
+  }
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -145,6 +158,10 @@ protected:
 struct PointerType : public Type {
 public:
   static PointerType &get();
+
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::POINTER);
+  }
 
   std::string toString(std::string indent = "") const override;
 
@@ -159,6 +176,10 @@ public:
   static ReferenceType &get(Type &referenced_type);
 
   Type &getReferencedType() const;
+
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::REFERENCE);
+  }
 
   std::string toString(std::string indent = "") const override;
 
@@ -184,6 +205,10 @@ public:
   unsigned getNumFields() const;
   Type &getFieldType(unsigned field_index) const;
 
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::STRUCT);
+  }
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -204,6 +229,19 @@ struct CollectionType : public Type {
 public:
   virtual Type &getElementType() const = 0;
 
+  static bool classof(const Type *T) {
+    switch (T->getCode()) {
+      default:
+        return false;
+      case TypeCode::FIELD_ARRAY:
+      case TypeCode::STATIC_TENSOR:
+      case TypeCode::TENSOR:
+      case TypeCode::SEQUENCE:
+      case TypeCode::ASSOC_ARRAY:
+        return true;
+    };
+  }
+
 protected:
   CollectionType(TypeCode code);
 
@@ -218,6 +256,10 @@ public:
 
   StructType &getStructType() const;
   unsigned getFieldIndex() const;
+
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::FIELD_ARRAY);
+  }
 
   std::string toString(std::string indent = "") const override;
 
@@ -236,6 +278,10 @@ public:
   Type &getElementType() const override;
   unsigned getNumberOfDimensions() const;
   size_t getLengthOfDimension(unsigned dimension_index) const;
+
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::STATIC_TENSOR);
+  }
 
   std::string toString(std::string indent = "") const override;
 
@@ -256,6 +302,10 @@ public:
   Type &getElementType() const override;
   unsigned getNumberOfDimensions() const;
 
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::TENSOR);
+  }
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -275,6 +325,10 @@ public:
   Type &getValueType() const;
   Type &getElementType() const override;
 
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::ASSOC_ARRAY);
+  }
+
   std::string toString(std::string indent = "") const override;
 
 protected:
@@ -293,6 +347,10 @@ public:
   static SequenceType &get(Type &element_type);
 
   Type &getElementType() const override;
+
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::SEQUENCE);
+  }
 
   std::string toString(std::string indent = "") const override;
 

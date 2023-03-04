@@ -566,6 +566,7 @@ protected:
 struct AccessInst : public MemOIRInst {
 public:
   virtual Collection &getCollectionAccessed() const = 0;
+  virtual CollectionType &getCollectionType() const = 0;
 
   virtual llvm::Value &getObjectOperand() const = 0;
   virtual llvm::Use &getObjectOperandAsUse() const = 0;
@@ -589,6 +590,8 @@ protected:
  */
 struct ReadInst : public AccessInst {
 public:
+  CollectionType &getCollectionType() const override;
+
   llvm::Value &getValueRead() const;
   llvm::Value &getObjectOperand() const override;
   llvm::Use &getObjectOperandAsUse() const override;
@@ -610,6 +613,7 @@ protected:
 struct StructReadInst : public ReadInst {
 public:
   Collection &getCollectionAccessed() const override;
+  CollectionType &getCollectionType() const override;
   Struct &getStructAccessed() const;
 
   unsigned getFieldIndex() const;
@@ -684,6 +688,8 @@ protected:
  */
 struct WriteInst : public AccessInst {
 public:
+  CollectionType &getCollectionType() const override;
+
   llvm::Value &getValueWritten() const;
   llvm::Use &getValueWrittenAsUse() const;
 
@@ -707,6 +713,7 @@ protected:
 struct StructWriteInst : public WriteInst {
 public:
   Collection &getCollectionAccessed() const override;
+  CollectionType &getCollectionType() const override;
 
   Struct &getStructAccessed() const;
 
@@ -782,6 +789,8 @@ protected:
  */
 struct GetInst : public AccessInst {
 public:
+  CollectionType &getCollectionType() const override;
+
   llvm::Value &getValueRead() const;
   llvm::Value &getObjectOperand() const override;
   llvm::Use &getObjectOperandAsUse() const;
@@ -803,6 +812,7 @@ protected:
 struct StructGetInst : public GetInst {
 public:
   Collection &getCollectionAccessed() const override;
+  CollectionType &getCollectionType() const override;
 
   Struct &getStructAccessed() const;
 
