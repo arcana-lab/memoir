@@ -9,7 +9,7 @@
 #include "memoir/utility/Metadata.hpp"
 #include "memoir/ir/Function.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
-
+#include "memoir/support/Casting.hpp"
 
 using namespace llvm;
 
@@ -44,8 +44,9 @@ namespace object_lowering {
             {
                 continue;
             }
+            Utility::debug() << mins->toString() << "\n";
             if(mins->getKind() == llvm::memoir::STRUCT_WRITE_UINT64) {
-                auto struct_read_ins = static_cast<memoir::StructWriteInst *>(mins);
+                auto struct_read_ins = dyn_cast<memoir::StructWriteInst>(mins);
                 auto struct_accessed = &struct_read_ins->getStructAccessed();
                 Utility::debug() << struct_accessed->toString() << "\n";
                 break;
