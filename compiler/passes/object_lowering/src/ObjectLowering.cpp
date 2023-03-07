@@ -8,6 +8,7 @@
 #include "Utility.h"
 #include "memoir/utility/Metadata.hpp"
 #include "memoir/ir/Function.hpp"
+#include "memoir/analysis/TypeAnalysis.hpp"
 
 
 using namespace llvm;
@@ -45,22 +46,23 @@ namespace object_lowering {
                 }
             }
         }
+        auto& typeAnalysis = memoir::TypeAnalysis::get();
         for (auto &oldF: functions_to_clone) {
             if (oldF->getFunctionType()->isVarArg()) {
                 assert(false && "var arg function not supported");
             }
-            auto &mfunc = memoir::MemOIRFunction::get(*oldF);
             std::vector<llvm::Type *> arg_types;
-            for (unsigned argi = 0; argi < mfunc.getNumberOfArguments(); ++argi) {
-                memoir::Type *marg_ty = mfunc.getArgumentType(argi);
+            for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
+                auto old_arg = (oldF->arg_begin() + argi);
+                memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
                 arg_types.push_back(marg_ty != nullptr ?
                                     nativeTypeConverter->getLLVMRepresentation(marg_ty) :
-                                    mfunc.getArgumentLLVMType(argi));
+                                    old_arg->getType());
             }
-            memoir::Type *mret_ty = mfunc.getReturnType();
+            memoir::Type *mret_ty = typeAnalysis.getReturnType(*oldF);
             llvm::Type *ret_ty = mret_ty != nullptr ?
                                  nativeTypeConverter->getLLVMRepresentation(mret_ty) :
-                                 mfunc.getReturnLLVMType();
+                                 oldF->getReturnType();
             auto new_func_ty = FunctionType::get(ret_ty, arg_types, false);
             auto newF = Function::Create(new_func_ty,
                                          oldF->getLinkage(),
@@ -68,15 +70,15 @@ namespace object_lowering {
                                          oldF->getName(),
                                          oldF->getParent());
             newF->getBasicBlockList().splice(newF->begin(), oldF->getBasicBlockList());
-            for (unsigned argi = 0; argi < mfunc.getNumberOfArguments(); ++argi) {
-                memoir::Type *marg_ty = mfunc.getArgumentType(argi);
-                auto llvm_old_arg = &mfunc.getArgument(argi);
-                auto llvm_new_arg = (newF->arg_begin() + argi);
+            for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
+                auto old_arg = (oldF->arg_begin() + argi);
+                auto new_arg = (newF->arg_begin() + argi);
+                memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
                 if(marg_ty != nullptr){
-                    replacementMapping[llvm_old_arg] = llvm_new_arg;
+                    replacementMapping[old_arg] = new_arg;
                 }
                 else{
-                    llvm_old_arg->replaceAllUsesWith(llvm_new_arg);
+                    old_arg->replaceAllUsesWith(new_arg);
                 }
             }
             clonedFunctionMap[oldF] = newF;
