@@ -53,6 +53,11 @@ public:
   Type *getType(llvm::Value &value);
 
   /*
+   * Query the Type for the given LLVM Function
+   */
+  Type *getReturnType(llvm::Function &F);
+
+  /*
    * Helper functions
    */
 
@@ -81,7 +86,6 @@ protected:
   Type *findExisting(MemOIRInst &I);
   void memoize(llvm::Value &V, Type *T);
   void memoize(MemOIRInst &I, Type *T);
-  Type *getReturnType(llvm::Function &F);
 
   /*
    * Visitor functions
