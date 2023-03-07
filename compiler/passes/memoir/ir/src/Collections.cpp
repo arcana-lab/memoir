@@ -303,7 +303,7 @@ RetPHICollection::RetPHICollection(
     map<llvm::ReturnInst *, Collection *> &incoming)
   : call(call),
     incoming(incoming),
-    Collection(CollectionKind::CALL_PHI) {
+    Collection(CollectionKind::RET_PHI) {
   /*
    * Initialize a partial ordering of the incoming returns.
    */
