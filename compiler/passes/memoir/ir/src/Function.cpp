@@ -38,7 +38,7 @@ MemOIRFunction::MemOIRFunction(llvm::Function &F) : F(F) {
   vector<Type *> param_types = {};
 
   this->function_type =
-      &(MemOIRFunctionType::get(*llvm_function_type, return_type, param_types));
+      new MemOIRFunctionType(*llvm_function_type, return_type, param_types);
 }
 
 llvm::Module &MemOIRFunction::getParent() const {
