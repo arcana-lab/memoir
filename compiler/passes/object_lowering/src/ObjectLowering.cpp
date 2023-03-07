@@ -46,6 +46,7 @@ namespace object_lowering {
             }
             Utility::debug() << mins->toString() << "\n";
             if(mins->getKind() == llvm::memoir::STRUCT_WRITE_UINT64) {
+                Utility::debug() << "The aforeprinted instruction is a struct write instruction\n";
                 auto struct_read_ins = dyn_cast<memoir::StructWriteInst>(mins);
                 auto struct_accessed = &struct_read_ins->getStructAccessed();
                 Utility::debug() << struct_accessed->toString() << "\n";
