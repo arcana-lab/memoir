@@ -358,9 +358,11 @@ namespace object_lowering {
 
 //        auto freef = M.getOrInsertFunction("free", freeFTY);
         for (auto &ins: *bb) {
+            Utility::debug() << "Processing Instruction " << ins << "\n";
             IRBuilder<> builder(&ins);
             auto mins = memoir::MemOIRInst::get(ins);
             if (mins == nullptr) {
+                Utility::debug() << "Instruction is not a memoir instruction\n";
                 if (auto callIns = dyn_cast<CallInst>(&ins)) {
                     auto callee = callIns->getCalledFunction();
                     if (clonedFunctionMap.find(callee) == clonedFunctionMap.end()) {
