@@ -2,7 +2,7 @@ NOELLE_DIR=compiler/noelle
 BUILD_DIR=.build.dir
 HOOKS_DIR=.githooks
 INSTALL_DIR=install
-
+NORM_RUNTIME=./compiler/scripts/normalize_runtime.sh
 
 RUNTIME_BC=install/lib/memoir.bc
 
@@ -18,6 +18,7 @@ install: build
 	make -C $(BUILD_DIR) install -j8
 
 postinstall: install
+	$(NORM_RUNTIME) $(RUNTIME_BC)
 
 benchmark: all
 	make -C $(BUILD_DIR) bitcodes -j8
