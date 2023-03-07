@@ -751,7 +751,6 @@ namespace object_lowering {
             auto dominated = child->getBlock();
             BasicBlockTransformer(DT,
                                   dominated,
-                                  replacementMapping,
                                   phiNodesReplacementStruct,
                                   phiNodesReplacementCollection);
         }
