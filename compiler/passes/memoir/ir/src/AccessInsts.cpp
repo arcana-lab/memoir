@@ -89,8 +89,13 @@ llvm::Use &StructReadInst::getFieldIndexOperandAsUse() const {
 }
 
 std::string StructReadInst::toString(std::string indent) const {
-  // TODO: flesh out.
-  return "struct read";
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Struct Read: " + llvm_str;
+
+  return str;
 }
 
 /*
@@ -116,8 +121,13 @@ llvm::Use &IndexReadInst::getIndexOfDimensionAsUse(unsigned dim_idx) const {
 }
 
 std::string IndexReadInst::toString(std::string indent) const {
-  // TODO: flesh out.
-  return "index read";
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Index Read: " + llvm_str;
+
+  return str;
 }
 
 /*
@@ -139,8 +149,13 @@ llvm::Use &AssocReadInst::getKeyOperandAsUse() const {
 }
 
 std::string AssocReadInst::toString(std::string indent) const {
-  // TODO: flesh out.
-  return "assoc read";
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Assoc Read: " + llvm_str;
+
+  return str;
 }
 
 /*
@@ -230,8 +245,13 @@ llvm::Use &StructWriteInst::getFieldIndexOperandAsUse() const {
 }
 
 std::string StructWriteInst::toString(std::string indent) const {
-  // TODO: flesh out.
-  return "struct write";
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Struct Write: " + llvm_str;
+
+  return str;
 }
 
 /*
@@ -257,8 +277,13 @@ llvm::Use &IndexWriteInst::getIndexOfDimensionAsUse(unsigned dim_idx) const {
 }
 
 std::string IndexWriteInst::toString(std::string indent) const {
-  // TODO: flesh out.
-  return "index write";
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Index Write: " + llvm_str;
+
+  return str;
 }
 
 /*
@@ -280,8 +305,13 @@ llvm::Use &AssocWriteInst::getKeyOperandAsUse() const {
 }
 
 std::string AssocWriteInst::toString(std::string indent) const {
-  // TODO: flesh out.
-  return "assoc write";
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Assoc Write: " + llvm_str;
+
+  return str;
 }
 
 /*
@@ -367,8 +397,13 @@ llvm::Use &StructGetInst::getFieldIndexOperandAsUse() const {
 }
 
 std::string StructGetInst::toString(std::string indent) const {
-  // TODO: flesh out.
-  return "struct get";
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Struct Get: " + llvm_str;
+
+  return str;
 }
 
 /*
@@ -394,8 +429,13 @@ llvm::Use &IndexGetInst::getIndexOfDimensionAsUse(unsigned dim_idx) const {
 }
 
 std::string IndexGetInst::toString(std::string indent) const {
-  // TODO: flesh out.
-  return "index get";
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Index Get: " + llvm_str;
+
+  return str;
 }
 
 /*
@@ -417,8 +457,13 @@ llvm::Use &AssocGetInst::getKeyOperandAsUse() const {
 }
 
 std::string AssocGetInst::toString(std::string indent) const {
-  // TODO: flesh out.
-  return "assoc get";
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Assoc Get: " + llvm_str;
+
+  return str;
 }
 
 } // namespace llvm::memoir
