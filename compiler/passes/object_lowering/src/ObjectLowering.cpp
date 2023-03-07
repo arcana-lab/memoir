@@ -30,16 +30,19 @@ namespace object_lowering {
 
     void ObjectLowering::transform() {
         std::vector<Function *> functions_to_clone;
+        llvm::Function* main;
         for (auto &f: M) {
             if (!f.isDeclaration()) {
                 auto is_internal =
                         memoir::MetadataManager::hasMetadata(f,
                                                              memoir::MetadataType::INTERNAL);
-                if (is_internal || f.getName() != "main") {
-                    functions_to_clone.push_back(&f);
-                    continue;
+                if(f.getName() == "main")
+                {
+                    main = &f;
                 }
-//                function_transform(&f);
+                else if (is_internal ) {
+                    functions_to_clone.push_back(&f);
+                }
             }
         }
         for (auto &oldF: functions_to_clone) {
@@ -80,6 +83,12 @@ namespace object_lowering {
 
         }
 
+        function_transform(main);
+        
+        for (auto & func_pair: clonedFunctionMap)
+        {
+            function_transform(func_pair.second);
+        }
 
         for (auto & func_pair: clonedFunctionMap)
         {
