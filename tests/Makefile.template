@@ -35,7 +35,7 @@ test: compile
 	$(BINARY) 2>&1 | tee $(BUILD_DIR)/test.out
 
 optimize: $(IR_FILE_OPT) $(IR_FILE_RUNTIME)
-        $(LL) $^ -o $(IR_FILE)
+	  $(LL) $^ -o $(IR_FILE)
 
 baseline: $(IR_FILE_INPUT) $(IR_FILE_RUNTIME)
 	$(LL) $^ -o $(IR_FILE)
