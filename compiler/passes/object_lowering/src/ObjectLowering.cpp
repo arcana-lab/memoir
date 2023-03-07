@@ -33,14 +33,14 @@ namespace object_lowering {
         llvm::Function* main;
         for (auto &f: M) {
             if (!f.isDeclaration()) {
-                auto is_internal =
-                        memoir::MetadataManager::hasMetadata(f,
-                                                             memoir::MetadataType::INTERNAL);
+//                auto is_internal =
+//                        memoir::MetadataManager::hasMetadata(f,
+//                                                             memoir::MetadataType::INTERNAL);
                 if(f.getName() == "main")
                 {
                     main = &f;
                 }
-                else if (is_internal ) {
+                else {
                     functions_to_clone.push_back(&f);
                 }
             }
