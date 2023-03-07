@@ -84,7 +84,7 @@ namespace object_lowering {
         }
 
         function_transform(main);
-        
+
         for (auto & func_pair: clonedFunctionMap)
         {
             function_transform(func_pair.second);
