@@ -68,7 +68,7 @@ namespace object_lowering {
             for (unsigned argi = 0; argi < mfunc.getNumberOfArguments(); ++argi) {
                 memoir::Type *marg_ty = mfunc.getArgumentType(argi);
                 auto llvm_old_arg = &mfunc.getArgument(argi);
-                auto llvm_new_arg = newF->getArg(argi);
+                auto llvm_new_arg = (newF->arg_begin() + argi);
                 if(marg_ty != nullptr){
                     replacementMapping[llvm_old_arg] = llvm_new_arg;
                 }
