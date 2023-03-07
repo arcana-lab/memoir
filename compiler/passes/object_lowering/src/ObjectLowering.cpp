@@ -365,6 +365,7 @@ namespace object_lowering {
                 Utility::debug() << "Instruction is not a memoir instruction\n";
                 if (auto callIns = dyn_cast<CallInst>(&ins)) {
                     auto callee = callIns->getCalledFunction();
+                    auto& typeAnalysis = memoir::TypeAnalysis::get();
                     if (clonedFunctionMap.find(callee) == clonedFunctionMap.end()) {
                         // this is a function call which passes or returns Object*s
                         // replace the arguments
@@ -380,8 +381,7 @@ namespace object_lowering {
                         }
                         auto new_callins =
                                 builder.CreateCall(clonedFunctionMap[callee], arguments);
-                        auto& mfunc = memoir::MemOIRFunction::get(*oldF);
-                        if(mfunc.getReturnType() !=nullptr) {
+                        if(typeAnalysis.getReturnType(*oldF) == nullptr) {
                             ins.replaceAllUsesWith(new_callins);
                         }
                         replacementMapping[callIns] = new_callins;
@@ -394,7 +394,8 @@ namespace object_lowering {
                         Utility::debug() << *bitcast << "now is linked to the same entry as " << *casted << "which is "
                                << *(replacementMapping[casted]) << "\n";
                     }
-                }else if (auto icmp = dyn_cast<ICmpInst>(&ins)) {
+                }
+                else if (auto icmp = dyn_cast<ICmpInst>(&ins)) {
                     Value *not_the_null_one =
                             dyn_cast<ConstantPointerNull>(icmp->getOperand(0))
                             ? icmp->getOperand(1)
@@ -434,7 +435,8 @@ namespace object_lowering {
                             builder.CreateICmp(icmp->getPredicate(), new_left, new_right);
                     replacementMapping[icmp] = newIcmp;
                     icmp->replaceAllUsesWith(newIcmp);
-                }else if (auto retIns = dyn_cast<ReturnInst>(&ins)) {
+                }
+                else if (auto retIns = dyn_cast<ReturnInst>(&ins)) {
                     // replace returned value, if necessary
                     auto r_val = retIns->getReturnValue();
                     if (replacementMapping.find(r_val) != replacementMapping.end()) {
@@ -442,8 +444,7 @@ namespace object_lowering {
                         replacementMapping[retIns] = new_ret;
                     }
                 }
-
-
+                continue;
             }
             switch (mins->getKind()) {
                 case llvm::memoir::INDEX_READ_PTR:
