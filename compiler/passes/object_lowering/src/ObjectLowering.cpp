@@ -357,6 +357,8 @@ namespace object_lowering {
 //                                        false);
 
 //        auto freef = M.getOrInsertFunction("free", freeFTY);
+
+        auto& typeAnalysis = memoir::TypeAnalysis::get();
         for (auto &ins: *bb) {
             Utility::debug() << "Processing Instruction " << ins << "\n";
             IRBuilder<> builder(&ins);
@@ -365,8 +367,7 @@ namespace object_lowering {
                 Utility::debug() << "Instruction is not a memoir instruction\n";
                 if (auto callIns = dyn_cast<CallInst>(&ins)) {
                     auto callee = callIns->getCalledFunction();
-                    auto& typeAnalysis = memoir::TypeAnalysis::get();
-                    if (clonedFunctionMap.find(callee) == clonedFunctionMap.end()) {
+                    if (clonedFunctionMap.find(callee) != clonedFunctionMap.end()) {
                         // this is a function call which passes or returns Object*s
                         // replace the arguments
                         llvm::Function* oldF = clonedFunctionMap.at(callee);
