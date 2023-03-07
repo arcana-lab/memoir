@@ -29,6 +29,30 @@ namespace object_lowering {
     }
 
 
+    void test(llvm::Module &M)
+    {
+        Function* main ;
+        for (auto &f: M) {
+            if(f.hasName()&& f.getName() == "main")
+            {
+                main = &f;
+            }
+        }
+        for (auto &ins: instructions(*main)) {
+            auto mins = memoir::MemOIRInst::get(ins);
+            if(mins== nullptr)
+            {
+                continue;
+            }
+            if(mins->getKind() == llvm::memoir::STRUCT_WRITE_UINT64) {
+                auto struct_read_ins = static_cast<memoir::StructWriteInst *>(mins);
+                auto struct_accessed = &struct_read_ins->getStructAccessed();
+                Utility::debug() << struct_accessed->toString() << "\n";
+                break;
+            }
+        }
+    }
+
     void ObjectLowering::transform() {
         std::vector<Function *> functions_to_clone;
         llvm::Function* main;
@@ -48,6 +72,7 @@ namespace object_lowering {
         }
         auto& typeAnalysis = memoir::TypeAnalysis::get();
         for (auto &oldF: functions_to_clone) {
+            Utility::debug()<<"Attempting to clone function "<< oldF->getName() << "\n";
             if (oldF->getFunctionType()->isVarArg()) {
                 assert(false && "var arg function not supported");
             }
@@ -67,7 +92,7 @@ namespace object_lowering {
             auto newF = Function::Create(new_func_ty,
                                          oldF->getLinkage(),
                                          oldF->getAddressSpace(),
-                                         oldF->getName(),
+                                         oldF->getName()+"cloned-lowered",
                                          oldF->getParent());
             newF->getBasicBlockList().splice(newF->begin(), oldF->getBasicBlockList());
             for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
@@ -81,6 +106,7 @@ namespace object_lowering {
                     old_arg->replaceAllUsesWith(new_arg);
                 }
             }
+            Utility::debug()<<"Cloned function "<< newF->getName() << "\n";
             clonedFunctionMap[oldF] = newF;
 
         }

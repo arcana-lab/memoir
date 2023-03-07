@@ -9,6 +9,7 @@
 
 namespace object_lowering {
 
+    void test(llvm::Module &M);
     class ObjectLowering {
     public:
         ObjectLowering(llvm::Module &M, llvm::ModulePass *mp);
