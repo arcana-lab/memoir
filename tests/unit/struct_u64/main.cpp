@@ -4,11 +4,8 @@
 
 using namespace memoir;
 
-auto objTy = memoir_define_struct_type("Foo",
-                                       3,
-                                       MEMOIR_FUNC(u64_type)(),
-                                       MEMOIR_FUNC(u64_type)(),
-                                       MEMOIR_FUNC(u64_type)());
+auto objTy =
+    memoir_define_struct_type("Foo", memoir_u64_t, memoir_u64_t, memoir_u64_t);
 
 int main() {
   auto myObj = memoir_allocate_struct(objTy);
@@ -36,4 +33,6 @@ int main() {
   std::cerr << "1: " << read1 << "\n";
   std::cerr << "2: " << read2 << "\n";
   std::cerr << "3: " << read3 << "\n\n";
+
+  return 0;
 }
