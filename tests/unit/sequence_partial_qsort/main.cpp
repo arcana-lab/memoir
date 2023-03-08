@@ -59,11 +59,8 @@ memoir::Collection *qsort(memoir::Collection *seq_to_sort, size_t n) {
 
   } while (remaining > 0);
 
-  std::cerr << "sorting left\n";
   auto l_sorted = qsort(l_part, l_size);
-  std::cerr << "sorting right\n";
   auto r_sorted = qsort(r_part, r_size);
-  std::cerr << "joining\n";
 
   return memoir_join(l_sorted, p_slice, r_sorted);
 }
@@ -89,14 +86,14 @@ int main(int argc, char *argv[]) {
   auto sorted_seq = qsort(seq, length);
 
   auto print_length = (length < K) ? length : K;
-  std::cout << "\nResult (first " << print_length << " elements): \n";
+  printf("\nResult (first %d elements): \n", print_length);
   for (auto i = 0; i < print_length; i++) {
     auto read = memoir_index_read(u64, sorted_seq, i);
     if (i == 0) {
-      std::cout << std::to_string(read);
+      printf("%lu", read);
     } else {
-      std::cout << ", " << std::to_string(read);
+      printf(", %lu", read);
     }
   }
-  std::cout << "\n";
+  printf("\n");
 }
