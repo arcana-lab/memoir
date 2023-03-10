@@ -1,27 +1,109 @@
 #!/bin/bash -e
 
 function usage {
-    echo "This script will run MemOIR optimizations and lower to LLVM IR." ;
-    echo "  USAGE: `basename $0` <INPUT IR FILE> <OUTPUT IR FILE> [<OPTIONS, ...>]" ;
+    echo "This script will run MemOIR optimizations." ;
+    echo "  USAGE: `basename $0` <INPUT FILE> -o <OUTPUT FILE> [<OPTIONS, ...>]"
 }
 
-if [[ $# -le 1 ]] ; then
+function flags {
+    echo "  FLAGS:"
+    echo "    -o,--output"
+    echo "      Specifies the output file"
+    echo "    -n,--norm,--normalize"
+    echo "      Enables the normalization pass"
+    echo "    -l,--lower"
+    echo "      Enables the object lowering pass"
+    echo "    --slice-canon,--slice-canonicalization"
+    echo "      Enables the slice canonicalization pass"
+}
+
+if [[ $# -lt 1 ]] ; then
     usage
     exit 1
 fi
 
-GIT_ROOT=`git rev-parse --show-toplevel` ;
-LIB_DIR=${GIT_ROOT}/install/lib ;
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -o|--output)
+            OUTPUT_IR_FILE=$2
+            shift
+            shift
+            ;;
+        -n|--norm|--normalize)
+            NORMALIZE="true"
+            shift
+            ;;
+        -l|--lower)
+            LOWER="true"
+            shift
+            ;;
+        --slice-canon|--slice-canonicalization)
+            SLICE_CANON="true"
+            shift
+            ;;
+        -h|--help)
+            usage
+            echo ""
+            flags
+            exit 1
+            ;;
+        -*|--*)
+            echo "Unknown option $1"
+            flags
+            exit 1
+            ;;
+        *)
+            if [ -n "${INPUT_IR_FILE}" ] ; then
+                echo "Too many positional arguments passed!"
+                usage
+                exit 1
+            fi
+            INPUT_IR_FILE=$1
+            shift
+            ;;
+    esac
+done
 
-source ${GIT_ROOT}/enable ;
+if [ -z ${INPUT_IR_FILE} ] ; then
+    echo "No input IR file specified."
+    usage
+    exit 1
+fi
 
-INPUT_IR_FILE="$1" ;
-OUTPUT_IR_FILE="$2" ;
+if [ -z ${OUTPUT_IR_FILE} ] ; then
+    echo "No output IR file specified."
+    usage
+    exit 1
+fi
 
-echo "Running MemOIR optimization pipeline (I: ${INPUT_IR_FILE}, O: ${OUTPUT_IR_FILE})" ;
+
+GIT_ROOT=`git rev-parse --show-toplevel`
+LIB_DIR=${GIT_ROOT}/install/lib
+
+source ${GIT_ROOT}/enable
+
+echo "Running MemOIR compiler (I: ${INPUT_IR_FILE}, O: ${OUTPUT_IR_FILE})"
+
+OUT_DIR=$(dirname ${OUTPUT_IR_FILE})
+IR_FILE_BASENAME=$(basename -- ${OUTPUT_IR_FILE})
+IR_FILE_FILENAME="${IR_FILE_BASENAME%.bc}"
+IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}_temp.bc
+
+cp ${INPUT_IR_FILE} ${IR_FILE} ;
 
 # Normalize the bitcode
-${GIT_ROOT}/compiler/scripts/memoir-norm ${INPUT_IR_FILE} ${OUTPUT_IR_FILE} ;
+if [[ "${NORMALIZE}" == "true" ]] ; then
+    ${GIT_ROOT}/compiler/scripts/memoir-norm ${IR_FILE} ${IR_FILE} ;
+fi
+
+# Perform slice canonicalization
+if [[ "${SLICE_CANON}" == "true" ]] ; then
+    noelle-load -load ${LIB_DIR}/SliceCanonicalization.so -SliceCanonicalization ${IR_FILE} -o ${IR_FILE}
+fi
 
 # Lower the bitcode
-${GIT_ROOT}/compiler/scripts/memoir-lower ${OUTPUT_IR_FILE} ${OUTPUT_IR_FILE} ;
+if [[ "${LOWER}" == "true" ]] ; then
+    ${GIT_ROOT}/compiler/scripts/memoir-lower ${IR_FILE} ${IR_FILE} ;
+fi
+
+cp ${IR_FILE} ${OUTPUT_IR_FILE}
