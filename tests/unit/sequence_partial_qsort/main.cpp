@@ -18,8 +18,8 @@ memoir::Collection *qsort(memoir::Collection *seq_to_sort, size_t n) {
 
   // Perform insertion sort for n < 3
   if (n < 3) {
-    auto l_slice = memoir_sequence_slice(seq_to_sort, 0, 0);
-    auto r_slice = memoir_sequence_slice(seq_to_sort, 1, 1);
+    auto l_slice = memoir_sequence_slice(seq_to_sort, 0, 1);
+    auto r_slice = memoir_sequence_slice(seq_to_sort, 1, 2);
     if (memoir_index_read(u64, l_slice, 0)
         > memoir_index_read(u64, r_slice, 0)) {
       return memoir_join(r_slice, l_slice);
@@ -30,8 +30,8 @@ memoir::Collection *qsort(memoir::Collection *seq_to_sort, size_t n) {
 
   // Select pivot
   auto p = n / 2;
-  auto p_slice = memoir_sequence_slice(seq_to_sort, p, p);
-  auto l_slice = memoir_sequence_slice(seq_to_sort, 0, p - 1);
+  auto p_slice = memoir_sequence_slice(seq_to_sort, p, p + 1);
+  auto l_slice = memoir_sequence_slice(seq_to_sort, 0, p);
   auto r_slice = memoir_sequence_slice(seq_to_sort, p + 1, -1);
   auto rest = memoir_join(l_slice, r_slice);
   auto remaining = n - 1;
@@ -43,7 +43,7 @@ memoir::Collection *qsort(memoir::Collection *seq_to_sort, size_t n) {
   auto r_size = 0;
 
   do {
-    auto first = memoir_sequence_slice(rest, 0, 0);
+    auto first = memoir_sequence_slice(rest, 0, 1);
     if (remaining > 1) {
       rest = memoir_sequence_slice(rest, 1, -1);
     }
@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  auto length = argc - 1;
+  auto length = (uint64_t)argc - 1;
 
   auto seq = memoir_allocate_sequence(memoir_u64_t, length);
 
