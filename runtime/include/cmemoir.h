@@ -61,7 +61,7 @@
   (element_type, MEMOIR_NARGS(__VA_ARGS__), CAST_TO_SIZE_T(__VA_ARGS__))
 
 #define memoir_allocate_sequence(element_type, initial_size)                   \
-  MEMOIR_FUNC(allocate_sequence)(element_type, initial_size)
+  MEMOIR_FUNC(allocate_sequence)(element_type, (uint64_t)initial_size)
 
 #define memoir_allocate_assoc_array(key_type, value_type)                      \
   MEMOIR_FUNC(allocate_assoc_array)(key_type, value_type)
@@ -75,7 +75,7 @@
  * Collection operations
  */
 #define memoir_sequence_slice(object, left, right)                             \
-  MEMOIR_FUNC(get_slice)(object, (int64_t)left, (int64_t)right)
+  MEMOIR_FUNC(get_slice)(object, (uint64_t)left, (uint64_t)right)
 
 #define memoir_join(object, ...)                                               \
   MEMOIR_FUNC(join)                                                            \
