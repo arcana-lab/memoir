@@ -331,27 +331,28 @@ namespace object_lowering {
 
         } else if (collectionType->getCode() == memoir::TypeCode::TENSOR) {
             auto int64Ty = llvm::Type::getInt64Ty(M.getContext());
+            auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
             auto tensortype = static_cast<memoir::TensorType *>(collectionType);
             auto ndim = tensortype->getNumberOfDimensions();
             auto tensor_header_view = builder.CreateBitCast(baseTensorPtr, PointerType::getUnqual(int64Ty));
             std::vector<llvm::Value *> sizes;
             for (unsigned int i = 0; i < ndim; ++i) {
-                Value *indexList[1] = {ConstantInt::get(int64Ty, i)};
+                Value *indexList[1] = {ConstantInt::get(int32Ty, i)};
                 auto sizeGEP = builder.CreateGEP(PointerType::getUnqual(int64Ty), tensor_header_view, indexList);
                 sizes[i] = builder.CreateLoad(sizeGEP);
             }
-            Value *indexList[1] = {ConstantInt::get(int64Ty, ndim)};
+            Value *indexList[1] = {ConstantInt::get(int32Ty, ndim)};
             auto skipMetaDataGEP = builder.CreateGEP(PointerType::getUnqual(int64Ty), tensor_header_view,
                                                      indexList);
             auto tensor_body_view = builder.CreateBitCast(skipMetaDataGEP, llvm_tensor_elem_type_ptr);
             Value *multiCumSizes[ndim];
-            multiCumSizes[ndim - 1] = ConstantInt::get(int64Ty, 1);
+            multiCumSizes[ndim - 1] = ConstantInt::get(int32Ty, 1);
             Utility::debug() << "Dimension = " << ndim << "\n";
             for (signed long i = ((signed long) ndim) - 2; i >= 0; --i) {
                 errs() << "Dimension " << i << " uses" << *multiCumSizes[i + 1] << "and " << *sizes[i + 1] << " \n";
                 multiCumSizes[i] = builder.CreateMul(multiCumSizes[i + 1], sizes[i + 1]);
             }
-            Value *size = ConstantInt::get(int64Ty, 0);
+            Value *size = ConstantInt::get(int32Ty, 0);
             for (unsigned int dim = 0; dim < ndim; ++dim) {
                 errs() << "Dimension size" << dim << "represented by " << *(indicies[dim]) << "\n";
                 auto skipsInDim = builder.CreateMul(multiCumSizes[dim], indicies[dim]);
@@ -580,8 +581,8 @@ namespace object_lowering {
                     }
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     phiNodesReplacementStruct);
-                    std::vector<Value *> indices = {llvm::ConstantInt::get(int64Ty, 0),
-                                                    llvm::ConstantInt::get(int64Ty, field_index)};
+                    std::vector<Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
+                                                    llvm::ConstantInt::get(int32Ty, field_index)};
                     auto gep = builder.CreateGEP(base_struct_ptr,
                                                  indices);
                     auto struct_type = (memoir::StructType *) &struct_accessed->getType();
@@ -657,7 +658,6 @@ namespace object_lowering {
                     Utility::debug() << "and the field it's indexing is " << field_index <<"\n";
                     auto gep = builder.CreateGEP(base_struct_ptr,
                                                  indices);
-                    Utility::debug() << "get htis line?";
                     auto struct_type = (memoir::StructType *) &struct_accessed->getType();
                     auto &field_type = struct_type->getFieldType(field_index);
                     Value *reference_value = field_type.getCode() == memoir::TypeCode::REFERENCE ?
