@@ -101,6 +101,15 @@ using stack = std::stack<T>;
 template <typename T>
 using queue = std::queue<T>;
 
+// Pair.
+template <typename T1, typename T2>
+using pair = std::pair<T1, T2>;
+
+template <typename T1, typename T2>
+inline pair<T1, T2> make_pair(T1 first, T2 second) {
+  return pair<T1, T2>::make_pair(first, second);
+}
+
 } // namespace llvm::memoir
 
 #endif

@@ -6,7 +6,7 @@
 #include <cstdio>
 
 #define MEMOIR_ASSERT(c, msg)                                                  \
-  if (!c) {                                                                    \
+  if (!(c)) {                                                                  \
     fprintf(stderr, "\n");                                                     \
     fprintf(stderr, "\x1b[31m====================================\n");         \
     fprintf(stderr, "\x1b[1;31mMemOIR Assert Failed!\x1b[0m\n");               \

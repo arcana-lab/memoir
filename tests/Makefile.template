@@ -56,7 +56,7 @@ $(IR_FILE_RUNTIME):
 	make -C $(GIT_ROOT)
 
 $(IR_FILE_OPT): $(IR_FILE_INPUT)
-	$(OPT) $< $@
+	$(OPT) --norm $< -o $@
 
 $(OBJ_FILE): $(IR_FILE)
 	llc -filetype=obj $< -o $@
