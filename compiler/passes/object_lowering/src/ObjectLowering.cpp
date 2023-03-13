@@ -244,6 +244,7 @@ namespace object_lowering {
         auto struct_code = struct_origin->getCode();
         switch (struct_code) {
             case memoir::StructCode::BASE: {
+                Utility::debug()<<::"here?\n";
                 auto base_struct_origin = static_cast<memoir::BaseStruct *>(struct_origin);
                 auto &allocInst = base_struct_origin->getAllocInst();
                 return replacementMapping.at(&allocInst.getCallInst());
