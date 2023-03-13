@@ -650,9 +650,11 @@ namespace object_lowering {
                     auto field_index = struct_read_ins->getFieldIndex();
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     phiNodesReplacementStruct);
+
                     std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int64Ty, 0),
                                                           llvm::ConstantInt::get(int64Ty, field_index)};
                     Utility::debug() << "Struct Write has base struct pointer as : " << *base_struct_ptr << "\n";
+                    Utility::debug() << "and the field it's indexing is " << field_index <<"\n";
                     auto gep = builder.CreateGEP(base_struct_ptr,
                                                  indices);
                     Utility::debug() << "get htis line?";
