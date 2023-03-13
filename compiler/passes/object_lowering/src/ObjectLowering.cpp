@@ -476,9 +476,6 @@ namespace object_lowering {
                 continue;
             }
             switch (mins->getKind()) {
-                case llvm::memoir::INDEX_READ_PTR:
-                case llvm::memoir::INDEX_WRITE_PTR:
-                case llvm::memoir::STRUCT_WRITE_PTR:
                 case llvm::memoir::DEFINE_STRUCT_TYPE:
                 case llvm::memoir::STRUCT_TYPE:
                 case llvm::memoir::TENSOR_TYPE:
@@ -635,6 +632,7 @@ namespace object_lowering {
                     }
                     break;
                 }
+                case llvm::memoir::STRUCT_WRITE_PTR:
                 case llvm::memoir::STRUCT_WRITE_UINT64:
                 case llvm::memoir::STRUCT_WRITE_UINT32:
                 case llvm::memoir::STRUCT_WRITE_UINT16:
@@ -654,6 +652,7 @@ namespace object_lowering {
                                                                     phiNodesReplacementStruct);
                     std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int64Ty, 0),
                                                           llvm::ConstantInt::get(int64Ty, field_index)};
+                    Utility::debug() << "The base struct Pointer is : " << *base_struct_ptr << "\n";
                     auto gep = builder.CreateGEP(base_struct_ptr,
                                                  indices);
                     auto struct_type = (memoir::StructType *) &struct_accessed->getType();
@@ -665,6 +664,9 @@ namespace object_lowering {
                     replacementMapping[&ins] = storeInst;
                     break;
                 }
+
+
+                case llvm::memoir::INDEX_READ_PTR:
                 case llvm::memoir::INDEX_READ_UINT64:
                 case llvm::memoir::INDEX_READ_UINT32:
                 case llvm::memoir::INDEX_READ_UINT16:
@@ -704,6 +706,7 @@ namespace object_lowering {
                     replacementMapping[&ins] = gep;
                     break;
                 }
+                case llvm::memoir::INDEX_WRITE_PTR:
                 case llvm::memoir::INDEX_WRITE_UINT64:
                 case llvm::memoir::INDEX_WRITE_UINT32:
                 case llvm::memoir::INDEX_WRITE_UINT16:
