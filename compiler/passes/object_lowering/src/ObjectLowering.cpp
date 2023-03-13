@@ -652,9 +652,10 @@ namespace object_lowering {
                                                                     phiNodesReplacementStruct);
                     std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int64Ty, 0),
                                                           llvm::ConstantInt::get(int64Ty, field_index)};
-                    Utility::debug() << "The base struct Pointer is : " << *base_struct_ptr << "\n";
+                    Utility::debug() << "Struct Write has base struct pointer as : " << *base_struct_ptr << "\n";
                     auto gep = builder.CreateGEP(base_struct_ptr,
                                                  indices);
+                    Utility::debug() << "get htis line?";
                     auto struct_type = (memoir::StructType *) &struct_accessed->getType();
                     auto &field_type = struct_type->getFieldType(field_index);
                     Value *reference_value = field_type.getCode() == memoir::TypeCode::REFERENCE ?
