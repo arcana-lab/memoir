@@ -51,7 +51,7 @@ namespace object_lowering {
                 auto struct_accessed = &struct_read_ins->getStructAccessed();
                 auto& structType = struct_accessed->getType();
                 Utility::debug() << "Struct Type has name"  << structType.hasName() << "\n";
-                Utility::debug() << "Struct Type 's name is " << structType.getName() << "\n";
+                Utility::debug() << "Struct Type has number of fields " << structType.getNumFields() << "\n";
             }
         }
     }
