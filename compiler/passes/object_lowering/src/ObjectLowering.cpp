@@ -617,9 +617,8 @@ namespace object_lowering {
                             break;
                         }
                         case memoir::TypeCode::REFERENCE: {
-                            Utility::debug() << "here? " << "\n";
-                            auto reference_type = static_cast<memoir::StaticTensorType *>(&field_type );
-                            auto elem_type = (memoir::Type *) &reference_type->getElementType();
+                            auto reference_type = static_cast<memoir::ReferenceType *>(&field_type );
+                            auto referenced_type = reference_type->getReferencedType()
                             auto elem_type_llvm = nativeTypeConverter->getLLVMRepresentation(elem_type);
                             auto loadInst =
                                     builder.CreateLoad(llvm::PointerType::getUnqual(elem_type_llvm), gep, "baseload");
@@ -661,19 +660,21 @@ namespace object_lowering {
                     auto field_index = struct_read_ins->getFieldIndex();
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     phiNodesReplacementStruct);
-
+                    auto struct_name = struct_accessed->getType().getName();
                     std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
                                                           llvm::ConstantInt::get(int32Ty, field_index)};
                     Utility::debug() << "Struct Write has base struct pointer as : " << *base_struct_ptr << "\n";
                     Utility::debug() << "and the field it's indexing is " << field_index <<"\n";
                     auto gep = builder.CreateGEP(base_struct_ptr,
-                                                 indices);
+                                                 indices, "structwritegep"+struct_name);
+                    Utility::debug() << "Struct Write created the GEP: " << *gep << "\n";
                     auto struct_type = (memoir::StructType *) &struct_accessed->getType();
                     auto &field_type = struct_type->getFieldType(field_index);
                     Value *reference_value = field_type.getCode() == memoir::TypeCode::REFERENCE ?
                                              replacementMapping.at(&struct_read_ins->getValueWritten()) :
                                              &struct_read_ins->getValueWritten();
                     auto storeInst = builder.CreateStore(reference_value, gep);
+                    Utility::debug() << "Struct Write created the store: " << *storeInst << "\n";
                     replacementMapping[&ins] = storeInst;
                     break;
                 }
