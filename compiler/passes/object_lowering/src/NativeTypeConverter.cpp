@@ -75,6 +75,7 @@ namespace object_lowering {
             types.push_back(getLLVMRepresentation(fieldType));
         }
         auto created = llvm::StructType::create(M.getContext(), types, "memoirStruct"+type->getName(), false);
+        Utility::debug() << type->getName() << "has been lowered to " << created << "\n";
         return created;
     }
 
