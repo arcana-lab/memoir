@@ -618,11 +618,12 @@ namespace object_lowering {
                         }
                         case memoir::TypeCode::REFERENCE: {
                             auto reference_type = static_cast<memoir::ReferenceType *>(&field_type );
-                            auto referenced_type = reference_type->getReferencedType()
-                            auto elem_type_llvm = nativeTypeConverter->getLLVMRepresentation(elem_type);
+                            auto &referenced_type = reference_type->getReferencedType();
+                            auto referenced_type_llvm = nativeTypeConverter->getLLVMRepresentation(&referenced_type);
                             auto loadInst =
-                                    builder.CreateLoad(llvm::PointerType::getUnqual(elem_type_llvm), gep, "baseload");
-                            replacementMapping[&ins] = loadInst;
+                                    builder.CreateLoad(i8StarTy, gep, "baseload");
+                            auto  bitcast_ins = builder.CreateBitCast(loadInst,referenced_type_llvm);
+                            replacementMapping[&ins] = bitcast_ins;
                             break;
                         }
                         case memoir::TypeCode::STRUCT: {
