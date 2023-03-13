@@ -587,11 +587,13 @@ namespace object_lowering {
                     Utility::debug() << "Struct Read/Get is getting index: " << field_index << "\n";
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     phiNodesReplacementStruct);
+                    Utility::debug() << "Struct Read/Get has base pointer being: " << *base_struct_ptr << "\n";
+                    auto struct_type = (memoir::StructType *) &struct_accessed->getType();
                     std::vector<Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
                                                     llvm::ConstantInt::get(int32Ty, field_index)};
                     auto gep = builder.CreateGEP(base_struct_ptr,
-                                                 indices);
-                    auto struct_type = (memoir::StructType *) &struct_accessed->getType();
+                                                 indices, "structreadget"+struct_type->getName());
+                    Utility::debug() << "Struct Read/Get created the GEP: " << *base_struct_ptr << "\n";
                     auto &field_type = struct_type->getFieldType(field_index);
                     switch (field_type.getCode()) {
                         case memoir::TypeCode::INTEGER:
