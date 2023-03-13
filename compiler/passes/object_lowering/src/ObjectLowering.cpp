@@ -594,8 +594,9 @@ namespace object_lowering {
                                                     llvm::ConstantInt::get(int32Ty, field_index)};
                     auto gep = builder.CreateGEP(base_struct_ptr,
                                                  indices, "structreadget"+struct_type->getName());
-                    Utility::debug() << "Struct Read/Get created the GEP: " << *base_struct_ptr << "\n";
+                    Utility::debug() << "Struct Read/Get created the GEP: " << *gep << "\n";
                     auto &field_type = struct_type->getFieldType(field_index);
+                    Utility::debug() << "here? " << "\n";
                     switch (field_type.getCode()) {
                         case memoir::TypeCode::INTEGER:
                         case memoir::TypeCode::FLOAT:
