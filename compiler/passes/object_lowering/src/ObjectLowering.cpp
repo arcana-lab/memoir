@@ -500,15 +500,19 @@ namespace object_lowering {
                 case llvm::memoir::ALLOCATE_STRUCT: {
                     auto allo_struct_ins = static_cast<memoir::StructAllocInst *>(mins);
                     auto &type = allo_struct_ins->getType();
+                    auto struct_type = static_cast<memoir::StructType *>(&type);
                     auto llvmType = nativeTypeConverter->getLLVMRepresentation(&type);
                     auto llvmTypeSize = llvm::ConstantInt::get(
                             int64Ty,
                             M.getDataLayout().getTypeAllocSize(llvmType));
                     std::vector<Value *> arguments{llvmTypeSize};
-                    auto newMallocCall = builder.CreateCall(mallocf, arguments);
+                    auto newMallocCall = builder.CreateCall(mallocf, arguments, "alloc"+struct_type->getName());
+                    Utility::debug() << "Allocate Struct created malloc call : " << *newMallocCall << "\n";
                     auto bc_inst =
                             builder.CreateBitCast(newMallocCall,
-                                                  PointerType::getUnqual(llvmType));
+                                                  PointerType::getUnqual(llvmType),
+                                                  "allocbitcast"+struct_type->getName());
+                    Utility::debug() << "Allocate Struct bitcast call : " << *bc_inst << "\n";
                     replacementMapping[&ins] = bc_inst;
                     break;
                 }
