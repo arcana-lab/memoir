@@ -372,7 +372,7 @@ namespace object_lowering {
                                                std::set<memoir::ControlPHICollection *> &phiNodesReplacementCollection) {
         auto &ctxt = M.getContext();
         auto int64Ty = llvm::Type::getInt64Ty(ctxt);
-//        auto int32Ty = llvm::Type::getInt32Ty(ctxt);
+        auto int32Ty = llvm::Type::getInt32Ty(ctxt);
         auto i8Ty = llvm::IntegerType::get(ctxt, 8);
         auto i8StarTy = llvm::PointerType::getUnqual(i8Ty);
         auto voidTy = llvm::Type::getVoidTy(ctxt);
@@ -651,8 +651,8 @@ namespace object_lowering {
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     phiNodesReplacementStruct);
 
-                    std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int64Ty, 0),
-                                                          llvm::ConstantInt::get(int64Ty, field_index)};
+                    std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
+                                                          llvm::ConstantInt::get(int32Ty, field_index)};
                     Utility::debug() << "Struct Write has base struct pointer as : " << *base_struct_ptr << "\n";
                     Utility::debug() << "and the field it's indexing is " << field_index <<"\n";
                     auto gep = builder.CreateGEP(base_struct_ptr,
