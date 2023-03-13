@@ -583,6 +583,8 @@ namespace object_lowering {
                             break;
                         }
                     }
+
+                    Utility::debug() << "Struct Read/Get is getting index: " << field_index << "\n";
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     phiNodesReplacementStruct);
                     std::vector<Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
