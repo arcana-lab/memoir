@@ -661,7 +661,7 @@ namespace object_lowering {
                     auto field_index = struct_read_ins->getFieldIndex();
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     phiNodesReplacementStruct);
-                    auto struct_name = struct_accessed->getType().getName();
+                    auto struct_name = struct_accessed->getType().hasName();
                     Utility::debug() << struct_name;
                     std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
                                                           llvm::ConstantInt::get(int32Ty, field_index)};
