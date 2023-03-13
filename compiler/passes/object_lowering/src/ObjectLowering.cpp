@@ -244,7 +244,6 @@ namespace object_lowering {
         auto struct_code = struct_origin->getCode();
         switch (struct_code) {
             case memoir::StructCode::BASE: {
-//                Utility::debug()<<"here?\n";
                 auto base_struct_origin = static_cast<memoir::BaseStruct *>(struct_origin);
                 auto &allocInst = base_struct_origin->getAllocInst();
                 return replacementMapping.at(&allocInst.getCallInst());
@@ -596,7 +595,7 @@ namespace object_lowering {
                                                  indices, "structreadget"+struct_type->getName());
                     Utility::debug() << "Struct Read/Get created the GEP: " << *gep << "\n";
                     auto &field_type = struct_type->getFieldType(field_index);
-                    Utility::debug() << "here? " << "\n";
+
                     switch (field_type.getCode()) {
                         case memoir::TypeCode::INTEGER:
                         case memoir::TypeCode::FLOAT:
@@ -618,6 +617,7 @@ namespace object_lowering {
                             break;
                         }
                         case memoir::TypeCode::REFERENCE: {
+                            Utility::debug() << "here? " << "\n";
                             auto reference_type = static_cast<memoir::StaticTensorType *>(&field_type );
                             auto elem_type = (memoir::Type *) &reference_type->getElementType();
                             auto elem_type_llvm = nativeTypeConverter->getLLVMRepresentation(elem_type);
