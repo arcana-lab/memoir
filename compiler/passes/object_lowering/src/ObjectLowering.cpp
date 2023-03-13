@@ -73,52 +73,52 @@ namespace object_lowering {
             }
         }
         auto& typeAnalysis = memoir::TypeAnalysis::get();
-        for (auto &oldF: functions_to_clone) {
-            Utility::debug()<<"Attempting to clone function "<< oldF->getName() << "\n";
-            if (oldF->getFunctionType()->isVarArg()) {
-                assert(false && "var arg function not supported");
-            }
-            std::vector<llvm::Type *> arg_types;
-            for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
-                auto old_arg = (oldF->arg_begin() + argi);
-                memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
-                arg_types.push_back(marg_ty != nullptr ?
-                                    nativeTypeConverter->getLLVMRepresentation(marg_ty) :
-                                    old_arg->getType());
-            }
-            memoir::Type *mret_ty = typeAnalysis.getReturnType(*oldF);
-            llvm::Type *ret_ty = mret_ty != nullptr ?
-                                 nativeTypeConverter->getLLVMRepresentation(mret_ty) :
-                                 oldF->getReturnType();
-            auto new_func_ty = FunctionType::get(ret_ty, arg_types, false);
-            auto newF = Function::Create(new_func_ty,
-                                         oldF->getLinkage(),
-                                         oldF->getAddressSpace(),
-                                         oldF->getName()+"cloned-lowered",
-                                         oldF->getParent());
-            newF->getBasicBlockList().splice(newF->begin(), oldF->getBasicBlockList());
-            for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
-                auto old_arg = (oldF->arg_begin() + argi);
-                auto new_arg = (newF->arg_begin() + argi);
-                memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
-                if(marg_ty != nullptr){
-                    replacementMapping[old_arg] = new_arg;
-                }
-                else{
-                    old_arg->replaceAllUsesWith(new_arg);
-                }
-            }
-            Utility::debug()<<"Cloned function "<< newF->getName() << "\n";
-            clonedFunctionMap[oldF] = newF;
-
-        }
+//        for (auto &oldF: functions_to_clone) {
+//            Utility::debug()<<"Attempting to clone function "<< oldF->getName() << "\n";
+//            if (oldF->getFunctionType()->isVarArg()) {
+//                assert(false && "var arg function not supported");
+//            }
+//            std::vector<llvm::Type *> arg_types;
+//            for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
+//                auto old_arg = (oldF->arg_begin() + argi);
+//                memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
+//                arg_types.push_back(marg_ty != nullptr ?
+//                                    nativeTypeConverter->getLLVMRepresentation(marg_ty) :
+//                                    old_arg->getType());
+//            }
+//            memoir::Type *mret_ty = typeAnalysis.getReturnType(*oldF);
+//            llvm::Type *ret_ty = mret_ty != nullptr ?
+//                                 nativeTypeConverter->getLLVMRepresentation(mret_ty) :
+//                                 oldF->getReturnType();
+//            auto new_func_ty = FunctionType::get(ret_ty, arg_types, false);
+//            auto newF = Function::Create(new_func_ty,
+//                                         oldF->getLinkage(),
+//                                         oldF->getAddressSpace(),
+//                                         oldF->getName()+"cloned-lowered",
+//                                         oldF->getParent());
+//            newF->getBasicBlockList().splice(newF->begin(), oldF->getBasicBlockList());
+//            for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
+//                auto old_arg = (oldF->arg_begin() + argi);
+//                auto new_arg = (newF->arg_begin() + argi);
+//                memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
+//                if(marg_ty != nullptr){
+//                    replacementMapping[old_arg] = new_arg;
+//                }
+//                else{
+//                    old_arg->replaceAllUsesWith(new_arg);
+//                }
+//            }
+//            Utility::debug()<<"Cloned function "<< newF->getName() << "\n";
+//            clonedFunctionMap[oldF] = newF;
+//
+//        }
 
         function_transform(main);
 
-        for (auto & func_pair: clonedFunctionMap)
-        {
-            function_transform(func_pair.second);
-        }
+//        for (auto & func_pair: clonedFunctionMap)
+//        {
+//            function_transform(func_pair.second);
+//        }
 
         for (auto & func_pair: clonedFunctionMap)
         {
