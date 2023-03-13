@@ -662,6 +662,7 @@ namespace object_lowering {
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     phiNodesReplacementStruct);
                     auto struct_name = struct_accessed->getType().getName();
+                    Utility::debug() << struct_name;
                     std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
                                                           llvm::ConstantInt::get(int32Ty, field_index)};
                     Utility::debug() << "Struct Write has base struct pointer as : " << *base_struct_ptr << "\n";
