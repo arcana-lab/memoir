@@ -29,9 +29,9 @@ namespace {
              */
 
             auto &noelle = getAnalysis<Noelle>();
-//            auto objectLowering = object_lowering::ObjectLowering(M,this);
-//            objectLowering.transform();
-            object_lowering::test(M);
+            auto objectLowering = object_lowering::ObjectLowering(M,this);
+            objectLowering.transform();
+//            object_lowering::test(M);
             return false;
         }
 
