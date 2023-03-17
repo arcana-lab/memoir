@@ -2,6 +2,8 @@
 
 #include "memoir/utility/Metadata.hpp"
 
+#include "memoir/support/Print.hpp"
+
 namespace llvm::memoir {
 
 /*
@@ -324,6 +326,49 @@ Type *TypeAnalysis::visitSequenceAllocInst(SequenceAllocInst &I) {
   auto &type = Type::get_sequence_type(*element_type);
 
   MEMOIZE_AND_RETURN(I, &type);
+}
+
+/*
+ * Reference Read Instructions.
+ */
+Type *TypeAnalysis::visitReadInst(ReadInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the type of the read collection's elements.
+   */
+  auto &collection_type = I.getCollectionType();
+  println("collection type");
+  println(collection_type);
+  auto &element_type = collection_type.getElementType();
+
+  /*
+   * If the element type is a reference type, unwrap it.
+   */
+  if (auto reference_type = dyn_cast<ReferenceType>(&element_type)) {
+    auto &referenced_type = reference_type->getReferencedType();
+    MEMOIZE_AND_RETURN(I, &referenced_type);
+  }
+
+  /*
+   * Otherwise, return the bare element type.
+   */
+  MEMOIZE_AND_RETURN(I, &element_type);
+}
+
+/*
+ * Nested Access Instructions.
+ */
+Type *TypeAnalysis::visitGetInst(GetInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the type of the nested collection.
+   */
+  auto &collection_type = I.getCollectionType();
+  auto &nested_type = collection_type.getElementType();
+
+  MEMOIZE_AND_RETURN(I, &nested_type);
 }
 
 /*

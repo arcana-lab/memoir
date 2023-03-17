@@ -114,6 +114,8 @@ protected:
   Type *visitTensorAllocInst(TensorAllocInst &I);
   Type *visitAssocArrayAllocInst(AssocArrayAllocInst &I);
   Type *visitSequenceAllocInst(SequenceAllocInst &I);
+  Type *visitReadInst(ReadInst &I);
+  Type *visitGetInst(GetInst &I);
   Type *visitJoinInst(JoinInst &I);
   Type *visitSliceInst(SliceInst &I);
   Type *visitAssertStructTypeInst(AssertStructTypeInst &I);
