@@ -18,7 +18,7 @@ install: build
 	make -C $(BUILD_DIR) install -j8
 
 postinstall: install
-	$(NORM_RUNTIME) $(RUNTIME_BC)
+	# $(NORM_RUNTIME) $(RUNTIME_BC)
 
 benchmark: all
 	make -C $(BUILD_DIR) bitcodes -j8
