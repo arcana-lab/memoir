@@ -76,7 +76,7 @@ struct SliceCanonicalizationPass : public ModulePass {
       MEMOIR_NULL_CHECK(loop_structure, "NOELLE gave us a NULL LoopStructure");
 
       println();
-      println("Found loop ", loop_structure->getID());
+      println("Found loop");
 
       set<MemOIRInst *> memoir_insts = {};
       for (auto inst : loop_structure->getInstructions()) {
