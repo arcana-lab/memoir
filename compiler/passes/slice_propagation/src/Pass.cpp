@@ -47,31 +47,6 @@ using namespace llvm::memoir;
 
 namespace llvm::memoir {
 
-/*
- * Visitor that drives the backwards flow analysis.
- */
-class SlicePropagationVisitor
-  : public llvm::memoir::InstVisitor<SlicePropagationVisitor, void> {
-  friend class llvm::memoir::InstVisitor<SlicePropagationVisitor, void>;
-  friend class llvm::InstVisitor<SlicePropagationVisitor, void>;
-
-public:
-  // Constructor.
-  SlicePropagationVisitor();
-
-  // Visitors.
-  void visit
-
-  // Not clonable, not assignable.
-  SlicePropagationVisitor(SlicePropagationVisitor &other) = delete;
-  void operator=(const SlicePropagationVisitor &other) = delete;
-
-protected:
-  // Owned state.
-
-  // Borrowed state.
-};
-
 struct SlicePropagationPass : public ModulePass {
   static char ID;
 
@@ -115,15 +90,15 @@ struct SlicePropagationPass : public ModulePass {
     for (auto const &[func, slice_insts] : slice_instructions) {
       for (auto slice_inst : slice_insts) {
         // Get the LLVM representation of this slice instruction.
-        auto llvm_slice_inst = slice_inst->getCallInst();
+        auto &llvm_slice_inst = slice_inst->getCallInst();
 
         // Check that the sliced operand is only used by this slice instruction.
         // TODO: extend this to allow for multiple slices to be propagated.
         bool slice_is_only_user = true;
         auto &sliced_operand = slice_inst->getCollectionOperand();
-        for (auto use : sliced_operand.uses()) {
+        for (auto &use : sliced_operand.uses()) {
           auto user = use.getUser();
-          if (user != llvm_slice_inst) {
+          if (user != &llvm_slice_inst) {
             slice_is_only_user = false;
             break;
           }
