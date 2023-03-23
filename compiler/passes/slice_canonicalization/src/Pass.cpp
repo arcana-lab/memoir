@@ -262,7 +262,7 @@ struct SliceCanonicalizationPass : public ModulePass {
                                                        start_value,
                                                        exit_value,
                                                        "live.");
-        SliceInst *rest_slice_inst;
+        SliceInst *rest_slice_inst = nullptr;
 
         // Replace uses of the collection withing the loop with the live slice.
         for (auto &use : collection->uses()) {
