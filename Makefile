@@ -18,7 +18,6 @@ install: build
 	make -C $(BUILD_DIR) install -j8
 
 postinstall: install
-	# $(NORM_RUNTIME) $(RUNTIME_BC)
 
 benchmark: all
 	make -C $(BUILD_DIR) bitcodes -j8
@@ -42,6 +41,7 @@ $(NOELLE_DIR):
 
 uninstall:
 	rm -rf $(INSTALL_DIR)
+	rm .noelle
 
 clean:
 	make -C $(BUILD_DIR) clean -j8
