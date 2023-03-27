@@ -1,4 +1,4 @@
-# MemOIR
+![memoir logo](.github/memoir_logo.png)
 A case for memory object representation in the LLVM IR
 
 ## Building
