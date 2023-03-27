@@ -12,6 +12,8 @@
 
 #include "memoir/utility/FunctionNames.hpp"
 
+#include "memoir/support/Casting.hpp"
+
 #include "memoir/ir/Collections.hpp"
 #include "memoir/ir/Function.hpp"
 #include "memoir/ir/Structs.hpp"
