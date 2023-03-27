@@ -14,6 +14,15 @@ To clean the build:
 To uninstall the existing build:
 `make uninstall`
 
+## Contributing
+For folks contributing, please ensure that you are using `clang-format` before pushing your changes.
+There is a script in the top-level Makefile to setup a githook for this, but if you don't have clang-format installed, it won't work.
+
+Also please familiarize yourself with the tools in `compiler/support/`.
+It is expected that you use `MEMOIR_ASSERT` and its derivatives in place of a raw `assert`.
+It is also expected that you use `memoir::println` instead of `llvm::errs()` or `std::cout`.
+
+
 ## TODOs
 - [ ] Support for static length tensors (on `static-tensor` branch)
   - [x] Add to runtime
