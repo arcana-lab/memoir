@@ -31,7 +31,6 @@ enum class CollectionKind {
   NESTED,
   REFERENCED,
   CONTROL_PHI,
-  CALL_PHI,
   ARG_PHI,
   RET_PHI,
   DEF_PHI,
