@@ -93,7 +93,7 @@ echo "Running MemOIR compiler (I: ${INPUT_IR_FILE}, O: ${OUTPUT_IR_FILE})"
 OUT_DIR=$(dirname ${OUTPUT_IR_FILE})
 IR_FILE_BASENAME=$(basename -- ${OUTPUT_IR_FILE})
 IR_FILE_FILENAME="${IR_FILE_BASENAME%.bc}"
-IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}_temp.bc
+IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.temp.bc
 
 cp ${INPUT_IR_FILE} ${IR_FILE} ;
 
