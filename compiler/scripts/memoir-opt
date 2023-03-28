@@ -1,29 +1,22 @@
 #!/bin/bash -e
 
 function usage {
-  echo "This script will run MemOIR optimizations.";
-  echo "  USAGE: `basename $0` <INPUT FILE> -o <OUTPUT FILE> [<OPTIONS, ...>]"
+    echo "This script will run MemOIR optimizations.";
+    echo "  USAGE: `basename $0` <INPUT FILE> -o <OUTPUT FILE> [<OPTIONS, ...>]"
 }
 
 function flags {
-  echo "  FLAGS:" 
-echo "    -o,--output" 
-echo
-       "      Specifies the output file" 
-echo "    -n,--norm,--normalize" 
-echo
-       "      Enables the normalization pass" 
-echo "    -l,--lower" 
-echo
-       "      Enables the object lowering pass" 
-echo
-       "    --slice-canon,--slice-canonicalization" 
-echo
-       "      Enables the slice canonicalization pass" 
-echo
-       "    --slice-prop,--slice-propagation" 
-echo
-       "      Enables the slice propagation pass"
+    echo "  FLAGS:" 
+    echo "    -o,--output" 
+    echo "      Specifies the output file" 
+    echo "    -n,--norm,--normalize" 
+    echo "      Enables the normalization pass" 
+    echo "    -l,--lower" 
+    echo "      Enables the object lowering pass" 
+    echo "    --slice-canon,--slice-canonicalization" 
+    echo "      Enables the slice canonicalization pass" 
+    echo "    --slice-prop,--slice-propagation" 
+    echo "      Enables the slice propagation pass"
 }
 
 if [[ $# -lt 1 ]]; then
@@ -129,10 +122,10 @@ function run_pass {
 
     PASS_IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.${PASS}.bc
     
-    echo "Running ${PASS} (I: ${INPUT_IR_FILE}, O: ${IR_FILE})"
-    noelle-load -load ${LIB_DIR}/${PASS}.so -${PASS} ${INPUT_IR_FILE} -o ${IR_FILE}
+    echo "Running ${PASS} (I: ${INPUT_IR_FILE}, O: ${PASS_IR_FILE})"
+    noelle-load -load ${LIB_DIR}/${PASS}.so -${PASS} ${INPUT_IR_FILE} -o ${PASS_IR_FILE}
 
-    cp ${IR_FILE} ${PASS_IR_FILE} ;
+    cp ${PASS_IR_FILE} ${IR_FILE} ;
 }
 
 for PASS in ${PASSES[@]}
