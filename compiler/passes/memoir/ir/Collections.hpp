@@ -273,6 +273,10 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
+  static bool classof(const Collection *C) {
+    return (C->getKind() == CollectionKind::USE_PHI);
+  };
+
   bool operator==(const UsePHICollection &other) const;
   std::string toString(std::string indent = "") const;
 
