@@ -5,6 +5,7 @@ INSTALL_DIR=install
 
 NORM_RUNTIME=./compiler/scripts/normalize_runtime.sh
 RUNTIME_BC=install/lib/memoir.bc
+DECL_BC=install/lib/memoir.decl.bc
 
 all: noelle hooks postinstall
 
@@ -18,6 +19,7 @@ install: build
 	make -C $(BUILD_DIR) install -j8
 
 postinstall: install
+	$(NORM_RUNTIME) $(RUNTIME_BC) $(DECL_BC)
 
 benchmark: all
 	make -C $(BUILD_DIR) bitcodes -j8
