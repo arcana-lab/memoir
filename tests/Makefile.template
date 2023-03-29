@@ -58,6 +58,7 @@ $(IR_FILE_RUNTIME):
 
 $(IR_FILE_NORM): $(IR_FILE_INPUT)
 	$(OPT) --norm $< -o $@
+	$(LL) $@ $(IR_FILE_DECL) -o $@
 
 $(IR_FILE_OPT): $(IR_FILE_NORM)
 	$(OPT) --slice-canon $< -o $@
