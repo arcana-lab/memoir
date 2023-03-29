@@ -1,24 +1,21 @@
 # Project
-set(PassName "Normalization")
-project(${PassName})
+set(pass_name "Normalization")
+project(${pass_name})
 
 # Dependences
 #include(${CMAKE_CURRENT_SOURCE_DIR}/../../../src/scripts/DependencesCMake.txt)
 
 # Sources
-file(GLOB PassSrc "src/*.cpp")
+file(GLOB pass_sources "src/*.cpp")
 
-# Compilation flags
-set_source_files_properties(${PassSrc} PROPERTIES COMPILE_FLAGS " -std=c++17")
+get_property(memoir_sources GLOBAL PROPERTY MEMOIR_SOURCES)
 
 # Declare the LLVM pass to compile
 add_llvm_library(
-  ${PassName}
+  ${pass_name}
   MODULE
-  ${PassSrc}
-  ${CommonSrc}
-)
+  ${pass_sources}
+  ${memoir_sources})
 
-install(TARGETS ${PassName}
+install(TARGETS ${pass_name}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
-

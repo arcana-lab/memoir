@@ -1,16 +1,28 @@
 #include "Normalization.hpp"
 
+#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/Print.hpp"
+#include "memoir/utility/FunctionNames.hpp"
+
+#include "llvm/Transforms/Utils/ModuleUtils.h"
+
 using namespace llvm::memoir;
 
 namespace normalization {
 
 void Normalization::transformRuntime() {
 
-  /*
-   * Attach metadata to all functions in the program
-   */
+  set<llvm::Function *> functions_to_delete;
   for (auto &F : M) {
-    MetadataManager::setMetadata(F, MetadataType::INTERNAL);
+    if (FunctionNames::is_memoir_call(F)) {
+      F.deleteBody();
+    } else {
+      functions_to_delete.insert(&F);
+    }
+  }
+
+  for (auto func : functions_to_delete) {
+    func->removeFromParent();
   }
 
   return;
