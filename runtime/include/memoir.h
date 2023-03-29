@@ -22,7 +22,7 @@ extern "C" {
 
 #define __RUNTIME_ATTR                                                         \
   __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))       \
-      __attribute__((optnone))
+      __attribute__((optnone)) __attribute__((used))
 #define __ALLOC_ATTR __declspec(allocator)
 
 #define MEMOIR_FUNC(name) memoir__##name
