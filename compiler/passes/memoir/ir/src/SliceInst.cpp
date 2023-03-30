@@ -37,7 +37,7 @@ llvm::Value &SliceInst::getBeginIndex() const {
 }
 
 llvm::Use &SliceInst::getBeginIndexAsUse() const {
-  return this->getCallInst().getArgOperandUse(0);
+  return this->getCallInst().getArgOperandUse(1);
 }
 
 llvm::Value &SliceInst::getEndIndex() const {
@@ -45,7 +45,7 @@ llvm::Value &SliceInst::getEndIndex() const {
 }
 
 llvm::Use &SliceInst::getEndIndexAsUse() const {
-  return this->getCallInst().getArgOperandUse(0);
+  return this->getCallInst().getArgOperandUse(2);
 }
 
 std::string SliceInst::toString(std::string indent) const {
