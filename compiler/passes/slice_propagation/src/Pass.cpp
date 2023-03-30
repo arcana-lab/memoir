@@ -35,6 +35,9 @@
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
 
+// Slice Propagation
+#include "SlicePropagation.hpp"
+
 using namespace llvm::memoir;
 
 /*
@@ -57,7 +60,7 @@ struct SlicePropagationPass : public ModulePass {
   }
 
   bool runOnModule(Module &M) override {
-    println("Running example pass");
+    println("Running slice propagation pass");
     println();
 
     // Get the required analyses.
@@ -66,59 +69,18 @@ struct SlicePropagationPass : public ModulePass {
     auto &SA = StructAnalysis::get();
     auto &CA = CollectionAnalysis::get(noelle);
 
-    // auto loops = noelle.getLoops();
-    // MEMOIR_NULL_CHECK(loops, "Unable to get the loops from NOELLE!");
+    auto SP = SlicePropagation(M, *this, noelle);
 
-    // Gather all memoir slices from each LLVM Function.
-    map<llvm::Function *, set<SliceInst *>> slice_instructions = {};
-    for (auto &F : M) {
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (auto memoir_inst = MemOIRInst::get(I)) {
-            if (auto slice_inst = dyn_cast<SliceInst>(memoir_inst)) {
-              slice_instructions[&F].insert(slice_inst);
-            }
-          }
-        }
-      }
+    auto analysis_succeeded = SP.analyze();
+    if (!analysis_succeeded) {
+      println("Slice Propagation analysis failed for some reason!");
+      println("Not continuing with transformation.");
+      return false;
     }
 
-    // Perform a backwards flow analysis to slice the collection as early as
-    // possible.
-    map<llvm::Value *, pair<llvm::Value *, llvm::Value *>>
-        collections_to_slice = {};
-    for (auto const &[func, slice_insts] : slice_instructions) {
-      for (auto slice_inst : slice_insts) {
-        // Get the LLVM representation of this slice instruction.
-        auto &llvm_slice_inst = slice_inst->getCallInst();
+    auto transformed = SP.transform();
 
-        // Check that the sliced operand is only used by this slice instruction.
-        // TODO: extend this to allow for multiple slices to be propagated.
-        bool slice_is_only_user = true;
-        auto &sliced_operand = slice_inst->getCollectionOperand();
-        for (auto &use : sliced_operand.uses()) {
-          auto user = use.getUser();
-          if (user != &llvm_slice_inst) {
-            slice_is_only_user = false;
-            break;
-          }
-        }
-
-        if (!slice_is_only_user) {
-          continue;
-        }
-
-        // Look at the sliced collection to see if it can be sliced.
-        auto &sliced_collection = slice_inst->getCollection();
-
-        // If the sliced collection is returned from a function call, let's go
-        // there.
-        if (auto ret_phi = dyn_cast<RetPHICollection>(&sliced_collection)) {
-        }
-      }
-    }
-
-    return false;
+    return transformed;
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
