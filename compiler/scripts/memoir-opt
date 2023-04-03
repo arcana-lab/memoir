@@ -52,6 +52,11 @@ do
             PASSES+=("SlicePropagation")
             shift
             ;;
+        --memoir-dce|--dead-collection-elimination)
+            MEMOIR_DCE="true"
+            PASSES+=("DeadCollectionElimination")
+            shift
+            ;;
         -h|--help)
             usage
             echo ""
