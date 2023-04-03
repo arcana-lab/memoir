@@ -12,6 +12,7 @@ CFLAGS=-I$(GIT_ROOT)/install/include -std=c++17 -O3 -fno-vectorize -fno-slp-vect
 IR_FILE=$(BUILD_DIR)/program.bc
 IR_FILE_PROGRAM=$(BUILD_DIR)/linked.bc
 IR_FILE_RUNTIME=$(GIT_ROOT)/install/lib/memoir.bc
+IR_FILE_DECL=$(GIT_ROOT)/install/lib/memoir.decl.bc
 IR_FILE_INPUT=$(BUILD_DIR)/input.bc
 IR_FILE_NORM=$(BUILD_DIR)/normalized.bc
 IR_FILE_OPT=$(BUILD_DIR)/optimized.bc
