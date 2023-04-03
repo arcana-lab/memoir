@@ -83,19 +83,45 @@ public:
 protected:
   struct SlicePropagationCandidate {
   public:
-    SlicePropagationCandidate(SliceInst &slice) : slice(slice) {
+    SlicePropagationCandidate(llvm::Use &use,
+                              llvm::Value &left_index,
+                              llvm::Value &right_index,
+                              SlicePropagationCandidate *parent)
+      : use(use),
+        left_index(left_index),
+        right_index(right_index),
+        parent(parent) {
+      // Do nothing.
+    }
+
+    SlicePropagationCandidate(llvm::Use &use,
+                              llvm::Value &left_index,
+                              llvm::Value &right_index)
+      : SlicePropagationCandidate(use, left_index, right_index, nullptr) {
+      // Do nothing.
+    }
+
+    SlicePropagationCandidate(llvm::Use &use, SlicePropagationCandidate *parent)
+      : SlicePropagationCandidate(use,
+                                  parent->left_index,
+                                  parent->right_index,
+                                  parent) {
       // Do nothing.
     }
 
     ~SlicePropagationCandidate() {}
 
     // Borrowed state.
-    SliceInst &slice;
     SlicePropagationCandidate *parent;
+    llvm::Use &use;
+
+    // TODO: convert these into being llvm::ValueExpressions
+    llvm::Value &left_index;
+    llvm::Value &right_index;
   };
 
   // Owned state.
-  map<SliceInst *, set<SlicePropagationCandidate *>> candidates;
+  set<SlicePropagationCandidate *> all_candidates;
 
   // Borrowed state.
   llvm::Module &M;
@@ -104,10 +130,11 @@ protected:
   TypeAnalysis &TA;
   StructAnalysis &SA;
   CollectionAnalysis &CA;
-
-  map<llvm::Value *, pair<llvm::Value *, llvm::Value *>> collections_to_slice;
   set<llvm::Value *> visited;
-  SliceInst *slice_under_test;
+
+  set<SlicePropagationCandidate *> leaf_candidates;
+  SlicePropagationCandidate *candidate;
+  set<llvm::Value *> values_to_delete;
 
   // CollectionVisitor methods for analysis.
   bool visitBaseCollection(BaseCollection &C);
@@ -122,6 +149,9 @@ protected:
   bool visitJoinPHICollection(JoinPHICollection &C);
   bool visitSliceCollection(SliceCollection &C);
 
+  // Transformation.
+  llvm::Value *handleCandidate(SlicePropagationCandidate &SPC);
+
   // InstVisitor methods for transformation.
   llvm::Value *visitArgument(llvm::Argument &A);
   llvm::Value *visitInstruction(llvm::Instruction &I);
@@ -132,6 +162,7 @@ protected:
   // Internal helpers.
   bool checkVisited(llvm::Value &V);
   void recordVisit(llvm::Value &V);
+  void markForDeletion(llvm::Value &V);
 };
 
 } // namespace llvm::memoir
