@@ -155,6 +155,7 @@ protected:
   // InstVisitor methods for transformation.
   llvm::Value *visitArgument(llvm::Argument &A);
   llvm::Value *visitInstruction(llvm::Instruction &I);
+  llvm::Value *visitLLVMCallInst(llvm::CallInst &I);
   llvm::Value *visitSequenceAllocInst(SequenceAllocInst &I);
   llvm::Value *visitJoinInst(JoinInst &I);
   llvm::Value *visitSliceInst(SliceInst &I);
