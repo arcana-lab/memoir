@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 
   auto length = (uint64_t)argc - 1;
 
-  auto seq = memoir_allocate_sequence(memoir_u64_t);
+  auto seq = memoir_allocate_sequence(memoir_u64_t, length);
 
   for (auto i = 0; i < length; i++) {
     auto input_element = atoi(argv[1 + i]);
@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
 
   std::cout << "\nSorting sequence\n";
 
-  auto sorted_seq = qsort(seq, length);
+  auto sorted_seq = qsort(seq);
 
   auto print_length = (length < K) ? length : K;
   printf("\nResult (first %d elements): \n", print_length);
