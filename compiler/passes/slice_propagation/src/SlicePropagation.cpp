@@ -265,6 +265,8 @@ bool SlicePropagation::visitJoinPHICollection(JoinPHICollection &C) {
   auto &join_inst = C.getJoin();
   auto &llvm_join_inst = join_inst.getCallInst();
 
+  println("  ", join_inst);
+
   // Check if we have already visited this instruction.
   CHECK_VISITED(llvm_join_inst);
 
@@ -482,6 +484,10 @@ llvm::Value *SlicePropagation::visitArgument(llvm::Argument &A) {
 }
 
 llvm::Value *SlicePropagation::visitInstruction(llvm::Instruction &I) {
+  return nullptr;
+}
+
+llvm::Value *SlicePropagation::visitLLVMCallInst(llvm::CallInst &I) {
   return nullptr;
 }
 
