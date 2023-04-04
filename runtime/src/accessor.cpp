@@ -49,6 +49,11 @@ bool MEMOIR_FUNC(set_return_type)(Type *type) {
   return true;
 }
 
+__RUNTIME_ATTR
+uint64_t MEMOIR_FUNC(size)(Collection *collection) {
+  return collection->size();
+}
+
 /*
  * Integer accesses
  */

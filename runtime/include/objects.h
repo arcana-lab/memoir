@@ -83,6 +83,7 @@ public:
   virtual Collection *join(va_list args, uint8_t num_args) = 0;
   virtual Type *get_element_type() const = 0;
   bool is_collection() const override;
+  virtual uint64_t size() const = 0;
 
   // Construction
   Collection(Type *type);
@@ -103,6 +104,7 @@ public:
   // Operations
   Collection *get_slice(va_list args) override;
   Collection *join(va_list args, uint8_t num_args) override;
+  uint64_t size() const override;
 
   // Access
   Element *get_tensor_element(std::vector<uint64_t> &indices) const;
@@ -132,6 +134,7 @@ public:
   // Operations
   Collection *join(va_list args, uint8_t num_args) override;
   Collection *get_slice(va_list args) override;
+  uint64_t size() const override;
 
   // Access
   Element *get_element(va_list args) override;
@@ -163,6 +166,7 @@ public:
   Element *get_element(va_list args) override;
   Element *get_element(uint64_t index);
   Type *get_element_type() const override;
+  uint64_t size() const override;
 
   bool equals(const Object *other) const override;
 

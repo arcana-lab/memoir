@@ -81,6 +81,8 @@
   MEMOIR_FUNC(join)                                                            \
   (1 + MEMOIR_NARGS(__VA_ARGS__), object, __VA_ARGS__)
 
+#define memoir_size(object) MEMOIR_FUNC(size)(object)
+
 /*
  * Type checking
  */
