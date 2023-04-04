@@ -6,10 +6,13 @@ using namespace memoir;
 
 #define K 5
 
-memoir::Collection *qsort(memoir::Collection *seq_to_sort, size_t n) {
+memoir::Collection *qsort(memoir::Collection *seq_to_sort) {
   // Type information
   memoir_assert_collection_type(memoir_sequence_type(memoir_u64_t),
                                 seq_to_sort);
+
+  // Size information
+  auto n = memoir_size(seq_to_sort);
 
   // Perform quicksort
   if (n < 2) {
@@ -59,8 +62,8 @@ memoir::Collection *qsort(memoir::Collection *seq_to_sort, size_t n) {
 
   } while (remaining > 0);
 
-  auto l_sorted = qsort(l_part, l_size);
-  auto r_sorted = qsort(r_part, r_size);
+  auto l_sorted = qsort(l_part);
+  auto r_sorted = qsort(r_part);
 
   return memoir_join(l_sorted, p_slice, r_sorted);
 }
@@ -74,7 +77,7 @@ int main(int argc, char *argv[]) {
 
   auto length = (uint64_t)argc - 1;
 
-  auto seq = memoir_allocate_sequence(memoir_u64_t, length);
+  auto seq = memoir_allocate_sequence(memoir_u64_t);
 
   for (auto i = 0; i < length; i++) {
     auto input_element = atoi(argv[1 + i]);
