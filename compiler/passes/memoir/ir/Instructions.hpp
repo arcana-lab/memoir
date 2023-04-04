@@ -975,6 +975,26 @@ protected:
   friend class MemOIRInst;
 };
 
+struct SizeInst : public MemOIRInst {
+public:
+  llvm::Value &getSize() const;
+
+  Collection &getCollection() const;
+  llvm::Value &getCollectionOperand() const;
+  llvm::Use &getCollectionOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::SIZE);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  SizeInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
+};
+
 /*
  * Type checking
  */

@@ -212,6 +212,7 @@ HANDLE_INST_(SLICE, MEMOIR_FUNC(get_slice), SliceInst)
 HANDLE_INST_(ASSERT_STRUCT_TYPE, MEMOIR_FUNC(assert_struct_type), AssertStructTypeInst)
 HANDLE_INST_(ASSERT_COLLECTION_TYPE, MEMOIR_FUNC(assert_collection_type), AssertCollectionTypeInst)
 HANDLE_INST_(SET_RETURN_TYPE, MEMOIR_FUNC(set_return_type), ReturnTypeInst)
+HANDLE_INST_(SIZE, MEMOIR_FUNC(size), SizeInst)
 
 
 #undef HANDLE_INST
