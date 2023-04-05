@@ -50,7 +50,7 @@ namespace object_lowering {
                 auto struct_read_ins = dyn_cast<memoir::StructWriteInst>(mins);
                 auto struct_accessed = &struct_read_ins->getStructAccessed();
                 auto& structType = struct_accessed->getType();
-                Utility::debug() << "Struct accessed has code  " << (int)struct_accessed->getCode() << "\n";
+                Utility::debug() << "Struct Type has number of fields " << structType.getNumFields() << "\n";
             }
         }
     }
