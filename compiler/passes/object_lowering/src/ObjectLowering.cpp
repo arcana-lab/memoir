@@ -164,7 +164,7 @@ namespace object_lowering {
                 auto old_val = old_phi->getIncomingValue(i);
                 if (dyn_cast<ConstantPointerNull>(old_val)) {
                     auto new_val =
-                            ConstantPointerNull::get(dyn_cast<PointerType>(new_phi->getType()));
+                            ConstantPointerNull::get(dyn_cast<llvm::PointerType>(new_phi->getType()));
                     new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
                 } else {
                     auto new_val = replacementMapping.at(old_val);
@@ -264,7 +264,7 @@ namespace object_lowering {
                 auto struct_type = (memoir::StructType *) &control_phi_origin->getType();
                 auto struct_type_as_type = static_cast<memoir::Type *>(struct_type);
                 auto llvmType = nativeTypeConverter->getLLVMRepresentation(struct_type_as_type);
-                auto llvmPtrType = PointerType::getUnqual(llvmType);
+                auto llvmPtrType = llvm::PointerType::getUnqual(llvmType);
                 IRBuilder<> builder(&original_phi_node);
                 auto newPhi = builder.CreatePHI(llvmPtrType, original_phi_node.getNumIncomingValues());
                 replacementMapping[&original_phi_node] = newPhi;
@@ -321,9 +321,9 @@ namespace object_lowering {
                                                               phiNodesReplacement);
         auto elem_type = &collectionType->getElementType();
         IRBuilder<> builder(accessIns);
-        auto llvm_tensor_elem_type_ptr = PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(elem_type));
+        auto llvm_tensor_elem_type_ptr = llvm::PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(elem_type));
         if (collectionType->getCode() == memoir::TypeCode::STATIC_TENSOR) {
-            auto llvm_tensor_type_ptr = PointerType::getUnqual(
+            auto llvm_tensor_type_ptr = llvm::PointerType::getUnqual(
                     nativeTypeConverter->getLLVMRepresentation(collectionType));
             auto bitcast = builder.CreateBitCast(baseTensorPtr, llvm_tensor_type_ptr);
             return builder.CreateGEP(llvm_tensor_elem_type_ptr, bitcast, indicies);
@@ -333,15 +333,15 @@ namespace object_lowering {
             auto int32Ty = llvm::Type::getInt32Ty(M.getContext());
             auto tensortype = static_cast<memoir::TensorType *>(collectionType);
             auto ndim = tensortype->getNumberOfDimensions();
-            auto tensor_header_view = builder.CreateBitCast(baseTensorPtr, PointerType::getUnqual(int64Ty));
+            auto tensor_header_view = builder.CreateBitCast(baseTensorPtr, llvm::PointerType::getUnqual(int64Ty));
             std::vector<llvm::Value *> sizes;
             for (unsigned int i = 0; i < ndim; ++i) {
                 Value *indexList[1] = {ConstantInt::get(int32Ty, i)};
-                auto sizeGEP = builder.CreateGEP(PointerType::getUnqual(int64Ty), tensor_header_view, indexList);
+                auto sizeGEP = builder.CreateGEP(llvm::PointerType::getUnqual(int64Ty), tensor_header_view, indexList);
                 sizes[i] = builder.CreateLoad(sizeGEP);
             }
             Value *indexList[1] = {ConstantInt::get(int32Ty, ndim)};
-            auto skipMetaDataGEP = builder.CreateGEP(PointerType::getUnqual(int64Ty), tensor_header_view,
+            auto skipMetaDataGEP = builder.CreateGEP(llvm::PointerType::getUnqual(int64Ty), tensor_header_view,
                                                      indexList);
             auto tensor_body_view = builder.CreateBitCast(skipMetaDataGEP, llvm_tensor_elem_type_ptr);
             Value *multiCumSizes[ndim];
@@ -377,7 +377,7 @@ namespace object_lowering {
         auto i8StarTy = llvm::PointerType::getUnqual(i8Ty);
         auto voidTy = llvm::Type::getVoidTy(ctxt);
         auto mallocFTY =
-                llvm::FunctionType::get(i8StarTy, ArrayRef<Type *>({int64Ty}),
+                llvm::FunctionType::get(i8StarTy, ArrayRef<llvm::Type *>({int64Ty}),
                                         false);
         auto mallocf = M.getOrInsertFunction("malloc", mallocFTY);
 //        auto freeFTY =
@@ -434,8 +434,8 @@ namespace object_lowering {
                         continue;
                     }
                     auto newType = replacementMapping[not_the_null_one]->getType();
-                    assert(isa<PointerType>(newType));
-                    auto pointerNewType = dyn_cast<PointerType>(newType);
+                    assert(isa<llvm::PointerType>(newType));
+                    auto pointerNewType = dyn_cast<llvm::PointerType>(newType);
                     Value *new_left;
                     auto curLeft = icmp->getOperand(0);
                     if (isa<ConstantPointerNull>(curLeft)) {
@@ -512,7 +512,7 @@ namespace object_lowering {
                     Utility::debug() << "Allocate Struct created malloc call : " << *newMallocCall << "\n";
                     auto bc_inst =
                             builder.CreateBitCast(newMallocCall,
-                                                  PointerType::getUnqual(llvmType),
+                                                  llvm::PointerType::getUnqual(llvmType),
                                                   "allocbitcast"+struct_type->getName());
                     Utility::debug() << "Allocate Struct bitcast call : " << *bc_inst << "\n";
                     replacementMapping[&ins] = bc_inst;
@@ -521,7 +521,7 @@ namespace object_lowering {
                 case llvm::memoir::ALLOCATE_TENSOR: {
                     auto alloc_tensor_ins = static_cast<memoir::TensorAllocInst *>(mins);
                     auto &eletype = alloc_tensor_ins->getElementType();
-                    Type *llvmType = nativeTypeConverter->getLLVMRepresentation(&eletype);
+                    auto *llvmType = nativeTypeConverter->getLLVMRepresentation(&eletype);
                     auto llvmTypeSize = llvm::ConstantInt::get(
                             int64Ty,
                             M.getDataLayout().getTypeAllocSize(llvmType));
@@ -543,7 +543,7 @@ namespace object_lowering {
                     replacementMapping[&ins] = bcInst;
                     for (unsigned long long i = 0; i < numdim; ++i) {
                         std::vector<Value *> indexList{ConstantInt::get(int64Ty, i)};
-                        auto gep = builder.CreateGEP(PointerType::getUnqual(int64Ty), newMallocCall,
+                        auto gep = builder.CreateGEP(llvm::PointerType::getUnqual(int64Ty), newMallocCall,
                                                      indexList);
                         builder.CreateStore(&alloc_tensor_ins->getLengthOfDimensionOperand(i), gep);
                     }
@@ -614,7 +614,7 @@ namespace object_lowering {
                             auto static_tensor_type = static_cast<memoir::StaticTensorType *>(&field_type);
                             auto llvm_inner_type = nativeTypeConverter->getLLVMRepresentation((memoir::Type *)
                                                                                                       &static_tensor_type->getElementType());
-                            auto bitcast_ins = builder.CreateBitCast(gep, PointerType::getUnqual(llvm_inner_type));
+                            auto bitcast_ins = builder.CreateBitCast(gep, llvm::PointerType::getUnqual(llvm_inner_type));
                             replacementMapping[&ins] = bitcast_ins;
                             break;
                         }
@@ -631,7 +631,7 @@ namespace object_lowering {
                         case memoir::TypeCode::STRUCT: {
                             auto inner_struct_type = (memoir::Type *) (&field_type);
                             auto llvm_struct_type = nativeTypeConverter->getLLVMRepresentation(inner_struct_type);
-                            auto bitcast = builder.CreateBitCast(gep, PointerType::getUnqual(llvm_struct_type));
+                            auto bitcast = builder.CreateBitCast(gep, llvm::PointerType::getUnqual(llvm_struct_type));
                             replacementMapping[&ins] = bitcast;
                             break;
                         }
@@ -705,7 +705,7 @@ namespace object_lowering {
                         case llvm::memoir::INDEX_READ_STRUCT_REF:
                         case llvm::memoir::INDEX_READ_COLLECTION_REF: {
                             auto loadInst = builder.CreateLoad(i8StarTy, gep, "refload");
-                            auto bc_inst = builder.CreateBitCast(loadInst, PointerType::getUnqual(llvm_elem_type));
+                            auto bc_inst = builder.CreateBitCast(loadInst, llvm::PointerType::getUnqual(llvm_elem_type));
                             replacementMapping[&ins] = bc_inst;
                             break;
                         }
