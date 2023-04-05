@@ -299,6 +299,8 @@ protected:
 
 struct TensorType : public CollectionType {
 public:
+  static TensorType &get(Type &element_type, unsigned num_dimensions);
+
   Type &getElementType() const override;
   unsigned getNumberOfDimensions() const;
 
@@ -313,6 +315,8 @@ protected:
   unsigned number_of_dimensions;
 
   TensorType(Type &element_type, unsigned number_of_dimensions);
+
+  static map<Type *, map<unsigned, TensorType *>> tensor_types;
 
   friend class TypeAnalysis;
 };
