@@ -32,26 +32,12 @@ namespace object_lowering {
 
     void test(llvm::Module &M)
     {
-        Function* main ;
         for (auto &f: M) {
-            if(f.hasName()&& f.getName() == "main")
-            {
-                main = &f;
-            }
-        }
-        for (auto &ins: instructions(*main)) {
-            auto mins = memoir::MemOIRInst::get(ins);
-            if(mins== nullptr)
-            {
-                continue;
-            }
-            Utility::debug() << mins->toString() << "\n";
-            if(mins->getKind() == llvm::memoir::STRUCT_WRITE_UINT64) {
-                Utility::debug() << "The aforeprinted instruction is a struct write instruction\n";
-                auto struct_read_ins = dyn_cast<memoir::StructWriteInst>(mins);
-                auto struct_accessed = &struct_read_ins->getStructAccessed();
-                auto& structType = struct_accessed->getType();
-                Utility::debug() << "Struct Type has number of fields " << structType.getNumFields() << "\n";
+            if (!f.isDeclaration()) {
+//                auto is_internal =
+//                        memoir::MetadataManager::hasMetadata(f,
+//                                                             memoir::MetadataType::INTERNAL);
+                Utility::debug() << f.getName() << "\n";
             }
         }
     }
