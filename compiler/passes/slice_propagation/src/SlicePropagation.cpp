@@ -44,6 +44,7 @@ bool SlicePropagation::analyze() {
 
   // Perform a backwards flow analysis to slice the collection as early as
   // possible.
+  auto VN = new ValueNumbering(this->M);
   visited.clear();
   for (auto const &[func, slice_insts] : slice_instructions) {
     for (auto slice_inst : slice_insts) {
@@ -76,11 +77,18 @@ bool SlicePropagation::analyze() {
         continue;
       }
 
+      // TODO
+      // Determine the left and right index expressions.
+      auto left_index_expr = VN->get(slice_inst->getBeginIndex());
+      println(*left_index_expr);
+      auto right_index_expr = VN->get(slice_inst->getEndIndex());
+      println(*right_index_expr);
+
       // Initialize the state.
       this->candidate =
           new SlicePropagationCandidate(slice_inst->getCollectionOperandAsUse(),
-                                        slice_inst->getBeginIndex(),
-                                        slice_inst->getEndIndex());
+                                        left_index_expr,
+                                        right_index_expr);
       this->all_candidates.insert(this->candidate);
 
       // Look at the sliced collection to see if it can be sliced.
@@ -274,16 +282,14 @@ bool SlicePropagation::visitJoinPHICollection(JoinPHICollection &C) {
   auto parent_candidate = this->candidate;
 
   // Get the slice information.
-  auto &left_index = parent_candidate->left_index;
-  auto &right_index = parent_candidate->right_index;
+  auto left_index = parent_candidate->left_index;
+  auto right_index = parent_candidate->right_index;
 
   // If the first index is a constant zero, recurse on the first
   // operand of the Join.
   // TODO: recurse on the last operand if the index is a constant -1.
-  if (auto left_index_as_constant_int =
-          dyn_cast<llvm::ConstantInt>(&left_index)) {
-    if (left_index_as_constant_int->getZExtValue() == 0) {
-
+  if (auto left_constant_int = as<llvm::ConstantInt>(left_index)) {
+    if (left_constant_int->getZExtValue() == 0) {
       // Build the candidate.
       auto &first_operand_as_use = join_inst.getJoinedOperandAsUse(0);
       this->candidate =
@@ -316,15 +322,14 @@ bool SlicePropagation::visitSliceCollection(SliceCollection &C) {
   auto parent_candidate = this->candidate;
 
   // Get the slice range.
-  auto &left_index = parent_candidate->left_index;
-  auto &right_index = parent_candidate->right_index;
+  auto left_index = parent_candidate->left_index;
+  auto right_index = parent_candidate->right_index;
 
   // Mark the collection being sliced if the left index of this
   // SliceCollection is a constant 0.
   // TODO: extend the above case to handle masking the slice further and
   // applying it to the sliced collection.
-  if (auto left_index_as_constant_int =
-          dyn_cast<llvm::ConstantInt>(&left_index)) {
+  if (auto left_index_as_constant_int = as<llvm::ConstantInt>(left_index)) {
     if (left_index_as_constant_int->getZExtValue() == 0) {
       // Build the candidate.
       this->candidate =
@@ -497,14 +502,15 @@ llvm::Value *SlicePropagation::visitSequenceAllocInst(SequenceAllocInst &I) {
 
   // Get the candidate.
   auto candidate = this->candidate;
-  auto &left_index = candidate->left_index;
-  auto &right_index = candidate->right_index;
+  auto left_index = candidate->left_index;
+  auto right_index = candidate->right_index;
 
   // Check that the left index is a constant zero.
-  auto constant_int = dyn_cast<ConstantInt>(&left_index);
+  auto constant_int = as<llvm::ConstantInt>(left_index);
+  // dyn_cast<llvm::ConstantInt>(left_index);
   if (!constant_int) {
-    println("Slicing an allocation with a non-constant left index "
-            " is unsupported at the moment");
+    println("Slicing an allocation with a non-ConstantInt left index "
+            "is unsupported at the moment");
     return nullptr;
   }
 
@@ -517,8 +523,8 @@ llvm::Value *SlicePropagation::visitSequenceAllocInst(SequenceAllocInst &I) {
   // Get the size operand of the allocation instruction.
   auto &size_operand_as_use = I.getSizeOperandAsUse();
 
-  // Check that the allocation and slice operand are both available in the same
-  // function.
+  // Check that the allocation and slice operand are both available in the
+  // same function.
   // TODO: add function versioning to elide this issue.
   auto alloc_bb = llvm_inst.getParent();
   MEMOIR_NULL_CHECK(alloc_bb,
@@ -526,48 +532,64 @@ llvm::Value *SlicePropagation::visitSequenceAllocInst(SequenceAllocInst &I) {
   auto alloc_func = alloc_bb->getParent();
   MEMOIR_NULL_CHECK(alloc_func,
                     "SequenceAllocInst is not attached to a function!");
-  if (auto right_index_as_arg = dyn_cast<llvm::Argument>(&right_index)) {
-    auto right_index_func = right_index_as_arg->getParent();
-    if (right_index_func != alloc_func) {
-      println("Right index is an argument of a function that "
-              "doesn't contain the allocation!");
-      return nullptr;
-    }
-  } else if (auto right_index_as_constant =
-                 dyn_cast<llvm::ConstantInt>(&right_index)) {
-    println("Right index is a constant, proceed.");
-  } else if (auto right_index_as_inst =
-                 dyn_cast<llvm::Instruction>(&right_index)) {
-    auto right_index_bb = right_index_as_inst->getParent();
-    MEMOIR_NULL_CHECK(right_index_bb,
-                      "Right index is not attached to a basic block!");
-    auto right_index_func = right_index_bb->getParent();
-    MEMOIR_NULL_CHECK(right_index_func,
-                      "Right index is not attached to a function!");
-    // FIXME: add argument propagation here so that we can access the value iff
-    // it dominates call we care about.
-    if (right_index_func != alloc_func) {
-      println("Right index is an instruction in a different function "
-              "from the allocation!");
-      return nullptr;
-    }
 
-    // Check that the right slice index instruction dominates the allocation.
-    // TODO: we may not need to recalculate the dominator tree each time here.
-    auto &DTA = this->P.getAnalysis<DominatorTreeWrapperPass>(*alloc_func);
-    auto const &DT = DTA.getDomTree();
-
-    if (!DT.dominates(right_index_as_inst, size_operand_as_use)) {
-      println("Right index of slice does not dominate the allocation.");
-      return nullptr;
-    }
+  // TODO: change this to be a call to ValueExpression::isAvailable and
+  // ValueExpression::materialize.
+  // If the right index expression is available at this allocation instruction,
+  // materialize it.
+  auto &DTA = this->P.getAnalysis<DominatorTreeWrapperPass>(*alloc_func);
+  auto const &DT = DTA.getDomTree();
+  if (right_index->isAvailable(llvm_inst, &DT)) {
+    auto materialized_right_index = right_index->materialize(llvm_inst);
   }
+
+  // if (auto right_index_as_arg =
+  // dyn_cast<ArgumentExpression>(right_index)) {
+
+  //   auto right_index_func = right_index_as_arg->getParent();
+  //   if (right_index_func != alloc_func) {
+  //     println("Right index is an argument of a function that "
+  //             "doesn't contain the allocation!");
+  //     return nullptr;
+  //   }
+  // } else if (auto right_index_as_constant =
+  //                dyn_cast<llvm::ConstantInt>(right_index)) {
+  //   println("Right index is a constant, proceed.");
+  // } else if (auto right_index_as_inst =
+  //                dyn_cast<llvm::Instruction>(right_index)) {
+  //   auto right_index_bb = right_index_as_inst->getParent();
+  //   MEMOIR_NULL_CHECK(right_index_bb,
+  //                     "Right index is not attached to a basic block!");
+  //   auto right_index_func = right_index_bb->getParent();
+  //   MEMOIR_NULL_CHECK(right_index_func,
+  //                     "Right index is not attached to a function!");
+  //   // FIXME: add argument propagation here so that we can access the value
+  //   // iff it dominates call we care about.
+  //   if (right_index_func != alloc_func) {
+  //     println("Right index is an instruction in a different function "
+  //             "from the allocation!");
+  //     return nullptr;
+  //   }
+
+  //   // Check that the right slice index instruction dominates the allocation.
+  //   // TODO: we may not need to recalculate the dominator tree each time
+  //   here.
+
+  // auto &DTA =
+  //   this->P.getAnalysis<DominatorTreeWrapperPass>(*alloc_func); auto const
+  //   &DT = DTA.getDomTree();
+
+  //   if (!DT.dominates(right_index_as_inst, size_operand_as_use)) {
+  //     println("Right index of slice does not dominate the allocation.");
+  //     return nullptr;
+  //   }
+  // }
 
   println("Transforming: ", I);
 
   // Replace the size operand of the allocation instruction with the right
   // index value.
-  size_operand_as_use.set(&right_index);
+  size_operand_as_use.set(right_index->getValue());
 
   println("Transformed: ", I);
 
@@ -577,21 +599,27 @@ llvm::Value *SlicePropagation::visitSequenceAllocInst(SequenceAllocInst &I) {
 llvm::Value *SlicePropagation::visitJoinInst(JoinInst &I) {
   // Get the information for how this instruction should be sliced.
   auto &llvm_inst = I.getCallInst();
-  auto &left_index = this->candidate->left_index;
-  auto &right_index = this->candidate->right_index;
+  auto left_index = this->candidate->left_index;
+  auto right_index = this->candidate->right_index;
 
   println("Slicing ", I);
   println("   left = ", left_index);
   println("  right = ", right_index);
 
   // Check that the left index is a constant zero.
-  auto constant_int = dyn_cast<ConstantInt>(&left_index);
+  auto constant_expr = dyn_cast<ConstantExpression>(left_index);
+  if (!constant_expr) {
+    println("Slicing a join with a non-constant left index "
+            "is unsupported at the moment");
+    return nullptr;
+  }
+  auto &constant = constant_expr->getConstant();
+  auto constant_int = dyn_cast<ConstantInt>(&constant);
   if (!constant_int) {
     println("Slicing a join with a non-constant left index "
             " is unsupported at the moment");
     return nullptr;
   }
-
   if (constant_int->getZExtValue() != 0) {
     println("Slicing a join with the left index "
             "being non-zero is unsupported at the moment.");
@@ -606,8 +634,10 @@ llvm::Value *SlicePropagation::visitJoinInst(JoinInst &I) {
   MEMOIR_NULL_CHECK(first_operand_as_value,
                     "First operand of slice instruction is NULL!");
 
+  println("First operand= ", *first_operand_as_value);
+
   if (auto first_operand_as_inst =
-          dyn_cast<llvm::Instruction>(first_operand_as_use)) {
+          dyn_cast<llvm::Instruction>(first_operand_as_value)) {
     if (auto first_operand_as_memoir =
             MemOIRInst::get(*first_operand_as_inst)) {
       if (auto first_operand_as_slice =
@@ -616,10 +646,10 @@ llvm::Value *SlicePropagation::visitJoinInst(JoinInst &I) {
         auto &operand_left_index = first_operand_as_slice->getBeginIndex();
         auto &operand_right_index = first_operand_as_slice->getEndIndex();
 
-        // Check that the left and right indices of the slice range are the same
-        // as the slice being propagated;
-        if ((&operand_left_index == &left_index)
-            && (&operand_right_index == &right_index)) {
+        // Check that the left and right indices of the slice range are the
+        // same as the slice being propagated;
+        if ((*left_index == operand_left_index)
+            && (*right_index == operand_right_index)) {
           // Replace the JoinInst with its first operand.
           llvm_inst.replaceAllUsesWith(first_operand_as_value);
           return first_operand_as_value;
@@ -628,17 +658,18 @@ llvm::Value *SlicePropagation::visitJoinInst(JoinInst &I) {
     }
   }
 
+  println("First operand of JoinInst is not an instruction");
   return nullptr;
 }
 
 llvm::Value *SlicePropagation::visitSliceInst(SliceInst &I) {
   // Get the information for how this instruction should be sliced.
   auto &llvm_inst = I.getCallInst();
-  auto &left_index = this->candidate->left_index;
-  auto &right_index = this->candidate->right_index;
+  auto left_index = this->candidate->left_index;
+  auto right_index = this->candidate->right_index;
 
   // Check that the left index is a constant zero.
-  auto constant_int = dyn_cast<ConstantInt>(&left_index);
+  auto constant_int = as<llvm::ConstantInt>(left_index);
   if (!constant_int) {
     println("Slicing a join with a non-constant left index "
             " is unsupported at the moment");
@@ -658,8 +689,8 @@ llvm::Value *SlicePropagation::visitSliceInst(SliceInst &I) {
 
   // Check that the left and right indices of the slice range are the same
   // as the slice being propagated;
-  if ((&candidate_left_index == &left_index)
-      && (&candidate_right_index == &right_index)) {
+  if ((*left_index == candidate_left_index)
+      && (*right_index == candidate_right_index)) {
     return &llvm_inst;
   }
 
