@@ -35,6 +35,7 @@ struct StructAllocInst;
 struct ReadInst;
 struct GetInst;
 struct StructGetInst;
+struct StructType;
 
 /*
  * Struct Summary
