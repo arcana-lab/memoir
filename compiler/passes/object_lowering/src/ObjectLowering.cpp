@@ -32,6 +32,7 @@ namespace object_lowering {
 
     void test(llvm::Module &M)
     {
+        errs() << "fasjdasjdidsj \n" ;
         for (auto &f: M) {
             if (!f.isDeclaration()) {
 //                auto is_internal =
