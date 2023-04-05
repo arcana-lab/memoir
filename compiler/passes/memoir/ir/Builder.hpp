@@ -205,6 +205,26 @@ public:
     return join_inst;
   }
 
+  SizeInst *CreateSizeInst(llvm::Value *collection_to_slice,
+                           const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto llvm_func =
+        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::SIZE);
+
+    // Create the LLVM call.
+    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
+                                      llvm::ArrayRef({ collection_to_slice }),
+                                      name);
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for size operation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto size_inst = dyn_cast<SizeInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(size_inst, "Could not create call to SizeInst");
+    return size_inst;
+  }
+
 protected:
   // Borrowed state
   llvm::Module *M;
