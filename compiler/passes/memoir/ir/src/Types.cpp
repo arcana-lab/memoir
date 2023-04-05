@@ -155,6 +155,28 @@ FieldArrayType &FieldArrayType::get(StructType &struct_type,
 map<StructType *, map<unsigned, FieldArrayType *>>
     FieldArrayType::struct_to_field_array = {};
 
+TensorType &Type::get_tensor_type(Type &element_type, unsigned num_dimensions) {
+  return TensorType::get(element_type, num_dimensions);
+}
+
+TensorType &TensorType::get(Type &element_type, unsigned num_dimensions) {
+  auto found_element = TensorType::tensor_types.find(&element_type);
+  if (found_element != TensorType::tensor_types.end()) {
+    auto &dimensions_to_type_map = found_element->second;
+    auto found_dimension = dimensions_to_type_map.find(num_dimensions);
+    if (found_dimension != dimensions_to_type_map.end()) {
+      return *(found_dimension->second);
+    }
+  }
+
+  auto type = new TensorType(element_type, num_dimensions);
+  TensorType::tensor_types[&element_type][num_dimensions] = type;
+
+  return *type;
+}
+
+map<Type *, map<unsigned, TensorType *>> TensorType::tensor_types = {};
+
 /*
  * AssocArrayType getter
  */
