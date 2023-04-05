@@ -8,10 +8,11 @@
 #include "Utility.h"
 #include "memoir/utility/Metadata.hpp"
 #include "memoir/ir/Function.hpp"
+#include "memoir/ir/Types.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
 #include "memoir/support/Casting.hpp"
 
-using namespace llvm;
+using namespace llvm::memoir;
 
 namespace object_lowering {
     ObjectLowering::ObjectLowering(llvm::Module &M, llvm::ModulePass *mp) : M(M), mp(mp) {
