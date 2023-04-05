@@ -1,86 +1,45 @@
 #pragma once
 
+#include <utility>
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
-
-#include "common/analysis/AccessAnalysis.hpp"
-#include "common/analysis/AllocationAnalysis.hpp"
-#include "common/analysis/TypeAnalysis.hpp"
-#include "common/utility/FunctionNames.hpp"
-#include "common/utility/Metadata.hpp"
-#include "noelle/core/Noelle.hpp"
-
-#include "Parser.hpp"
-#include "Utils.hpp"
-#include "types.hpp"
-
-/*
- * Pass to perform lowering from object-ir to LLVM IR
- *
- * Author: Tommy McMichen
- * Created: March 29, 2022
- */
-
-#include "common/analysis/TypeAnalysis.hpp"
+#include "llvm/IR/Dominators.h"
+#include "NativeTypeConverter.hpp"
+#include <functional>
 
 namespace object_lowering {
 
-class ObjectLowering {
-private:
-  Module &M;
-  Noelle *noelle;
-  ModulePass *mp;
-  Parser *parser;
+    void test(llvm::Module &M);
+    class ObjectLowering {
+    public:
+        ObjectLowering(llvm::Module &M, llvm::ModulePass *mp);
 
-  // llvm Type*s
-  Type *object_star;
-  Type *type_star;
-  Type *type_star_star;
+        void transform();
 
-  // collect all GlobalVals which are Type*
-  std::vector<GlobalValue *> typeDefs;
+        void function_transform(llvm::Function *f);
 
-  std::map<Function *, Function *> clonedFunctionMap;
-  std::map<Function *, map<Argument *, Argument *>> functionArgumentMaps;
+        void BasicBlockTransformer(llvm::DominatorTree &DT,
+                                   llvm::BasicBlock *bb,
+                                   std::set<llvm::memoir::ControlPHIStruct*> & phiNodesReplacementStruct,
+                                   std::set<llvm::memoir::ControlPHICollection*> & phiNodesReplacementCollection);
 
-public:
-  ObjectLowering(Module &M, Noelle *noelle, ModulePass *mp);
+        llvm::Value * FindBasePointerForStruct(
+                llvm::memoir::Struct* structref,
+                std::set<llvm::memoir::ControlPHIStruct*> & phiNodesReplacement);
 
-  // ==================== ANALYSIS ====================
+        llvm::Value* FindBasePointerForTensor(
+                llvm::memoir::Collection* collection_origin,
+                std::set<llvm::memoir::ControlPHICollection*> & phiNodesReplacement
+        );
 
-  void analyze();
-
-  void cacheTypes(); // analyze the global values for type*
-
-  // handle object passing and returning
-  void inferArgTypes(
-      llvm::Function *f,
-      vector<Type *> *arg_vector); // build a new list of argument types
-  ObjectType *inferReturnType(llvm::Function *f);
-
-  // ======================== STACK VS HEAP =====================
-
-  DataFlowResult *dataflow(Function *f, std::set<CallInst *> &buildObjs);
-
-  // ==================== TRANSFORMATION ====================
-
-  void transform();
-
-  void FunctionTransform(Function *func);
-
-  void BasicBlockTransformer(DominatorTree &DT,
-                             BasicBlock *bb,
-                             std::map<Value *, Value *> &replacementMapping,
-                             std::set<PHINode *> &phiNodesToPopulate,
-                             std::set<CallInst *> &allocaBuildObj);
-
-  Value *CreateGEPFromFieldWrapper(
-      FieldWrapper *wrapper,
-      IRBuilder<> &builder,
-      std::map<Value *, Value *> &replacementMapping);
-
-  // recursively add users of `i` to `toDelete`
-  void findInstsToDelete(Value *i, std::set<Value *> &toDelete);
-};
-
-} // namespace object_lowering
+        llvm::Value* GetGEPForTensorUse( llvm::memoir::MemOIRInst* access_ins,
+                                         std::set<llvm::memoir::ControlPHICollection*> & phiNodesReplacement);
+    private:
+        llvm::Module &M;
+        llvm::ModulePass *mp;
+        std::map<llvm::Value *, llvm::Value *> replacementMapping;
+        NativeTypeConverter* nativeTypeConverter;
+        std::set<llvm::Value*> toDeletes;
+        std::map<llvm::Function *, llvm::Function *> clonedFunctionMap;
+    };
+}

@@ -2,8 +2,8 @@ NOELLE_DIR=compiler/noelle
 BUILD_DIR=.build.dir
 HOOKS_DIR=.githooks
 INSTALL_DIR=install
-
 NORM_RUNTIME=./compiler/scripts/normalize_runtime.sh
+
 RUNTIME_BC=install/lib/memoir.bc
 DECL_BC=install/lib/memoir.decl.bc
 

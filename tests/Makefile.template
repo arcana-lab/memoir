@@ -58,12 +58,11 @@ $(IR_FILE_RUNTIME):
 	make -C $(GIT_ROOT)
 
 $(IR_FILE_NORM): $(IR_FILE_INPUT)
-	$(OPT) --norm $< -o $@
+	$(OPT) --norm --nlower $< -o $@
 	$(LL) $@ $(IR_FILE_DECL) -o $@
 
 $(IR_FILE_OPT): $(IR_FILE_NORM)
 	$(OPT) --slice-canon --slice-prop --memoir-dce $< -o $@
-
 $(OBJ_FILE): $(IR_FILE)
 	llc -filetype=obj $< -o $@
 

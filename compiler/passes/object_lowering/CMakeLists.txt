@@ -8,6 +8,8 @@ project(${PassName})
 # Sources
 file(GLOB PassSrc "src/*.cpp")
 
+get_property(memoir_sources GLOBAL PROPERTY MEMOIR_SOURCES)
+
 # Compilation flags
 set_source_files_properties(${PassSrc} PROPERTIES COMPILE_FLAGS " -std=c++17")
 
@@ -16,7 +18,7 @@ add_llvm_library(
   ${PassName}
   MODULE
   ${PassSrc}
-  ${CommonSrc}
+  ${memoir_sources}
 )
 
 install(TARGETS ${PassName}
