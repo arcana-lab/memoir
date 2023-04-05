@@ -255,7 +255,6 @@ Collection &ControlPHICollection::getIncomingCollectionForBlock(
   auto found_incoming = this->incoming.find(&bb);
   if (found_incoming == this->incoming.end()) {
     MEMOIR_UNREACHABLE(
-        "in ControlPHICollection::getIncomingCollectionForBlock"
         "basic block is not an incoming edge for this control PHI");
   }
 
@@ -263,16 +262,16 @@ Collection &ControlPHICollection::getIncomingCollectionForBlock(
 }
 
 llvm::BasicBlock &ControlPHICollection::getIncomingBlock(unsigned idx) const {
-  MEMOIR_ASSERT((idx < this->getNumIncoming()),
-                "in ControlPHICollection::getIncomingBlock"
-                "index out of range");
+  MEMOIR_ASSERT((idx < this->getNumIncoming()), "index out of range");
 
   auto bb = this->getPHI().getIncomingBlock(idx);
-  MEMOIR_ASSERT((bb != nullptr),
-                "in ControlPHICollection::getIncomingBlock"
-                "no incoming edge at that index");
+  MEMOIR_NULL_CHECK(bb, "no incoming edge at that index");
 
   return *bb;
+}
+
+llvm::PHINode &ControlPHICollection::getPHI() const {
+  return this->phi_node;
 }
 
 unsigned ControlPHICollection::getNumIncoming() const {
@@ -339,6 +338,10 @@ unsigned RetPHICollection::getNumIncoming() const {
   return this->incoming_returns.size();
 }
 
+llvm::CallBase &RetPHICollection::getCall() const {
+  return this->call;
+}
+
 CollectionType &RetPHICollection::getType() const {
   MEMOIR_ASSERT((this->getNumIncoming() > 0),
                 "No incoming collections exist to determine the RetPHI's type");
@@ -354,7 +357,7 @@ bool RetPHICollection::operator==(const RetPHICollection &other) const {
 }
 
 std::string RetPHICollection::toString(std::string indent) const {
-  return "call PHI";
+  return "ret PHI";
 }
 
 /*

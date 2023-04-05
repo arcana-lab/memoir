@@ -173,6 +173,11 @@ Type *Tensor::get_element_type() const {
   return tensor_type->element_type;
 }
 
+uint64_t Tensor::size() const {
+  // TODO
+  return 0;
+}
+
 bool Tensor::equals(const Object *other) const {
   return (this == other);
 }
@@ -324,6 +329,11 @@ Type *AssocArray::get_value_type() const {
   return assoc_array_type->value_type;
 }
 
+uint64_t AssocArray::size() const {
+  MEMOIR_ASSERT(false, "Size is not implemented for Associative Arrays");
+  return 0;
+}
+
 bool AssocArray::equals(const Object *other) const {
   return (this == other);
 }
@@ -448,6 +458,10 @@ Type *Sequence::get_element_type() const {
   auto sequence_type = static_cast<SequenceType *>(this->get_type());
 
   return sequence_type->element_type;
+}
+
+uint64_t Sequence::size() const {
+  return this->sequence.size();
 }
 
 bool Sequence::equals(const Object *other) const {

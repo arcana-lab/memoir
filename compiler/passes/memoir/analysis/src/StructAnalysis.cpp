@@ -108,10 +108,22 @@ Struct *StructAnalysis::visitAssocGetInst(AssocGetInst &I) {
 Struct *StructAnalysis::visitReadInst(ReadInst &I) {
   CHECK_MEMOIZED(I);
 
-  // TODO: perform type checking on the ReadInst collection to make sure its a
-  // struct reference
+  /*
+   * Check that the collection containing this has an element of reference type.
+   */
+  auto &collection_type = I.getCollectionType();
+  auto &element_type = collection_type.getElementType();
+  auto reference_type = dyn_cast<ReferenceType>(&element_type);
+  if (!reference_type) {
+    MEMOIZE_AND_RETURN(I, nullptr);
+  }
 
-  MEMOIZE_AND_RETURN(I, nullptr);
+  /*
+   * Build a new ReferencedStruct and return it.
+   */
+  auto referenced_struct = new ReferencedStruct(I);
+
+  MEMOIZE_AND_RETURN(I, referenced_struct);
 }
 
 Struct *StructAnalysis::visitLLVMCallInst(llvm::CallInst &I) {

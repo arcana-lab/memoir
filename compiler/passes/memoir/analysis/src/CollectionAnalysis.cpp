@@ -1,5 +1,7 @@
 #include "memoir/analysis/CollectionAnalysis.hpp"
 
+#include "memoir/support/Print.hpp"
+
 namespace llvm::memoir {
 
 /*
@@ -15,7 +17,7 @@ CollectionAnalysis::CollectionAnalysis(llvm::noelle::Noelle &noelle,
 }
 
 CollectionAnalysis::CollectionAnalysis(llvm::noelle::Noelle &noelle)
-  : CollectionAnalysis(noelle, true, true) {
+  : CollectionAnalysis(noelle, false, false) {
   // Do nothing
 }
 
@@ -244,18 +246,31 @@ Collection *CollectionAnalysis::visitSliceInst(SliceInst &I) {
 Collection *CollectionAnalysis::visitPHINode(llvm::PHINode &I) {
   CHECK_MEMOIZED(I);
 
+  // Get the current PHI index, if it exists.
+  unsigned current_index = 0;
+  auto found_current_index = this->current_phi_index.find(&I);
+  if (found_current_index != this->current_phi_index.end()) {
+    current_index = found_current_index->second;
+  }
+
+  // Iterate through the incoming edges to find the collection.
   bool has_collection = false;
   map<llvm::BasicBlock *, Collection *> incoming = {};
-  for (auto idx = 0; idx < I.getNumIncomingValues(); idx++) {
+  for (auto idx = current_index; idx < I.getNumIncomingValues(); idx++) {
     auto incoming_bb = I.getIncomingBlock(idx);
     MEMOIR_NULL_CHECK(incoming_bb, "Incoming basic block for PHINode is NULL!");
 
     auto &incoming_use = I.getOperandUse(idx);
 
+    // Before we recurse, save the current PHI index so we don't enter an
+    // infinite loop.
+    this->current_phi_index[&I] = idx + 1;
+
+    // Recurse.
     auto incoming_collection = this->getCollection(*incoming_use);
     if (incoming_collection == nullptr) {
       if (!has_collection) {
-        return nullptr;
+        MEMOIZE_AND_RETURN(I, nullptr);
       } else {
         MEMOIR_UNREACHABLE(
             "Could not determine the incoming collection for a PHINode that "
@@ -267,9 +282,19 @@ Collection *CollectionAnalysis::visitPHINode(llvm::PHINode &I) {
     }
   }
 
+  // TODO: May need to add some patching in here, so that if any index was
+  // skipped because it's an element of an SCC, it will be logged correctly.
+
+  // Clear the memoized indices.
+  found_current_index = this->current_phi_index.find(&I);
+  if (found_current_index != this->current_phi_index.end()) {
+    this->current_phi_index.erase(found_current_index);
+  }
+
+  // Create a new control PHI.
   auto control_phi_collection = new ControlPHICollection(I, incoming);
 
-  MEMOIZE_AND_RETURN(I, nullptr);
+  MEMOIZE_AND_RETURN(I, control_phi_collection);
 }
 
 Collection *CollectionAnalysis::visitLLVMCallInst(llvm::CallInst &I) {

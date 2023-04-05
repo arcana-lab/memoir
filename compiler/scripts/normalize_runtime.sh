@@ -10,7 +10,22 @@ LIB_DIR=${GIT_ROOT}/install/lib ;
 
 source ${GIT_ROOT}/enable ;
 
-IR_FILE="$1" ;
+IN_IR_FILE="$1" ;
+TMP_IR_FILE="temp.bc" ;
+OUT_IR_FILE="$2" ;
 
-echo "Normalize Runtime (I: ${IR_FILE}, O: ${IR_FILE})" ;
-opt -load ${LIB_DIR}/Normalization.so -NormalizationPass -only-runtime ${IR_FILE} -o ${IR_FILE};
+cp ${IN_IR_FILE} ${TMP_IR_FILE} ;
+
+echo "Normalize Runtime (I: ${IN_IR_FILE}, O: ${OUT_IR_FILE})" ;
+
+CMD="llvm-extract -glob llvm.used -rfunc memoir__* ${TMP_IR_FILE} -o ${TMP_IR_FILE}" ;
+echo "$CMD" ;
+eval $CMD ;
+
+CMD="opt -strip -load ${LIB_DIR}/Normalization.so -NormalizationPass -only-runtime ${TMP_IR_FILE} -o ${OUT_IR_FILE}" ;
+echo "$CMD" ;
+eval $CMD ;
+
+
+
+# rm ${TMP_IR_FILE} ;

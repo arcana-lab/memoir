@@ -22,7 +22,7 @@ extern "C" {
 
 #define __RUNTIME_ATTR                                                         \
   __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))       \
-      __attribute__((optnone))
+      __attribute__((optnone)) __attribute__((used))
 #define __ALLOC_ATTR __declspec(allocator)
 
 #define MEMOIR_FUNC(name) memoir__##name
@@ -113,6 +113,8 @@ __RUNTIME_ATTR Collection *MEMOIR_FUNC(
 __RUNTIME_ATTR Collection *MEMOIR_FUNC(join)(uint8_t number_of_collections,
                                              Collection *collection_to_join,
                                              ...);
+
+__RUNTIME_ATTR uint64_t MEMOIR_FUNC(size)(Collection *collection);
 
 /*
  * Type checking and function signatures

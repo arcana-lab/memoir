@@ -89,6 +89,7 @@ private:
   map<llvm::Use *, Collection *> use_to_collection;
   map<llvm::Function *, llvm::noelle::DominatorSummary *>
       function_to_dominator_summary;
+  map<llvm::PHINode *, unsigned> current_phi_index;
 
   /*
    * Borrowed state

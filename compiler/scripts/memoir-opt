@@ -1,28 +1,33 @@
 #!/bin/bash -e
 
 function usage {
-    echo "This script will run MemOIR optimizations." ;
+    echo "This script will run MemOIR optimizations.";
     echo "  USAGE: `basename $0` <INPUT FILE> -o <OUTPUT FILE> [<OPTIONS, ...>]"
 }
 
 function flags {
-    echo "  FLAGS:"
-    echo "    -o,--output"
-    echo "      Specifies the output file"
-    echo "    -n,--norm,--normalize"
-    echo "      Enables the normalization pass"
-    echo "    -l,--lower"
-    echo "      Enables the object lowering pass"
-    echo "    --slice-canon,--slice-canonicalization"
-    echo "      Enables the slice canonicalization pass"
+    echo "  FLAGS:" 
+    echo "    -o,--output" 
+    echo "      Specifies the output file" 
+    echo "    -n,--norm,--normalize" 
+    echo "      Enables the normalization pass" 
+    echo "    -l,--lower" 
+    echo "      Enables the object lowering pass" 
+    echo "    --slice-canon,--slice-canonicalization" 
+    echo "      Enables the slice canonicalization pass" 
+    echo "    --slice-prop,--slice-propagation" 
+    echo "      Enables the slice propagation pass"
 }
 
-if [[ $# -lt 1 ]] ; then
+if [[ $# -lt 1 ]]; then
     usage
     exit 1
 fi
 
-while [[ $# -gt 0 ]]; do
+PASSES=()
+
+while [[ $# -gt 0 ]] ;
+do
     case $1 in
         -o|--output)
             OUTPUT_IR_FILE=$2
@@ -39,6 +44,17 @@ while [[ $# -gt 0 ]]; do
             ;;
         --slice-canon|--slice-canonicalization)
             SLICE_CANON="true"
+            PASSES+=("SliceCanonicalization")
+            shift
+            ;;
+        --slice-prop|--slice-propagation)
+            SLICE_PROP="true"
+            PASSES+=("SlicePropagation")
+            shift
+            ;;
+        --memoir-dce|--dead-collection-elimination)
+            MEMOIR_DCE="true"
+            PASSES+=("DeadCollectionElimination")
             shift
             ;;
         -h|--help)
@@ -87,23 +103,49 @@ echo "Running MemOIR compiler (I: ${INPUT_IR_FILE}, O: ${OUTPUT_IR_FILE})"
 OUT_DIR=$(dirname ${OUTPUT_IR_FILE})
 IR_FILE_BASENAME=$(basename -- ${OUTPUT_IR_FILE})
 IR_FILE_FILENAME="${IR_FILE_BASENAME%.bc}"
-IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}_temp.bc
+IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.temp.bc
 
 cp ${INPUT_IR_FILE} ${IR_FILE} ;
 
-# Normalize the bitcode
+#Normalize the bitcode
 if [[ "${NORMALIZE}" == "true" ]] ; then
-    ${GIT_ROOT}/compiler/scripts/memoir-norm ${IR_FILE} ${IR_FILE} ;
+    NORM_IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.norm.bc
+
+    echo "Normalizing the bitcode (I: ${IR_FILE}, O: ${NORM_IR_FILE})"
+    
+    ${GIT_ROOT}/compiler/scripts/memoir-norm ${IR_FILE} ${IR_FILE}
+    cp ${IR_FILE} ${NORM_IR_FILE}
 fi
 
-# Perform slice canonicalization
-if [[ "${SLICE_CANON}" == "true" ]] ; then
-    noelle-load -load ${LIB_DIR}/SliceCanonicalization.so -SliceCanonicalization ${IR_FILE} -o ${IR_FILE}
-fi
 
+function run_pass {
+    # Fetch the arguments.
+    local PASS="$1"
+    shift
+    local INPUT_IR_FILE="$1"
+    shift
+
+    PASS_IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.${PASS}.bc
+    
+    echo "Running ${PASS} (I: ${INPUT_IR_FILE}, O: ${PASS_IR_FILE})"
+    noelle-load -load ${LIB_DIR}/${PASS}.so -${PASS} ${INPUT_IR_FILE} -o ${PASS_IR_FILE}
+
+    cp ${PASS_IR_FILE} ${IR_FILE} ;
+}
+
+for PASS in ${PASSES[@]}
+do
+    run_pass ${PASS} ${IR_FILE}
+done
+ 
 # Lower the bitcode
 if [[ "${LOWER}" == "true" ]] ; then
+    LOWERED_IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.lowered.bc
+
+    echo "Lowering the bitcode (I: ${IR_FILE}, O: ${LOWERED_IR_FILE})"
     ${GIT_ROOT}/compiler/scripts/memoir-lower ${IR_FILE} ${IR_FILE} ;
+
+    cp ${IR_FILE} ${LOWERED_IR_FILE}
 fi
 
 cp ${IR_FILE} ${OUTPUT_IR_FILE}

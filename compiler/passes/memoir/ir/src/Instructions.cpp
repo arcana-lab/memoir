@@ -274,6 +274,10 @@ SliceInst::SliceInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {
   // Do nothing.
 }
 
+SizeInst::SizeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {
+  // Do nothing.
+}
+
 AssertStructTypeInst::AssertStructTypeInst(llvm::CallInst &call_inst)
   : MemOIRInst(call_inst) {
   // Do nothing.

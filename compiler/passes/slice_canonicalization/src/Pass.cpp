@@ -76,7 +76,7 @@ struct SliceCanonicalizationPass : public ModulePass {
       MEMOIR_NULL_CHECK(loop_structure, "NOELLE gave us a NULL LoopStructure");
 
       println();
-      println("Found loop ", loop_structure->getID());
+      println("Found loop");
 
       set<MemOIRInst *> memoir_insts = {};
       for (auto inst : loop_structure->getInstructions()) {
@@ -262,7 +262,7 @@ struct SliceCanonicalizationPass : public ModulePass {
                                                        start_value,
                                                        exit_value,
                                                        "live.");
-        SliceInst *rest_slice_inst;
+        SliceInst *rest_slice_inst = nullptr;
 
         // Replace uses of the collection withing the loop with the live slice.
         for (auto &use : collection->uses()) {

@@ -1,5 +1,5 @@
 # Project
-set(pass_name "Normalization")
+set(pass_name "DeadCollectionElimination")
 project(${pass_name})
 
 # Dependences
@@ -17,5 +17,5 @@ add_llvm_library(
   ${pass_sources}
   ${memoir_sources})
 
-install(TARGETS ${pass_name}
+install(TARGETS ${PassName}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

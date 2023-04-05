@@ -12,6 +12,8 @@
 
 #include "memoir/utility/FunctionNames.hpp"
 
+#include "memoir/support/Casting.hpp"
+
 #include "memoir/ir/Collections.hpp"
 #include "memoir/ir/Function.hpp"
 #include "memoir/ir/Structs.hpp"
@@ -969,6 +971,26 @@ public:
 
 protected:
   SliceInst(llvm::CallInst &call_inst);
+
+  friend class MemOIRInst;
+};
+
+struct SizeInst : public MemOIRInst {
+public:
+  llvm::Value &getSize() const;
+
+  Collection &getCollection() const;
+  llvm::Value &getCollectionOperand() const;
+  llvm::Use &getCollectionOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::SIZE);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  SizeInst(llvm::CallInst &call_inst);
 
   friend class MemOIRInst;
 };

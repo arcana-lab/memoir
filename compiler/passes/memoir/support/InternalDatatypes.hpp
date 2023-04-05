@@ -107,7 +107,7 @@ using pair = std::pair<T1, T2>;
 
 template <typename T1, typename T2>
 inline pair<T1, T2> make_pair(T1 first, T2 second) {
-  return pair<T1, T2>::make_pair(first, second);
+  return std::make_pair(first, second);
 }
 
 } // namespace llvm::memoir

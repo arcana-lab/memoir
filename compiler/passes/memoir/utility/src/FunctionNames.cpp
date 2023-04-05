@@ -18,15 +18,19 @@ bool FunctionNames::is_memoir_call(llvm::CallInst &call_inst) {
 }
 
 MemOIR_Func FunctionNames::get_memoir_enum(llvm::Function &function) {
-  auto function_name = function.getName();
+  auto function_name = function.getName().str();
 
-  auto found_iter = function_names_to_memoir.find(function_name);
-  if (found_iter != function_names_to_memoir.end()) {
-    auto found_enum = *found_iter;
-    return found_enum.second;
+  if (false) {
+    // Stub.
   }
-
-  return MemOIR_Func::NONE;
+#define HANDLE_INST(MEMOIR_ENUM, MEMOIR_STR, _)                                \
+  else if (function_name == #MEMOIR_STR) {                                     \
+    return MemOIR_Func::MEMOIR_ENUM;                                           \
+  }
+#include "memoir/ir/Instructions.def"
+  else {
+    return MemOIR_Func::NONE;
+  }
 }
 
 MemOIR_Func FunctionNames::get_memoir_enum(llvm::CallInst &call_inst) {
@@ -41,15 +45,14 @@ MemOIR_Func FunctionNames::get_memoir_enum(llvm::CallInst &call_inst) {
 
 Function *FunctionNames::get_memoir_function(Module &M,
                                              MemOIR_Func function_enum) {
-  auto found_name = memoir_to_function_names.find(function_enum);
-  if (found_name == memoir_to_function_names.end()) {
-    return nullptr;
+  switch (function_enum) {
+    default:
+      return nullptr;
+#define HANDLE_INST(MEMOIR_ENUM, MEMOIR_STR, _)                                \
+  case MemOIR_Func::MEMOIR_ENUM:                                               \
+    return M.getFunction(#MEMOIR_STR);
+#include "memoir/ir/Instructions.def"
   }
-
-  auto function_name = (*found_name).second;
-  auto function = M.getFunction(function_name);
-
-  return function;
 }
 
 bool FunctionNames::is_allocation(MemOIR_Func function_enum) {

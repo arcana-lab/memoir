@@ -5,6 +5,7 @@
 #include "llvm/IR/Argument.h"
 
 #include "memoir/support/Assert.hpp"
+#include "memoir/support/Casting.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 
 #include "memoir/ir/Instructions.hpp"
@@ -30,7 +31,6 @@ enum class CollectionKind {
   NESTED,
   REFERENCED,
   CONTROL_PHI,
-  CALL_PHI,
   ARG_PHI,
   RET_PHI,
   DEF_PHI,
@@ -68,7 +68,7 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
-  static bool classof(Collection *C) {
+  static bool classof(const Collection *C) {
     return (C->getKind() == CollectionKind::BASE);
   };
 
@@ -94,7 +94,7 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
-  static bool classof(Collection *C) {
+  static bool classof(const Collection *C) {
     return (C->getKind() == CollectionKind::FIELD_ARRAY);
   };
 
@@ -119,7 +119,7 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
-  static bool classof(Collection *C) {
+  static bool classof(const Collection *C) {
     return (C->getKind() == CollectionKind::NESTED);
   };
 
@@ -141,7 +141,7 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
-  static bool classof(Collection *C) {
+  static bool classof(const Collection *C) {
     return (C->getKind() == CollectionKind::REFERENCED);
   };
 
@@ -167,7 +167,7 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
-  static bool classof(Collection *C) {
+  static bool classof(const Collection *C) {
     return (C->getKind() == CollectionKind::CONTROL_PHI);
   };
 
@@ -195,7 +195,7 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
-  static bool classof(Collection *C) {
+  static bool classof(const Collection *C) {
     return (C->getKind() == CollectionKind::RET_PHI);
   };
 
@@ -224,7 +224,7 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
-  static bool classof(Collection *C) {
+  static bool classof(const Collection *C) {
     return (C->getKind() == CollectionKind::ARG_PHI);
   };
 
@@ -250,7 +250,7 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
-  static bool classof(Collection *C) {
+  static bool classof(const Collection *C) {
     return (C->getKind() == CollectionKind::DEF_PHI);
   };
 
@@ -273,6 +273,10 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
+  static bool classof(const Collection *C) {
+    return (C->getKind() == CollectionKind::USE_PHI);
+  };
+
   bool operator==(const UsePHICollection &other) const;
   std::string toString(std::string indent = "") const;
 
@@ -293,7 +297,7 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
-  static bool classof(Collection *C) {
+  static bool classof(const Collection *C) {
     return (C->getKind() == CollectionKind::JOIN_PHI);
   };
 
@@ -316,7 +320,7 @@ public:
   CollectionType &getType() const override;
   Type &getElementType() const override;
 
-  static bool classof(Collection *C) {
+  static bool classof(const Collection *C) {
     return (C->getKind() == CollectionKind::SLICE);
   };
 
