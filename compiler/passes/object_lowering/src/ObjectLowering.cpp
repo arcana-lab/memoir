@@ -230,8 +230,6 @@ namespace object_lowering {
             }
             case memoir::CollectionKind::JOIN_PHI:
                 assert(false && "Joins should have been lowered down at this point");
-            case memoir::CollectionKind::CALL_PHI :
-                assert(false && "this should be impossible ");
         }
     }
 
@@ -477,6 +475,9 @@ namespace object_lowering {
                 continue;
             }
             switch (mins->getKind()) {
+                case llvm::memoir::SIZE:
+                    assert(false);
+                    break;
                 case llvm::memoir::DEFINE_STRUCT_TYPE:
                 case llvm::memoir::STRUCT_TYPE:
                 case llvm::memoir::TENSOR_TYPE:
@@ -661,7 +662,7 @@ namespace object_lowering {
                     auto field_index = struct_read_ins->getFieldIndex();
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     phiNodesReplacementStruct);
-                    auto struct_name = struct_accessed->getType().hasName();
+                    auto struct_name = struct_accessed->getType().getName();
                     Utility::debug() << struct_name;
                     std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
                                                           llvm::ConstantInt::get(int32Ty, field_index)};
