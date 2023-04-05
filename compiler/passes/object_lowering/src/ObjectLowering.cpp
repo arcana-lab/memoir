@@ -37,7 +37,7 @@ namespace object_lowering {
 //                auto is_internal =
 //                        memoir::MetadataManager::hasMetadata(f,
 //                                                             memoir::MetadataType::INTERNAL);
-                Utility::debug() << f.getName() << "\n";
+               errs() << f.getName() << "\n";
             }
         }
     }
