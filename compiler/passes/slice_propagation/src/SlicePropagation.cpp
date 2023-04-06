@@ -295,9 +295,15 @@ bool SlicePropagation::visitJoinPHICollection(JoinPHICollection &C) {
       this->candidate =
           new SlicePropagationCandidate(first_operand_as_use, parent_candidate);
 
-      // Recurse.
+      // Recurse on the left-most operand.
       if (this->visitCollection(C.getJoinedCollection(0))) {
         return true;
+      }
+
+      // Build a new expression to slice the remaining joined collections, if
+      // the right index is greater than the size of the leftern collections.
+      for (auto join_idx = 0; join_idx < join_inst.getNumberOfJoins();
+           join_idx++) {
       }
     }
   }
@@ -533,66 +539,28 @@ llvm::Value *SlicePropagation::visitSequenceAllocInst(SequenceAllocInst &I) {
   MEMOIR_NULL_CHECK(alloc_func,
                     "SequenceAllocInst is not attached to a function!");
 
-  // TODO: change this to be a call to ValueExpression::isAvailable and
-  // ValueExpression::materialize.
-  // If the right index expression is available at this allocation instruction,
-  // materialize it.
+  // Check if the right index expression is available at this allocation
+  // instruction.
   auto &DTA = this->P.getAnalysis<DominatorTreeWrapperPass>(*alloc_func);
   auto const &DT = DTA.getDomTree();
-  if (right_index->isAvailable(llvm_inst, &DT)) {
-    auto materialized_right_index = right_index->materialize(llvm_inst);
+  if (!right_index->isAvailable(llvm_inst, &DT)) {
+    // If we got here, the right index wasn't available. Return NULL.
+    println("SequenceAllocInst: right index is not available");
+    return nullptr;
   }
 
-  // if (auto right_index_as_arg =
-  // dyn_cast<ArgumentExpression>(right_index)) {
+  // Materialize the value.
+  auto materialized_right_index = right_index->materialize(llvm_inst);
 
-  //   auto right_index_func = right_index_as_arg->getParent();
-  //   if (right_index_func != alloc_func) {
-  //     println("Right index is an argument of a function that "
-  //             "doesn't contain the allocation!");
-  //     return nullptr;
-  //   }
-  // } else if (auto right_index_as_constant =
-  //                dyn_cast<llvm::ConstantInt>(right_index)) {
-  //   println("Right index is a constant, proceed.");
-  // } else if (auto right_index_as_inst =
-  //                dyn_cast<llvm::Instruction>(right_index)) {
-  //   auto right_index_bb = right_index_as_inst->getParent();
-  //   MEMOIR_NULL_CHECK(right_index_bb,
-  //                     "Right index is not attached to a basic block!");
-  //   auto right_index_func = right_index_bb->getParent();
-  //   MEMOIR_NULL_CHECK(right_index_func,
-  //                     "Right index is not attached to a function!");
-  //   // FIXME: add argument propagation here so that we can access the value
-  //   // iff it dominates call we care about.
-  //   if (right_index_func != alloc_func) {
-  //     println("Right index is an instruction in a different function "
-  //             "from the allocation!");
-  //     return nullptr;
-  //   }
+  // If we weren't able to materialize the right index, return NULL.
+  if (!materialized_right_index) {
+    println("SequenceAllocInst: right index could not be materialized");
+    return nullptr;
+  }
 
-  //   // Check that the right slice index instruction dominates the allocation.
-  //   // TODO: we may not need to recalculate the dominator tree each time
-  //   here.
-
-  // auto &DTA =
-  //   this->P.getAnalysis<DominatorTreeWrapperPass>(*alloc_func); auto const
-  //   &DT = DTA.getDomTree();
-
-  //   if (!DT.dominates(right_index_as_inst, size_operand_as_use)) {
-  //     println("Right index of slice does not dominate the allocation.");
-  //     return nullptr;
-  //   }
-  // }
-
-  println("Transforming: ", I);
-
-  // Replace the size operand of the allocation instruction with the right
-  // index value.
-  size_operand_as_use.set(right_index->getValue());
-
-  println("Transformed: ", I);
-
+  // If we were able to materialize it, set the size operand to be the
+  // materialized value and return the LLVM Instruction.
+  size_operand_as_use.set(materialized_right_index);
   return &llvm_inst;
 }
 
@@ -636,6 +604,8 @@ llvm::Value *SlicePropagation::visitJoinInst(JoinInst &I) {
 
   println("First operand= ", *first_operand_as_value);
 
+  // Check for the simple case where we are joining a slice that has the same
+  // range as the candidate.
   if (auto first_operand_as_inst =
           dyn_cast<llvm::Instruction>(first_operand_as_value)) {
     if (auto first_operand_as_memoir =
@@ -646,8 +616,8 @@ llvm::Value *SlicePropagation::visitJoinInst(JoinInst &I) {
         auto &operand_left_index = first_operand_as_slice->getBeginIndex();
         auto &operand_right_index = first_operand_as_slice->getEndIndex();
 
-        // Check that the left and right indices of the slice range are the
-        // same as the slice being propagated;
+        // If the left index of the candidate and the left index of the operand
+        // are the same, propagate the slice.
         if ((*left_index == operand_left_index)
             && (*right_index == operand_right_index)) {
           // Replace the JoinInst with its first operand.
@@ -657,6 +627,8 @@ llvm::Value *SlicePropagation::visitJoinInst(JoinInst &I) {
       }
     }
   }
+
+  //
 
   println("First operand of JoinInst is not an instruction");
   return nullptr;
