@@ -31,6 +31,7 @@ enum ExpressionKind {
   EK_BasicStart,
   EK_Basic,
   EK_PHI,
+  EK_Select,
   EK_Call,
   EK_BasicEnd,
   EK_MemOIRStart,
@@ -344,6 +345,49 @@ public:
   }
 
   llvm::PHINode &phi;
+};
+
+struct SelectExpression : public BasicExpression {
+public:
+  SelectExpression(llvm::SelectInst &select)
+    : BasicExpression(EK_Select, select) {}
+  SelectExpression(ValueExpression &condition,
+                   ValueExpression &true_value,
+                   ValueExpression &false_value)
+    : BasicExpression(EK_Select, Instruction::Select),
+      condition(&condition),
+      true_value(&true_value),
+      false_value(&false_value) {}
+
+  ValueExpression *getCondition() const {
+    return (this->condition != nullptr) ? (this->condition)
+                                        : this->getArgument(0);
+  }
+
+  ValueExpression *getTrueValue() const {
+    return (this->true_value != nullptr) ? (this->true_value)
+                                         : this->getArgument(1);
+  }
+
+  ValueExpression *getFalseValue() const {
+    return (this->false_value != nullptr) ? (this->false_value)
+                                          : this->getArgument(2);
+  }
+
+  llvm::Value *materialize(
+      llvm::Instruction &IP,
+      MemOIRBuilder *builder = nullptr,
+      const llvm::DominatorTree *DT = nullptr,
+      llvm::CallBase *call_context = nullptr) const override;
+
+  std::string toString(std::string indent = "") const {
+    return "phi";
+  }
+
+  // Borrowed state.
+  ValueExpression *condition;
+  ValueExpression *true_value;
+  ValueExpression *false_value;
 };
 
 struct CallExpression : public BasicExpression {

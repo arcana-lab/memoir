@@ -144,6 +144,86 @@ llvm::Value *PHIExpression::materialize(llvm::Instruction &IP,
   return nullptr;
 }
 
+// SelectExpression
+llvm::Value *SelectExpression::materialize(llvm::Instruction &IP,
+                                           MemOIRBuilder *builder,
+                                           const llvm::DominatorTree *DT,
+                                           llvm::CallBase *call_context) const {
+  // Check that this SelectExpression is available.
+  if (!this->isAvailable(IP, DT, call_context)) {
+    return nullptr;
+  }
+
+  // If we are already a materialized instruction, check if we dominate the
+  // insertion point. If we do, return the instruction.
+  if ((this->I != nullptr) && (DT != nullptr)) {
+    if (DT->dominates(this->I, &IP)) {
+      return this->I;
+    }
+  }
+
+  // Otherwise, let's materialize the operands and build a new select.
+  // Sanity check the operands.
+  auto condition_expr = this->getCondition();
+  if (!condition_expr) {
+    println("SelectExpression: Condition expression is NULL!");
+    return nullptr;
+  }
+  auto true_expr = this->getTrueValue();
+  if (!true_expr) {
+    println("SelectExpression: True value expression is NULL!");
+    return nullptr;
+  }
+  auto false_expr = this->getFalseValue();
+  if (!false_expr) {
+    println("SelectExpression: False value expression is NULL!");
+    return nullptr;
+  }
+
+  // Create a builder, if it doesn't exist.
+  bool created_builder = false;
+  if (!builder) {
+    builder = new MemOIRBuilder(&IP);
+    created_builder = true;
+  }
+
+  // Materialize the operands.
+  auto materialized_condition =
+      condition_expr->materialize(IP, builder, DT, call_context);
+  if (!materialized_condition) {
+    if (created_builder) {
+      delete builder;
+    }
+    return nullptr;
+  }
+  auto materialized_true =
+      true_expr->materialize(IP, builder, DT, call_context);
+  if (!materialized_true) {
+    if (created_builder) {
+      delete builder;
+    }
+    return nullptr;
+  }
+  auto materialized_false =
+      false_expr->materialize(IP, builder, DT, call_context);
+  if (!materialized_false) {
+    if (created_builder) {
+      delete builder;
+    }
+    return nullptr;
+  }
+
+  // Materialize the select instruction.
+  auto materialized_select = builder->CreateSelect(materialized_condition,
+                                                   materialized_true,
+                                                   materialized_false);
+  MEMOIR_NULL_CHECK(
+      materialized_select,
+      "SelectExpression: Could not create the materialized select.");
+
+  return materialized_select;
+}
+
 // CallExpression
 llvm::Value *CallExpression::materialize(llvm::Instruction &IP,
                                          MemOIRBuilder *builder,
