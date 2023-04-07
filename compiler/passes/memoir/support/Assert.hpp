@@ -4,6 +4,8 @@
 
 #include <cassert>
 #include <cstdio>
+#include <string>
+#include <type_traits>
 
 #define MEMOIR_ASSERT(c, msg)                                                  \
   if (!(c)) {                                                                  \
@@ -20,5 +22,14 @@
 #define MEMOIR_UNREACHABLE(msg) MEMOIR_ASSERT(false, msg)
 
 #define MEMOIR_NULL_CHECK(v, msg) MEMOIR_ASSERT((v != nullptr), msg)
+
+template <typename T>
+inline typename std::enable_if_t<
+    std::is_pointer_v<T>,
+    std::add_lvalue_reference_t<std::remove_pointer_t<T>>>
+sanitize(T t, const char *message) {
+  MEMOIR_NULL_CHECK(t, message);
+  return *t;
+}
 
 #endif
