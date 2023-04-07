@@ -158,6 +158,7 @@ protected:
   llvm::Value *visitArgument(llvm::Argument &A);
   llvm::Value *visitInstruction(llvm::Instruction &I);
   llvm::Value *visitLLVMCallInst(llvm::CallInst &I);
+  llvm::Value *visitPHINode(llvm::PHINode &I);
   llvm::Value *visitSequenceAllocInst(SequenceAllocInst &I);
   llvm::Value *visitJoinInst(JoinInst &I);
   llvm::Value *visitSliceInst(SliceInst &I);

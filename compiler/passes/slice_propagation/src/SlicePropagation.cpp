@@ -1,3 +1,9 @@
+// LLVM
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+
+// MemOIR
+#include "memoir/ir/Builder.hpp"
+
 // Slice Propagation
 #include "SlicePropagation.hpp"
 
@@ -23,7 +29,10 @@ SlicePropagation::~SlicePropagation() {
 
 // Top-level analysis.
 bool SlicePropagation::analyze() {
+  println();
+  println("=====================================");
   println("SlicePropagation: performing analysis");
+  println();
 
   // auto loops = noelle.getLoops();
   // MEMOIR_NULL_CHECK(loops, "Unable to get the loops from NOELLE!");
@@ -97,7 +106,20 @@ bool SlicePropagation::analyze() {
     }
   }
 
+  println();
   println("SlicePropagation: done analyzing");
+  println("================================");
+  println();
+
+  println();
+  println("==================================================");
+  println("SlicePropagation: BEGIN printing slice candidates.");
+  println();
+
+  println();
+  println("SlicePropagation: DONE printing slice candidates.");
+  println("=================================================");
+  println();
 
   return true;
 }
@@ -124,6 +146,50 @@ bool SlicePropagation::visitBaseCollection(BaseCollection &C) {
   auto sequence_alloc_inst = dyn_cast<SequenceAllocInst>(&alloc_inst);
   if (!sequence_alloc_inst) {
     println("  Sliced allocation is not a sequence!");
+    return false;
+  }
+
+  // Get the candidate information.
+  auto &parent_candidate =
+      sanitize(this->candidate, "Parent candidate is NULL");
+  auto *left_index = parent_candidate.left_index;
+  auto *right_index = parent_candidate.right_index;
+
+  // Ensure that the slice index is _definitely_ larger than the allocation
+  // size.
+  auto *left_as_const = as<llvm::ConstantInt>(left_index);
+  if (!left_as_const) {
+    println("  Left index is not a constant integer");
+    return false;
+  }
+  auto left_as_int = left_as_const->getSExtValue();
+  if (left_as_int != 0) {
+    println("  Left index is not a constant zero");
+    return false;
+  }
+
+  auto *right_as_const = as<llvm::ConstantInt>(right_index);
+  if (!right_as_const) {
+    println("  Right index is not a constant integer");
+    return false;
+  }
+
+  // Compare the size of this allocation with the right index value.
+  auto &size_value = sequence_alloc_inst->getSizeOperand();
+  auto size_as_const = dyn_cast<llvm::ConstantInt>(&size_value);
+  if (!size_as_const) {
+    println("  Size of sequence allocation is not constant");
+    return false;
+  }
+
+  auto size_as_int = size_as_const->getZExtValue();
+  auto right_as_int = right_as_const->getSExtValue();
+  // Handle size relative slices.
+  if (right_as_int < 0) {
+    right_as_int = size_as_int + right_as_int;
+  }
+  if (size_as_int <= right_as_int) {
+    println("  Size of sequence is less than the right index");
     return false;
   }
 
@@ -299,12 +365,6 @@ bool SlicePropagation::visitJoinPHICollection(JoinPHICollection &C) {
       if (this->visitCollection(C.getJoinedCollection(0))) {
         return true;
       }
-
-      // Build a new expression to slice the remaining joined collections, if
-      // the right index is greater than the size of the leftern collections.
-      for (auto join_idx = 0; join_idx < join_inst.getNumberOfJoins();
-           join_idx++) {
-      }
     }
   }
 
@@ -398,6 +458,8 @@ bool SlicePropagation::transform() {
   println();
   println("SlicePropagation: end transform.");
   println();
+
+  println(this->M);
 
   return false;
 }
@@ -502,6 +564,10 @@ llvm::Value *SlicePropagation::visitLLVMCallInst(llvm::CallInst &I) {
   return nullptr;
 }
 
+llvm::Value *SlicePropagation::visitPHINode(llvm::PHINode &I) {
+  return nullptr;
+}
+
 llvm::Value *SlicePropagation::visitSequenceAllocInst(SequenceAllocInst &I) {
   // Get the information for how this instruction should be sliced.
   auto &llvm_inst = I.getCallInst();
@@ -532,16 +598,16 @@ llvm::Value *SlicePropagation::visitSequenceAllocInst(SequenceAllocInst &I) {
   // Check that the allocation and slice operand are both available in the
   // same function.
   // TODO: add function versioning to elide this issue.
-  auto alloc_bb = llvm_inst.getParent();
-  MEMOIR_NULL_CHECK(alloc_bb,
-                    "SequenceAllocInst is not attached to a basic block!");
-  auto alloc_func = alloc_bb->getParent();
-  MEMOIR_NULL_CHECK(alloc_func,
-                    "SequenceAllocInst is not attached to a function!");
+  auto &alloc_bb =
+      sanitize(llvm_inst.getParent(),
+               "SequenceAllocInst is not attached to a basic block!");
+  auto &alloc_func =
+      sanitize(alloc_bb.getParent(),
+               "SequenceAllocInst is not attached to a function!");
 
   // Check if the right index expression is available at this allocation
   // instruction.
-  auto &DTA = this->P.getAnalysis<DominatorTreeWrapperPass>(*alloc_func);
+  auto &DTA = this->P.getAnalysis<DominatorTreeWrapperPass>(alloc_func);
   auto const &DT = DTA.getDomTree();
   if (!right_index->isAvailable(llvm_inst, &DT)) {
     // If we got here, the right index wasn't available. Return NULL.
@@ -594,44 +660,178 @@ llvm::Value *SlicePropagation::visitJoinInst(JoinInst &I) {
     return nullptr;
   }
 
-  // If the first operand of the join is a slice inst, see if it has the same
-  // range as the slice we are looking at.
-  // If it does, replace the JoinInst with its first operand.
-  auto &first_operand_as_use = I.getJoinedOperandAsUse(0);
-  auto first_operand_as_value = first_operand_as_use.get();
-  MEMOIR_NULL_CHECK(first_operand_as_value,
-                    "First operand of slice instruction is NULL!");
-
-  println("First operand= ", *first_operand_as_value);
-
-  // Check for the simple case where we are joining a slice that has the same
-  // range as the candidate.
-  if (auto first_operand_as_inst =
-          dyn_cast<llvm::Instruction>(first_operand_as_value)) {
-    if (auto first_operand_as_memoir =
-            MemOIRInst::get(*first_operand_as_inst)) {
-      if (auto first_operand_as_slice =
-              dyn_cast<SliceInst>(first_operand_as_memoir)) {
-        // Get the slice range.
-        auto &operand_left_index = first_operand_as_slice->getBeginIndex();
-        auto &operand_right_index = first_operand_as_slice->getEndIndex();
-
-        // If the left index of the candidate and the left index of the operand
-        // are the same, propagate the slice.
-        if ((*left_index == operand_left_index)
-            && (*right_index == operand_right_index)) {
-          // Replace the JoinInst with its first operand.
-          llvm_inst.replaceAllUsesWith(first_operand_as_value);
-          return first_operand_as_value;
-        }
-      }
-    }
+  // Get the function parent of this instruction.
+  auto parent_bb = llvm_inst.getParent();
+  if (!parent_bb) {
+    println("JoinInst doesn't belong to a basic block");
+    return nullptr;
+  }
+  auto parent_func = parent_bb->getParent();
+  if (!parent_func) {
+    println("JoinInst doesn't belong to a function");
+    return nullptr;
   }
 
-  //
+  // Ensure that the right index is available at this point.
+  auto &DTA = this->P.getAnalysis<DominatorTreeWrapperPass>(*parent_func);
+  auto const &DT = DTA.getDomTree();
+  if (!right_index->isAvailable(llvm_inst, &DT)) {
+    return nullptr;
+  }
 
-  println("First operand of JoinInst is not an instruction");
-  return nullptr;
+  // Create a MemOIRBuilder.
+  MemOIRBuilder builder(&llvm_inst);
+
+  // Materialize the right index.
+  auto *materialized_right_index =
+      right_index->materialize(llvm_inst, &builder, &DT);
+  MEMOIR_NULL_CHECK(materialized_right_index,
+                    "Couldn't materialize the right index");
+
+  // Build a new expression to slice the remaining joined collections, if
+  // the right index is greater than the size of the leftern collections.
+  // Build an expression of the form:
+  //   if (size(a) >= R) return slice(a, 0, R);
+  //   else if (size(b) >= (R - size(a)))
+  //     return join(a, slice(b, 0, (R-size(a))));
+  //   ...
+
+  // Invariant state.
+  auto &llvm_context = this->M.getContext();
+  auto *constant_zero = builder.getInt64(0);
+
+  // Recurrent state.
+  llvm::Instruction *split_point = &llvm_inst;
+  llvm::Value *rhs = materialized_right_index;
+  llvm::Instruction *last_llvm_size_inst;
+  llvm::PHINode *last_phi = nullptr;
+
+  // Iterate over each of the incoming collections (aside from the last one),
+  // creating the nested control flow.
+  for (auto join_idx = 0; join_idx < I.getNumberOfJoins() - 1; join_idx++) {
+    // Update the RHS if we are not the leftmost collection.
+    if (join_idx > 0) {
+      rhs = builder.CreateSub(rhs, last_llvm_size_inst);
+    }
+
+    // Get the current collection operand.
+    auto *joined_operand = &(I.getJoinedOperand(join_idx));
+
+    // Get the size of the current collection.
+    auto *size_inst = builder.CreateSizeInst(joined_operand);
+    auto *llvm_size_inst = &(size_inst->getCallInst());
+
+    // Create the comparison for this level.
+    auto *cmp_inst = builder.CreateICmpUGE(llvm_size_inst, rhs);
+
+    // Split the basic block and create the if-then-else.
+    llvm::Instruction *if_term;
+    llvm::Instruction *else_term;
+    llvm::SplitBlockAndInsertIfThenElse(cmp_inst,
+                                        split_point,
+                                        &if_term,
+                                        &else_term);
+    MEMOIR_NULL_CHECK(if_term, "Couldn't create the if clause");
+    MEMOIR_NULL_CHECK(else_term, "Couldn't create the else clause");
+    auto &if_bb =
+        sanitize(if_term->getParent(), "Couldn't get the if basic block");
+    auto &else_bb =
+        sanitize(else_term->getParent(), "Couldn't get the else basic block");
+
+    // Create a PHI in the continue block.
+    builder.SetInsertPoint(split_point);
+    auto *collection_type = I.getCallInst().getType();
+    auto &continue_phi =
+        sanitize(builder.CreatePHI(collection_type, 2),
+                 "Could not create the PHINode for the outer if-else");
+
+    // In the if block, create the sliced collection.
+    // If we are the leftmost collection in the join, only do a slice.
+    // Otherwise, create the slice of the current collection and join it to
+    // the ones ahead.
+    builder.SetInsertPoint(if_term);
+    auto &slice_inst =
+        sanitize(builder.CreateSliceInst(joined_operand, constant_zero, rhs),
+                 "Could not create the slice instruction");
+    auto *collection_inst = &(slice_inst.getCallInst());
+    if (join_idx > 0) {
+      // Get the leftern collections.
+      vector<llvm::Value *> collections_to_join = {};
+      for (auto i = 0; i < join_idx; i++) {
+        collections_to_join.push_back(&(I.getJoinedOperand(i)));
+      }
+      collections_to_join.push_back(collection_inst);
+
+      // Build the join inst.
+      auto &join_inst = sanitize(builder.CreateJoinInst(collections_to_join),
+                                 "Could not create the join instruction");
+      collection_inst = &(join_inst.getCallInst());
+    }
+
+    // If this is the second to last collection, create the slice and join for
+    // the last collection in the else statement. Otherwise, create the PHI for
+    // the else and go again.
+    llvm::Instruction *else_value;
+    if (join_idx == I.getNumberOfJoins() - 2) {
+      // Move the builder to the else basic block.
+      builder.SetInsertPoint(else_term);
+
+      // Get the final collection.
+      auto &final_collection = I.getJoinedOperand(I.getNumberOfJoins() - 1);
+
+      // Create the size inst.
+      auto &final_size = sanitize(builder.CreateSizeInst(&final_collection),
+                                  "Couldn't create the final size");
+
+      // Create the subtract.
+      auto &final_sub_inst =
+          sanitize(builder.CreateSub(rhs, &(final_size.getCallInst())),
+                   "Couldn't create the final sub");
+
+      // Create the slice.
+      auto &final_slice_inst =
+          sanitize(builder.CreateSliceInst(joined_operand,
+                                           constant_zero,
+                                           &final_sub_inst),
+                   "Could not create the slice instruction");
+
+      // Create the join.
+      vector<llvm::Value *> collections_to_join = {};
+      for (auto i = 0; i < join_idx + 1; i++) {
+        collections_to_join.push_back(&(I.getJoinedOperand(i)));
+      }
+      collections_to_join.push_back(&(final_slice_inst.getCallInst()));
+
+      // Build the join inst.
+      auto &final_join_inst =
+          sanitize(builder.CreateJoinInst(collections_to_join),
+                   "Could not create the join instruction");
+      auto *final_llvm_join_inst = &(final_join_inst.getCallInst());
+
+      // Update the continue PHI.
+      continue_phi.addIncoming(final_llvm_join_inst,
+                               final_llvm_join_inst->getParent());
+    }
+
+    // Update the PHI in the continue basic block.
+    continue_phi.addIncoming(collection_inst, &if_bb);
+
+    // Update the last PHI.
+    if (last_phi) {
+      // last_phi->addIncoming();
+    }
+
+    // Save the state for the next iteration.
+    split_point = &continue_phi;
+    last_llvm_size_inst = llvm_size_inst;
+    last_phi = &continue_phi;
+  }
+
+  // Create the final else clause.
+  builder.SetInsertPoint(split_point);
+
+  // Return.
+  return last_phi;
 }
 
 llvm::Value *SlicePropagation::visitSliceInst(SliceInst &I) {
