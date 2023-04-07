@@ -30,6 +30,7 @@ enum ExpressionKind {
   EK_Unknown,
   EK_BasicStart,
   EK_Basic,
+  EK_ICmp,
   EK_PHI,
   EK_Select,
   EK_Call,
@@ -38,6 +39,7 @@ enum ExpressionKind {
   EK_MemOIR,
   EK_Collection,
   EK_Struct,
+  EK_Slice,
   EK_Size,
   EK_MemOIREnd
 };
@@ -320,6 +322,30 @@ public:
   llvm::Instruction *I;
 };
 
+struct ICmpExpression : public BasicExpression {
+public:
+  ICmpExpression(llvm::ICmpInst &cmp) : BasicExpression(EK_ICmp, cmp) {}
+  ICmpExpression(llvm::CmpInst::Predicate pred,
+                 ValueExpression &LHS,
+                 ValueExpression &RHS)
+    : BasicExpression(EK_ICmp, (Instruction::ICmp << 8) | pred) {
+    this->arguments.push_back(&LHS);
+    this->arguments.push_back(&RHS);
+  }
+
+  llvm::CmpInst::Predicate getPredicate() const {
+    return (llvm::CmpInst::Predicate)(this->opcode & 0xFF);
+  }
+
+  ValueExpression *getLHS() const {
+    return this->arguments.at(0);
+  }
+
+  ValueExpression *getRHS() const {
+    return this->arguments.at(1);
+  }
+};
+
 struct PHIExpression : public BasicExpression {
 public:
   PHIExpression(llvm::PHINode &phi) : BasicExpression(EK_PHI, phi), phi(phi) {}
@@ -354,24 +380,22 @@ public:
   SelectExpression(ValueExpression &condition,
                    ValueExpression &true_value,
                    ValueExpression &false_value)
-    : BasicExpression(EK_Select, Instruction::Select),
-      condition(&condition),
-      true_value(&true_value),
-      false_value(&false_value) {}
+    : BasicExpression(EK_Select, Instruction::Select) {
+    this->arguments.push_back(&condition);
+    this->arguments.push_back(&true_value);
+    this->arguments.push_back(&false_value);
+  }
 
   ValueExpression *getCondition() const {
-    return (this->condition != nullptr) ? (this->condition)
-                                        : this->getArgument(0);
+    return this->getArgument(0);
   }
 
   ValueExpression *getTrueValue() const {
-    return (this->true_value != nullptr) ? (this->true_value)
-                                         : this->getArgument(1);
+    return this->getArgument(1);
   }
 
   ValueExpression *getFalseValue() const {
-    return (this->false_value != nullptr) ? (this->false_value)
-                                          : this->getArgument(2);
+    return this->getArgument(2);
   }
 
   llvm::Value *materialize(
@@ -383,11 +407,6 @@ public:
   std::string toString(std::string indent = "") const {
     return "phi";
   }
-
-  // Borrowed state.
-  ValueExpression *condition;
-  ValueExpression *true_value;
-  ValueExpression *false_value;
 };
 
 struct CallExpression : public BasicExpression {
@@ -475,6 +494,37 @@ public:
   }
 
   Struct &S;
+};
+
+struct SliceExpression : public MemOIRExpression {
+public:
+  SliceExpression(SliceInst &I) : MemOIRExpression(EK_Slice), I(&I) {}
+  SliceExpression(CollectionExpression &C,
+                  ValueExpression &left,
+                  ValueExpression &right)
+    : MemOIRExpression(EK_Slice),
+      CE(&C),
+      left_index(&left),
+      right_index(&right) {}
+
+  bool isAvailable(llvm::Instruction &IP,
+                   const llvm::DominatorTree *DT = nullptr,
+                   llvm::CallBase *call_context = nullptr) const override;
+
+  llvm::Value *materialize(
+      llvm::Instruction &IP,
+      MemOIRBuilder *builder = nullptr,
+      const llvm::DominatorTree *DT = nullptr,
+      llvm::CallBase *call_context = nullptr) const override;
+
+  std::string toString(std::string indent = "") const {
+    return "struct";
+  }
+
+  SliceInst *I;
+  CollectionExpression *CE;
+  ValueExpression *left_index;
+  ValueExpression *right_index;
 };
 
 struct SizeExpression : public MemOIRExpression {
