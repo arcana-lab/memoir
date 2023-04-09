@@ -663,9 +663,12 @@ namespace object_lowering {
                     Utility::debug() << "Entering Struct Write \n";
                     auto struct_write_ins = static_cast<memoir::StructWriteInst *>(mins);
                     auto struct_accessed = &struct_write_ins->getStructAccessed();
+                    Utility::debug() << "Found the struct  that is it's attempting to access for write  \n";
                     auto field_index = struct_write_ins->getFieldIndex();
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     phiNodesReplacementStruct);
+
+                    Utility::debug() << "Found the base struct ptr for the write \n";
                     auto struct_name = struct_accessed->getType().getName();
                     Utility::debug() << struct_name;
                     std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
