@@ -569,6 +569,7 @@ namespace object_lowering {
                 case llvm::memoir::STRUCT_READ_COLLECTION_REF:
                 case llvm::memoir::STRUCT_GET_STRUCT:
                 case llvm::memoir::STRUCT_GET_COLLECTION: {
+                    Utility::debug() << "Entering Struct Read/Get \n";
                     memoir::Struct *struct_accessed;
                     unsigned int field_index;
                     switch (mins->getKind()) {
@@ -659,6 +660,7 @@ namespace object_lowering {
                 case llvm::memoir::STRUCT_WRITE_FLOAT:
                 case llvm::memoir::STRUCT_WRITE_STRUCT_REF:
                 case llvm::memoir::STRUCT_WRITE_COLLECTION_REF: {
+                    Utility::debug() << "Entering Struct Write \n";
                     auto struct_write_ins = static_cast<memoir::StructWriteInst *>(mins);
                     auto struct_accessed = &struct_write_ins->getStructAccessed();
                     auto field_index = struct_write_ins->getFieldIndex();
