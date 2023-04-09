@@ -48,6 +48,7 @@ namespace object_lowering {
             {
                 continue;
             }
+            errs() << ins_ref << "\n";
             mins->getCollectionAccessed();
         }
     }
