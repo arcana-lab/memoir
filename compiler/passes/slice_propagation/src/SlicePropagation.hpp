@@ -24,6 +24,8 @@
 #include "memoir/analysis/CollectionAnalysis.hpp"
 #include "memoir/analysis/StructAnalysis.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
+#include "memoir/analysis/ValueExpression.hpp"
+#include "memoir/analysis/ValueNumbering.hpp"
 
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
@@ -64,7 +66,7 @@ public:
    * Analyze the given module for opportunities to propagate slices.
    *
    * @return True if analysis succeeded. False if analysis failed.
-   // */
+   */
   bool analyze();
 
   /**
@@ -84,8 +86,8 @@ protected:
   struct SlicePropagationCandidate {
   public:
     SlicePropagationCandidate(llvm::Use &use,
-                              llvm::Value &left_index,
-                              llvm::Value &right_index,
+                              ValueExpression *left_index,
+                              ValueExpression *right_index,
                               SlicePropagationCandidate *parent)
       : use(use),
         left_index(left_index),
@@ -95,8 +97,8 @@ protected:
     }
 
     SlicePropagationCandidate(llvm::Use &use,
-                              llvm::Value &left_index,
-                              llvm::Value &right_index)
+                              ValueExpression *left_index,
+                              ValueExpression *right_index)
       : SlicePropagationCandidate(use, left_index, right_index, nullptr) {
       // Do nothing.
     }
@@ -111,13 +113,13 @@ protected:
 
     ~SlicePropagationCandidate() {}
 
+    // Owned state.
+    ValueExpression *left_index;
+    ValueExpression *right_index;
+
     // Borrowed state.
     SlicePropagationCandidate *parent;
     llvm::Use &use;
-
-    // TODO: convert these into being llvm::ValueExpressions
-    llvm::Value &left_index;
-    llvm::Value &right_index;
   };
 
   // Owned state.
@@ -156,6 +158,7 @@ protected:
   llvm::Value *visitArgument(llvm::Argument &A);
   llvm::Value *visitInstruction(llvm::Instruction &I);
   llvm::Value *visitLLVMCallInst(llvm::CallInst &I);
+  llvm::Value *visitPHINode(llvm::PHINode &I);
   llvm::Value *visitSequenceAllocInst(SequenceAllocInst &I);
   llvm::Value *visitJoinInst(JoinInst &I);
   llvm::Value *visitSliceInst(SliceInst &I);

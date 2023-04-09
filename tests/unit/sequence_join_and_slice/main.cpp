@@ -86,8 +86,8 @@ int main() {
 
   std::cout << "\nSlicing the joined sequence\n";
 
-  auto slice_seq_03 = memoir_sequence_slice(join_seq, 0, 3);
-  auto slice_seq_45 = memoir_sequence_slice(join_seq, 4, 5);
+  auto slice_seq_03 = memoir_sequence_slice(join_seq, 0, 4);
+  auto slice_seq_45 = memoir_sequence_slice(join_seq, 4, 6);
 
   std::cout << "\nReading sequences\n";
 
