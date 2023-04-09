@@ -53,7 +53,8 @@ namespace object_lowering {
                 continue;
             }
             errs() << ins_ref << "\n";
-            mins->getCollectionAccessed();
+            auto type = mins->getStructAccessed().getType();
+            errs () << "The struct type has " << type.getNumFields() << "number of fields";
         }
     }
 
