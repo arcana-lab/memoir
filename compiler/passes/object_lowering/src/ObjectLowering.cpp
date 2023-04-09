@@ -33,14 +33,22 @@ namespace object_lowering {
 
     void test(llvm::Module &M)
     {
-        errs() << "fasjdasjdidsj \n" ;
+        Function* main;
         for (auto &f: M) {
-            if (!f.isDeclaration()) {
-//                auto is_internal =
-//                        memoir::MetadataManager::hasMetadata(f,
-//                                                             memoir::MetadataType::INTERNAL);
-               errs() << f.getName() << "\n";
+            if (f.hasName() && f.getName() == "main") {
+               main = &f;
+               break;
             }
+        }
+        for(auto& ins_ref : instructions(*main))
+        {
+            auto* ins = &ins_ref;
+            auto mins = dyn_cast<memoir::StructWriteInst>(ins);
+            if(mins == nullptr)
+            {
+                continue;
+            }
+            mins->getCollectionAccessed();
         }
     }
 
@@ -646,9 +654,9 @@ namespace object_lowering {
                 case llvm::memoir::STRUCT_WRITE_FLOAT:
                 case llvm::memoir::STRUCT_WRITE_STRUCT_REF:
                 case llvm::memoir::STRUCT_WRITE_COLLECTION_REF: {
-                    auto struct_read_ins = static_cast<memoir::StructWriteInst *>(mins);
-                    auto struct_accessed = &struct_read_ins->getStructAccessed();
-                    auto field_index = struct_read_ins->getFieldIndex();
+                    auto struct_write_ins = static_cast<memoir::StructWriteInst *>(mins);
+                    auto struct_accessed = &struct_write_ins->getStructAccessed();
+                    auto field_index = struct_write_ins->getFieldIndex();
                     auto base_struct_ptr = FindBasePointerForStruct(struct_accessed,
                                                                     phiNodesReplacementStruct);
                     auto struct_name = struct_accessed->getType().getName();
@@ -663,8 +671,8 @@ namespace object_lowering {
                     auto struct_type = (memoir::StructType *) &struct_accessed->getType();
                     auto &field_type = struct_type->getFieldType(field_index);
                     Value *reference_value = field_type.getCode() == memoir::TypeCode::REFERENCE ?
-                                             replacementMapping.at(&struct_read_ins->getValueWritten()) :
-                                             &struct_read_ins->getValueWritten();
+                                             replacementMapping.at(&struct_write_ins->getValueWritten()) :
+                                             &struct_write_ins->getValueWritten();
                     auto storeInst = builder.CreateStore(reference_value, gep);
                     Utility::debug() << "Struct Write created the store: " << *storeInst << "\n";
                     replacementMapping[&ins] = storeInst;
