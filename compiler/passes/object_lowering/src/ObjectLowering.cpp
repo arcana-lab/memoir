@@ -42,8 +42,8 @@ namespace object_lowering {
         }
         for(auto& ins_ref : instructions(*main))
         {
-            auto* ins = &ins_ref;
-            auto mins = dyn_cast<memoir::StructWriteInst>(memoir::MemOIRInst.get(ins));
+            auto m = memoir::MemOIRInst::get(ins_ref);
+            auto mins = dyn_cast<memoir::StructWriteInst>(m);
             if(mins == nullptr)
             {
                 continue;
