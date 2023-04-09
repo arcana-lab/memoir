@@ -6,13 +6,14 @@
 #include "llvm/IR/Dominators.h"
 #include "NativeTypeConverter.hpp"
 #include <functional>
+#include "noelle/core/Noelle.hpp"
 
 namespace object_lowering {
 
     void test(llvm::Module &M);
     class ObjectLowering {
     public:
-        ObjectLowering(llvm::Module &M, llvm::ModulePass *mp);
+        ObjectLowering(llvm::Module &M, llvm::ModulePass *mp, Noelle& n);
 
         void transform();
 

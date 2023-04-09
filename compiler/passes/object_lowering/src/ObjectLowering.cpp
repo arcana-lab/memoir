@@ -15,8 +15,9 @@
 using namespace llvm::memoir;
 
 namespace object_lowering {
-    ObjectLowering::ObjectLowering(llvm::Module &M, llvm::ModulePass *mp) : M(M), mp(mp) {
+    ObjectLowering::ObjectLowering(llvm::Module &M, llvm::ModulePass *mp,Noelle& n) : M(M), mp(mp) {
         nativeTypeConverter = new NativeTypeConverter(M);
+        auto &CA = CollectionAnalysis::get(n);
     }
 
 
