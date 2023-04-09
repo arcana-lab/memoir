@@ -54,7 +54,7 @@ namespace object_lowering {
             }
             errs() << ins_ref << "\n";
             auto type = mins->getStructAccessed().getType();
-            errs () << "The struct type has " << type.getNumFields() << "number of fields";
+            errs () << "The struct type has " << type.getNumFields() << "number of fields\n";
         }
     }
 
