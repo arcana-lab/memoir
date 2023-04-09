@@ -669,8 +669,10 @@ namespace object_lowering {
                                                                     phiNodesReplacementStruct);
 
                     Utility::debug() << "Found the base struct ptr for the write \n";
-                    auto struct_name = struct_accessed->getType().getName();
-                    Utility::debug() << struct_name;
+                    auto structType = struct_accessed->getType();
+                    Utility::debug() << "The struct type for this write has " << structType.getNumFields() << "fields\n";
+                    auto struct_name = structType.getName();
+                    Utility::debug() << "Struct has name "<< struct_name<< "\n";
                     std::vector<llvm::Value *> indices = {llvm::ConstantInt::get(int32Ty, 0),
                                                           llvm::ConstantInt::get(int32Ty, field_index)};
                     Utility::debug() << "Struct Write has base struct pointer as : " << *base_struct_ptr << "\n";
