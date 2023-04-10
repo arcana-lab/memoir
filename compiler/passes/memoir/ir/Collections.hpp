@@ -24,6 +24,7 @@ struct Type;
 struct CollectionType;
 struct FieldArrayType;
 struct ReferenceType;
+struct StructType;
 
 enum class CollectionKind {
   BASE,
