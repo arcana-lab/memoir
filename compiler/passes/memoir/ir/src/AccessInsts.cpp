@@ -37,7 +37,7 @@ llvm::Use &ReadInst::getObjectOperandAsUse() const {
  * StructReadInst implementation
  */
 Collection &StructReadInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
+  auto collection = CollectionAnalysis::analyze(this->getCallInst());
   MEMOIR_NULL_CHECK(collection,
                     "Could not determine the struct being accessed");
   return *collection;

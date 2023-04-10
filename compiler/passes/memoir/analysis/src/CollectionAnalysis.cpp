@@ -165,7 +165,7 @@ Collection *CollectionAnalysis::visitInstruction(llvm::Instruction &I) {
 Collection *CollectionAnalysis::visitStructAllocInst(StructAllocInst &I) {
   CHECK_MEMOIZED(I);
 
-  // TODO
+  // Do nothing.
 
   MEMOIZE_AND_RETURN(I, nullptr);
 }
@@ -212,19 +212,37 @@ Collection *CollectionAnalysis::visitReadInst(ReadInst &I) {
    */
   auto &accessed_type = I.getCollectionType().getElementType();
   if (!Type::is_reference_type(accessed_type)) {
-    return nullptr;
+    MEMOIZE_AND_RETURN(I, nullptr);
   }
 
   auto &reference_type = static_cast<ReferenceType &>(accessed_type);
   auto &referenced_type = reference_type.getReferencedType();
 
-  if (!Type::is_collection_type(referenced_type)) {
-    return nullptr;
+  // If this is a collection type, create a new referenced collection.
+  if (Type::is_collection_type(referenced_type)) {
+    auto referenced_collection = new ReferencedCollection(I);
+    MEMOIZE_AND_RETURN(I, referenced_collection);
   }
 
-  auto referenced_collection = new ReferencedCollection(I);
+  // Otherwise, return NULL for now, but this should be unreachable.
+  MEMOIZE_AND_RETURN(I, nullptr);
+}
 
-  MEMOIZE_AND_RETURN(I, referenced_collection);
+Collection *CollectionAnalysis::visitStructReadInst(StructReadInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Check the type of the struct being accessed, then construct a field array
+   * for this access.
+   * FIXME: Make this emit Use PHIs
+   */
+  auto &struct_accessed = I.getStructAccessed();
+  auto &struct_type = struct_accessed.getType();
+
+  // Construct the FieldArray instance.
+  auto &field_array = FieldArray::get(struct_type, I.getFieldIndex());
+
+  MEMOIZE_AND_RETURN(I, &field_array);
 }
 
 Collection *CollectionAnalysis::visitJoinInst(JoinInst &I) {
