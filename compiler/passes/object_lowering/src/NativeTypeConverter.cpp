@@ -29,6 +29,12 @@ namespace object_lowering {
                 break;
             }
             case llvm::memoir::TypeCode::REFERENCE:
+            {
+                auto referenceType = static_cast<llvm::memoir::ReferenceType *> (type);
+                auto referencedType = this->getLLVMRepresentation(&referenceType->getReferencedType());
+                created = llvm::PointerType::getUnqual(referencedType);
+                break;
+            }
             case llvm::memoir::TypeCode::POINTER: {
                 created = llvm::PointerType::getUnqual(llvm::IntegerType::get(M.getContext(), 8));
                 break;

@@ -11,6 +11,7 @@
 #include "memoir/ir/Types.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
 #include "memoir/support/Casting.hpp"
+#include "memoir/analysis/StructAnalysis.hpp"
 
 using namespace llvm::memoir;
 
@@ -30,6 +31,49 @@ namespace object_lowering {
         }
     }
 
+    bool function_has_memoir(llvm::Function* f)
+    {
+        if((!f->hasName()) || f->isDeclaration())
+        {
+            return false;
+        }
+
+        for (auto& i :instructions(f) )
+        {
+            auto m = memoir::MemOIRInst::get(i);
+            if(m)
+            {
+                auto memoirkind = m->getKind();
+                switch(memoirkind)
+                {
+                    case llvm::memoir::SIZE:
+                    case llvm::memoir::DEFINE_STRUCT_TYPE:
+                    case llvm::memoir::STRUCT_TYPE:
+                    case llvm::memoir::TENSOR_TYPE:
+                    case llvm::memoir::STATIC_TENSOR_TYPE:
+                    case llvm::memoir::ASSOC_ARRAY_TYPE:
+                    case llvm::memoir::SEQUENCE_TYPE:
+                    case llvm::memoir::UINT64_TYPE:
+                    case llvm::memoir::UINT32_TYPE:
+                    case llvm::memoir::UINT16_TYPE:
+                    case llvm::memoir::UINT8_TYPE:
+                    case llvm::memoir::INT64_TYPE:
+                    case llvm::memoir::INT32_TYPE:
+                    case llvm::memoir::INT16_TYPE:
+                    case llvm::memoir::INT8_TYPE:
+                    case llvm::memoir::BOOL_TYPE:
+                    case llvm::memoir::FLOAT_TYPE:
+                    case llvm::memoir::DOUBLE_TYPE:
+                    case llvm::memoir::POINTER_TYPE:
+                    case llvm::memoir::REFERENCE_TYPE:
+                        break;
+                    default:
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
 
     void test(llvm::Module &M)
     {
@@ -62,10 +106,7 @@ namespace object_lowering {
         std::vector<Function *> functions_to_clone;
         llvm::Function* main;
         for (auto &f: M) {
-            if (!f.isDeclaration()) {
-//                auto is_internal =
-//                        memoir::MetadataManager::hasMetadata(f,
-//                                                             memoir::MetadataType::INTERNAL);
+            if (function_has_memoir(&f)) {
                 if(f.getName() == "main")
                 {
                     main = &f;
@@ -75,53 +116,56 @@ namespace object_lowering {
                 }
             }
         }
+        TypeAnalysis::invalidate();
+        CollectionAnalysis::invalidate();
+        StructAnalysis::invalidate();
         auto& typeAnalysis = memoir::TypeAnalysis::get();
-//        for (auto &oldF: functions_to_clone) {
-//            Utility::debug()<<"Attempting to clone function "<< oldF->getName() << "\n";
-//            if (oldF->getFunctionType()->isVarArg()) {
-//                assert(false && "var arg function not supported");
-//            }
-//            std::vector<llvm::Type *> arg_types;
-//            for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
-//                auto old_arg = (oldF->arg_begin() + argi);
-//                memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
-//                arg_types.push_back(marg_ty != nullptr ?
-//                                    nativeTypeConverter->getLLVMRepresentation(marg_ty) :
-//                                    old_arg->getType());
-//            }
-//            memoir::Type *mret_ty = typeAnalysis.getReturnType(*oldF);
-//            llvm::Type *ret_ty = mret_ty != nullptr ?
-//                                 nativeTypeConverter->getLLVMRepresentation(mret_ty) :
-//                                 oldF->getReturnType();
-//            auto new_func_ty = FunctionType::get(ret_ty, arg_types, false);
-//            auto newF = Function::Create(new_func_ty,
-//                                         oldF->getLinkage(),
-//                                         oldF->getAddressSpace(),
-//                                         oldF->getName()+"cloned-lowered",
-//                                         oldF->getParent());
-//            newF->getBasicBlockList().splice(newF->begin(), oldF->getBasicBlockList());
-//            for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
-//                auto old_arg = (oldF->arg_begin() + argi);
-//                auto new_arg = (newF->arg_begin() + argi);
-//                memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
-//                if(marg_ty != nullptr){
-//                    replacementMapping[old_arg] = new_arg;
-//                }
-//                else{
-//                    old_arg->replaceAllUsesWith(new_arg);
-//                }
-//            }
-//            Utility::debug()<<"Cloned function "<< newF->getName() << "\n";
-//            clonedFunctionMap[oldF] = newF;
-//
-//        }
+        for (auto &oldF: functions_to_clone) {
+            Utility::debug()<<"Attempting to clone function "<< oldF->getName() << "\n";
+            if (oldF->getFunctionType()->isVarArg()) {
+                assert(false && "var arg function not supported");
+            }
+            std::vector<llvm::Type *> arg_types;
+            for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
+                auto old_arg = (oldF->arg_begin() + argi);
+                memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
+                arg_types.push_back(marg_ty != nullptr ?
+                                    nativeTypeConverter->getLLVMRepresentation(marg_ty) :
+                                    old_arg->getType());
+            }
+            memoir::Type *mret_ty = typeAnalysis.getReturnType(*oldF);
+            llvm::Type *ret_ty = mret_ty != nullptr ?
+                                 nativeTypeConverter->getLLVMRepresentation(mret_ty) :
+                                 oldF->getReturnType();
+            auto new_func_ty = FunctionType::get(ret_ty, arg_types, false);
+            auto newF = Function::Create(new_func_ty,
+                                         oldF->getLinkage(),
+                                         oldF->getAddressSpace(),
+                                         oldF->getName()+"cloned-lowered",
+                                         oldF->getParent());
+            newF->getBasicBlockList().splice(newF->begin(), oldF->getBasicBlockList());
+            for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
+                auto old_arg = (oldF->arg_begin() + argi);
+                auto new_arg = (newF->arg_begin() + argi);
+                memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
+                if(marg_ty != nullptr){
+                    replacementMapping[old_arg] = new_arg;
+                }
+                else{
+                    old_arg->replaceAllUsesWith(new_arg);
+                }
+            }
+            Utility::debug()<<"Cloned function "<< newF->getName() << "\n";
+            clonedFunctionMap[oldF] = newF;
+
+        }
 
         function_transform(main);
 
-//        for (auto & func_pair: clonedFunctionMap)
-//        {
-//            function_transform(func_pair.second);
-//        }
+        for (auto & func_pair: clonedFunctionMap)
+        {
+            function_transform(func_pair.second);
+        }
 
         for (auto & func_pair: clonedFunctionMap)
         {
@@ -608,8 +652,9 @@ namespace object_lowering {
                         case memoir::TypeCode::POINTER: {
                             auto targetType = nativeTypeConverter->getLLVMRepresentation(&field_type);
                             auto loadInst =
-                                    builder.CreateLoad(targetType, gep, "baseload");
+                                    builder.CreateLoad(targetType, gep, "loadbase");
                             replacementMapping[&ins] = loadInst;
+                            Utility::debug() << "Emitted " <<*loadInst << "\n";
                             ins.replaceAllUsesWith(loadInst);
                             break;
                         }
@@ -619,16 +664,17 @@ namespace object_lowering {
                                                                                                       &static_tensor_type->getElementType());
                             auto bitcast_ins = builder.CreateBitCast(gep, llvm::PointerType::getUnqual(llvm_inner_type));
                             replacementMapping[&ins] = bitcast_ins;
+                            Utility::debug() << "Emitted " <<*bitcast_ins << "\n";
                             break;
                         }
                         case memoir::TypeCode::REFERENCE: {
-                            auto reference_type = static_cast<memoir::ReferenceType *>(&field_type );
-                            auto &referenced_type = reference_type->getReferencedType();
-                            auto referenced_type_llvm = nativeTypeConverter->getLLVMRepresentation(&referenced_type);
+                            auto referenced_type_llvm = nativeTypeConverter->getLLVMRepresentation(&field_type);
                             auto loadInst =
-                                    builder.CreateLoad(i8StarTy, gep, "baseload");
-                            auto  bitcast_ins = builder.CreateBitCast(loadInst,referenced_type_llvm);
-                            replacementMapping[&ins] = bitcast_ins;
+                                    builder.CreateLoad(referenced_type_llvm, gep, "loadref");
+//                            Utility::debug() << "Emitted " <<*loadInst << "\n";
+//                            auto  bitcast_ins = builder.CreateBitCast(loadInst,referenced_type_llvm);
+                            replacementMapping[&ins] = loadInst;
+                            Utility::debug() << "Emitted " <<*loadInst << "\n";
                             break;
                         }
                         case memoir::TypeCode::STRUCT: {
@@ -636,6 +682,7 @@ namespace object_lowering {
                             auto llvm_struct_type = nativeTypeConverter->getLLVMRepresentation(inner_struct_type);
                             auto bitcast = builder.CreateBitCast(gep, llvm::PointerType::getUnqual(llvm_struct_type));
                             replacementMapping[&ins] = bitcast;
+                            Utility::debug() << "Emitted " <<*bitcast << "\n";
                             break;
                         }
                         case memoir::TypeCode::FIELD_ARRAY:
@@ -689,6 +736,7 @@ namespace object_lowering {
                     auto storeInst = builder.CreateStore(reference_value, gep);
                     Utility::debug() << "Struct Write created the store: " << *storeInst << "\n";
                     replacementMapping[&ins] = storeInst;
+                    Utility::debug() << "Emitted " <<*storeInst << "\n";
                     break;
                 }
 
