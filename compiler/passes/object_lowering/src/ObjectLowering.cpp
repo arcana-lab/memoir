@@ -584,6 +584,7 @@ namespace object_lowering {
 
                     auto headerSize = builder.CreateMul(llvm::ConstantInt::get(int64Ty, numdim),
                                                         int64Size);
+                    Utility::debug() << "Headersize instruction:" << *headerSize << "\n";
                     finalSize = builder.CreateAdd(finalSize, headerSize);
                     std::vector<Value *> arguments{finalSize};
                     auto newMallocCall = builder.CreateCall(mallocf, arguments);
