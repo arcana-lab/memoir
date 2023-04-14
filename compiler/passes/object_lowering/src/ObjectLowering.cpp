@@ -571,11 +571,13 @@ namespace object_lowering {
                     auto llvmTypeSize = llvm::ConstantInt::get(
                             int64Ty,
                             M.getDataLayout().getTypeAllocSize(llvmType));
+                    Utility::debug() << "Tensor Element has Size  : " << *llvmTypeSize << "\n";
                     Value *finalSize;
                     finalSize = llvmTypeSize;
                     auto numdim = alloc_tensor_ins->getNumberOfDimensions();
                     for (unsigned long long i = 0; i < numdim; ++i) {
                         finalSize = builder.CreateMul(finalSize, &alloc_tensor_ins->getLengthOfDimensionOperand(i));
+                        Utility::debug() << "Size instruction so far for " << i << " :"<< *llvmTypeSize << "\n";
                     }
                     auto int64Size = llvm::ConstantInt::get(int64Ty,
                                                             M.getDataLayout().getTypeAllocSize(int64Ty));
