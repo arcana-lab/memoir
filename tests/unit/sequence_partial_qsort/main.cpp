@@ -69,7 +69,7 @@ memoir::Collection *qsort(memoir::Collection *seq_to_sort) {
 }
 
 int main(int argc, char *argv[]) {
-  std::cout << "\nInitializing sequence\n";
+  printf("\nInitializing sequence\n");
 
   if (argc <= 1) {
     return 0;
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
     memoir_index_write(u64, input_element, seq, i);
   }
 
-  std::cout << "\nSorting sequence\n";
+  printf("\nSorting sequence\n");
 
   auto sorted_seq = qsort(seq);
 
