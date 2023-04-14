@@ -91,14 +91,15 @@ namespace object_lowering {
             {
                 continue;
             }
-            auto mins = dyn_cast<memoir::StructWriteInst>(m);
+            auto mins = dyn_cast<memoir::IndexReadInst>(m);
             if(mins == nullptr)
             {
                 continue;
             }
             errs() << ins_ref << "\n";
-            auto type = mins->getStructAccessed().getType();
-            errs () << "The struct type has " << type.getNumFields() << "number of fields\n";
+            auto tensortype = dyn_cast<memoir::TensorType>(&mins->getCollectionType());
+            assert(tensortype && "it shouldnt be null lol");
+            errs() << "the tensor type has "<<tensortype->getNumberOfDimensions() << "dimensions\n";
         }
     }
 
