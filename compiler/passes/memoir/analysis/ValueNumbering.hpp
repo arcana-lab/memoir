@@ -11,6 +11,7 @@
 
 // LLVM
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
 // MemOIR
@@ -41,9 +42,10 @@ protected:
   map<llvm::Value *, map<llvm::Use *, ValueExpression *>> use_table;
 };
 
-class ValueNumbering : public InstVisitor<ValueNumbering, ValueExpression *> {
-  friend class InstVisitor<ValueNumbering, ValueExpression *>;
+class ValueNumbering
+  : public llvm::memoir::InstVisitor<ValueNumbering, ValueExpression *> {
   friend class llvm::memoir::InstVisitor<ValueNumbering, ValueExpression *>;
+  friend class llvm::InstVisitor<ValueNumbering, ValueExpression *>;
 
 public:
   ValueNumbering(llvm::Module &M) : M(M) {}
@@ -73,12 +75,12 @@ protected:
 
   // Instruction visitor methods.
   ValueExpression *visitInstruction(llvm::Instruction &I);
+  ValueExpression *visitICmpInst(llvm::ICmpInst &I);
+  ValueExpression *visitCastInst(llvm::CastInst &I);
   ValueExpression *visitPHINode(llvm::PHINode &I);
   ValueExpression *visitLLVMCallInst(llvm::CallInst &I);
   ValueExpression *visitSizeInst(SizeInst &I);
-
-}; // namespace llvm::memoir
-
+};
 } // namespace llvm::memoir
 
 #endif

@@ -83,6 +83,7 @@ ValueExpression *ValueNumbering::visitUse(llvm::Use &U) {
   // Check if this use is a collection.
   auto collection = CollectionAnalysis::analyze(U);
   if (collection) {
+    println("Found a collection");
     return this->lookupOrInsert(U, new CollectionExpression(*collection));
   }
 
@@ -97,28 +98,34 @@ ValueExpression *ValueNumbering::visitUse(llvm::Use &U) {
 }
 
 ValueExpression *ValueNumbering::visitValue(llvm::Value &V) {
+  println("visitValue: ", V);
+
   if (auto arg = dyn_cast<llvm::Argument>(&V)) {
     return this->visitArgument(*arg);
+  } else if (auto inst = dyn_cast<llvm::Instruction>(&V)) {
+    return this->visit(*inst);
   } else if (auto constant = dyn_cast<llvm::Constant>(&V)) {
     return this->visitConstant(*constant);
-  } else if (auto inst = dyn_cast<llvm::Instruction>(&V)) {
-    return this->visitInstruction(*inst);
   }
 
   return this->lookupOrInsert(V, new UnknownExpression());
 }
 
 ValueExpression *ValueNumbering::visitArgument(llvm::Argument &A) {
+  println("visitArgument: ", A);
   return this->lookupOrInsert(A, new ArgumentExpression(A));
 }
 
 ValueExpression *ValueNumbering::visitConstant(llvm::Constant &C) {
+  println("visitConstant: ", C);
   return this->lookupOrInsert(C, new ConstantExpression(C));
 }
 
 // InstVisitor implementation.
 
 ValueExpression *ValueNumbering::visitInstruction(llvm::Instruction &I) {
+  println("visitInstruction: ", I);
+
   // Get or create the ValueExpression.
   auto expr = this->lookupOrInsert(I, new BasicExpression(I));
 
@@ -140,18 +147,20 @@ ValueExpression *ValueNumbering::visitInstruction(llvm::Instruction &I) {
   return expr;
 }
 
-ValueExpression *ValueNumbering::visitPHINode(llvm::PHINode &I) {
-  // Get or create the PHIExpression.
-  auto expr = this->lookupOrInsert(I, new PHIExpression(I));
+ValueExpression *ValueNumbering::visitCastInst(llvm::CastInst &I) {
+  println("visitCastInst: ", I);
+
+  // Get or create the ValueExpression.
+  auto expr = this->lookupOrInsert(I, new CastExpression(I));
 
   // If it is already initialized correctly, return.
-  if (expr->getNumArguments() == I.getNumIncomingValues()) {
+  if (expr->getNumArguments() == I.getNumOperands()) {
     return expr;
   }
 
   // Otherwise, let's initialize it.
-  expr->arguments.assign(I.getNumIncomingValues(), nullptr);
-  for (auto &operand : I.incoming_values()) {
+  expr->arguments.assign(I.getNumOperands(), nullptr);
+  for (auto &operand : I.operands()) {
     auto op_expr = this->visitUse(operand);
     MEMOIR_NULL_CHECK(op_expr,
                       "Couldn't determine operand expression of Instruction!");
@@ -162,12 +171,106 @@ ValueExpression *ValueNumbering::visitPHINode(llvm::PHINode &I) {
   return expr;
 }
 
+ValueExpression *ValueNumbering::visitICmpInst(llvm::ICmpInst &I) {
+  println("visitICmpInst: ", I);
+
+  // Get or create the ValueExpression.
+  auto expr = this->lookupOrInsert(I, new ICmpExpression(I));
+
+  // If it is already initialized correctly, return.
+  if (expr->getNumArguments() == I.getNumOperands()) {
+    return expr;
+  }
+
+  // Otherwise, let's initialize it.
+  expr->arguments.assign(I.getNumOperands(), nullptr);
+  for (auto &operand : I.operands()) {
+    auto op_expr = this->visitUse(operand);
+    MEMOIR_NULL_CHECK(op_expr,
+                      "Couldn't determine operand expression of Instruction!");
+    expr->setArgument(operand.getOperandNo(), *op_expr);
+  }
+
+  // Return it.
+  return expr;
+}
+
+ValueExpression *ValueNumbering::visitPHINode(llvm::PHINode &I) {
+  // Check if this PHINode can be summarized as a select.
+  // TODO: may want to sanity check that this PHI has only two incoming edges.
+  println("visitPHINode: ", I);
+  auto &phi_bb =
+      sanitize(I.getParent(), "PHI node does not belong to a basic block!");
+  llvm::BasicBlock *if_bb;
+  llvm::BasicBlock *else_bb;
+  auto *condition_value = llvm::GetIfCondition(&phi_bb, if_bb, else_bb);
+  if (condition_value) {
+    println("Summarizing PHI node as a select");
+    // Get the expression of the condition value.
+    auto &condition_expr =
+        sanitize(this->visitValue(*condition_value),
+                 "Could not construct an expression for the condition");
+    println("condition expr: ", condition_expr);
+
+    // Debug.
+    println("if bb: ", *if_bb);
+    println("else bb: ", *else_bb);
+
+    // Figure out which index is which incoming edge.
+    auto *first_bb = I.getIncomingBlock(0);
+    auto *second_bb = I.getIncomingBlock(1);
+    auto true_index = (if_bb == first_bb) ? 0 : 1;
+    auto false_index = (else_bb == second_bb) ? 1 : 0;
+
+    // Get the true value.
+    auto &true_use = I.getOperandUse(true_index);
+    auto &true_expr =
+        sanitize(this->visitUse(true_use),
+                 "Could not determine the expression for the true value");
+
+    // Get the false value.
+    auto &false_use = I.getOperandUse(false_index);
+    auto &false_expr =
+        sanitize(this->visitUse(false_use),
+                 "Could not determine the expression for the false value");
+
+    // Construct a SelectExpression for the PHI node.
+    auto *expr = this->lookupOrInsert(
+        I,
+        new SelectExpression(condition_expr, true_expr, false_expr));
+
+    return expr;
+  }
+
+  // Get or create the PHIExpression.
+  auto *expr = this->lookupOrInsert(I, new PHIExpression(I));
+
+  // If it is already initialized correctly, return.
+  if (expr->getNumArguments() == I.getNumIncomingValues()) {
+    return expr;
+  }
+
+  // Otherwise, let's initialize it.
+  expr->arguments.assign(I.getNumIncomingValues(), nullptr);
+  for (auto &operand : I.incoming_values()) {
+    auto *op_expr = this->visitUse(operand);
+    MEMOIR_NULL_CHECK(op_expr,
+                      "Couldn't determine operand expression of Instruction!");
+    expr->setArgument(operand.getOperandNo(), *op_expr);
+  }
+
+  // Return it.
+  return expr;
+}
+
 ValueExpression *ValueNumbering::visitLLVMCallInst(llvm::CallInst &I) {
+  println("visitLLVMCallInst: ", I);
   // TODO
   return this->lookupOrInsert(I, new CallExpression(I));
 }
 
 ValueExpression *ValueNumbering::visitSizeInst(SizeInst &I) {
+  println("visitSizeInst: ", I);
   // Get the size expression.
   auto expr = this->lookupOrInsert(I.getCallInst(), new SizeExpression());
   auto size_expr = dyn_cast<SizeExpression>(expr);
