@@ -421,6 +421,7 @@ namespace object_lowering {
         auto int32Ty = llvm::Type::getInt32Ty(ctxt);
         auto i8Ty = llvm::IntegerType::get(ctxt, 8);
         auto i8StarTy = llvm::PointerType::getUnqual(i8Ty);
+        auto int64StarTy = llvm::PointerType::getUnqual(int64Ty);
         auto voidTy = llvm::Type::getVoidTy(ctxt);
         auto mallocFTY =
                 llvm::FunctionType::get(i8StarTy, ArrayRef<llvm::Type *>({int64Ty}),
@@ -588,7 +589,7 @@ namespace object_lowering {
                     finalSize = builder.CreateAdd(finalSize, headerSize);
                     std::vector<Value *> arguments{finalSize};
                     auto newMallocCall = builder.CreateCall(mallocf, arguments);
-                    auto bcInst = builder.CreateBitCast(newMallocCall, i8StarTy);
+                    auto bcInst = builder.CreateBitCast(newMallocCall, int64StarTy);
                     replacementMapping[&ins] = bcInst;
                     for (unsigned long long i = 0; i < numdim; ++i) {
                         std::vector<Value *> indexList{ConstantInt::get(int64Ty, i)};
