@@ -383,16 +383,18 @@ namespace object_lowering {
             std::vector<llvm::Value *> sizes;
             for (unsigned int i = 0; i < ndim; ++i) {
                 Value *indexList[1] = {ConstantInt::get(int32Ty, i)};
-                auto sizeGEP = builder.CreateGEP(llvm::PointerType::getUnqual(int64Ty), tensor_header_view, indexList);
+                auto sizeGEP = builder.CreateGEP(tensor_header_view, indexList);
                 sizes[i] = builder.CreateLoad(sizeGEP);
+                Utility::debug() << "index "<< i << "will be loaded with " << *sizeGEP << "\n" << sizes[i] << "\n";
             }
             Value *indexList[1] = {ConstantInt::get(int32Ty, ndim)};
-            auto skipMetaDataGEP = builder.CreateGEP(llvm::PointerType::getUnqual(int64Ty), tensor_header_view,
-                                                     indexList);
+            auto skipMetaDataGEP = builder.CreateGEP(tensor_header_view,indexList);
+            Utility::debug() << "skip Header Gep is " << *skipMetaDataGEP <<"\n";
             auto tensor_body_view = builder.CreateBitCast(skipMetaDataGEP, llvm_tensor_elem_type_ptr);
+            Utility::debug() << "Bitcasted to  " << *tensor_body_view <<"\n";
             Value *multiCumSizes[ndim];
             multiCumSizes[ndim - 1] = ConstantInt::get(int32Ty, 1);
-            Utility::debug() << "Dimension = " << ndim << "\n";
+            Utility::debug() << "num dimensions = " << ndim << "\n";
             for (signed long i = ((signed long) ndim) - 2; i >= 0; --i) {
                 errs() << "Dimension " << i << " uses" << *multiCumSizes[i + 1] << "and " << *sizes[i + 1] << " \n";
                 multiCumSizes[i] = builder.CreateMul(multiCumSizes[i + 1], sizes[i + 1]);
