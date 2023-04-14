@@ -577,7 +577,7 @@ namespace object_lowering {
                     auto numdim = alloc_tensor_ins->getNumberOfDimensions();
                     for (unsigned long long i = 0; i < numdim; ++i) {
                         finalSize = builder.CreateMul(finalSize, &alloc_tensor_ins->getLengthOfDimensionOperand(i));
-                        Utility::debug() << "Size instruction so far for " << i << " :"<< *llvmTypeSize << "\n";
+                        Utility::debug() << "Size instruction so far for " << i << " :"<< *finalSize << "\n";
                     }
                     auto int64Size = llvm::ConstantInt::get(int64Ty,
                                                             M.getDataLayout().getTypeAllocSize(int64Ty));
