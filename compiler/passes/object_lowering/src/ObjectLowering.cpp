@@ -595,8 +595,7 @@ namespace object_lowering {
                     replacementMapping[&ins] = bcInst;
                     for (unsigned long long i = 0; i < numdim; ++i) {
                         std::vector<Value *> indexList{ConstantInt::get(int64Ty, i)};
-                        auto gep = builder.CreateGEP(llvm::PointerType::getUnqual(int64Ty), bcInst,
-                                                     indexList);
+                        auto gep = builder.CreateGEP(bcInst, indexList);
                         Utility::debug() << "GEP for Dimension" << i << " :" <<*bcInst << "\n";
                         auto storeins =  builder.CreateStore(&alloc_tensor_ins->getLengthOfDimensionOperand(i), gep);
                         Utility::debug() << "And the stores for it" << *storeins << "\n";
