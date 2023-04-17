@@ -29,10 +29,10 @@ using namespace llvm::memoir;
 
 namespace {
 
-struct SinkPass : public ModulePass {
+struct ConstantPropagationPass : public ModulePass {
   static char ID;
 
-  SinkPass() : ModulePass(ID) {}
+  ConstantPropagationPass() : ModulePass(ID) {}
 
   bool doInitialization(Module &M) override {
     return false;
@@ -123,23 +123,24 @@ struct SinkPass : public ModulePass {
 } // namespace
 
 // Next there is code to register your pass to "opt"
-char SinkPass::ID = 0;
-static RegisterPass<SinkPass> X("Sink",
-                                "An example pass using the MemOIR analyses");
+char ConstantPropagationPass::ID = 0;
+static RegisterPass<ConstantPropagationPass> X(
+    "ConstantPropagation",
+    "An example pass using the MemOIR analyses");
 
 // Next there is code to register your pass to "clang"
-static SinkPass *_PassMaker = NULL;
-static RegisterStandardPasses _RegPass1(PassManagerBuilder::EP_OptimizerLast,
-                                        [](const PassManagerBuilder &,
-                                           legacy::PassManagerBase &PM) {
-                                          if (!_PassMaker) {
-                                            PM.add(_PassMaker = new SinkPass());
-                                          }
-                                        }); // ** for -Ox
+static ConstantPropagationPass *_PassMaker = NULL;
+static RegisterStandardPasses _RegPass1(
+    PassManagerBuilder::EP_OptimizerLast,
+    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
+      if (!_PassMaker) {
+        PM.add(_PassMaker = new ConstantPropagationPass());
+      }
+    }); // ** for -Ox
 static RegisterStandardPasses _RegPass2(
     PassManagerBuilder::EP_EnabledOnOptLevel0,
     [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
       if (!_PassMaker) {
-        PM.add(_PassMaker = new SinkPass());
+        PM.add(_PassMaker = new ConstantPropagationPass());
       }
     }); // ** for -O0
