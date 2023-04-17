@@ -27,21 +27,11 @@
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
 
+#include "ConstantPropagation.hpp"
+
 using namespace llvm::memoir;
 
 namespace {
-
-class ConstantPropagationVisitor
-  : public llvm::memoir::InstVisitor<ConstantPropagationVisitor, void> {
-public:
-  void visitInstruction(llvm::Instruction &I) {
-    println("  LLVM Instruction", I);
-  }
-
-  void visitMemOIRInst(MemOIRInst &I) {
-    println("Memoir Instruction", I);
-  }
-};
 
 struct ConstantPropagationPass : public ModulePass {
   static char ID;
@@ -53,46 +43,13 @@ struct ConstantPropagationPass : public ModulePass {
   }
 
   bool runOnModule(Module &M) override {
-    errs() << "Running example pass\n\n";
-    for (auto &F : M) {
-
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          ConstantPropagationVisitor vis;
-          vis.visit(&I);
-        }
-      }
-    }
-
-    return false;
 
     auto &noelle = getAnalysis<Noelle>();
-    auto &type_analysis = TypeAnalysis::get();
 
-    errs() << "=========================================\n";
-    errs() << "Fetching all Collections\n\n";
-    auto &CA = CollectionAnalysis::get(noelle);
-    for (auto &F : M) {
-      if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
-        continue;
-      }
+    auto constProp = constprop::ConstantPropagation(M, noelle);
 
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (auto call_inst = dyn_cast<CallInst>(&I)) {
-            if (!FunctionNames::is_memoir_call(*call_inst)) {
-              continue;
-            }
-
-            if (auto cllct = CollectionAnalysis::analyze(*call_inst)) {
-              errs() << "Found collection for " << I << "\n";
-              errs() << *cllct << "\n\n";
-            }
-          }
-        }
-      }
-    }
-    errs() << "=========================================\n\n";
+    constProp.analyze();
+    constProp.transform();
 
     return false;
   }
