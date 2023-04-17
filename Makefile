@@ -20,6 +20,7 @@ install: build
 
 postinstall: install
 	$(NORM_RUNTIME) $(RUNTIME_BC) $(DECL_BC)
+	@cp $(BUILD_DIR)/compile_commands.json .
 
 benchmark: all
 	make -C $(BUILD_DIR) bitcodes -j8
