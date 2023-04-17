@@ -45,17 +45,14 @@ do
             shift
             ;;
         --slice-canon|--slice-canonicalization)
-            SLICE_CANON="true"
             PASSES+=("SliceCanonicalization")
             shift
             ;;
         --slice-prop|--slice-propagation)
-            SLICE_PROP="true"
             PASSES+=("SlicePropagation")
             shift
             ;;
         --memoir-dce|--dead-collection-elimination)
-            MEMOIR_DCE="true"
             PASSES+=("DeadCollectionElimination")
             shift
             ;;
@@ -70,9 +67,9 @@ do
             exit 1
             ;;
         -*|--*)
-            echo "Unknown option $1"
-            flags
-            exit 1
+            PASS_NAME=$(echo "$1" | sed 's/^-*//')
+            PASSES+=("${PASS_NAME}")
+            shift
             ;;
         *)
             if [ -n "${INPUT_IR_FILE}" ] ; then
@@ -132,9 +129,16 @@ function run_pass {
     shift
 
     PASS_IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.${PASS}.bc
-    
-    echo "Running ${PASS} (I: ${INPUT_IR_FILE}, O: ${PASS_IR_FILE})"
-    noelle-load -load ${LIB_DIR}/${PASS}.so -${PASS} ${INPUT_IR_FILE} -o ${PASS_IR_FILE}
+
+    PASS_OBJ=${LIB_DIR}/${PASS}.so
+    echo "${PASS_OBJ}"
+    if test -f "${PASS_OBJ}" ; then
+        echo "Running noelle ${PASS} (I: ${INPUT_IR_FILE}, O: ${PASS_IR_FILE})"
+        noelle-load -load ${LIB_DIR}/${PASS}.so -${PASS} ${INPUT_IR_FILE} -o ${PASS_IR_FILE}
+    else
+        echo "Running opt ${PASS} (I: ${INPUT_IR_FILE}, O: ${PASS_IR_FILE})"
+        opt -${PASS} ${INPUT_IR_FILE} -o ${PASS_IR_FILE}
+    fi
 
     cp ${PASS_IR_FILE} ${IR_FILE} ;
 }

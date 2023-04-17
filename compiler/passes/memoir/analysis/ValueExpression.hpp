@@ -406,7 +406,16 @@ public:
 
 struct PHIExpression : public BasicExpression {
 public:
-  PHIExpression(llvm::PHINode &phi) : BasicExpression(EK_PHI, phi), phi(phi) {}
+  PHIExpression(llvm::PHINode &phi) : BasicExpression(EK_PHI, phi), phi(&phi) {}
+  PHIExpression(vector<ValueExpression *> incoming_expressions,
+                vector<llvm::BasicBlock *> incoming_blocks)
+    : BasicExpression(EK_PHI),
+      incoming_blocks(incoming_blocks) {
+    // Add the incoming expressions to the expressio argument list.
+    for (auto incoming_expr : incoming_expressions) {
+      this->arguments.push_back(incoming_expr);
+    }
+  }
 
   static bool classof(const ValueExpression *E) {
     return (E->getKind() == EK_PHI);
@@ -418,6 +427,19 @@ public:
     return false;
   }
 
+  llvm::BasicBlock &getIncomingBlock(unsigned index) const {
+    if (this->phi != nullptr) {
+      return sanitize(this->phi->getIncomingBlock(index),
+                      "Couldn't get the incoming basic block");
+    }
+
+    // Otherwise, get it from the vector.
+    MEMOIR_ASSERT(
+        (index < this->incoming_blocks.size()),
+        "Index out of range of incoming basic blocks for PHIExpression");
+    return *(this->incoming_blocks.at(index));
+  }
+
   llvm::Value *materialize(llvm::Instruction &IP,
                            MemOIRBuilder *builder = nullptr,
                            const llvm::DominatorTree *DT = nullptr,
@@ -425,7 +447,11 @@ public:
 
   std::string toString(std::string indent = "") const override;
 
-  llvm::PHINode &phi;
+  // Realized
+  llvm::PHINode *phi;
+
+  // Unrealized
+  vector<llvm::BasicBlock *> incoming_blocks;
 };
 
 struct SelectExpression : public BasicExpression {
