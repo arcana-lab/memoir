@@ -17,6 +17,8 @@ function flags {
     echo "      Enables the slice canonicalization pass" 
     echo "    --slice-prop,--slice-propagation" 
     echo "      Enables the slice propagation pass"
+    echo "    --constant-prop,--constant-propagation" 
+    echo "      Enables the constant propagation pass"
 }
 
 if [[ $# -lt 1 ]]; then
@@ -57,10 +59,10 @@ do
             PASSES+=("DeadCollectionElimination")
             shift
             ;;
-        --memoir-constant-propagation)
-                PASSES+=("ConstantPropagation")
-                shift
-                ;;
+        --constant-propagation|--constant-prop)
+            PASSES+=("ConstantPropagation")
+            shift
+            ;;
         -h|--help)
             usage
             echo ""

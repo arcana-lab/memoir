@@ -13,6 +13,7 @@
 #include "noelle/core/Noelle.hpp"
 
 #include "memoir/ir/Function.hpp"
+#include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
 // #include "memoir/analysis/AccessAnalysis.hpp"
@@ -22,12 +23,25 @@
 
 #include "memoir/support/InternalDatatypes.hpp"
 
+#include "memoir/support/Print.hpp"
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
 
 using namespace llvm::memoir;
 
 namespace {
+
+class ConstantPropagationVisitor
+  : public llvm::memoir::InstVisitor<ConstantPropagationVisitor, void> {
+public:
+  void visitInstruction(llvm::Instruction &I) {
+    println("  LLVM Instruction", I);
+  }
+
+  void visitMemOIRInst(MemOIRInst &I) {
+    println("Memoir Instruction", I);
+  }
+};
 
 struct ConstantPropagationPass : public ModulePass {
   static char ID;
@@ -40,51 +54,20 @@ struct ConstantPropagationPass : public ModulePass {
 
   bool runOnModule(Module &M) override {
     errs() << "Running example pass\n\n";
+    for (auto &F : M) {
+
+      for (auto &BB : F) {
+        for (auto &I : BB) {
+          ConstantPropagationVisitor vis;
+          vis.visit(&I);
+        }
+      }
+    }
+
+    return false;
 
     auto &noelle = getAnalysis<Noelle>();
     auto &type_analysis = TypeAnalysis::get();
-
-    errs() << "=========================================\n";
-    errs() << "Fetching all Types\n\n";
-    for (auto &F : M) {
-      if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
-        continue;
-      }
-
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (auto type = TypeAnalysis::analyze(I)) {
-            errs() << "Found type for " << I << "\n";
-            errs() << *type << "\n\n";
-          }
-        }
-      }
-    }
-    errs() << "=========================================\n\n";
-
-    errs() << "=========================================\n";
-    errs() << "Fetching all Structs\n\n";
-    for (auto &F : M) {
-      if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
-        continue;
-      }
-
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (auto call_inst = dyn_cast<CallInst>(&I)) {
-            if (!FunctionNames::is_memoir_call(*call_inst)) {
-              continue;
-            }
-
-            if (auto strct = StructAnalysis::analyze(*call_inst)) {
-              errs() << "Found struct for " << I << "\n";
-              errs() << *strct << "\n\n";
-            }
-          }
-        }
-      }
-    }
-    errs() << "=========================================\n\n";
 
     errs() << "=========================================\n";
     errs() << "Fetching all Collections\n\n";
