@@ -57,6 +57,10 @@ do
             PASSES+=("DeadCollectionElimination")
             shift
             ;;
+        --memoir-constant-propagation)
+                PASSES+=("ConstantPropagation")
+                shift
+                ;;
         -h|--help)
             usage
             echo ""
