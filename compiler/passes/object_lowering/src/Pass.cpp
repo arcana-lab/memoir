@@ -30,7 +30,7 @@ namespace {
 
             auto &noelle = getAnalysis<Noelle>();
             auto objectLowering = object_lowering::ObjectLowering(M,this, noelle);
-            objectLowering.transform();
+//            objectLowering.transform();
 //            object_lowering::test(M);
             return false;
         }
