@@ -66,7 +66,7 @@ struct ConstantPropagationPass : public ModulePass {
 char ConstantPropagationPass::ID = 0;
 static RegisterPass<ConstantPropagationPass> X(
     "ConstantPropagation",
-    "An example pass using the MemOIR analyses");
+    "Perform constant propagation through MemOIR Collections");
 
 // Next there is code to register your pass to "clang"
 static ConstantPropagationPass *_PassMaker = NULL;
