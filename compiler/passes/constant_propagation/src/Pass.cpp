@@ -46,7 +46,9 @@ struct ConstantPropagationPass : public ModulePass {
 
     auto &noelle = getAnalysis<Noelle>();
 
-    auto constProp = constprop::ConstantPropagation(M, noelle);
+    auto CA = memoir::CollectionAnalysis::get(noelle);
+
+    auto constProp = constprop::ConstantPropagation(M, CA);
 
     constProp.analyze();
     constProp.transform();
