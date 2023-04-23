@@ -395,6 +395,10 @@ Collection *CollectionAnalysis::visitArgument(llvm::Argument &A) {
   MEMOIR_NULL_CHECK(parent_function,
                     "Could not determine the parent function of the Argument");
 
+  if (parent_function->getName() == "main") {
+    return nullptr;
+  }
+
   auto parent_module = parent_function->getParent();
   MEMOIR_NULL_CHECK(parent_module,
                     "Could not determine the parent module of the Argument");
