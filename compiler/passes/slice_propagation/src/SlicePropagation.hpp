@@ -88,18 +88,46 @@ protected:
     SlicePropagationCandidate(llvm::Use &use,
                               ValueExpression *left_index,
                               ValueExpression *right_index,
+                              llvm::CallBase *call_context,
                               SlicePropagationCandidate *parent)
       : use(use),
         left_index(left_index),
         right_index(right_index),
+        call_context(call_context),
         parent(parent) {
       // Do nothing.
     }
 
     SlicePropagationCandidate(llvm::Use &use,
                               ValueExpression *left_index,
+                              ValueExpression *right_index,
+                              llvm::CallBase *call_context)
+      : SlicePropagationCandidate(use,
+                                  left_index,
+                                  right_index,
+                                  call_context,
+                                  nullptr) {
+      // Do nothing.
+    }
+
+    SlicePropagationCandidate(llvm::Use &use,
+                              ValueExpression *left_index,
+                              ValueExpression *right_index,
+                              SlicePropagationCandidate *parent)
+      : SlicePropagationCandidate(use,
+                                  left_index,
+                                  right_index,
+                                  nullptr,
+                                  parent) {}
+
+    SlicePropagationCandidate(llvm::Use &use,
+                              ValueExpression *left_index,
                               ValueExpression *right_index)
-      : SlicePropagationCandidate(use, left_index, right_index, nullptr) {
+      : SlicePropagationCandidate(use,
+                                  left_index,
+                                  right_index,
+                                  nullptr,
+                                  nullptr) {
       // Do nothing.
     }
 
@@ -107,6 +135,7 @@ protected:
       : SlicePropagationCandidate(use,
                                   parent->left_index,
                                   parent->right_index,
+                                  parent->call_context,
                                   parent) {
       // Do nothing.
     }
@@ -120,6 +149,7 @@ protected:
     // Borrowed state.
     SlicePropagationCandidate *parent;
     llvm::Use &use;
+    llvm::CallBase *call_context;
   };
 
   // Owned state.
@@ -137,6 +167,11 @@ protected:
   set<SlicePropagationCandidate *> leaf_candidates;
   SlicePropagationCandidate *candidate;
   set<llvm::Value *> values_to_delete;
+
+  map<llvm::CallBase *, pair<llvm::Function *, llvm::ValueToValueMapTy *>>
+      function_versions;
+  llvm::Function *current_function_version;
+  llvm::ValueToValueMapTy *current_value_map;
 
   // CollectionVisitor methods for analysis.
   bool visitBaseCollection(BaseCollection &C);

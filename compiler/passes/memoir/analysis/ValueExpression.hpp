@@ -8,6 +8,8 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
+#include "llvm/Transforms/Utils/Cloning.h"
+
 // MemOIR
 #include "memoir/ir/Builder.hpp"
 #include "memoir/support/Casting.hpp"
@@ -30,6 +32,7 @@ enum ExpressionKind {
   EK_Unknown,
   EK_BasicStart,
   EK_Basic,
+  EK_Cast,
   EK_ICmp,
   EK_PHI,
   EK_Select,
@@ -55,7 +58,8 @@ public:
       opcode(opcode),
       value(value),
       commutative(commutative),
-      is_memoir(is_memoir) {}
+      is_memoir(is_memoir),
+      arguments({}) {}
 
   ExpressionKind getKind() const {
     return this->EK;
@@ -84,9 +88,9 @@ public:
     return this->value;
   }
 
-  llvm::Type *getLLVMType() const {
+  virtual llvm::Type *getLLVMType() const {
     if (!this->value) {
-      return nullptr;
+      return this->arguments.at(0)->getLLVMType();
     }
     return this->value->getType();
   }
@@ -113,14 +117,27 @@ public:
   // Availability.
   virtual bool isAvailable(llvm::Instruction &IP,
                            const llvm::DominatorTree *DT = nullptr,
-                           llvm::CallBase *call_context = nullptr) const = 0;
+                           llvm::CallBase *call_context = nullptr) = 0;
 
   // Materialization.
-  virtual llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const = 0;
+  virtual llvm::Value *materialize(llvm::Instruction &IP,
+                                   MemOIRBuilder *builder = nullptr,
+                                   const llvm::DominatorTree *DT = nullptr,
+                                   llvm::CallBase *call_context = nullptr) = 0;
+
+  // These functions can be used to query information about possible function
+  // versioning if it was necessary.
+  llvm::Function *getVersionedFunction() {
+    return this->function_version;
+  };
+
+  llvm::ValueToValueMapTy *getValueMapping() {
+    return this->version_mapping;
+  };
+
+  llvm::CallBase *getVersionedCall() {
+    return this->call_version;
+  };
 
   // Debug.
   virtual std::string toString(std::string indent = "") const = 0;
@@ -135,6 +152,13 @@ public:
     return os;
   }
 
+  static llvm::Argument *handleCallContext(
+      ValueExpression &Expr,
+      llvm::Value &materialized_value,
+      llvm::CallBase &call_context,
+      MemOIRBuilder *builder = nullptr,
+      const llvm::DominatorTree *DT = nullptr);
+
   // State.
   ExpressionKind EK;
   llvm::Value *value;
@@ -142,6 +166,11 @@ public:
   vector<ValueExpression *> arguments;
   bool is_memoir;
   bool commutative;
+
+  // Materialization state.
+  llvm::Function *function_version;
+  llvm::ValueToValueMapTy *version_mapping;
+  llvm::CallBase *call_version;
 };
 
 #define CHECK_OTHER(OTHER, CLASS)                                              \
@@ -171,17 +200,14 @@ public:
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) const override;
+                   llvm::CallBase *call_context = nullptr) override;
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
 
-  std::string toString(std::string indent = "") const {
-    return "constant";
-  }
+  std::string toString(std::string indent = "") const override;
 
   llvm::Constant &C;
 };
@@ -204,17 +230,14 @@ public:
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) const override;
+                   llvm::CallBase *call_context = nullptr) override;
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
 
-  std::string toString(std::string indent = "") const {
-    return "variable";
-  }
+  std::string toString(std::string indent = "") const override;
 
   llvm::Value &V;
 };
@@ -236,17 +259,14 @@ public:
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) const override;
+                   llvm::CallBase *call_context = nullptr) override;
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
 
-  std::string toString(std::string indent = "") const {
-    return "argument";
-  }
+  std::string toString(std::string indent = "") const override;
 
   llvm::Argument &A;
 };
@@ -267,23 +287,21 @@ public:
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) const override;
+                   llvm::CallBase *call_context = nullptr) override;
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
 
-  std::string toString(std::string indent = "") const {
-    return "unknown";
-  }
+  std::string toString(std::string indent = "") const override;
 };
 
 struct BasicExpression : public ValueExpression {
 public:
   BasicExpression(ExpressionKind EK, unsigned opcode)
-    : ValueExpression(EK, nullptr, opcode) {}
+    : ValueExpression(EK, nullptr, opcode),
+      I(nullptr) {}
   BasicExpression(unsigned opcode) : BasicExpression(EK_Basic, opcode) {}
   BasicExpression(ExpressionKind EK, llvm::Instruction &I)
     : ValueExpression(EK, &I, I.getOpcode()),
@@ -292,7 +310,7 @@ public:
 
   static bool classof(const ValueExpression *E) {
     return (E->getKind() > EK_BasicStart) && (E->getKind() < EK_BasicEnd);
-  }
+  };
 
   bool equals(const ValueExpression &E) const override {
     CHECK_OTHER(E, BasicExpression);
@@ -306,35 +324,65 @@ public:
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) const override;
+                   llvm::CallBase *call_context = nullptr) override;
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
 
-  std::string toString(std::string indent = "") const {
-    return "basic";
-  }
+  std::string toString(std::string indent = "") const override;
 
   // Borrowed State.
   llvm::Instruction *I;
 };
 
+struct CastExpression : public BasicExpression {
+public:
+  CastExpression(llvm::CastInst &I)
+    : BasicExpression(EK_Cast, I),
+      dest_type(*I.getDestTy()) {}
+  CastExpression(unsigned opcode, ValueExpression &expr, llvm::Type &dest_type)
+    : BasicExpression(EK_Cast, opcode),
+      dest_type(dest_type) {
+    this->arguments.push_back(&expr);
+  }
+
+  ValueExpression &getOperand() const {
+    return *(this->arguments.at(0));
+  };
+
+  llvm::Type &getDestType() const {
+    return this->dest_type;
+  };
+
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
+
+  std::string toString(std::string indent = "") const override;
+
+  // Borrowed state.
+  llvm::Type &dest_type;
+};
+
 struct ICmpExpression : public BasicExpression {
 public:
-  ICmpExpression(llvm::ICmpInst &cmp) : BasicExpression(EK_ICmp, cmp) {}
+  ICmpExpression(llvm::ICmpInst &cmp)
+    : BasicExpression(EK_ICmp, cmp),
+      predicate(cmp.getPredicate()) {}
   ICmpExpression(llvm::CmpInst::Predicate pred,
                  ValueExpression &LHS,
                  ValueExpression &RHS)
-    : BasicExpression(EK_ICmp, (Instruction::ICmp << 8) | pred) {
+    : BasicExpression(EK_ICmp, (Instruction::ICmp << 8) | pred),
+      predicate(pred) {
     this->arguments.push_back(&LHS);
     this->arguments.push_back(&RHS);
   }
 
   llvm::CmpInst::Predicate getPredicate() const {
-    return (llvm::CmpInst::Predicate)(this->opcode & 0xFF);
+    return this->predicate;
   }
 
   ValueExpression *getLHS() const {
@@ -344,11 +392,30 @@ public:
   ValueExpression *getRHS() const {
     return this->arguments.at(1);
   }
+
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
+
+  std::string toString(std::string indent = "") const override;
+
+  // Owned state.
+  llvm::CmpInst::Predicate predicate;
 };
 
 struct PHIExpression : public BasicExpression {
 public:
-  PHIExpression(llvm::PHINode &phi) : BasicExpression(EK_PHI, phi), phi(phi) {}
+  PHIExpression(llvm::PHINode &phi) : BasicExpression(EK_PHI, phi), phi(&phi) {}
+  PHIExpression(vector<ValueExpression *> incoming_expressions,
+                vector<llvm::BasicBlock *> incoming_blocks)
+    : BasicExpression(EK_PHI),
+      incoming_blocks(incoming_blocks) {
+    // Add the incoming expressions to the expressio argument list.
+    for (auto incoming_expr : incoming_expressions) {
+      this->arguments.push_back(incoming_expr);
+    }
+  }
 
   static bool classof(const ValueExpression *E) {
     return (E->getKind() == EK_PHI);
@@ -360,17 +427,31 @@ public:
     return false;
   }
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
+  llvm::BasicBlock &getIncomingBlock(unsigned index) const {
+    if (this->phi != nullptr) {
+      return sanitize(this->phi->getIncomingBlock(index),
+                      "Couldn't get the incoming basic block");
+    }
 
-  std::string toString(std::string indent = "") const {
-    return "phi";
+    // Otherwise, get it from the vector.
+    MEMOIR_ASSERT(
+        (index < this->incoming_blocks.size()),
+        "Index out of range of incoming basic blocks for PHIExpression");
+    return *(this->incoming_blocks.at(index));
   }
 
-  llvm::PHINode &phi;
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
+
+  std::string toString(std::string indent = "") const override;
+
+  // Realized
+  llvm::PHINode *phi;
+
+  // Unrealized
+  vector<llvm::BasicBlock *> incoming_blocks;
 };
 
 struct SelectExpression : public BasicExpression {
@@ -398,15 +479,16 @@ public:
     return this->getArgument(2);
   }
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
-
-  std::string toString(std::string indent = "") const {
-    return "phi";
+  llvm::Type *getLLVMType() const override {
+    return this->getTrueValue()->getLLVMType();
   }
+
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
+
+  std::string toString(std::string indent = "") const override;
 };
 
 struct CallExpression : public BasicExpression {
@@ -419,15 +501,12 @@ public:
     return (E->getKind() == EK_Call);
   }
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
 
-  std::string toString(std::string indent = "") const {
-    return "call";
-  }
+  std::string toString(std::string indent = "") const override;
 
   llvm::CallInst &call;
 };
@@ -454,17 +533,14 @@ public:
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) const override;
+                   llvm::CallBase *call_context = nullptr) override;
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
 
-  std::string toString(std::string indent = "") const {
-    return "collection";
-  }
+  std::string toString(std::string indent = "") const override;
 
   Collection &C;
 };
@@ -481,17 +557,14 @@ public:
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) const override;
+                   llvm::CallBase *call_context = nullptr) override;
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
 
-  std::string toString(std::string indent = "") const {
-    return "struct";
-  }
+  std::string toString(std::string indent = "") const override;
 
   Struct &S;
 };
@@ -509,17 +582,14 @@ public:
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) const override;
+                   llvm::CallBase *call_context = nullptr) override;
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
 
-  std::string toString(std::string indent = "") const {
-    return "struct";
-  }
+  std::string toString(std::string indent = "") const override;
 
   SliceInst *I;
   CollectionExpression *CE;
@@ -542,28 +612,17 @@ public:
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) const override;
+                   llvm::CallBase *call_context = nullptr) override;
 
-  llvm::Value *materialize(
-      llvm::Instruction &IP,
-      MemOIRBuilder *builder = nullptr,
-      const llvm::DominatorTree *DT = nullptr,
-      llvm::CallBase *call_context = nullptr) const override;
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
 
-  std::string toString(std::string indent = "") const {
-    return "size";
-  }
+  std::string toString(std::string indent = "") const override;
 
   CollectionExpression *CE;
 };
-
-// Commutative equality.
-// bool operator==(const llvm::Value &Other, const ValueExpression &Expr) {
-//   return Expr.equals(Other);
-// };
-// bool operator!=(const llvm::Value &Other, const ValueExpression &Expr) {
-//   return !(Expr == Other);
-// };
 
 // Casting.
 template <typename LLVMTy>
