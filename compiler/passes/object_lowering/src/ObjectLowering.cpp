@@ -128,12 +128,12 @@ namespace object_lowering {
                 auto old_arg = (oldF->arg_begin() + argi);
                 memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
                 arg_types.push_back(marg_ty != nullptr ?
-                                    nativeTypeConverter->getLLVMRepresentation(marg_ty) :
+                                    llvm::PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(marg_ty)):
                                     old_arg->getType());
             }
             memoir::Type *mret_ty = typeAnalysis.getReturnType(*oldF);
             llvm::Type *ret_ty = mret_ty != nullptr ?
-                                 nativeTypeConverter->getLLVMRepresentation(mret_ty) :
+                                 llvm::PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(mret_ty)):
                                  oldF->getReturnType();
             auto new_func_ty = FunctionType::get(ret_ty, arg_types, false);
             auto newF = Function::Create(new_func_ty,
@@ -463,7 +463,8 @@ namespace object_lowering {
                         if(typeAnalysis.getReturnType(*oldF) == nullptr) {
                             ins.replaceAllUsesWith(new_callins);
                         }
-                        replacementMapping[callIns] = new_callins;
+                        Utility::debug() << "Call instruction replaced with " <<*new_callins<<"\n";
+                         replacementMapping[callIns] = new_callins;
                     }
                 }
                 else if (auto bitcast = dyn_cast<BitCastInst>(&ins)) {
