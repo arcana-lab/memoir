@@ -173,14 +173,14 @@ namespace object_lowering {
             func_pair.first->eraseFromParent();
         }
 
-        for (auto p: replacementMapping) toDeletes.insert(p.first);
+//        for (auto p: replacementMapping) toDeletes.insert(p.first);
         // recursively find all instructions to delete
 //        for (auto p: replacementMapping) findInstsToDelete(p.first, toDeletes);
 
         for (auto v: toDeletes) {
 //           v->replaceAllUsesWith(UndefValue::get(v->getType()));
             if (auto i = dyn_cast<Instruction>(v)) {
-//                i->replaceAllUsesWith(UndefValue::get(v->getType()));
+                i->replaceAllUsesWith(UndefValue::get(i->getType()));
                 i->eraseFromParent();
             }
         }
@@ -233,6 +233,10 @@ namespace object_lowering {
                     new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
                 }
             }
+        }
+
+        for (auto p: replacementMapping) {
+            toDeletes.insert(p.first);
         }
 
     }
