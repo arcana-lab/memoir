@@ -117,9 +117,6 @@ namespace object_lowering {
                 }
             }
         }
-        TypeAnalysis::invalidate();
-        CollectionAnalysis::invalidate();
-        StructAnalysis::invalidate();
         auto& typeAnalysis = memoir::TypeAnalysis::get();
         for (auto &oldF: functions_to_clone) {
             Utility::debug()<<"Attempting to clone function "<< oldF->getName() << "\n";
@@ -156,6 +153,9 @@ namespace object_lowering {
                     old_arg->replaceAllUsesWith(new_arg);
                 }
             }
+            TypeAnalysis::invalidate();
+            CollectionAnalysis::invalidate();
+            StructAnalysis::invalidate();
             Utility::debug()<<"Cloned function "<< newF->getName() << "\n";
             clonedFunctionMap[oldF] = newF;
 
