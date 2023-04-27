@@ -9,6 +9,7 @@ auto objTy =
 
 void write(Struct* myObj)
 {
+  memoir_assert_struct_type(objTy, myObj);
   memoir_struct_write(u64, 123, myObj, 0);
 }
 
