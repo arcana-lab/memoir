@@ -156,7 +156,7 @@ namespace object_lowering {
             TypeAnalysis::invalidate();
             CollectionAnalysis::invalidate();
             StructAnalysis::invalidate();
-            Utility::debug()<<"Cloned function "<< newF << "\n";
+            Utility::debug()<<"Cloned function "<< *newF << "\n";
             clonedFunctionMap[oldF] = newF;
 
         }
