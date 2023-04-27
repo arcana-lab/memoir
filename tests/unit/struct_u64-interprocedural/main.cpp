@@ -13,12 +13,17 @@ int64_t readstruct(Struct* myObj)
   return memoir_struct_read(u64, myObj, 0);
 }
 
+void print(int64_t read2)
+{
+printf("You entered: %d\n", read2);
+}
+
 int main() {
   auto myObj = memoir_allocate_struct(objTy);
   memoir_struct_write(u64, 123, myObj, 0);
   int64_t read1 = readstruct(myObj);
   auto read2 = memoir_struct_read(u64, myObj, 0);
-  printf("You entered: %d", read2);
+  print(read1);
   return 0;
 }
 
