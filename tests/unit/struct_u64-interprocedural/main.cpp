@@ -21,7 +21,7 @@ printf("You entered: %d\n", read2);
 int main() {
   auto myObj = memoir_allocate_struct(objTy);
   memoir_struct_write(u64, 123, myObj, 0);
-  int64_t read1 = readstruct(myObj);
+  int64_t read1 = readstruct(myObj)+2;
   auto read2 = memoir_struct_read(u64, myObj, 0);
   print(read1);
   return 0;
