@@ -15,7 +15,7 @@ void write(Struct* myObj)
 int main() {
   auto myObj = memoir_allocate_struct(objTy);
   write(myObj);
-  read1 = memoir_struct_read(u64, myObj, 0);
+  auto read1 = memoir_struct_read(u64, myObj, 0);
   std::cerr << "1: " << read1 << "\n";
   return 0;
 }
