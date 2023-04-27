@@ -179,6 +179,12 @@ namespace object_lowering {
                 i->eraseFromParent();
             }
         }
+
+        Utility::debug()<<"main(after) function "<<  *main <<"\n\n";
+        for (auto & func_pair: clonedFunctionMap)
+        {
+            Utility::debug()<<"Cloned (after)function "<< *func_pair.first << "\n\n";
+        }
     }
 
     void ObjectLowering::function_transform(llvm::Function *f) {
