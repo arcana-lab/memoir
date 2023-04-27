@@ -172,13 +172,13 @@ namespace object_lowering {
         {
             func_pair.first->eraseFromParent();
         }
-        for (auto v: toDeletes) {
-           v->replaceAllUsesWith(UndefValue::get(v->getType()));
-            if (auto i = dyn_cast<Instruction>(v)) {
-//                i->replaceAllUsesWith();
-                i->eraseFromParent();
-            }
-        }
+//        for (auto v: toDeletes) {
+//           v->replaceAllUsesWith(UndefValue::get(v->getType()));
+//            if (auto i = dyn_cast<Instruction>(v)) {
+////                i->replaceAllUsesWith();
+//                i->eraseFromParent();
+//            }
+//        }
 
         Utility::debug()<<"main(after) function "<<  *main <<"\n\n";
         for (auto & func_pair: clonedFunctionMap)
