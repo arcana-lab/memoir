@@ -21,6 +21,13 @@ namespace object_lowering {
         auto &CA = CollectionAnalysis::get(n);
     }
 
+    bool isBaseMemoirType(memoir::Type* memoirtype)
+    {
+        return memoirtype->getCode() == memoir::TypeCode::INTEGER ||
+               memoirtype->getCode() ==memoir::TypeCode::DOUBLE||
+               memoirtype->getCode() ==memoir::TypeCode::FLOAT||
+               memoirtype->getCode() ==memoir::TypeCode::POINTER;
+    }
 
     void findInstsToDelete(Value *i, std::set<Value *> &toDelete) {
         for (auto u: i->users()) {
@@ -127,24 +134,14 @@ namespace object_lowering {
             for (unsigned argi = 0; argi < oldF->arg_size(); ++argi) {
                 auto old_arg = (oldF->arg_begin() + argi);
                 memoir::Type *marg_ty = typeAnalysis.getType(*old_arg);
-                arg_types.push_back(marg_ty != nullptr ?
-                                    llvm::PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(marg_ty)):
-                                    old_arg->getType());
+                arg_types.push_back( ((marg_ty == nullptr || (isBaseMemoirType(marg_ty))) ?
+                                        old_arg->getType():
+                                        llvm::PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(marg_ty))));
             }
             memoir::Type *mret_ty = typeAnalysis.getReturnType(*oldF);
-            Utility::debug() <<mret_ty->toString() << "is the return type  \n";
-            llvm::Type *ret_ty;
-            if ( mret_ty != nullptr && ! (mret_ty->getCode() == memoir::TypeCode::STRUCT ||  mret_ty->getCode() == memoir::TypeCode::STRUCT))
-            {
-                ret_ty = nativeTypeConverter->getLLVMRepresentation(mret_ty);
-            }else if(mret_ty == nullptr)
-            {
-                ret_ty =  oldF->getReturnType();
-            }
-            else{
-                ret_ty = llvm::PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(mret_ty));
-            }
-           
+            llvm::Type *ret_ty = ( mret_ty == nullptr || (isBaseMemoirType(mret_ty))) ?
+                    oldF->getReturnType():
+                    llvm::PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(mret_ty));
             auto new_func_ty = FunctionType::get(ret_ty, arg_types, false);
             auto newF = Function::Create(new_func_ty,
                                          oldF->getLinkage(),
@@ -486,7 +483,8 @@ namespace object_lowering {
                         }
                         auto new_callins =
                                 builder.CreateCall(clonedFunctionMap[callee], arguments);
-                        if(typeAnalysis.getReturnType(*oldF) == nullptr) {
+                        auto memoirtype = typeAnalysis.getReturnType(*oldF);
+                        if(memoirtype == nullptr || isBaseMemoirType(memoirtype)) {
                             ins.replaceAllUsesWith(new_callins);
                         }
                         Utility::debug() << "Call instruction replaced with " <<*new_callins<<"\n";
