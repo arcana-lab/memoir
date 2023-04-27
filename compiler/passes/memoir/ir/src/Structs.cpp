@@ -294,8 +294,7 @@ StructType &ArgPHIStruct::getType() const {
                      " all incoming edges are the argument PHI");
 }
 
-llvm::Argument &ArgPHIStruct::getArgument()
-{
+llvm::Argument &ArgPHIStruct::getArgument() const {
   return this->argument;
 }
 
