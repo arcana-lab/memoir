@@ -18,6 +18,6 @@ int main() {
   memoir_struct_write(u64, 123, myObj, 0);
   int64_t read1 = readstruct(myObj);
   std::cerr << "1: " << read1 << "\n";
-  return read1;
+  return 0;
 }
 
