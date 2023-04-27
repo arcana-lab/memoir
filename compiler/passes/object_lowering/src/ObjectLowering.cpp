@@ -184,10 +184,7 @@ namespace object_lowering {
         for (auto & func_pair: clonedFunctionMap)
         {
             auto f = func_pair.first;
-            for (auto &i : instructions(*f))
-            {
-                Utility::debug()<<i<<"\n";
-            }
+            Utility::debug()<<"Cloned (after)function "<< *func_pair.second << "\n\n";
         }
     }
 
