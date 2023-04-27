@@ -294,6 +294,12 @@ StructType &ArgPHIStruct::getType() const {
                      " all incoming edges are the argument PHI");
 }
 
+llvm::Argument &ArgPHIStruct::getArgument()
+{
+  return this->argument;
+}
+
+
 std::string ArgPHIStruct::toString(std::string indent) const {
   std::string str;
 
