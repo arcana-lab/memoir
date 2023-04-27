@@ -172,15 +172,18 @@ namespace object_lowering {
         {
             func_pair.first->eraseFromParent();
         }
-        for (auto v: toDeletes) {
 
+        for (auto p: replacementMapping) toDeletes.insert(p.first);
+        // recursively find all instructions to delete
+        for (auto p: replacementMapping) findInstsToDelete(p.first, toDeletes);
+
+        for (auto v: toDeletes) {
 //           v->replaceAllUsesWith(UndefValue::get(v->getType()));
             if (auto i = dyn_cast<Instruction>(v)) {
                 Utility::debug()<<*i <<"delete\n";
+                i->replaceAllUsesWith(UndefValue::get(v->getType()));
+                i->eraseFromParent();
             }
-////                i->replaceAllUsesWith();
-//                i->eraseFromParent();
-//            }
         }
 
         Utility::debug()<<"main(after) function "<<  *main <<"\n\n";
@@ -231,9 +234,6 @@ namespace object_lowering {
                     new_phi->addIncoming(new_val, old_phi->getIncomingBlock(i));
                 }
             }
-        }
-        for (auto p: replacementMapping) {
-            toDeletes.insert(p.first);
         }
 
     }
@@ -883,6 +883,7 @@ namespace object_lowering {
                 case llvm::memoir::ASSERT_STRUCT_TYPE:
                 case llvm::memoir::ASSERT_COLLECTION_TYPE:
                 case llvm::memoir::SET_RETURN_TYPE:
+                    replacementMapping[&ins] = &ins;
                     Utility::debug() << "TODO Interprocedural \n";
                     break;
                 case llvm::memoir::NONE:
