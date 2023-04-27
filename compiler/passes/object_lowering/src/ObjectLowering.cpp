@@ -173,10 +173,10 @@ namespace object_lowering {
             func_pair.first->eraseFromParent();
         }
         for (auto v: toDeletes) {
-             errs() << "\t" << *v << "\n";
+           v->replaceAllUsesWith(UndefValue::get(v->getType()));
             if (auto i = dyn_cast<Instruction>(v)) {
-                i->replaceAllUsesWith(UndefValue::get(i->getType()));
-//                i->eraseFromParent();
+//                i->replaceAllUsesWith();
+                i->eraseFromParent();
             }
         }
 
