@@ -175,7 +175,7 @@ namespace object_lowering {
 
         for (auto p: replacementMapping) toDeletes.insert(p.first);
         // recursively find all instructions to delete
-        for (auto p: replacementMapping) findInstsToDelete(p.first, toDeletes);
+//        for (auto p: replacementMapping) findInstsToDelete(p.first, toDeletes);
 
         for (auto v: toDeletes) {
 //           v->replaceAllUsesWith(UndefValue::get(v->getType()));
