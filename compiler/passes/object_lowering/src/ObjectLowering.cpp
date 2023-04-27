@@ -132,6 +132,7 @@ namespace object_lowering {
                                     old_arg->getType());
             }
             memoir::Type *mret_ty = typeAnalysis.getReturnType(*oldF);
+            Utility::debug() <<mret_ty << "is the return type  \n";
             llvm::Type *ret_ty = mret_ty != nullptr ?
                                  llvm::PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(mret_ty)):
                                  oldF->getReturnType();
