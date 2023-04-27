@@ -133,9 +133,18 @@ namespace object_lowering {
             }
             memoir::Type *mret_ty = typeAnalysis.getReturnType(*oldF);
             Utility::debug() <<mret_ty->toString() << "is the return type  \n";
-            llvm::Type *ret_ty = mret_ty != nullptr ?
-                                 llvm::PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(mret_ty)):
-                                 oldF->getReturnType();
+            llvm::Type *ret_ty;
+            if ( mret_ty != nullptr && ! (mret_ty->getCode() == memoir::TypeCode::STRUCT ||  mret_ty->getCode() == memoir::TypeCode::STRUCT))
+            {
+                ret_ty = nativeTypeConverter->getLLVMRepresentation(mret_ty);
+            }else if(mret_ty == nullptr)
+            {
+                ret_ty =  oldF->getReturnType();
+            }
+            else{
+                ret_ty = llvm::PointerType::getUnqual(nativeTypeConverter->getLLVMRepresentation(mret_ty));
+            }
+           
             auto new_func_ty = FunctionType::get(ret_ty, arg_types, false);
             auto newF = Function::Create(new_func_ty,
                                          oldF->getLinkage(),
