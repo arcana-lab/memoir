@@ -180,7 +180,7 @@ namespace object_lowering {
         for (auto v: toDeletes) {
 //           v->replaceAllUsesWith(UndefValue::get(v->getType()));
             if (auto i = dyn_cast<Instruction>(v)) {
-                i->replaceAllUsesWith(UndefValue::get(v->getType()));
+//                i->replaceAllUsesWith(UndefValue::get(v->getType()));
                 i->eraseFromParent();
             }
         }
