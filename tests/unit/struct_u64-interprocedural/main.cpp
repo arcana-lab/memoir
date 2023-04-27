@@ -19,6 +19,6 @@ int main() {
   int64_t read1 = readstruct(myObj);
   auto read2 = memoir_struct_read(u64, myObj, 0);
   std::cerr << "2: " << read2 << "\n";
-  return read1;
+  return 0;
 }
 
