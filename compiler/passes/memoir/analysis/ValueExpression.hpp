@@ -61,58 +61,23 @@ public:
       is_memoir(is_memoir),
       arguments({}) {}
 
-  ExpressionKind getKind() const {
-    return this->EK;
-  };
+  ExpressionKind getKind() const;
 
   // Equality.
   virtual bool equals(const ValueExpression &E) const = 0;
-  bool operator==(const ValueExpression &E) const {
-    return this->equals(E);
-  };
-  bool operator!=(const ValueExpression &E) const {
-    return !(*this == E);
-  };
-  bool equals(const llvm::Value &V) const {
-    return (this->value == &V);
-  };
-  bool operator==(const llvm::Value &Other) const {
-    return this->equals(Other);
-  };
-  bool operator!=(const llvm::Value &Other) const {
-    return !(*this == Other);
-  };
+  bool operator==(const ValueExpression &E) const;
+  bool operator!=(const ValueExpression &E) const;
+  bool equals(const llvm::Value &V) const;
+  bool operator==(const llvm::Value &Other) const;
+  bool operator!=(const llvm::Value &Other) const;
 
   // Accessors.
-  llvm::Value *getValue() const {
-    return this->value;
-  }
-
-  virtual llvm::Type *getLLVMType() const {
-    if (!this->value) {
-      return this->arguments.at(0)->getLLVMType();
-    }
-    return this->value->getType();
-  }
-
-  Type *getMemOIRType() const {
-    // TODO
-    return nullptr;
-  }
-
-  unsigned getNumArguments() const {
-    return this->arguments.size();
-  }
-
-  ValueExpression *getArgument(unsigned idx) const {
-    MEMOIR_ASSERT((idx < this->getNumArguments()),
-                  "Index out of range for ValueExpression arguments");
-    return this->arguments[idx];
-  }
-
-  void setArgument(unsigned idx, ValueExpression &expr) {
-    this->arguments[idx] = &expr;
-  }
+  llvm::Value *getValue() const;
+  virtual llvm::Type *getLLVMType() const;
+  Type *getMemOIRType() const;
+  unsigned getNumArguments() const;
+  ValueExpression *getArgument(unsigned idx) const;
+  void setArgument(unsigned idx, ValueExpression &expr);
 
   // Availability.
   virtual bool isAvailable(llvm::Instruction &IP,
@@ -127,31 +92,18 @@ public:
 
   // These functions can be used to query information about possible function
   // versioning if it was necessary.
-  llvm::Function *getVersionedFunction() {
-    return this->function_version;
-  };
-
-  llvm::ValueToValueMapTy *getValueMapping() {
-    return this->version_mapping;
-  };
-
-  llvm::CallBase *getVersionedCall() {
-    return this->call_version;
-  };
+  llvm::Function *getVersionedFunction();
+  llvm::ValueToValueMapTy *getValueMapping();
+  llvm::CallBase *getVersionedCall();
 
   // Debug.
   virtual std::string toString(std::string indent = "") const = 0;
   friend std::ostream &operator<<(std::ostream &os,
-                                  const ValueExpression &Expr) {
-    os << Expr.toString("");
-    return os;
-  }
+                                  const ValueExpression &Expr);
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const ValueExpression &Expr) {
-    os << Expr.toString("");
-    return os;
-  }
+                                       const ValueExpression &Expr);
 
+  // Internal helper function.
   static llvm::Argument *handleCallContext(
       ValueExpression &Expr,
       llvm::Value &materialized_value,
@@ -173,12 +125,6 @@ public:
   llvm::CallBase *call_version;
 };
 
-#define CHECK_OTHER(OTHER, CLASS)                                              \
-  if (!isa<CLASS>(OTHER)) {                                                    \
-    return false;                                                              \
-  }                                                                            \
-  const auto &OE = cast<CLASS>(OTHER);
-
 struct ConstantExpression : public ValueExpression {
 public:
   ConstantExpression(llvm::Constant &C)
@@ -189,14 +135,9 @@ public:
     return (E->getKind() == EK_Constant);
   }
 
-  bool equals(const ValueExpression &E) const override {
-    CHECK_OTHER(E, ConstantExpression);
-    return (&(this->C) == &(OE.C));
-  }
+  bool equals(const ValueExpression &E) const override;
 
-  llvm::Constant &getConstant() const {
-    return C;
-  }
+  llvm::Constant &getConstant() const;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -223,10 +164,7 @@ public:
     return (E->getKind() == EK_Variable);
   }
 
-  bool equals(const ValueExpression &E) const override {
-    CHECK_OTHER(E, VariableExpression)
-    return (&(this->V) == &(OE.V));
-  }
+  bool equals(const ValueExpression &E) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -252,10 +190,7 @@ public:
     return (E->getKind() == EK_Argument);
   }
 
-  bool equals(const ValueExpression &E) const override {
-    CHECK_OTHER(E, ArgumentExpression);
-    return (&(OE.A) == &(this->A));
-  }
+  bool equals(const ValueExpression &E) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -279,11 +214,7 @@ public:
     return (E->getKind() == EK_Unknown);
   }
 
-  bool equals(const ValueExpression &E) const override {
-    CHECK_OTHER(E, UnknownExpression);
-    // TODO
-    return false;
-  }
+  bool equals(const ValueExpression &E) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -312,15 +243,7 @@ public:
     return (E->getKind() > EK_BasicStart) && (E->getKind() < EK_BasicEnd);
   };
 
-  bool equals(const ValueExpression &E) const override {
-    CHECK_OTHER(E, BasicExpression);
-    if ((this->opcode != E.opcode) || (this->getLLVMType() != OE.getLLVMType())
-        || (this->getMemOIRType() != OE.getMemOIRType())
-        || (this->I->getNumOperands() != OE.I->getNumOperands())) {
-      return false;
-    }
-    return false;
-  };
+  bool equals(const ValueExpression &E) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -348,13 +271,9 @@ public:
     this->arguments.push_back(&expr);
   }
 
-  ValueExpression &getOperand() const {
-    return *(this->arguments.at(0));
-  };
+  ValueExpression &getOperand() const;
 
-  llvm::Type &getDestType() const {
-    return this->dest_type;
-  };
+  llvm::Type &getDestType() const;
 
   llvm::Value *materialize(llvm::Instruction &IP,
                            MemOIRBuilder *builder = nullptr,
@@ -381,17 +300,9 @@ public:
     this->arguments.push_back(&RHS);
   }
 
-  llvm::CmpInst::Predicate getPredicate() const {
-    return this->predicate;
-  }
-
-  ValueExpression *getLHS() const {
-    return this->arguments.at(0);
-  }
-
-  ValueExpression *getRHS() const {
-    return this->arguments.at(1);
-  }
+  llvm::CmpInst::Predicate getPredicate() const;
+  ValueExpression *getLHS() const;
+  ValueExpression *getRHS() const;
 
   llvm::Value *materialize(llvm::Instruction &IP,
                            MemOIRBuilder *builder = nullptr,
@@ -421,24 +332,9 @@ public:
     return (E->getKind() == EK_PHI);
   }
 
-  bool equals(const ValueExpression &E) const override {
-    CHECK_OTHER(E, PHIExpression);
-    // TODO
-    return false;
-  }
+  bool equals(const ValueExpression &E) const override;
 
-  llvm::BasicBlock &getIncomingBlock(unsigned index) const {
-    if (this->phi != nullptr) {
-      return sanitize(this->phi->getIncomingBlock(index),
-                      "Couldn't get the incoming basic block");
-    }
-
-    // Otherwise, get it from the vector.
-    MEMOIR_ASSERT(
-        (index < this->incoming_blocks.size()),
-        "Index out of range of incoming basic blocks for PHIExpression");
-    return *(this->incoming_blocks.at(index));
-  }
+  llvm::BasicBlock &getIncomingBlock(unsigned index) const;
 
   llvm::Value *materialize(llvm::Instruction &IP,
                            MemOIRBuilder *builder = nullptr,
@@ -467,21 +363,10 @@ public:
     this->arguments.push_back(&false_value);
   }
 
-  ValueExpression *getCondition() const {
-    return this->getArgument(0);
-  }
-
-  ValueExpression *getTrueValue() const {
-    return this->getArgument(1);
-  }
-
-  ValueExpression *getFalseValue() const {
-    return this->getArgument(2);
-  }
-
-  llvm::Type *getLLVMType() const override {
-    return this->getTrueValue()->getLLVMType();
-  }
+  ValueExpression *getCondition() const;
+  ValueExpression *getTrueValue() const;
+  ValueExpression *getFalseValue() const;
+  llvm::Type *getLLVMType() const override;
 
   llvm::Value *materialize(llvm::Instruction &IP,
                            MemOIRBuilder *builder = nullptr,
@@ -525,11 +410,7 @@ struct CollectionExpression : public MemOIRExpression {
 public:
   CollectionExpression(Collection &C) : MemOIRExpression(EK_Collection), C(C) {}
 
-  bool equals(const ValueExpression &E) const override {
-    CHECK_OTHER(E, CollectionExpression);
-    // TODO
-    return false;
-  }
+  bool equals(const ValueExpression &E) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -549,11 +430,7 @@ struct StructExpression : public MemOIRExpression {
 public:
   StructExpression(Struct &S) : MemOIRExpression(EK_Struct), S(S) {}
 
-  bool equals(const ValueExpression &E) const override {
-    CHECK_OTHER(E, StructExpression);
-    // TODO
-    return false;
-  }
+  bool equals(const ValueExpression &E) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -604,11 +481,7 @@ public:
       CE(CE) {}
   SizeExpression() : SizeExpression(nullptr) {}
 
-  bool equals(const ValueExpression &E) const override {
-    CHECK_OTHER(E, SizeExpression);
-    // TODO
-    return false;
-  }
+  bool equals(const ValueExpression &E) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,

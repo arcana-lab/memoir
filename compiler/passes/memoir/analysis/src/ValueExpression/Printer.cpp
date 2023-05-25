@@ -2,6 +2,17 @@
 
 namespace llvm::memoir {
 
+std::ostream &operator<<(std::ostream &os, const ValueExpression &Expr) {
+  os << Expr.toString("");
+  return os;
+}
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                              const ValueExpression &Expr) {
+  os << Expr.toString("");
+  return os;
+}
+
 std::string ConstantExpression::toString(std::string indent) const {
   return "constant";
 }
