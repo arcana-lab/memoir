@@ -11,13 +11,10 @@
  * Created: July 15, 2022
  */
 
-#if DEBUG
-#  include <map>
-#  include <set>
-#else
-#  include <unordered_map>
-#  include <unordered_set>
-#endif
+#include <map>
+#include <set>
+#include <unordered_map>
+#include <unordered_set>
 
 #include <queue>
 #include <stack>
@@ -84,6 +81,9 @@ template <typename T, typename U>
 using map = std::unordered_map<T, U, std::hash<unwrap_ref_type<T>>>;
 #endif
 
+template <typename T, typename U>
+using ordered_map = std::map<T, U, std::less<unwrap_ref_type<T>>>;
+
 #if DEBUG
 template <typename T>
 using set = std::set<T, std::less<unwrap_ref_type<T>>>;
@@ -91,6 +91,9 @@ using set = std::set<T, std::less<unwrap_ref_type<T>>>;
 template <typename T>
 using set = std::unordered_set<T, std::hash<unwrap_ref_type<T>>>;
 #endif
+
+template <typename T>
+using ordered_set = std::set<T, std::less<unwrap_ref_type<T>>>;
 
 template <typename T>
 using vector = std::vector<T>;
