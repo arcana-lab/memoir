@@ -12,6 +12,7 @@
  */
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -59,7 +60,7 @@ public:
 struct Struct : public Object {
 public:
   // Owned state
-  std::vector<Element *> fields;
+  std::vector<std::shared_ptr<Element>> fields;
 
   // Borrowed state
 
@@ -67,7 +68,7 @@ public:
   Struct(Type *type);
 
   // Access
-  Element *get_field(uint64_t field_index) const;
+  std::weak_ptr<Element> get_field(uint64_t field_index) const;
   bool is_struct() const override;
   bool equals(const Object *other) const override;
 
@@ -78,7 +79,7 @@ public:
 struct Collection : public Object {
 public:
   // Access
-  virtual Element *get_element(va_list args) = 0;
+  virtual std::weak_ptr<Element> get_element(va_list args) = 0;
   virtual Collection *get_slice(va_list args) = 0;
   virtual Collection *join(va_list args, uint8_t num_args) = 0;
   virtual Type *get_element_type() const = 0;
@@ -92,7 +93,7 @@ public:
 struct Tensor : public Collection {
 public:
   // Owned state
-  std::vector<Element *> tensor;
+  std::vector<std::shared_ptr<Element>> tensor;
   std::vector<uint64_t> length_of_dimensions;
 
   // Borrowed state
@@ -107,8 +108,9 @@ public:
   uint64_t size() const override;
 
   // Access
-  Element *get_tensor_element(std::vector<uint64_t> &indices) const;
-  Element *get_element(va_list args) override;
+  std::weak_ptr<Element> get_tensor_element(
+      std::vector<uint64_t> &indices) const;
+  std::weak_ptr<Element> get_element(va_list args) override;
   Type *get_element_type() const override;
 
   bool equals(const Object *other) const override;
@@ -119,8 +121,8 @@ public:
 
 struct AssocArray : public Collection {
 public:
-  using key_t = std::add_pointer<Object>::type;
-  using value_t = std::add_pointer<Element>::type;
+  using key_t = std::add_pointer_t<Object>;
+  using value_t = std::shared_ptr<Element>;
   using key_value_pair_t = std::unordered_map<key_t, value_t>::value_type;
 
   // Owned state
@@ -137,7 +139,7 @@ public:
   uint64_t size() const override;
 
   // Access
-  Element *get_element(va_list args) override;
+  std::weak_ptr<Element> get_element(va_list args) override;
   AssocArray::key_value_pair_t &get_pair(Object *key);
   Type *get_element_type() const override;
   Type *get_key_type() const;
@@ -152,7 +154,7 @@ public:
 struct Sequence : public Collection {
 public:
   // Owned state
-  std::vector<Element *> sequence;
+  std::vector<std::shared_ptr<Element>> sequence;
 
   // Construction
   Sequence(Type *type, uint64_t init_size);
@@ -163,8 +165,8 @@ public:
   Collection *get_slice(int64_t left_index, int64_t right_index);
 
   // Access
-  Element *get_element(va_list args) override;
-  Element *get_element(uint64_t index);
+  std::weak_ptr<Element> get_element(va_list args) override;
+  std::weak_ptr<Element> get_element(uint64_t index);
   Type *get_element_type() const override;
   uint64_t size() const override;
 
@@ -178,8 +180,8 @@ public:
 struct Element : public Object {
 public:
   // Construction
-  static Element *create(Type *type);
-  virtual Element *clone() const = 0;
+  static std::shared_ptr<Element> create(Type *type);
+  virtual std::shared_ptr<Element> clone() const = 0;
 
   bool is_element() const override;
 
@@ -199,7 +201,7 @@ public:
   // Construction
   IntegerElement(IntegerType *type);
   IntegerElement(IntegerType *type, uint64_t init);
-  Element *clone() const override;
+  std::shared_ptr<Element> clone() const override;
 
   // Debug
   std::string to_string() override;
@@ -217,7 +219,7 @@ public:
   // Construction
   FloatElement(FloatType *type);
   FloatElement(FloatType *type, float init);
-  Element *clone() const override;
+  std::shared_ptr<Element> clone() const override;
 
   // Debug
   std::string to_string() override;
@@ -235,7 +237,7 @@ public:
   // Construction
   DoubleElement(DoubleType *type);
   DoubleElement(DoubleType *type, double init);
-  Element *clone() const override;
+  std::shared_ptr<Element> clone() const override;
 
   // Debug
   std::string to_string() override;
@@ -254,7 +256,7 @@ public:
   // Construction
   PointerElement(PointerType *type);
   PointerElement(PointerType *type, void *init);
-  Element *clone() const override;
+  std::shared_ptr<Element> clone() const override;
 
   // Debug
   std::string to_string() override;
@@ -272,7 +274,7 @@ public:
   // Construction
   ReferenceElement(ReferenceType *type);
   ReferenceElement(ReferenceType *type, Object *init);
-  Element *clone() const override;
+  std::shared_ptr<Element> clone() const override;
 
   // Debug
   std::string to_string() override;
@@ -290,7 +292,7 @@ public:
   // Construction
   StructElement(StructType *type);
   StructElement(StructType *type, Struct *init);
-  Element *clone() const override;
+  std::shared_ptr<Element> clone() const override;
 
   // Debug
   std::string to_string() override;
@@ -318,7 +320,7 @@ public:
   // Construction
   TensorElement(TensorType *type);
   TensorElement(TensorType *type, Tensor *init);
-  Element *clone() const override;
+  std::shared_ptr<Element> clone() const override;
 
   // Debug
   std::string to_string() override;
@@ -334,7 +336,7 @@ public:
   // Construction
   AssocArrayElement(AssocArrayType *type);
   AssocArrayElement(AssocArrayType *type, AssocArray *init);
-  Element *clone() const override;
+  std::shared_ptr<Element> clone() const override;
 
   // Debug
   std::string to_string() override;
@@ -350,7 +352,7 @@ public:
   // Construction
   SequenceElement(SequenceType *type);
   SequenceElement(SequenceType *type, Sequence *init);
-  Element *clone() const override;
+  std::shared_ptr<Element> clone() const override;
 
   // Debug
   std::string to_string() override;

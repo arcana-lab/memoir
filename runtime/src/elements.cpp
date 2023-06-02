@@ -174,68 +174,69 @@ Collection *SequenceElement::read_value() const {
 /*
  * Element cloning
  */
-Element *IntegerElement::clone() const {
+std::shared_ptr<Element> IntegerElement::clone() const {
   auto type = static_cast<IntegerType *>(this->get_type());
-  return new IntegerElement(type, this->value);
+  return std::shared_ptr<Element>(new IntegerElement(type, this->value));
 }
 
-Element *FloatElement::clone() const {
+std::shared_ptr<Element> FloatElement::clone() const {
   auto type = static_cast<FloatType *>(this->get_type());
-  return new FloatElement(type, this->value);
+  return std::shared_ptr<Element>(new FloatElement(type, this->value));
 }
 
-Element *DoubleElement::clone() const {
+std::shared_ptr<Element> DoubleElement::clone() const {
   auto type = static_cast<DoubleType *>(this->get_type());
-  return new DoubleElement(type, this->value);
+  return std::shared_ptr<Element>(new DoubleElement(type, this->value));
 }
 
-Element *PointerElement::clone() const {
+std::shared_ptr<Element> PointerElement::clone() const {
   auto type = static_cast<PointerType *>(this->get_type());
-  return new PointerElement(type, this->value);
+  return std::shared_ptr<Element>(new PointerElement(type, this->value));
 }
 
-Element *ReferenceElement::clone() const {
+std::shared_ptr<Element> ReferenceElement::clone() const {
   auto type = static_cast<ReferenceType *>(this->get_type());
-  return new ReferenceElement(type, this->value);
+  return std::shared_ptr<Element>(new ReferenceElement(type, this->value));
 }
 
-Element *StructElement::clone() const {
+std::shared_ptr<Element> StructElement::clone() const {
   auto type = static_cast<StructType *>(this->get_type());
   auto cloned_struct = new Struct(type);
   for (auto i = 0; i < this->value->fields.size(); i++) {
     auto this_field = this->value->fields[i];
     cloned_struct->fields[i] = this_field->clone();
   }
-  return new StructElement(type, cloned_struct);
+  return std::shared_ptr<Element>(new StructElement(type, cloned_struct));
 }
 
-Element *TensorElement::clone() const {
+std::shared_ptr<Element> TensorElement::clone() const {
   auto type = static_cast<TensorType *>(this->get_type());
   auto cloned_tensor = new Tensor(type);
   for (auto i = 0; i < this->value->tensor.size(); i++) {
     auto this_element = this->value->tensor[i];
     cloned_tensor->tensor[i] = this_element->clone();
   }
-  return new TensorElement(type, cloned_tensor);
+  return std::shared_ptr<Element>(new TensorElement(type, cloned_tensor));
 }
 
-Element *AssocArrayElement::clone() const {
+std::shared_ptr<Element> AssocArrayElement::clone() const {
   auto type = static_cast<AssocArrayType *>(this->get_type());
   auto cloned_assoc_array = new AssocArray(type);
   cloned_assoc_array->assoc_array.clear();
   cloned_assoc_array->assoc_array.insert(this->value->assoc_array.begin(),
                                          this->value->assoc_array.end());
-  return new AssocArrayElement(type, cloned_assoc_array);
+  return std::shared_ptr<Element>(
+      new AssocArrayElement(type, cloned_assoc_array));
 }
 
-Element *SequenceElement::clone() const {
+std::shared_ptr<Element> SequenceElement::clone() const {
   auto type = static_cast<SequenceType *>(this->get_type());
   auto cloned_sequence = new Sequence(type, 0);
   cloned_sequence->sequence.clear();
   cloned_sequence->sequence.insert(cloned_sequence->sequence.begin(),
                                    this->value->sequence.begin(),
                                    this->value->sequence.end());
-  return new SequenceElement(type, cloned_sequence);
+  return std::shared_ptr<Element>(new SequenceElement(type, cloned_sequence));
 }
 
 /*
@@ -289,11 +290,11 @@ bool Element::is_element() const {
 /*
  * Element factory method
  */
-Element *Element::create(Type *type) {
+std::shared_ptr<Element> Element::create(Type *type) {
   switch (type->getCode()) {
     case TypeCode::StructTy: {
       auto struct_type = static_cast<StructType *>(type);
-      return new StructElement(struct_type);
+      return std::shared_ptr<Element>(new StructElement(struct_type));
     }
     case TypeCode::TensorTy: {
       auto tensor_type = (TensorType *)type;
@@ -301,27 +302,27 @@ Element *Element::create(Type *type) {
                     "Attempt to create tensor element of non-static length");
       auto &length_of_dimensions = tensor_type->length_of_dimensions;
       auto tensor = new Tensor(tensor_type, length_of_dimensions);
-      return new TensorElement(tensor_type, tensor);
+      return std::shared_ptr<Element>(new TensorElement(tensor_type, tensor));
     }
     case TypeCode::IntegerTy: {
       auto integer_type = static_cast<IntegerType *>(type);
-      return new IntegerElement(integer_type);
+      return std::shared_ptr<Element>(new IntegerElement(integer_type));
     }
     case TypeCode::FloatTy: {
       auto float_type = static_cast<FloatType *>(type);
-      return new FloatElement(float_type);
+      return std::shared_ptr<Element>(new FloatElement(float_type));
     }
     case TypeCode::DoubleTy: {
       auto double_type = static_cast<DoubleType *>(type);
-      return new DoubleElement(double_type);
+      return std::shared_ptr<Element>(new DoubleElement(double_type));
     }
     case TypeCode::PointerTy: {
       auto ptr_type = static_cast<PointerType *>(type);
-      return new PointerElement(ptr_type);
+      return std::shared_ptr<Element>(new PointerElement(ptr_type));
     }
     case TypeCode::ReferenceTy: {
       auto ref_type = static_cast<ReferenceType *>(type);
-      return new ReferenceElement(ref_type);
+      return std::shared_ptr<Element>(new ReferenceElement(ref_type));
     }
     default: {
       MEMOIR_ASSERT(false, "Attempting to create an element of unknown type");

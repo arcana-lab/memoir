@@ -44,7 +44,7 @@ Struct::Struct(Type *type) : Object(type) {
   }
 }
 
-Element *Struct::get_field(uint64_t field_index) const {
+std::weak_ptr<Element> Struct::get_field(uint64_t field_index) const {
   MEMOIR_ASSERT((field_index < this->fields.size()),
                 "Trying to read field from index outside of struct's range");
 
@@ -125,7 +125,8 @@ Tensor::Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions)
   }
 }
 
-Element *Tensor::get_tensor_element(std::vector<uint64_t> &indices) const {
+std::weak_ptr<Element> Tensor::get_tensor_element(
+    std::vector<uint64_t> &indices) const {
   auto flattened_index = 0;
   auto last_dimension_length = 1;
   for (auto i = 0; i < this->length_of_dimensions.size(); i++) {
@@ -142,7 +143,7 @@ Element *Tensor::get_tensor_element(std::vector<uint64_t> &indices) const {
   return this->tensor[flattened_index];
 }
 
-Element *Tensor::get_element(va_list args) {
+std::weak_ptr<Element> Tensor::get_element(va_list args) {
   auto num_dimensions = this->length_of_dimensions.size();
 
   std::vector<uint64_t> indices = {};
@@ -209,7 +210,7 @@ AssocArray::key_value_pair_t &AssocArray::get_pair(Object *key) {
   return *(this->assoc_array.find(key));
 }
 
-Element *AssocArray::get_element(va_list args) {
+std::weak_ptr<Element> AssocArray::get_element(va_list args) {
   Object *key;
 
   auto key_type = this->get_key_type();
@@ -350,14 +351,14 @@ Sequence::Sequence(Type *type, uint64_t initial_size) : Collection(type) {
   }
 }
 
-Element *Sequence::get_element(uint64_t index) {
+std::weak_ptr<Element> Sequence::get_element(uint64_t index) {
   MEMOIR_ASSERT((index < this->sequence.size()),
                 "Attempt to access out of range element of sequence");
 
   return this->sequence.at(index);
 }
 
-Element *Sequence::get_element(va_list args) {
+std::weak_ptr<Element> Sequence::get_element(va_list args) {
   auto index = va_arg(args, uint64_t);
 
   return this->get_element(index);
@@ -388,7 +389,7 @@ Collection *Sequence::get_slice(int64_t left_index, int64_t right_index) {
     auto type = static_cast<SequenceType *>(this->get_type());
     auto slice = new Sequence(type, length);
     for (auto i = 0; i < length; i++) {
-      slice->sequence[i] = this->get_element(left_index - i)->clone();
+      slice->sequence[i] = this->get_element(left_index - i).lock()->clone();
     }
     return slice;
   } else {
@@ -396,7 +397,7 @@ Collection *Sequence::get_slice(int64_t left_index, int64_t right_index) {
     auto type = static_cast<SequenceType *>(this->get_type());
     auto slice = new Sequence(type, length);
     for (auto i = 0; i < length; i++) {
-      slice->sequence[i] = this->get_element(left_index + i)->clone();
+      slice->sequence[i] = this->get_element(left_index + i).lock()->clone();
     }
     return slice;
   }

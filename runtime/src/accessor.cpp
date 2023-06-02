@@ -65,9 +65,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_INTEGER_CHECK(element, BITWIDTH, IS_SIGNED, #TYPE_NAME);            \
+    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
                                                                                \
-    auto integer_element = static_cast<IntegerElement *>(element);             \
+    auto integer_element =                                                     \
+        static_pointer_cast<IntegerElement>(element.lock());                   \
     return (C_TYPE)(integer_element->read_value());                            \
   }                                                                            \
                                                                                \
@@ -79,9 +80,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_INTEGER_CHECK(element, BITWIDTH, IS_SIGNED, #TYPE_NAME);            \
+    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
                                                                                \
-    auto integer_element = static_cast<IntegerElement *>(element);             \
+    auto integer_element =                                                     \
+        static_pointer_cast<IntegerElement>(element.lock());                   \
     integer_element->write_value((uint64_t)value);                             \
   }                                                                            \
                                                                                \
@@ -98,9 +100,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_INTEGER_CHECK(element, BITWIDTH, IS_SIGNED, #TYPE_NAME);            \
+    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
                                                                                \
-    auto integer_element = static_cast<IntegerElement *>(element);             \
+    auto integer_element =                                                     \
+        static_pointer_cast<IntegerElement>(element.lock());                   \
     return (C_TYPE)(integer_element->read_value());                            \
   }                                                                            \
                                                                                \
@@ -118,9 +121,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_INTEGER_CHECK(element, BITWIDTH, IS_SIGNED, #TYPE_NAME);            \
+    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
                                                                                \
-    auto integer_element = static_cast<IntegerElement *>(element);             \
+    auto integer_element =                                                     \
+        static_pointer_cast<IntegerElement>(element.lock());                   \
     integer_element->write_value((uint64_t)value);                             \
   }                                                                            \
                                                                                \
@@ -137,9 +141,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_INTEGER_CHECK(element, BITWIDTH, IS_SIGNED, #TYPE_NAME);            \
+    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
                                                                                \
-    auto integer_element = static_cast<IntegerElement *>(element);             \
+    auto integer_element =                                                     \
+        static_pointer_cast<IntegerElement>(element.lock());                   \
     return (C_TYPE)(integer_element->read_value());                            \
   }                                                                            \
                                                                                \
@@ -156,9 +161,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_INTEGER_CHECK(element, BITWIDTH, IS_SIGNED, #TYPE_NAME);            \
+    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
                                                                                \
-    auto integer_element = static_cast<IntegerElement *>(element);             \
+    auto integer_element =                                                     \
+        static_pointer_cast<IntegerElement>(element.lock());                   \
     integer_element->write_value((uint64_t)value);                             \
   }
 
@@ -173,9 +179,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::CLASS##Ty);                           \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
                                                                                \
-    auto typed_element = static_cast<CLASS##Element *>(element);               \
+    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
     return (C_TYPE)typed_element->read_value();                                \
   }                                                                            \
                                                                                \
@@ -187,9 +193,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::CLASS##Ty);                           \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
                                                                                \
-    auto typed_element = static_cast<CLASS##Element *>(element);               \
+    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
     typed_element->write_value(value);                                         \
   }                                                                            \
                                                                                \
@@ -206,9 +212,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::CLASS##Ty);                           \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
                                                                                \
-    auto typed_element = static_cast<CLASS##Element *>(element);               \
+    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
     return (C_TYPE)typed_element->read_value();                                \
   }                                                                            \
                                                                                \
@@ -226,9 +232,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::CLASS##Ty);                           \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
                                                                                \
-    auto typed_element = static_cast<CLASS##Element *>(element);               \
+    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
     typed_element->write_value(value);                                         \
   }                                                                            \
                                                                                \
@@ -245,9 +251,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::CLASS##Ty);                           \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
                                                                                \
-    auto typed_element = static_cast<CLASS##Element *>(element);               \
+    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
     return (C_TYPE)typed_element->read_value();                                \
   }                                                                            \
                                                                                \
@@ -265,9 +271,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::CLASS##Ty);                           \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
                                                                                \
-    auto typed_element = static_cast<CLASS##Element *>(element);               \
+    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
     typed_element->write_value(value);                                         \
   }
 
@@ -282,9 +288,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
                                                                                \
-    auto typed_element = static_cast<ReferenceElement *>(element);             \
+    auto typed_element =                                                       \
+        static_pointer_cast<ReferenceElement>(element.lock());                 \
     return (C_TYPE)typed_element->read_value();                                \
   }                                                                            \
                                                                                \
@@ -296,9 +303,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
                                                                                \
-    auto typed_element = static_cast<ReferenceElement *>(element);             \
+    auto typed_element =                                                       \
+        static_pointer_cast<ReferenceElement>(element.lock());                 \
     typed_element->write_value(value);                                         \
   }                                                                            \
                                                                                \
@@ -315,9 +323,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
                                                                                \
-    auto typed_element = static_cast<ReferenceElement *>(element);             \
+    auto typed_element =                                                       \
+        static_pointer_cast<ReferenceElement>(element.lock());                 \
     return (C_TYPE)typed_element->read_value();                                \
   }                                                                            \
                                                                                \
@@ -335,9 +344,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
                                                                                \
-    auto typed_element = static_cast<ReferenceElement *>(element);             \
+    auto typed_element =                                                       \
+        static_pointer_cast<ReferenceElement>(element.lock());                 \
     typed_element->write_value(value);                                         \
   }                                                                            \
                                                                                \
@@ -354,9 +364,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
                                                                                \
-    auto typed_element = static_cast<ReferenceElement *>(element);             \
+    auto typed_element =                                                       \
+        static_pointer_cast<ReferenceElement>(element.lock());                 \
     return (C_TYPE)typed_element->read_value();                                \
   }                                                                            \
                                                                                \
@@ -374,9 +385,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
+    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
                                                                                \
-    auto typed_element = static_cast<ReferenceElement *>(element);             \
+    auto typed_element =                                                       \
+        static_pointer_cast<ReferenceElement>(element.lock());                 \
     typed_element->write_value(value);                                         \
   }
 
@@ -393,9 +405,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element);                                    \
+    MEMOIR_##CLASS_PREFIX##_CHECK(element.lock());                             \
                                                                                \
-    auto object_element = static_cast<CLASS_PREFIX##Element *>(element);       \
+    auto object_element =                                                      \
+        static_pointer_cast<CLASS_PREFIX##Element>(element.lock());            \
     return object_element->read_value();                                       \
   }                                                                            \
                                                                                \
@@ -412,9 +425,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element);                                    \
+    MEMOIR_##CLASS_PREFIX##_CHECK(element.lock());                             \
                                                                                \
-    auto nested_element = static_cast<CLASS_PREFIX##Element *>(element);       \
+    auto nested_element =                                                      \
+        static_pointer_cast<CLASS_PREFIX##Element>(element.lock());            \
     return (C_TYPE)(nested_element->read_value());                             \
   }                                                                            \
                                                                                \
@@ -431,9 +445,10 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element);                                    \
+    MEMOIR_##CLASS_PREFIX##_CHECK(element.lock());                             \
                                                                                \
-    auto nested_element = static_cast<CLASS_PREFIX##Element *>(element);       \
+    auto nested_element =                                                      \
+        static_pointer_cast<CLASS_PREFIX##Element>(element.lock());            \
     return (C_TYPE)nested_element->read_value();                               \
   }
 

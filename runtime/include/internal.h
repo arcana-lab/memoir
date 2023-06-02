@@ -2,6 +2,7 @@
 #define MEMOIR_INTERNAL_H
 
 #include <cstdio>
+#include <memory>
 
 #define MEMOIR_ASSERT(cond, msg)                                               \
   if (!cond) {                                                                 \
