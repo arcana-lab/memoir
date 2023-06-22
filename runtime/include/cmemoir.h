@@ -35,6 +35,8 @@
 #define memoir_sequence_type(element_type)                                     \
   MEMOIR_FUNC(sequence_type)(element_type)
 
+#define memoir_ref_t(referenced_type) MEMOIR_FUNC(ref_type)(referenced_type)
+
 /*
  * Primitive types
  */
