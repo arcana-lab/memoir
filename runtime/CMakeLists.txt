@@ -3,6 +3,7 @@ project(MemOIR)
 set(CMAKE_C_FLAGS   "-O1 -Xclang -disable-llvm-passes -fdeclspec")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -g")
 
+include_directories(immer/immer)
 include_directories(include)
 
 set(HEADER_FILES
