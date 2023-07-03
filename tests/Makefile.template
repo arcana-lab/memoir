@@ -7,7 +7,7 @@ LL=llvm-link
 OPT=$(GIT_ROOT)/compiler/scripts/memoir-opt
 
 LIBS=-lm -lstdc++
-CFLAGS=-I$(GIT_ROOT)/install/include -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(LIBS)
+CFLAGS=-I$(GIT_ROOT)/install/include -I$(GIT_ROOT)/runtime/immer -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(LIBS)
 
 IR_FILE=$(BUILD_DIR)/program.bc
 IR_FILE_PROGRAM=$(BUILD_DIR)/linked.bc
