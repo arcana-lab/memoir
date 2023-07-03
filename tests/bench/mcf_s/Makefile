@@ -1,4 +1,4 @@
-GIT_ROOT=/nfs-scratch/jtm2066/object-ir/stable
+GIT_ROOT=$$(git rev-parse --show-toplevel)
 
 BUILD_DIR=build
 
