@@ -56,7 +56,7 @@ struct SliceCanonicalizationPass : public ModulePass {
   }
 
   bool runOnModule(Module &M) override {
-    println("Running example pass");
+    println("Running Slice Canonicalization pass");
     println();
 
     // Get the required analyses.
