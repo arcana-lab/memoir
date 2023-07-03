@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <iostream>
 
 #include "internal.h"
@@ -8,7 +9,12 @@ namespace memoir {
 /*
  * Element Constructors
  */
-Element::Element(Type *type) : Object(type) {
+
+Element::Element(Type *type) : Element(type, 0) {
+  // Do nothing.
+}
+
+Element::Element(Type *type, uint64_t init) : Object(type), value(init) {
   // Do nothing.
 }
 
@@ -17,8 +23,7 @@ IntegerElement::IntegerElement(IntegerType *type) : IntegerElement(type, 0) {
 }
 
 IntegerElement::IntegerElement(IntegerType *type, uint64_t init)
-  : Element(type),
-    value(init) {
+  : Element(type, (uint64_t)init) {
   // Do nothing.
 }
 
@@ -27,8 +32,7 @@ FloatElement::FloatElement(FloatType *type) : FloatElement(type, 0.0) {
 }
 
 FloatElement::FloatElement(FloatType *type, float init)
-  : Element(type),
-    value(init) {
+  : Element(type, (uint64_t)init) {
   // Do nothing.
 }
 
@@ -37,8 +41,7 @@ DoubleElement::DoubleElement(DoubleType *type) : DoubleElement(type, 0.0) {
 }
 
 DoubleElement::DoubleElement(DoubleType *type, double init)
-  : Element(type),
-    value(init) {
+  : Element(type, (uint64_t)init) {
   // Do nothing.
 }
 
@@ -48,8 +51,7 @@ ReferenceElement::ReferenceElement(ReferenceType *type)
 }
 
 ReferenceElement::ReferenceElement(ReferenceType *type, Object *init)
-  : Element(type),
-    value(init) {
+  : Element(type, (uint64_t)init) {
   // Do nothing.
 }
 
@@ -59,8 +61,7 @@ PointerElement::PointerElement(PointerType *type)
 }
 
 PointerElement::PointerElement(PointerType *type, void *init)
-  : Element(type),
-    value(init) {
+  : Element(type, (uint64_t)init) {
   // Do nothing.
 }
 
@@ -70,13 +71,21 @@ StructElement::StructElement(StructType *type)
 }
 
 StructElement::StructElement(StructType *type, Struct *init)
-  : Element(type),
-    value(init) {
-  // Do nothing.
+  : Element(type, (uint64_t)init) {
+  this->value = (uint64_t)this->value;
+}
+
+StructElement::~StructElement() {
+  delete (Struct *)this->value;
 }
 
 CollectionElement::CollectionElement(Type *type) : Element(type) {
   // Do nothing.
+}
+
+CollectionElement::CollectionElement(Type *type, Collection *init)
+  : Element(type, (uint64_t)init) {
+  this->value = (uint64_t)init;
 }
 
 TensorElement::TensorElement(TensorType *type)
@@ -85,9 +94,12 @@ TensorElement::TensorElement(TensorType *type)
 }
 
 TensorElement::TensorElement(TensorType *type, Tensor *init)
-  : CollectionElement(type),
-    value(init) {
+  : CollectionElement(type, init) {
   // Do nothing.
+}
+
+TensorElement::~TensorElement() {
+  delete (Tensor *)this->value;
 }
 
 AssocArrayElement::AssocArrayElement(AssocArrayType *type)
@@ -96,9 +108,12 @@ AssocArrayElement::AssocArrayElement(AssocArrayType *type)
 }
 
 AssocArrayElement::AssocArrayElement(AssocArrayType *type, AssocArray *init)
-  : CollectionElement(type),
-    value(init) {
+  : CollectionElement(type, init) {
   // Do nothing.
+}
+
+AssocArrayElement::~AssocArrayElement() {
+  delete (AssocArray *)this->value;
 }
 
 SequenceElement::SequenceElement(SequenceType *type)
@@ -107,136 +122,179 @@ SequenceElement::SequenceElement(SequenceType *type)
 }
 
 SequenceElement::SequenceElement(SequenceType *type, Sequence *init)
-  : CollectionElement(type),
-    value(init) {
+  : CollectionElement(type, init) {
   // Do nothing.
+}
+
+SequenceElement::~SequenceElement() {
+  delete (Sequence *)this->value;
 }
 
 /*
  * Element Accessors
  */
 void IntegerElement::write_value(uint64_t value) {
-  this->value = value;
+  this->value = (uint64_t)value;
 }
 
 uint64_t IntegerElement::read_value() const {
-  return this->value;
+  return (uint64_t)this->value;
 }
 
 void FloatElement::write_value(float value) {
-  this->value = value;
+  this->value = (uint64_t)value;
 }
 
 float FloatElement::read_value() const {
-  return this->value;
+  return (float)this->value;
 }
 
 void DoubleElement::write_value(double value) {
-  this->value = value;
+  this->value = (uint64_t)value;
 }
 
 double DoubleElement::read_value() const {
-  return this->value;
+  return (double)this->value;
 }
 
 void ReferenceElement::write_value(Object *value) {
-  this->value = value;
+  this->value = (uint64_t)value;
 }
 
 Object *ReferenceElement::read_value() const {
-  return this->value;
+  return (Object *)this->value;
 }
 
 void PointerElement::write_value(void *value) {
-  this->value = value;
+  this->value = (uint64_t)value;
 }
 
 void *PointerElement::read_value() const {
-  return this->value;
+  return (void *)this->value;
 }
 
 Struct *StructElement::read_value() const {
-  return this->value;
+  return (Struct *)this->value;
 }
 
 Collection *TensorElement::read_value() const {
-  return this->value;
+  return (Collection *)this->value;
 }
 
 Collection *AssocArrayElement::read_value() const {
-  return this->value;
+  return (Collection *)this->value;
 }
 
 Collection *SequenceElement::read_value() const {
-  return this->value;
+  return (Collection *)this->value;
 }
 
 /*
  * Element cloning
  */
-std::shared_ptr<Element> IntegerElement::clone() const {
+Element *IntegerElement::clone(Element *pos) const {
   auto type = static_cast<IntegerType *>(this->get_type());
-  return std::shared_ptr<Element>(new IntegerElement(type, this->value));
+  if (pos) {
+    return new (pos) IntegerElement(type, (uint64_t)this->value);
+  } else {
+    return new IntegerElement(type, (uint64_t)this->value);
+  }
 }
 
-std::shared_ptr<Element> FloatElement::clone() const {
+Element *FloatElement::clone(Element *pos) const {
   auto type = static_cast<FloatType *>(this->get_type());
-  return std::shared_ptr<Element>(new FloatElement(type, this->value));
+  if (pos) {
+    return new (pos) FloatElement(type, (float)this->value);
+  } else {
+    return new FloatElement(type, (float)this->value);
+  }
 }
 
-std::shared_ptr<Element> DoubleElement::clone() const {
+Element *DoubleElement::clone(Element *pos) const {
   auto type = static_cast<DoubleType *>(this->get_type());
-  return std::shared_ptr<Element>(new DoubleElement(type, this->value));
+  if (pos) {
+    return new (pos) DoubleElement(type, (double)this->value);
+  } else {
+    return new DoubleElement(type, (double)this->value);
+  }
 }
 
-std::shared_ptr<Element> PointerElement::clone() const {
+Element *PointerElement::clone(Element *pos) const {
   auto type = static_cast<PointerType *>(this->get_type());
-  return std::shared_ptr<Element>(new PointerElement(type, this->value));
+  if (pos) {
+    return new (pos) PointerElement(type, (void *)this->value);
+  } else {
+    return new PointerElement(type, (void *)this->value);
+  }
 }
 
-std::shared_ptr<Element> ReferenceElement::clone() const {
+Element *ReferenceElement::clone(Element *pos) const {
   auto type = static_cast<ReferenceType *>(this->get_type());
-  return std::shared_ptr<Element>(new ReferenceElement(type, this->value));
-}
-
-std::shared_ptr<Element> StructElement::clone() const {
-  auto type = static_cast<StructType *>(this->get_type());
-  auto cloned_struct = new Struct(type);
-  for (auto i = 0; i < this->value->fields.size(); i++) {
-    auto this_field = this->value->fields[i];
-    cloned_struct->fields[i] = this_field->clone();
+  if (pos) {
+    return new (pos) ReferenceElement(type, (Object *)this->value);
+  } else {
+    return new ReferenceElement(type, (Object *)this->value);
   }
-  return std::shared_ptr<Element>(new StructElement(type, cloned_struct));
 }
 
-std::shared_ptr<Element> TensorElement::clone() const {
-  auto type = static_cast<TensorType *>(this->get_type());
-  auto cloned_tensor = new Tensor(type);
-  for (auto i = 0; i < this->value->tensor.size(); i++) {
-    auto this_element = this->value->tensor[i];
-    cloned_tensor->tensor[i] = this_element->clone();
+Element *StructElement::clone(Element *pos) const {
+  auto cloned_struct = new Struct((Struct *)this->value);
+  if (pos) {
+    return new (pos) StructElement(static_cast<StructType *>(this->get_type()),
+                                   cloned_struct);
+  } else {
+    return new StructElement(static_cast<StructType *>(this->get_type()),
+                             cloned_struct);
   }
-  return std::shared_ptr<Element>(new TensorElement(type, cloned_tensor));
 }
 
-std::shared_ptr<Element> AssocArrayElement::clone() const {
-  auto type = static_cast<AssocArrayType *>(this->get_type());
-  auto cloned_assoc_array = new AssocArray(type);
-  cloned_assoc_array->assoc_array.clear();
-  cloned_assoc_array->assoc_array.insert(this->value->assoc_array.begin(),
-                                         this->value->assoc_array.end());
-  return std::shared_ptr<Element>(
-      new AssocArrayElement(type, cloned_assoc_array));
+Element *TensorElement::clone(Element *pos) const {
+  // FIXME
+  // auto type = static_cast<TensorType *>(this->get_type());
+  // auto cloned_tensor = new Tensor(type);
+  // auto this_tensor = (Tensor *)this->value;
+  // for (auto i = 0; i < this_tensor->tensor.size(); i++) {
+  //   auto this_element = Element::decode(this_tensor->get_element_type(),
+  //                                       this_tensor->tensor[i]);
+  //   cloned_tensor->tensor[i] = this_element->clone();
+  // }
+  // if (pos) {
+  //   return new (pos) TensorElement(type, cloned_tensor);
+  // } else {
+  //   return new TensorElement(type, cloned_tensor);
+  // }
+  return nullptr;
 }
 
-std::shared_ptr<Element> SequenceElement::clone() const {
-  auto type = static_cast<SequenceType *>(this->get_type());
-  auto cloned_sequence = new Sequence(type, 0);
-  cloned_sequence->sequence.clear();
-  cloned_sequence->sequence.insert(cloned_sequence->sequence.begin(),
-                                   this->value->sequence.begin(),
-                                   this->value->sequence.end());
-  return std::shared_ptr<Element>(new SequenceElement(type, cloned_sequence));
+Element *AssocArrayElement::clone(Element *pos) const {
+  // FIXME
+  // auto type = static_cast<AssocArrayType *>(this->get_type());
+  // auto cloned_assoc_array = new AssocArray(type);
+  // cloned_assoc_array->assoc_array.clear();
+  // auto this_assoc = (AssocArray *)this->value;
+  // cloned_assoc_array->assoc_array.insert(this_assoc->assoc_array.begin(),
+  //                                        this_assoc->assoc_array.end());
+  // if (pos) {
+  //   return new (pos) AssocArrayElement(type, cloned_assoc_array);
+  // } else {
+  //   return new AssocArrayElement(type, cloned_assoc_array);
+  // }
+  return nullptr;
+}
+
+Element *SequenceElement::clone(Element *pos) const {
+  // FIXME
+  // auto type = static_cast<SequenceType *>(this->get_type());
+  // auto cloned_sequence = new Sequence(type, 0);
+  // cloned_sequence->_sequence.insert(cloned_sequence->sequence.begin(),
+  //                                   this->value->sequence.begin(),
+  //                                   this->value->sequence.end());
+  // if (pos) {
+  //   return new (pos) SequenceElement(type, cloned_sequence);
+  // } else {
+  //   return new SequenceElement(type, cloned_sequence);
+  // }
+  return nullptr;
 }
 
 /*
@@ -290,39 +348,143 @@ bool Element::is_element() const {
 /*
  * Element factory method
  */
-std::shared_ptr<Element> Element::create(Type *type) {
+Element *Element::create(Type *type, size_t num) {
   switch (type->getCode()) {
     case TypeCode::StructTy: {
-      auto struct_type = static_cast<StructType *>(type);
-      return std::shared_ptr<Element>(new StructElement(struct_type));
+      auto *struct_type = static_cast<StructType *>(type);
+      auto alloc = (StructElement *)malloc(num * sizeof(StructElement));
+      for (auto i = 0; i < num; i++) {
+        new (&alloc[i]) StructElement(struct_type);
+      }
+      return alloc;
     }
     case TypeCode::TensorTy: {
       auto tensor_type = (TensorType *)type;
       MEMOIR_ASSERT((tensor_type->is_static_length),
                     "Attempt to create tensor element of non-static length");
       auto &length_of_dimensions = tensor_type->length_of_dimensions;
-      auto tensor = new Tensor(tensor_type, length_of_dimensions);
-      return std::shared_ptr<Element>(new TensorElement(tensor_type, tensor));
+      auto alloc = (TensorElement *)malloc(num * sizeof(TensorElement));
+      for (auto i = 0; i < num; i++) {
+        auto tensor = new Tensor(tensor_type, length_of_dimensions);
+        new (&alloc[i]) TensorElement(tensor_type, tensor);
+      }
+      return alloc;
     }
     case TypeCode::IntegerTy: {
       auto integer_type = static_cast<IntegerType *>(type);
-      return std::shared_ptr<Element>(new IntegerElement(integer_type));
+      auto alloc = (IntegerElement *)malloc(num * sizeof(IntegerElement));
+      for (auto i = 0; i < num; i++) {
+        new (&alloc[i]) IntegerElement(integer_type);
+      }
+      return alloc;
     }
     case TypeCode::FloatTy: {
       auto float_type = static_cast<FloatType *>(type);
-      return std::shared_ptr<Element>(new FloatElement(float_type));
+      auto alloc = (FloatElement *)malloc(num * sizeof(FloatElement));
+      for (auto i = 0; i < num; i++) {
+        new (&alloc[i]) FloatElement(float_type);
+      }
+      return alloc;
     }
     case TypeCode::DoubleTy: {
       auto double_type = static_cast<DoubleType *>(type);
-      return std::shared_ptr<Element>(new DoubleElement(double_type));
+      auto alloc = (DoubleElement *)malloc(num * sizeof(DoubleElement));
+      for (auto i = 0; i < num; i++) {
+        new (&alloc[i]) DoubleElement(double_type);
+      }
+      return alloc;
     }
     case TypeCode::PointerTy: {
       auto ptr_type = static_cast<PointerType *>(type);
-      return std::shared_ptr<Element>(new PointerElement(ptr_type));
+      auto alloc = (PointerElement *)malloc(num * sizeof(PointerElement));
+      for (auto i = 0; i < num; i++) {
+        new (&alloc[i]) PointerElement(ptr_type);
+      }
+      return alloc;
     }
     case TypeCode::ReferenceTy: {
       auto ref_type = static_cast<ReferenceType *>(type);
-      return std::shared_ptr<Element>(new ReferenceElement(ref_type));
+      auto alloc = (ReferenceElement *)malloc(num * sizeof(ReferenceElement));
+      for (auto i = 0; i < num; i++) {
+        new (&alloc[i]) ReferenceElement(ref_type);
+      }
+      return alloc;
+    }
+    default: {
+      MEMOIR_ASSERT(false, "Attempting to create an element of unknown type");
+    }
+  }
+}
+
+std::vector<uint64_t> Element::init(Type *type, size_t num) {
+  switch (type->getCode()) {
+    case TypeCode::StructTy: {
+      auto *struct_type = static_cast<StructType *>(type);
+      std::vector<uint64_t> list;
+      list.reserve(num);
+      for (auto i = 0; i < num; i++) {
+        auto strct = new Struct(struct_type);
+        list.push_back((uint64_t)strct);
+      }
+      return list;
+    }
+    case TypeCode::TensorTy: {
+      auto tensor_type = (TensorType *)type;
+      MEMOIR_ASSERT((tensor_type->is_static_length),
+                    "Attempt to create tensor element of non-static length");
+      auto &length_of_dimensions = tensor_type->length_of_dimensions;
+      std::vector<uint64_t> list;
+      list.reserve(num);
+      for (auto i = 0; i < num; i++) {
+        auto tensor = new Tensor(tensor_type, length_of_dimensions);
+        list.push_back((uint64_t)tensor);
+      }
+      return list;
+    }
+    case TypeCode::IntegerTy: {
+      auto integer_type = static_cast<IntegerType *>(type);
+      std::vector<uint64_t> list;
+      list.reserve(num);
+      for (auto i = 0; i < num; i++) {
+        list.push_back((uint64_t)0);
+      }
+      return list;
+    }
+    case TypeCode::FloatTy: {
+      auto float_type = static_cast<FloatType *>(type);
+      std::vector<uint64_t> list;
+      list.reserve(num);
+      for (auto i = 0; i < num; i++) {
+        list.push_back((uint64_t)0.0f);
+      }
+      return list;
+    }
+    case TypeCode::DoubleTy: {
+      auto double_type = static_cast<DoubleType *>(type);
+      std::vector<uint64_t> list;
+      list.reserve(num);
+      for (auto i = 0; i < num; i++) {
+        list.push_back((uint64_t)0.0);
+      }
+      return list;
+    }
+    case TypeCode::PointerTy: {
+      auto ptr_type = static_cast<PointerType *>(type);
+      std::vector<uint64_t> list;
+      list.reserve(num);
+      for (auto i = 0; i < num; i++) {
+        list.push_back((uint64_t) nullptr);
+      }
+      return list;
+    }
+    case TypeCode::ReferenceTy: {
+      auto ref_type = static_cast<ReferenceType *>(type);
+      std::vector<uint64_t> list;
+      list.reserve(num);
+      for (auto i = 0; i < num; i++) {
+        list.push_back((uint64_t) nullptr);
+      }
+      return list;
     }
     default: {
       MEMOIR_ASSERT(false, "Attempting to create an element of unknown type");

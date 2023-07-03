@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <type_traits>
+#include <vector>
 
 #include <immer/vector.hpp>
 
@@ -34,6 +35,14 @@ struct FloatType;
 struct DoubleType;
 struct PointerType;
 struct ReferenceType;
+
+using immer_memory_policy =
+    immer::memory_policy<immer::unsafe_free_list_heap_policy<immer::cpp_heap>,
+                         immer::unsafe_refcount_policy,
+                         immer::no_transience_policy>;
+
+template <typename T>
+using immer_vector = immer::vector<T, immer_memory_policy>;
 
 struct Object {
 public:
@@ -82,7 +91,8 @@ public:
 struct Collection : public Object {
 public:
   // Access
-  virtual Element *get_element(va_list args) = 0;
+  virtual uint64_t get_element(va_list args) = 0;
+  virtual void set_element(uint64_t value, va_list args) = 0;
   virtual Collection *get_slice(va_list args) = 0;
   virtual Collection *join(va_list args, uint8_t num_args) = 0;
   virtual Type *get_element_type() const = 0;
@@ -97,7 +107,7 @@ public:
 struct Tensor : public Collection {
 public:
   // Owned state
-  std::vector<Element *> tensor;
+  std::vector<uint64_t> tensor;
   std::vector<uint64_t> length_of_dimensions;
 
   // Borrowed state
@@ -112,8 +122,10 @@ public:
   uint64_t size() const override;
 
   // Access
-  Element *get_tensor_element(std::vector<uint64_t> &indices) const;
-  Element *get_element(va_list args) override;
+  uint64_t get_tensor_element(std::vector<uint64_t> &indices) const;
+  uint64_t get_element(va_list args) override;
+  void set_tensor_element(uint64_t value, std::vector<uint64_t> &indices);
+  void set_element(uint64_t value, va_list args) override;
   Type *get_element_type() const override;
 
   bool equals(const Object *other) const override;
@@ -125,7 +137,7 @@ public:
 struct AssocArray : public Collection {
 public:
   using key_t = std::add_pointer_t<Object>;
-  using value_t = Element *;
+  using value_t = uint64_t;
   using key_value_pair_t = std::unordered_map<key_t, value_t>::value_type;
 
   // Owned state
@@ -142,7 +154,8 @@ public:
   uint64_t size() const override;
 
   // Access
-  Element *get_element(va_list args) override;
+  uint64_t get_element(va_list args) override;
+  void set_element(uint64_t value, va_list args) override;
   AssocArray::key_value_pair_t &get_pair(Object *key);
   Type *get_element_type() const override;
   Type *get_key_type() const;
@@ -157,10 +170,14 @@ public:
 struct Sequence : public Collection {
 public:
   // Owned state
-  immer::vector<Element> sequence;
+  immer_vector<uint64_t> _sequence;
+  // Element *_sequence;
+  // size_t _size;
 
   // Construction
-  Sequence(Type *type, size_t init_size);
+  Sequence(SequenceType *type, size_t initial_size);
+  Sequence(SequenceType *type, std::vector<uint64_t> &&initial);
+  Sequence(SequenceType *type, immer_vector<uint64_t> &&initial);
   ~Sequence();
   Collection *join(va_list args, uint8_t num_args) override;
   static Collection *join(SequenceType *type,
@@ -169,8 +186,11 @@ public:
   Collection *get_slice(int64_t left_index, int64_t right_index);
 
   // Access
-  Element *get_element(va_list args) override;
-  Element *get_element(uint64_t index);
+  uint64_t get_sequence_element(uint64_t index);
+  uint64_t get_element(va_list args) override;
+  void set_sequence_element(uint64_t value, uint64_t index);
+  void set_element(uint64_t value, va_list args) override;
+
   Type *get_element_type() const override;
   uint64_t size() const override;
 
@@ -183,9 +203,13 @@ public:
 // Abstract Element
 struct Element : public Object {
 public:
+  uint64_t value;
+
   // Construction
   static Element *create(Type *type, size_t num = 1);
-  virtual Element *clone() const = 0;
+  static std::vector<uint64_t> init(Type *type, size_t num = 1);
+  static Element *decode(Type *type, uint64_t encoded);
+  virtual Element *clone(Element *pos = nullptr) const = 0;
 
   bool is_element() const override;
 
@@ -193,13 +217,12 @@ public:
 
 protected:
   Element(Type *type);
+  Element(Type *type, uint64_t value);
 };
 
 // Integer
 struct IntegerElement : public Element {
 public:
-  uint64_t value;
-
   uint64_t read_value() const;
   void write_value(uint64_t value);
   bool equals(const Object *other) const override;
@@ -207,7 +230,7 @@ public:
   // Construction
   IntegerElement(IntegerType *type);
   IntegerElement(IntegerType *type, uint64_t init);
-  Element *clone() const override;
+  Element *clone(Element *) const override;
 
   // Debug
   std::string to_string() override;
@@ -216,8 +239,6 @@ public:
 // Floating point
 struct FloatElement : public Element {
 public:
-  float value;
-
   float read_value() const;
   void write_value(float value);
   bool equals(const Object *other) const override;
@@ -225,7 +246,7 @@ public:
   // Construction
   FloatElement(FloatType *type);
   FloatElement(FloatType *type, float init);
-  Element *clone() const override;
+  Element *clone(Element *) const override;
 
   // Debug
   std::string to_string() override;
@@ -234,8 +255,6 @@ public:
 // Double-precision floating point
 struct DoubleElement : public Element {
 public:
-  double value;
-
   double read_value() const;
   void write_value(double value);
   bool equals(const Object *other) const override;
@@ -243,7 +262,7 @@ public:
   // Construction
   DoubleElement(DoubleType *type);
   DoubleElement(DoubleType *type, double init);
-  Element *clone() const override;
+  Element *clone(Element *) const override;
 
   // Debug
   std::string to_string() override;
@@ -252,8 +271,6 @@ public:
 // Pointer to non-memoir memory
 struct PointerElement : public Element {
 public:
-  void *value;
-
   // Access
   void *read_value() const;
   void write_value(void *value);
@@ -262,7 +279,7 @@ public:
   // Construction
   PointerElement(PointerType *type);
   PointerElement(PointerType *type, void *init);
-  Element *clone() const override;
+  Element *clone(Element *) const override;
 
   // Debug
   std::string to_string() override;
@@ -271,8 +288,6 @@ public:
 // Reference to memoir object
 struct ReferenceElement : public Element {
 public:
-  Object *value;
-
   Object *read_value() const;
   void write_value(Object *value);
   bool equals(const Object *other) const override;
@@ -280,7 +295,7 @@ public:
   // Construction
   ReferenceElement(ReferenceType *type);
   ReferenceElement(ReferenceType *type, Object *init);
-  Element *clone() const override;
+  Element *clone(Element *) const override;
 
   // Debug
   std::string to_string() override;
@@ -289,8 +304,6 @@ public:
 // Nested objects
 struct StructElement : public Element {
 public:
-  Struct *value;
-
   // Access
   Struct *read_value() const;
   bool equals(const Object *other) const override;
@@ -299,7 +312,7 @@ public:
   StructElement(StructType *type);
   StructElement(StructType *type, Struct *init);
   ~StructElement();
-  Element *clone() const override;
+  Element *clone(Element *) const override;
 
   // Debug
   std::string to_string() override;
@@ -313,14 +326,13 @@ public:
 
   // Construction
   CollectionElement(Type *type);
+  CollectionElement(Type *type, Collection *init);
 
   // Debug
 };
 
 struct TensorElement : public CollectionElement {
 public:
-  Tensor *value;
-
   // Access
   Collection *read_value() const override;
 
@@ -328,7 +340,7 @@ public:
   TensorElement(TensorType *type);
   TensorElement(TensorType *type, Tensor *init);
   ~TensorElement();
-  Element *clone() const override;
+  Element *clone(Element *) const override;
 
   // Debug
   std::string to_string() override;
@@ -336,8 +348,6 @@ public:
 
 struct AssocArrayElement : public CollectionElement {
 public:
-  AssocArray *value;
-
   // Access
   Collection *read_value() const override;
 
@@ -345,7 +355,7 @@ public:
   AssocArrayElement(AssocArrayType *type);
   AssocArrayElement(AssocArrayType *type, AssocArray *init);
   ~AssocArrayElement();
-  Element *clone() const override;
+  Element *clone(Element *) const override;
 
   // Debug
   std::string to_string() override;
@@ -353,8 +363,6 @@ public:
 
 struct SequenceElement : public CollectionElement {
 public:
-  Sequence *value;
-
   // Access
   Collection *read_value() const override;
 
@@ -362,7 +370,7 @@ public:
   SequenceElement(SequenceType *type);
   SequenceElement(SequenceType *type, Sequence *init);
   ~SequenceElement();
-  Element *clone() const override;
+  Element *clone(Element *) const override;
 
   // Debug
   std::string to_string() override;
