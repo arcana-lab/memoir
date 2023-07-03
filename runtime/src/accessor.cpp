@@ -65,10 +65,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
+    MEMOIR_INTEGER_CHECK(element, BITWIDTH, IS_SIGNED, #TYPE_NAME);            \
                                                                                \
-    auto integer_element =                                                     \
-        static_pointer_cast<IntegerElement>(element.lock());                   \
+    auto integer_element = static_cast<IntegerElement *>(element);             \
     return (C_TYPE)(integer_element->read_value());                            \
   }                                                                            \
                                                                                \
@@ -80,10 +79,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
+    MEMOIR_INTEGER_CHECK(element, BITWIDTH, IS_SIGNED, #TYPE_NAME);            \
                                                                                \
-    auto integer_element =                                                     \
-        static_pointer_cast<IntegerElement>(element.lock());                   \
+    auto integer_element = static_cast<IntegerElement *>(element);             \
     integer_element->write_value((uint64_t)value);                             \
   }                                                                            \
                                                                                \
@@ -100,11 +98,7 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
-                                                                               \
-    auto integer_element =                                                     \
-        static_pointer_cast<IntegerElement>(element.lock());                   \
-    return (C_TYPE)(integer_element->read_value());                            \
+    return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -117,15 +111,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    auto element = collection_to_access->get_element(args);                    \
+    collection_to_access->set_element((uint64_t)value, args);                  \
                                                                                \
     va_end(args);                                                              \
-                                                                               \
-    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
-                                                                               \
-    auto integer_element =                                                     \
-        static_pointer_cast<IntegerElement>(element.lock());                   \
-    integer_element->write_value((uint64_t)value);                             \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -141,11 +129,7 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
-                                                                               \
-    auto integer_element =                                                     \
-        static_pointer_cast<IntegerElement>(element.lock());                   \
-    return (C_TYPE)(integer_element->read_value());                            \
+    return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -154,18 +138,11 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                             ...) {                             \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
     va_list args;                                                              \
-                                                                               \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    auto element = collection_to_access->get_element(args);                    \
+    collection_to_access->set_element((uint64_t)value, args);                  \
                                                                                \
     va_end(args);                                                              \
-                                                                               \
-    MEMOIR_INTEGER_CHECK(element.lock(), BITWIDTH, IS_SIGNED, #TYPE_NAME);     \
-                                                                               \
-    auto integer_element =                                                     \
-        static_pointer_cast<IntegerElement>(element.lock());                   \
-    integer_element->write_value((uint64_t)value);                             \
   }
 
 /*
@@ -179,9 +156,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
+    MEMOIR_TYPE_CHECK(element, TypeCode::CLASS##Ty);                           \
                                                                                \
-    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
+    auto typed_element = static_cast<CLASS##Element *>(element);               \
     return (C_TYPE)typed_element->read_value();                                \
   }                                                                            \
                                                                                \
@@ -193,9 +170,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
+    MEMOIR_TYPE_CHECK(element, TypeCode::CLASS##Ty);                           \
                                                                                \
-    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
+    auto typed_element = static_cast<CLASS##Element *>(element);               \
     typed_element->write_value(value);                                         \
   }                                                                            \
                                                                                \
@@ -205,17 +182,11 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
-                                                                               \
     va_start(args, collection_to_access);                                      \
-                                                                               \
     auto element = collection_to_access->get_element(args);                    \
-                                                                               \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
-                                                                               \
-    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
-    return (C_TYPE)typed_element->read_value();                                \
+    return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -225,17 +196,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
-                                                                               \
     va_start(args, collection_to_access);                                      \
-                                                                               \
-    auto element = collection_to_access->get_element(args);                    \
-                                                                               \
+    collection_to_access->set_element((uint64_t)value, args);                  \
     va_end(args);                                                              \
-                                                                               \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
-                                                                               \
-    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
-    typed_element->write_value(value);                                         \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -244,17 +207,11 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
-                                                                               \
     va_start(args, collection_to_access);                                      \
-                                                                               \
     auto element = collection_to_access->get_element(args);                    \
-                                                                               \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
-                                                                               \
-    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
-    return (C_TYPE)typed_element->read_value();                                \
+    return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -264,17 +221,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
-                                                                               \
     va_start(args, collection_to_access);                                      \
-                                                                               \
-    auto element = collection_to_access->get_element(args);                    \
-                                                                               \
+    collection_to_access->set_element((uint64_t)value, args);                  \
     va_end(args);                                                              \
-                                                                               \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::CLASS##Ty);                    \
-                                                                               \
-    auto typed_element = static_pointer_cast<CLASS##Element>(element.lock());  \
-    typed_element->write_value(value);                                         \
   }
 
 /*
@@ -288,10 +237,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
+    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
                                                                                \
-    auto typed_element =                                                       \
-        static_pointer_cast<ReferenceElement>(element.lock());                 \
+    auto typed_element = static_cast<ReferenceElement *>(element);             \
     return (C_TYPE)typed_element->read_value();                                \
   }                                                                            \
                                                                                \
@@ -303,10 +251,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
+    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
                                                                                \
-    auto typed_element =                                                       \
-        static_pointer_cast<ReferenceElement>(element.lock());                 \
+    auto typed_element = static_cast<ReferenceElement *>(element);             \
     typed_element->write_value(value);                                         \
   }                                                                            \
                                                                                \
@@ -316,18 +263,11 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
-                                                                               \
     va_start(args, collection_to_access);                                      \
-                                                                               \
     auto element = collection_to_access->get_element(args);                    \
-                                                                               \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
-                                                                               \
-    auto typed_element =                                                       \
-        static_pointer_cast<ReferenceElement>(element.lock());                 \
-    return (C_TYPE)typed_element->read_value();                                \
+    return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -337,18 +277,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
-                                                                               \
     va_start(args, collection_to_access);                                      \
-                                                                               \
-    auto element = collection_to_access->get_element(args);                    \
-                                                                               \
+    collection_to_access->set_element((uint64_t)value, args);                  \
     va_end(args);                                                              \
-                                                                               \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
-                                                                               \
-    auto typed_element =                                                       \
-        static_pointer_cast<ReferenceElement>(element.lock());                 \
-    typed_element->write_value(value);                                         \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -363,12 +294,7 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
     auto element = collection_to_access->get_element(args);                    \
                                                                                \
     va_end(args);                                                              \
-                                                                               \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
-                                                                               \
-    auto typed_element =                                                       \
-        static_pointer_cast<ReferenceElement>(element.lock());                 \
-    return (C_TYPE)typed_element->read_value();                                \
+    return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -381,15 +307,9 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    auto element = collection_to_access->get_element(args);                    \
+    collection_to_access->set_element((uint64_t)value, args);                  \
                                                                                \
     va_end(args);                                                              \
-                                                                               \
-    MEMOIR_TYPE_CHECK(element.lock(), TypeCode::ReferenceTy);                  \
-                                                                               \
-    auto typed_element =                                                       \
-        static_pointer_cast<ReferenceElement>(element.lock());                 \
-    typed_element->write_value(value);                                         \
   }
 
 /*
@@ -405,11 +325,7 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element.lock());                             \
-                                                                               \
-    auto object_element =                                                      \
-        static_pointer_cast<CLASS_PREFIX##Element>(element.lock());            \
-    return object_element->read_value();                                       \
+    return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -418,18 +334,11 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
-                                                                               \
     va_start(args, collection_to_access);                                      \
-                                                                               \
     auto element = collection_to_access->get_element(args);                    \
-                                                                               \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element.lock());                             \
-                                                                               \
-    auto nested_element =                                                      \
-        static_pointer_cast<CLASS_PREFIX##Element>(element.lock());            \
-    return (C_TYPE)(nested_element->read_value());                             \
+    return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -438,18 +347,11 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
-                                                                               \
     va_start(args, collection_to_access);                                      \
-                                                                               \
     auto element = collection_to_access->get_element(args);                    \
-                                                                               \
     va_end(args);                                                              \
                                                                                \
-    MEMOIR_##CLASS_PREFIX##_CHECK(element.lock());                             \
-                                                                               \
-    auto nested_element =                                                      \
-        static_pointer_cast<CLASS_PREFIX##Element>(element.lock());            \
-    return (C_TYPE)nested_element->read_value();                               \
+    return (C_TYPE)element;                                                    \
   }
 
 #include "types.def"
