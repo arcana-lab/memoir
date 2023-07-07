@@ -1,4 +1,4 @@
-GIT_ROOT=$$(git rev-parse --show-toplevel)
+GIT_ROOT=../../..
 
 BUILD_DIR=build
 
@@ -45,8 +45,8 @@ baseline: $(IR_FILE_INPUT) $(IR_FILE_RUNTIME)
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
-$(IR_FILE_RUNTIME):
-	make -C $(GIT_ROOT)
+# $(IR_FILE_RUNTIME):
+# 	make -C $(GIT_ROOT)
 
 $(IR_FILE_INPUT):
 	cp input.bc $(BUILD_DIR)/input.bc
