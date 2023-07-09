@@ -93,6 +93,7 @@ public:
   // Access
   virtual uint64_t get_element(va_list args) = 0;
   virtual void set_element(uint64_t value, va_list args) = 0;
+  virtual bool has_element(va_list args) = 0;
   virtual Collection *get_slice(va_list args) = 0;
   virtual Collection *join(va_list args, uint8_t num_args) = 0;
   virtual Type *get_element_type() const = 0;
@@ -126,6 +127,8 @@ public:
   uint64_t get_element(va_list args) override;
   void set_tensor_element(uint64_t value, std::vector<uint64_t> &indices);
   void set_element(uint64_t value, va_list args) override;
+  bool has_tensor_element(std::vector<uint64_t> &indices) const;
+  bool has_element(va_list args) override;
   Type *get_element_type() const override;
 
   bool equals(const Object *other) const override;
@@ -156,6 +159,7 @@ public:
   // Access
   uint64_t get_element(va_list args) override;
   void set_element(uint64_t value, va_list args) override;
+  bool has_element(va_list args) override;
   AssocArray::key_value_pair_t &get_pair(Object *key);
   Type *get_element_type() const override;
   Type *get_key_type() const;
@@ -190,6 +194,8 @@ public:
   uint64_t get_element(va_list args) override;
   void set_sequence_element(uint64_t value, uint64_t index);
   void set_element(uint64_t value, va_list args) override;
+  bool has_sequence_element(uint64_t index);
+  bool has_element(va_list args) override;
 
   Type *get_element_type() const override;
   uint64_t size() const override;

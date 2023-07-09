@@ -54,6 +54,21 @@ uint64_t MEMOIR_FUNC(size)(Collection *collection) {
   return collection->size();
 }
 
+__RUNTIME_ATTR
+bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...) {
+  MEMOIR_ACCESS_CHECK(collection);
+
+  va_list args;
+
+  va_start(args, collection);
+
+  auto result = collection->has_element(args);
+
+  va_end(args);
+
+  return result;
+}
+
 /*
  * Integer accesses
  */

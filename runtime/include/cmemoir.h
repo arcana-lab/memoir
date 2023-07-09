@@ -11,6 +11,10 @@
  * Created: December 15, 2022
  */
 
+#if defined(__cplusplus)
+namespace memoir {
+#endif
+
 /*
  * Type definitions
  */
@@ -48,6 +52,7 @@
 #define memoir_i32_t MEMOIR_FUNC(i32_type)()
 #define memoir_i16_t MEMOIR_FUNC(i16_type)()
 #define memoir_i8_t MEMOIR_FUNC(i8_type)()
+#define memoir_i2_t MEMOIR_FUNC(i2_type)()
 #define memoir_bool_t MEMOIR_FUNC(bool_type)()
 #define memoir_f32_t MEMOIR_FUNC(f32_type)()
 #define memoir_f64_t MEMOIR_FUNC(f64_type)()
@@ -84,6 +89,8 @@
   (1 + MEMOIR_NARGS(__VA_ARGS__), object, __VA_ARGS__)
 
 #define memoir_size(object) MEMOIR_FUNC(size)(object)
+
+#define memoir_assoc_has(object, key) MEMOIR_FUNC(assoc_has)(object, key)
 
 /*
  * Type checking
@@ -127,5 +134,9 @@
 #define memoir_index_get(ty, cllct, ...)                                       \
   MEMOIR_FUNC(index_get_##ty)(cllct, CAST_TO_SIZE_T(__VA_ARGS__))
 #define memoir_assoc_get(ty, cllct, key) MEMOIR_FUNC(assoc_get_##ty)(cllct, key)
+
+#if defined(__cplusplus)
+} // namespace memoir
+#endif
 
 #endif

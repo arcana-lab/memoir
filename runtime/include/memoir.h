@@ -115,6 +115,8 @@ __RUNTIME_ATTR Collection *MEMOIR_FUNC(join)(uint8_t number_of_collections,
 
 __RUNTIME_ATTR uint64_t MEMOIR_FUNC(size)(Collection *collection);
 
+__RUNTIME_ATTR bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...);
+
 /*
  * Type checking and function signatures
  */
