@@ -71,66 +71,18 @@ Type *MEMOIR_FUNC(sequence_type)(Type *element_type) {
   return SequenceType::get(element_type);
 }
 
-// TODO: autogenerate theses with types.def
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(u64_type)() {
-  return IntegerType::get(64, false);
-}
+#define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BITWIDTH, IS_SIGNED)            \
+  __RUNTIME_ATTR                                                               \
+  Type *MEMOIR_FUNC(TYPE_NAME##_type)() {                                      \
+    return IntegerType::get(BITWIDTH, IS_SIGNED);                              \
+  }
 
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(u32_type)() {
-  return IntegerType::get(32, false);
-}
-
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(u16_type)() {
-  return IntegerType::get(16, false);
-}
-
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(u8_type)() {
-  return IntegerType::get(8, false);
-}
-
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(i64_type)() {
-  return IntegerType::get(64, true);
-}
-
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(i32_type)() {
-  return IntegerType::get(32, true);
-}
-
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(i16_type)() {
-  return IntegerType::get(16, true);
-}
-
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(i8_type)() {
-  return IntegerType::get(8, true);
-}
-
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(bool_type)() {
-  return IntegerType::get(1, false);
-}
-
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(f32_type)() {
-  return FloatType::get();
-}
-
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(f64_type)() {
-  return DoubleType::get();
-}
-
-__RUNTIME_ATTR
-Type *MEMOIR_FUNC(ptr_type)() {
-  return PointerType::get();
-}
+#define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX)                 \
+  __RUNTIME_ATTR                                                               \
+  Type *MEMOIR_FUNC(TYPE_NAME##_type)() {                                      \
+    return CLASS_PREFIX##Type::get();                                          \
+  }
+#include "types.def"
 
 __RUNTIME_ATTR
 Type *MEMOIR_FUNC(ref_type)(Type *referenced_type) {
