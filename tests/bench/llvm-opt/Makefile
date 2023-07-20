@@ -1,0 +1,72 @@
+GIT_ROOT=../../..
+
+BUILD_DIR=build
+
+CC=clang++
+LL=llvm-link
+OPT=$(GIT_ROOT)/compiler/scripts/memoir-opt
+
+LIBS=-lm -lstdc++
+CFLAGS=-I$(GIT_ROOT)/install/include -I$(GIT_ROOT)/runtime/immer -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(LIBS)
+
+IR_FILE=$(BUILD_DIR)/program.bc
+IR_FILE_PROGRAM=$(BUILD_DIR)/linked.bc
+IR_FILE_RUNTIME=$(GIT_ROOT)/install/lib/memoir.bc
+IR_FILE_DECL=$(GIT_ROOT)/install/lib/memoir.decl.bc
+IR_FILE_INPUT=$(BUILD_DIR)/input.bc
+IR_FILE_NORM=$(BUILD_DIR)/normalized.bc
+IR_FILE_OPT=$(BUILD_DIR)/optimized.bc
+
+BITCODE_DIR=/project/memoir-bitcodes
+
+OBJ_FILE=$(patsubst %.bc,%.o,$(IR_FILE))
+BINARY=$(BUILD_DIR)/$(notdir $(realpath .))
+
+CFILES := $(wildcard *.c)
+CPPFILES := $(wildcard *.cpp)
+C_BITCODES := $(patsubst %.c,$(BUILD_DIR)/%.bc,$(CFILES))
+CPP_BITCODES :=  $(patsubst %.cpp,$(BUILD_DIR)/%.bc,$(CPPFILES))
+
+all: setup optimize compile test
+
+noopt: setup baseline compile test
+
+setup: $(BUILD_DIR)
+
+compile: $(BUILD_DIR) $(BINARY)
+
+test: compile
+	$(BINARY) 2>&1 | tee $(BUILD_DIR)/test.out
+
+optimize: $(IR_FILE_OPT) $(IR_FILE_RUNTIME)
+	$(LL) $^ -o $(IR_FILE)
+
+baseline: $(IR_FILE_INPUT) $(IR_FILE_RUNTIME)
+	$(LL) $^ -o $(IR_FILE)
+
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+
+# $(IR_FILE_RUNTIME):
+# 	make -C $(GIT_ROOT)
+
+$(IR_FILE_INPUT):
+	cp $(BITCODE_DIR)/llvm-opt.bc $@
+
+$(IR_FILE_NORM): $(IR_FILE_INPUT)
+	$(OPT) --norm $< -o $@
+	$(LL) $@ $(IR_FILE_DECL) -o $@
+
+$(IR_FILE_OPT): $(IR_FILE_NORM)
+	$(OPT) --slice-canon --slice-prop --memoir-dce $< -o $@
+
+$(OBJ_FILE): $(IR_FILE)
+	llc -filetype=obj $< -o $@
+
+$(BINARY): $(OBJ_FILE)
+	$(CC) $< -o $@
+
+.PHONY: all noopt setup compile test optimize baseline clean
+
+clean:
+	rm -rf $(BUILD_DIR)
