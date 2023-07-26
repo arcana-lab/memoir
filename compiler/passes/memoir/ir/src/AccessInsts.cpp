@@ -7,9 +7,9 @@
 namespace llvm::memoir {
 
 /*
- * ReadInst implementation
+ * AccessInst implementation
  */
-CollectionType &ReadInst::getCollectionType() const {
+CollectionType &AccessInst::getCollectionType() const {
   auto type = TypeAnalysis::analyze(this->getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine type of collection being read");
 
@@ -21,6 +21,9 @@ CollectionType &ReadInst::getCollectionType() const {
   return *collection_type;
 }
 
+/*
+ * ReadInst implementation
+ */
 llvm::Value &ReadInst::getValueRead() const {
   return this->getCallInst();
 }
@@ -161,18 +164,6 @@ std::string AssocReadInst::toString(std::string indent) const {
 /*
  * WriteInst implementation
  */
-CollectionType &WriteInst::getCollectionType() const {
-  auto type = TypeAnalysis::analyze(this->getObjectOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine type of collection being read");
-
-  auto collection_type = dyn_cast<CollectionType>(type);
-  MEMOIR_NULL_CHECK(
-      collection_type,
-      "Type being accessed by read inst is not a collection type!");
-
-  return *collection_type;
-}
-
 llvm::Value &WriteInst::getValueWritten() const {
   return *(this->getValueWrittenAsUse().get());
 }
@@ -317,18 +308,6 @@ std::string AssocWriteInst::toString(std::string indent) const {
 /*
  * GetInst implementation
  */
-CollectionType &GetInst::getCollectionType() const {
-  auto type = TypeAnalysis::analyze(this->getObjectOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine type of collection being read");
-
-  auto collection_type = dyn_cast<CollectionType>(type);
-  MEMOIR_NULL_CHECK(
-      collection_type,
-      "Type being accessed by read inst is not a collection type!");
-
-  return *collection_type;
-}
-
 llvm::Value &GetInst::getValueRead() const {
   return this->getCallInst();
 }
@@ -462,6 +441,78 @@ std::string AssocGetInst::toString(std::string indent) const {
   llvm_ss << this->getCallInst();
 
   str = "Assoc Get: " + llvm_str;
+
+  return str;
+}
+
+/*
+ * SeqInsertInst implementation
+ */
+Collection &SeqInsertInst::getCollectionAccessed() const {
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine collection being written to");
+  return *collection;
+}
+
+llvm::Value &SeqInsertInst::getObjectOperand() const {
+  return *(this->getObjectOperandAsUse().get());
+}
+
+llvm::Use &SeqInsertInst::getObjectOperandAsUse() const {
+  return this->getCallInst().getArgOperandUse(1);
+}
+
+llvm::Value &SeqInsertInst::getIndex() const {
+  return *(this->getIndexAsUse().get());
+}
+
+llvm::Use &SeqInsertInst::getIndexAsUse() const {
+  return this->getCallInst().getArgOperandUse(2);
+}
+
+std::string SeqInsertInst::toString(std::string indent) const {
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Sequence Insert: " + llvm_str;
+
+  return str;
+}
+
+/*
+ * AssocHasInst implementation
+ */
+Collection &AssocHasInst::getCollectionAccessed() const {
+  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine collection being written to");
+  return *collection;
+}
+
+llvm::Value &AssocHasInst::getObjectOperand() const {
+  return *(this->getObjectOperandAsUse().get());
+}
+
+llvm::Use &AssocHasInst::getObjectOperandAsUse() const {
+  return this->getCallInst().getArgOperandUse(0);
+}
+
+llvm::Value &AssocHasInst::getKeyOperand() const {
+  return *(this->getKeyOperandAsUse().get());
+}
+
+llvm::Use &AssocHasInst::getKeyOperandAsUse() const {
+  return this->getCallInst().getArgOperandUse(1);
+}
+
+std::string AssocHasInst::toString(std::string indent) const {
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Sequence Insert: " + llvm_str;
 
   return str;
 }

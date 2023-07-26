@@ -94,6 +94,12 @@ public:
   RetTy visitAssocGetInst(AssocGetInst &I) {
     DELEGATE(GetInst);
   };
+  RetTy visitSeqInsertInst(SeqInsertInst &I) {
+    DELEGATE(AccessInst);
+  };
+  RetTy visitAssocHasInst(AssocHasInst &I) {
+    DELEGATE(AccessInst);
+  };
   RetTy visitTypeInst(TypeInst &I) {
     DELEGATE(MemOIRInst);
   };
