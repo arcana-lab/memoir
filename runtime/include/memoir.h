@@ -46,8 +46,8 @@ Type *MEMOIR_FUNC(static_tensor_type)(Type *element_type,
 /*
  * Collection Types
  */
-__RUNTIME_ATTR Type *MEMOIR_FUNC(tensor_type)(Type *element_type,
-                                              uint64_t num_dimensions);
+__RUNTIME_ATTR
+Type *MEMOIR_FUNC(tensor_type)(Type *element_type, uint64_t num_dimensions);
 
 __RUNTIME_ATTR
 Type *MEMOIR_FUNC(assoc_array_type)(Type *key_type, Type *value_type);
@@ -104,28 +104,57 @@ __RUNTIME_ATTR
 void MEMOIR_FUNC(delete_collection)(Collection *collection);
 
 /*
- * Collection operations
+ * Collection operations.
  */
+__RUNTIME_ATTR uint64_t MEMOIR_FUNC(size)(Collection *collection);
+
+// Immutable sequence operations.
+__ALLOC_ATTR
 __RUNTIME_ATTR Collection *MEMOIR_FUNC(
     get_slice)(Collection *collection_to_slice, ...);
 
-__RUNTIME_ATTR Collection *MEMOIR_FUNC(join)(uint8_t number_of_collections,
-                                             Collection *collection_to_join,
-                                             ...);
+__ALLOC_ATTR
+__RUNTIME_ATTR
+Collection *MEMOIR_FUNC(join)(uint8_t number_of_collections,
+                              Collection *collection_to_join,
+                              ...);
 
-__RUNTIME_ATTR uint64_t MEMOIR_FUNC(size)(Collection *collection);
+// Mutable sequence operations.
+#define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
+  __RUNTIME_ATTR                                                               \
+  void MEMOIR_FUNC(sequence_insert_##TYPE_NAME)(C_TYPE value,                  \
+                                                Collection * collection,       \
+                                                size_t index);
+#include "types.def"
 
+__RUNTIME_ATTR
+void MEMOIR_FUNC(sequence_remove)(Collection *collection,
+                                  size_t begin,
+                                  size_t end);
+
+__RUNTIME_ATTR
+void MEMOIR_FUNC(sequence_append)(Collection *collection,
+                                  Collection *collection_to_append);
+
+__RUNTIME_ATTR
+void MEMOIR_FUNC(sequence_swap)(Collection *collection,
+                                size_t i,
+                                size_t j,
+                                Collection *collection2,
+                                size_t i2);
+
+__ALLOC_ATTR
+__RUNTIME_ATTR
+Collection *MEMOIR_FUNC(sequence_split)(Collection *collection,
+                                        size_t i,
+                                        size_t j);
+
+// Associative array operations.
 __RUNTIME_ATTR bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...);
 
-/*
- * Type checking and function signatures
- */
-__RUNTIME_ATTR bool MEMOIR_FUNC(assert_struct_type)(Type *type, Struct *object);
+__RUNTIME_ATTR void MEMOIR_FUNC(assoc_remove)(Collection *collection, ...);
 
-__RUNTIME_ATTR bool MEMOIR_FUNC(assert_collection_type)(Type *type,
-                                                        Collection *object);
-
-__RUNTIME_ATTR bool MEMOIR_FUNC(set_return_type)(Type *type);
+__RUNTIME_ATTR Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection);
 
 /*
  * Read/Write accesses
@@ -165,6 +194,16 @@ __RUNTIME_ATTR bool MEMOIR_FUNC(set_return_type)(Type *type);
   C_TYPE MEMOIR_FUNC(assoc_get_##TYPE_NAME)(Collection * collection_to_access, \
                                             ...);
 #include "types.def"
+
+/*
+ * Type checking and function signatures.
+ */
+__RUNTIME_ATTR bool MEMOIR_FUNC(assert_struct_type)(Type *type, Struct *object);
+
+__RUNTIME_ATTR bool MEMOIR_FUNC(assert_collection_type)(Type *type,
+                                                        Collection *object);
+
+__RUNTIME_ATTR bool MEMOIR_FUNC(set_return_type)(Type *type);
 
 } // extern "C"
 } // namespace memoir

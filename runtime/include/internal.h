@@ -21,9 +21,9 @@
 
 #define MEMOIR_TYPE_CHECK(obj, type_code)                                      \
   MEMOIR_ASSERT((obj != nullptr), "Attempt to check type of NULL object");     \
-  auto type = obj->get_type();                                                 \
-  MEMOIR_ASSERT((type != nullptr), "Type is NULL, type check failed");         \
-  MEMOIR_ASSERT((type->getCode() == type_code),                                \
+  MEMOIR_ASSERT((obj->get_type() != nullptr),                                  \
+                "Type is NULL, type check failed");                            \
+  MEMOIR_ASSERT((obj->get_type()->getCode() == type_code),                     \
                 "Type code mismatch, expected: " #type_code)
 
 #define MEMOIR_OBJECT_CHECK(obj)                                               \
@@ -42,9 +42,11 @@
 
 #define MEMOIR_INTEGER_CHECK(obj, bw, s, name)                                 \
   MEMOIR_TYPE_CHECK(obj, TypeCode::IntegerTy);                                 \
-  auto integer_type = static_cast<IntegerType *>(type);                        \
-  MEMOIR_ASSERT(                                                               \
-      ((integer_type->bitwidth == bw) && (integer_type->is_signed == s)),      \
-      "Element is not of type " #name)
+  MEMOIR_ASSERT(((static_cast<IntegerType *>(type)->bitwidth == bw)            \
+                 && (static_cast<IntegerType *>(type)->is_signed == s)),       \
+                "Element is not of type " #name)
+
+#define MEMOIR_WARNING(msg)                                                    \
+  fprintf(stderr, "\x1b[31mWARNING:\x1b[0m %s\n", msg);
 
 #endif

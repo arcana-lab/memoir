@@ -1,6 +1,6 @@
 project(MemOIR)
 
-set(CMAKE_C_FLAGS   "-O1 -Xclang -disable-llvm-passes -fdeclspec")
+set(CMAKE_C_FLAGS   "-O1 -Xclang -disable-llvm-passes -fdeclspec -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -g")
 
 include_directories(immer)
@@ -20,6 +20,7 @@ set(PRIVATE_HEADER_FILES
 set(SRC_FILES
   src/accessor.cpp
   src/builder.cpp
+  src/mutable.cpp
   src/elements.cpp
   src/objects.cpp
   src/collections.cpp

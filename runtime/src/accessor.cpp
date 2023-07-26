@@ -69,6 +69,30 @@ bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...) {
   return result;
 }
 
+__RUNTIME_ATTR
+void MEMOIR_FUNC(assoc_remove)(Collection *collection, ...) {
+  MEMOIR_ACCESS_CHECK(collection);
+
+  va_list args;
+
+  va_start(args, collection);
+
+  collection->remove_element(args);
+
+  va_end(args);
+}
+
+__RUNTIME_ATTR
+Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
+  MEMOIR_ACCESS_CHECK(collection);
+
+  MEMOIR_TYPE_CHECK(collection, TypeCode::AssocArrayTy);
+
+  auto *assoc = static_cast<AssocArray *>(collection);
+
+  return assoc->keys();
+}
+
 /*
  * Integer accesses
  */
@@ -77,13 +101,8 @@ bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...) {
   C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(Struct * struct_to_access,       \
                                               unsigned field_index) {          \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
-                                                                               \
-    auto element = struct_to_access->get_field(field_index);                   \
-                                                                               \
-    MEMOIR_INTEGER_CHECK(element, BITWIDTH, IS_SIGNED, #TYPE_NAME);            \
-                                                                               \
-    auto integer_element = static_cast<IntegerElement *>(element);             \
-    return (C_TYPE)(integer_element->read_value());                            \
+    /* TODO: add field type check. */                                          \
+    return (C_TYPE)(struct_to_access->get_field(field_index));                 \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -91,13 +110,8 @@ bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...) {
                                              Struct * struct_to_access,        \
                                              unsigned field_index) {           \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
-                                                                               \
-    auto element = struct_to_access->get_field(field_index);                   \
-                                                                               \
-    MEMOIR_INTEGER_CHECK(element, BITWIDTH, IS_SIGNED, #TYPE_NAME);            \
-                                                                               \
-    auto integer_element = static_cast<IntegerElement *>(element);             \
-    integer_element->write_value((uint64_t)value);                             \
+    /* TODO: Add field type check. */                                          \
+    struct_to_access->set_field((uint64_t)value, field_index);                 \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -168,13 +182,8 @@ bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...) {
   C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(Struct * struct_to_access,       \
                                               unsigned field_index) {          \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
-                                                                               \
-    auto element = struct_to_access->get_field(field_index);                   \
-                                                                               \
-    MEMOIR_TYPE_CHECK(element, TypeCode::CLASS##Ty);                           \
-                                                                               \
-    auto typed_element = static_cast<CLASS##Element *>(element);               \
-    return (C_TYPE)typed_element->read_value();                                \
+    /* TODO: add field type check */                                           \
+    return (C_TYPE)struct_to_access->get_field(field_index);                   \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -182,13 +191,8 @@ bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...) {
                                              Struct * struct_to_access,        \
                                              unsigned field_index) {           \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
-                                                                               \
-    auto element = struct_to_access->get_field(field_index);                   \
-                                                                               \
-    MEMOIR_TYPE_CHECK(element, TypeCode::CLASS##Ty);                           \
-                                                                               \
-    auto typed_element = static_cast<CLASS##Element *>(element);               \
-    typed_element->write_value(value);                                         \
+    /* TODO: add field type check */                                           \
+    struct_to_access->set_field((uint64_t)value, field_index);                 \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -249,13 +253,8 @@ bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...) {
   C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(Struct * struct_to_access,       \
                                               unsigned field_index) {          \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
-                                                                               \
-    auto element = struct_to_access->get_field(field_index);                   \
-                                                                               \
-    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
-                                                                               \
-    auto typed_element = static_cast<ReferenceElement *>(element);             \
-    return (C_TYPE)typed_element->read_value();                                \
+    /* TODO: add field type check. */                                          \
+    return (C_TYPE)struct_to_access->get_field(field_index);                   \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -263,13 +262,8 @@ bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...) {
                                              Struct * struct_to_access,        \
                                              unsigned field_index) {           \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
-                                                                               \
-    auto element = struct_to_access->get_field(field_index);                   \
-                                                                               \
-    MEMOIR_TYPE_CHECK(element, TypeCode::ReferenceTy);                         \
-                                                                               \
-    auto typed_element = static_cast<ReferenceElement *>(element);             \
-    typed_element->write_value(value);                                         \
+    /* TODO: add field type check. */                                          \
+    struct_to_access->set_field((uint64_t)value, field_index);                 \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \

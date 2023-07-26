@@ -125,20 +125,60 @@ bool StructType::equals(Type *other) {
  */
 const uint64_t TensorType::unknown_length = 0;
 
+TensorType::static_tensor_type_list &TensorType::get_static_tensor_types() {
+  static TensorType::static_tensor_type_list static_tensor_types;
+  return static_tensor_types;
+}
+
+TensorType::tensor_type_list &TensorType::get_tensor_types() {
+  static TensorType::tensor_type_list tensor_types;
+  return tensor_types;
+}
+
 TensorType *TensorType::get(Type *element_type, uint64_t num_dimensions) {
+  auto &tensor_types = TensorType::get_tensor_types();
+  for (auto const &[elem_type, num_dims, tensor_type] : tensor_types) {
+    if ((elem_type == element_type) && (num_dims == num_dimensions)) {
+      return tensor_type;
+    }
+  }
+
   std::vector<uint64_t> length_of_dimensions;
 
   for (auto i = 0; i < num_dimensions; i++) {
     length_of_dimensions.push_back(TensorType::unknown_length);
   }
 
-  return new TensorType(element_type, num_dimensions, length_of_dimensions);
+  auto *new_tensor_type =
+      new TensorType(element_type, num_dimensions, length_of_dimensions);
+
+  tensor_types.push_front(
+      std::tuple(element_type, num_dimensions, new_tensor_type));
+
+  return new_tensor_type;
 }
 
 TensorType *TensorType::get(Type *element_type,
                             uint64_t num_dimensions,
                             std::vector<uint64_t> &length_of_dimensions) {
-  return new TensorType(element_type, num_dimensions, length_of_dimensions);
+  auto &tensor_types = TensorType::get_static_tensor_types();
+  for (auto const &[elem_type, num_dims, len_of_dims, tensor_type] :
+       tensor_types) {
+    if ((elem_type == element_type) && (num_dims == num_dimensions)
+        && (len_of_dims == length_of_dimensions)) {
+      return tensor_type;
+    }
+  }
+
+  auto new_tensor_type =
+      new TensorType(element_type, num_dimensions, length_of_dimensions);
+
+  tensor_types.push_front(std::tuple(element_type,
+                                     num_dimensions,
+                                     length_of_dimensions,
+                                     new_tensor_type));
+
+  return new_tensor_type;
 }
 
 TensorType::TensorType(Type *element_type, uint64_t num_dimensions)
@@ -224,9 +264,26 @@ bool AssocArrayType::equals(Type *other) {
 /*
  * Sequence Type
  */
+
+std::unordered_map<Type *, SequenceType *> &SequenceType::sequence_types() {
+  static std::unordered_map<Type *, SequenceType *> sequence_types;
+
+  return sequence_types;
+}
+
 SequenceType *SequenceType::get(Type *element_type) {
-  // TODO, make these unique
-  return new SequenceType(element_type);
+  // See if we already have a sequence type for this element type.
+  auto &sequence_types = SequenceType::sequence_types();
+  auto found_type = sequence_types.find(element_type);
+  if (found_type != sequence_types.end()) {
+    return static_cast<SequenceType *>(found_type->second);
+  }
+
+  // If we couldn't find a sequence type for this element type, create and
+  // memoize a new one.
+  auto new_type = new SequenceType(element_type);
+  sequence_types[element_type] = new_type;
+  return new_type;
 }
 
 SequenceType::SequenceType(Type *element_type)

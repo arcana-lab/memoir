@@ -11,6 +11,7 @@
  * Created: Mar 7, 2022
  */
 
+#include <list>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -96,6 +97,25 @@ private:
   TensorType(Type *element_type,
              uint64_t num_dimensions,
              std::vector<uint64_t> &length_of_dimensions);
+
+  // clang-format off
+  using static_tensor_type_list =
+    std::list<
+      std::tuple<
+        Type *,                /* element type */
+        uint64_t,              /* num dimensions */
+        std::vector<uint64_t>, /* length of dimensions */
+        TensorType *>>;
+  using tensor_type_list =
+    std::list<
+      std::tuple<
+        Type *,         /* element type */
+        uint64_t,       /* num dimensions */
+        TensorType *>>;
+  // clang-format on
+
+  static static_tensor_type_list &get_static_tensor_types();
+  static tensor_type_list &get_tensor_types();
 };
 
 struct AssocArrayType : public Type {
@@ -123,6 +143,8 @@ public:
 
 private:
   SequenceType(Type *element_type);
+
+  static std::unordered_map<Type *, SequenceType *> &sequence_types();
 };
 
 /*

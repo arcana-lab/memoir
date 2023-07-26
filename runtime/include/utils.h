@@ -10,67 +10,68 @@
 
 #define MEMOIR_NARGS(...) MEMOIR_NARGS_SEQ(__VA_ARGS__,255,254,253,252,251,250,249,248,247,246,245,244,243,242,241,240,239,238,237,236,235,234,233,232,231,230,229,228,227,226,225,224,223,222,221,220,219,218,217,216,215,214,213,212,211,210,209,208,207,206,205,204,203,202,201,200,199,198,197,196,195,194,193,192,191,190,189,188,187,186,185,184,183,182,181,180,179,178,177,176,175,174,173,172,171,170,169,168,167,166,165,164,163,162,161,160,159,158,157,156,155,154,153,152,151,150,149,148,147,146,145,144,143,142,141,140,139,138,137,136,135,134,133,132,131,130,129,128,127,126,125,124,123,122,121,120,119,118,117,116,115,114,113,112,111,110,109,108,107,106,105,104,103,102,101,100,99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81,80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61,60,59,58,57,56,55,54,53,52,51,50,49,48,47,46,45,44,43,42,41,40,39,38,37,36,35,34,33,32,31,30,29,28,27,26,25,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1)
 
-#define FIRST_(a, ...) a
-#define SECOND_(a, b, ...) b
+#define MEMOIR_FIRST_(a, ...) a
+#define MEMOIR_SECOND_(a, b, ...) b
 
-#define FIRST(...) FIRST_(__VA_ARGS__,)
-#define SECOND(...) SECOND_(__VA_ARGS__,)
+#define MEMOIR_FIRST(...) MEMOIR_FIRST_(__VA_ARGS__,)
+#define MEMOIR_SECOND(...) MEMOIR_SECOND_(__VA_ARGS__,)
 
-#define EMPTY()
+#define MEMOIR_EMPTY()
 
-#define EVAL(...) EVAL1024(__VA_ARGS__)
-#define EVAL1024(...) EVAL512(EVAL512(__VA_ARGS__))
-#define EVAL512(...) EVAL256(EVAL256(__VA_ARGS__))
-#define EVAL256(...) EVAL128(EVAL128(__VA_ARGS__))
-#define EVAL128(...) EVAL64(EVAL64(__VA_ARGS__))
-#define EVAL64(...) EVAL32(EVAL32(__VA_ARGS__))
-#define EVAL32(...) EVAL16(EVAL16(__VA_ARGS__))
-#define EVAL16(...) EVAL8(EVAL8(__VA_ARGS__))
-#define EVAL8(...) EVAL4(EVAL4(__VA_ARGS__))
-#define EVAL4(...) EVAL2(EVAL2(__VA_ARGS__))
-#define EVAL2(...) EVAL1(EVAL1(__VA_ARGS__))
-#define EVAL1(...) __VA_ARGS__
+#define MEMOIR_EVAL(...) MEMOIR_EVAL1024(__VA_ARGS__)
+#define MEMOIR_EVAL1024(...) MEMOIR_EVAL512(MEMOIR_EVAL512(__VA_ARGS__))
+#define MEMOIR_EVAL512(...) MEMOIR_EVAL256(MEMOIR_EVAL256(__VA_ARGS__))
+#define MEMOIR_EVAL256(...) MEMOIR_EVAL128(MEMOIR_EVAL128(__VA_ARGS__))
+#define MEMOIR_EVAL128(...) MEMOIR_EVAL64(MEMOIR_EVAL64(__VA_ARGS__))
+#define MEMOIR_EVAL64(...) MEMOIR_EVAL32(MEMOIR_EVAL32(__VA_ARGS__))
+#define MEMOIR_EVAL32(...) MEMOIR_EVAL16(MEMOIR_EVAL16(__VA_ARGS__))
+#define MEMOIR_EVAL16(...) MEMOIR_EVAL8(MEMOIR_EVAL8(__VA_ARGS__))
+#define MEMOIR_EVAL8(...) MEMOIR_EVAL4(MEMOIR_EVAL4(__VA_ARGS__))
+#define MEMOIR_EVAL4(...) MEMOIR_EVAL2(MEMOIR_EVAL2(__VA_ARGS__))
+#define MEMOIR_EVAL2(...) MEMOIR_EVAL1(MEMOIR_EVAL1(__VA_ARGS__))
+#define MEMOIR_EVAL1(...) __VA_ARGS__
 
-#define DEFER1(m) m EMPTY()
-#define DEFER2(m) m EMPTY EMPTY()()
+#define MEMOIR_DEFER1(m) m MEMOIR_EMPTY()
+#define MEMOIR_DEFER2(m) m MEMOIR_EMPTY MEMOIR_EMPTY()()
 
-#define IS_PROBE(...) SECOND(__VA_ARGS__, 0)
-#define PROBE() ~, 1
+#define MEMOIR_IS_PROBE(...) MEMOIR_SECOND(__VA_ARGS__, 0)
+#define MEMOIR_PROBE() ~, 1
 
-#define CAT(a,b) a ## b
+#define MEMOIR_CAT(a,b) a ## b
 
-#define NOT(x) IS_PROBE(CAT(_NOT_, x))
-#define _NOT_0 PROBE()
+#define MEMOIR_NOT(x) MEMOIR_IS_PROBE(MEMOIR_CAT(MEMOIR__NOT_, x))
+#define MEMOIR__NOT_0 MEMOIR_PROBE()
 
-#define BOOL(x) NOT(NOT(x))
+#define MEMOIR_BOOL(x) MEMOIR_NOT(MEMOIR_NOT(x))
 
-#define IF_ELSE(condition) _IF_ELSE(BOOL(condition))
-#define _IF_ELSE(condition) CAT(_IF_, condition)
+#define MEMOIR_IF_ELSE(condition) MEMOIR__IF_ELSE(MEMOIR_BOOL(condition))
+#define MEMOIR__IF_ELSE(condition) MEMOIR_CAT(MEMOIR__IF_, condition)
 
-#define _IF_1(...) __VA_ARGS__ _IF_1_ELSE
-#define _IF_0(...)             _IF_0_ELSE
+#define MEMOIR__IF_1(...) __VA_ARGS__ MEMOIR__IF_1_ELSE
+#define MEMOIR__IF_0(...)             MEMOIR__IF_0_ELSE
 
-#define _IF_1_ELSE(...)
-#define _IF_0_ELSE(...) __VA_ARGS__
+#define MEMOIR__IF_1_ELSE(...)
+#define MEMOIR__IF_0_ELSE(...) __VA_ARGS__
 
-#define HAS_ARGS(...) BOOL(FIRST(_END_OF_ARGUMENTS_ __VA_ARGS__)())
-#define _END_OF_ARGUMENTS_() 0
+#define MEMOIR_HAS_ARGS(...) MEMOIR_BOOL(MEMOIR_FIRST(MEMOIR__END_OF_ARGUMENTS_ __VA_ARGS__)())
+#define MEMOIR__END_OF_ARGUMENTS_() 0
 
-#define MAP(f, first, ...)            \
+#define MEMOIR_MAP(f, first, ...)            \
   f(first)                            \
-  IF_ELSE(HAS_ARGS(__VA_ARGS__))(     \
-    , DEFER2(_MAP)()(f, __VA_ARGS__)  \
+  MEMOIR_IF_ELSE(MEMOIR_HAS_ARGS(__VA_ARGS__))(     \
+    , MEMOIR_DEFER2(MEMOIR__MAP)()(f, __VA_ARGS__)  \
   )(                                  \
     /* Do nothing, just terminate */  \
   )
-#define _MAP() MAP
+#define MEMOIR__MAP() MEMOIR_MAP
 
-#define apply_(f, x) f(x)
-#define apply(f, ...) EVAL(MAP(f, __VA_ARGS__))
+#define MEMOIR_apply_(f, x) f(x)
+#define MEMOIR_apply(f, ...) MEMOIR_EVAL(MEMOIR_MAP(f, __VA_ARGS__))
 // clang-format on
 
-#define CAST_TO(type, x) (type)(x)
-#define CAST_TO_SIZE_T_(x) CAST_TO(size_t, x)
-#define CAST_TO_SIZE_T(...) apply(CAST_TO_SIZE_T_, __VA_ARGS__)
+#define MEMOIR_CAST_TO(type, x) (type)(x)
+#define MEMOIR_CAST_TO_SIZE_T_(x) MEMOIR_CAST_TO(size_t, x)
+#define MEMOIR_CAST_TO_SIZE_T(...)                                             \
+  MEMOIR_apply(MEMOIR_CAST_TO_SIZE_T_, __VA_ARGS__)
 
 #endif

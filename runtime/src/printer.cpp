@@ -6,48 +6,13 @@
 
 namespace memoir {
 
-std::string IntegerElement::to_string() {
-  return "integer";
-}
-
-std::string FloatElement::to_string() {
-  return "float";
-}
-
-std::string DoubleElement::to_string() {
-  return "double";
-}
-
-std::string StructElement::to_string() {
-  return "struct";
-}
-
-std::string TensorElement::to_string() {
-  return "tensor";
-}
-
-std::string AssocArrayElement::to_string() {
-  return "assoc array";
-}
-
-std::string SequenceElement::to_string() {
-  return "sequence";
-}
-
-std::string PointerElement::to_string() {
-  return "pointer";
-}
-
-std::string ReferenceElement::to_string() {
-  return "reference";
-}
-
 std::string Struct::to_string() {
   std::string str = "(Struct: \n";
   for (auto field : this->fields) {
     str += "  (Field: ";
     str += "    ";
-    str += field->to_string();
+    // TODO: decode the element and print it.
+    str += std::to_string(field);
     str += "  )\n";
   }
   str += ")\n";

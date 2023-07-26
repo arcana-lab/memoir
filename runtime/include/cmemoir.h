@@ -65,7 +65,7 @@ namespace memoir {
 
 #define memoir_allocate_tensor(element_type, ...)                              \
   MEMOIR_FUNC(allocate_tensor)                                                 \
-  (element_type, MEMOIR_NARGS(__VA_ARGS__), CAST_TO_SIZE_T(__VA_ARGS__))
+  (element_type, MEMOIR_NARGS(__VA_ARGS__), MEMOIR_CAST_TO_SIZE_T(__VA_ARGS__))
 
 #define memoir_allocate_sequence(element_type, initial_size)                   \
   MEMOIR_FUNC(allocate_sequence)(element_type, (uint64_t)initial_size)
@@ -81,6 +81,9 @@ namespace memoir {
 /*
  * Collection operations
  */
+#define memoir_size(object) MEMOIR_FUNC(size)(object)
+
+// Immutable sequence operations.
 #define memoir_sequence_slice(object, left, right)                             \
   MEMOIR_FUNC(get_slice)(object, (uint64_t)left, (uint64_t)right)
 
@@ -88,9 +91,33 @@ namespace memoir {
   MEMOIR_FUNC(join)                                                            \
   (1 + MEMOIR_NARGS(__VA_ARGS__), object, __VA_ARGS__)
 
-#define memoir_size(object) MEMOIR_FUNC(size)(object)
+// Mutable sequence operations.
+#define memoir_seq_insert(ty, value, object, index)                            \
+  MEMOIR_FUNC(sequence_insert_##ty)(value, object, index)
 
+#define memoir_seq_remove(object, index)                                       \
+  MEMOIR_FUNC(sequence_remove)(object, index, index + 1)
+
+#define memoir_seq_remove_range(object, begin, end)                            \
+  MEMOIR_FUNC(sequence_remove)(object, begin, end)
+
+#define memoir_seq_append(object, other)                                       \
+  MEMOIR_FUNC(sequence_append)(object, other)
+
+#define memoir_seq_swap(object, i, other, other_i)                             \
+  MEMOIR_FUNC(sequence_swap)(object, i, i + 1, other, other_i)
+
+#define memoir_seq_swap_range(object, i, j, other, other_i)                    \
+  MEMOIR_FUNC(sequence_swap)(object, i, j, other, other_i)
+
+#define memoir_seq_split(object, i, j) MEMOIR_FUNC(sequence_split)(object, i, j)
+
+// Associative array operations.
 #define memoir_assoc_has(object, key) MEMOIR_FUNC(assoc_has)(object, key)
+
+#define memoir_assoc_remove(object, key) MEMOIR_FUNC(assoc_remove)(object, key)
+
+#define memoir_assoc_keys(object) MEMOIR_FUNC(assoc_keys)(object)
 
 /*
  * Type checking
@@ -112,7 +139,7 @@ namespace memoir {
 #define memoir_struct_read(ty, strct, field_index)                             \
   MEMOIR_FUNC(struct_read_##ty)(strct, (unsigned)field_index)
 #define memoir_index_read(ty, cllct, ...)                                      \
-  MEMOIR_FUNC(index_read_##ty)(cllct, CAST_TO_SIZE_T(__VA_ARGS__))
+  MEMOIR_FUNC(index_read_##ty)(cllct, MEMOIR_CAST_TO_SIZE_T(__VA_ARGS__))
 #define memoir_assoc_read(ty, cllct, key)                                      \
   MEMOIR_FUNC(assoc_read_##ty)(cllct, key)
 
@@ -122,7 +149,7 @@ namespace memoir {
 #define memoir_struct_write(ty, val, strct, field_index)                       \
   MEMOIR_FUNC(struct_write_##ty)(val, strct, (unsigned)field_index)
 #define memoir_index_write(ty, val, cllct, ...)                                \
-  MEMOIR_FUNC(index_write_##ty)(val, cllct, CAST_TO_SIZE_T(__VA_ARGS__))
+  MEMOIR_FUNC(index_write_##ty)(val, cllct, MEMOIR_CAST_TO_SIZE_T(__VA_ARGS__))
 #define memoir_assoc_write(ty, val, cllct, key)                                \
   MEMOIR_FUNC(assoc_write_##ty)(val, cllct, key)
 
@@ -132,7 +159,7 @@ namespace memoir {
 #define memoir_struct_get(ty, strct, field_index)                              \
   MEMOIR_FUNC(struct_get_##ty)(strct, (unsigned)field_index)
 #define memoir_index_get(ty, cllct, ...)                                       \
-  MEMOIR_FUNC(index_get_##ty)(cllct, CAST_TO_SIZE_T(__VA_ARGS__))
+  MEMOIR_FUNC(index_get_##ty)(cllct, MEMOIR_CAST_TO_SIZE_T(__VA_ARGS__))
 #define memoir_assoc_get(ty, cllct, key) MEMOIR_FUNC(assoc_get_##ty)(cllct, key)
 
 #if defined(__cplusplus)
