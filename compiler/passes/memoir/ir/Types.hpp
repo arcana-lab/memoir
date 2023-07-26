@@ -57,7 +57,8 @@ public:
   static IntegerType &get_i32_type();
   static IntegerType &get_i16_type();
   static IntegerType &get_i8_type();
-  static IntegerType &get_i1_type();
+  static IntegerType &get_i2_type();
+  static IntegerType &get_bool_type();
   static FloatType &get_f32_type();
   static DoubleType &get_f64_type();
   static PointerType &get_ptr_type();

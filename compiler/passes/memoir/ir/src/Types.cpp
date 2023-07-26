@@ -40,7 +40,11 @@ IntegerType &Type::get_i8_type() {
   return IntegerType::get<8, true>();
 }
 
-IntegerType &Type::get_i1_type() {
+IntegerType &Type::get_i2_type() {
+  return IntegerType::get<2, true>();
+}
+
+IntegerType &Type::get_bool_type() {
   return IntegerType::get<1, true>();
 }
 

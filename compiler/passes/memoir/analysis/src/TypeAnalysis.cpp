@@ -123,7 +123,7 @@ Type *TypeAnalysis::visitInt8TypeInst(Int8TypeInst &I) {
 }
 
 Type *TypeAnalysis::visitBoolTypeInst(BoolTypeInst &I) {
-  return &(Type::get_i1_type());
+  return &(Type::get_bool_type());
 }
 
 Type *TypeAnalysis::visitFloatTypeInst(FloatTypeInst &I) {

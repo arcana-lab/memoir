@@ -81,6 +81,12 @@ GET_TYPE_IMPL(Int8TypeInst)
 TO_STRING_IMPL(Int8TypeInst)
 
 /*
+ * Int2TypeInst implementation
+ */
+GET_TYPE_IMPL(Int2TypeInst)
+TO_STRING_IMPL(Int2TypeInst)
+
+/*
  * BoolTypeInst implementation
  */
 GET_TYPE_IMPL(BoolTypeInst)
