@@ -20,6 +20,7 @@
 namespace memoir {
 extern "C" {
 
+#define __IMMUT_ATTR __attribute__((const))
 #define __RUNTIME_ATTR                                                         \
   __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))       \
       __attribute__((optnone)) __attribute__((used))
@@ -75,20 +76,24 @@ Type *MEMOIR_FUNC(ref_type)(Type *referenced_type);
 /*
  * Object construction
  */
+__IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
 Struct *MEMOIR_FUNC(allocate_struct)(Type *type);
 
+__IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
 Collection *MEMOIR_FUNC(allocate_tensor)(Type *element_type,
                                          uint64_t num_dimensions,
                                          ...);
 
+__IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
 Collection *MEMOIR_FUNC(allocate_assoc_array)(Type *key_type, Type *value_type);
 
+__IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
 Collection *MEMOIR_FUNC(allocate_sequence)(Type *element_type,
@@ -106,13 +111,17 @@ void MEMOIR_FUNC(delete_collection)(Collection *collection);
 /*
  * Collection operations.
  */
-__RUNTIME_ATTR uint64_t MEMOIR_FUNC(size)(Collection *collection);
+__IMMUT_ATTR
+__RUNTIME_ATTR
+uint64_t MEMOIR_FUNC(size)(Collection *collection);
 
 // Immutable sequence operations.
+__IMMUT_ATTR
 __ALLOC_ATTR
-__RUNTIME_ATTR Collection *MEMOIR_FUNC(
-    get_slice)(Collection *collection_to_slice, ...);
+__RUNTIME_ATTR
+Collection *MEMOIR_FUNC(get_slice)(Collection *collection_to_slice, ...);
 
+__IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
 Collection *MEMOIR_FUNC(join)(uint8_t number_of_collections,
@@ -150,22 +159,31 @@ Collection *MEMOIR_FUNC(sequence_split)(Collection *collection,
                                         size_t j);
 
 // Associative array operations.
-__RUNTIME_ATTR bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...);
+__IMMUT_ATTR
+__RUNTIME_ATTR
+bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...);
 
-__RUNTIME_ATTR void MEMOIR_FUNC(assoc_remove)(Collection *collection, ...);
+__RUNTIME_ATTR
+void MEMOIR_FUNC(assoc_remove)(Collection *collection, ...);
 
-__RUNTIME_ATTR Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection);
+__IMMUT_ATTR
+__ALLOC_ATTR
+__RUNTIME_ATTR
+Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection);
 
 /*
  * Read/Write accesses
  */
 #define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
+  __IMMUT_ATTR                                                                 \
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(Struct * struct_to_access,       \
                                               unsigned field_index);           \
+  __IMMUT_ATTR                                                                 \
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(                                                          \
       index_read_##TYPE_NAME)(Collection * collection_to_access, ...);         \
+  __IMMUT_ATTR                                                                 \
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(                                                          \
       assoc_read_##TYPE_NAME)(Collection * collection_to_access, ...);         \
@@ -184,12 +202,15 @@ __RUNTIME_ATTR Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection);
 
 // Nested object access
 #define HANDLE_NESTED_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX)                    \
+  __IMMUT_ATTR                                                                 \
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(struct_get_##TYPE_NAME)(Struct * struct_to_access,        \
                                              unsigned field_index);            \
+  __IMMUT_ATTR                                                                 \
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(index_get_##TYPE_NAME)(Collection * collection_to_access, \
                                             ...);                              \
+  __IMMUT_ATTR                                                                 \
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(assoc_get_##TYPE_NAME)(Collection * collection_to_access, \
                                             ...);
@@ -198,12 +219,16 @@ __RUNTIME_ATTR Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection);
 /*
  * Type checking and function signatures.
  */
-__RUNTIME_ATTR bool MEMOIR_FUNC(assert_struct_type)(Type *type, Struct *object);
+__IMMUT_ATTR
+__RUNTIME_ATTR
+bool MEMOIR_FUNC(assert_struct_type)(Type *type, Struct *object);
 
-__RUNTIME_ATTR bool MEMOIR_FUNC(assert_collection_type)(Type *type,
-                                                        Collection *object);
-
-__RUNTIME_ATTR bool MEMOIR_FUNC(set_return_type)(Type *type);
+__IMMUT_ATTR
+__RUNTIME_ATTR
+bool MEMOIR_FUNC(assert_collection_type)(Type *type, Collection *object);
+__IMMUT_ATTR
+__RUNTIME_ATTR
+bool MEMOIR_FUNC(set_return_type)(Type *type);
 
 } // extern "C"
 } // namespace memoir
