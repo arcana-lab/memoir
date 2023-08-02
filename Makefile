@@ -13,20 +13,20 @@ build:
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(INSTALL_DIR)
 	cmake -DCMAKE_C_COMPILER=`which clang` -DCMAKE_CXX_COMPILER=`which clang++` -S . -B $(BUILD_DIR)
-	make -C $(BUILD_DIR) all -j8
+	make -C $(BUILD_DIR) all -j32
 
 install: build
-	make -C $(BUILD_DIR) install -j8
+	make -C $(BUILD_DIR) install -j32
 
 postinstall: install
 	$(NORM_RUNTIME) $(RUNTIME_BC) $(DECL_BC)
 	@cp $(BUILD_DIR)/compile_commands.json .
 
 benchmark: all
-	make -C $(BUILD_DIR) bitcodes -j8
+	make -C $(BUILD_DIR) bitcodes -j32
 
 test: all
-	make -C $(BUILD_DIR) tests -j8
+	make -C $(BUILD_DIR) tests -j32
 	ctest --tests-dir $(BUILD_DIR)
 
 noelle: .noelle
@@ -47,7 +47,7 @@ uninstall:
 	rm .noelle
 
 clean:
-	make -C $(BUILD_DIR) clean -j8
+	make -C $(BUILD_DIR) clean -j32
 	make -C $(HOOKS_DIR) clean
 	rm -rf $(BUILD_DIR)
 
