@@ -25,6 +25,11 @@
 #include <optional>
 #include <type_traits>
 
+// LLVM Data types
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/SmallVector.h"
+
 namespace llvm::memoir {
 
 /*
