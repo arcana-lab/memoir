@@ -31,12 +31,14 @@ namespace llvm::memoir {
 /*
  * Enum of MemOIR functions
  */
-enum MemOIR_Func {
-#define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) MemOIR_Enum,
+enum class MemOIR_Func {
+#define HANDLE_INST(ENUM, FUNC, CLASS) ENUM,
 #include "memoir/ir/Instructions.def"
-#undef HANDLE_INST
   NONE
 };
+
+std::ostream &operator<<(std::ostream &os, MemOIR_Func Enum);
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, MemOIR_Func Enum);
 
 class FunctionNames {
 public:
@@ -64,6 +66,8 @@ public:
 
   static bool is_allocation(MemOIR_Func function_enum);
 
+  static bool is_def(MemOIR_Func function_enum);
+
   static bool is_access(MemOIR_Func function_enum);
 
   static bool is_read(MemOIR_Func function_enum);
@@ -72,13 +76,8 @@ public:
 
   static bool is_get(MemOIR_Func function_enum);
 
-  /*
-   * Mapping from MemOIR function enum to function name as
-   * string and vice versa
-   */
-  static const map<MemOIR_Func, std::string> memoir_to_function_names;
-
-  static const map<std::string, MemOIR_Func> function_names_to_memoir;
+  static bool is_mutator(llvm::Module &M, MemOIR_Func function_enum);
+  static bool is_mutator(llvm::Function &F);
 };
 
 } // namespace llvm::memoir
