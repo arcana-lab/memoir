@@ -29,6 +29,73 @@ public:
   }
 
   /*
+   * Type Instructions
+   */
+  TypeInst *CreateTypeInst(Type &type, const Twine &name = "") {
+    if (isa<FloatType>(&type)) {
+      return this->CreateFloatTypeInst(name);
+    } else if (isa<DoubleType>(&type)) {
+      return this->CreateDoubleTypeInst(name);
+    } else if (isa<PointerType>(&type)) {
+      return this->CreatePointerTypeInst(name);
+    } else if (auto *integer_type = dyn_cast<IntegerType>(&type)) {
+      if (integer_type->isSigned()) {
+        switch (integer_type->getBitWidth()) {
+          case 64:
+            return this->CreateUInt64TypeInst(name);
+          case 32:
+            return this->CreateUInt32TypeInst(name);
+          case 16:
+            return this->CreateUInt16TypeInst(name);
+          case 8:
+            return this->CreateUInt8TypeInst(name);
+          default:
+            MEMOIR_UNREACHABLE(
+                "Attempt to create unknown unsigned integer type!");
+        }
+      } else {
+        switch (integer_type->getBitWidth()) {
+          case 64:
+            return this->CreateInt64TypeInst(name);
+          case 32:
+            return this->CreateInt32TypeInst(name);
+          case 16:
+            return this->CreateInt16TypeInst(name);
+          case 8:
+            return this->CreateInt8TypeInst(name);
+          case 2:
+            return this->CreateInt2TypeInst(name);
+          case 1:
+            return this->CreateBoolTypeInst(name);
+          default:
+            MEMOIR_UNREACHABLE(
+                "Attempt to create unknown signed integer type!");
+        }
+      }
+    } else if (auto *ref_type = dyn_cast<ReferenceType>(&type)) {
+      return this->CreateReferenceTypeInst(
+          &this->CreateTypeInst(ref_type->getReferencedType(), name)
+               ->getCallInst(),
+          name);
+    } else if (auto *struct_type = dyn_cast<StructType>(&type)) {
+      return this->CreateStructTypeInst(
+          &struct_type->getDefinition().getNameOperand(),
+          name);
+    } else if (auto *field_array_type = dyn_cast<FieldArrayType>(&type)) {
+      return this->CreateTypeInst(field_array_type->getStructType());
+    } else if (auto *static_tensor_type = dyn_cast<StaticTensorType>(&type)) {
+      return nullptr;
+    } else if (auto *tensor_type = dyn_cast<TensorType>(&type)) {
+      return nullptr;
+    } else if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {
+      return nullptr;
+    } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
+      return nullptr;
+    }
+    MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");
+  }
+
+  /*
    * Primitive Type Instructions
    */
 #define HANDLE_PRIMITIVE_TYPE_INST(ENUM, FUNC, CLASS)                          \
@@ -78,19 +145,44 @@ public:
     return define_struct_type_inst;
   }
 
-  MemOIRInst *CreateStructTypeInst(const char *type_name,
-                                   const Twine &name = "") {
+  StructTypeInst *CreateStructTypeInst(llvm::Value *llvm_type_name,
+                                       const Twine &name = "") {
     // Fetch the LLVM Function.
     auto llvm_func =
         FunctionNames::get_memoir_function(*(this->M),
                                            MemOIR_Func::STRUCT_TYPE);
 
-    // TODO: Create the LLVM type name.
+    // Create the call.
+    auto llvm_args = vector<llvm::Value *>({ llvm_type_name });
+    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
+                                      llvm::ArrayRef(llvm_args),
+                                      name);
 
-    // TODO: Create the call.
+    // Convert to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto struct_type_inst = dyn_cast<StructTypeInst>(memoir_inst);
+    return struct_type_inst;
+  }
 
-    // TODO: Convert to MemOIRInst and return.
-    return nullptr;
+  ReferenceTypeInst *CreateReferenceTypeInst(llvm::Value *referenced_type,
+                                             const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto llvm_func =
+        FunctionNames::get_memoir_function(*(this->M),
+                                           MemOIR_Func::REFERENCE_TYPE);
+
+    // Build the list of arguments.
+    auto llvm_args = vector<llvm::Value *>({ referenced_type });
+
+    // Create the call.
+    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
+                                      llvm::ArrayRef(llvm_args),
+                                      name);
+
+    // Convert to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto ref_type_inst = dyn_cast<ReferenceTypeInst>(memoir_inst);
+    return ref_type_inst;
   }
 
   // TODO: Add the other derived type instructions.
@@ -98,10 +190,80 @@ public:
   /* TODO
    * Allocation Instructions
    */
+  SequenceAllocInst *CreateSequenceAllocInst(Type &type,
+                                             uint64_t size,
+                                             const Twine &name = "") {
+    return this->CreateSequenceAllocInst(
+        &this->CreateTypeInst(type)->getCallInst(),
+        size,
+        name);
+  }
+
+  SequenceAllocInst *CreateSequenceAllocInst(Type &type,
+                                             llvm::Value *size,
+                                             const Twine &name = "") {
+    return this->CreateSequenceAllocInst(
+        &this->CreateTypeInst(type)->getCallInst(),
+        size,
+        name);
+  }
+
+  SequenceAllocInst *CreateSequenceAllocInst(llvm::Value *type,
+                                             uint64_t size,
+                                             const Twine &name = "") {
+    return this->CreateSequenceAllocInst(type, this->getInt64(size), name);
+  }
+
+  SequenceAllocInst *CreateSequenceAllocInst(llvm::Value *type,
+                                             llvm::Value *size,
+                                             const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto llvm_func =
+        FunctionNames::get_memoir_function(*(this->M),
+                                           MemOIR_Func::ALLOCATE_SEQUENCE);
+
+    // Create the LLVM call.
+    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
+                                      llvm::ArrayRef({ type, size }),
+                                      name);
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for sequence allocation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto seq_alloc_inst = dyn_cast<SequenceAllocInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(seq_alloc_inst,
+                      "Could not create call to AllocateSequence");
+    return seq_alloc_inst;
+  }
 
   /* TODO
    * Access Instructions
    */
+  IndexWriteInst *CreateIndexWriteInst(Type &element_type,
+                                       llvm::Value *llvm_value_to_write,
+                                       llvm::Value *llvm_collection,
+                                       llvm::Value *llvm_index,
+                                       const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto llvm_func = FunctionNames::get_memoir_function(
+        *(this->M),
+        getIndexWriteEnumForType(element_type));
+
+    // Create the LLVM call.
+    auto llvm_call = this->CreateCall(
+        FunctionCallee(llvm_func),
+        llvm::ArrayRef({ llvm_value_to_write, llvm_collection, llvm_index }),
+        name);
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for index write operation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto inst = dyn_cast<IndexWriteInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(inst, "Could not create call to IndexWriteInst");
+    return inst;
+  }
 
   /* TODO
    * Deletion Instructions
@@ -230,6 +392,72 @@ protected:
   llvm::Module *M;
 
   // Helper Functions
+#define READWRITE_ENUM_FOR_TYPE(ENUM_PREFIX, NAME)                             \
+  MemOIR_Func get##NAME##EnumForType(Type &type) {                             \
+    if (isa<FloatType>(&type)) {                                               \
+      return MemOIR_Func::ENUM_PREFIX##_FLOAT;                                 \
+    } else if (isa<DoubleType>(&type)) {                                       \
+      return MemOIR_Func::ENUM_PREFIX##_DOUBLE;                                \
+    } else if (isa<PointerType>(&type)) {                                      \
+      return MemOIR_Func::ENUM_PREFIX##_PTR;                                   \
+    } else if (auto *integer_type = dyn_cast<IntegerType>(&type)) {            \
+      if (integer_type->isSigned()) {                                          \
+        switch (integer_type->getBitWidth()) {                                 \
+          case 64:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_UINT64;                          \
+          case 32:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_UINT32;                          \
+          case 16:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_UINT16;                          \
+          case 8:                                                              \
+            return MemOIR_Func::ENUM_PREFIX##_UINT8;                           \
+          default:                                                             \
+            MEMOIR_UNREACHABLE(                                                \
+                "Attempt to create unknown unsigned integer type!");           \
+        }                                                                      \
+      } else {                                                                 \
+        switch (integer_type->getBitWidth()) {                                 \
+          case 64:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_INT64;                           \
+          case 32:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_INT32;                           \
+          case 16:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_INT16;                           \
+          case 8:                                                              \
+            return MemOIR_Func::ENUM_PREFIX##_INT8;                            \
+          case 2:                                                              \
+            return MemOIR_Func::ENUM_PREFIX##_INT2;                            \
+          case 1:                                                              \
+            return MemOIR_Func::ENUM_PREFIX##_BOOL;                            \
+          default:                                                             \
+            MEMOIR_UNREACHABLE(                                                \
+                "Attempt to create unknown signed integer type!");             \
+        }                                                                      \
+      }                                                                        \
+    }                                                                          \
+    MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");      \
+  };
+
+  READWRITE_ENUM_FOR_TYPE(INDEX_READ, IndexRead)
+  READWRITE_ENUM_FOR_TYPE(ASSOC_READ, AssocRead)
+  READWRITE_ENUM_FOR_TYPE(STRUCT_READ, StructRead)
+  READWRITE_ENUM_FOR_TYPE(INDEX_WRITE, IndexWrite)
+  READWRITE_ENUM_FOR_TYPE(ASSOC_WRITE, AssocWrite)
+  READWRITE_ENUM_FOR_TYPE(STRUCT_WRITE, StructWrite)
+
+#define GET_ENUM_FOR_TYPE(ENUM_PREFIX, NAME)                                   \
+  MemOIR_Func get##NAME##EnumForType(Type &type) {                             \
+    if (isa<StructType>(&type)) {                                              \
+      return MemOIR_Func::ENUM_PREFIX##_STRUCT;                                \
+    } else if (isa<CollectionType>(&type)) {                                   \
+      return MemOIR_Func::ENUM_PREFIX##_COLLECTION;                            \
+    }                                                                          \
+    MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");      \
+  };
+
+  GET_ENUM_FOR_TYPE(INDEX_GET, IndexGet)
+  GET_ENUM_FOR_TYPE(ASSOC_GET, AssocGet)
+  GET_ENUM_FOR_TYPE(STRUCT_GET, StructGet)
 };
 
 } // namespace llvm::memoir
