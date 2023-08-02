@@ -42,18 +42,6 @@ do
             LOWER="true"
             shift
             ;;
-        --slice-canon|--slice-canonicalization)
-            PASSES+=("SliceCanonicalization")
-            shift
-            ;;
-        --slice-prop|--slice-propagation)
-            PASSES+=("SlicePropagation")
-            shift
-            ;;
-        --memoir-dce|--dead-collection-elimination)
-            PASSES+=("DeadCollectionElimination")
-            shift
-            ;;
         -h|--help)
             usage
             echo ""
@@ -61,8 +49,7 @@ do
             exit 1
             ;;
         -*|--*)
-            PASS_NAME=$(echo "$1" | sed 's/^-*//')
-            PASSES+=("${PASS_NAME}")
+            PASSES+=("$1")
             shift
             ;;
         *)
@@ -122,13 +109,12 @@ function run_pass {
     local INPUT_IR_FILE="$1"
     shift
 
-    PASS_IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.${PASS}.bc
+    PASS_IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.$(sed '/^-//' <<< ${PASS}).bc
 
-    PASS_OBJ=${LIB_DIR}/${PASS}.so
     echo "${PASS_OBJ}"
     if test -f "${PASS_OBJ}" ; then
         echo "Running noelle ${PASS} (I: ${INPUT_IR_FILE}, O: ${PASS_IR_FILE})"
-        noelle-load -load ${LIB_DIR}/${PASS}.so -${PASS} ${INPUT_IR_FILE} -o ${PASS_IR_FILE}
+        memoir-load -${PASS} ${INPUT_IR_FILE} -o ${PASS_IR_FILE}
     else
         echo "Running opt ${PASS} (I: ${INPUT_IR_FILE}, O: ${PASS_IR_FILE})"
         opt -${PASS} ${INPUT_IR_FILE} -o ${PASS_IR_FILE}
@@ -137,11 +123,12 @@ function run_pass {
     cp ${PASS_IR_FILE} ${IR_FILE} ;
 }
 
-for PASS in ${PASSES[@]}
-do
-    run_pass ${PASS} ${IR_FILE}
-done
- 
+# for PASS in ${PASSES[@]}
+# do
+#     run_pass ${PASS} ${IR_FILE}
+# done
+memoir-load ${PASSES[@]} ${IR_FILE} -o ${IR_FILE}
+
 # Lower the bitcode
 if [[ "${LOWER}" == "true" ]] ; then
     LOWERED_IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.lowered.bc
