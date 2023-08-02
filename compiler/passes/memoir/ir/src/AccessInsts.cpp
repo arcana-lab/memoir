@@ -446,42 +446,6 @@ std::string AssocGetInst::toString(std::string indent) const {
 }
 
 /*
- * SeqInsertInst implementation
- */
-Collection &SeqInsertInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine collection being written to");
-  return *collection;
-}
-
-llvm::Value &SeqInsertInst::getObjectOperand() const {
-  return *(this->getObjectOperandAsUse().get());
-}
-
-llvm::Use &SeqInsertInst::getObjectOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(1);
-}
-
-llvm::Value &SeqInsertInst::getIndex() const {
-  return *(this->getIndexAsUse().get());
-}
-
-llvm::Use &SeqInsertInst::getIndexAsUse() const {
-  return this->getCallInst().getArgOperandUse(2);
-}
-
-std::string SeqInsertInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "Sequence Insert: " + llvm_str;
-
-  return str;
-}
-
-/*
  * AssocHasInst implementation
  */
 Collection &AssocHasInst::getCollectionAccessed() const {
