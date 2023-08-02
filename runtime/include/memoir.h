@@ -20,7 +20,7 @@
 namespace memoir {
 extern "C" {
 
-#define __IMMUT_ATTR __attribute__((const))
+#define __IMMUT_ATTR __attribute__((const)) __attribute__((pure))
 #define __RUNTIME_ATTR                                                         \
   __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))       \
       __attribute__((optnone)) __attribute__((used))
