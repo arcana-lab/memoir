@@ -6,6 +6,10 @@
 
 #include "memoir/ir/Instructions.hpp"
 
+#include "memoir/support/Print.hpp"
+
+#include "memoir/utility/FunctionNames.hpp"
+
 namespace llvm::memoir {
 
 #define DELEGATE(CLASS_TO_VISIT)                                               \
@@ -33,14 +37,13 @@ public:
     static_assert(std::is_base_of<InstVisitor, SubClass>::value,
                   "Must pass the derived type to this template!");
 
-    if (!FunctionNames::is_memoir_call(I)) {
-      return static_cast<SubClass *>(this)->visitLLVMCallInst(I);
-    }
-
     auto memoir_enum = FunctionNames::get_memoir_enum(I);
+
     switch (memoir_enum) {
       default:
         MEMOIR_UNREACHABLE("Unknown MemOIR instruction encountered!");
+      case MemOIR_Func::NONE:
+        return static_cast<SubClass *>(this)->visitLLVMCallInst(I);
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   case MemOIR_Func::ENUM:                                                      \
     DELEGATE_MEMOIR(CLASS);
@@ -50,7 +53,7 @@ public:
 
   RetTy visitLLVMCallInst(llvm::CallInst &I) {
     return static_cast<SubClass *>(this)->visitInstruction(
-        static_cast<Instruction &>(I));
+        static_cast<llvm::Instruction &>(I));
   };
   RetTy visitMemOIRInst(MemOIRInst &I) {
     DELEGATE_LLVM(Instruction);
@@ -94,11 +97,11 @@ public:
   RetTy visitAssocGetInst(AssocGetInst &I) {
     DELEGATE(GetInst);
   };
-  RetTy visitSeqInsertInst(SeqInsertInst &I) {
-    DELEGATE(AccessInst);
-  };
   RetTy visitAssocHasInst(AssocHasInst &I) {
     DELEGATE(AccessInst);
+  };
+  RetTy visitSeqInsertInst(SeqInsertInst &I) {
+    DELEGATE(MemOIRInst);
   };
   RetTy visitTypeInst(TypeInst &I) {
     DELEGATE(MemOIRInst);
@@ -108,7 +111,7 @@ public:
   };
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE_LLVM(Instruction);                                                \
+    DELEGATE(MemOIRInst);                                                      \
   };
 #define HANDLE_TYPE_INST(ENUM, FUNC, CLASS)                                    \
   RetTy visit##CLASS(CLASS &I) {                                               \
@@ -118,7 +121,8 @@ public:
   RetTy visit##CLASS(CLASS &I) {                                               \
     DELEGATE(AllocInst);                                                       \
   };
-#define HANDLE_ACCESS_INST(ENUM, FUNC, CLASS) /* No handling. */
+#define HANDLE_ACCESS_INST(ENUM, FUNC, CLASS)     /* No handling. */
+#define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS) /* No handling. */
 #include "memoir/ir/Instructions.def"
 
 protected:
