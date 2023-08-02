@@ -1,16 +1,11 @@
 #!/bin/bash -e
-
-if [ $# -lt 1 ] ; then
-    echo "This script will run MemOIR optimizations and lower to LLVM IR." ;
-    echo "  USAGE: `basename $0` <INPUT IR FILE> <OUTPUT IR FILE> [<OPTIONS, ...>]" ;
-fi
-
 GIT_ROOT=`git rev-parse --show-toplevel` ;
 LIB_DIR=${GIT_ROOT}/install/lib ;
 
 source ${GIT_ROOT}/enable ;
 
-INPUT_IR_FILE="$1" ;
-OUTPUT_IR_FILE="$2" ;
+LOAD_PASSES=$(find ${LIB_DIR} -name "*.so" -printf ' -load %p ')
 
-echo "Running MemOIR pass (I: ${INPUT_IR_FILE}, O: ${OUTPUT_IR_FILE})" ;
+echo "${LOAD_PASSES}"
+
+noelle-load "${LOAD_PASSES}" "$@"
