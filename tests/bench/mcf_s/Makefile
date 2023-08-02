@@ -56,7 +56,7 @@ $(IR_FILE_NORM): $(IR_FILE_INPUT)
 	$(LL) $@ $(IR_FILE_DECL) -o $@
 
 $(IR_FILE_OPT): $(IR_FILE_NORM)
-	$(OPT) --slice-canon --slice-prop --memoir-dce $< -o $@
+	$(OPT) -mut2immut $< -o $@
 
 $(OBJ_FILE): $(IR_FILE)
 	llc -filetype=obj $< -o $@
