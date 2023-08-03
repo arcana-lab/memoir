@@ -29,6 +29,10 @@ public:
 
   void visitInstruction(llvm::Instruction &I);
   void visitPHINode(llvm::PHINode &I);
+  void visitIndexWriteInst(IndexWriteInst &I);
+  void visitAssocWriteInst(AssocWriteInst &I);
+  void visitIndexReadInst(IndexReadInst &I);
+  void visitAssocReadInst(AssocReadInst &I);
   void visitSeqInsertInst(SeqInsertInst &I);
   void visitSeqRemoveInst(SeqRemoveInst &I);
   void visitSeqAppendInst(SeqAppendInst &I);
