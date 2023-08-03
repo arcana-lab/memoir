@@ -32,14 +32,18 @@ public:
   /*
    * Metadata management
    */
-  static void setMetadata(Function &F, MetadataType MT);
-  static void setMetadata(Function &F, MetadataType MT, llvm::Value *value);
-  static bool hasMetadata(Function &F, MetadataType MT);
+  static void setMetadata(llvm::Function &F, MetadataType MT);
+  static void setMetadata(llvm::Function &F,
+                          MetadataType MT,
+                          llvm::Value *value);
+  static bool hasMetadata(llvm::Function &F, MetadataType MT);
   static llvm::Value *getMetadata(Function &F, MetadataType MT);
 
-  static void setMetadata(Instruction &I, MetadataType MT);
-  static void setMetadata(Instruction &I, MetadataType MT, llvm::Value *value);
-  static bool hasMetadata(Instruction &I, MetadataType MT);
+  static void setMetadata(llvm::Instruction &I, MetadataType MT);
+  static void setMetadata(llvm::Instruction &I,
+                          MetadataType MT,
+                          llvm::Value *value);
+  static bool hasMetadata(llvm::Instruction &I, MetadataType MT);
   static llvm::Value *getMetadata(llvm::Instruction &I, MetadataType MT);
 
   /*
@@ -55,15 +59,15 @@ public:
   void operator=(const MetadataManager &) = delete;
 
 private:
-  void setMetadata(Function &F, std::string str);
-  void setMetadata(Function &F, std::string str, llvm::Value *value);
-  bool hasMetadata(Function &F, std::string str);
-  llvm::Value *getMetadata(Function &F, std::string str);
+  void setMetadata(llvm::Function &F, std::string str);
+  void setMetadata(llvm::Function &F, std::string str, llvm::Value *value);
+  bool hasMetadata(llvm::Function &F, std::string str);
+  llvm::Value *getMetadata(llvm::Function &F, std::string str);
 
-  void setMetadata(Instruction &I, std::string str);
-  void setMetadata(Instruction &I, std::string str, llvm::Value &value);
-  bool hasMetadata(Instruction &I, std::string str);
-  llvm::Value *getMetadata(Instruction &I, std::string str);
+  void setMetadata(llvm::Instruction &I, std::string str);
+  void setMetadata(llvm::Instruction &I, std::string str, llvm::Value &value);
+  bool hasMetadata(llvm::Instruction &I, std::string str);
+  llvm::Value *getMetadata(llvm::Instruction &I, std::string str);
 
   map<MetadataType, std::string> MDtoString;
 

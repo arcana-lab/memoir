@@ -3,7 +3,7 @@
 namespace llvm {
 namespace memoir {
 
-void MetadataManager::setMetadata(Function &F, MetadataType MT) {
+void MetadataManager::setMetadata(llvm::Function &F, MetadataType MT) {
   auto &MM = MetadataManager::getManager();
 
   auto mdKind = MM.MDtoString[MT];
@@ -13,7 +13,7 @@ void MetadataManager::setMetadata(Function &F, MetadataType MT) {
   return;
 }
 
-void MetadataManager::setMetadata(Function &F,
+void MetadataManager::setMetadata(llvm::Function &F,
                                   MetadataType MT,
                                   llvm::Value *value) {
   auto &MM = MetadataManager::getManager();
@@ -25,7 +25,7 @@ void MetadataManager::setMetadata(Function &F,
   return;
 }
 
-bool MetadataManager::hasMetadata(Function &F, MetadataType MT) {
+bool MetadataManager::hasMetadata(llvm::Function &F, MetadataType MT) {
   auto &MM = MetadataManager::getManager();
 
   auto mdKind = MM.MDtoString[MT];
@@ -33,7 +33,7 @@ bool MetadataManager::hasMetadata(Function &F, MetadataType MT) {
   return MM.hasMetadata(F, mdKind);
 }
 
-llvm::Value *MetadataManager::getMetadata(Function &F, MetadataType MT) {
+llvm::Value *MetadataManager::getMetadata(llvm::Function &F, MetadataType MT) {
   auto &MM = MetadataManager::getManager();
 
   auto mdKind = MM.MDtoString[MT];
@@ -41,7 +41,7 @@ llvm::Value *MetadataManager::getMetadata(Function &F, MetadataType MT) {
   return MM.getMetadata(F, mdKind);
 }
 
-void MetadataManager::setMetadata(Instruction &I, MetadataType MT) {
+void MetadataManager::setMetadata(llvm::Instruction &I, MetadataType MT) {
   auto &MM = MetadataManager::getManager();
 
   auto mdKind = MM.MDtoString[MT];
@@ -51,7 +51,7 @@ void MetadataManager::setMetadata(Instruction &I, MetadataType MT) {
   return;
 }
 
-void MetadataManager::setMetadata(Instruction &I,
+void MetadataManager::setMetadata(llvm::Instruction &I,
                                   MetadataType MT,
                                   llvm::Value *value) {
   auto &MM = MetadataManager::getManager();
@@ -63,7 +63,7 @@ void MetadataManager::setMetadata(Instruction &I,
   return;
 }
 
-bool MetadataManager::hasMetadata(Instruction &I, MetadataType MT) {
+bool MetadataManager::hasMetadata(llvm::Instruction &I, MetadataType MT) {
   auto &MM = MetadataManager::getManager();
 
   auto mdKind = MM.MDtoString[MT];
@@ -71,7 +71,8 @@ bool MetadataManager::hasMetadata(Instruction &I, MetadataType MT) {
   return MM.hasMetadata(I, mdKind);
 }
 
-llvm::Value *MetadataManager::getMetadata(Instruction &I, MetadataType MT) {
+llvm::Value *MetadataManager::getMetadata(llvm::Instruction &I,
+                                          MetadataType MT) {
   auto &MM = MetadataManager::getManager();
 
   auto mdKind = MM.MDtoString[MT];
@@ -82,13 +83,14 @@ llvm::Value *MetadataManager::getMetadata(Instruction &I, MetadataType MT) {
 /*
  * Private and internal methods
  */
-void MetadataManager::setMetadata(Function &F, std::string kind) {
+void MetadataManager::setMetadata(llvm::Function &F, std::string kind) {
   /*
    * Create the metadata
    */
   auto &Context = F.getContext();
-  auto mdString = MDString::get(Context, kind);
-  auto mdNode = MDNode::get(Context, ArrayRef<Metadata *>({ mdString }));
+  auto mdString = llvm::MDString::get(Context, kind);
+  auto mdNode =
+      llvm::MDNode::get(Context, ArrayRef<llvm::Metadata *>({ mdString }));
 
   /*
    * Attach the metadata to the function
@@ -98,17 +100,18 @@ void MetadataManager::setMetadata(Function &F, std::string kind) {
   return;
 }
 
-void MetadataManager::setMetadata(Function &F,
+void MetadataManager::setMetadata(llvm::Function &F,
                                   std::string kind,
                                   llvm::Value *value) {
   /*
    * Create the metadata
    */
   auto &Context = F.getContext();
-  auto *mdString = MDString::get(Context, kind);
-  auto *mdValue = ValueAsMetadata::get(value);
+  auto *mdString = llvm::MDString::get(Context, kind);
+  auto *mdValue = llvm::ValueAsMetadata::get(value);
   auto *mdNode =
-      MDNode::get(Context, ArrayRef<Metadata *>({ mdString, mdValue }));
+      llvm::MDNode::get(Context,
+                        ArrayRef<llvm::Metadata *>({ mdString, mdValue }));
 
   /*
    * Attach the metadata to the function
@@ -118,11 +121,11 @@ void MetadataManager::setMetadata(Function &F,
   return;
 }
 
-bool MetadataManager::hasMetadata(Function &F, std::string kind) {
+bool MetadataManager::hasMetadata(llvm::Function &F, std::string kind) {
   return (F.getMetadata(kind) != nullptr);
 }
 
-llvm::Value *MetadataManager::getMetadata(Function &F,
+llvm::Value *MetadataManager::getMetadata(llvm::Function &F,
                                           std::string kind,
                                           llvm::Value *value) {
   // Find the metadata of the given kind.
@@ -147,13 +150,14 @@ llvm::Value *MetadataManager::getMetadata(Function &F,
   return value;
 }
 
-void MetadataManager::setMetadata(Instruction &I, std::string kind) {
+void MetadataManager::setMetadata(llvm::Instruction &I, std::string kind) {
   /*
    * Create the metadata
    */
   auto &Context = I.getContext();
-  auto mdString = MDString::get(Context, kind);
-  auto mdNode = MDNode::get(Context, ArrayRef<Metadata *>({ mdString }));
+  auto mdString = llvm::MDString::get(Context, kind);
+  auto mdNode =
+      llvm::MDNode::get(Context, ArrayRef<llvm::Metadata *>({ mdString }));
 
   /*
    * Attach the metadata to the function
@@ -163,15 +167,16 @@ void MetadataManager::setMetadata(Instruction &I, std::string kind) {
   return;
 }
 
-void MetadataManager::setMetadata(Instruction &I,
+void MetadataManager::setMetadata(llvm::Instruction &I,
                                   std::string kind,
                                   llvm::Value *value) {
   // Create the metadata
   auto &Context = I.getContext();
-  auto *mdString = MDString::get(Context, kind);
-  auto *mdValue = ValueAsMetadata::get(value);
+  auto *mdString = llvm::MDString::get(Context, kind);
+  auto *mdValue = llvm::ValueAsMetadata::get(value);
   auto *mdNode =
-      MDNode::get(Context, ArrayRef<Metadata *>({ mdString, mdValue }));
+      llvm::MDNode::get(Context,
+                        ArrayRef<llvm::Metadata *>({ mdString, mdValue }));
 
   // Attach the metadata to the function
   I.setMetadata(kind, mdNode);
@@ -179,11 +184,12 @@ void MetadataManager::setMetadata(Instruction &I,
   return;
 }
 
-bool MetadataManager::hasMetadata(Instruction &I, std::string kind) {
+bool MetadataManager::hasMetadata(llvm::Instruction &I, std::string kind) {
   return (I.getMetadata(kind) != nullptr);
 }
 
-llvm::Value *MetadataManager::getMetadata(Instruction &I, std::string kind) {
+llvm::Value *MetadataManager::getMetadata(llvm::Instruction &I,
+                                          std::string kind) {
   // Find the metadata of the given kind.
   auto *mdNode = I.getMetadata(kind);
   if (mdNode == nullptr) {
