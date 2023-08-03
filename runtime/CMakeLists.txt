@@ -25,7 +25,9 @@ set(SRC_FILES
   src/objects.cpp
   src/collections.cpp
   src/printer.cpp
-  src/types.cpp)
+  src/types.cpp
+  src/ssa.cpp
+  )
 
 add_library(MemOIR STATIC ${SRC_FILES})
 target_include_directories(MemOIR PUBLIC include/)
