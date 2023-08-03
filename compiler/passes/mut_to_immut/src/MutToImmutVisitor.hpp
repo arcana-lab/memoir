@@ -36,6 +36,10 @@ public:
   void visitSeqSplitInst(SeqSplitInst &I);
 
   llvm::Value *update_reaching_definition(llvm::Value *variable,
+                                          MemOIRInst &program_point);
+  llvm::Value *update_reaching_definition(llvm::Value *variable,
+                                          llvm::Instruction &program_point);
+  llvm::Value *update_reaching_definition(llvm::Value *variable,
                                           llvm::Instruction *program_point);
 
   void cleanup();

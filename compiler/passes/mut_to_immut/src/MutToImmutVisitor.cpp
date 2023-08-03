@@ -8,6 +8,18 @@ namespace llvm::memoir {
 
 llvm::Value *MutToImmutVisitor::update_reaching_definition(
     llvm::Value *variable,
+    MemOIRInst &I) {
+  return this->update_reaching_definition(variable, I.getCallInst());
+}
+
+llvm::Value *MutToImmutVisitor::update_reaching_definition(
+    llvm::Value *variable,
+    llvm::Instruction &I) {
+  return this->update_reaching_definition(variable, &I);
+}
+
+llvm::Value *MutToImmutVisitor::update_reaching_definition(
+    llvm::Value *variable,
     llvm::Instruction *program_point) {
   // Search through the chain of definitions for variable until we find the
   // closest definition that dominates the program point. Then update the
@@ -77,7 +89,7 @@ void MutToImmutVisitor::visitInstruction(llvm::Instruction &I) {
       continue;
     }
 
-    auto *reaching_operand = update_reaching_definition(operand_value, &I);
+    auto *reaching_operand = update_reaching_definition(operand_value, I);
     operand_use.set(reaching_operand);
   }
 
@@ -93,7 +105,7 @@ void MutToImmutVisitor::visitPHINode(llvm::PHINode &I) {
   if (found_inserted_phi != this->inserted_phis.end()) {
     auto *named_variable = found_inserted_phi->second;
     auto *reaching_definition =
-        this->update_reaching_definition(named_variable, &I);
+        this->update_reaching_definition(named_variable, I);
     this->reaching_definitions[&I] = reaching_definition;
     this->reaching_definitions[named_variable] = &I;
   } else {
@@ -108,8 +120,7 @@ void MutToImmutVisitor::visitSeqInsertInst(SeqInsertInst &I) {
 
   auto &collection_type = I.getCollection().getType();
   auto *collection_orig = &I.getCollectionOperand();
-  auto *collection_value =
-      update_reaching_definition(collection_orig, &I.getCallInst());
+  auto *collection_value = update_reaching_definition(collection_orig, I);
   auto *write_value = &I.getValueInserted();
   auto *index_value = &I.getIndex();
 
@@ -179,8 +190,7 @@ void MutToImmutVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
   auto *collection = &I.getCollection();
   auto *collection_type = &I.getCollection().getType();
   auto *collection_orig = &I.getCollectionOperand();
-  auto *collection_value =
-      update_reaching_definition(collection_orig, &I.getCallInst());
+  auto *collection_value = update_reaching_definition(collection_orig, I);
   auto *begin_value = &I.getBeginIndex();
   auto *end_value = &I.getEndIndex();
 
@@ -236,11 +246,10 @@ void MutToImmutVisitor::visitSeqAppendInst(SeqAppendInst &I) {
   MemOIRBuilder builder(I);
 
   auto *collection_orig = &I.getCollectionOperand();
-  auto *collection_value =
-      update_reaching_definition(collection_orig, &I.getCallInst());
+  auto *collection_value = update_reaching_definition(collection_orig, I);
   auto *appended_collection_orig = &I.getAppendedCollectionOperand();
   auto *appended_collection_value =
-      update_reaching_definition(appended_collection_orig, &I.getCallInst());
+      update_reaching_definition(appended_collection_orig, I);
 
   auto *append_join =
       &builder
@@ -261,12 +270,11 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
 
   auto *from_collection_orig = &I.getFromCollectionOperand();
   auto *from_collection_value =
-      update_reaching_definition(from_collection_orig, &I.getCallInst());
+      update_reaching_definition(from_collection_orig, I);
   auto *from_begin_value = &I.getBeginIndex();
   auto *from_end_value = &I.getEndIndex();
   auto *to_collection_orig = &I.getToCollectionOperand();
-  auto *to_collection_value =
-      update_reaching_definition(to_collection_orig, &I.getCallInst());
+  auto *to_collection_value = update_reaching_definition(to_collection_orig, I);
   auto *to_begin_value = &I.getToBeginIndex();
 
   llvm::Value *from_size = nullptr, *to_end_value = nullptr;
@@ -490,8 +498,7 @@ void MutToImmutVisitor::visitSeqSplitInst(SeqSplitInst &I) {
 
   auto *split_value = &I.getSplitValue();
   auto *collection_orig = &I.getCollectionOperand();
-  auto *collection_value =
-      update_reaching_definition(collection_orig, &I.getCallInst());
+  auto *collection_value = update_reaching_definition(collection_orig, I);
   auto *begin_value = &I.getBeginIndex();
   auto *end_value = &I.getEndIndex();
 
