@@ -387,6 +387,47 @@ public:
     return size_inst;
   }
 
+  /*
+   * SSA/readonc operations.
+   */
+  UsePHIInst *CreateUsePHI(llvm::Value *collection, const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto llvm_func =
+        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::USE_PHI);
+
+    // Create the LLVM call.
+    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
+                                      llvm::ArrayRef({ collection }),
+                                      name);
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for UsePHI operation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto inst = dyn_cast<UsePHIInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(inst, "Could not create call to DefPHIInst");
+    return inst;
+  }
+
+  DefPHIInst *CreateDefPHI(llvm::Value *collection, const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto llvm_func =
+        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::DEF_PHI);
+
+    // Create the LLVM call.
+    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
+                                      llvm::ArrayRef({ collection }),
+                                      name);
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for DefPHI operation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto inst = dyn_cast<DefPHIInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(inst, "Could not create call to DefPHIInst");
+    return inst;
+  }
+
 protected:
   // Borrowed state
   llvm::Module *M;
