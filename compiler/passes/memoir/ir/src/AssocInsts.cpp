@@ -9,10 +9,18 @@ namespace llvm::memoir {
  */
 Collection &AssocRemoveInst::getCollection() const {
   auto collection =
-      CollectionAnalysis::analyze(this->getCallInst().getArgOperandUse(0));
+      CollectionAnalysis::analyze(this->getCollectionOperandAsUse());
   MEMOIR_NULL_CHECK(collection,
                     "Could not determine the sequence after removal");
   return *collection;
+}
+
+llvm::Value &AssocRemoveInst::getCollectionOperand() const {
+  return *(this->getCollectionOperandAsUse().get());
+}
+
+llvm::Use &AssocRemoveInst::getCollectionOperandAsUse() const {
+  return this->getCallInst().getArgOperandUse(0);
 }
 
 llvm::Value &AssocRemoveInst::getKeyOperand() const {
