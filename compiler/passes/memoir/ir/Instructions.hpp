@@ -1198,6 +1198,7 @@ public:
 
   llvm::Instruction &getUseInst() const;
   void setUseInst(llvm::Instruction &I) const;
+  void setUseInst(MemOIRInst &I) const;
 
   static bool classof(const MemOIRInst *I) {
     return (I->getKind() == MemOIR_Func::USE_PHI);
@@ -1222,6 +1223,7 @@ public:
 
   llvm::Instruction &getDefInst() const;
   void setDefInst(llvm::Instruction &I) const;
+  void setDefInst(MemOIRInst &I) const;
 
   static bool classof(const MemOIRInst *I) {
     return (I->getKind() == MemOIR_Func::DEF_PHI);

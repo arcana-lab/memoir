@@ -2,6 +2,8 @@
 
 #include "memoir/support/Assert.hpp"
 
+#include "memoir/utility/Metadata.hpp"
+
 #include "memoir/analysis/CollectionAnalysis.hpp"
 
 namespace llvm::memoir {
@@ -35,13 +37,21 @@ llvm::Use &UsePHIInst::getUsedCollectionOperandAsUse() const {
 }
 
 llvm::Instruction &UsePHIInst::getUseInst() const {
-  // TODO: get this information from the MetadataManager
-  return this->getCallInst();
+  // Look for metadata attached to this use.
+  auto *value =
+      MetadataManager::getMetadata(this->getCallInst(), MetadataType::USE_PHI);
+  auto *inst = dyn_cast_or_null<llvm::Instruction>(value);
+  MEMOIR_NULL_CHECK(inst, "Couldn't get the UseInst");
+  return *inst;
 }
 
 void UsePHIInst::setUseInst(llvm::Instruction &I) const {
-  // TODO: update this information in the MetadataManager
-  return;
+  // Update this information in the MetadataManager
+  MetadataManager::setMetadata(this->getCallInst(), MetadataType::USE_PHI, &I);
+}
+
+void UsePHIInst::setUseInst(MemOIRInst &I) const {
+  this->setUseInst(I.getCallInst());
 }
 
 std::string UsePHIInst::toString(std::string indent) const {
@@ -83,13 +93,21 @@ llvm::Use &DefPHIInst::getDefinedCollectionOperandAsUse() const {
 }
 
 llvm::Instruction &DefPHIInst::getDefInst() const {
-  // TODO: look for metadata attached to this definition.
-  return this->getCallInst();
+  // Look for metadata attached to this definition.
+  auto *value =
+      MetadataManager::getMetadata(this->getCallInst(), MetadataType::DEF_PHI);
+  auto *inst = dyn_cast_or_null<llvm::Instruction>(value);
+  MEMOIR_NULL_CHECK(inst, "Couldn't get the DefInst");
+  return *inst;
 }
 
 void DefPHIInst::setDefInst(llvm::Instruction &I) const {
-  // TODO: update this information in the MetadataManager
-  return;
+  // Update this information in the MetadataManager
+  MetadataManager::setMetadata(this->getCallInst(), MetadataType::DEF_PHI, &I);
+}
+
+void DefPHIInst::setDefInst(MemOIRInst &I) const {
+  this->setDefInst(I.getCallInst());
 }
 
 std::string DefPHIInst::toString(std::string indent) const {
