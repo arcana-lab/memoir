@@ -23,7 +23,9 @@ public:
                       "Could not determine LLVM Module of basic block.");
   }
 
-  MemOIRBuilder(llvm::Instruction *IP) : M(IP->getModule()), IRBuilder<>(IP) {
+  MemOIRBuilder(llvm::Instruction *IP, bool InsertAfter = true)
+    : M(IP->getModule()),
+      IRBuilder<>((InsertAfter) ? IP : IP->getNextNode()) {
     MEMOIR_NULL_CHECK(this->M,
                       "Could not determine LLVM Module of insertion point.");
   }
@@ -405,7 +407,7 @@ public:
     // Cast to MemOIRInst and return.
     auto memoir_inst = MemOIRInst::get(*llvm_call);
     auto inst = dyn_cast<UsePHIInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(inst, "Could not create call to DefPHIInst");
+    MEMOIR_NULL_CHECK(inst, "Could not create call to UsePHIInst");
     return inst;
   }
 
