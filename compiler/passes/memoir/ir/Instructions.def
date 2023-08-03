@@ -258,6 +258,12 @@ HANDLE_INST_(ASSOC_REMOVE, MEMOIR_FUNC(assoc_remove), AssocRemoveInst)
 HANDLE_INST_(ASSOC_KEYS, MEMOIR_FUNC(assoc_keys), AssocKeysInst)
 
 /*
+ * SSA/readonce operations.
+ */
+HANDLE_INST_(USE_PHI, MEMOIR_FUNC(usePHI), UsePHIInst)
+HANDLE_INST_(DEF_PHI, MEMOIR_FUNC(defPHI), DefPHIInst)
+
+/*
  * Type Checking
  */
 HANDLE_INST_(ASSERT_STRUCT_TYPE, MEMOIR_FUNC(assert_struct_type), AssertStructTypeInst)

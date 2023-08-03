@@ -1185,6 +1185,57 @@ protected:
 };
 
 /*
+ * SSA/readonce operations.
+ */
+struct UsePHIInst : public MemOIRInst {
+public:
+  Collection &getCollection() const;
+  llvm::Value &getCollectionValue() const;
+
+  Collection &getUsedCollection() const;
+  llvm::Value &getUsedCollectionOperand() const;
+  llvm::Use &getUsedCollectionOperandAsUse() const;
+
+  llvm::Instruction &getUseInst() const;
+  void setUseInst(llvm::Instruction &I) const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::USE_PHI);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  UsePHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst){};
+
+  friend class MemOIRInst;
+};
+
+struct DefPHIInst : public MemOIRInst {
+public:
+  Collection &getCollection() const;
+  llvm::Value &getCollectionValue() const;
+
+  Collection &getDefinedCollection() const;
+  llvm::Value &getDefinedCollectionOperand() const;
+  llvm::Use &getDefinedCollectionOperandAsUse() const;
+
+  llvm::Instruction &getDefInst() const;
+  void setDefInst(llvm::Instruction &I) const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::DEF_PHI);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  DefPHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst){};
+
+  friend class MemOIRInst;
+};
+
+/*
  * Deletion operations
  */
 struct DeleteStructInst : public MemOIRInst {
