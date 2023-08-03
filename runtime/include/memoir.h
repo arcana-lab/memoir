@@ -220,11 +220,11 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection);
 // SSA and readonce renaming
 __IMMUT_ATTR
 __RUNTIME_ATTR
-Collection *MEMOIR_FUNC(defPHI)(__PASSTHRU_ATTR Collection *collection);
+Collection *MEMOIR_FUNC(defPHI)(Collection *collection);
 
 __IMMUT_ATTR
 __RUNTIME_ATTR
-Collection *MEMOIR_FUNC(usePHI)(__PASSTHRU_ATTR Collection *collection);
+Collection *MEMOIR_FUNC(usePHI)(Collection *collection);
 
 /*
  * Type checking and function signatures.
