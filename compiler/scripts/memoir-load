@@ -6,6 +6,4 @@ source ${GIT_ROOT}/enable ;
 
 LOAD_PASSES=$(find ${LIB_DIR} -name "*.so" -printf ' -load %p ')
 
-echo "${LOAD_PASSES}"
-
 noelle-load "${LOAD_PASSES}" "$@"
