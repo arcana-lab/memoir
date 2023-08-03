@@ -125,9 +125,8 @@ bool MetadataManager::hasMetadata(llvm::Function &F, std::string kind) {
   return (F.getMetadata(kind) != nullptr);
 }
 
-llvm::Value *MetadataManager::getMetadata(llvm::Function &F,
-                                          std::string kind,
-                                          llvm::Value *value) {
+llvm::Value *MetadataManager::getMetadata(llvm::Function &F, std::string kind) {
+
   // Find the metadata of the given kind.
   auto *mdNode = F.getMetadata(kind);
   if (mdNode == nullptr) {
@@ -138,13 +137,17 @@ llvm::Value *MetadataManager::getMetadata(llvm::Function &F,
   if (mdNode->getNumOperands() < 2) {
     return nullptr;
   }
-  auto *mdValue = mdNode->getOperand(1);
+  auto *mdValue = mdNode->getOperand(1).get();
   if (mdValue == nullptr) {
     return nullptr;
   }
 
   // Unpack the ValueAsMetadata.
-  auto *value = mdValue->getValue();
+  auto mdValueAsMetadata = dyn_cast<llvm::ValueAsMetadata>(mdValue);
+  if (!mdValueAsMetadata) {
+    return nullptr;
+  }
+  auto *value = mdValueAsMetadata->getValue();
 
   // Return it.
   return value;
@@ -200,13 +203,17 @@ llvm::Value *MetadataManager::getMetadata(llvm::Instruction &I,
   if (mdNode->getNumOperands() < 2) {
     return nullptr;
   }
-  auto *mdValue = mdNode->getOperand(1);
+  auto *mdValue = mdNode->getOperand(1).get();
   if (mdValue == nullptr) {
     return nullptr;
   }
 
   // Unpack the ValueAsMetadata.
-  auto *value = mdValue->getValue();
+  auto mdValueAsMetadata = dyn_cast<llvm::ValueAsMetadata>(mdValue);
+  if (!mdValueAsMetadata) {
+    return nullptr;
+  }
+  auto *value = mdValueAsMetadata->getValue();
 
   // Return it.
   return value;

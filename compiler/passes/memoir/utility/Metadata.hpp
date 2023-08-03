@@ -65,7 +65,7 @@ private:
   llvm::Value *getMetadata(llvm::Function &F, std::string str);
 
   void setMetadata(llvm::Instruction &I, std::string str);
-  void setMetadata(llvm::Instruction &I, std::string str, llvm::Value &value);
+  void setMetadata(llvm::Instruction &I, std::string str, llvm::Value *value);
   bool hasMetadata(llvm::Instruction &I, std::string str);
   llvm::Value *getMetadata(llvm::Instruction &I, std::string str);
 
