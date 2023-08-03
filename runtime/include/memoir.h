@@ -20,11 +20,12 @@
 namespace memoir {
 extern "C" {
 
-#define __IMMUT_ATTR __attribute__((const)) __attribute__((pure))
 #define __RUNTIME_ATTR                                                         \
   __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))       \
       __attribute__((optnone)) __attribute__((used))
 #define __ALLOC_ATTR __declspec(allocator)
+#define __IMMUT_ATTR __attribute__((const)) __attribute__((pure))
+#define __PASSTHRU_ATTR __attribute__((returned))
 
 #define MEMOIR_FUNC(name) memoir__##name
 
@@ -215,6 +216,15 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection);
   C_TYPE MEMOIR_FUNC(assoc_get_##TYPE_NAME)(Collection * collection_to_access, \
                                             ...);
 #include "types.def"
+
+// SSA and readonce renaming
+__IMMUT_ATTR
+__RUNTIME_ATTR
+Collection *MEMOIR_FUNC(defPHI)(__PASSTHRU_ATTR Collection *collection);
+
+__IMMUT_ATTR
+__RUNTIME_ATTR
+Collection *MEMOIR_FUNC(usePHI)(__PASSTHRU_ATTR Collection *collection);
 
 /*
  * Type checking and function signatures.
