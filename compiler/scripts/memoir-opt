@@ -13,10 +13,6 @@ function flags {
     echo "      Enables the normalization pass" 
     echo "    -l,--lower" 
     echo "      Enables the object lowering pass" 
-    echo "    --slice-canon,--slice-canonicalization" 
-    echo "      Enables the slice canonicalization pass" 
-    echo "    --slice-prop,--slice-propagation" 
-    echo "      Enables the slice propagation pass"
 }
 
 if [[ $# -lt 1 ]]; then
@@ -123,10 +119,6 @@ function run_pass {
     cp ${PASS_IR_FILE} ${IR_FILE} ;
 }
 
-# for PASS in ${PASSES[@]}
-# do
-#     run_pass ${PASS} ${IR_FILE}
-# done
 memoir-load ${PASSES[@]} ${IR_FILE} -o ${IR_FILE}
 
 # Lower the bitcode
