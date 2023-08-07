@@ -91,6 +91,8 @@ struct MutToImmutPass : public ModulePass {
     // Get NOELLE.
     auto &NOELLE = getAnalysis<llvm::noelle::Noelle>();
 
+    MutToImmutStats stats;
+
     for (auto &F : M) {
       if (F.empty()) {
         continue;
@@ -117,12 +119,17 @@ struct MutToImmutPass : public ModulePass {
       for (auto &A : F.args()) {
         if (Type::value_is_collection_type(A)) {
           memoir_names.insert(&A);
+          stats.inc_mut();
         }
       }
       for (auto &BB : F) {
         for (auto &I : BB) {
           if (Type::value_is_collection_type(I)) {
             memoir_names.insert(&I);
+
+            if (!isa<llvm::PHINode>(&I)) {
+              stats.inc_mut();
+            }
           }
         }
       }
@@ -240,7 +247,7 @@ struct MutToImmutPass : public ModulePass {
       }
 
       // Initialize the reaching definitions.
-      MutToImmutVisitor MTIV(DT, memoir_names, inserted_phis);
+      MutToImmutVisitor MTIV(DT, memoir_names, inserted_phis, &stats);
 
       // Apply rewrite rules and renaming for reaching definitions.
       println("Applying rewrite rules");
@@ -278,8 +285,20 @@ struct MutToImmutPass : public ModulePass {
       println("END: ", F.getName());
       println("=========================");
     }
-    // println(M);
 
+    stats.inc_ssa(stats.num_mut_collections);
+
+    println("=========================");
+    println("STATS mut2immut pass");
+    println("  NumMut = ", stats.num_mut_collections);
+    println("  NumSSA = ", stats.num_ssa_collections);
+    println("  NumTrivial = ", stats.num_trivial_ssa_collections);
+    println("  NewSSA = ",
+            stats.num_ssa_collections - stats.num_mut_collections);
+    println("  NewNonTrivial = ",
+            stats.num_ssa_collections - stats.num_mut_collections
+                - stats.num_trivial_ssa_collections);
+    println("=========================");
     println("DONE mut2immut pass");
     return true;
   }
