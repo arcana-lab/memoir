@@ -372,6 +372,27 @@ Type *TypeAnalysis::visitGetInst(GetInst &I) {
 }
 
 /*
+ * SSA Instructions
+ */
+Type *TypeAnalysis::visitUsePHIInst(UsePHIInst &I) {
+  CHECK_MEMOIZED(I);
+
+  // Visit the used collection to determine its type.
+  auto *type = this->getType(I.getUsedCollectionOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitDefPHIInst(DefPHIInst &I) {
+  CHECK_MEMOIZED(I);
+
+  // Visit the defined collection to determine its type.
+  auto *type = this->getType(I.getDefinedCollectionOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+/*
  * Join and Slice Instructions
  */
 Type *TypeAnalysis::visitJoinInst(JoinInst &I) {
@@ -400,6 +421,82 @@ Type *TypeAnalysis::visitSliceInst(SliceInst &I) {
   MEMOIR_NULL_CHECK(type, "Could not determine the incoming type for join!");
 
   MEMOIZE_AND_RETURN(I, type);
+}
+
+/*
+ * Mutable instructions.
+ */
+Type *TypeAnalysis::visitSeqInsertInst(SeqInsertInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType(I.getCollectionOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitSeqRemoveInst(SeqRemoveInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType(I.getCollectionOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitSeqAppendInst(SeqAppendInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType(I.getCollectionOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitSeqSwapInst(SeqSwapInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType(I.getFromCollectionOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitSeqSplitInst(SeqSplitInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType(I.getCollectionOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+/*
+ * Associative instructions.
+ */
+Type *TypeAnalysis::visitAssocHasInst(AssocHasInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType(I.getObjectOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitAssocRemoveInst(AssocRemoveInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType(I.getCollectionOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitAssocKeysInst(AssocKeysInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType(I.getCollectionOperand());
+  auto *assoc_type = dyn_cast_or_null<AssocArrayType>(type);
+  MEMOIR_NULL_CHECK(assoc_type,
+                    "Collection passed to assoc_keys is not an assoc");
+  auto &key_type = assoc_type->getKeyType();
+
+  auto &key_seq_type = Type::get_sequence_type(key_type);
+
+  MEMOIZE_AND_RETURN(I, &key_seq_type);
 }
 
 /*

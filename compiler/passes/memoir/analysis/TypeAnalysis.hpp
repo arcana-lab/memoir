@@ -116,8 +116,23 @@ protected:
   Type *visitSequenceAllocInst(SequenceAllocInst &I);
   Type *visitReadInst(ReadInst &I);
   Type *visitGetInst(GetInst &I);
+  // SSA operations
+  Type *visitUsePHIInst(UsePHIInst &I);
+  Type *visitDefPHIInst(DefPHIInst &I);
+  // SSA sequence operations
   Type *visitJoinInst(JoinInst &I);
   Type *visitSliceInst(SliceInst &I);
+  // Mut sequence operations
+  Type *visitSeqInsertInst(SeqInsertInst &I);
+  Type *visitSeqRemoveInst(SeqRemoveInst &I);
+  Type *visitSeqAppendInst(SeqAppendInst &I);
+  Type *visitSeqSwapInst(SeqSwapInst &I);
+  Type *visitSeqSplitInst(SeqSplitInst &I);
+  // Mut assoc operations
+  Type *visitAssocHasInst(AssocHasInst &I);
+  Type *visitAssocRemoveInst(AssocRemoveInst &I);
+  Type *visitAssocKeysInst(AssocKeysInst &I);
+  // Type checking
   Type *visitAssertStructTypeInst(AssertStructTypeInst &I);
   Type *visitAssertCollectionTypeInst(AssertCollectionTypeInst &I);
   Type *visitReturnTypeInst(ReturnTypeInst &I);
