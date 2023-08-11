@@ -442,18 +442,18 @@ std::string ArgPHICollection::toString(std::string indent) const {
 /*
  * DefPHI implementation
  */
-DefPHICollection::DefPHICollection(WriteInst &access)
-  : access(access),
+DefPHICollection::DefPHICollection(DefPHIInst &def_phi)
+  : def_phi(def_phi),
     Collection(CollectionKind::DEF_PHI) {
   // Do nothing.
 }
 
 Collection &DefPHICollection::getCollection() const {
-  return this->getAccess().getCollectionAccessed();
+  return this->getDefPHI().getDefinedCollection();
 }
 
-WriteInst &DefPHICollection::getAccess() const {
-  return this->access;
+DefPHIInst &DefPHICollection::getDefPHI() const {
+  return this->def_phi;
 }
 
 CollectionType &DefPHICollection::getType() const {
@@ -466,7 +466,7 @@ Type &DefPHICollection::getElementType() const {
 
 bool DefPHICollection::operator==(const DefPHICollection &other) const {
   return (&(this->getCollection()) == &(other.getCollection()))
-         && (&(this->getAccess()) == &(other.getAccess()));
+         && (&(this->getDefPHI()) == &(other.getDefPHI()));
 }
 
 std::string DefPHICollection::toString(std::string indent) const {
@@ -476,18 +476,18 @@ std::string DefPHICollection::toString(std::string indent) const {
 /*
  * UsePHI implementation
  */
-UsePHICollection::UsePHICollection(ReadInst &access)
-  : access(access),
+UsePHICollection::UsePHICollection(UsePHIInst &use_phi)
+  : use_phi(use_phi),
     Collection(CollectionKind::USE_PHI) {
   // Do nothing.
 }
 
 Collection &UsePHICollection::getCollection() const {
-  return this->getAccess().getCollectionAccessed();
+  return this->getUsePHI().getUsedCollection();
 }
 
-ReadInst &UsePHICollection::getAccess() const {
-  return this->access;
+UsePHIInst &UsePHICollection::getUsePHI() const {
+  return this->use_phi;
 }
 
 CollectionType &UsePHICollection::getType() const {
@@ -500,7 +500,7 @@ Type &UsePHICollection::getElementType() const {
 
 bool UsePHICollection::operator==(const UsePHICollection &other) const {
   return (&(this->getCollection()) == &(other.getCollection()))
-         && (&(this->getAccess()) == &(other.getAccess()));
+         && (&(this->getUsePHI()) == &(other.getUsePHI()));
 }
 
 std::string UsePHICollection::toString(std::string indent) const {

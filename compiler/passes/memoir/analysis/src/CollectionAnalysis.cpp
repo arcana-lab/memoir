@@ -245,6 +245,12 @@ Collection *CollectionAnalysis::visitStructReadInst(StructReadInst &I) {
   MEMOIZE_AND_RETURN(I, &field_array);
 }
 
+Collection *CollectionAnalysis::visitUsePHIInst(UsePHIInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *use_phi_collection = new UsePHICollection(I);
+}
+
 Collection *CollectionAnalysis::visitJoinInst(JoinInst &I) {
   CHECK_MEMOIZED(I);
 

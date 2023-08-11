@@ -19,6 +19,8 @@ struct WriteInst;
 struct GetInst;
 struct JoinInst;
 struct SliceInst;
+struct UsePHIInst;
+struct DefPHIInst;
 
 struct Type;
 struct CollectionType;
@@ -246,7 +248,7 @@ protected:
 struct DefPHICollection : public Collection {
 public:
   Collection &getCollection() const;
-  WriteInst &getAccess() const;
+  DefPHIInst &getDefPHI() const;
 
   CollectionType &getType() const override;
   Type &getElementType() const override;
@@ -259,9 +261,9 @@ public:
   std::string toString(std::string indent = "") const;
 
 protected:
-  WriteInst &access;
+  DefPHIInst &def_phi;
 
-  DefPHICollection(WriteInst &access);
+  DefPHICollection(DefPHIInst &def_phi);
 
   friend class CollectionAnalysis;
 };
@@ -269,7 +271,7 @@ protected:
 struct UsePHICollection : public Collection {
 public:
   Collection &getCollection() const;
-  ReadInst &getAccess() const;
+  UsePHIInst &getUsePHI() const;
 
   CollectionType &getType() const override;
   Type &getElementType() const override;
@@ -282,9 +284,9 @@ public:
   std::string toString(std::string indent = "") const;
 
 protected:
-  ReadInst &access;
+  UsePHIInst &use_phi;
 
-  UsePHICollection(ReadInst &read);
+  UsePHICollection(UsePHIInst &use_phi);
 
   friend class CollectionAnalysis;
 };

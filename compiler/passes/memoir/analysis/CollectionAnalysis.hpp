@@ -119,6 +119,8 @@ private:
   Collection *visitGetInst(GetInst &I);
   Collection *visitReadInst(ReadInst &I);
   Collection *visitStructReadInst(StructReadInst &I);
+  Collection *visitUsePHIInst(UsePHIInst &I);
+  Collection *visitDefPHIInst(DefPHIInst &I);
   Collection *visitJoinInst(JoinInst &I);
   Collection *visitSliceInst(SliceInst &I);
   Collection *visitPHINode(llvm::PHINode &I);
