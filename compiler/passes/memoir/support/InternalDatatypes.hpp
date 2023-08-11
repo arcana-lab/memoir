@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include <list>
 #include <queue>
 #include <stack>
 #include <vector>
@@ -102,6 +103,9 @@ using ordered_set = std::set<T, std::less<unwrap_ref_type<T>>>;
 
 template <typename T>
 using vector = std::vector<T>;
+
+template <typename T>
+using list = std::list<T>;
 
 template <typename T>
 using stack = std::stack<T>;
