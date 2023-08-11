@@ -1,8 +1,10 @@
+#include "MutToImmutVisitor.hpp"
+
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
 
-#include "MutToImmutVisitor.hpp"
+#include "memoir/analysis/TypeAnalysis.hpp"
 
 namespace llvm::memoir {
 
@@ -279,18 +281,22 @@ void MutToImmutVisitor::visitAssocGetInst(AssocGetInst &I) {
 void MutToImmutVisitor::visitSeqInsertInst(SeqInsertInst &I) {
   MemOIRBuilder builder(I);
 
-  auto &collection_type = I.getCollection().getType();
+  auto *type = TypeAnalysis::analyze(I.getCallInst());
+  MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
+  auto *collection_type = dyn_cast<CollectionType>(type);
+  MEMOIR_NULL_CHECK(collection_type,
+                    "seq_insert not operating on a collection type");
   auto *collection_orig = &I.getCollectionOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
   auto *write_value = &I.getValueInserted();
   auto *index_value = &I.getIndex();
 
   auto *elem_alloc =
-      &builder.CreateSequenceAllocInst(collection_type, 1, "insert.elem.")
+      &builder.CreateSequenceAllocInst(*collection_type, 1, "insert.elem.")
            ->getCallInst();
   auto *elem_write =
       &builder
-           .CreateIndexWriteInst(collection_type.getElementType(),
+           .CreateIndexWriteInst(collection_type->getElementType(),
                                  write_value,
                                  collection_value,
                                  index_value,
@@ -351,8 +357,6 @@ void MutToImmutVisitor::visitSeqInsertInst(SeqInsertInst &I) {
 void MutToImmutVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
   MemOIRBuilder builder(I);
 
-  auto *collection = &I.getCollection();
-  auto *collection_type = &I.getCollection().getType();
   auto *collection_orig = &I.getCollectionOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
   auto *begin_value = &I.getBeginIndex();
