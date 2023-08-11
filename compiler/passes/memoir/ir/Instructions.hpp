@@ -1049,6 +1049,7 @@ protected:
 struct JoinInst : public MemOIRInst {
 public:
   Collection &getCollection() const;
+  llvm::Value &getCollectionAsValue() const;
 
   unsigned getNumberOfJoins() const;
   llvm::Value &getNumberOfJoinsOperand() const;
