@@ -7,10 +7,14 @@
 namespace llvm::memoir {
 
 Collection &JoinInst::getCollection() const {
-  auto collection = CollectionAnalysis::analyze(this->getCallInst());
+  auto collection = CollectionAnalysis::analyze(this->getCollectionAsValue());
   MEMOIR_NULL_CHECK(collection,
                     "Could not determine the collection after join");
   return *collection;
+}
+
+llvm::Value &JoinInst::getCollectionAsValue() const {
+  return this->getCallInst();
 }
 
 unsigned JoinInst::getNumberOfJoins() const {
