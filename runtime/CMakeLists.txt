@@ -8,7 +8,7 @@ include_directories(include)
 
 set(HEADER_FILES
   include/memoir.h
-  include/cmemoir.h
+  api/c/cmemoir.h
   )
 
 set(PRIVATE_HEADER_FILES
