@@ -1,6 +1,6 @@
 [submodule "compiler/noelle"]
 	path = compiler/noelle
 	url = git@github.com:scampanoni/noelle.git
-[submodule "runtime/immer"]
-	path = runtime/immer
-	url = git@github.com:arximboldi/immer.git
+[submodule "compiler/z3"]
+	path = compiler/z3
+	url = git@github.com:Z3Prover/z3.git
