@@ -10,9 +10,14 @@
 
 #include "llvm/Transforms/Utils/Cloning.h"
 
+// z3
+#include "z3++.h"
+
 // MemOIR
 #include "memoir/ir/Builder.hpp"
+
 #include "memoir/support/Casting.hpp"
+#include "memoir/support/InternalDatatypes.hpp"
 
 /*
  * This file contains the Expression class for use in ValueNumbering as an
@@ -70,6 +75,13 @@ public:
   bool equals(const llvm::Value &V) const;
   bool operator==(const llvm::Value &Other) const;
   bool operator!=(const llvm::Value &Other) const;
+  bool less_than(const ValueExpression &E) const;
+  bool operator<(const ValueExpression &E) const;
+  bool greater_than(const ValueExpression &E) const;
+  bool operator>(const ValueExpression &E) const;
+  virtual opt<z3::expr> to_expr(z3::context &c,
+                                uint32_t &name,
+                                map<llvm::Value *, uint32_t> &env) const;
 
   // Accessors.
   llvm::Value *getValue() const;
@@ -136,6 +148,9 @@ public:
   }
 
   bool equals(const ValueExpression &E) const override;
+  opt<z3::expr> to_expr(z3::context &c,
+                        uint32_t &name,
+                        map<llvm::Value *, uint32_t> &env) const override;
 
   llvm::Constant &getConstant() const;
 
@@ -165,6 +180,9 @@ public:
   }
 
   bool equals(const ValueExpression &E) const override;
+  opt<z3::expr> to_expr(z3::context &c,
+                        uint32_t &name,
+                        map<llvm::Value *, uint32_t> &env) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -191,6 +209,9 @@ public:
   }
 
   bool equals(const ValueExpression &E) const override;
+  opt<z3::expr> to_expr(z3::context &c,
+                        uint32_t &name,
+                        map<llvm::Value *, uint32_t> &env) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -244,6 +265,9 @@ public:
   };
 
   bool equals(const ValueExpression &E) const override;
+  opt<z3::expr> to_expr(z3::context &c,
+                        uint32_t &name,
+                        map<llvm::Value *, uint32_t> &env) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -423,6 +447,10 @@ public:
 
   std::string toString(std::string indent = "") const override;
 
+  static bool classof(const ValueExpression *E) {
+    return (E->getKind() == EK_Collection);
+  }
+
   Collection &C;
 };
 
@@ -442,6 +470,10 @@ public:
                            llvm::CallBase *call_context = nullptr) override;
 
   std::string toString(std::string indent = "") const override;
+
+  static bool classof(const ValueExpression *E) {
+    return (E->getKind() == EK_Struct);
+  }
 
   Struct &S;
 };
@@ -468,6 +500,10 @@ public:
 
   std::string toString(std::string indent = "") const override;
 
+  static bool classof(const ValueExpression *E) {
+    return (E->getKind() == EK_Slice);
+  }
+
   SliceInst *I;
   CollectionExpression *CE;
   ValueExpression *left_index;
@@ -493,6 +529,10 @@ public:
                            llvm::CallBase *call_context = nullptr) override;
 
   std::string toString(std::string indent = "") const override;
+
+  static bool classof(const ValueExpression *E) {
+    return (E->getKind() == EK_Size);
+  }
 
   CollectionExpression *CE;
 };

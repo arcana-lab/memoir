@@ -1,3 +1,6 @@
+# Configure z3
+find_package(Z3 CONFIG REQUIRED)
+
 # Configure LLVM 
 find_package(LLVM 9 REQUIRED CONFIG)
 
@@ -10,9 +13,14 @@ include(AddLLVM)
 
 message(STATUS "LLVM_DIR IS ${LLVM_CMAKE_DIR}.")
 
+message(STATUS "Z3_LIBRARIES=${Z3_LIBRARIES}")
+
 include_directories(
+  ${Z3_INCLUDE_DIR}
   ${LLVM_INCLUDE_DIRS}
   noelle/install/include
   noelle/install/include/svf)
+
+link_libraries(${Z3_LIBRARIES})
 
 add_subdirectory(passes)
