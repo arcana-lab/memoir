@@ -180,38 +180,113 @@ public:
 };
 
 struct Sequence : public Collection {
-public:
-  // Owned state
-  std::vector<uint64_t> _sequence;
+protected:
+  using seq_iter = std::vector<uint64_t>::iterator;
 
+public:
   // Construction
-  Sequence(SequenceType *type, size_t initial_size);
-  Sequence(SequenceType *type, std::vector<uint64_t> &&initial);
-  ~Sequence() = default;
-  void free() override;
+  Sequence(SequenceType *type);
 
   // Operations
-  Collection *join(va_list args, uint8_t num_args) override;
   static Collection *join(SequenceType *type,
                           std::vector<Sequence *> sequences_to_join);
+  Collection *join(va_list args, uint8_t num_args) override;
+  virtual Collection *get_sequence_slice(int64_t left_index,
+                                         int64_t right_index) = 0;
   Collection *get_slice(va_list args) override;
-  Collection *get_slice(int64_t left_index, int64_t right_index);
 
   // Access
-  uint64_t get_sequence_element(uint64_t index);
+  virtual uint64_t get_sequence_element(uint64_t index) = 0;
   uint64_t get_element(va_list args) override;
-  void set_sequence_element(uint64_t value, uint64_t index);
+  virtual void set_sequence_element(uint64_t value, uint64_t index) = 0;
   void set_element(uint64_t value, va_list args) override;
-  bool has_sequence_element(uint64_t index);
+  virtual bool has_sequence_element(uint64_t index) = 0;
   bool has_element(va_list args) override;
   void remove_element(va_list args) override;
 
   Type *get_element_type() const override;
+
+  // Iterators
+  virtual seq_iter begin() = 0;
+  virtual seq_iter end() = 0;
+
+  // Mutable operations
+  virtual void insert(uint64_t index, uint64_t value) = 0;
+  virtual void erase(uint64_t from, uint64_t to) = 0;
+  virtual void grow(uint64_t size) = 0;
+};
+
+struct SequenceAlloc : public Sequence {
+  // Owned state
+  std::vector<uint64_t> _sequence;
+
+  // Construction
+  SequenceAlloc(SequenceType *type, size_t initial_size);
+  SequenceAlloc(SequenceType *type, std::vector<uint64_t> &&initial);
+  ~SequenceAlloc() = default;
+  void free() override;
+
+  // Operations
+  Collection *get_sequence_slice(int64_t left_index,
+                                 int64_t right_index) override;
+
+  // Access
+  uint64_t get_sequence_element(uint64_t index) override;
+  void set_sequence_element(uint64_t value, uint64_t index) override;
+  bool has_sequence_element(uint64_t index) override;
+
   uint64_t size() const override;
 
   bool equals(const Object *other) const override;
 
+  // Iterators
+  Sequence::seq_iter begin() override;
+  Sequence::seq_iter end() override;
+
+  // Mutable operations
+  void insert(uint64_t index, uint64_t value) override;
+  void erase(uint64_t from, uint64_t to) override;
+  void grow(uint64_t size) override;
+
   // Debug
+  std::string to_string() override;
+};
+
+struct SequenceView : public Sequence {
+  // Borrowed state
+  SequenceAlloc *_sequence;
+
+  // Owned state
+  size_t from;
+  size_t to;
+
+  // Construction
+  SequenceView(SequenceAlloc *seq, size_t from, size_t to);
+  SequenceView(SequenceView *view, size_t from, size_t to);
+  ~SequenceView() = default;
+  void free() override;
+
+  // Operations
+  Collection *get_sequence_slice(int64_t left_index,
+                                 int64_t right_index) override;
+
+  // Access
+  uint64_t get_sequence_element(uint64_t index) override;
+  void set_sequence_element(uint64_t value, uint64_t index) override;
+  bool has_sequence_element(uint64_t index) override;
+  uint64_t size() const override;
+
+  // Iterators
+  Sequence::seq_iter begin() override;
+  Sequence::seq_iter end() override;
+
+  // Mutable operations
+  void insert(uint64_t index, uint64_t value) override;
+  void erase(uint64_t from, uint64_t to) override;
+  void grow(uint64_t size) override;
+
+  // Debug
+  bool equals(const Object *other) const override;
   std::string to_string() override;
 };
 

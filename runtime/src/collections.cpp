@@ -548,8 +548,8 @@ Collection *AssocArray::keys() const {
   for (auto const &[k, v] : this->assoc_array) {
     assoc_keys.push_back(k);
   }
-  return new Sequence(SequenceType::get(this->get_key_type()),
-                      std::move(assoc_keys));
+  return new SequenceAlloc(SequenceType::get(this->get_key_type()),
+                           std::move(assoc_keys));
 }
 
 bool AssocArray::equals(const Object *other) const {
@@ -559,31 +559,9 @@ bool AssocArray::equals(const Object *other) const {
 /*
  * Sequence implementation
  */
-Sequence::Sequence(SequenceType *type, size_t initial_size)
-  : Sequence(type, std::move(init_elements(type->element_type, initial_size))) {
+
+Sequence::Sequence(SequenceType *type) : Collection(type) {
   // Do nothing.
-}
-
-Sequence::Sequence(SequenceType *type, std::vector<uint64_t> &&initial)
-  : Collection(type),
-    _sequence(initial) {
-  // Do nothing.
-}
-
-void Sequence::free() {
-  auto *element_type = this->get_element_type();
-  if (is_object_type(element_type)) {
-    for (auto it = this->_sequence.begin(); it != this->_sequence.end(); ++it) {
-      ((Object *)(*it))->free();
-    }
-  }
-}
-
-uint64_t Sequence::get_sequence_element(uint64_t index) {
-  MEMOIR_ASSERT((index < this->size()),
-                "Attempt to access out of range element of sequence");
-
-  return this->_sequence.at(index);
 }
 
 uint64_t Sequence::get_element(va_list args) {
@@ -592,21 +570,10 @@ uint64_t Sequence::get_element(va_list args) {
   return this->get_sequence_element(index);
 }
 
-void Sequence::set_sequence_element(uint64_t value, uint64_t index) {
-  MEMOIR_ASSERT((index < this->size()),
-                "Attempt to access out of range element of sequence");
-
-  this->_sequence[index] = value;
-}
-
 void Sequence::set_element(uint64_t value, va_list args) {
   auto index = va_arg(args, uint64_t);
 
   return this->set_sequence_element(value, index);
-}
-
-bool Sequence::has_sequence_element(uint64_t index) {
-  return (index < this->size());
 }
 
 bool Sequence::has_element(va_list args) {
@@ -619,55 +586,14 @@ void Sequence::remove_element(va_list args) {
   auto index = va_arg(args, uint64_t);
 
   // TODO
-  // return this->set_sequence_element(value, index);
   return;
-}
-
-Collection *Sequence::get_slice(int64_t left_index, int64_t right_index) {
-  /*
-   * Check for MAX values in the right and left index.
-   *   If right index is NEGATIVE, create slice from left to end of
-   * sequence. If left index is NEGATIVE, create slice from end to right
-   * of sequence. NOTE: this is a reverse operation.
-   */
-  if (right_index < 0) {
-    right_index = this->size() + right_index + 1;
-  }
-
-  if (left_index < 0) {
-    left_index = this->size() + left_index + 1;
-  }
-
-  /*
-   * If right index < left index, create a reverse sequence from right to
-   *   left of sequence. NOTE: this may be a reverse operation.
-   * Otherwise, get the slice inbetween the left and right index.
-   */
-  if (left_index > right_index) {
-    auto length = left_index - right_index;
-    auto type = static_cast<SequenceType *>(this->get_type());
-
-    return new Sequence(
-        type,
-        std::move(std::vector<uint64_t>(this->_sequence.begin() + right_index,
-                                        this->_sequence.begin() + left_index)));
-  } else {
-    auto length = right_index - left_index;
-    auto type = static_cast<SequenceType *>(this->get_type());
-
-    return new Sequence(type,
-                        std::move(std::vector<uint64_t>(
-                            this->_sequence.begin() + left_index,
-                            this->_sequence.begin() + right_index)));
-  }
-  return nullptr;
 }
 
 Collection *Sequence::get_slice(va_list args) {
   auto left_index = va_arg(args, int64_t);
   auto right_index = va_arg(args, int64_t);
 
-  return this->get_slice(left_index, right_index);
+  return this->get_sequence_slice(left_index, right_index);
 }
 
 Collection *Sequence::join(SequenceType *type,
@@ -677,23 +603,22 @@ Collection *Sequence::join(SequenceType *type,
     initial_size += sequence_to_join->size();
   }
 
-  std::vector<uint64_t> new_vector(sequences_to_join.at(0)->_sequence.begin(),
-                                   sequences_to_join.at(0)->_sequence.end());
+  std::vector<uint64_t> new_vector(sequences_to_join.at(0)->begin(),
+                                   sequences_to_join.at(0)->end());
   if (sequences_to_join.size() > 1) {
     for (auto seq_it = sequences_to_join.begin() + 1;
          seq_it != sequences_to_join.end();
          ++seq_it) {
       // TODO: We need to make this an Element::clone, OR change structs to be
       // backed by persistent data structures as well.
-      for (auto elem_it = (*seq_it)->_sequence.begin();
-           elem_it != (*seq_it)->_sequence.end();
+      for (auto elem_it = (*seq_it)->begin(); elem_it != (*seq_it)->end();
            ++elem_it) {
         new_vector.push_back(*elem_it);
       }
     }
   }
 
-  auto new_sequence = new Sequence(type, std::move(new_vector));
+  auto new_sequence = new SequenceAlloc(type, std::move(new_vector));
 
   return new_sequence;
 }
@@ -737,12 +662,194 @@ Type *Sequence::get_element_type() const {
   return sequence_type->element_type;
 }
 
-uint64_t Sequence::size() const {
+/*
+ * SequenceAlloc implementation.
+ */
+SequenceAlloc::SequenceAlloc(SequenceType *type, size_t initial_size)
+  : SequenceAlloc(type,
+                  std::move(init_elements(type->element_type, initial_size))) {
+  // Do nothing.
+}
+
+SequenceAlloc::SequenceAlloc(SequenceType *type,
+                             std::vector<uint64_t> &&initial)
+  : Sequence(type),
+    _sequence(initial) {
+  // Do nothing.
+}
+
+void SequenceAlloc::free() {
+  auto *element_type = this->get_element_type();
+  if (is_object_type(element_type)) {
+    for (auto it = this->_sequence.begin(); it != this->_sequence.end(); ++it) {
+      ((Object *)(*it))->free();
+    }
+  }
+}
+
+uint64_t SequenceAlloc::get_sequence_element(uint64_t index) {
+  MEMOIR_ASSERT((index < this->size()),
+                "Attempt to access out of range element of sequence");
+
+  return this->_sequence.at(index);
+}
+
+void SequenceAlloc::set_sequence_element(uint64_t value, uint64_t index) {
+  MEMOIR_ASSERT((index < this->size()),
+                "Attempt to access out of range element of sequence");
+
+  this->_sequence[index] = value;
+}
+
+bool SequenceAlloc::has_sequence_element(uint64_t index) {
+  return (index < this->size());
+}
+
+Collection *SequenceAlloc::get_sequence_slice(int64_t left_index,
+                                              int64_t right_index) {
+  /*
+   * Check for MAX values in the right and left index.
+   *   If right index is NEGATIVE, create slice from left to end of
+   * sequence. If left index is NEGATIVE, create slice from end to right
+   * of sequence. NOTE: this is a reverse operation.
+   */
+  if (right_index < 0) {
+    right_index = this->size() + right_index + 1;
+  }
+
+  if (left_index < 0) {
+    left_index = this->size() + left_index + 1;
+  }
+
+  /*
+   * If right index < left index, create a reverse sequence from right to
+   *   left of sequence. NOTE: this may be a reverse operation.
+   * Otherwise, get the slice inbetween the left and right index.
+   */
+  if (left_index > right_index) {
+    auto length = left_index - right_index;
+    auto type = static_cast<SequenceType *>(this->get_type());
+
+    return new SequenceAlloc(
+        type,
+        std::move(std::vector<uint64_t>(this->_sequence.begin() + right_index,
+                                        this->_sequence.begin() + left_index)));
+  } else {
+    auto length = right_index - left_index;
+    auto type = static_cast<SequenceType *>(this->get_type());
+
+    return new SequenceAlloc(type,
+                             std::move(std::vector<uint64_t>(
+                                 this->_sequence.begin() + left_index,
+                                 this->_sequence.begin() + right_index)));
+  }
+  return nullptr;
+}
+
+uint64_t SequenceAlloc::size() const {
   return this->_sequence.size();
 }
 
-bool Sequence::equals(const Object *other) const {
+Sequence::seq_iter SequenceAlloc::begin() {
+  return this->_sequence.begin();
+}
+
+Sequence::seq_iter SequenceAlloc::end() {
+  return this->_sequence.end();
+}
+
+// Mutable operations
+void SequenceAlloc::insert(uint64_t index, uint64_t value) {
+  this->_sequence.insert(this->_sequence.begin() + index, value);
+}
+
+void SequenceAlloc::erase(uint64_t from, uint64_t to) {
+  this->_sequence.erase(this->_sequence.begin() + from,
+                        this->_sequence.begin() + to);
+};
+
+void SequenceAlloc::grow(uint64_t size) {
+  this->_sequence.resize(this->_sequence.size() + size);
+};
+
+bool SequenceAlloc::equals(const Object *other) const {
   return (this == other);
 }
+
+/*
+ * SequenceView implementation
+ */
+SequenceView::SequenceView(SequenceView *seq_view, size_t from, size_t to)
+  : SequenceView(seq_view->_sequence,
+                 from + seq_view->from,
+                 seq_view->from + ((to == -1) ? seq_view->size() : to)) {
+  // Do nothing.
+}
+
+SequenceView::SequenceView(SequenceAlloc *seq, size_t from, size_t to)
+  : _sequence(seq),
+    from(from),
+    to((to == -1) ? seq->size() : to),
+    Sequence(static_cast<SequenceType *>(seq->get_type())) {
+  // Do nothing.
+}
+
+void SequenceView::free() {
+  return;
+}
+
+uint64_t SequenceView::get_sequence_element(uint64_t index) {
+  MEMOIR_ASSERT((index < this->size()),
+                "Attempt to access out of range element of sequence");
+
+  return this->_sequence->get_sequence_element(index + this->from);
+}
+
+void SequenceView::set_sequence_element(uint64_t value, uint64_t index) {
+  MEMOIR_ASSERT((index < this->size()),
+                "Attempt to access out of range element of sequence");
+
+  this->_sequence->set_sequence_element(value, index + this->from);
+}
+
+bool SequenceView::has_sequence_element(uint64_t index) {
+  return (index < this->size());
+}
+
+Collection *SequenceView::get_sequence_slice(int64_t left_index,
+                                             int64_t right_index) {
+
+  return this->_sequence->get_sequence_slice(left_index + this->from,
+                                             right_index + this->to);
+}
+
+uint64_t SequenceView::size() const {
+  return this->to - this->from;
+}
+
+Sequence::seq_iter SequenceView::begin() {
+  return this->begin() + this->from;
+}
+
+Sequence::seq_iter SequenceView::end() {
+  return this->begin() + this->to;
+}
+
+bool SequenceView::equals(const Object *other) const {
+  return (this == other);
+}
+
+// Mutable operations
+void SequenceView::insert(uint64_t index, uint64_t value) {
+  this->_sequence->insert(index + this->from, value);
+}
+
+void SequenceView::erase(uint64_t from, uint64_t to) {
+  this->_sequence->erase(from + this->from, to + this->from);
+};
+
+void SequenceView::grow(uint64_t size) {
+  this->_sequence->grow(size);
+};
 
 } // namespace memoir

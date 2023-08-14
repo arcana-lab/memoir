@@ -25,7 +25,6 @@ extern "C" {
       __attribute__((optnone)) __attribute__((used))
 #define __ALLOC_ATTR __declspec(allocator)
 #define __IMMUT_ATTR __attribute__((const)) __attribute__((pure))
-#define __PASSTHRU_ATTR __attribute__((returned))
 
 #define MEMOIR_FUNC(name) memoir__##name
 
@@ -158,6 +157,11 @@ __RUNTIME_ATTR
 Collection *MEMOIR_FUNC(sequence_split)(Collection *collection,
                                         size_t i,
                                         size_t j);
+
+__RUNTIME_ATTR
+Collection *MEMOIR_FUNC(sequence_view)(Collection *collection,
+                                       size_t,
+                                       size_t j);
 
 // Associative array operations.
 __IMMUT_ATTR

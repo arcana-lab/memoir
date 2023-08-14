@@ -139,7 +139,7 @@ Collection *MEMOIR_FUNC(allocate_sequence)(Type *element_type,
                                            uint64_t init_size) {
   auto sequence_type = SequenceType::get(element_type);
 
-  auto sequence = new struct Sequence(sequence_type, init_size);
+  auto sequence = new struct SequenceAlloc(sequence_type, init_size);
 
   return sequence;
 }
@@ -179,6 +179,20 @@ Collection *MEMOIR_FUNC(get_slice)(Collection *collection_to_slice, ...) {
   va_end(args);
 
   return sliced_object;
+}
+
+__RUNTIME_ATTR
+Collection *MEMOIR_FUNC(view)(Collection *collection_to_view,
+                              size_t begin,
+                              size_t end) {
+  MEMOIR_ASSERT((collection_to_view != nullptr), "Attempt to view NULL object");
+  if (auto *seq = dynamic_cast<SequenceAlloc *>(collection_to_view)) {
+    return new SequenceView(seq, begin, end);
+  } else if (auto *seq_view =
+                 dynamic_cast<SequenceView *>(collection_to_view)) {
+    return new SequenceView(seq_view, begin, end);
+  }
+  MEMOIR_UNREACHABLE("Attempt to view a non-viewable object");
 }
 
 __RUNTIME_ATTR

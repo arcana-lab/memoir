@@ -24,7 +24,7 @@ extern "C" {
     MEMOIR_ACCESS_CHECK(collection);                                           \
     MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);                       \
     auto *seq = static_cast<Sequence *>(collection);                           \
-    seq->_sequence.insert(seq->_sequence.begin() + index, (uint64_t)value);    \
+    seq->insert(index, (uint64_t)value);                                       \
   }
 #include "types.def"
 
@@ -39,8 +39,7 @@ void MEMOIR_FUNC(sequence_remove)(Collection *collection,
 
   auto *seq = static_cast<Sequence *>(collection);
 
-  seq->_sequence.erase(seq->_sequence.begin() + begin,
-                       seq->_sequence.begin() + end);
+  seq->erase(begin, end);
 }
 
 __RUNTIME_ATTR
@@ -55,13 +54,11 @@ void MEMOIR_FUNC(sequence_append)(Collection *collection,
   auto *seq1 = static_cast<Sequence *>(collection);
   auto *seq2 = static_cast<Sequence *>(collection_to_append);
 
-  auto size1 = seq1->_sequence.size();
-  auto size2 = seq2->_sequence.size();
-  seq1->_sequence.resize(size1 + size2);
+  auto size1 = seq1->size();
+  auto size2 = seq2->size();
+  seq1->grow(size2);
 
-  std::copy(seq2->_sequence.begin(),
-            seq2->_sequence.end(),
-            seq1->_sequence.begin() + size1);
+  std::copy(seq2->begin(), seq2->end(), seq1->begin() + size1);
 
   delete seq2;
 }
@@ -88,8 +85,8 @@ void MEMOIR_FUNC(sequence_swap)(Collection *collection,
 
   MEMOIR_ASSERT((j2 <= seq2->size()), "Buffer overflow on copy.");
 
-  auto it1 = seq1->_sequence.begin() + i;
-  auto it2 = seq2->_sequence.begin() + i2;
+  auto it1 = seq1->begin() + i;
+  auto it2 = seq2->begin() + i2;
   for (auto k = 0; k < m; k++, ++it1, ++it2) {
     std::swap(*it1, *it2);
   }
@@ -114,13 +111,11 @@ Collection *MEMOIR_FUNC(sequence_split)(Collection *collection,
 
   std::vector<uint64_t> new_container;
   new_container.resize(m);
-  std::move(seq->_sequence.begin() + i,
-            seq->_sequence.begin() + j,
-            new_container.begin());
+  std::move(seq->begin() + i, seq->begin() + j, new_container.begin());
 
-  seq->_sequence.erase(seq->_sequence.begin() + i, seq->_sequence.begin() + j);
+  seq->erase(i, j);
 
-  return new Sequence(seq_type, std::move(new_container));
+  return new SequenceAlloc(seq_type, std::move(new_container));
 }
 
 } // extern "C"

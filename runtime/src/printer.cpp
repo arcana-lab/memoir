@@ -34,8 +34,12 @@ std::string AssocArray::to_string() {
   return "(AssocArray)";
 }
 
-std::string Sequence::to_string() {
-  return "(Sequence)";
+std::string SequenceAlloc::to_string() {
+  return "(SequenceAlloc)";
+}
+
+std::string SequenceView::to_string() {
+  return "(SequenceView)";
 }
 
 /*
