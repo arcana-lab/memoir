@@ -264,6 +264,11 @@ HANDLE_INST_(USE_PHI, MEMOIR_FUNC(usePHI), UsePHIInst)
 HANDLE_INST_(DEF_PHI, MEMOIR_FUNC(defPHI), DefPHIInst)
 
 /*
+ * Lowering representations.
+ */
+HANDLE_INST_(VIEW, MEMOIR_FUNC(view), ViewInst)
+
+/*
  * Type Checking
  */
 HANDLE_INST_(ASSERT_STRUCT_TYPE, MEMOIR_FUNC(assert_struct_type), AssertStructTypeInst)

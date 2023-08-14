@@ -1239,6 +1239,36 @@ protected:
 };
 
 /*
+ * Lowering representations.
+ */
+struct ViewInst : public MemOIRInst {
+public:
+  Collection &getView() const;
+  llvm::Value &getViewAsValue() const;
+
+  Collection &getCollection() const;
+  llvm::Value &getCollectionOperand() const;
+  llvm::Use &getCollectionOperandAsUse() const;
+
+  llvm::Value &getBeginIndex() const;
+  llvm::Use &getBeginIndexAsUse() const;
+
+  llvm::Value &getEndIndex() const;
+  llvm::Use &getEndIndexAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::VIEW);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  ViewInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst){};
+
+  friend class MemOIRInst;
+};
+
+/*
  * Deletion operations
  */
 struct DeleteStructInst : public MemOIRInst {
