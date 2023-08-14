@@ -430,6 +430,33 @@ public:
     return inst;
   }
 
+  /*
+   * Mutable sequence operations.
+   */
+  SeqAppendInst *CreateSeqAppendInst(llvm::Value *collection,
+                                     llvm::Value *collection_to_append,
+                                     const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto llvm_func =
+        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::SEQ_APPEND);
+    MEMOIR_NULL_CHECK(llvm_func, "Couldn't find the memoir function!");
+
+    // Create the LLVM call.
+    auto llvm_call =
+        this->CreateCall(FunctionCallee(llvm_func),
+                         llvm::ArrayRef({ collection, collection_to_append }),
+                         name);
+    MEMOIR_NULL_CHECK(
+        llvm_call,
+        "Could not create the call for sequence append operation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto inst = dyn_cast<SeqAppendInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(inst, "Could not create call to SeqAppendInst");
+    return inst;
+  }
+
 protected:
   // Borrowed state
   llvm::Module *M;
