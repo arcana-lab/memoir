@@ -83,17 +83,57 @@ struct SSADestructionPass : public ModulePass {
     return std::move(dfs_preorder_traversal_helper(root_node));
   }
 
+  static DomTreeTraversalListTy dfs_postorder_traversal_helper(
+      llvm::noelle::DomNodeSummary *root) {
+    MEMOIR_NULL_CHECK(root, "Root of dfs postorder traversal is NULL!");
+
+    DomTreeTraversalListTy traversal = {};
+
+    for (auto *child : root->getChildren()) {
+      auto child_traversal = dfs_preorder_traversal_helper(child);
+      traversal.insert(traversal.end(),
+                       child_traversal.begin(),
+                       child_traversal.end());
+    }
+
+    traversal.push_back(root->getBlock());
+
+    return std::move(traversal);
+  }
+
+  static DomTreeTraversalListTy dfs_postorder_traversal(
+      llvm::noelle::DomTreeSummary &DT,
+      llvm::BasicBlock &root) {
+    auto *root_node = DT.getNode(&root);
+    MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found, blame NOELLE");
+
+    return std::move(dfs_postorder_traversal_helper(root_node));
+  }
+
   bool runOnModule(Module &M) override {
-    println("BEGIN mut2immut pass");
+    println("BEGIN SSA Destruction pass");
     println();
 
     // Get NOELLE.
     auto &NOELLE = getAnalysis<llvm::noelle::Noelle>();
 
+    auto &CA = CollectionAnalysis::get(NOELLE);
+
     SSADestructionStats stats;
 
     for (auto &F : M) {
       if (F.empty()) {
+        continue;
+      }
+
+      bool no_memoir = true;
+      for (auto &I : llvm::instructions(F)) {
+        if (Type::value_is_collection_type(I)) {
+          no_memoir = false;
+          break;
+        }
+      }
+      if (no_memoir) {
         continue;
       }
 
@@ -104,27 +144,42 @@ struct SSADestructionPass : public ModulePass {
       // Get the dominator forest.
       auto &DT = NOELLE.getDominators(&F)->DT;
 
-      // Get the dominance frontier.
-      auto &DF = getAnalysis<llvm::DominanceFrontierWrapperPass>(F)
-                     .getDominanceFrontier();
+      // Compute the liveness analysis.
+      auto LA = LivenessAnalysis(F, NOELLE.getDataFlowEngine());
+
+      // Get a new value numbering instance.
+      auto VN = ValueNumbering(M);
+
+      // Initialize the reaching definitions.
+      SSADestructionVisitor SSADV(DT, LA, VN, &stats);
 
       // Get the depth-first, preorder traversal of the dominator tree rooted at
       // the entry basic block.
       auto &entry_bb = F.getEntryBlock();
-      auto dfs_traversal = dfs_preorder_traversal(DT, entry_bb);
-
-      // Initialize the reaching definitions.
-      SSADestructionVisitor SSADV(DT, &stats);
+      auto dfs_preorder = dfs_preorder_traversal(DT, entry_bb);
 
       // Apply rewrite rules and renaming for reaching definitions.
-      println("Applying rewrite rules");
-      for (auto *bb : dfs_traversal) {
+      println("Coallescing collection variables");
+      for (auto *bb : dfs_preorder) {
         for (auto &I : *bb) {
           SSADV.visit(I);
         }
       }
 
-      println("Cleaning up dead mutable instructions.");
+      // Get the depth-first, preorder traversal of the dominator tree rooted at
+      // the entry basic block.
+      auto dfs_postorder = dfs_postorder_traversal(DT, entry_bb);
+
+      println("Performing the coalescence");
+      for (auto *bb : dfs_postorder) {
+        // Reverse iterate on instructions in the basic block.
+        for (auto rit = bb->rbegin(); rit != bb->rend(); ++rit) {
+          auto &I = *rit;
+          SSADV.do_coalesce(I);
+        }
+      }
+
+      println("Cleaning up dead instructions.");
       SSADV.cleanup();
 
       println("END: ", F.getName());
