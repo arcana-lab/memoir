@@ -440,7 +440,7 @@ Collection *CollectionAnalysis::visitArgument(llvm::Argument &A) {
           incoming[call_base] = argument_collection;
         } else if (!callee) {
           // Handle indirect calls.
-          auto function_type = callee->getFunctionType();
+          auto function_type = call_base->getFunctionType();
           if (function_type == parent_function_type) {
             auto &call_argument_as_use =
                 call_base->getArgOperandUse(A.getArgNo());
