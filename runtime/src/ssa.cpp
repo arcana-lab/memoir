@@ -16,13 +16,13 @@ extern "C" {
 
 __IMMUT_ATTR
 __RUNTIME_ATTR
-Collection *MEMOIR_FUNC(defPHI)(__PASSTHRU_ATTR Collection *in) {
+Collection *MEMOIR_FUNC(defPHI)(Collection *in) {
   return in;
 }
 
 __IMMUT_ATTR
 __RUNTIME_ATTR
-Collection *MEMOIR_FUNC(usePHI)(__PASSTHRU_ATTR Collection *in) {
+Collection *MEMOIR_FUNC(usePHI)(Collection *in) {
   return in;
 }
 }
