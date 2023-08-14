@@ -85,6 +85,7 @@ struct MutToImmutPass : public ModulePass {
   }
 
   bool runOnModule(Module &M) override {
+    println();
     println("BEGIN mut2immut pass");
     println();
 
@@ -95,6 +96,17 @@ struct MutToImmutPass : public ModulePass {
 
     for (auto &F : M) {
       if (F.empty()) {
+        continue;
+      }
+
+      bool no_memoir = true;
+      for (auto &I : llvm::instructions(F)) {
+        if (Type::value_is_collection_type(I)) {
+          no_memoir = false;
+          break;
+        }
+      }
+      if (no_memoir) {
         continue;
       }
 
@@ -288,18 +300,20 @@ struct MutToImmutPass : public ModulePass {
 
     stats.inc_ssa(stats.num_mut_collections);
 
-    println("=========================");
-    println("STATS mut2immut pass");
-    println("  NumMut = ", stats.num_mut_collections);
-    println("  NumSSA = ", stats.num_ssa_collections);
-    println("  NumTrivial = ", stats.num_trivial_ssa_collections);
-    println("  NewSSA = ",
-            stats.num_ssa_collections - stats.num_mut_collections);
-    println("  NewNonTrivial = ",
-            stats.num_ssa_collections - stats.num_mut_collections
-                - stats.num_trivial_ssa_collections);
-    println("=========================");
+    // println("=========================");
+    // println("STATS mut2immut pass");
+    // println("  NumMut = ", stats.num_mut_collections);
+    // println("  NumSSA = ", stats.num_ssa_collections);
+    // println("  NumTrivial = ", stats.num_trivial_ssa_collections);
+    // println("  NewSSA = ",
+    //         stats.num_ssa_collections - stats.num_mut_collections);
+    // println("  NewNonTrivial = ",
+    //         stats.num_ssa_collections - stats.num_mut_collections
+    //             - stats.num_trivial_ssa_collections);
+    // println("=========================");
+    println();
     println("DONE mut2immut pass");
+    println();
     return true;
   }
 
