@@ -131,17 +131,12 @@ struct MutToImmutPass : public ModulePass {
       for (auto &A : F.args()) {
         if (Type::value_is_collection_type(A)) {
           memoir_names.insert(&A);
-          stats.inc_mut();
         }
       }
       for (auto &BB : F) {
         for (auto &I : BB) {
           if (Type::value_is_collection_type(I)) {
             memoir_names.insert(&I);
-
-            if (!isa<llvm::PHINode>(&I)) {
-              stats.inc_mut();
-            }
           }
         }
       }
@@ -298,19 +293,6 @@ struct MutToImmutPass : public ModulePass {
       println("=========================");
     }
 
-    stats.inc_ssa(stats.num_mut_collections);
-
-    // println("=========================");
-    // println("STATS mut2immut pass");
-    // println("  NumMut = ", stats.num_mut_collections);
-    // println("  NumSSA = ", stats.num_ssa_collections);
-    // println("  NumTrivial = ", stats.num_trivial_ssa_collections);
-    // println("  NewSSA = ",
-    //         stats.num_ssa_collections - stats.num_mut_collections);
-    // println("  NewNonTrivial = ",
-    //         stats.num_ssa_collections - stats.num_mut_collections
-    //             - stats.num_trivial_ssa_collections);
-    // println("=========================");
     println();
     println("DONE mut2immut pass");
     println();

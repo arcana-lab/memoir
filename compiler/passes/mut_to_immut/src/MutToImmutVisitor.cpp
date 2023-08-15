@@ -141,7 +141,6 @@ void MutToImmutVisitor::visitIndexWriteInst(IndexWriteInst &I) {
   // Build a DefPHI for the instruction.
   auto *def_phi = builder.CreateDefPHI(collection_value);
   auto *def_phi_value = &def_phi->getCollectionValue();
-  this->increment_trivial_ssa();
 
   // Set the DefInst for the UsePHI.
   // def_phi->setDefInst(I);
@@ -166,7 +165,6 @@ void MutToImmutVisitor::visitAssocWriteInst(AssocWriteInst &I) {
   // Build a DefPHI for the instruction.
   auto *def_phi = builder.CreateDefPHI(collection_value);
   auto *def_phi_value = &def_phi->getCollectionValue();
-  this->increment_trivial_ssa();
 
   // Set the DefInst for the UsePHI.
   // def_phi->setDefInst(I);
@@ -191,7 +189,6 @@ void MutToImmutVisitor::visitIndexReadInst(IndexReadInst &I) {
   // Build a DefPHI for the instruction.
   auto *use_phi = builder.CreateUsePHI(collection_value);
   auto *use_phi_value = &use_phi->getCollectionValue();
-  this->increment_trivial_ssa();
 
   // Set the UseInst for the UsePHI.
   // use_phi->setUseInst(I);
@@ -216,7 +213,6 @@ void MutToImmutVisitor::visitAssocReadInst(AssocReadInst &I) {
   // Build a UsePHI for the instruction.
   auto *use_phi = builder.CreateUsePHI(collection_value);
   auto *use_phi_value = &use_phi->getCollectionValue();
-  this->increment_trivial_ssa();
 
   // Set the UseInst for the UsePHI.
   // use_phi->setUseInst(I);
@@ -241,7 +237,6 @@ void MutToImmutVisitor::visitIndexGetInst(IndexGetInst &I) {
   // Build a DefPHI for the instruction.
   auto *use_phi = builder.CreateUsePHI(collection_value);
   auto *use_phi_value = &use_phi->getCollectionValue();
-  this->increment_trivial_ssa();
 
   // Set the UseInst for the UsePHI.
   // use_phi->setUseInst(I);
@@ -266,7 +261,6 @@ void MutToImmutVisitor::visitAssocGetInst(AssocGetInst &I) {
   // Build a UsePHI for the instruction.
   auto *use_phi = builder.CreateUsePHI(collection_value);
   auto *use_phi_value = &use_phi->getCollectionValue();
-  this->increment_trivial_ssa();
 
   // Set the UseInst for the UsePHI.
   // use_phi->setUseInst(I);
@@ -302,7 +296,6 @@ void MutToImmutVisitor::visitSeqInsertInst(SeqInsertInst &I) {
                                  index_value,
                                  "insert.elem.value.")
            ->getCallInst();
-  this->increment_ssa();
 
   if (auto *index_as_const_int = dyn_cast<llvm::ConstantInt>(index_value)) {
     if (index_as_const_int->isZero()) {
@@ -311,7 +304,6 @@ void MutToImmutVisitor::visitSeqInsertInst(SeqInsertInst &I) {
                                    .CreateJoinInst(vector<llvm::Value *>(
                                        { collection_value, elem_alloc }))
                                    ->getCallInst();
-      this->increment_ssa();
 
       this->reaching_definitions[collection_orig] = push_front_join;
       this->reaching_definitions[push_front_join] = collection_value;
@@ -344,7 +336,6 @@ void MutToImmutVisitor::visitSeqInsertInst(SeqInsertInst &I) {
                vector<llvm::Value *>({ left_slice, elem_alloc, right_slice }),
                "insert.join.")
            ->getCallInst();
-  this->increment_ssa(3);
 
   this->reaching_definitions[collection_orig] = insert_join;
   this->reaching_definitions[insert_join] = collection_value;
@@ -369,7 +360,6 @@ void MutToImmutVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
           &builder
                .CreateSliceInst(collection_value, end_value, -1, "remove.rest.")
                ->getCallInst();
-      this->increment_ssa();
 
       this->reaching_definitions[collection_orig] = pop_front;
       this->reaching_definitions[pop_front] = collection_value;
@@ -402,7 +392,6 @@ void MutToImmutVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
            .CreateJoinInst(vector<llvm::Value *>({ left_slice, right_slice }),
                            "remove.join.")
            ->getCallInst();
-  this->increment_ssa(3);
   // TODO: attach metadata to this to say that begin < end
 
   this->reaching_definitions[collection_orig] = remove_join;
@@ -427,7 +416,6 @@ void MutToImmutVisitor::visitSeqAppendInst(SeqAppendInst &I) {
                                { collection_value, appended_collection_value }),
                            "append.")
            ->getCallInst();
-  this->increment_ssa();
 
   this->reaching_definitions[collection_orig] = append_join;
   this->reaching_definitions[append_join] = collection_value;
@@ -462,7 +450,6 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
                                           from_end_value,
                                           "swap.from.")
                          ->getCallInst();
-        this->increment_ssa();
       }
     }
 
@@ -481,7 +468,6 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
                                         from_end_value,
                                         "swap.from.")
                        ->getCallInst();
-      this->increment_ssa(2);
     }
 
     to_end_value = builder.CreateAdd(to_begin_value, from_size, "swap.to.end.");
@@ -499,7 +485,6 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
                                        -1,
                                        "swap.to.right")
                       ->getCallInst();
-      this->increment_ssa(2);
     } else {
       to_left = &builder
                      .CreateSliceInst(from_collection_value,
@@ -519,7 +504,6 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
                                        -1,
                                        "swap.to.right")
                       ->getCallInst();
-      this->increment_ssa(3);
     }
 
     vector<llvm::Value *> collections_to_join;
@@ -542,7 +526,6 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
     llvm::Value *join =
         &builder.CreateJoinInst(collections_to_join, "swap.join.")
              ->getCallInst();
-    this->increment_ssa();
 
     this->reaching_definitions[from_collection_orig] = join;
     this->reaching_definitions[join] = from_collection_value;
@@ -568,7 +551,6 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
                                          -1,
                                          "swap.from.rest.")
                         ->getCallInst();
-      this->increment_ssa(2);
     }
   }
 
@@ -593,7 +575,6 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
                                        -1,
                                        "swap.from.right.")
                       ->getCallInst();
-    this->increment_ssa(3);
   }
 
   if (auto *to_begin_as_const_int =
@@ -612,7 +593,6 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
                                        -1,
                                        "swap.to.rest.")
                       ->getCallInst();
-      this->increment_ssa(2);
     }
   }
 
@@ -636,7 +616,6 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
                                      -1,
                                      "swap.to.right.")
                     ->getCallInst();
-    this->increment_ssa(3);
   }
 
   vector<llvm::Value *> from_incoming;
@@ -651,7 +630,6 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
 
   llvm::Value *from_join =
       &builder.CreateJoinInst(from_incoming, "swap.from.join.")->getCallInst();
-  this->increment_ssa();
 
   vector<llvm::Value *> to_incoming;
   to_incoming.reserve(3);
@@ -664,7 +642,6 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
   }
   llvm::Value *to_join =
       &builder.CreateJoinInst(to_incoming, "swap.to.join.")->getCallInst();
-  this->increment_ssa();
 
   this->reaching_definitions[from_collection_orig] = from_join;
   this->reaching_definitions[from_join] = from_collection_value;
@@ -699,8 +676,6 @@ void MutToImmutVisitor::visitSeqSplitInst(SeqSplitInst &I) {
                                               "split.remaining.")
                              ->getCallInst();
 
-      this->increment_ssa(2);
-
       this->reaching_definitions[split_value] = split;
       this->reaching_definitions[remaining] = collection_value;
       this->reaching_definitions[collection_orig] = remaining;
@@ -729,7 +704,6 @@ void MutToImmutVisitor::visitSeqSplitInst(SeqSplitInst &I) {
                          .CreateJoinInst(vector<llvm::Value *>({ left, right }),
                                          "split.remaining.")
                          ->getCallInst();
-  this->increment_ssa(4);
 
   this->reaching_definitions[split_value] = split;
   this->reaching_definitions[remaining] = collection_value;
@@ -752,7 +726,6 @@ void MutToImmutVisitor::visitAssocHasInst(AssocHasInst &I) {
   // Build a DefPHI for the instruction.
   auto *use_phi = builder.CreateUsePHI(collection_value);
   auto *use_phi_value = &use_phi->getCollectionValue();
-  this->increment_trivial_ssa();
 
   // Set the DefInst for the UsePHI.
   // def_phi->setDefInst(I);
@@ -777,7 +750,6 @@ void MutToImmutVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
   // Build a DefPHI for the instruction.
   auto *def_phi = builder.CreateDefPHI(collection_value);
   auto *def_phi_value = &def_phi->getCollectionValue();
-  this->increment_trivial_ssa();
 
   // Set the DefInst for the UsePHI.
   // def_phi->setDefInst(I);
@@ -793,18 +765,6 @@ void MutToImmutVisitor::cleanup() {
   for (auto *inst : instructions_to_delete) {
     println(*inst);
     inst->eraseFromParent();
-  }
-}
-
-void MutToImmutVisitor::increment_ssa(uint64_t inc) {
-  if (stats != nullptr) {
-    stats->inc_ssa(inc);
-  }
-}
-
-void MutToImmutVisitor::increment_trivial_ssa(uint64_t inc) {
-  if (stats != nullptr) {
-    stats->inc_trivial_ssa(inc);
   }
 }
 

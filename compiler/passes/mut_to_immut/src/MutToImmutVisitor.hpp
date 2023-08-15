@@ -19,23 +19,6 @@ using ReachingDefMapTy = map<llvm::Value *, llvm::Value *>;
 
 struct MutToImmutStats {
   using CountTy = uint32_t;
-
-  CountTy num_mut_collections = 0;
-  CountTy num_ssa_collections = 0;
-  CountTy num_trivial_ssa_collections = 0;
-
-  void inc_mut(CountTy inc = 1) {
-    this->num_mut_collections += inc;
-  }
-
-  void inc_ssa(CountTy inc = 1) {
-    this->num_ssa_collections += inc;
-  }
-
-  void inc_trivial_ssa(CountTy inc = 1) {
-    this->num_ssa_collections += inc;
-    this->num_trivial_ssa_collections += inc;
-  }
 };
 
 class MutToImmutVisitor
@@ -89,8 +72,6 @@ protected:
   map<llvm::PHINode *, llvm::Value *> inserted_phis;
 
   // Statistics
-  void increment_ssa(uint64_t inc = 1);
-  void increment_trivial_ssa(uint64_t inc = 1);
   MutToImmutStats *stats;
 };
 
