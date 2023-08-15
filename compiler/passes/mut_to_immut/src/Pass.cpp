@@ -72,7 +72,7 @@ struct MutToImmutPass : public ModulePass {
                        child_traversal.end());
     }
 
-    return std::move(traversal);
+    return traversal;
   }
 
   static DomTreeTraversalListTy dfs_preorder_traversal(
@@ -81,7 +81,7 @@ struct MutToImmutPass : public ModulePass {
     auto *root_node = DT.getNode(&root);
     MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found, blame NOELLE");
 
-    return std::move(dfs_preorder_traversal_helper(root_node));
+    return dfs_preorder_traversal_helper(root_node);
   }
 
   bool runOnModule(Module &M) override {
@@ -151,10 +151,12 @@ struct MutToImmutPass : public ModulePass {
 
         // Gather the set of basic blocks containing definitions of the
         // named variable.
-        ordered_set<llvm::BasicBlock *> def_parents = {};
+        set<llvm::BasicBlock *> def_parents = {};
+        queue<llvm::BasicBlock *> def_parents_worklist = {};
         if (auto *name_as_inst = dyn_cast<llvm::Instruction>(name)) {
           if (auto *name_bb = name_as_inst->getParent()) {
             def_parents.insert(name_bb);
+            def_parents_worklist.push(name_bb);
           }
         }
 
@@ -175,20 +177,29 @@ struct MutToImmutPass : public ModulePass {
               }
             }
             if (auto *def_bb = def_as_inst->getParent()) {
+              println("inserting def parent for ", *def_as_inst);
               def_parents.insert(def_bb);
+              def_parents_worklist.push(def_bb);
             }
           }
+        }
+
+        println("Def parents:");
+        for (auto *def_parent : def_parents) {
+          println(*def_parent);
         }
 
         println("inserting PHIs");
         // Gather the set of basic blocks where PHIs need to be added.
         set<llvm::BasicBlock *> phi_parents = {};
-        map<llvm::BasicBlock *, set<llvm::Use *>> def_to_frontier_phi_use = {};
-        auto it = def_parents.begin();
-        while (it != def_parents.end()) {
+        while (!def_parents_worklist.empty()) {
           // Pop the basic block off the set.
-          auto *bb = *it;
-          it++;
+          auto *bb = def_parents_worklist.front();
+          def_parents_worklist.pop();
+
+          println("------------------------");
+          println("Handling");
+          println(*bb);
 
           // For each basic block in the dominance frontier.
           auto found_dom_frontier = DF.find(bb);
@@ -196,7 +207,9 @@ struct MutToImmutPass : public ModulePass {
                         "Couldn't find dominance frontier for basic block.");
           auto &dominance_frontier = found_dom_frontier->second;
           for (auto *frontier_bb : dominance_frontier) {
-            if (def_parents.find(frontier_bb) == def_parents.end()) {
+            println("Found frontier");
+            println(*frontier_bb);
+            if (phi_parents.find(frontier_bb) == phi_parents.end()) {
               // If the name doesn't dominate all of the predecessors, don't
               // insert a PHI node.
               auto name_doesnt_dominate = false;
@@ -209,6 +222,7 @@ struct MutToImmutPass : public ModulePass {
                 }
               }
               if (name_doesnt_dominate) {
+                println("name doesnt dominate basic block");
                 continue;
               }
 
@@ -224,6 +238,7 @@ struct MutToImmutPass : public ModulePass {
                 }
               }
               if (name_already_in_phi) {
+                println("PHI already exists");
                 continue;
               }
 
@@ -247,7 +262,10 @@ struct MutToImmutPass : public ModulePass {
               phi_parents.insert(frontier_bb);
 
               // Insert the basic block into the Def set.
-              def_parents.insert(frontier_bb);
+              // TODO: this may need to check for set residency
+              def_parents_worklist.push(frontier_bb);
+            } else {
+              println("Basic block already has definition");
             }
           }
         }
@@ -264,6 +282,8 @@ struct MutToImmutPass : public ModulePass {
         }
 
         // Update PHIs with the reaching definition.
+        println("Updating immediate successors");
+        println(*bb);
         for (auto *succ_bb : llvm::successors(bb)) {
           for (auto &phi : succ_bb->phis()) {
             // Ensure that the value is of collection type.
@@ -271,17 +291,19 @@ struct MutToImmutPass : public ModulePass {
               continue;
             }
 
-            println("Updating successor PHI: ", phi);
+            println("Updating successor PHI: ");
+            println(phi);
 
             auto &incoming_use = phi.getOperandUse(phi.getBasicBlockIndex(bb));
             auto *incoming_value = incoming_use.get();
-            println(*incoming_value);
+            println("      orig: ", *incoming_value);
 
             // Update the reaching definition for the incoming edge.
             auto *reaching_definition =
                 MTIV.update_reaching_definition(incoming_value,
                                                 bb->getTerminator());
             incoming_use.set(reaching_definition);
+            println("  reaching: ", *reaching_definition);
           }
         }
       }

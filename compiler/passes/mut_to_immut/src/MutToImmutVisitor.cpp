@@ -28,9 +28,9 @@ llvm::Value *MutToImmutVisitor::update_reaching_definition(
   // reaching definition.
   auto *reaching_variable = variable;
 
-  println("Computing reaching definition:");
-  println("  for", *variable);
-  println("  at ", *program_point);
+  // println("Computing reaching definition:");
+  // println("  for", *variable);
+  // println("  at ", *program_point);
 
   // println(*(program_point->getParent()));
 
@@ -44,11 +44,11 @@ llvm::Value *MutToImmutVisitor::update_reaching_definition(
 
     auto *next_reaching_variable = found_reaching_definition->second;
 
-    if (next_reaching_variable) {
-      println("=> ", *next_reaching_variable);
-    } else {
-      println("=> NULL");
-    }
+    // if (next_reaching_variable) {
+    //   println("=> ", *next_reaching_variable);
+    // } else {
+    //   println("=> NULL");
+    // }
 
     reaching_variable = next_reaching_variable;
 
@@ -234,7 +234,7 @@ void MutToImmutVisitor::visitIndexGetInst(IndexGetInst &I) {
   // Update the read to operate on the reaching definition.
   I.getObjectOperandAsUse().set(collection_value);
 
-  // Build a DefPHI for the instruction.
+  // Build a UsePHI for the instruction.
   auto *use_phi = builder.CreateUsePHI(collection_value);
   auto *use_phi_value = &use_phi->getCollectionValue();
 
@@ -242,6 +242,9 @@ void MutToImmutVisitor::visitIndexGetInst(IndexGetInst &I) {
   // use_phi->setUseInst(I);
 
   // Update the reaching definitions.
+  println("Updating reaching definition");
+  println("  ", *collection_orig);
+  println("  ", *use_phi_value);
   this->reaching_definitions[collection_orig] = use_phi_value;
   this->reaching_definitions[use_phi_value] = collection_value;
 
@@ -436,91 +439,91 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
   auto *to_collection_value = update_reaching_definition(to_collection_orig, I);
   auto *to_begin_value = &I.getToBeginIndex();
 
-  llvm::Value *from_size = nullptr, *to_end_value = nullptr;
-  llvm::Value *from_left = nullptr, *from_swap = nullptr, *from_right = nullptr;
-  llvm::Value *to_left = nullptr, *to_swap = nullptr, *to_right = nullptr;
   if (from_collection_value == to_collection_value) {
+    auto *collection_value = from_collection_value;
+
+    llvm::Value *from_size = nullptr, *to_end_value = nullptr;
+    llvm::Value *left = nullptr, *from = nullptr, *middle = nullptr,
+                *to = nullptr, *right = nullptr;
+
     if (auto *from_begin_as_const_int =
             dyn_cast<llvm::ConstantInt>(from_begin_value)) {
       if (from_begin_as_const_int->isZero()) {
         from_size = from_end_value;
-        from_swap = &builder
-                         .CreateSliceInst(from_collection_value,
-                                          (int64_t)0,
-                                          from_end_value,
-                                          "swap.from.")
-                         ->getCallInst();
+        from = &builder
+                    .CreateSliceInst(collection_value,
+                                     (int64_t)0,
+                                     from_end_value,
+                                     "swap.from.")
+                    ->getCallInst();
       }
     }
 
-    if (from_swap == nullptr) {
+    if (from == nullptr) {
       from_size =
           builder.CreateSub(from_end_value, from_begin_value, "swap.size.");
-      from_left = &builder
-                       .CreateSliceInst(from_collection_value,
-                                        (int64_t)0,
-                                        from_begin_value,
-                                        "swap.from.")
-                       ->getCallInst();
-      from_swap = &builder
-                       .CreateSliceInst(from_collection_value,
-                                        from_begin_value,
-                                        from_end_value,
-                                        "swap.from.")
-                       ->getCallInst();
+      left = &builder
+                  .CreateSliceInst(collection_value,
+                                   (int64_t)0,
+                                   from_begin_value,
+                                   "swap.left.")
+                  ->getCallInst();
+      from = &builder
+                  .CreateSliceInst(collection_value,
+                                   from_begin_value,
+                                   from_end_value,
+                                   "swap.from.")
+                  ->getCallInst();
     }
 
     to_end_value = builder.CreateAdd(to_begin_value, from_size, "swap.to.end.");
 
     if (from_end_value == to_begin_value) {
-      to_swap = &builder
-                     .CreateSliceInst(from_collection_value,
-                                      to_begin_value,
-                                      to_end_value,
-                                      "swap.to.")
-                     ->getCallInst();
-      to_right = &builder
-                      .CreateSliceInst(from_collection_value,
-                                       to_end_value,
-                                       -1,
-                                       "swap.to.right")
-                      ->getCallInst();
+      to = &builder
+                .CreateSliceInst(collection_value,
+                                 to_begin_value,
+                                 to_end_value,
+                                 "swap.to.")
+                ->getCallInst();
+      right = &builder
+                   .CreateSliceInst(collection_value,
+                                    to_end_value,
+                                    -1,
+                                    "swap.right")
+                   ->getCallInst();
     } else {
-      to_left = &builder
-                     .CreateSliceInst(from_collection_value,
-                                      from_end_value,
-                                      to_begin_value,
-                                      "swap.to.left")
-                     ->getCallInst();
-      to_swap = &builder
-                     .CreateSliceInst(from_collection_value,
-                                      to_begin_value,
-                                      to_end_value,
-                                      "swap.to.")
-                     ->getCallInst();
-      to_right = &builder
-                      .CreateSliceInst(from_collection_value,
-                                       to_end_value,
-                                       -1,
-                                       "swap.to.right")
-                      ->getCallInst();
+      middle = &builder
+                    .CreateSliceInst(collection_value,
+                                     from_end_value,
+                                     to_begin_value,
+                                     "swap.middle")
+                    ->getCallInst();
+      to = &builder
+                .CreateSliceInst(collection_value,
+                                 to_begin_value,
+                                 to_end_value,
+                                 "swap.to.")
+                ->getCallInst();
+      right = &builder
+                   .CreateSliceInst(collection_value,
+                                    to_end_value,
+                                    -1,
+                                    "swap.right")
+                   ->getCallInst();
     }
 
     vector<llvm::Value *> collections_to_join;
-    collections_to_join.reserve(6);
-    if (from_left != nullptr) {
-      collections_to_join.push_back(from_left);
+    collections_to_join.reserve(5);
+    if (left != nullptr) {
+      collections_to_join.push_back(left);
     }
-    collections_to_join.push_back(to_swap);
-    if (from_right != nullptr) {
-      collections_to_join.push_back(from_right);
+    collections_to_join.push_back(to);
+    if (middle != nullptr) {
+      collections_to_join.push_back(middle);
     }
-    if (to_left != nullptr) {
-      collections_to_join.push_back(to_left);
-    }
-    collections_to_join.push_back(from_swap);
-    if (to_right != nullptr) {
-      collections_to_join.push_back(to_right);
+    collections_to_join.push_back(from);
+    if (right != nullptr) {
+      collections_to_join.push_back(right);
     }
 
     llvm::Value *join =
@@ -528,12 +531,15 @@ void MutToImmutVisitor::visitSeqSwapInst(SeqSwapInst &I) {
              ->getCallInst();
 
     this->reaching_definitions[from_collection_orig] = join;
-    this->reaching_definitions[join] = from_collection_value;
+    this->reaching_definitions[join] = collection_value;
 
     this->instructions_to_delete.insert(&I.getCallInst());
     return;
   }
 
+  llvm::Value *from_size = nullptr, *to_end_value = nullptr;
+  llvm::Value *from_left = nullptr, *from_swap = nullptr, *from_right = nullptr;
+  llvm::Value *to_left = nullptr, *to_swap = nullptr, *to_right = nullptr;
   if (auto *from_begin_as_const_int =
           dyn_cast<llvm::ConstantInt>(from_begin_value)) {
     if (from_begin_as_const_int->isZero()) {
@@ -677,8 +683,8 @@ void MutToImmutVisitor::visitSeqSplitInst(SeqSplitInst &I) {
                              ->getCallInst();
 
       this->reaching_definitions[split_value] = split;
-      this->reaching_definitions[remaining] = collection_value;
       this->reaching_definitions[collection_orig] = remaining;
+      this->reaching_definitions[remaining] = collection_value;
 
       this->instructions_to_delete.insert(&I.getCallInst());
 
@@ -706,8 +712,8 @@ void MutToImmutVisitor::visitSeqSplitInst(SeqSplitInst &I) {
                          ->getCallInst();
 
   this->reaching_definitions[split_value] = split;
-  this->reaching_definitions[remaining] = collection_value;
   this->reaching_definitions[collection_orig] = remaining;
+  this->reaching_definitions[remaining] = collection_value;
 
   this->instructions_to_delete.insert(&I.getCallInst());
   return;
