@@ -78,6 +78,11 @@ void SSADestructionVisitor::visitSliceInst(SliceInst &I) {
       break;
     }
 
+    // Check that the user is dominated by this instruction.
+    if (!DT.dominates(&I.getCallInst(), user_as_inst)) {
+      break;
+    }
+
     auto *user_as_memoir = MemOIRInst::get(*user_as_inst);
     if (!user_as_memoir) {
       // Also overly conservative, we _can_ handle PHIs.
@@ -112,6 +117,7 @@ void SSADestructionVisitor::visitSliceInst(SliceInst &I) {
     auto &slice_end = I.getEndIndex();
     set<SliceInst *> visited = {};
     list<llvm::Value *> limits = { &slice_begin, &slice_end };
+    debugln("check non-overlapping");
     while (visited.size() < slice_users.size()) {
       bool found_new_limit = false;
       for (auto *user_as_slice : slice_users) {
@@ -119,9 +125,15 @@ void SSADestructionVisitor::visitSliceInst(SliceInst &I) {
           continue;
         }
 
-        // Check if this slice range is overlapping.
         auto &user_slice_begin = user_as_slice->getBeginIndex();
         auto &user_slice_end = user_as_slice->getEndIndex();
+
+        debugln("lower limit: ", *limits.front());
+        debugln("upper limit: ", *limits.back());
+        debugln(" user begin: ", user_slice_begin);
+        debugln(" user   end: ", user_slice_end);
+
+        // Check if this slice range is overlapping.
         if (&user_slice_begin == limits.back()) {
           visited.insert(user_as_slice);
           limits.push_back(&user_slice_end);
@@ -158,8 +170,17 @@ void SSADestructionVisitor::visitSliceInst(SliceInst &I) {
       MEMOIR_NULL_CHECK(user_slice_end_expr,
                         "Error making value expression for end index");
 
-      if (*user_slice_end_expr < *slice_begin_expr
-          || *user_slice_begin_expr > *slice_end_expr) {
+      debugln("Checking left");
+      debugln("  ", user_as_slice->getBeginIndex());
+      debugln("  ", slice_begin);
+      auto check_left = *user_slice_end_expr < *slice_begin_expr;
+
+      debugln("Checking right");
+      debugln("  ", user_as_slice->getEndIndex());
+      debugln("  ", slice_end);
+      auto check_right = *user_slice_begin_expr > *slice_end_expr;
+
+      if (check_left || check_right) {
         continue;
       } else {
         warnln("Big guns failed,"
@@ -187,6 +208,11 @@ void SSADestructionVisitor::visitJoinInst(JoinInst &I) {
     auto &joined_collection = I.getJoinedOperand(join_idx);
     if (this->LA.is_live(joined_collection, I)) {
       all_dead = false;
+
+      debugln("Live after join!");
+      debugln("        ", joined_collection);
+      debugln("  after ", I);
+
       break;
     }
   }
@@ -197,9 +223,9 @@ void SSADestructionVisitor::visitJoinInst(JoinInst &I) {
     MemOIRBuilder builder(I);
     for (auto join_idx = 1; join_idx < num_joined; join_idx++) {
       auto &joined_collection = I.getJoinedOperand(join_idx);
-      println("Creating append");
-      println("  ", first_collection);
-      println("  ", joined_collection);
+      debugln("Creating append");
+      debugln("  ", first_collection);
+      debugln("  ", joined_collection);
 
       builder.CreateSeqAppendInst(&first_collection, &joined_collection);
     }
@@ -228,7 +254,7 @@ void SSADestructionVisitor::visitJoinInst(JoinInst &I) {
 
 void SSADestructionVisitor::cleanup() {
   for (auto *inst : instructions_to_delete) {
-    println(*inst);
+    infoln(*inst);
     inst->eraseFromParent();
   }
 }
@@ -238,9 +264,9 @@ void SSADestructionVisitor::coalesce(MemOIRInst &I, llvm::Value &replacement) {
 }
 
 void SSADestructionVisitor::coalesce(llvm::Value &V, llvm::Value &replacement) {
-  println("Coalesce:");
-  println("  ", V);
-  println("  ", replacement);
+  infoln("Coalesce:");
+  infoln("  ", V);
+  infoln("  ", replacement);
   this->coalesced_values[&V] = &replacement;
 }
 
@@ -262,9 +288,9 @@ void SSADestructionVisitor::do_coalesce(llvm::Value &V) {
 
   auto *replacement = this->find_replacement(found_coalesce->second);
 
-  println("Coalescing:");
-  println("  ", V);
-  println("  ", *replacement);
+  infoln("Coalescing:");
+  infoln("  ", V);
+  infoln("  ", *replacement);
 
   V.replaceAllUsesWith(replacement);
 
