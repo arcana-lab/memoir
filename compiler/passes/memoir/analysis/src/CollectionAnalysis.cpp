@@ -8,17 +8,10 @@ namespace llvm::memoir {
  * Initialization.
  */
 CollectionAnalysis::CollectionAnalysis(llvm::noelle::Noelle &noelle,
-                                       bool enable_def_phi,
-                                       bool enable_use_phi)
+                                       bool enable_memoization)
   : noelle(noelle),
-    enable_def_phi(enable_def_phi),
-    enable_use_phi(enable_use_phi) {
+    enable_memoization(enable_memoization) {
   // Do nothing.
-}
-
-CollectionAnalysis::CollectionAnalysis(llvm::noelle::Noelle &noelle)
-  : CollectionAnalysis(noelle, false, false) {
-  // Do nothing
 }
 
 /*
@@ -40,13 +33,9 @@ Collection *CollectionAnalysis::getCollection(llvm::Use &U) {
   auto used = U.get();
   MEMOIR_NULL_CHECK(used, "Used value for use is NULL!");
 
-  // If we have disabled USE and DEF PHIs, analyze the value.
-  if (!this->enable_use_phi && !this->enable_def_phi) {
-    return this->getCollection(*used);
-  }
+  return this->getCollection(*used);
 
-  MEMOIR_UNREACHABLE(
-      "USE PHI and DEF PHI are currently unsupported, please disable them.");
+  MEMOIR_UNREACHABLE("The following is DEPRECATED");
 
   // Inspect all uses of the same value to construct a path-sensitive analysis.
   auto user = U.getUser();
@@ -140,14 +129,18 @@ Collection *CollectionAnalysis::getCollection(llvm::Value &V) {
  * Helper macros
  */
 #define CHECK_MEMOIZED(V)                                                      \
-  /* See if an existing collection exists, if it does, early return. */        \
-  if (auto found = this->findExisting(V)) {                                    \
-    return found;                                                              \
+  if (this->enable_memoization) {                                              \
+    /* See if an existing collection exists, if it does, early return. */      \
+    if (auto found = this->findExisting(V)) {                                  \
+      return found;                                                            \
+    }                                                                          \
   }
 
 #define MEMOIZE_AND_RETURN(V, C)                                               \
-  /* Memoize the collection */                                                 \
-  this->memoize(V, C);                                                         \
+  if (this->enable_memoization) {                                              \
+    /* Memoize the collection */                                               \
+    this->memoize(V, C);                                                       \
+  }                                                                            \
   /* Return */                                                                 \
   return C
 
@@ -270,6 +263,11 @@ Collection *CollectionAnalysis::visitSliceInst(SliceInst &I) {
 Collection *CollectionAnalysis::visitPHINode(llvm::PHINode &I) {
   CHECK_MEMOIZED(I);
 
+  // Check that this PHI has collection type.
+  if (!Type::value_is_collection_type(I)) {
+    MEMOIZE_AND_RETURN(I, nullptr);
+  }
+
   // Get the current PHI index, if it exists.
   unsigned current_index = 0;
   auto found_current_index = this->current_phi_index.find(&I);
@@ -296,6 +294,7 @@ Collection *CollectionAnalysis::visitPHINode(llvm::PHINode &I) {
       if (!has_collection) {
         MEMOIZE_AND_RETURN(I, nullptr);
       } else {
+        println("When analyzing: ", I);
         MEMOIR_UNREACHABLE(
             "Could not determine the incoming collection for a PHINode that "
             "has incoming collections on other edges.");
@@ -526,7 +525,7 @@ CollectionAnalysis *CollectionAnalysis::CA = nullptr;
 
 CollectionAnalysis &CollectionAnalysis::get(Noelle &noelle) {
   if (CollectionAnalysis::CA == nullptr) {
-    CollectionAnalysis::CA = new CollectionAnalysis(noelle, false, false);
+    CollectionAnalysis::CA = new CollectionAnalysis(noelle, true);
   }
   return *(CollectionAnalysis::CA);
 }
