@@ -95,29 +95,9 @@ if [[ "${NORMALIZE}" == "true" ]] ; then
     
     ${GIT_ROOT}/compiler/scripts/memoir-norm ${IR_FILE} ${IR_FILE}
     cp ${IR_FILE} ${NORM_IR_FILE}
+
+    echo "Done normalizing"
 fi
-
-
-function run_pass {
-    # Fetch the arguments.
-    local PASS="$1"
-    shift
-    local INPUT_IR_FILE="$1"
-    shift
-
-    PASS_IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.$(sed '/^-//' <<< ${PASS}).bc
-
-    echo "${PASS_OBJ}"
-    if test -f "${PASS_OBJ}" ; then
-        echo "Running noelle ${PASS} (I: ${INPUT_IR_FILE}, O: ${PASS_IR_FILE})"
-        memoir-load -${PASS} ${INPUT_IR_FILE} -o ${PASS_IR_FILE}
-    else
-        echo "Running opt ${PASS} (I: ${INPUT_IR_FILE}, O: ${PASS_IR_FILE})"
-        opt -${PASS} ${INPUT_IR_FILE} -o ${PASS_IR_FILE}
-    fi
-
-    cp ${PASS_IR_FILE} ${IR_FILE} ;
-}
 
 memoir-load ${PASSES[@]} ${IR_FILE} -o ${IR_FILE}
 
@@ -129,6 +109,8 @@ if [[ "${LOWER}" == "true" ]] ; then
     ${GIT_ROOT}/compiler/scripts/memoir-lower ${IR_FILE} ${IR_FILE} ;
 
     cp ${IR_FILE} ${LOWERED_IR_FILE}
+
+    echo "Done lowering"
 fi
 
 cp ${IR_FILE} ${OUTPUT_IR_FILE}
