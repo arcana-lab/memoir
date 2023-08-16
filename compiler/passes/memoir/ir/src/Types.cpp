@@ -274,6 +274,9 @@ bool Type::is_collection_type(Type &type) {
 
 bool Type::value_is_collection_type(llvm::Value &value) {
   auto *type = value.getType();
+  if (!type) {
+    return false;
+  }
   auto *ptr_type = dyn_cast<llvm::PointerType>(type);
   if (!ptr_type) {
     return false;
@@ -295,6 +298,9 @@ bool Type::value_is_collection_type(llvm::Value &value) {
 
 bool Type::value_is_struct_type(llvm::Value &value) {
   auto *type = value.getType();
+  if (!type) {
+    return false;
+  }
   auto *ptr_type = dyn_cast<llvm::PointerType>(type);
   if (!ptr_type) {
     return false;
