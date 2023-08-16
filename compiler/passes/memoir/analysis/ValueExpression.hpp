@@ -22,6 +22,10 @@
 /*
  * This file contains the Expression class for use in ValueNumbering as an
  * analysis output.
+ * TODO: Move availability analysis out of this class hierarchy and into its
+ * own.
+ * TODO: Move materialization out of this class hierarchy and into its own
+ * (possibly with availability).
  *
  * Author(s): Tommy McMichen
  * Created: April 4, 2023
@@ -63,8 +67,7 @@ public:
       opcode(opcode),
       value(value),
       commutative(commutative),
-      is_memoir(is_memoir),
-      arguments({}) {}
+      is_memoir(is_memoir) {}
 
   ExpressionKind getKind() const;
 
@@ -72,14 +75,15 @@ public:
   virtual bool equals(const ValueExpression &E) const = 0;
   bool operator==(const ValueExpression &E) const;
   bool operator!=(const ValueExpression &E) const;
-  bool equals(const llvm::Value &V) const;
   bool operator==(const llvm::Value &Other) const;
   bool operator!=(const llvm::Value &Other) const;
-  bool less_than(const ValueExpression &E) const;
   bool operator<(const ValueExpression &E) const;
-  bool greater_than(const ValueExpression &E) const;
+  bool operator<=(const ValueExpression &E) const;
   bool operator>(const ValueExpression &E) const;
+  bool operator>=(const ValueExpression &E) const;
   virtual opt<z3::expr> to_expr(z3::context &c,
+                                z3::solver &s,
+                                z3::expr_vector &assumptions,
                                 uint32_t &name,
                                 map<llvm::Value *, uint32_t> &env) const;
 
@@ -149,6 +153,8 @@ public:
 
   bool equals(const ValueExpression &E) const override;
   opt<z3::expr> to_expr(z3::context &c,
+                        z3::solver &s,
+                        z3::expr_vector &assumptions,
                         uint32_t &name,
                         map<llvm::Value *, uint32_t> &env) const override;
 
@@ -181,6 +187,8 @@ public:
 
   bool equals(const ValueExpression &E) const override;
   opt<z3::expr> to_expr(z3::context &c,
+                        z3::solver &s,
+                        z3::expr_vector &assumptions,
                         uint32_t &name,
                         map<llvm::Value *, uint32_t> &env) const override;
 
@@ -210,6 +218,8 @@ public:
 
   bool equals(const ValueExpression &E) const override;
   opt<z3::expr> to_expr(z3::context &c,
+                        z3::solver &s,
+                        z3::expr_vector &assumptions,
                         uint32_t &name,
                         map<llvm::Value *, uint32_t> &env) const override;
 
@@ -266,6 +276,8 @@ public:
 
   bool equals(const ValueExpression &E) const override;
   opt<z3::expr> to_expr(z3::context &c,
+                        z3::solver &s,
+                        z3::expr_vector &assumptions,
                         uint32_t &name,
                         map<llvm::Value *, uint32_t> &env) const override;
 
@@ -378,14 +390,15 @@ struct SelectExpression : public BasicExpression {
 public:
   SelectExpression(llvm::SelectInst &select)
     : BasicExpression(EK_Select, select) {}
-  SelectExpression(ValueExpression &condition,
-                   ValueExpression &true_value,
-                   ValueExpression &false_value)
+  SelectExpression(ValueExpression *condition,
+                   ValueExpression *true_value,
+                   ValueExpression *false_value)
     : BasicExpression(EK_Select, Instruction::Select) {
-    this->arguments.push_back(&condition);
-    this->arguments.push_back(&true_value);
-    this->arguments.push_back(&false_value);
+    this->arguments.push_back(condition);
+    this->arguments.push_back(true_value);
+    this->arguments.push_back(false_value);
   }
+  SelectExpression() : BasicExpression(EK_Select, Instruction::Select) {}
 
   ValueExpression *getCondition() const;
   ValueExpression *getTrueValue() const;
