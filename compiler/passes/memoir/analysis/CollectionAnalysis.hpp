@@ -131,17 +131,12 @@ private:
   /*
    * Pass options
    */
-  bool enable_use_phi;
-  bool enable_def_phi;
-
+  bool enable_memoization;
   /*
    * Private constructor and logistics.
    */
   CollectionAnalysis(llvm::noelle::Noelle &noelle,
-                     bool enable_def_phi,
-                     bool enable_use_phi);
-
-  CollectionAnalysis(llvm::noelle::Noelle &noelle);
+                     bool enable_memoization = true);
 
   void _invalidate();
 
