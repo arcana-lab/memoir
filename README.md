@@ -21,6 +21,7 @@ There is a script in the top-level Makefile to setup a githook for this, but if 
 Also please familiarize yourself with the tools in `compiler/support/`.
 It is expected that you use `MEMOIR_ASSERT` and its derivatives in place of a raw `assert`.
 It is also expected that you use `memoir::println` instead of `llvm::errs()` or `std::cout`.
+For more verbose outputs, use your judgement with either `memoir::infoln` or  `memoir::debugln`.
 
 When formatting your git commit messages, please prefix with "[module1][module2]".
 For example, if you make a change to `compiler/passes/memoir/ir/Instructions.hpp`, you should prepend "[compiler][ir]" to your commit message.

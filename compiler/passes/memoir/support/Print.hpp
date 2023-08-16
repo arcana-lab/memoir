@@ -12,6 +12,9 @@
  */
 namespace llvm::memoir {
 
+enum Verbosity { noverbosity, quick, detailed };
+extern Verbosity VerboseLevel;
+
 // Printing.
 inline void fprint(llvm::raw_ostream &out) {}
 template <class T, class... Ts>
@@ -64,6 +67,51 @@ inline void warnln(Ts const &... args) {
 template <class... Ts>
 inline void warn(Ts const &... args) {
   fwarn(llvm::errs(), args...);
+}
+
+// Verbosity.
+template <class... Ts>
+inline void finfo(llvm::raw_ostream &out, Ts const &... args) {
+  if (VerboseLevel >= Verbosity::quick) {
+    fprint(out, args...);
+  }
+}
+
+template <class... Ts>
+inline void finfoln(llvm::raw_ostream &out, Ts const &... args) {
+  finfo(out, args..., '\n');
+}
+
+template <class... Ts>
+inline void infoln(Ts const &... args) {
+  finfoln(llvm::errs(), args...);
+}
+
+template <class... Ts>
+inline void info(Ts const &... args) {
+  finfo(llvm::errs(), args...);
+}
+
+template <class... Ts>
+inline void fdebug(llvm::raw_ostream &out, Ts const &... args) {
+  if (VerboseLevel >= Verbosity::detailed) {
+    fprint(out, args...);
+  }
+}
+
+template <class... Ts>
+inline void fdebugln(llvm::raw_ostream &out, Ts const &... args) {
+  fdebug(out, args..., '\n');
+}
+
+template <class... Ts>
+inline void debugln(Ts const &... args) {
+  fdebugln(llvm::errs(), args...);
+}
+
+template <class... Ts>
+inline void debug(Ts const &... args) {
+  fdebug(llvm::errs(), args...);
 }
 
 } // namespace llvm::memoir
