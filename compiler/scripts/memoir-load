@@ -4,6 +4,8 @@ LIB_DIR=${GIT_ROOT}/install/lib ;
 
 source ${GIT_ROOT}/enable ;
 
-LOAD_PASSES=$(find ${LIB_DIR} -name "*.so" -printf ' -load %p ')
+LOAD_CL=$(find ${LIB_DIR} -name "CommandLine.so" -printf ' -load %p ')
+LOAD_OTHER=$(find ${LIB_DIR} -name "*.so" -not -name "CommandLine.so" -printf ' -load %p ')
+LOAD_PASSES="${LOAD_CL} ${LOAD_OTHER}"
 
 noelle-load "${LOAD_PASSES}" --memoir-cl "$@"
