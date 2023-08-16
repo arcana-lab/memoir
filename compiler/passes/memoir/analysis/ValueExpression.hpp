@@ -445,7 +445,14 @@ public:
 
 struct CollectionExpression : public MemOIRExpression {
 public:
-  CollectionExpression(Collection &C) : MemOIRExpression(EK_Collection), C(C) {}
+  CollectionExpression(Collection &C)
+    : MemOIRExpression(EK_Collection),
+      C(&C) {}
+  CollectionExpression(llvm::Value &V)
+    : MemOIRExpression(EK_Collection),
+      C(nullptr) {
+    this->value = &V;
+  }
 
   bool equals(const ValueExpression &E) const override;
 
@@ -464,7 +471,7 @@ public:
     return (E->getKind() == EK_Collection);
   }
 
-  Collection &C;
+  Collection *C;
 };
 
 struct StructExpression : public MemOIRExpression {

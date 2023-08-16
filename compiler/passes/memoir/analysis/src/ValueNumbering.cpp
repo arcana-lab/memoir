@@ -338,10 +338,12 @@ ValueExpression *ValueNumbering::visitSizeInst(SizeInst &I) {
   auto *size_expr = new SizeExpression();
   this->insert(I, size_expr);
 
+  println(I);
+
   // Get the collection expression.
-  auto &C = I.getCollection();
-  auto op_expr = this->lookupOrInsert(I.getCollectionOperandAsUse(),
-                                      new CollectionExpression(C));
+  auto op_expr =
+      this->lookupOrInsert(I.getCollectionOperandAsUse(),
+                           new CollectionExpression(I.getCollectionOperand()));
   auto collection_expr = dyn_cast<CollectionExpression>(op_expr);
   MEMOIR_NULL_CHECK(
       collection_expr,
