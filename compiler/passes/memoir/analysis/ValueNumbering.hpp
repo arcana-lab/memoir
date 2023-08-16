@@ -64,6 +64,12 @@ protected:
   llvm::Module &M;
 
   // Utility methods.
+  ValueExpression *lookup(llvm::Value &V);
+  ValueExpression *lookup(llvm::Use &U);
+  ValueExpression *lookup(MemOIRInst &I);
+  void insert(llvm::Value &V, ValueExpression *expr);
+  void insert(llvm::Use &U, ValueExpression *expr);
+  void insert(MemOIRInst &I, ValueExpression *expr);
   ValueExpression *lookupOrInsert(llvm::Value &V, ValueExpression *expr);
   ValueExpression *lookupOrInsert(llvm::Use &U, ValueExpression *expr);
 

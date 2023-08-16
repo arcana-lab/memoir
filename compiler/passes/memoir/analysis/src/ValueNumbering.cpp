@@ -4,23 +4,30 @@ namespace llvm::memoir {
 
 // ValueTable implementation.
 ValueExpression *ValueTable::lookup(llvm::Value &V) {
-  // TODO
+  auto found_value = this->table.find(&V);
+  if (found_value != this->table.end()) {
+    return found_value->second;
+  }
+
   return nullptr;
 }
 
 bool ValueTable::insert(llvm::Value &V, ValueExpression &E) {
-  // TODO
-  return false;
+  this->table[&V] = &E;
+  return true;
 }
 
 ValueExpression *ValueTable::lookup(llvm::Use &U) {
-  // TODO
+  if (auto *lookup_value = this->lookup(*U.get())) {
+    return lookup_value;
+  }
+
   return nullptr;
 }
 
 bool ValueTable::insert(llvm::Use &U, ValueExpression &E) {
-  // TODO
-  return false;
+  this->table[U.get()] = &E;
+  return true;
 }
 
 // ValueNumbering implementation.
@@ -44,14 +51,49 @@ ValueExpression *ValueNumbering::get(llvm::Use &U) {
   return this->visitUse(U);
 }
 
+ValueExpression *ValueNumbering::lookup(llvm::Value &V) {
+  // Lookup the LLVM Value. If we find it, return it and delete the temporary.
+  auto found_expr = this->VT.lookup(V);
+  if (found_expr != nullptr) {
+    return found_expr;
+  }
+
+  return nullptr;
+}
+
+ValueExpression *ValueNumbering::lookup(llvm::Use &U) {
+  // Lookup the LLVM Use. If we find it, return it and delete the temporary.
+  auto found_expr = this->VT.lookup(U);
+  if (found_expr != nullptr) {
+    return found_expr;
+  }
+
+  return nullptr;
+}
+
+ValueExpression *ValueNumbering::lookup(MemOIRInst &I) {
+  return this->lookup(I.getCallInst());
+}
+
+void ValueNumbering::insert(llvm::Value &V, ValueExpression *expr) {
+  this->VT.insert(V, *expr);
+}
+
+void ValueNumbering::insert(llvm::Use &U, ValueExpression *expr) {
+  this->VT.insert(U, *expr);
+}
+
+void ValueNumbering::insert(MemOIRInst &I, ValueExpression *expr) {
+  this->insert(I.getCallInst(), expr);
+}
+
 ValueExpression *ValueNumbering::lookupOrInsert(llvm::Value &V,
                                                 ValueExpression *expr) {
   // Sanity check.
   MEMOIR_NULL_CHECK(expr, "Expression is NULL!");
 
   // Lookup the LLVM Value. If we find it, return it and delete the temporary.
-  auto found_expr = this->VT.lookup(V);
-  if (found_expr != nullptr) {
+  if (auto *found_expr = this->lookup(V)) {
     delete expr;
     return found_expr;
   }
@@ -67,8 +109,7 @@ ValueExpression *ValueNumbering::lookupOrInsert(llvm::Use &U,
   MEMOIR_NULL_CHECK(expr, "Expression is NULL!");
 
   // Lookup the LLVM Value. If we find it, return it and delete the temporary.
-  auto found_expr = this->VT.lookup(U);
-  if (found_expr != nullptr) {
+  if (auto *found_expr = this->lookup(U)) {
     delete expr;
     return found_expr;
   }
@@ -81,9 +122,11 @@ ValueExpression *ValueNumbering::lookupOrInsert(llvm::Use &U,
 // Value visitors.
 ValueExpression *ValueNumbering::visitUse(llvm::Use &U) {
   // Check if this use is a collection.
-  auto collection = CollectionAnalysis::analyze(U);
-  if (collection) {
-    return this->lookupOrInsert(U, new CollectionExpression(*collection));
+  if (Type::value_is_collection_type(*U.get())) {
+    auto collection = CollectionAnalysis::analyze(U);
+    if (collection) {
+      return this->lookupOrInsert(U, new CollectionExpression(*collection));
+    }
   }
 
   // Otherwise, visit the Value being used.
@@ -119,22 +162,20 @@ ValueExpression *ValueNumbering::visitConstant(llvm::Constant &C) {
 // InstVisitor implementation.
 
 ValueExpression *ValueNumbering::visitInstruction(llvm::Instruction &I) {
-
   // Get or create the ValueExpression.
-  auto expr = this->lookupOrInsert(I, new BasicExpression(I));
-
-  // If it is already initialized correctly, return.
-  if (expr->getNumArguments() == I.getNumOperands()) {
-    return expr;
+  if (auto *found_expr = this->lookup(I)) {
+    return found_expr;
   }
+  auto *expr = new BasicExpression(I);
+  this->insert(I, expr);
 
   // Otherwise, let's initialize it.
-  expr->arguments.assign(I.getNumOperands(), nullptr);
+  expr->arguments.reserve(I.getNumOperands());
   for (auto &operand : I.operands()) {
     auto op_expr = this->visitUse(operand);
     MEMOIR_NULL_CHECK(op_expr,
                       "Couldn't determine operand expression of Instruction!");
-    expr->setArgument(operand.getOperandNo(), *op_expr);
+    expr->arguments.push_back(op_expr);
   }
 
   // Return it.
@@ -142,9 +183,12 @@ ValueExpression *ValueNumbering::visitInstruction(llvm::Instruction &I) {
 }
 
 ValueExpression *ValueNumbering::visitCastInst(llvm::CastInst &I) {
-
   // Get or create the ValueExpression.
-  auto expr = this->lookupOrInsert(I, new CastExpression(I));
+  if (auto *found_expr = this->lookup(I)) {
+    return found_expr;
+  }
+  auto *expr = new CastExpression(I);
+  this->insert(I, expr);
 
   // If it is already initialized correctly, return.
   if (expr->getNumArguments() == I.getNumOperands()) {
@@ -152,12 +196,12 @@ ValueExpression *ValueNumbering::visitCastInst(llvm::CastInst &I) {
   }
 
   // Otherwise, let's initialize it.
-  expr->arguments.assign(I.getNumOperands(), nullptr);
+  expr->arguments.reserve(I.getNumOperands());
   for (auto &operand : I.operands()) {
     auto op_expr = this->visitUse(operand);
     MEMOIR_NULL_CHECK(op_expr,
                       "Couldn't determine operand expression of Instruction!");
-    expr->setArgument(operand.getOperandNo(), *op_expr);
+    expr->arguments.push_back(op_expr);
   }
 
   // Return it.
@@ -165,9 +209,13 @@ ValueExpression *ValueNumbering::visitCastInst(llvm::CastInst &I) {
 }
 
 ValueExpression *ValueNumbering::visitICmpInst(llvm::ICmpInst &I) {
-
   // Get or create the ValueExpression.
-  auto expr = this->lookupOrInsert(I, new ICmpExpression(I));
+  ValueExpression *expr;
+  if (expr = this->lookup(I)) {
+    return expr;
+  }
+  expr = new ICmpExpression(I);
+  this->insert(I, expr);
 
   // If it is already initialized correctly, return.
   if (expr->getNumArguments() == I.getNumOperands()) {
@@ -175,12 +223,12 @@ ValueExpression *ValueNumbering::visitICmpInst(llvm::ICmpInst &I) {
   }
 
   // Otherwise, let's initialize it.
-  expr->arguments.assign(I.getNumOperands(), nullptr);
+  expr->arguments.reserve(I.getNumOperands());
   for (auto &operand : I.operands()) {
     auto op_expr = this->visitUse(operand);
     MEMOIR_NULL_CHECK(op_expr,
                       "Couldn't determine operand expression of Instruction!");
-    expr->setArgument(operand.getOperandNo(), *op_expr);
+    expr->arguments.push_back(op_expr);
   }
 
   // Return it.
@@ -190,16 +238,24 @@ ValueExpression *ValueNumbering::visitICmpInst(llvm::ICmpInst &I) {
 ValueExpression *ValueNumbering::visitPHINode(llvm::PHINode &I) {
   // Check if this PHINode can be summarized as a select.
   // TODO: may want to sanity check that this PHI has only two incoming edges.
-  auto &phi_bb =
-      sanitize(I.getParent(), "PHI node does not belong to a basic block!");
-  llvm::BasicBlock *if_bb;
-  llvm::BasicBlock *else_bb;
-  auto *condition_value = llvm::GetIfCondition(&phi_bb, if_bb, else_bb);
+  auto *phi_bb = I.getParent();
+  MEMOIR_NULL_CHECK(phi_bb, "PHI node does not belong to a basic block!");
+  llvm::BasicBlock *if_bb = nullptr;
+  llvm::BasicBlock *else_bb = nullptr;
+  auto *condition_value = llvm::GetIfCondition(phi_bb, if_bb, else_bb);
   if (condition_value) {
+    // Construct a SelectExpression for the PHI node.
+    if (auto *found_expr = this->lookup(I)) {
+      return found_expr;
+    }
+    auto *expr = new SelectExpression();
+    this->insert(I, expr);
+
     // Get the expression of the condition value.
-    auto &condition_expr =
-        sanitize(this->visitValue(*condition_value),
-                 "Could not construct an expression for the condition");
+    auto *condition_expr = this->visitValue(*condition_value);
+    MEMOIR_NULL_CHECK(condition_expr,
+                      "Could not determine the condition expression of select");
+
     // Figure out which index is which incoming edge.
     auto *first_bb = I.getIncomingBlock(0);
     auto *second_bb = I.getIncomingBlock(1);
@@ -207,40 +263,56 @@ ValueExpression *ValueNumbering::visitPHINode(llvm::PHINode &I) {
     auto false_index = (else_bb == second_bb) ? 1 : 0;
 
     // Get the true value.
+    ValueExpression *true_expr;
     auto &true_use = I.getOperandUse(true_index);
-    auto &true_expr =
-        sanitize(this->visitUse(true_use),
-                 "Could not determine the expression for the true value");
+    if (true_use.get() == &I) {
+      true_expr = expr;
+    } else {
+      true_expr = this->visitUse(true_use);
+      MEMOIR_NULL_CHECK(true_expr,
+                        "Could not determine true expression of select");
+    }
 
     // Get the false value.
+    ValueExpression *false_expr;
     auto &false_use = I.getOperandUse(false_index);
-    auto &false_expr =
-        sanitize(this->visitUse(false_use),
-                 "Could not determine the expression for the false value");
+    if (false_use.get() == &I) {
+      false_expr = expr;
+    } else {
+      false_expr = this->visitUse(false_use);
+      MEMOIR_NULL_CHECK(false_expr,
+                        "Could not determine false expression of select");
+    }
 
-    // Construct a SelectExpression for the PHI node.
-    auto *expr = this->lookupOrInsert(
-        I,
-        new SelectExpression(condition_expr, true_expr, false_expr));
+    expr->arguments.reserve(3);
+    expr->arguments.push_back(condition_expr);
+    expr->arguments.push_back(true_expr);
+    expr->arguments.push_back(false_expr);
 
     return expr;
   }
 
   // Get or create the PHIExpression.
-  auto *expr = this->lookupOrInsert(I, new PHIExpression(I));
-
-  // If it is already initialized correctly, return.
-  if (expr->getNumArguments() == I.getNumIncomingValues()) {
-    return expr;
+  if (auto *found_expr = this->lookup(I)) {
+    return found_expr;
   }
+  auto *expr = new PHIExpression(I);
+  this->insert(I, expr);
 
   // Otherwise, let's initialize it.
-  expr->arguments.assign(I.getNumIncomingValues(), nullptr);
+  expr->arguments.reserve(I.getNumIncomingValues());
   for (auto &operand : I.incoming_values()) {
+    // If the operand is the PHI itself, append the newly created expression.
+    if (operand.get() == &I) {
+      expr->arguments.push_back(expr);
+      continue;
+    }
+
+    // Otherwise, we will examine the operand to determine its ValueExpression.
     auto *op_expr = this->visitUse(operand);
     MEMOIR_NULL_CHECK(op_expr,
                       "Couldn't determine operand expression of Instruction!");
-    expr->setArgument(operand.getOperandNo(), *op_expr);
+    expr->arguments.push_back(op_expr);
   }
 
   // Return it.
@@ -248,20 +320,23 @@ ValueExpression *ValueNumbering::visitPHINode(llvm::PHINode &I) {
 }
 
 ValueExpression *ValueNumbering::visitLLVMCallInst(llvm::CallInst &I) {
-  // TODO
-  return this->lookupOrInsert(I, new CallExpression(I));
+  if (auto *found_expr = this->lookup(I)) {
+    return found_expr;
+  }
+  auto *expr = new CallExpression(I);
+  this->insert(I, expr);
+
+  // TODO: initialize arguments.
+  return expr;
 }
 
 ValueExpression *ValueNumbering::visitSizeInst(SizeInst &I) {
   // Get the size expression.
-  auto expr = this->lookupOrInsert(I.getCallInst(), new SizeExpression());
-  auto size_expr = dyn_cast<SizeExpression>(expr);
-  MEMOIR_NULL_CHECK(size_expr, "SizeInst is not a SizeExpression!");
-
-  // If size expression is already initialized, return.
-  if (size_expr->CE != nullptr) {
-    return size_expr;
+  if (auto *found_expr = this->lookup(I)) {
+    return found_expr;
   }
+  auto *size_expr = new SizeExpression();
+  this->insert(I, size_expr);
 
   // Get the collection expression.
   auto &C = I.getCollection();
