@@ -58,18 +58,18 @@ int main() {
   read5 = memoir_index_read(u64, seq, 5);
 
   printf(" Result:\n");
-  printf("  HEAD -> %d\n", read0);
-  printf("       -> %d\n", read1);
-  printf("       -> %d\n", read2);
-  printf("       -> %d\n", read3);
-  printf("       -> %d\n", read4);
-  printf("       -> %d\n\n", read5);
+  printf("  HEAD -> %lu\n", read0);
+  printf("       -> %lu\n", read1);
+  printf("       -> %lu\n", read2);
+  printf("       -> %lu\n", read3);
+  printf("       -> %lu\n", read4);
+  printf("       -> %lu\n\n", read5);
 
   printf("Expected:\n");
-  printf("  HEAD -> %d\n", VAL5);
-  printf("       -> %d\n", VAL1);
-  printf("       -> %d\n", VAL2);
-  printf("       -> %d\n", VAL3);
-  printf("       -> %d\n", VAL4);
-  printf("       -> %d\n\n", VAL0);
+  printf("  HEAD -> %lu\n", VAL5);
+  printf("       -> %lu\n", VAL1);
+  printf("       -> %lu\n", VAL2);
+  printf("       -> %lu\n", VAL3);
+  printf("       -> %lu\n", VAL4);
+  printf("       -> %lu\n\n", VAL0);
 }
