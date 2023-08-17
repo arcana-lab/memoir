@@ -28,26 +28,6 @@ int main() {
   auto read4 = memoir_index_read(u64, seq, 4);
   auto read5 = memoir_index_read(u64, seq, 5);
 
-  std::cout << "Result:\n";
-  std::cout << " Sequence 1:\n";
-  std::cout << "  HEAD -> " << std::to_string(read0) << "\n";
-  std::cout << "       -> " << std::to_string(read1) << "\n";
-  std::cout << "       -> " << std::to_string(read2) << "\n\n";
-  std::cout << " Sequence 2:\n";
-  std::cout << " HEAD  -> " << std::to_string(read3) << "\n";
-  std::cout << "       -> " << std::to_string(read4) << "\n";
-  std::cout << "       -> " << std::to_string(read5) << "\n\n";
-
-  std::cout << "Expected:\n";
-  std::cout << " Sequence 1:\n";
-  std::cout << "  HEAD -> " << std::to_string(VAL0) << "\n";
-  std::cout << "       -> " << std::to_string(VAL1) << "\n";
-  std::cout << "       -> " << std::to_string(VAL2) << "\n\n";
-  std::cout << " Sequence 2:\n";
-  std::cout << "  HEAD -> " << std::to_string(VAL3) << "\n";
-  std::cout << "       -> " << std::to_string(VAL4) << "\n";
-  std::cout << "       -> " << std::to_string(VAL5) << "\n\n";
-
   memoir_seq_swap(seq, 0, seq, memoir_size(seq) - 1);
 
   read0 = memoir_index_read(u64, seq, 0);
@@ -58,18 +38,20 @@ int main() {
   read5 = memoir_index_read(u64, seq, 5);
 
   printf(" Result:\n");
-  printf("  HEAD -> %lu\n", read0);
-  printf("       -> %lu\n", read1);
-  printf("       -> %lu\n", read2);
-  printf("       -> %lu\n", read3);
-  printf("       -> %lu\n", read4);
-  printf("       -> %lu\n\n", read5);
+  printf("  ( %lu, %lu, %lu, %lu, %lu, %lu )\n",
+         read0,
+         read1,
+         read2,
+         read3,
+         read4,
+         read5);
 
   printf("Expected:\n");
-  printf("  HEAD -> %lu\n", VAL5);
-  printf("       -> %lu\n", VAL1);
-  printf("       -> %lu\n", VAL2);
-  printf("       -> %lu\n", VAL3);
-  printf("       -> %lu\n", VAL4);
-  printf("       -> %lu\n\n", VAL0);
+  printf("  ( %lu, %lu, %lu, %lu, %lu, %lu )\n",
+         VAL5,
+         VAL1,
+         VAL2,
+         VAL3,
+         VAL4,
+         VAL0);
 }
