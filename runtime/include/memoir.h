@@ -24,7 +24,7 @@ extern "C" {
   __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))       \
       __attribute__((optnone)) __attribute__((used))
 #define __ALLOC_ATTR __declspec(allocator)
-#define __IMMUT_ATTR __attribute__((const)) __attribute__((pure))
+#define __IMMUT_ATTR __attribute__((pure)) // __attribute__((const))
 
 #define MEMOIR_FUNC(name) memoir__##name
 
