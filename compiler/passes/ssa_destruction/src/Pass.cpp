@@ -168,13 +168,13 @@ struct SSADestructionPass : public ModulePass {
 
       // Get the depth-first, preorder traversal of the dominator tree rooted at
       // the entry basic block.
-      auto dfs_postorder = dfs_postorder_traversal(DT, entry_bb);
+      // auto dfs_postorder = dfs_postorder_traversal(DT, entry_bb);
 
       println("Performing the coalescence");
-      for (auto *bb : dfs_postorder) {
+      for (auto *bb : dfs_preorder) {
         // Reverse iterate on instructions in the basic block.
-        for (auto rit = bb->rbegin(); rit != bb->rend(); ++rit) {
-          auto &I = *rit;
+        for (auto it = bb->begin(); it != bb->end(); ++it) {
+          auto &I = *it;
           SSADV.do_coalesce(I);
         }
       }
@@ -186,8 +186,6 @@ struct SSADestructionPass : public ModulePass {
       println("=========================");
     }
 
-    println("=========================");
-    println("STATS SSA Destruction pass");
     println("=========================");
     println("DONE SSA Destruction pass");
     return true;
