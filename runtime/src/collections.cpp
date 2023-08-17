@@ -828,11 +828,11 @@ uint64_t SequenceView::size() const {
 }
 
 Sequence::seq_iter SequenceView::begin() {
-  return this->begin() + this->from;
+  return this->_sequence->begin() + this->from;
 }
 
 Sequence::seq_iter SequenceView::end() {
-  return this->begin() + this->to;
+  return this->_sequence->begin() + this->to;
 }
 
 bool SequenceView::equals(const Object *other) const {
