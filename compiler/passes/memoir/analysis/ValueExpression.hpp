@@ -265,6 +265,13 @@ public:
     : ValueExpression(EK, nullptr, opcode),
       I(nullptr) {}
   BasicExpression(unsigned opcode) : BasicExpression(EK_Basic, opcode) {}
+  BasicExpression(unsigned opcode, vector<ValueExpression *> operands)
+    : BasicExpression(EK_Basic, opcode) {
+    this->arguments.reserve(operands.size());
+    for (auto *operand : operands) {
+      this->arguments.push_back(operand);
+    }
+  }
   BasicExpression(ExpressionKind EK, llvm::Instruction &I)
     : ValueExpression(EK, &I, I.getOpcode()),
       I(&I) {}
