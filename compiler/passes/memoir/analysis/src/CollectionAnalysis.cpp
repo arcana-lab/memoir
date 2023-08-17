@@ -242,6 +242,8 @@ Collection *CollectionAnalysis::visitUsePHIInst(UsePHIInst &I) {
   CHECK_MEMOIZED(I);
 
   auto *use_phi_collection = new UsePHICollection(I);
+
+  MEMOIZE_AND_RETURN(I, use_phi_collection);
 }
 
 Collection *CollectionAnalysis::visitJoinInst(JoinInst &I) {
