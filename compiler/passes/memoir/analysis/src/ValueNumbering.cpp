@@ -342,8 +342,6 @@ ValueExpression *ValueNumbering::visitSizeInst(SizeInst &I) {
   auto *size_expr = new SizeExpression();
   this->insert(I, size_expr);
 
-  println(I);
-
   // Get the collection expression.
   auto op_expr =
       this->lookupOrInsert(I.getCollectionOperandAsUse(),
