@@ -51,6 +51,10 @@ ValueExpression *ValueNumbering::get(llvm::Use &U) {
   return this->visitUse(U);
 }
 
+ValueExpression *ValueNumbering::get(MemOIRInst &I) {
+  return ValueNumbering::get(I.getCallInst());
+}
+
 ValueExpression *ValueNumbering::lookup(llvm::Value &V) {
   // Lookup the LLVM Value. If we find it, return it and delete the temporary.
   auto found_expr = this->VT.lookup(V);

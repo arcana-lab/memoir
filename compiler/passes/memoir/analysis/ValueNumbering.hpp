@@ -56,6 +56,8 @@ public:
 
   ValueExpression *get(llvm::Use &U);
 
+  ValueExpression *get(MemOIRInst &I);
+
 protected:
   // Owned state.
   ValueTable VT;
