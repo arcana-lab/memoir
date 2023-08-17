@@ -457,6 +457,57 @@ public:
     return inst;
   }
 
+  SeqSwapInst *CreateSeqSwapInst(llvm::Value *collection,
+                                 llvm::Value *from_begin,
+                                 llvm::Value *from_end,
+                                 llvm::Value *to_begin,
+                                 const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto *llvm_func =
+        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::SEQ_SWAP);
+    MEMOIR_NULL_CHECK(llvm_func, "Couldn't find the memoir function!");
+
+    // Create the LLVM call.
+    auto *llvm_call = this->CreateCall(
+        FunctionCallee(llvm_func),
+        llvm::ArrayRef(
+            { collection, from_begin, from_end, collection, to_begin }),
+        name);
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for sequence swap operation.");
+
+    // Cast to MemOIRInst and return.
+    auto *memoir_inst = MemOIRInst::get(*llvm_call);
+    auto *inst = dyn_cast_or_null<SeqSwapInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(inst, "Could not create call to SeqSwapInst");
+    return inst;
+  }
+
+  SeqRemoveInst *CreateSeqRemoveInst(llvm::Value *collection,
+                                     llvm::Value *begin,
+                                     llvm::Value *end,
+                                     const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto *llvm_func =
+        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::SEQ_REMOVE);
+    MEMOIR_NULL_CHECK(llvm_func, "Couldn't find the memoir function!");
+
+    // Create the LLVM call.
+    auto *llvm_call =
+        this->CreateCall(FunctionCallee(llvm_func),
+                         llvm::ArrayRef({ collection, begin, end }),
+                         name);
+    MEMOIR_NULL_CHECK(
+        llvm_call,
+        "Could not create the call for sequence remove operation.");
+
+    // Cast to MemOIRInst and return.
+    auto *memoir_inst = MemOIRInst::get(*llvm_call);
+    auto *inst = dyn_cast_or_null<SeqRemoveInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(inst, "Could not create call to SeqRemoveInst");
+    return inst;
+  }
+
 protected:
   // Borrowed state
   llvm::Module *M;
