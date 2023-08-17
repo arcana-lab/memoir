@@ -112,6 +112,8 @@ namespace memoir {
 
 #define memoir_seq_split(object, i, j) MEMOIR_FUNC(sequence_split)(object, i, j)
 
+#define memoir_seq_copy(object, i, j) memoir_seq_split(object, i, j)
+
 // Associative array operations.
 #define memoir_assoc_has(object, key) MEMOIR_FUNC(assoc_has)(object, key)
 
