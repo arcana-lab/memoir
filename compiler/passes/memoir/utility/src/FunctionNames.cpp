@@ -190,7 +190,8 @@ bool FunctionNames::is_mutator(Module &M, MemOIR_Func function_enum) {
 }
 
 bool FunctionNames::is_mutator(Function &F) {
-  return !(F.hasFnAttribute(llvm::Attribute::AttrKind::ReadNone));
+  return !(F.hasFnAttribute(llvm::Attribute::AttrKind::ReadNone))
+         && !(F.hasFnAttribute(llvm::Attribute::AttrKind::ReadOnly));
 }
 
 // const map<MemOIR_Func, std::string> FunctionNames::memoir_to_function_names =
