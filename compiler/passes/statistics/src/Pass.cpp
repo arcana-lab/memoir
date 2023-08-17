@@ -47,9 +47,9 @@ struct MemOIRStats {
       num_ssa_collections(0),
       num_trivial_ssa_collections(0) {}
 
-  CountTy num_mut_collections = 0;
-  CountTy num_ssa_collections = 0;
-  CountTy num_trivial_ssa_collections = 0;
+  CountTy num_mut_collections;
+  CountTy num_ssa_collections;
+  CountTy num_trivial_ssa_collections;
 
   void inc_mut(CountTy inc = 1) {
     this->num_mut_collections += inc;
