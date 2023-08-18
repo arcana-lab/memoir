@@ -58,7 +58,7 @@ struct DeadCollectionEliminationPass : public ModulePass {
 // Next there is code to register your pass to "opt"
 char DeadCollectionEliminationPass::ID = 0;
 static RegisterPass<DeadCollectionEliminationPass> X(
-    "DeadCollectionElimination",
+    "memoir-dce",
     "Eliminates dead collection allocations, slices and joins.");
 
 // Next there is code to register your pass to "clang"

@@ -118,6 +118,64 @@ protected:
     return dead_values;
   }
 
+  set<llvm::Value *> visitDefineStructTypeInst(DefineStructTypeInst &I) {
+    return {};
+  }
+
+  set<llvm::Value *> visitTypeInst(TypeInst &I) {
+    set<llvm::Value *> dead_values = {};
+
+    auto &llvm_inst = I.getCallInst();
+    if (llvm_inst.hasNUses(0)) {
+      dead_values.insert(&llvm_inst);
+    }
+
+    return dead_values;
+  }
+
+  set<llvm::Value *> visitAssertStructTypeInst(AssertStructTypeInst &I) {
+    set<llvm::Value *> dead_values = {};
+
+    auto &llvm_inst = I.getCallInst();
+    dead_values.insert(&llvm_inst);
+
+    auto &type_operand = I.getTypeOperand();
+    if (type_operand.hasNUses(1)) {
+      dead_values.insert(&type_operand);
+    }
+
+    return dead_values;
+  }
+
+  set<llvm::Value *> visitAssertCollectionTypeInst(
+      AssertCollectionTypeInst &I) {
+    set<llvm::Value *> dead_values = {};
+
+    auto &llvm_inst = I.getCallInst();
+    dead_values.insert(&llvm_inst);
+
+    auto &type_operand = I.getTypeOperand();
+    if (type_operand.hasNUses(1)) {
+      dead_values.insert(&type_operand);
+    }
+
+    return dead_values;
+  }
+
+  set<llvm::Value *> visitReturnTypeInst(ReturnTypeInst &I) {
+    set<llvm::Value *> dead_values = {};
+
+    auto &llvm_inst = I.getCallInst();
+    dead_values.insert(&llvm_inst);
+
+    auto &type_operand = I.getTypeOperand();
+    if (type_operand.hasNUses(1)) {
+      dead_values.insert(&type_operand);
+    }
+
+    return dead_values;
+  }
+
   // Transformation
   bool transform(set<llvm::Value *> &&dead_values) {
     // Drop all references to dead values that are Instructions.
