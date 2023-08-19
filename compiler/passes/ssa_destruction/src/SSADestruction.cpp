@@ -225,33 +225,13 @@ void SSADestructionVisitor::visitJoinInst(JoinInst &I) {
     return;
   }
 
-  // If all join operands are dead, convert the join to a series of appends.
-  // if (all_dead) {
-  //   auto &first_collection = I.getJoinedOperand(0);
-  //   MemOIRBuilder builder(I);
-  //   for (auto join_idx = 1; join_idx < num_joined; join_idx++) {
-  //     auto &joined_collection = I.getJoinedOperand(join_idx);
-  //     debugln("Creating append");
-  //     debugln("  ", first_collection);
-  //     debugln("  ", joined_collection);
-
-  //     builder.CreateSeqAppendInst(&first_collection, &joined_collection);
-  //   }
-
-  //   // Coalesce the first operand and the join.
-  //   this->coalesce(I, first_collection);
-
-  //   // The join is dead after coalescence.
-  //   this->markForCleanup(I);
-
-  //   return;
-  // }
-
   // If all operands of the join are views of the same collection:
   //  - If views are in order, coallesce resultant and the viewed collection.
   //  - Otherwise, determine if the size is the same after the join:
   //     - If the size is the same, convert to a swap.
   //     - Otherwise, convert to a remove.
+  vector<size_t> view_indices = {};
+  view_indices.reserve(num_joined);
   vector<ViewInst *> views = {};
   views.reserve(num_joined);
   bool all_views = true;
@@ -263,7 +243,7 @@ void SSADestructionVisitor::visitJoinInst(JoinInst &I) {
 
     auto *joined_as_inst = dyn_cast<llvm::Instruction>(&joined_collection);
     if (!joined_as_inst) {
-      base_collection = nullptr;
+      all_views = false;
       break;
     }
 
@@ -274,6 +254,7 @@ void SSADestructionVisitor::visitJoinInst(JoinInst &I) {
       auto &viewed_collection = view_inst->getCollectionOperand();
       used_collection = &viewed_collection;
       views.push_back(view_inst);
+      view_indices.push_back(join_idx);
     } else {
       infoln("Join uses non-view");
       infoln(" |-> ", I);
@@ -497,11 +478,79 @@ void SSADestructionVisitor::visitJoinInst(JoinInst &I) {
       // convert it to a slice.
       builder.CreateSeqRemoveInst(base_collection, begin, end);
     }
+  } else if (base_collection != nullptr) /* not all_views */ {
+    // Determine if the views are in order.
+    // If they are, we do an insert.
+    llvm::Value *lower_limit, *upper_limit;
+    bool base_is_ordered = true;
+    auto idx_it = view_indices.begin();
+    for (auto view_it = views.begin(); view_it != views.end();
+         ++view_it, ++idx_it) {
+      auto *view = *view_it;
+      auto cur_idx = *idx_it;
+      auto next_idx = *(++idx_it);
+      if (next_idx > cur_idx + 1) {
+        auto *next_view = *(++view_it);
+        --view_it; // revert the last iteration.
+
+        auto &cur_view_end = view->getEndIndex();
+        auto &next_view_begin = next_view->getBeginIndex();
+
+        // If the views at this insertion point are the same, then we need to
+        // insert.
+        if (&cur_view_end == &next_view_begin) {
+          MemOIRBuilder builder(I);
+
+          llvm::Value *insertion_point = nullptr;
+          llvm::Value *last_inserted_collection = nullptr;
+          for (auto idx = cur_idx + 1; idx < next_idx; idx++) {
+            // Get the collection to insert.
+            auto &collection_to_insert = I.getJoinedOperand(idx);
+
+            // Track the insertion point.
+            if (insertion_point == nullptr) {
+              insertion_point = &cur_view_end;
+            } else {
+              // TODO: improve me.
+              auto *last_size =
+                  &builder.CreateSizeInst(last_inserted_collection)
+                       ->getCallInst();
+              insertion_point = builder.CreateAdd(insertion_point, last_size);
+            }
+
+            // Create the insert instruction.
+            builder.CreateSeqInsertSeqInst(base_collection,
+                                           insertion_point,
+                                           &collection_to_insert);
+            last_inserted_collection = &collection_to_insert;
+          }
+
+          this->coalesce(I, *base_collection);
+          this->markForCleanup(I);
+        }
+      }
+    }
   }
 
   // Otherwise, some operands are views from a different collection:
   //  - If the size is the same, convert to a swap.
   //  - Otherwise, convert to an append.
+  else /* not base_collection, not all_views*/ {
+
+    // If there are no views being used, we simply have an append.
+    if (views.empty()) {
+      MemOIRBuilder builder(I);
+
+      auto &first_joined_operand = I.getJoinedOperand(0);
+      for (auto join_idx = 1; join_idx < num_joined; join_idx++) {
+        auto &joined_operand = I.getJoinedOperand(join_idx);
+        builder.CreateSeqAppendInst(&first_joined_operand, &joined_operand);
+      }
+
+      this->coalesce(I, first_joined_operand);
+      this->markForCleanup(I);
+    }
+  }
 
   return;
 }
