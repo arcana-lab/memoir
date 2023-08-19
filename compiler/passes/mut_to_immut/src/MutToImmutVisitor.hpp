@@ -47,6 +47,7 @@ public:
   void visitAssocGetInst(AssocGetInst &I);
   // Sequence operations
   void visitSeqInsertInst(SeqInsertInst &I);
+  void visitSeqInsertSeqInst(SeqInsertSeqInst &I);
   void visitSeqRemoveInst(SeqRemoveInst &I);
   void visitSeqAppendInst(SeqAppendInst &I);
   void visitSeqSwapInst(SeqSwapInst &I);

@@ -348,6 +348,63 @@ void MutToImmutVisitor::visitSeqInsertInst(SeqInsertInst &I) {
   return;
 }
 
+void MutToImmutVisitor::visitSeqInsertSeqInst(SeqInsertSeqInst &I) {
+  MemOIRBuilder builder(I);
+
+  auto *collection_orig = &I.getCollectionOperand();
+  auto *collection_value = update_reaching_definition(collection_orig, I);
+  auto *insert_orig = &I.getInsertedOperand();
+  auto *insert_value = update_reaching_definition(insert_orig, I);
+  auto *index_value = &I.getIndex();
+
+  if (auto *index_as_const_int = dyn_cast<llvm::ConstantInt>(index_value)) {
+    if (index_as_const_int->isZero()) {
+      // We only need to create a join to the front.
+      auto *push_front_join = &builder
+                                   .CreateJoinInst(vector<llvm::Value *>(
+                                       { collection_value, insert_value }))
+                                   ->getCallInst();
+
+      this->reaching_definitions[collection_orig] = push_front_join;
+      this->reaching_definitions[push_front_join] = collection_value;
+
+      this->instructions_to_delete.insert(&I.getCallInst());
+      return;
+    }
+  }
+
+  // if (auto *index_as_size = dyn_cast<SizeInst>(&index_value)) {
+  // TODO: if the index is a size(collection) and the collection has not been
+  // modified in size since the call to size(collection), we can simply join
+  // to the end.
+  // }
+
+  auto *left_slice = &builder
+                          .CreateSliceInst(collection_value,
+                                           (int64_t)0,
+                                           index_value,
+                                           "insert.left.")
+                          ->getCallInst();
+  auto *right_slice =
+      &builder
+           .CreateSliceInst(collection_value, index_value, -1, "insert.right.")
+           ->getCallInst();
+
+  auto *insert_join =
+      &builder
+           .CreateJoinInst(
+               vector<llvm::Value *>({ left_slice, insert_value, right_slice }),
+               "insert.join.")
+           ->getCallInst();
+
+  this->reaching_definitions[collection_orig] = insert_join;
+  this->reaching_definitions[insert_join] = collection_value;
+
+  this->instructions_to_delete.insert(&I.getCallInst());
+
+  return;
+}
+
 void MutToImmutVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
   MemOIRBuilder builder(I);
 
