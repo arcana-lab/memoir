@@ -1,6 +1,9 @@
 ![memoir logo](memoir_logo.png)
 A case for memory object representation in the LLVM IR
 
+## Dependencies
+The compiler depends on z3.
+
 ## Building
 To build our noelle instance and the MemOIR passes:
 `make`
