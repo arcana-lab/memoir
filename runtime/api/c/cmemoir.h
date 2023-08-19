@@ -95,6 +95,9 @@ namespace memoir {
 #define memoir_seq_insert(ty, value, object, index)                            \
   MEMOIR_FUNC(sequence_insert_##ty)(value, object, index)
 
+#define memoir_seq_insert_range(object_to_insert, object, index)               \
+  MEMOIR_FUNC(sequence_insert)(object_to_insert, object, index)
+
 #define memoir_seq_remove(object, index)                                       \
   MEMOIR_FUNC(sequence_remove)(object, index, index + 1)
 
