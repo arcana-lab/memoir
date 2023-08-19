@@ -763,6 +763,12 @@ void SequenceAlloc::insert(uint64_t index, uint64_t value) {
   this->_sequence.insert(this->_sequence.begin() + index, value);
 }
 
+void SequenceAlloc::insert(uint64_t start, Sequence *seq) {
+  this->_sequence.insert(this->_sequence.begin() + start,
+                         seq->begin(),
+                         seq->end());
+}
+
 void SequenceAlloc::erase(uint64_t from, uint64_t to) {
   this->_sequence.erase(this->_sequence.begin() + from,
                         this->_sequence.begin() + to);
@@ -842,6 +848,10 @@ bool SequenceView::equals(const Object *other) const {
 // Mutable operations
 void SequenceView::insert(uint64_t index, uint64_t value) {
   this->_sequence->insert(index + this->from, value);
+}
+
+void SequenceView::insert(uint64_t start, Sequence *seq) {
+  this->_sequence->insert(start + this->from, seq);
 }
 
 void SequenceView::erase(uint64_t from, uint64_t to) {

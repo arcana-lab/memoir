@@ -137,6 +137,11 @@ Collection *MEMOIR_FUNC(join)(uint8_t number_of_collections,
 #include "types.def"
 
 __RUNTIME_ATTR
+void MEMOIR_FUNC(sequence_insert)(Collection *collection_to_insert,
+                                  Collection *collection,
+                                  size_t insertion_index);
+
+__RUNTIME_ATTR
 void MEMOIR_FUNC(sequence_remove)(Collection *collection,
                                   size_t begin,
                                   size_t end);

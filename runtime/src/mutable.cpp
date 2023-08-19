@@ -29,6 +29,19 @@ extern "C" {
 #include "types.def"
 
 __RUNTIME_ATTR
+void MEMOIR_FUNC(sequence_insert)(Collection *collection_to_insert,
+                                  Collection *collection,
+                                  size_t insertion_point) {
+  MEMOIR_ACCESS_CHECK(collection);
+  MEMOIR_ACCESS_CHECK(collection_to_insert);
+  MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);
+  MEMOIR_TYPE_CHECK(collection_to_insert, TypeCode::SequenceTy);
+  auto *seq = static_cast<Sequence *>(collection);
+  auto *seq_to_insert = static_cast<Sequence *>(collection_to_insert);
+  seq->insert(insertion_point, seq_to_insert);
+}
+
+__RUNTIME_ATTR
 void MEMOIR_FUNC(sequence_remove)(Collection *collection,
                                   size_t begin,
                                   size_t end) {

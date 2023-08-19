@@ -212,6 +212,7 @@ public:
 
   // Mutable operations
   virtual void insert(uint64_t index, uint64_t value) = 0;
+  virtual void insert(uint64_t start, Sequence *seq) = 0;
   virtual void erase(uint64_t from, uint64_t to) = 0;
   virtual void grow(uint64_t size) = 0;
 };
@@ -245,6 +246,7 @@ struct SequenceAlloc : public Sequence {
 
   // Mutable operations
   void insert(uint64_t index, uint64_t value) override;
+  void insert(uint64_t start, Sequence *seq) override;
   void erase(uint64_t from, uint64_t to) override;
   void grow(uint64_t size) override;
 
@@ -282,6 +284,7 @@ struct SequenceView : public Sequence {
 
   // Mutable operations
   void insert(uint64_t index, uint64_t value) override;
+  void insert(uint64_t start, Sequence *seq) override;
   void erase(uint64_t from, uint64_t to) override;
   void grow(uint64_t size) override;
 
