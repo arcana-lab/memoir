@@ -52,6 +52,59 @@ std::string SeqInsertInst::toString(std::string indent) const {
 }
 
 /*
+ * SeqInsertSeqInst implementation
+ */
+Collection &SeqInsertSeqInst::getCollection() const {
+  auto collection =
+      CollectionAnalysis::analyze(this->getCollectionOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine collection being inserted into");
+  return *collection;
+}
+
+llvm::Value &SeqInsertSeqInst::getCollectionOperand() const {
+  return *(this->getCollectionOperandAsUse().get());
+}
+
+llvm::Use &SeqInsertSeqInst::getCollectionOperandAsUse() const {
+  return this->getCallInst().getArgOperandUse(1);
+}
+
+Collection &SeqInsertSeqInst::getInsertedCollection() const {
+  auto collection =
+      CollectionAnalysis::analyze(this->getInsertedOperandAsUse());
+  MEMOIR_NULL_CHECK(collection,
+                    "Could not determine collection being inserted");
+  return *collection;
+}
+
+llvm::Value &SeqInsertSeqInst::getInsertedOperand() const {
+  return *(this->getInsertedOperandAsUse().get());
+}
+
+llvm::Use &SeqInsertSeqInst::getInsertedOperandAsUse() const {
+  return this->getCallInst().getArgOperandUse(0);
+}
+
+llvm::Value &SeqInsertSeqInst::getIndex() const {
+  return *(this->getIndexAsUse().get());
+}
+
+llvm::Use &SeqInsertSeqInst::getIndexAsUse() const {
+  return this->getCallInst().getArgOperandUse(2);
+}
+
+std::string SeqInsertSeqInst::toString(std::string indent) const {
+  std::string str, llvm_str;
+  llvm::raw_string_ostream llvm_ss(llvm_str);
+  llvm_ss << this->getCallInst();
+
+  str = "Sequence Insert: " + llvm_str;
+
+  return str;
+}
+
+/*
  * SeqRemoveInst implementation.
  */
 Collection &SeqRemoveInst::getCollection() const {

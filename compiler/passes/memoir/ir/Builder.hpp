@@ -508,6 +508,31 @@ public:
     return inst;
   }
 
+  SeqInsertSeqInst *CreateSeqInsertSeqInst(llvm::Value *collection,
+                                           llvm::Value *insertion_point,
+                                           llvm::Value *collection_to_insert,
+                                           const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto llvm_func =
+        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::SEQ_INSERT);
+    MEMOIR_NULL_CHECK(llvm_func, "Couldn't find the memoir function!");
+
+    // Create the LLVM call.
+    auto llvm_call = this->CreateCall(
+        FunctionCallee(llvm_func),
+        llvm::ArrayRef({ collection_to_insert, collection, insertion_point }),
+        name);
+    MEMOIR_NULL_CHECK(
+        llvm_call,
+        "Could not create the call for sequence insert operation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto inst = dyn_cast<SeqInsertSeqInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(inst, "Could not create call to SeqInsertSeqInst");
+    return inst;
+  }
+
 protected:
   // Borrowed state
   llvm::Module *M;

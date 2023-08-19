@@ -249,6 +249,7 @@ HANDLE_INST_(SEQ_REMOVE, MEMOIR_FUNC(sequence_remove), SeqRemoveInst)
 HANDLE_INST_(SEQ_APPEND, MEMOIR_FUNC(sequence_append), SeqAppendInst)
 HANDLE_INST_(SEQ_SWAP, MEMOIR_FUNC(sequence_swap), SeqSwapInst)
 HANDLE_INST_(SEQ_SPLIT, MEMOIR_FUNC(sequence_split), SeqSplitInst)
+HANDLE_INST_(SEQ_INSERT, MEMOIR_FUNC(sequence_insert), SeqInsertSeqInst)
 
 /*
  * Associative operations.

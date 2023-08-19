@@ -942,6 +942,31 @@ protected:
   friend class MemOIRInst;
 };
 
+struct SeqInsertSeqInst : public MemOIRInst {
+public:
+  Collection &getCollection() const;
+  llvm::Value &getCollectionOperand() const;
+  llvm::Use &getCollectionOperandAsUse() const;
+
+  Collection &getInsertedCollection() const;
+  llvm::Value &getInsertedOperand() const;
+  llvm::Use &getInsertedOperandAsUse() const;
+
+  llvm::Value &getIndex() const;
+  llvm::Use &getIndexAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::SEQ_INSERT);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  SeqInsertSeqInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst){};
+
+  friend class MemOIRInst;
+};
+
 struct SeqRemoveInst : public MemOIRInst {
 public:
   Collection &getCollection() const;
