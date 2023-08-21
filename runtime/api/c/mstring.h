@@ -8,12 +8,29 @@
 //   -- or --
 //   memoir_strcmp(str, begin1, begin2)
 #define memoir_strcmp(str, a, b, ...)                                          \
-  memoir_strcmp_(str, a, ##__VA_ARGS__, 4, 3)
+  memoir_strcmp_(str, a, ##__VA_ARGS__, 4, 3, 2)
 #define memoir_strcmp_(a, b, c, d, n, ...) memoir_strcmp##n(a, b, c, d)
 #define memoir_strcmp4(str, a, str2, b) memoir_strcmp__diff(str, a, str2, b)
 #define memoir_strcmp3(str, a, b, ...) memoir_strcmp__same(str, a, b)
+#define memoir_strcmp2(str, str2, ...) memoir_strcmp__start(str, str2)
 
-uint32_t memoir_strcmp__same(Collection *str, size_t a, size_t b) {
+int memoir_strcmp__start(Collection *str, Collection *str2) {
+  memoir_assert_collection_type(memoir_string_t, str);
+
+  auto a = 0;
+  auto b = 0;
+
+  auto ac = memoir_index_read(u8, str, a);
+  auto bc = memoir_index_read(u8, str2, b);
+  while (ac != '\0' && (ac == bc)) {
+    ac = memoir_index_read(u8, str, a++);
+    bc = memoir_index_read(u8, str2, b++);
+  }
+
+  return (int)(a - b);
+}
+
+int memoir_strcmp__same(Collection *str, size_t a, size_t b) {
   memoir_assert_collection_type(memoir_string_t, str);
 
   auto ac = memoir_index_read(u8, str, a);
@@ -26,10 +43,7 @@ uint32_t memoir_strcmp__same(Collection *str, size_t a, size_t b) {
   return (int)(a - b);
 }
 
-bool memoir_strcmp__diff(Collection *str,
-                         size_t a,
-                         Collection *str2,
-                         size_t b) {
+int memoir_strcmp__diff(Collection *str, size_t a, Collection *str2, size_t b) {
   memoir_assert_collection_type(memoir_string_t, str);
   memoir_assert_collection_type(memoir_string_t, str2);
 
