@@ -8,7 +8,6 @@ include_directories(include)
 
 set(HEADER_FILES
   include/memoir.h
-  api/c/cmemoir.h
   )
 
 set(PRIVATE_HEADER_FILES
@@ -58,3 +57,6 @@ set_property(TARGET memoir_bitcodes PROPERTY
   EXCLUDE_FROM_ALL OFF)
 set_property(TARGET memoir PROPERTY
   EXCLUDE_FROM_ALL OFF)
+
+add_subdirectory(backend)
+add_subdirectory(api)
