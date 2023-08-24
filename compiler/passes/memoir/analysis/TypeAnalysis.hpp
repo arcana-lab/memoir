@@ -76,8 +76,8 @@ protected:
    * Borrowed state
    */
   map<llvm::Value *, Type *> value_to_type;
-  map<llvm::PHINode *, set<Type *>> phi_edge_types;
-  map<llvm::PHINode *, set<llvm::Value *>> visited_phi_edges;
+  map<llvm::Instruction *, set<Type *>> edge_types;
+  map<llvm::Instruction *, set<llvm::Value *>> visited_edges;
 
   /*
    * Internal helper functions
@@ -122,6 +122,7 @@ protected:
   // SSA sequence operations
   Type *visitJoinInst(JoinInst &I);
   Type *visitSliceInst(SliceInst &I);
+  Type *visitViewInst(ViewInst &I);
   // Mut sequence operations
   Type *visitSeqInsertInst(SeqInsertInst &I);
   Type *visitSeqRemoveInst(SeqRemoveInst &I);

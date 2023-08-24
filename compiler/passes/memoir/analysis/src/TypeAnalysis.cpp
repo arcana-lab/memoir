@@ -20,7 +20,8 @@ TypeAnalysis::TypeAnalysis() {
   /* See if an existing type exists, if it does, early return. */              \
   if (auto found = this->findExisting(V)) {                                    \
     return found;                                                              \
-  }
+  }                                                                            \
+  debugln("TypeAnalysis: visiting ", I);
 
 #define MEMOIZE_AND_RETURN(V, T)                                               \
   /* Memoize the type */                                                       \
@@ -399,14 +400,64 @@ Type *TypeAnalysis::visitJoinInst(JoinInst &I) {
   CHECK_MEMOIZED(I);
 
   /*
-   * Determine the type of the incoming collections.
+   * See if we already have an edge set for this PHI node
    */
-  for (auto join_index = 0; join_index < I.getNumberOfJoins(); join_index++) {
-    // TODO: add type checking to ensure all inputs are the same type
+  auto found_edge_types = this->edge_types.find(&I.getCallInst());
+  if (found_edge_types == this->edge_types.end()) {
+    this->edge_types[&I.getCallInst()] = {};
+    this->visited_edges[&I.getCallInst()] = {};
+    found_edge_types = this->edge_types.find(&I.getCallInst());
   }
 
-  auto type = this->getType(I.getJoinedOperand(0));
-  MEMOIR_NULL_CHECK(type, "Could not determine the incoming type for join!");
+  auto &incoming_types = found_edge_types->second;
+  auto &already_visited_edges = visited_edges[&I.getCallInst()];
+
+  /*
+   * Get all incoming types.
+   */
+  for (auto join_index = 0; join_index < I.getNumberOfJoins(); join_index++) {
+    auto &incoming_value = I.getJoinedOperand(join_index);
+    println(incoming_value);
+
+    /*
+     * Check if the incoming value has already been visited
+     */
+    if (already_visited_edges.find(&incoming_value)
+        != already_visited_edges.end()) {
+      continue;
+    }
+
+    /*
+     * Add the incoming value to the list of visited edges.
+     */
+    already_visited_edges.insert(&incoming_value);
+
+    /*
+     * Get the Type of the incoming value.
+     */
+    auto incoming_type = this->getType(incoming_value);
+
+    /*
+     * Insert the incoming Type into the set of incoming types.
+     * NOTE: there should only be ONE type in the set after this loop.
+     */
+    if (incoming_type != nullptr) {
+      incoming_types.insert(incoming_type);
+    }
+  }
+
+  /*
+   * Check that all incoming types are the same.
+   */
+  if (incoming_types.size() != 1) {
+    warnln("Could not statically determine the type of join inst.");
+    return nullptr;
+  }
+
+  /*
+   * Get the single Type.
+   */
+  auto type = *(incoming_types.begin());
 
   MEMOIZE_AND_RETURN(I, type);
 }
@@ -416,6 +467,18 @@ Type *TypeAnalysis::visitSliceInst(SliceInst &I) {
 
   /*
    * Determine the type of the sliced collection.
+   */
+  auto type = this->getType(I.getCollectionOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the incoming type for join!");
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitViewInst(ViewInst &I) {
+  CHECK_MEMOIZED(I);
+
+  /*
+   * Determine the type of the viewed collection.
    */
   auto type = this->getType(I.getCollectionOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the incoming type for join!");
@@ -676,13 +739,15 @@ Type *TypeAnalysis::visitPHINode(llvm::PHINode &I) {
   /*
    * See if we already have an edge set for this PHI node
    */
-  auto found_edge_types = this->phi_edge_types.find(&I);
-  if (found_edge_types == this->phi_edge_types.end()) {
-    this->phi_edge_types[&I] = {};
-    found_edge_types = this->phi_edge_types.find(&I);
+  auto found_edge_types = this->edge_types.find(&I);
+  if (found_edge_types == this->edge_types.end()) {
+    this->edge_types[&I] = {};
+    this->visited_edges[&I] = {};
+    found_edge_types = this->edge_types.find(&I);
   }
 
-  set<Type *> &incoming_types = found_edge_types->second;
+  auto &incoming_types = found_edge_types->second;
+  auto &already_visited_edges = this->visited_edges[&I];
 
   /*
    * Get all incoming types.
@@ -697,14 +762,15 @@ Type *TypeAnalysis::visitPHINode(llvm::PHINode &I) {
     /*
      * Check if the incoming value has already been visited
      */
-    if (visited_phi_edges.find(&I) != visited_phi_edges.end()) {
+    if (already_visited_edges.find(&incoming_value)
+        != already_visited_edges.end()) {
       continue;
     }
 
     /*
      * Add the incoming value to the list of visited edges.
      */
-    visited_phi_edges[&I].insert(&incoming_value);
+    already_visited_edges.insert(&incoming_value);
 
     /*
      * Get the Type of the incoming value.
@@ -715,14 +781,18 @@ Type *TypeAnalysis::visitPHINode(llvm::PHINode &I) {
      * Insert the incoming Type into the set of incoming types.
      * NOTE: there should only be ONE type in the set after this loop.
      */
-    incoming_types.insert(incoming_type);
+    if (incoming_type != nullptr) {
+      incoming_types.insert(incoming_type);
+    }
   }
 
   /*
    * Check that all incoming types are the same.
    */
-  MEMOIR_ASSERT((incoming_types.size() == 1),
-                "Could not statically determine the type of PHI node.");
+  if (incoming_types.size() != 1) {
+    warnln("Could not statically determine the type of PHI node.");
+    return nullptr;
+  }
 
   /*
    * Get the single Type.
