@@ -90,6 +90,7 @@ public:
   // virtual llvm::Type *getLLVMType() const;
 
   virtual std::string toString(std::string indent = "") const = 0;
+  virtual opt<std::string> get_code() const;
 
   friend std::ostream &operator<<(std::ostream &os, const Type &T);
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Type &T);
@@ -116,6 +117,7 @@ public:
   }
 
   std::string toString(std::string indent = "") const override;
+  opt<std::string> get_code() const override;
 
 protected:
   unsigned bitwidth;
@@ -135,6 +137,7 @@ public:
   }
 
   std::string toString(std::string indent = "") const override;
+  opt<std::string> get_code() const override;
 
 protected:
   FloatType();
@@ -151,6 +154,7 @@ public:
   }
 
   std::string toString(std::string indent = "") const override;
+  opt<std::string> get_code() const override;
 
 protected:
   DoubleType();
@@ -167,6 +171,7 @@ public:
   }
 
   std::string toString(std::string indent = "") const override;
+  opt<std::string> get_code() const override;
 
 protected:
   PointerType();
@@ -185,11 +190,12 @@ public:
   }
 
   std::string toString(std::string indent = "") const override;
+  opt<std::string> get_code() const override;
 
 protected:
   Type &referenced_type;
 
-  static map<Type *, ReferenceType *> reference_types;
+  static map<Type *, ReferenceType *> *reference_types;
 
   ReferenceType(Type &referenced_type);
 
@@ -213,13 +219,14 @@ public:
   }
 
   std::string toString(std::string indent = "") const override;
+  opt<std::string> get_code() const override;
 
 protected:
   DefineStructTypeInst &definition;
   std::string name;
   vector<Type *> field_types;
 
-  static map<std::string, StructType *> defined_types;
+  static map<std::string, StructType *> *defined_types;
 
   StructType(DefineStructTypeInst &definition,
              std::string name,
@@ -244,6 +251,8 @@ public:
         return true;
     };
   }
+
+  opt<std::string> get_code() const override;
 
 protected:
   CollectionType(TypeCode code);
@@ -271,7 +280,7 @@ protected:
   unsigned field_index;
 
   static map<StructType *, map<unsigned, FieldArrayType *>>
-      struct_to_field_array;
+      *struct_to_field_array;
 
   FieldArrayType(StructType &struct_type, unsigned field_index);
 };
@@ -319,7 +328,7 @@ protected:
 
   TensorType(Type &element_type, unsigned number_of_dimensions);
 
-  static map<Type *, map<unsigned, TensorType *>> tensor_types;
+  static map<Type *, map<unsigned, TensorType *>> *tensor_types;
 
   friend class TypeAnalysis;
 };
@@ -342,7 +351,7 @@ protected:
   Type &key_type;
   Type &value_type;
 
-  static map<Type *, map<Type *, AssocArrayType *>> assoc_array_types;
+  static map<Type *, map<Type *, AssocArrayType *>> *assoc_array_types;
 
   AssocArrayType(Type &key_type, Type &value_type);
 
@@ -364,7 +373,7 @@ public:
 protected:
   Type &element_type;
 
-  static map<Type *, SequenceType *> sequence_types;
+  static map<Type *, SequenceType *> *sequence_types;
 
   SequenceType(Type &element_type);
 
