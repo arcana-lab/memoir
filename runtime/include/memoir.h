@@ -11,7 +11,7 @@
  * Created: Mar 4, 2022
  */
 
-#include <cstdarg>
+#include <stdarg.h>
 
 #include "objects.h"
 #include "types.h"
