@@ -45,6 +45,8 @@ public:
   MemOIRFunction &getFunction() const;
   llvm::CallInst &getCallInst() const;
   llvm::Function &getLLVMFunction() const;
+  llvm::Module *getModule() const;
+  llvm::BasicBlock *getParent() const;
   MemOIR_Func getKind() const;
 
   operator llvm::Value *() {
