@@ -34,6 +34,16 @@ std::vector<uint64_t> init_elements(Type *type, size_t num) {
       }
       return list;
     }
+    case TypeCode::SequenceTy: {
+      auto seq_type = (SequenceType *)type;
+      std::vector<uint64_t> list;
+      list.reserve(num);
+      for (auto i = 0; i < num; i++) {
+        auto seq = new SequenceAlloc(seq_type, 0);
+        list.push_back((uint64_t)seq);
+      }
+      return list;
+    }
     case TypeCode::IntegerTy: {
       auto integer_type = static_cast<IntegerType *>(type);
       std::vector<uint64_t> list;
@@ -99,6 +109,12 @@ uint64_t init_element(Type *type) {
       auto &length_of_dimensions = tensor_type->length_of_dimensions;
       auto tensor = new Tensor(tensor_type, length_of_dimensions);
       return (uint64_t)tensor;
+    }
+    case TypeCode::SequenceTy: {
+      auto seq_type = (SequenceType *)type;
+      std::vector<uint64_t> list;
+      auto seq = new SequenceAlloc(seq_type, 0);
+      return (uint64_t)seq;
     }
     case TypeCode::AssocArrayTy: {
       auto assoc_type = (AssocArrayType *)type;
