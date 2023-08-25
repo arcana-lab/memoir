@@ -23,7 +23,7 @@ CMD="llvm-extract -glob llvm.used -rfunc memoir__* ${TMP_IR_FILE} -o ${TMP_IR_FI
 echo "$CMD"
 eval $CMD
 
-CMD="opt -strip -load ${LIB_DIR}/Normalization.so -memoir-norm -only-runtime ${TMP_IR_FILE} -o ${OUT_IR_FILE}"
+CMD="memoir-load -memoir-norm -only-runtime ${TMP_IR_FILE} -o ${OUT_IR_FILE}"
 echo "$CMD"
 eval $CMD
 
