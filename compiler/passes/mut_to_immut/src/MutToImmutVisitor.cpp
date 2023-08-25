@@ -242,9 +242,6 @@ void MutToImmutVisitor::visitIndexGetInst(IndexGetInst &I) {
   // use_phi->setUseInst(I);
 
   // Update the reaching definitions.
-  println("Updating reaching definition");
-  println("  ", *collection_orig);
-  println("  ", *use_phi_value);
   this->reaching_definitions[collection_orig] = use_phi_value;
   this->reaching_definitions[use_phi_value] = collection_value;
 
@@ -278,27 +275,26 @@ void MutToImmutVisitor::visitAssocGetInst(AssocGetInst &I) {
 void MutToImmutVisitor::visitSeqInsertInst(SeqInsertInst &I) {
   MemOIRBuilder builder(I);
 
-  auto *type = TypeAnalysis::analyze(I.getCallInst());
+  auto *type = TypeAnalysis::analyze(I.getCollectionOperand());
   MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
   auto *collection_type = dyn_cast<CollectionType>(type);
   MEMOIR_NULL_CHECK(collection_type,
                     "seq_insert not operating on a collection type");
+  auto &element_type = collection_type->getElementType();
   auto *collection_orig = &I.getCollectionOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
   auto *write_value = &I.getValueInserted();
   auto *index_value = &I.getIndex();
 
   auto *elem_alloc =
-      &builder.CreateSequenceAllocInst(*collection_type, 1, "insert.elem.")
+      &builder.CreateSequenceAllocInst(element_type, 1, "insert.elem.")
            ->getCallInst();
-  auto *elem_write =
-      &builder
-           .CreateIndexWriteInst(collection_type->getElementType(),
-                                 write_value,
-                                 collection_value,
-                                 index_value,
-                                 "insert.elem.value.")
-           ->getCallInst();
+  auto *elem_write = &builder
+                          .CreateIndexWriteInst(element_type,
+                                                write_value,
+                                                elem_alloc,
+                                                builder.getInt64(0))
+                          ->getCallInst();
 
   if (auto *index_as_const_int = dyn_cast<llvm::ConstantInt>(index_value)) {
     if (index_as_const_int->isZero()) {
@@ -416,9 +412,24 @@ void MutToImmutVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
   if (auto *begin_as_const_int = dyn_cast<llvm::ConstantInt>(begin_value)) {
     if (begin_as_const_int->isZero()) {
       // We only need to create a slice from [end_index:end)
+      auto *pop_front_left = &builder
+                                  .CreateSliceInst(collection_value,
+                                                   (int64_t)0,
+                                                   (int64_t)0,
+                                                   "remove.pop_front.")
+                                  ->getCallInst();
+      auto *pop_front_right = &builder
+                                   .CreateSliceInst(collection_value,
+                                                    end_value,
+                                                    -1,
+                                                    "remove.pop_front.")
+                                   ->getCallInst();
+
       auto *pop_front =
           &builder
-               .CreateSliceInst(collection_value, end_value, -1, "remove.rest.")
+               .CreateJoinInst(
+                   vector<llvm::Value *>({ pop_front_left, pop_front_right }),
+                   "remove.pop_front.")
                ->getCallInst();
 
       this->reaching_definitions[collection_orig] = pop_front;
@@ -430,11 +441,37 @@ void MutToImmutVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
     }
   }
 
-  // if (auto *index_as_size = dyn_cast<SizeInst>(&index_value)) {
-  // TODO: if the index is a size(collection) and the collection has not been
-  // modified in size since the call to size(collection), we can simply slice
-  // from [0,begin)
-  // }
+  if (auto *end_as_const_int = dyn_cast<llvm::ConstantInt>(end_value)) {
+    if (end_as_const_int->isMinusOne()) {
+      // We only need to create a slice from [0:begin)
+      auto *pop_back_left = &builder
+                                 .CreateSliceInst(collection_value,
+                                                  (int64_t)0,
+                                                  begin_value,
+                                                  "remove.pop_back.")
+                                 ->getCallInst();
+      auto *pop_back_right = &builder
+                                  .CreateSliceInst(collection_value,
+                                                   -1,
+                                                   -1,
+                                                   "remove.pop_back.rest")
+                                  ->getCallInst();
+
+      auto *pop_back =
+          &builder
+               .CreateJoinInst(
+                   vector<llvm::Value *>({ pop_back_left, pop_back_right }),
+                   "remove.pop_back.")
+               ->getCallInst();
+
+      this->reaching_definitions[collection_orig] = pop_back;
+      this->reaching_definitions[pop_back] = collection_value;
+
+      this->instructions_to_delete.insert(&I.getCallInst());
+
+      return;
+    }
+  }
 
   auto *left_slice = &builder
                           .CreateSliceInst(collection_value,
@@ -442,9 +479,11 @@ void MutToImmutVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
                                            begin_value,
                                            "remove.left.")
                           ->getCallInst();
+  auto *size =
+      &builder.CreateSizeInst(collection_value, "remove.end.")->getCallInst();
   auto *right_slice =
       &builder
-           .CreateSliceInst(collection_value, end_value, -1, "remove.right.")
+           .CreateSliceInst(collection_value, end_value, size, "remove.right.")
            ->getCallInst();
 
   auto *remove_join =
@@ -826,7 +865,7 @@ void MutToImmutVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
 
 void MutToImmutVisitor::cleanup() {
   for (auto *inst : instructions_to_delete) {
-    println(*inst);
+    infoln(*inst);
     inst->eraseFromParent();
   }
 }

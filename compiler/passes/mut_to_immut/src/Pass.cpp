@@ -31,6 +31,7 @@
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
+#include "memoir/support/Timer.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
@@ -94,6 +95,8 @@ struct MutToImmutPass : public ModulePass {
 
     MutToImmutStats stats;
 
+    const auto start = std::chrono::high_resolution_clock::now();
+
     for (auto &F : M) {
       if (F.empty()) {
         continue;
@@ -110,9 +113,9 @@ struct MutToImmutPass : public ModulePass {
         continue;
       }
 
-      println();
-      println("=========================");
-      println("BEGIN: ", F.getName());
+      infoln();
+      infoln("=========================");
+      infoln("BEGIN: ", F.getName());
 
       // Get the dominator forest.
       auto &DT = NOELLE.getDominators(&F)->DT;
@@ -147,8 +150,6 @@ struct MutToImmutPass : public ModulePass {
         // Get information about the named variable.
         auto *type = name->getType();
 
-        println("Handling: ", *name);
-
         // Gather the set of basic blocks containing definitions of the
         // named variable.
         set<llvm::BasicBlock *> def_parents = {};
@@ -177,19 +178,19 @@ struct MutToImmutPass : public ModulePass {
               }
             }
             if (auto *def_bb = def_as_inst->getParent()) {
-              println("inserting def parent for ", *def_as_inst);
+              debugln("inserting def parent for ", *def_as_inst);
               def_parents.insert(def_bb);
               def_parents_worklist.push(def_bb);
             }
           }
         }
 
-        println("Def parents:");
+        debugln("Def parents:");
         for (auto *def_parent : def_parents) {
-          println(*def_parent);
+          debugln(*def_parent);
         }
 
-        println("inserting PHIs");
+        debugln("inserting PHIs");
         // Gather the set of basic blocks where PHIs need to be added.
         set<llvm::BasicBlock *> phi_parents = {};
         while (!def_parents_worklist.empty()) {
@@ -197,18 +198,12 @@ struct MutToImmutPass : public ModulePass {
           auto *bb = def_parents_worklist.front();
           def_parents_worklist.pop();
 
-          println("------------------------");
-          println("Handling");
-          println(*bb);
-
           // For each basic block in the dominance frontier.
           auto found_dom_frontier = DF.find(bb);
           MEMOIR_ASSERT(found_dom_frontier != DF.end(),
                         "Couldn't find dominance frontier for basic block.");
           auto &dominance_frontier = found_dom_frontier->second;
           for (auto *frontier_bb : dominance_frontier) {
-            println("Found frontier");
-            println(*frontier_bb);
             if (phi_parents.find(frontier_bb) == phi_parents.end()) {
               // If the name doesn't dominate all of the predecessors, don't
               // insert a PHI node.
@@ -222,7 +217,6 @@ struct MutToImmutPass : public ModulePass {
                 }
               }
               if (name_doesnt_dominate) {
-                println("name doesnt dominate basic block");
                 continue;
               }
 
@@ -238,7 +232,6 @@ struct MutToImmutPass : public ModulePass {
                 }
               }
               if (name_already_in_phi) {
-                println("PHI already exists");
                 continue;
               }
 
@@ -248,7 +241,7 @@ struct MutToImmutPass : public ModulePass {
               auto *phi = phi_builder.CreatePHI(type, num_incoming_edges);
               MEMOIR_NULL_CHECK(phi,
                                 "Couldn't create PHI at dominance frontier");
-              println("Inserting PHI: ", *phi);
+              debugln("Inserting PHI: ", *phi);
 
               // Insert a dummy value for the time being.
               for (auto *pred_bb : llvm::predecessors(frontier_bb)) {
@@ -264,8 +257,6 @@ struct MutToImmutPass : public ModulePass {
               // Insert the basic block into the Def set.
               // TODO: this may need to check for set residency
               def_parents_worklist.push(frontier_bb);
-            } else {
-              println("Basic block already has definition");
             }
           }
         }
@@ -275,15 +266,15 @@ struct MutToImmutPass : public ModulePass {
       MutToImmutVisitor MTIV(DT, memoir_names, inserted_phis, &stats);
 
       // Apply rewrite rules and renaming for reaching definitions.
-      println("Applying rewrite rules");
+      infoln("Applying rewrite rules");
       for (auto *bb : dfs_traversal) {
         for (auto &I : *bb) {
           MTIV.visit(I);
         }
 
         // Update PHIs with the reaching definition.
-        println("Updating immediate successors");
-        println(*bb);
+        debugln("Updating immediate successors");
+        debugln(*bb);
         for (auto *succ_bb : llvm::successors(bb)) {
           for (auto &phi : succ_bb->phis()) {
             // Ensure that the value is of collection type.
@@ -291,32 +282,35 @@ struct MutToImmutPass : public ModulePass {
               continue;
             }
 
-            println("Updating successor PHI: ");
-            println(phi);
+            debugln("Updating successor PHI: ");
+            debugln(phi);
 
             auto &incoming_use = phi.getOperandUse(phi.getBasicBlockIndex(bb));
             auto *incoming_value = incoming_use.get();
-            println("      orig: ", *incoming_value);
 
             // Update the reaching definition for the incoming edge.
             auto *reaching_definition =
                 MTIV.update_reaching_definition(incoming_value,
                                                 bb->getTerminator());
             incoming_use.set(reaching_definition);
-            println("  reaching: ", *reaching_definition);
           }
         }
       }
 
-      println("Cleaning up dead mutable instructions.");
+      infoln("Cleaning up dead mutable instructions.");
       MTIV.cleanup();
 
-      println("END: ", F.getName());
-      println("=========================");
+      infoln("END: ", F.getName());
+      infoln("=========================");
     }
 
-    println();
+    const auto end = std::chrono::high_resolution_clock::now();
+    const std::chrono::duration<double> elapsed_seconds = end - start;
+    auto elapsed = elapsed_seconds.count();
+
+    println("=========================");
     println("DONE mut2immut pass");
+    println("  Elapsed (s): ", elapsed);
     println();
     return true;
   }
