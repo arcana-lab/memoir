@@ -2,11 +2,16 @@
 #include "stdbool.h"
 #include "stddef.h"
 #include "stdint.h"
+#include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
 
 #define alwaysinline __attribute__((always_inline)) inline
 #define used __attribute__((used))
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define INSTANTIATE_TYPED_VECTOR(T, C_TYPE)                                    \
   typedef struct T##_vector {                                                  \
@@ -63,10 +68,11 @@
                                                            size_t from,        \
                                                            size_t to) {        \
     size_t current_size = vec->_back - vec->_front;                            \
+    size_t removal_size = to - from;                                           \
     if (to == current_size) {                                                  \
-      vec->_back = vec->_front + from;                                         \
+      vec->_back -= removal_size;                                              \
     } else if (from == 0) {                                                    \
-      vec->_front += to;                                                       \
+      vec->_front += removal_size;                                             \
     } else {                                                                   \
       size_t remove_front = from;                                              \
       size_t remove_back = current_size - to;                                  \
@@ -76,14 +82,14 @@
         memmove((void *)&vec->_storage[vec->_front + from],                    \
                 (const void *)&vec->_storage[vec->_back - (from - to)],        \
                 remove_back);                                                  \
-        vec->_front = to - from;                                               \
+        vec->_back -= to - from;                                               \
       } /* Otherwise, let's remove from the front.*/                           \
       else {                                                                   \
         /* _front+from  ==> to */                                              \
         memmove((void *)&vec->_storage[vec->_front + to - from],               \
                 (const void *)&vec->_storage[vec->_front],                     \
                 sizeof(C_TYPE) * remove_front);                                \
-        vec->_front = to - from;                                               \
+        vec->_front += to - from;                                              \
       }                                                                        \
     }                                                                          \
     return vec;                                                                \
@@ -103,10 +109,16 @@
                                                                                \
     if (size_after_insert > vec->_max_size) {                                  \
       /* grow the T##_vector. */                                               \
-      size_t new_size = vec->_max_size << 1;                                   \
-      while (size_after_insert > new_size) {                                   \
-        new_size = new_size << 1;                                              \
-      }                                                                        \
+      size_t next_pow_2 = vec_size + insert_size;                              \
+      next_pow_2 |= next_pow_2 >> 1;                                           \
+      next_pow_2 |= next_pow_2 >> 2;                                           \
+      next_pow_2 |= next_pow_2 >> 4;                                           \
+      next_pow_2 |= next_pow_2 >> 8;                                           \
+      next_pow_2 |= next_pow_2 >> 16;                                          \
+      next_pow_2 |= next_pow_2 >> 32;                                          \
+      next_pow_2++;                                                            \
+      size_t new_size = next_pow_2;                                            \
+                                                                               \
       if (insert_to_back) {                                                    \
         vec = (T##_vector_p)realloc(                                           \
             vec,                                                               \
@@ -162,6 +174,8 @@
            (const void *)&vec2->_storage[vec->_front],                         \
            sizeof(C_TYPE) * insert_size);                                      \
                                                                                \
+    vec->_back += insert_size;                                                 \
+                                                                               \
     return vec;                                                                \
   }                                                                            \
                                                                                \
@@ -189,9 +203,6 @@
     if (size_after_insert > vec->_max_size) {                                  \
       /* grow the vector. */                                                   \
       size_t new_size = vec->_max_size << 1;                                   \
-      while (size_after_insert > new_size) {                                   \
-        new_size = new_size << 1;                                              \
-      }                                                                        \
       if (insert_to_back) {                                                    \
         vec = (T##_vector_p)realloc(                                           \
             vec,                                                               \
@@ -243,6 +254,7 @@
                                                                                \
     /* Write the element to the index.*/                                       \
     vec->_storage[start_idx] = value;                                          \
+    vec->_back += insert_size;                                                 \
                                                                                \
     return vec;                                                                \
   }                                                                            \
@@ -267,3 +279,7 @@
 #define HANDLE_PRIMITIVE_TYPE(T, C_TYPE, PREFIX)                               \
   INSTANTIATE_TYPED_VECTOR(T, C_TYPE)
 #include "types.def"
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
