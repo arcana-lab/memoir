@@ -41,7 +41,7 @@ public:
     } else if (isa<PointerType>(&type)) {
       return this->CreatePointerTypeInst(name);
     } else if (auto *integer_type = dyn_cast<IntegerType>(&type)) {
-      if (integer_type->isSigned()) {
+      if (!integer_type->isSigned()) {
         switch (integer_type->getBitWidth()) {
           case 64:
             return this->CreateUInt64TypeInst(name);
