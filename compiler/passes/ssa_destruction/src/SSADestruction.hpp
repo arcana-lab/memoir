@@ -65,11 +65,27 @@ public:
   // LLVM operations
   void visitInstruction(llvm::Instruction &I);
 
+  // Allocation operations
+  void visitSequenceAllocInst(SequenceAllocInst &I);
+  void visitAssocArrayAllocInst(AssocArrayAllocInst &I);
+
+  // Deallocation operationts
+  void visitDeleteCollectionInst(DeleteCollectionInst &I);
+
+  // Access operations
+  void visitIndexReadInst(IndexReadInst &I);
+  void visitIndexWriteInst(IndexWriteInst &I);
+  void visitAssocReadInst(AssocReadInst &I);
+  void visitAssocWriteInst(AssocWriteInst &I);
+  void visitAssocHasInst(AssocHasInst &I);
+  void visitAssocRemoveInst(AssocRemoveInst &I);
+
   // SSA operations
   void visitUsePHIInst(UsePHIInst &I);
   void visitDefPHIInst(DefPHIInst &I);
   void visitSliceInst(SliceInst &I);
   void visitJoinInst(JoinInst &I);
+  void visitSizeInst(SizeInst &I);
 
   void do_coalesce(llvm::Value &V);
 
@@ -87,6 +103,7 @@ protected:
   // Borrowed state.
   map<llvm::Value *, llvm::Value *> coalesced_values;
   map<llvm::Value *, llvm::Value *> replaced_values;
+  map<llvm::Value *, llvm::Value *> def_phi_replacements;
   set<llvm::Instruction *> instructions_to_delete;
 
   llvm::Value *find_replacement(llvm::Value *value);
