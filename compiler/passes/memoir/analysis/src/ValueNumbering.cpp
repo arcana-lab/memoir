@@ -252,7 +252,7 @@ ValueExpression *ValueNumbering::visitPHINode(llvm::PHINode &I) {
     if (auto *found_expr = this->lookup(I)) {
       return found_expr;
     }
-    auto *expr = new SelectExpression();
+    auto *expr = new SelectExpression(I);
     this->insert(I, expr);
 
     // Get the expression of the condition value.
