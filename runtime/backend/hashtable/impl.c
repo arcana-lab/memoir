@@ -1,5 +1,4 @@
 // Simple hash table implemented in C.
-#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -16,6 +15,10 @@
 
 #if defined(STORE_LENGTH)
 #else
+#endif
+
+#if defined(__cplusplus)
+extern "C" {
 #endif
 
 // Only works for pointers
@@ -41,9 +44,14 @@
     K##_##V##_hashtable_p table = (K##_##V##_hashtable_p)malloc(               \
         sizeof(K##_##V##_hashtable_t)                                          \
         + INITIAL_CAPACITY * sizeof(K##_##V##_hashtable_entry_t));             \
-    memset(table->_entries, 0, INITIAL_CAPACITY);                              \
-    assert(table != NULL);                                                     \
+    memset(table->_entries,                                                    \
+           0,                                                                  \
+           INITIAL_CAPACITY * sizeof(K##_##V##_hashtable_entry_t));            \
+    if (table == NULL) {                                                       \
+      exit(1);                                                                 \
+    }                                                                          \
     table->_capacity = INITIAL_CAPACITY;                                       \
+    table->_length = 0;                                                        \
                                                                                \
     return table;                                                              \
   }                                                                            \
@@ -86,30 +94,27 @@
     return false;                                                              \
   }                                                                            \
                                                                                \
-  static alwaysinline used K##_##V##_hashtable_p K##_##V##_hashtable__expand(  \
-      K##_##V##_hashtable_p);                                                  \
-  static alwaysinline used K##_##V##_hashtable_p K##_##V##_hashtable__write(   \
+  /* Set key-value pair, will not expand table */                              \
+  static alwaysinline used void K##_##V##_hashtable__set(                      \
       K##_##V##_hashtable_p table,                                             \
       C_KEY key,                                                               \
       C_VALUE value) {                                                         \
-    uint64_t hash = K##_##V##_hashtable__hash_key(key);                        \
-    size_t index = (size_t)(hash & (uint64_t)(table->_capacity - 1));          \
-    size_t begin_index = index;                                                \
+    uint64_t hash;                                                             \
+    size_t index, begin_index;                                                 \
+    hash = K##_##V##_hashtable__hash_key(key);                                 \
+    index = (size_t)(hash & (uint64_t)(table->_capacity - 1));                 \
+    begin_index = index;                                                       \
                                                                                \
     /* Loop 'til we find an empty entry. */                                    \
     while (table->_entries[index]._key != NULL) {                              \
       if (key == table->_entries[index]._key) {                                \
         /* Found key. */                                                       \
         table->_entries[index]._value = value;                                 \
-        return table;                                                          \
+        return;                                                                \
       }                                                                        \
       /* Do a linear probe. */                                                 \
       index++;                                                                 \
-      if (index == begin_index) {                                              \
-        /* Expand the K##_##V##_hashtable. */                                  \
-        table = K##_##V##_hashtable__expand(table);                            \
-        return K##_##V##_hashtable__write(table, key, value);                  \
-      } else if (index >= table->_capacity) {                                  \
+      if (index >= table->_capacity) {                                         \
         index = 0;                                                             \
       }                                                                        \
     }                                                                          \
@@ -118,6 +123,21 @@
     table->_entries[index]._key = key;                                         \
     table->_entries[index]._value = value;                                     \
     table->_length++;                                                          \
+                                                                               \
+    return;                                                                    \
+  }                                                                            \
+  static alwaysinline used K##_##V##_hashtable_p K##_##V##_hashtable__expand(  \
+      K##_##V##_hashtable_p);                                                  \
+  static alwaysinline used K##_##V##_hashtable_p K##_##V##_hashtable__write(   \
+      K##_##V##_hashtable_p table,                                             \
+      C_KEY key,                                                               \
+      C_VALUE value) {                                                         \
+    /* Resize if we would be more than half full. */                           \
+    if (table->_length >= table->_capacity / 2) {                              \
+      table = K##_##V##_hashtable__expand(table);                              \
+    }                                                                          \
+                                                                               \
+    K##_##V##_hashtable__set(table, key, value);                               \
                                                                                \
     return table;                                                              \
   }                                                                            \
@@ -178,22 +198,28 @@
   /* Return pointer to new table on success, NULL if out of memory. */         \
   static alwaysinline used K##_##V##_hashtable_p K##_##V##_hashtable__expand(  \
       K##_##V##_hashtable_p table) {                                           \
-    size_t new_capacity = table->_capacity << 1;                               \
-    assert(new_capacity < table->_capacity); /* OVERFLOW! */                   \
+    size_t new_capacity = table->_capacity * 2;                                \
+    if (new_capacity < table->_capacity) { /* OVERFLOW! */                     \
+      exit(2);                                                                 \
+    }                                                                          \
                                                                                \
     K##_##V##_hashtable_p new_table = (K##_##V##_hashtable_p)malloc(           \
         sizeof(K##_##V##_hashtable_t)                                          \
         + new_capacity * sizeof(K##_##V##_hashtable_entry_t));                 \
-    memset(new_table->_entries, 0, new_capacity);                              \
-    assert(new_table != NULL); /* OoM! */                                      \
+    memset(new_table->_entries,                                                \
+           0,                                                                  \
+           new_capacity * sizeof(K##_##V##_hashtable_entry_t));                \
+    if (new_table == NULL) { /* OoM! */                                        \
+      exit(1);                                                                 \
+    }                                                                          \
     new_table->_capacity = new_capacity;                                       \
                                                                                \
     /* Iterate entries, move all non-empty ones to new table's entries. */     \
     for (size_t i = 0; i < table->_capacity; i++) {                            \
       if (table->_entries[i]._key != NULL) {                                   \
-        K##_##V##_hashtable__write(new_table,                                  \
-                                   table->_entries[i]._key,                    \
-                                   table->_entries[i]._value);                 \
+        K##_##V##_hashtable__set(new_table,                                    \
+                                 table->_entries[i]._key,                      \
+                                 table->_entries[i]._value);                   \
       }                                                                        \
     }                                                                          \
                                                                                \
@@ -215,3 +241,7 @@
 #define HANDLE_PRIMITIVE_TYPE(T, C_TYPE, PREFIX)                               \
   INSTANTIATE_TYPED_HASHTABLE(ptr, void *, T, C_TYPE)
 #include "types.def"
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif

@@ -12,7 +12,7 @@ add_library(backend_hashtable STATIC ${SRC_FILES})
 target_include_directories(backend_hashtable PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(backend_hashtable PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../include)
 set_target_properties(backend_hashtable PROPERTIES
-  LINKER_LANGUAGE CXX
+  LINKER_LANGUAGE C
   PUBLIC_HEADER "${HEADER_FILES}"
   PRIVATE_HEADER "${PRIVATE_HEADER_FILES}")
 
