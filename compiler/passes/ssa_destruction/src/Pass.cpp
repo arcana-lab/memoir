@@ -31,6 +31,7 @@
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
+#include "memoir/support/Timer.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"
 
@@ -121,6 +122,9 @@ struct SSADestructionPass : public ModulePass {
 
     SSADestructionStats stats;
 
+    // Start timing
+    const auto start = std::chrono::high_resolution_clock::now();
+
     for (auto &F : M) {
       if (F.empty()) {
         continue;
@@ -186,8 +190,15 @@ struct SSADestructionPass : public ModulePass {
       println("=========================");
     }
 
+    const auto end = std::chrono::high_resolution_clock::now();
+    const std::chrono::duration<double> elapsed_seconds = end - start;
+    auto elapsed = elapsed_seconds.count();
+
     println("=========================");
     println("DONE SSA Destruction pass");
+    println("  Elapsed (s): ", elapsed);
+    println();
+
     return true;
   }
 
