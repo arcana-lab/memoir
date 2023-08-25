@@ -329,9 +329,11 @@ public:
   std::string getName() const;
   llvm::Value &getNameOperand() const;
   llvm::Use &getNameOperandAsUse() const;
+
   unsigned getNumberOfFields() const;
   llvm::Value &getNumberOfFieldsOperand() const;
   llvm::Use &getNumberOfFieldsOperandAsUse() const;
+
   Type &getFieldType(unsigned field_index) const;
   llvm::Value &getFieldTypeOperand(unsigned field_index) const;
   llvm::Use &getFieldTypeOperandAsUse(unsigned field_index) const;
