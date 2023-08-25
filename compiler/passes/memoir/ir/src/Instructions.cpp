@@ -79,6 +79,14 @@ llvm::Function &MemOIRInst::getLLVMFunction() const {
       "MemOIRInst has been corrupted, CallInst is no longer direct!");
 }
 
+llvm::Module *MemOIRInst::getModule() const {
+  return this->getCallInst().getModule();
+}
+
+llvm::BasicBlock *MemOIRInst::getParent() const {
+  return this->getCallInst().getParent();
+}
+
 MemOIR_Func MemOIRInst::getKind() const {
   return FunctionNames::get_memoir_enum(this->getCallInst());
 }
