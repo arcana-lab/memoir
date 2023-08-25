@@ -53,7 +53,7 @@ namespace memoir {
 #define memoir_i16_t MEMOIR_FUNC(i16_type)()
 #define memoir_i8_t MEMOIR_FUNC(i8_type)()
 #define memoir_i2_t MEMOIR_FUNC(i2_type)()
-#define memoir_bool_t MEMOIR_FUNC(bool_type)()
+#define memoir_bool_t MEMOIR_FUNC(boolean_type)()
 #define memoir_f32_t MEMOIR_FUNC(f32_type)()
 #define memoir_f64_t MEMOIR_FUNC(f64_type)()
 #define memoir_ptr_t MEMOIR_FUNC(ptr_type)()

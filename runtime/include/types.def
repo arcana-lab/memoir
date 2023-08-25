@@ -1,5 +1,5 @@
 #ifndef HANDLE_TYPE
-#define HANDLE_TYPE(TYPE_NAME, C_TYPE) /* NO HANDLING */
+#  define HANDLE_TYPE(TYPE_NAME, C_TYPE) /* NO HANDLING */
 #endif
 HANDLE_TYPE(u64, uint64_t)
 HANDLE_TYPE(u32, uint32_t)
@@ -10,7 +10,7 @@ HANDLE_TYPE(i32, int32_t)
 HANDLE_TYPE(i16, int16_t)
 HANDLE_TYPE(i8, int8_t)
 HANDLE_TYPE(i2, int8_t)
-HANDLE_TYPE(bool, bool)
+HANDLE_TYPE(boolean, bool)
 HANDLE_TYPE(f64, double)
 HANDLE_TYPE(f32, float)
 HANDLE_TYPE(ptr, void *)
@@ -18,7 +18,10 @@ HANDLE_TYPE(struct_ref, Struct *)
 HANDLE_TYPE(collection_ref, Collection *)
 
 #ifndef HANDLE_INTEGER_TYPE
-#define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BITWIDTH, IS_SIGNED) /* NO HANDLING */
+#  define HANDLE_INTEGER_TYPE(TYPE_NAME,                                       \
+                              C_TYPE,                                          \
+                              BITWIDTH,                                        \
+                              IS_SIGNED) /* NO HANDLING */
 #endif
 HANDLE_INTEGER_TYPE(u64, uint64_t, 64, false)
 HANDLE_INTEGER_TYPE(u32, uint32_t, 32, false)
@@ -29,23 +32,28 @@ HANDLE_INTEGER_TYPE(i32, int32_t, 32, true)
 HANDLE_INTEGER_TYPE(i16, int16_t, 16, true)
 HANDLE_INTEGER_TYPE(i8, int8_t, 8, true)
 HANDLE_INTEGER_TYPE(i2, int8_t, 2, true)
-HANDLE_INTEGER_TYPE(bool, bool, 1, false) 
+HANDLE_INTEGER_TYPE(boolean, bool, 1, false)
 
 #ifndef HANDLE_PRIMITIVE_TYPE
-#define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX) /* NO HANDLING */
+#  define HANDLE_PRIMITIVE_TYPE(TYPE_NAME,                                     \
+                                C_TYPE,                                        \
+                                CLASS_PREFIX) /* NO HANDLING */
 #endif
 HANDLE_PRIMITIVE_TYPE(f64, double, Double)
 HANDLE_PRIMITIVE_TYPE(f32, float, Float)
 HANDLE_PRIMITIVE_TYPE(ptr, void *, Pointer)
 
 #ifndef HANDLE_REFERENCE_TYPE
-#define HANDLE_REFERENCE_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX) /* NO HANDLING */
+#  define HANDLE_REFERENCE_TYPE(TYPE_NAME,                                     \
+                                C_TYPE,                                        \
+                                CLASS_PREFIX) /* NO HANDLING */
 #endif
 HANDLE_REFERENCE_TYPE(struct_ref, Struct *, Struct)
 HANDLE_REFERENCE_TYPE(collection_ref, Collection *, Collection)
 
 #ifndef HANDLE_NESTED_TYPE
-#define HANDLE_NESTED_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX) /* NO HANDLING */
+#  define HANDLE_NESTED_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX) /* NO HANDLING   \
+                                                               */
 #endif
 HANDLE_NESTED_TYPE(struct, Struct *, Struct)
 HANDLE_NESTED_TYPE(collection, Collection *, Collection)
