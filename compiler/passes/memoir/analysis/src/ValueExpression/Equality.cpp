@@ -36,10 +36,12 @@ bool check_relation(const ValueExpression &E1,
 
   auto x = E1.to_expr(c, s, assumptions, id, env);
   if (!x) {
+    println("Couldn't make z3 expr for lhs");
     return false;
   }
   auto y = E2.to_expr(c, s, assumptions, id, env);
   if (!y) {
+    println("Couldn't make z3 expr for rhs");
     return false;
   }
   auto conjecture = relation(*x, *y);
@@ -107,7 +109,15 @@ opt<z3::expr> ValueExpression::to_expr(
     z3::expr_vector &assumptions,
     uint32_t &id,
     map<llvm::Value *, uint32_t> &env) const {
-  return {};
+  if (this->value) {
+    auto var = c.int_const(get_id(this->value, id, env).c_str());
+    // auto implication = c.bool_const(std::to_string(id++).c_str());
+    // s.add(implies(implication, var > 0));
+    // assumptions.push_back(implication);
+    return var;
+  } else {
+    return {};
+  }
 }
 
 // Helper macro
@@ -195,8 +205,17 @@ opt<z3::expr> BasicExpression::to_expr(
     map<llvm::Value *, uint32_t> &env) const {
 
   switch (this->opcode) {
-    default:
-      return {};
+    default: {
+      if (this->I == nullptr) {
+        println("no instruction for BasicExpression");
+        return {};
+      }
+      auto var = c.int_const(get_id(this->I, id, env).c_str());
+      auto implication = c.bool_const(std::to_string(id++).c_str());
+      s.add(implies(implication, var > 0));
+      assumptions.push_back(implication);
+      return var;
+    }
     case llvm::Instruction::BinaryOps::Add:
     case llvm::Instruction::BinaryOps::Sub:
     case llvm::Instruction::BinaryOps::Mul:
@@ -205,14 +224,32 @@ opt<z3::expr> BasicExpression::to_expr(
   }
   auto *lexpr = this->arguments[0];
   auto *rexpr = this->arguments[1];
-  auto l = lexpr->to_expr(c, s, assumptions, id, env);
+  opt<z3::expr> l;
+  if (auto *lexpr_as_constant = dyn_cast<ConstantExpression>(lexpr)) {
+    if (auto *lexpr_as_const_int =
+            dyn_cast<llvm::ConstantInt>(&lexpr_as_constant->C)) {
+      l = c.int_val(lexpr_as_const_int->getSExtValue());
+    }
+  }
+  if (!l) {
+    l = lexpr->to_expr(c, s, assumptions, id, env);
+  }
   auto lhs = l ? *l : c.int_const(get_id(lexpr->getValue(), id, env).c_str());
   if (!l) {
     auto implication = c.bool_const(std::to_string(id++).c_str());
     s.add(implies(implication, lhs > 0));
     assumptions.push_back(implication);
   }
-  auto r = rexpr->to_expr(c, s, assumptions, id, env);
+  opt<z3::expr> r;
+  if (auto *rexpr_as_constant = dyn_cast<ConstantExpression>(rexpr)) {
+    if (auto *rexpr_as_const_int =
+            dyn_cast<llvm::ConstantInt>(&rexpr_as_constant->C)) {
+      r = c.int_val(rexpr_as_const_int->getSExtValue());
+    }
+  }
+  if (!r) {
+    r = rexpr->to_expr(c, s, assumptions, id, env);
+  }
   auto rhs = r ? *r : c.int_const(get_id(rexpr->getValue(), id, env).c_str());
   if (!r) {
     auto implication = c.bool_const(std::to_string(id++).c_str());
@@ -233,6 +270,27 @@ opt<z3::expr> BasicExpression::to_expr(
       return {};
   }
 }
+
+// SelectExpression
+opt<z3::expr> SelectExpression::to_expr(
+    z3::context &c,
+    z3::solver &s,
+    z3::expr_vector &assumptions,
+    uint32_t &id,
+    map<llvm::Value *, uint32_t> &env) const {
+  println("select to expr");
+  if (this->getPHI()) {
+    auto var = c.int_const(get_id(this->getPHI(), id, env).c_str());
+
+    auto implication = c.bool_const(std::to_string(id++).c_str());
+    s.add(implies(implication, var >= 0));
+    assumptions.push_back(implication);
+
+    return var;
+  } else {
+    return {};
+  }
+} // namespace llvm::memoir
 
 // PHIExpression
 bool PHIExpression::equals(const ValueExpression &E) const {
@@ -260,6 +318,20 @@ bool SizeExpression::equals(const ValueExpression &E) const {
   CHECK_OTHER(E, SizeExpression);
   // TODO
   return false;
+}
+
+opt<z3::expr> SizeExpression::to_expr(z3::context &c,
+                                      z3::solver &s,
+                                      z3::expr_vector &assumptions,
+                                      uint32_t &id,
+                                      map<llvm::Value *, uint32_t> &env) const {
+  auto collection_expr = this->CE->to_expr(c, s, assumptions, id, env);
+
+  auto implication = c.bool_const(std::to_string(id++).c_str());
+  s.add(implies(implication, collection_expr >= 0));
+  assumptions.push_back(implication);
+
+  return collection_expr;
 }
 
 } // namespace llvm::memoir

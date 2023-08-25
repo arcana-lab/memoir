@@ -405,12 +405,22 @@ public:
     this->arguments.push_back(true_value);
     this->arguments.push_back(false_value);
   }
+  SelectExpression(llvm::PHINode &phi)
+    : BasicExpression(EK_Select, Instruction::Select),
+      phi(&phi) {}
   SelectExpression() : BasicExpression(EK_Select, Instruction::Select) {}
 
   ValueExpression *getCondition() const;
   ValueExpression *getTrueValue() const;
   ValueExpression *getFalseValue() const;
   llvm::Type *getLLVMType() const override;
+  llvm::PHINode *getPHI() const;
+
+  opt<z3::expr> to_expr(z3::context &c,
+                        z3::solver &s,
+                        z3::expr_vector &assumptions,
+                        uint32_t &name,
+                        map<llvm::Value *, uint32_t> &env) const override;
 
   llvm::Value *materialize(llvm::Instruction &IP,
                            MemOIRBuilder *builder = nullptr,
@@ -418,6 +428,8 @@ public:
                            llvm::CallBase *call_context = nullptr) override;
 
   std::string toString(std::string indent = "") const override;
+
+  llvm::PHINode *phi;
 };
 
 struct CallExpression : public BasicExpression {
@@ -545,6 +557,12 @@ public:
   SizeExpression() : SizeExpression(nullptr) {}
 
   bool equals(const ValueExpression &E) const override;
+
+  opt<z3::expr> to_expr(z3::context &c,
+                        z3::solver &s,
+                        z3::expr_vector &assumptions,
+                        uint32_t &name,
+                        map<llvm::Value *, uint32_t> &env) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,

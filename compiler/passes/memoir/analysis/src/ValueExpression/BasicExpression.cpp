@@ -231,6 +231,10 @@ llvm::Type *SelectExpression::getLLVMType() const {
   return this->getTrueValue()->getLLVMType();
 }
 
+llvm::PHINode *SelectExpression::getPHI() const {
+  return this->phi;
+}
+
 llvm::Value *SelectExpression::materialize(llvm::Instruction &IP,
                                            MemOIRBuilder *builder,
                                            const llvm::DominatorTree *DT,
