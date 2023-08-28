@@ -21,9 +21,10 @@ TypeAnalysis::TypeAnalysis() {
   if (auto found = this->findExisting(V)) {                                    \
     return found;                                                              \
   }                                                                            \
-  debugln("TypeAnalysis: visiting ", I);
+  debugln("TypeAnalysis: visiting ", V);
 
 #define MEMOIZE_AND_RETURN(V, T)                                               \
+  debugln("TypeAnalysis: done ", V);                                           \
   /* Memoize the type */                                                       \
   this->memoize(V, T);                                                         \
   /* Return */                                                                 \
