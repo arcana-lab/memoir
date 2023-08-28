@@ -80,9 +80,12 @@ public:
                ->getCallInst(),
           name);
     } else if (auto *struct_type = dyn_cast<StructType>(&type)) {
-      return this->CreateStructTypeInst(
-          &struct_type->getDefinition().getNameOperand(),
-          name);
+      auto *name_global = &struct_type->getDefinition().getNameOperand();
+      if (auto *name_as_inst = dyn_cast<llvm::Instruction>(name_global)) {
+        name_global = name_as_inst->clone();
+        this->Insert(cast<llvm::Instruction>(name_global));
+      }
+      return this->CreateStructTypeInst(name_global, name);
     } else if (auto *field_array_type = dyn_cast<FieldArrayType>(&type)) {
       return this->CreateTypeInst(field_array_type->getStructType());
     } else if (auto *static_tensor_type = dyn_cast<StaticTensorType>(&type)) {
@@ -189,7 +192,7 @@ public:
 
   // TODO: Add the other derived type instructions.
 
-  /* TODO
+  /*
    * Allocation Instructions
    */
   SequenceAllocInst *CreateSequenceAllocInst(Type &type,
@@ -237,6 +240,39 @@ public:
     MEMOIR_NULL_CHECK(seq_alloc_inst,
                       "Could not create call to AllocateSequence");
     return seq_alloc_inst;
+  }
+
+  // Assoc allocation
+  AssocArrayAllocInst *CreateAssocArrayAllocInst(Type &key_type,
+                                                 Type &value_type,
+                                                 const Twine &name = "") {
+    return this->CreateAssocArrayAllocInst(
+        &this->CreateTypeInst(key_type)->getCallInst(),
+        &this->CreateTypeInst(value_type)->getCallInst(),
+        name);
+  }
+
+  AssocArrayAllocInst *CreateAssocArrayAllocInst(llvm::Value *key_type,
+                                                 llvm::Value *value_type,
+                                                 const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto *llvm_func =
+        FunctionNames::get_memoir_function(*(this->M),
+                                           MemOIR_Func::ALLOCATE_ASSOC_ARRAY);
+
+    // Create the LLVM call.
+    auto *llvm_call = this->CreateCall(FunctionCallee(llvm_func),
+                                       llvm::ArrayRef({ key_type, value_type }),
+                                       name);
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for sequence allocation.");
+
+    // Cast to MemOIRInst and return.
+    auto *memoir_inst = MemOIRInst::get(*llvm_call);
+    auto *alloc_inst = dyn_cast<AssocArrayAllocInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(alloc_inst, "Could not create AssocArrayAllocInst");
+
+    return alloc_inst;
   }
 
   /* TODO
