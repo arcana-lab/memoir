@@ -19,6 +19,7 @@
 #include <list>
 #include <queue>
 #include <stack>
+#include <tuple>
 #include <vector>
 
 #include <functional>
@@ -101,6 +102,56 @@ using set = std::unordered_set<T, std::hash<unwrap_ref_type<T>>>;
 template <typename T>
 using ordered_set = std::set<T, std::less<unwrap_ref_type<T>>>;
 
+#if DEBUG
+template <typename T, typename U>
+using multimap = std::multimap<T, U>;
+#else
+template <typename T, typename U>
+using multimap = std::unordered_multimap<T, U>;
+#endif
+
+template <typename T, typename U>
+using ordered_multimap = std::multimap<T, U>;
+
+template <typename T, typename U>
+inline typename std::multimap<T, U>::iterator insert_unique(
+    std::multimap<T, U> &mmap,
+    const T &key,
+    const U &value) {
+  auto range = mmap.equal_range(key);
+  for (auto it = range.first; it != range.second; ++it) {
+    if (it->second == value) {
+      return it;
+    }
+  }
+  return mmap.insert(std::make_pair(key, value));
+}
+
+template <typename T, typename U>
+inline typename std::unordered_multimap<T, U>::iterator insert_unique(
+    std::unordered_multimap<T, U> &mmap,
+    const T &key,
+    const U &value) {
+  auto range = mmap.equal_range(key);
+  for (auto it = range.first; it != range.second; ++it) {
+    if (it->second == value) {
+      return it;
+    }
+  }
+  return mmap.insert(std::make_pair(key, value));
+}
+
+#if DEBUG
+template <typename T>
+using multiset = std::multiset<T, std::less<unwrap_ref_type<T>>>;
+#else
+template <typename T>
+using multiset = std::unordered_multiset<T, std::hash<unwrap_ref_type<T>>>;
+#endif
+
+template <typename T>
+using ordered_multiset = std::multiset<T, std::less<unwrap_ref_type<T>>>;
+
 template <typename T>
 using vector = std::vector<T>;
 
@@ -120,6 +171,15 @@ using pair = std::pair<T1, T2>;
 template <typename T1, typename T2>
 inline pair<T1, T2> make_pair(T1 first, T2 second) {
   return std::make_pair(first, second);
+}
+
+// Tuple
+template <typename... Ts>
+using tuple = std::tuple<Ts...>;
+
+template <typename... Ts>
+inline tuple<Ts...> make_tuple(Ts... args) {
+  return std::make_tuple<Ts...>(std::forward<Ts...>(args)...);
 }
 
 } // namespace llvm::memoir
