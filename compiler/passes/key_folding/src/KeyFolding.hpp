@@ -62,7 +62,7 @@ protected:
 
   // Analysis Types.
   struct KeyFoldingInfo {
-    map<AssocArrayAllocInst *, SequenceAllocInst *> key_folds;
+    map<AssocArrayAllocInst *, CollectionAllocInst *> key_folds;
     map<AssocArrayAllocInst *, map<AccessInst *, llvm::Use *>> assoc_accesses;
     map<llvm::Use *, llvm::Value *> key_to_index;
   };
@@ -320,7 +320,7 @@ protected:
       // Next, we will check each of the keys used to access this collection to
       // see if it is _always_ derived from the same collection.
       bool unknown_behavior = false;
-      set<llvm::Value *> sequences_accessed = {};
+      set<llvm::Value *> collections_accessed = {};
       for (auto const &[assoc_access, assoc_key] : assoc_alloc_accesses) {
         println("  access: ", *assoc_access);
 
@@ -342,8 +342,24 @@ protected:
 
             // Record the sequence variable that was accessed along with the
             // key-to-index mapping.
-            sequences_accessed.insert(&sequence_accessed);
+            collections_accessed.insert(&sequence_accessed);
             key_to_index[assoc_key] = &index_accessed;
+
+            // Keep on chugging.
+            continue;
+          }
+
+          // If the key is the result of an AssocGetInst, record the sequence
+          // accessed and the mapping from this key to the key accessed.
+          if (auto *key_as_assoc_get = dyn_cast<AssocGetInst>(key_as_memoir)) {
+            // Fetch information from the IndexGetInst.
+            auto &assoc_accessed = key_as_assoc_get->getObjectOperand();
+            auto &key_accessed = key_as_assoc_get->getKeyOperand();
+
+            // Record the sequence variable that was accessed along with the
+            // key-to-index mapping.
+            collections_accessed.insert(&assoc_accessed);
+            key_to_index[assoc_key] = &key_accessed;
 
             // Keep on chugging.
             continue;
@@ -365,16 +381,14 @@ protected:
         continue;
       }
 
-      // Check that all sequences accessed _must_ be the same allocation.
-      // We will be a little naive here and not handle results of slice and
-      // join instructions.
-      set<SequenceAllocInst *> sequences_referenced = {};
+      // Check that all collections accessed _must_ be the same allocation.
+      set<CollectionAllocInst *> collections_referenced = {};
 
       visited.clear();
       worklist.clear();
       worklist.insert(worklist.end(),
-                      sequences_accessed.begin(),
-                      sequences_accessed.end());
+                      collections_accessed.begin(),
+                      collections_accessed.end());
       while (!worklist.empty()) {
         // Pop an item of the worklist.
         auto *workitem = worklist.back();
@@ -391,7 +405,10 @@ protected:
         if (auto *inst = dyn_cast<llvm::Instruction>(workitem)) {
           if (auto *memoir_inst = MemOIRInst::get(*inst)) {
             if (auto *seq_alloc = dyn_cast<SequenceAllocInst>(memoir_inst)) {
-              sequences_referenced.insert(seq_alloc);
+              collections_referenced.insert(seq_alloc);
+            } else if (auto *assoc_alloc =
+                           dyn_cast<AssocArrayAllocInst>(memoir_inst)) {
+              collections_referenced.insert(assoc_alloc);
             } else if (auto *use_phi = dyn_cast<UsePHIInst>(memoir_inst)) {
               worklist.push_back(&use_phi->getCallInst());
             } else if (auto *def_phi = dyn_cast<DefPHIInst>(memoir_inst)) {
@@ -443,31 +460,35 @@ protected:
                           possible_arguments.begin(),
                           possible_arguments.end());
         } else {
-          sequences_referenced.insert(nullptr);
+          collections_referenced.insert(nullptr);
         }
       }
 
       // If there is more than one sequence that may be referenced, skip this
       // assoc.
-      if (sequences_referenced.size() > 1) {
+      if (collections_referenced.size() > 1) {
         debugln("  keys of assoc may reference more than one sequence");
         continue;
-      } else if (sequences_referenced.size() == 0) {
+      } else if (collections_referenced.size() == 0) {
         debugln("  could not find any sequence allocations referenced.");
         continue;
       }
 
-      // Otherwise, record the assoc-sequence pair for transformation.
-      auto *seq_alloc = *(sequences_referenced.begin());
-      key_folds[assoc_alloc] = seq_alloc;
+      // Otherwise, record the assoc-collection pair for transformation.
+      auto *collection_alloc = *(collections_referenced.begin());
+      if (collection_alloc == nullptr) {
+        debugln("  found an unhandled case");
+        continue;
+      }
+      key_folds[assoc_alloc] = collection_alloc;
     }
 
     debugln("Found the following key folding pairs.");
 
-    for (auto const &[assoc_alloc, seq_alloc] : key_folds) {
+    for (auto const &[assoc_alloc, collection_alloc] : key_folds) {
       debugln("  ", *assoc_alloc);
       debugln("    <==>");
-      debugln("  ", *seq_alloc);
+      debugln("  ", *collection_alloc);
       debugln();
     }
 
@@ -502,83 +523,113 @@ protected:
     set<llvm::Instruction *> instructions_to_delete = {};
 
     // For key-fold pair.
-    map<AssocArrayAllocInst *, SequenceAllocInst *> folded_assoc = {};
-    for (auto const &[assoc_alloc, seq_alloc] : key_folds) {
-      // Convert the assoc allocation to be a sequence allocation the same size
-      // as the sequence allocation.
-      auto &seq_size = seq_alloc->getSizeOperand();
+    for (auto const &[assoc_alloc, collection_alloc] : key_folds) {
+      if (auto *seq_alloc = dyn_cast<SequenceAllocInst>(collection_alloc)) {
+        // Convert the assoc allocation to be a sequence allocation the same
+        // size as the sequence allocation.
+        auto &seq_size = seq_alloc->getSizeOperand();
 
-      // Check if the size is available at the assoc allocation site.
-      // NOTE: this is a little conservative to keep things simple: if the size
-      // is not available at the assoc allocation site, then we will _not_
-      // perform key folding for this candidate.
-      llvm::Value *allocation_size;
+        // Check if the size is available at the assoc allocation site.
+        // NOTE: this is a little conservative to keep things simple: if the
+        // size is not available at the assoc allocation site, then we will
+        // _not_ perform key folding for this candidate.
+        llvm::Value *allocation_size;
 
-      // If the size is a constant, it is available.
-      if (auto *size_as_const_int = dyn_cast<llvm::ConstantInt>(&seq_size)) {
-        allocation_size = size_as_const_int;
-      }
-      // If the size is an argument of the function containing the assoc
-      // allocation, it is available.
-      else if (auto *size_as_argument = dyn_cast<llvm::Argument>(&seq_size)) {
-        allocation_size = size_as_argument;
-      }
-      // If the size dominates the assoc allocation, it is available.
-      else if (false) {
-        debugln("Sequence size based on dominance is unimplemented");
-        allocation_size = nullptr;
-      }
-      // Otherwise, the size is not available, skip this pair.
-      else {
-        allocation_size = nullptr;
-      }
+        // If the size is a constant, it is available.
+        if (auto *size_as_const_int = dyn_cast<llvm::ConstantInt>(&seq_size)) {
+          allocation_size = size_as_const_int;
+        }
+        // If the size is an argument of the function containing the assoc
+        // allocation, it is available.
+        else if (auto *size_as_argument = dyn_cast<llvm::Argument>(&seq_size)) {
+          allocation_size = size_as_argument;
+        }
+        // If the size dominates the assoc allocation, it is available.
+        else if (false) {
+          debugln("Sequence size based on dominance is unimplemented");
+          allocation_size = nullptr;
+        }
+        // Otherwise, the size is not available, skip this pair.
+        else {
+          allocation_size = nullptr;
+        }
 
-      // Check that we were able to find an allocation size.
-      if (allocation_size == nullptr) {
-        debugln("Sequence size is not available.");
-        continue;
-      }
+        // Check that we were able to find an allocation size.
+        if (allocation_size == nullptr) {
+          debugln("Sequence size is not available.");
+          continue;
+        }
 
-      // Build a new sequence allocation.
-      MemOIRBuilder builder(*assoc_alloc, /*InsertAfter=*/false);
+        // Build a new sequence allocation.
+        MemOIRBuilder builder(*assoc_alloc, /*InsertAfter=*/false);
 
-      // The value operand _will_ be available, because we are inserting
-      // immediately before the existing allocation.
-      auto &elem_type = assoc_alloc->getValueOperand();
+        // The value operand _will_ be available, because we are inserting
+        // immediately before the existing allocation.
+        auto &elem_type = assoc_alloc->getValueOperand();
 
-      auto *folded_sequence = builder.CreateSequenceAllocInst(&elem_type,
-                                                              allocation_size,
-                                                              "folded.");
-      folded_assoc[assoc_alloc] = folded_sequence;
+        auto *folded_sequence = builder.CreateSequenceAllocInst(&elem_type,
+                                                                allocation_size,
+                                                                "folded.");
 
-      // Replace the assoc allocation with the folded one.
-      assoc_alloc->getCallInst().replaceAllUsesWith(
-          &folded_sequence->getCallInst());
+        // Replace the assoc allocation with the folded one.
+        assoc_alloc->getCallInst().replaceAllUsesWith(
+            &folded_sequence->getCallInst());
 
-      // Mark the old allocation for cleanup.
-      instructions_to_delete.insert(&assoc_alloc->getCallInst());
+        // Mark the old allocation for cleanup.
+        instructions_to_delete.insert(&assoc_alloc->getCallInst());
 
-      // For each access, convert it to be an indexed access using the
-      // key-to-index map.
-      auto &accesses = assoc_accesses[assoc_alloc];
-      for (auto const &[access, key_use] : accesses) {
-        // Fetch the information about this access.
-        auto &access_call = access->getCallInst();
-        auto *access_function = access_call.getCalledFunction();
-        MEMOIR_NULL_CHECK(access_function, "Access function is NULL!");
+        // For each access, convert it to be an indexed access using the
+        // key-to-index map.
+        auto &accesses = assoc_accesses[assoc_alloc];
+        for (auto const &[access, key_use] : accesses) {
+          // Fetch the information about this access.
+          auto &access_call = access->getCallInst();
+          auto *access_function = access_call.getCalledFunction();
+          MEMOIR_NULL_CHECK(access_function, "Access function is NULL!");
 
-        // Get the index variant of this function.
-        auto *replacement_function = get_index_function(*access_function);
-        MEMOIR_NULL_CHECK(replacement_function,
-                          "Couldn't get the index function");
+          // Get the index variant of this function.
+          auto *replacement_function = get_index_function(*access_function);
+          MEMOIR_NULL_CHECK(replacement_function,
+                            "Couldn't get the index function");
 
-        // Replace the called function.
-        access_call.setCalledFunction(replacement_function);
+          // Replace the called function.
+          access_call.setCalledFunction(replacement_function);
 
-        // Replace the key use with its corresponding index.
-        // TODO: enhance this to materialize a ValueExpression.
-        auto *folded_index = key_to_index[key_use];
-        key_use->set(folded_index);
+          // Replace the key use with its corresponding index.
+          // TODO: enhance this to materialize a ValueExpression.
+          auto *folded_index = key_to_index[key_use];
+          key_use->set(folded_index);
+        }
+      } else if (auto *fold_assoc_alloc =
+                     dyn_cast<AssocArrayAllocInst>(collection_alloc)) {
+        // Build a new assoc allocation.
+        MemOIRBuilder builder(*assoc_alloc, /*InsertAfter=*/false);
+
+        // Get the key type that we are folding onto.
+        auto &key_type = fold_assoc_alloc->getKeyType();
+
+        // The value type operand _will_ be available, because we are inserting
+        // immediately before the existing allocation.
+        auto &value_type = assoc_alloc->getValueOperand();
+
+        auto *folded_alloc =
+            builder.CreateAssocArrayAllocInst(key_type, &value_type, "folded.");
+
+        // Replace the assoc allocation with the folded one.
+        assoc_alloc->getCallInst().replaceAllUsesWith(
+            &folded_alloc->getCallInst());
+
+        // Mark the old allocation for cleanup.
+        instructions_to_delete.insert(&assoc_alloc->getCallInst());
+
+        // For each access, convert it to use the folded key.
+        auto &accesses = assoc_accesses[assoc_alloc];
+        for (auto const &[access, key_use] : accesses) {
+          // Replace the key use with its corresponding index.
+          // TODO: enhance this to materialize a ValueExpression.
+          auto *folded_index = key_to_index[key_use];
+          key_use->set(folded_index);
+        }
       }
     }
 
