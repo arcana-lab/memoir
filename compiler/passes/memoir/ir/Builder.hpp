@@ -252,6 +252,15 @@ public:
         name);
   }
 
+  AssocArrayAllocInst *CreateAssocArrayAllocInst(Type &key_type,
+                                                 llvm::Value *value_type,
+                                                 const Twine &name = "") {
+    return this->CreateAssocArrayAllocInst(
+        &this->CreateTypeInst(key_type)->getCallInst(),
+        value_type,
+        name);
+  }
+
   AssocArrayAllocInst *CreateAssocArrayAllocInst(llvm::Value *key_type,
                                                  llvm::Value *value_type,
                                                  const Twine &name = "") {
