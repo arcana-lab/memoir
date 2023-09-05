@@ -322,8 +322,6 @@ protected:
       bool unknown_behavior = false;
       set<llvm::Value *> collections_accessed = {};
       for (auto const &[assoc_access, assoc_key] : assoc_alloc_accesses) {
-        println("  access: ", *assoc_access);
-
         // Check if the key is an instruction.
         auto *key_as_inst = dyn_cast<llvm::Instruction>(assoc_key->get());
         if (key_as_inst == nullptr) {
