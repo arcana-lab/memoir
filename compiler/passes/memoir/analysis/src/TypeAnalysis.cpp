@@ -154,7 +154,9 @@ Type *TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
    */
   vector<Type *> field_types;
   for (auto field_idx = 0; field_idx < I.getNumberOfFields(); field_idx++) {
-    field_types.push_back(&(I.getFieldType(field_idx)));
+    auto &field_type_value = I.getFieldTypeOperand(field_idx);
+    auto *field_type = this->getType(field_type_value);
+    field_types.push_back(field_type);
   }
 
   /*
@@ -340,8 +342,6 @@ Type *TypeAnalysis::visitReadInst(ReadInst &I) {
    * Determine the type of the read collection's elements.
    */
   auto &collection_type = I.getCollectionType();
-  println("collection type");
-  println(collection_type);
   auto &element_type = collection_type.getElementType();
 
   /*
@@ -418,7 +418,6 @@ Type *TypeAnalysis::visitJoinInst(JoinInst &I) {
    */
   for (auto join_index = 0; join_index < I.getNumberOfJoins(); join_index++) {
     auto &incoming_value = I.getJoinedOperand(join_index);
-    println(incoming_value);
 
     /*
      * Check if the incoming value has already been visited
