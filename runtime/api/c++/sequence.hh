@@ -160,7 +160,7 @@ class sequence {
       return (a._storage != b._storage) || (a._index != b._index);
     }
 
-  private:
+  protected:
     memoir::Collection *const _storage;
     std::size_t _index;
   }; // class sequence_iterator
@@ -179,7 +179,7 @@ class sequence {
 
     sequence_bidi_iterator operator--(int) {
       sequence_bidi_iterator tmp = *this;
-      ++(*this);
+      --(*this);
       return tmp;
     }
   };
@@ -216,7 +216,7 @@ public:
   }
 
   sequence_bidi_iterator rend() {
-    return sequence_bidi_iterator(this->_storage, 0);
+    return sequence_bidi_iterator(this->_storage, -1);
   }
 
   std::size_t size() const {
