@@ -62,9 +62,9 @@ llvm::Argument *ValueExpression::handleCallContext(
     MemOIRBuilder *builder,
     const llvm::DominatorTree *DT) {
 
-  println("Handling call context");
-  println("  for ", Expr);
-  println("  at  ", call_context);
+  infoln("Handling call context");
+  infoln("  for ", Expr);
+  infoln("  at  ", call_context);
 
   // Get the called function.
   auto *called_function = call_context.getCalledFunction();
@@ -84,7 +84,7 @@ llvm::Argument *ValueExpression::handleCallContext(
 
   // Add the new argument type.
   auto new_arg_index = param_types.size();
-  println(Expr.getLLVMType());
+  infoln(Expr.getLLVMType());
   param_types.push_back(Expr.getLLVMType());
 
   // Construct the new function type.
