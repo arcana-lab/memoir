@@ -122,9 +122,6 @@ struct SSADestructionPass : public ModulePass {
 
     SSADestructionStats stats;
 
-    // Start timing
-    const auto start = std::chrono::high_resolution_clock::now();
-
     for (auto &F : M) {
       if (F.empty()) {
         continue;
@@ -141,9 +138,9 @@ struct SSADestructionPass : public ModulePass {
         continue;
       }
 
-      println();
-      println("=========================");
-      println("BEGIN: ", F.getName());
+      infoln();
+      infoln("=========================");
+      infoln("BEGIN: ", F.getName());
 
       // Get the dominator forest.
       auto &DT = NOELLE.getDominators(&F)->DT;
@@ -163,7 +160,7 @@ struct SSADestructionPass : public ModulePass {
       auto dfs_preorder = dfs_preorder_traversal(DT, entry_bb);
 
       // Apply rewrite rules and renaming for reaching definitions.
-      println("Coallescing collection variables");
+      infoln("Coallescing collection variables");
       for (auto *bb : dfs_preorder) {
         for (auto &I : *bb) {
           SSADV.visit(I);
@@ -174,7 +171,7 @@ struct SSADestructionPass : public ModulePass {
       // the entry basic block.
       // auto dfs_postorder = dfs_postorder_traversal(DT, entry_bb);
 
-      println("Performing the coalescence");
+      infoln("Performing the coalescence");
       for (auto *bb : dfs_preorder) {
         // Reverse iterate on instructions in the basic block.
         for (auto it = bb->begin(); it != bb->end(); ++it) {
@@ -183,20 +180,15 @@ struct SSADestructionPass : public ModulePass {
         }
       }
 
-      println("Cleaning up dead instructions.");
+      infoln("Cleaning up dead instructions.");
       SSADV.cleanup();
 
-      println("END: ", F.getName());
-      println("=========================");
+      infoln("END: ", F.getName());
+      infoln("=========================");
     }
-
-    const auto end = std::chrono::high_resolution_clock::now();
-    const std::chrono::duration<double> elapsed_seconds = end - start;
-    auto elapsed = elapsed_seconds.count();
 
     println("=========================");
     println("DONE SSA Destruction pass");
-    println("  Elapsed (s): ", elapsed);
     println();
 
     return true;
