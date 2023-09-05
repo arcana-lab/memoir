@@ -36,22 +36,22 @@ bool check_relation(const ValueExpression &E1,
 
   auto x = E1.to_expr(c, s, assumptions, id, env);
   if (!x) {
-    println("Couldn't make z3 expr for lhs");
+    infoln("Couldn't make z3 expr for lhs");
     return false;
   }
   auto y = E2.to_expr(c, s, assumptions, id, env);
   if (!y) {
-    println("Couldn't make z3 expr for rhs");
+    infoln("Couldn't make z3 expr for rhs");
     return false;
   }
   auto conjecture = relation(*x, *y);
 
   s.add(!conjecture);
 
-  println(Z3_solver_to_string(s.ctx(), s));
-  println("assuming");
-  println(assumptions.to_string());
-  println();
+  infoln(Z3_solver_to_string(s.ctx(), s));
+  infoln("assuming");
+  infoln(assumptions.to_string());
+  infoln();
   return s.check(assumptions) == z3::check_result::unsat;
 }
 
@@ -207,7 +207,7 @@ opt<z3::expr> BasicExpression::to_expr(
   switch (this->opcode) {
     default: {
       if (this->I == nullptr) {
-        println("no instruction for BasicExpression");
+        infoln("no instruction for BasicExpression");
         return {};
       }
       auto var = c.int_const(get_id(this->I, id, env).c_str());
@@ -278,7 +278,7 @@ opt<z3::expr> SelectExpression::to_expr(
     z3::expr_vector &assumptions,
     uint32_t &id,
     map<llvm::Value *, uint32_t> &env) const {
-  println("select to expr");
+  infoln("select to expr");
   if (this->getPHI()) {
     auto var = c.int_const(get_id(this->getPHI(), id, env).c_str());
 
