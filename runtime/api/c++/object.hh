@@ -1,3 +1,7 @@
+#ifndef MEMOIR_CPP_OBJECT_HH
+#define MEMOIR_CPP_OBJECT_HH
+#pragma once
+
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
@@ -486,3 +490,5 @@ private:
 #define USING_STRUCT(NAME) using NAME = memoir::object<memoir::user::NAME>;
 
 } // namespace memoir
+
+#endif // MEMOIR_CPP_OBJECT_HH
