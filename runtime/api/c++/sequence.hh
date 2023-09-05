@@ -1,4 +1,10 @@
+#ifndef MEMOIR_CPP_SEQUENCE_HH
+#define MEMOIR_CPP_SEQUENCE_HH
+#pragma once
+
 #include "memoir.h"
+
+#include "object.hh"
 
 namespace memoir {
 
@@ -105,6 +111,60 @@ class sequence {
     const std::size_t idx;
   }; // class sequence_element
 
+  class sequence_iterator {
+  public:
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type = std::size_t;
+    using value_type = sequence_element;
+    using pointer = value_type;
+    using reference = value_type;
+
+    // Constructors.
+    sequence_iterator(memoir::Collection *const storage, std::size_t index)
+      : _storage(storage),
+        _index(index) {}
+
+    sequence_iterator(sequence_iterator &elem)
+      : _storage(elem._storage),
+        _index(elem._index) {}
+
+    // Splat.
+    reference operator*() const {
+      return sequence_element(this->_storage, this->_index);
+    }
+
+    pointer operator->() const {
+      return sequence_element(this->_storage, this->_index);
+    }
+
+    // Prefix increment.
+    sequence_iterator &operator++() {
+      this->_index++;
+      return *this;
+    }
+
+    // Postfix increment.
+    sequence_iterator operator++(int) {
+      sequence_iterator tmp = *this;
+      ++(*this);
+      return tmp;
+    }
+
+    friend bool operator==(const sequence_iterator &a,
+                           const sequence_iterator &b) {
+      return (a._storage == b._storage) && (a._index == b._index);
+    }
+
+    friend bool operator!=(const sequence_iterator &a,
+                           const sequence_iterator &b) {
+      return (a._storage != b._storage) || (a._index != b._index);
+    }
+
+  private:
+    memoir::Collection *const _storage;
+    std::size_t _index;
+  }; // class sequence_iterator
+
 public:
   sequence(std::size_t n)
     : _storage(memoir::MEMOIR_FUNC(
@@ -122,6 +182,18 @@ public:
 
   sequence_element operator[](std::size_t idx) const {
     return sequence_element(this->_storage, idx);
+  }
+
+  sequence_iterator begin() {
+    return sequence_iterator(this->_storage, 0);
+  }
+
+  sequence_iterator end() {
+    return sequence_iterator(this->_storage, this->size());
+  }
+
+  std::size_t size() const {
+    return MEMOIR_FUNC(size)(this->_storage);
   }
 
   void insert(T value, std::size_t index) {
@@ -177,7 +249,7 @@ public:
   }
 
   sequence copy() {
-    return this->copy(0, MEMOIR_FUNC(size)(this->_storage));
+    return this->copy(0, this->size());
   }
 
 protected:
@@ -185,3 +257,5 @@ protected:
 }; // class sequence
 
 } // namespace memoir
+
+#endif // MEMOIR_CPP_SEQUENCE_HH
