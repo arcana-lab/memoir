@@ -165,6 +165,25 @@ class sequence {
     std::size_t _index;
   }; // class sequence_iterator
 
+  class sequence_bidi_iterator : public sequence_iterator {
+  public:
+    sequence_bidi_iterator(memoir::Collection *const storage, std::size_t index)
+      : sequence_iterator(storage, index) {}
+    sequence_bidi_iterator(sequence_bidi_iterator &iter)
+      : sequence_iterator(iter) {}
+
+    sequence_bidi_iterator &operator--() {
+      this->_index--;
+      return *this;
+    }
+
+    sequence_bidi_iterator operator--(int) {
+      sequence_bidi_iterator tmp = *this;
+      ++(*this);
+      return tmp;
+    }
+  };
+
 public:
   sequence(std::size_t n)
     : _storage(memoir::MEMOIR_FUNC(
@@ -190,6 +209,14 @@ public:
 
   sequence_iterator end() {
     return sequence_iterator(this->_storage, this->size());
+  }
+
+  sequence_bidi_iterator rbegin() {
+    return sequence_bidi_iterator(this->_storage, this->size() - 1);
+  }
+
+  sequence_bidi_iterator rend() {
+    return sequence_bidi_iterator(this->_storage, 0);
   }
 
   std::size_t size() const {
