@@ -170,6 +170,20 @@ FieldArrayType &FieldArrayType::get(StructType &struct_type,
 map<StructType *, map<unsigned, FieldArrayType *>>
     *FieldArrayType::struct_to_field_array = nullptr;
 
+// StaticTensorType getter.
+StaticTensorType &Type::get_static_tensor_type(Type &element_type,
+                                               vector<size_t> dimension_sizes) {
+  return StaticTensorType::get(element_type, dimension_sizes);
+}
+
+StaticTensorType &StaticTensorType::get(Type &element_type,
+                                        vector<size_t> dimension_sizes) {
+  return *(new StaticTensorType(element_type,
+                                dimension_sizes.size(),
+                                dimension_sizes));
+}
+
+// TensorType getter.
 TensorType &Type::get_tensor_type(Type &element_type, unsigned num_dimensions) {
   return TensorType::get(element_type, num_dimensions);
 }

@@ -287,6 +287,9 @@ protected:
 
 struct StaticTensorType : public CollectionType {
 public:
+  static StaticTensorType &get(Type &element_type,
+                               vector<size_t> length_of_dimensions);
+
   Type &getElementType() const override;
   unsigned getNumberOfDimensions() const;
   size_t getLengthOfDimension(unsigned dimension_index) const;
