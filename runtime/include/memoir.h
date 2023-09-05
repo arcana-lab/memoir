@@ -238,14 +238,14 @@ Collection *MEMOIR_FUNC(usePHI)(Collection *collection);
 /*
  * Type checking and function signatures.
  */
-__IMMUT_ATTR
+// __IMMUT_ATTR
 __RUNTIME_ATTR
 bool MEMOIR_FUNC(assert_struct_type)(Type *type, Struct *object);
 
-__IMMUT_ATTR
+// __IMMUT_ATTR
 __RUNTIME_ATTR
 bool MEMOIR_FUNC(assert_collection_type)(Type *type, Collection *object);
-__IMMUT_ATTR
+// __IMMUT_ATTR
 __RUNTIME_ATTR
 bool MEMOIR_FUNC(set_return_type)(Type *type);
 
