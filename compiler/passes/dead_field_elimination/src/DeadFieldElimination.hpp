@@ -16,9 +16,6 @@
 
 #include "llvm/Analysis/CFG.h"
 
-// NOELLE
-#include "noelle/core/Noelle.hpp"
-
 // MemOIR
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/Function.hpp"
