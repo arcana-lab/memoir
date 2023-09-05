@@ -125,17 +125,17 @@ protected:
                       "Could not determine the StructType of a struct value!");
 
     // TODO: remove this after done with testing!
-    auto &struct_fields_to_elide = fields_to_elide[struct_type];
-    bool found = false;
-    for (auto candidate : struct_fields_to_elide) {
-      if (candidate.find(0) != candidate.end()) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      fields_to_elide[struct_type].push_back({ 0 });
-    }
+    // auto &struct_fields_to_elide = fields_to_elide[struct_type];
+    // bool found = false;
+    // for (auto candidate : struct_fields_to_elide) {
+    //   if (candidate.find(0) != candidate.end()) {
+    //     found = true;
+    //     break;
+    //   }
+    // }
+    // if (!found) {
+    //   fields_to_elide[struct_type].push_back({ 0 });
+    // }
 
     // Check if this struct is of a type we care about.
     if (fields_to_elide.find(struct_type) == fields_to_elide.end()) {
@@ -324,12 +324,12 @@ protected:
 
     // Check for corner cases.
     if (node_function == nullptr) {
-      warnln("Node function is NULL!");
+      // warnln("Node function is NULL!");
       return used_fields;
     } else if (FunctionNames::is_memoir_call(*node_function)) {
       return used_fields;
     } else if (node_function->empty()) {
-      warnln("Node function is defined externally");
+      // warnln("Node function is defined externally");
       return used_fields;
     }
 
@@ -344,6 +344,7 @@ protected:
       // until we find a case that we need to handle it will remain that way.
       if (callee_function == nullptr) {
         warnln("Callee function is NULL within ", node_function->getName());
+        continue;
       };
 
       // Check if this node has already visited.
@@ -428,6 +429,11 @@ protected:
     map<llvm::Function *, ordered_multimap<StructType *, size_t>>
         function_to_argument_order = {};
     for (auto const &[function, used_fields] : function_to_used_fields) {
+      // Skip this if there are no used fields.
+      if (used_fields.empty()) {
+        continue;
+      }
+
       debugln("Function ", function->getName(), " uses the following fields");
       auto &argument_order = function_to_argument_order[function];
 
@@ -510,7 +516,7 @@ protected:
                                             M);
       MEMOIR_NULL_CHECK(new_function, "Could not create new function!");
 
-      println("Cloning ", function->getName());
+      debugln("Cloning ", function->getName());
 
       // Version the function.
       ValueToValueMapTy vmap;
@@ -604,8 +610,6 @@ protected:
 
       // Update the calls.
       for (auto *call : calls) {
-        println("Handling ", *call);
-
         // Get the called function.
         auto *called_function = call->getCalledFunction();
 
@@ -622,7 +626,7 @@ protected:
         }
         auto *cloned_function = found_clone->second;
 
-        println("  clone= ", cloned_function->getName());
+        debugln("  clone= ", cloned_function->getName());
 
         // Get the order of arguments that this function needs.
         auto &called_argument_order =
@@ -678,7 +682,6 @@ protected:
 
       // Update the accesses.
       for (auto *access : accesses) {
-        infoln("  Handling ", *access);
         llvm::CallInst *access_as_call;
         unsigned field_index;
         if (auto *struct_read = dyn_cast<StructReadInst>(access)) {
