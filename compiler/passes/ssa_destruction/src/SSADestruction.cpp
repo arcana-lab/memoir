@@ -1025,8 +1025,6 @@ void SSADestructionVisitor::visitJoinInst(JoinInst &I) {
         --view_it; // revert the last iteration.
 
         auto &cur_view_end = view->getEndIndex();
-        println(*view);
-        println(*next_view);
         auto &next_view_begin = next_view->getBeginIndex();
 
         // If the views at this insertion point are the same, then we need to
