@@ -4,6 +4,9 @@
 
 #include "memoir.h"
 
+#include "stddef.h"
+#include "stdint.h"
+
 /*
  * C API for the MemOIR compiler instrinsics library.
  *
