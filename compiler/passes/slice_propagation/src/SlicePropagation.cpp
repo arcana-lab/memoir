@@ -74,11 +74,25 @@ bool SlicePropagation::analyze() {
       bool slice_is_only_user = true;
       auto &sliced_operand = slice_inst->getCollectionOperand();
       for (auto &use : sliced_operand.uses()) {
-        auto user = use.getUser();
-        if (user != &llvm_slice_inst) {
-          slice_is_only_user = false;
-          break;
+        auto *user = use.getUser();
+
+        // If the user is the slice inst.
+        if (user == &llvm_slice_inst) {
+          continue;
         }
+
+        // If the user is not a real one. (i.e. a delete inst).
+        if (auto *user_as_inst = dyn_cast<llvm::Instruction>(user)) {
+          if (auto *user_as_memoir = MemOIRInst::get(*user_as_inst)) {
+            if (isa<DeleteCollectionInst>(user_as_memoir)) {
+              continue;
+            }
+          }
+        }
+
+        // Otherwise, there is another user of the slice.
+        slice_is_only_user = false;
+        break;
       }
 
       if (!slice_is_only_user) {
