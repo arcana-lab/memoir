@@ -56,20 +56,23 @@
 #define MEMOIR_HAS_ARGS(...) MEMOIR_BOOL(MEMOIR_FIRST(MEMOIR__END_OF_ARGUMENTS_ __VA_ARGS__)())
 #define MEMOIR__END_OF_ARGUMENTS_() 0
 
-#define MEMOIR_MAP(f, first, ...)            \
+#define MEMOIR_MAP(f, delim, first, ...)         \
   f(first)                            \
   MEMOIR_IF_ELSE(MEMOIR_HAS_ARGS(__VA_ARGS__))(     \
-    , MEMOIR_DEFER2(MEMOIR__MAP)()(f, __VA_ARGS__)  \
+    delim() MEMOIR_DEFER2(MEMOIR__MAP)()(f, delim, __VA_ARGS__) \
   )(                                  \
     /* Do nothing, just terminate */  \
   )
 #define MEMOIR__MAP() MEMOIR_MAP
 
+
+#define MEMOIR_COMMA() ,
 #define MEMOIR_apply_(f, x) f(x)
-#define MEMOIR_apply(f, ...) MEMOIR_EVAL(MEMOIR_MAP(f, __VA_ARGS__))
+#define MEMOIR_apply_delim(f, delim, ...) MEMOIR_EVAL(MEMOIR_MAP(f, delim, __VA_ARGS__))
+#define MEMOIR_apply(f, ...) MEMOIR_apply_delim(f, MEMOIR_COMMA, __VA_ARGS__)
 // clang-format on
 
-#define MEMOIR_CAST_TO(type, x) (type)(x)
+#define MEMOIR_CAST_TO(type, x) ((type)(x))
 #define MEMOIR_CAST_TO_SIZE_T_(x) MEMOIR_CAST_TO(size_t, x)
 #define MEMOIR_CAST_TO_SIZE_T(...)                                             \
   MEMOIR_apply(MEMOIR_CAST_TO_SIZE_T_, __VA_ARGS__)
