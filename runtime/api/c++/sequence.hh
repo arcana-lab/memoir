@@ -8,58 +8,104 @@
 
 namespace memoir {
 
-/*
- * Accessing an indexed collection
- */
+// Base element.
+class element {
+  // Nothing.
+};
+
+// Base indexed collection.
 template <typename T>
 class sequence {
   // static_assert(is_specialization<remove_all_pointers_t<T>, memoir::object>,
   //               "Trying to store non memoir object in a memoir collection!");
 
-  class sequence_element {
+  class object_sequence_element : public T {
   public:
     // using inner_type = typename std::remove_pointer_t<T>;
 
-    sequence_element &operator=(sequence_element &&other) {
+    object_sequence_element &operator=(object_sequence_element &&other) {
       this->target_object = std::move(other.target_object);
       this->idx = std::move(other.idx);
       return *this;
     }
 
-    sequence_element &operator=(sequence_element other) {
+    object_sequence_element &operator=(object_sequence_element other) {
       this->target_object = std::swap(this->target_object, other.target_object);
       this->idx = std::swap(this->idx, other.idx);
       return *this;
     }
 
-    T &operator->() {
-      if constexpr (std::is_pointer_v<T>) {
-        using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (is_specialization<inner_type, memoir::object>) {
-          return std::move(T(MEMOIR_FUNC(
-              index_read_struct_ref)(this->target_object, this->idx)));
-        }
-      }
-    }
-
     T &operator=(T &&val) const {
-      if constexpr (is_specialization<T, memoir::object>) {
+      if constexpr (std::is_base_of_v<memoir::object, T>) {
         // TODO: copy construct the incoming struct
-        // return object(
-        //     MEMOIR_FUNC(index_get_struct_ref)(this->target_object,
-        //     this->idx));
         return val;
       } else if constexpr (std::is_pointer_v<T>) {
         using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (is_specialization<inner_type, memoir::object>) {
+        if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
           MEMOIR_FUNC(index_write_struct_ref)
           (val->target_object, this->target_object, this->idx);
           return val;
-        } else {
-          MEMOIR_FUNC(index_write_ptr)
-          (std::forward<T>(val), this->target_object, this->idx);
-          return val;
         }
+      }
+    } // T &operator=(T &&)
+
+    operator T() const {
+      if constexpr (std::is_pointer_v<T>) {
+        using inner_type = typename std::remove_pointer_t<T>;
+        if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
+          return T(MEMOIR_FUNC(index_read_struct_ref)(this->target_object,
+                                                      this->idx));
+        }
+      } else if constexpr (std::is_base_of_v<memoir::object, T>) {
+        return T(MEMOIR_FUNC(index_get_struct)(this->target_object, this->idx));
+      }
+    } // operator T()
+
+    T operator*() const {
+      if constexpr (std::is_pointer_v<T>) {
+        using inner_type = typename std::remove_pointer_t<T>;
+        if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
+          return T(MEMOIR_FUNC(index_read_struct_ref)(this->target_object,
+                                                      this->idx));
+        }
+      } else if constexpr (std::is_base_of_v<memoir::object, T>) {
+        return T(MEMOIR_FUNC(index_get_struct)(this->target_object, this->idx));
+      }
+    } // operator T()
+
+    // TODO: make this construct the underlying object with a get_struct
+    object_sequence_element(memoir::Collection *target_object, std::size_t idx)
+      : T(MEMOIR_FUNC(index_get_struct)(target_object, idx)),
+        target_object(target_object),
+        idx(idx) {
+      // Do nothing.
+    }
+
+    memoir::Collection *const target_object;
+    const std::size_t idx;
+  }; // class object_sequence_element
+
+  class primitive_sequence_element {
+  public:
+    // using inner_type = typename std::remove_pointer_t<T>;
+
+    primitive_sequence_element &operator=(primitive_sequence_element &&other) {
+      this->target_object = std::move(other.target_object);
+      this->idx = std::move(other.idx);
+      return *this;
+    }
+
+    primitive_sequence_element &operator=(primitive_sequence_element other) {
+      this->target_object = std::swap(this->target_object, other.target_object);
+      this->idx = std::swap(this->idx, other.idx);
+      return *this;
+    }
+
+    T operator=(T val) const {
+      if constexpr (std::is_pointer_v<T>) {
+        MEMOIR_FUNC(index_write_ptr)
+        (val, this->target_object, this->idx);
+        return val;
       }
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
   else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
@@ -72,22 +118,11 @@ class sequence {
 #include <types.def>
 #undef HANDLE_PRIMITIVE_TYPE
 #undef HANDLE_INTEGER_TYPE
-#warning "Unsupported type being assigned to sequence contents"
     } // T &operator=(T &&)
 
     operator T() const {
       if constexpr (std::is_pointer_v<T>) {
-        using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (is_specialization<inner_type, memoir::object>) {
-          return object(MEMOIR_FUNC(index_read_struct_ref)(this->target_object,
-                                                           this->idx));
-        } else {
-          return object(
-              MEMOIR_FUNC(index_read_ptr)(this->target_object, this->idx));
-        }
-      } else if constexpr (is_specialization<T, memoir::object>) {
-        return object(
-            MEMOIR_FUNC(index_get_struct)(this->target_object, this->idx));
+        return MEMOIR_FUNC(index_read_ptr)(this->target_object, this->idx);
       }
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
   else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
@@ -101,15 +136,35 @@ class sequence {
 #undef HANDLE_INTEGER_TYPE
     } // operator T()
 
-    sequence_element(memoir::Collection *target_object, std::size_t idx)
+    T operator*() const {
+      if constexpr (std::is_pointer_v<T>) {
+        return MEMOIR_FUNC(index_read_ptr)(this->target_object, this->idx);
+      }
+#define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
+  else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
+    return MEMOIR_FUNC(index_read_##TYPE_NAME)(this->target_object,            \
+                                               this->idx);                     \
+  }
+#define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
+  HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)
+#include <types.def>
+#undef HANDLE_PRIMITIVE_TYPE
+#undef HANDLE_INTEGER_TYPE
+    } // operator T()
+
+    primitive_sequence_element(memoir::Collection *target_object,
+                               std::size_t idx)
       : target_object(target_object),
-        idx(idx) {
-      // Do nothing.
-    }
+        idx(idx) {}
 
     memoir::Collection *const target_object;
     const std::size_t idx;
-  }; // class sequence_element
+  }; // class primitive_sequence_element
+
+  using sequence_element = std::conditional_t<
+      std::is_base_of_v<memoir::object, std::remove_pointer_t<T>>,
+      object_sequence_element,
+      primitive_sequence_element>;
 
   class sequence_iterator {
   public:
@@ -186,8 +241,7 @@ class sequence {
 
 public:
   sequence(std::size_t n)
-    : _storage(memoir::MEMOIR_FUNC(
-        allocate_sequence)(primitive_type<T>::memoir_type, n)) {
+    : _storage(memoir::MEMOIR_FUNC(allocate_sequence)(to_memoir_type<T>(), n)) {
     // Do nothing.
   }
 
