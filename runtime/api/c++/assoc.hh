@@ -16,17 +16,15 @@ class assoc {
   // static_assert(is_specialization<remove_all_pointers_t<T>, memoir::object>,
   //               "Trying to store non memoir object in a memoir collection!");
 
-  class assoc_element {
+  class object_assoc_element : public T {
   public:
-    // using inner_type = typename std::remove_pointer_t<T>;
-
-    assoc_element &operator=(assoc_element &&other) {
+    object_assoc_element &operator=(object_assoc_element &&other) {
       this->target_object = std::move(other.target_object);
       this->key = std::move(other.key);
       return *this;
     }
 
-    assoc_element &operator=(assoc_element other) {
+    object_assoc_element &operator=(object_assoc_element other) {
       this->target_object = std::swap(this->target_object, other.target_object);
       this->key = std::swap(this->key, other.key);
       return *this;
@@ -34,8 +32,8 @@ class assoc {
 
     T &operator->() {
       if constexpr (std::is_pointer_v<T>) {
-        using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (is_specialization<inner_type, memoir::object>) {
+        using inner_type = std::remove_pointer_t<T>;
+        if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
           return std::move(T(MEMOIR_FUNC(
               assoc_read_struct_ref)(this->target_object, this->key)));
         }
@@ -43,23 +41,73 @@ class assoc {
     }
 
     T &operator=(T &&val) const {
-      if constexpr (is_specialization<T, memoir::object>) {
+      if constexpr (std::is_base_of_v<memoir::object, T>) {
         // TODO: copy construct the incoming struct
-        // return object(
-        //     MEMOIR_FUNC(assoc_get_struct_ref)(this->target_object,
-        //     this->key));
         return val;
       } else if constexpr (std::is_pointer_v<T>) {
-        using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (is_specialization<inner_type, memoir::object>) {
+        using inner_type = std::remove_pointer_t<T>;
+        if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
           MEMOIR_FUNC(assoc_write_struct_ref)
           (val->target_object, this->target_object, this->key);
           return val;
-        } else {
-          MEMOIR_FUNC(assoc_write_ptr)
-          (std::forward<T>(val), this->target_object, this->key);
-          return val;
         }
+      }
+    } // T &operator=(T &&)
+
+    operator T() const {
+      if constexpr (std::is_pointer_v<T>) {
+        using inner_type = typename std::remove_pointer_t<T>;
+        if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
+          return object(MEMOIR_FUNC(assoc_read_struct_ref)(this->target_object,
+                                                           this->key));
+        } else {
+          return object(
+              MEMOIR_FUNC(assoc_read_ptr)(this->target_object, this->key));
+        }
+      } else if constexpr (std::is_base_of_v<memoir::object, T>) {
+        return object(
+            MEMOIR_FUNC(assoc_get_struct)(this->target_object, this->key));
+      }
+    } // operator T()
+
+    object_assoc_element(memoir::Collection *target_object, K key)
+      : T(MEMOIR_FUNC(assoc_get_struct)(target_object, key)),
+        target_object(target_object),
+        key(key) {
+      // Do nothing.
+    }
+
+    object_assoc_element(memoir::Collection *target_object, K &&key)
+      : T(MEMOIR_FUNC(assoc_get_struct)(target_object, key)),
+        target_object(target_object),
+        key(key) {
+      // Do nothing.
+    }
+
+    memoir::Collection *const target_object;
+    const K key;
+  }; // class object_assoc_element
+
+  class primitive_assoc_element {
+  public:
+    // using inner_type = typename std::remove_pointer_t<T>;
+
+    primitive_assoc_element &operator=(primitive_assoc_element &&other) {
+      this->target_object = std::move(other.target_object);
+      this->key = std::move(other.key);
+      return *this;
+    }
+
+    primitive_assoc_element &operator=(primitive_assoc_element other) {
+      this->target_object = std::swap(this->target_object, other.target_object);
+      this->key = std::swap(this->key, other.key);
+      return *this;
+    }
+
+    T &operator=(T &&val) const {
+      if constexpr (std::is_pointer_v<T>) {
+        MEMOIR_FUNC(assoc_write_ptr)(val, this->target_object, this->key);
+        return val;
       }
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
   else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
@@ -77,17 +125,8 @@ class assoc {
 
     operator T() const {
       if constexpr (std::is_pointer_v<T>) {
-        using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (is_specialization<inner_type, memoir::object>) {
-          return object(MEMOIR_FUNC(assoc_read_struct_ref)(this->target_object,
-                                                           this->key));
-        } else {
-          return object(
-              MEMOIR_FUNC(assoc_read_ptr)(this->target_object, this->key));
-        }
-      } else if constexpr (is_specialization<T, memoir::object>) {
         return object(
-            MEMOIR_FUNC(assoc_get_struct)(this->target_object, this->key));
+            MEMOIR_FUNC(assoc_read_ptr)(this->target_object, this->key));
       }
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
   else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
@@ -97,17 +136,15 @@ class assoc {
 #define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
   HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)
 #include <types.def>
-#undef HANDLE_PRIMITIVE_TYPE
-#undef HANDLE_INTEGER_TYPE
     } // operator T()
 
-    assoc_element(memoir::Collection *target_object, K key)
+    primitive_assoc_element(memoir::Collection *target_object, K key)
       : target_object(target_object),
         key(key) {
       // Do nothing.
     }
 
-    assoc_element(memoir::Collection *target_object, K &&key)
+    primitive_assoc_element(memoir::Collection *target_object, K &&key)
       : target_object(target_object),
         key(key) {
       // Do nothing.
@@ -115,13 +152,17 @@ class assoc {
 
     memoir::Collection *const target_object;
     const K key;
-  }; // class assoc_element
+  }; // class primitive_assoc_element
+
+  using assoc_element = std::conditional_t<
+      std::is_base_of_v<memoir::object, std::remove_pointer_t<T>>,
+      object_assoc_element,
+      primitive_assoc_element>;
 
 public:
   assoc()
-    : _storage(memoir::MEMOIR_FUNC(allocate_assoc_array)(
-        primitive_type<K>::memoir_type,
-        primitive_type<T>::memoir_type)) {
+    : _storage(memoir::MEMOIR_FUNC(allocate_assoc_array)(to_memoir_type<K>(),
+                                                         to_memoir_type<T>())) {
     // Do nothing.
   }
 
