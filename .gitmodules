@@ -4,3 +4,6 @@
 [submodule "compiler/z3"]
 	path = compiler/z3
 	url = git@github.com:Z3Prover/z3.git
+[submodule "runtime/api/c++/fameta-counter"]
+	path = runtime/api/c++/fameta-counter
+	url = git@github.com:falemagn/fameta-counter.git
