@@ -4,7 +4,9 @@
 
 #include "memoir.h"
 
+#include "collection.hh"
 #include "sequence.hh"
+#include "object.hh"
 
 namespace memoir {
 
@@ -12,10 +14,14 @@ namespace memoir {
  * Accessing an assoced collection
  */
 template <typename K, typename T>
-class assoc {
+class assoc : public collection {
   // static_assert(is_specialization<remove_all_pointers_t<T>, memoir::object>,
   //               "Trying to store non memoir object in a memoir collection!");
-
+public:
+  using key_type = K;
+  using value_type = T;
+  
+protected:
   class object_assoc_element : public T {
   public:
     object_assoc_element &operator=(object_assoc_element &&other) {
@@ -161,12 +167,12 @@ class assoc {
 
 public:
   assoc()
-    : _storage(memoir::MEMOIR_FUNC(allocate_assoc_array)(to_memoir_type<K>(),
-                                                         to_memoir_type<T>())) {
+    : assoc(memoir::MEMOIR_FUNC(allocate_assoc_array)(to_memoir_type<K>(),
+                                                      to_memoir_type<T>())) {
     // Do nothing.
   }
 
-  assoc(memoir::Collection *storage) : _storage(storage) {
+  assoc(memoir::Collection *storage) : collection(storage) {
     // Do nothing.
   }
 
@@ -189,9 +195,6 @@ public:
   sequence<K> keys() const {
     return sequence<K>(MEMOIR_FUNC(assoc_keys)(this->_storage));
   }
-
-protected:
-  memoir::Collection *const _storage;
 }; // class assoc
 
 } // namespace memoir

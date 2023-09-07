@@ -14,6 +14,13 @@
 
 namespace memoir {
 
+// Stub types.
+template <typename T>
+class sequence;
+
+template <typename K, typename T>
+class assoc;
+
 /*
  * Helper types and functions.
  */
@@ -129,6 +136,13 @@ template <typename T>
 inline constexpr memoir::Type *to_memoir_type() {
   if constexpr (std::is_base_of_v<memoir::object, T>) {
     return memoir::MEMOIR_FUNC(struct_type)(T::_name);
+  } else if constexpr (is_specialization<T, memoir::sequence>) {
+    return memoir::MEMOIR_FUNC(sequence_type)(
+        memoir::to_memoir_type<typename T::value_type>());
+  } else if constexpr (is_specialization<T, memoir::assoc>) {
+    return memoir::MEMOIR_FUNC(assoc_array_type)(
+        memoir::to_memoir_type<typename T::key_type>(),
+        memoir::to_memoir_type<typename T::value_type>());
   } else if constexpr (std::is_pointer_v<T>) {
     using inner_type = typename std::remove_pointer_t<T>;
     if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
@@ -147,6 +161,7 @@ inline constexpr memoir::Type *to_memoir_type() {
 #include "types.def"
 #undef HANDLE_PRIMITIVE_TYPE
 #undef HANDLE_INTEGER_TYPE
+  throw std::runtime_error("unknown field type");
 }
 
 } // namespace memoir
