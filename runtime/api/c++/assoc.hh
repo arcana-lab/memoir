@@ -5,8 +5,8 @@
 #include "memoir.h"
 
 #include "collection.hh"
-#include "sequence.hh"
 #include "object.hh"
+#include "sequence.hh"
 
 namespace memoir {
 
@@ -20,7 +20,8 @@ class assoc : public collection {
 public:
   using key_type = K;
   using value_type = T;
-  
+  using difference_type = std::ptrdiff_t;
+
 protected:
   class object_assoc_element : public T {
   public:
@@ -166,6 +167,106 @@ protected:
       primitive_assoc_element>;
 
 public:
+  class iterator {
+  public:
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using value_type = assoc_element;
+    using pointer = value_type;
+    using reference = value_type;
+    using key_iterator = typename sequence<K>::iterator;
+
+    // Constructors.
+    iterator(memoir::Collection *storage, const key_type &k)
+      : _storage(storage),
+        _key(k),
+        _key_iterator({}) {}
+    iterator(memoir::Collection *storage, key_iterator key_iterator)
+      : _storage(storage),
+        _key_iterator(key_iterator) {}
+    iterator(memoir::Collection *storage,
+             memoir::Collection *keys,
+             difference_type index)
+      : iterator(storage, key_iterator(keys, index)) {}
+    iterator(memoir::Collection *storage, memoir::Collection *keys)
+      : iterator(storage, key_iterator(keys, 0)) {}
+    iterator(memoir::Collection *storage, difference_type index)
+      : iterator(
+          storage,
+          sequence<K>::iterator(MEMOIR_FUNC(assoc_keys)(storage), index)) {}
+    iterator(memoir::Collection *storage)
+      : iterator(storage, (difference_type)0) {}
+    iterator(iterator &iter) : iterator(iter._storage, iter._key_iterator) {}
+
+    // Splat.
+    reference operator*() const {
+      return assoc_element(this->_storage, *_key_iterator);
+    }
+
+    pointer operator->() const {
+      return assoc_element(this->_storage, *_key_iterator);
+    }
+
+    // Prefix increment.
+    iterator &operator++() {
+      ++this->_key_iterator;
+      return (*this);
+    }
+
+    // Postfix increment.
+    iterator operator++(int) {
+      iterator tmp = *this;
+      ++(*this);
+      return tmp;
+    }
+
+    // Equality.
+    friend bool operator==(const iterator &a, const iterator &b) {
+      return (a._storage == b.storage) && (a._key_iterator == b._key_iterator);
+    }
+
+    friend bool operator==(const iterator &a, const iterator &b) {
+      return (a._storage != b.storage) || (a._key_iterator != b._key_iterator);
+    }
+
+  protected:
+    memoir::Collection *const _storage;
+    const key_type _key;
+    key_iterator _key_iterator;
+  };
+  using const_iterator = const iterator;
+
+  class reverse_iterator : public iterator {
+  public:
+    using reverse_key_iterator = typename sequence<K>::reverse_iterator;
+
+    // Constructors.
+    reverse_iterator(memoir::Collection *storage,
+                     memoir::Collection *keys,
+                     difference_type index)
+      : iterator(storage, reverse_key_iterator(keys, index)) {}
+    reverse_iterator(memoir::Collection *storage, memoir::Collection *keys)
+      : reverse_iterator(storage, keys, MEMOIR_FUNC(size)(storage) - 1) {}
+    reverse_iterator(memoir::Collection *storage)
+      : reverse_iterator(storage, MEMOIR_FUNC(assoc_keys)(storage)) {}
+    reverse_iterator(reverse_iterator &iter)
+      : reverse_iterator(iter._storage, iter._keys, iter._index) {}
+
+    // Prefix decrement.
+    reverse_iterator &operator--() {
+      --this->_key_iterator;
+      return *this;
+    }
+
+    // Postfix decrement.
+    reverse_iterator operator--(int) {
+      reverse_iterator tmp = *this;
+      --(*this);
+      return tmp;
+    }
+  };
+  using const_reverse_iterator = const reverse_iterator;
+
   assoc()
     : assoc(memoir::MEMOIR_FUNC(allocate_assoc_array)(to_memoir_type<K>(),
                                                       to_memoir_type<T>())) {
@@ -176,6 +277,7 @@ public:
     // Do nothing.
   }
 
+  // Element access.
   assoc_element operator[](K &&key) {
     return assoc_element(this->_storage, key);
   }

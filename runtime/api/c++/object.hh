@@ -135,7 +135,7 @@ protected:
 template <typename T>
 inline constexpr memoir::Type *to_memoir_type() {
   if constexpr (std::is_base_of_v<memoir::object, T>) {
-    return memoir::MEMOIR_FUNC(struct_type)(T::_name);
+    return memoir::MEMOIR_FUNC(struct_type)(typeid(T).name());
   } else if constexpr (is_specialization<T, memoir::sequence>) {
     return memoir::MEMOIR_FUNC(sequence_type)(
         memoir::to_memoir_type<typename T::value_type>());
@@ -147,7 +147,7 @@ inline constexpr memoir::Type *to_memoir_type() {
     using inner_type = typename std::remove_pointer_t<T>;
     if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
       return memoir::MEMOIR_FUNC(ref_type)(
-          memoir::MEMOIR_FUNC(struct_type)(inner_type::_name));
+          memoir::MEMOIR_FUNC(struct_type)(typeid(inner_type).name()));
     } else {
       return memoir::MEMOIR_FUNC(ptr_type)();
     }
@@ -177,9 +177,10 @@ inline constexpr memoir::Type *to_memoir_type() {
 //     FIELD(MyStruct *, ptr)
 //   )
 
-#define TO_CPP_FIELD(FIELD_TYPE, FIELD_NAME) FIELD_TYPE FIELD_NAME
+#define SEMICOLON_DELIM() ;
+#define COMMA_DELIM() ,
 
-#define TO_CPP_DELIM() ;
+#define TO_CPP_FIELD(FIELD_TYPE, FIELD_NAME) FIELD_TYPE FIELD_NAME
 
 #define TO_CPP_PREPEND_(F) TO_CPP_##F
 #define TO_CPP_PREPEND(F) TO_CPP_PREPEND_(F)
@@ -187,14 +188,12 @@ inline constexpr memoir::Type *to_memoir_type() {
 #define TO_CPP_STRUCT(NAME, FIELDS...)                                         \
   namespace memoir::user {                                                     \
   struct NAME {                                                                \
-    MEMOIR_apply_delim(TO_CPP_PREPEND, TO_CPP_DELIM, FIELDS);                  \
+    MEMOIR_apply_delim(TO_CPP_PREPEND, SEMICOLON_DELIM, FIELDS);               \
   };                                                                           \
   }
 
 // Create initializer list.
 #define TO_INIT_FIELD(FIELD_TYPE, FIELD_NAME) FIELD_NAME(obj)
-
-#define TO_INIT_DELIM() ,
 
 #define TO_INIT_PREPEND_(F) TO_INIT_##F
 #define TO_INIT_PREPEND(F) TO_INIT_PREPEND_(F)
@@ -204,15 +203,25 @@ inline constexpr memoir::Type *to_memoir_type() {
   const memoir::object::field<FIELD_TYPE, field_index.next<__COUNTER__>()>     \
       FIELD_NAME
 
-#define TO_MEMOIR_DELIM() ;
-
 #define TO_MEMOIR_PREPEND_(F) TO_MEMOIR_##F
 #define TO_MEMOIR_PREPEND(F) TO_MEMOIR_PREPEND_(F)
 
+// Create initialization arguments.
+#define TO_ARGS_FIELD(FIELD_TYPE, FIELD_NAME) const FIELD_TYPE &_##FIELD_NAME
+
+#define TO_ARGS_PREPEND_(F) TO_ARGS_##F
+#define TO_ARGS_PREPEND(F) TO_ARGS_PREPEND_(F)
+
+// Create initialization assignments.
+#define TO_FIELD_INIT_FIELD(FIELD_TYPE, FIELD_NAME)                            \
+  this->FIELD_NAME = _##FIELD_NAME
+
+#define TO_FIELD_INIT_PREPEND_(F) TO_FIELD_INIT_##F
+#define TO_FIELD_INIT_PREPEND(F) TO_FIELD_INIT_PREPEND_(F)
+
+// Create type.
 #define TO_TYPE_FIELD(FIELD_TYPE, FIELD_NAME)                                  \
   memoir::to_memoir_type<FIELD_TYPE>()
-
-#define TO_TYPE_DELIM() ,
 
 #define TO_TYPE_PREPEND_(F) TO_TYPE_##F
 #define TO_TYPE_PREPEND(F) TO_TYPE_PREPEND_(F)
@@ -222,20 +231,21 @@ inline constexpr memoir::Type *to_memoir_type() {
   public:                                                                      \
     NAME(memoir::Struct *obj)                                                  \
       : object(obj),                                                           \
-        MEMOIR_apply_delim(TO_INIT_PREPEND, TO_INIT_DELIM, FIELDS) {}          \
+        MEMOIR_apply_delim(TO_INIT_PREPEND, COMMA_DELIM, FIELDS) {}            \
     NAME() : NAME(MEMOIR_FUNC(allocate_struct)(NAME::_type)) {}                \
+    NAME(MEMOIR_apply_delim(TO_ARGS_PREPEND, COMMA_DELIM, FIELDS)) : NAME() {  \
+      MEMOIR_apply_delim(TO_FIELD_INIT_PREPEND, SEMICOLON_DELIM, FIELDS);      \
+    }                                                                          \
     /* Instantiate field members. */                                           \
     constexpr static fameta::counter<__COUNTER__, 0, 1> field_index;           \
-    MEMOIR_apply_delim(TO_MEMOIR_PREPEND, TO_MEMOIR_DELIM, FIELDS);            \
+    MEMOIR_apply_delim(TO_MEMOIR_PREPEND, SEMICOLON_DELIM, FIELDS);            \
                                                                                \
     static memoir::Type *const _type;                                          \
-    static const char *_name;                                                  \
   };                                                                           \
-  const char *NAME::_name = #NAME;                                             \
   memoir::Type *const NAME::_type = MEMOIR_FUNC(define_struct_type)(           \
       #NAME,                                                                   \
       MEMOIR_NARGS(FIELDS),                                                    \
-      MEMOIR_apply_delim(TO_TYPE_PREPEND, TO_TYPE_DELIM, FIELDS));
+      MEMOIR_apply_delim(TO_TYPE_PREPEND, COMMA_DELIM, FIELDS));
 
 #define AUTO_STRUCT(NAME, FIELDS...)                                           \
   TO_CPP_STRUCT(NAME, FIELDS)                                                  \

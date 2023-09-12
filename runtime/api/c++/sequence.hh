@@ -273,7 +273,7 @@ public:
 
     // Prefix increment.
     iterator &operator++() {
-      this->_index++;
+      ++this->_index;
       return *this;
     }
 
@@ -327,6 +327,16 @@ public:
   sequence(memoir::Collection *seq) : collection(seq) {
     // Do nothing.
   }
+
+  // Copy-constructor.
+  sequence(const sequence &x) : sequence(x.size()) {
+    for (size_type i = 0; i < x.size(); ++i) {
+      (*this)[i] = (value_type)x[i];
+    }
+  }
+
+  // Move-constructor.
+  sequence(sequence &&x) : collection(x._storage) {}
 
   // TODO
   void assign(size_type count, const T &value) {
