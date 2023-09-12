@@ -10,9 +10,9 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "memoir/utility/FunctionNames.hpp"
-
 #include "memoir/support/Casting.hpp"
+
+#include "memoir/utility/FunctionNames.hpp"
 
 #include "memoir/ir/Collections.hpp"
 #include "memoir/ir/Function.hpp"
@@ -437,6 +437,7 @@ protected:
 
   friend class MemOIRInst;
 };
+using AssocTypeInst = struct AssocArrayTypeInst;
 
 struct SequenceTypeInst : public TypeInst {
 public:
@@ -572,6 +573,7 @@ protected:
 
   friend class MemOIRInst;
 };
+using AssocAllocInst = struct AssocArrayAllocInst;
 
 struct SequenceAllocInst : public CollectionAllocInst {
 public:
@@ -1400,6 +1402,30 @@ protected:
 
   friend class MemOIRInst;
 };
+
+// Functions to dyn_cast an llvm::Instruction to a MemOIRInst
+template <
+    class To,
+    class From,
+    std::enable_if_t<std::is_base_of_v<MemOIRInst, To>, bool> = true,
+    std::enable_if_t<std::is_base_of_v<llvm::Instruction, From>, bool> = true>
+To *as(From *I) {
+  if (I == nullptr) {
+    return nullptr;
+  }
+  auto *memoir_inst = MemOIRInst::get(*I);
+  return dyn_cast_or_null<To>(memoir_inst);
+}
+
+template <
+    class To,
+    class From,
+    std::enable_if_t<std::is_base_of_v<MemOIRInst, To>, bool> = true,
+    std::enable_if_t<std::is_base_of_v<llvm::Instruction, From>, bool> = true>
+To *as(From &I) {
+  auto *memoir_inst = MemOIRInst::get(I);
+  return dyn_cast_or_null<To>(memoir_inst);
+}
 
 } // namespace llvm::memoir
 
