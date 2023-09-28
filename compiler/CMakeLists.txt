@@ -1,5 +1,5 @@
 # Configure z3
-find_package(Z3 CONFIG REQUIRED HINTS /project/tommy-software/z3/z3-4.12.2/install/lib64)
+find_package(Z3 CONFIG REQUIRED HINTS /project/tommy-software/z3/z3-4.12.2/install/lib64/cmake/z3)
 
 # Configure LLVM 
 find_package(LLVM 9 REQUIRED CONFIG)
