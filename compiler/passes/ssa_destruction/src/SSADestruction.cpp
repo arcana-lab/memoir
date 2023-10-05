@@ -15,9 +15,9 @@
 #  define COLLECTION_SELECTION 0
 #endif
 
-// #define ASSOC_IMPL "hashtable"
+#define ASSOC_IMPL "hashtable"
 // #define ASSOC_IMPL "stl_unordered_map"
-#define ASSOC_IMPL "stl_map"
+// #define ASSOC_IMPL "stl_map"
 
 namespace llvm::memoir {
 
