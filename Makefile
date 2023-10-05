@@ -40,7 +40,7 @@ hooks:
 
 $(NOELLE_DIR):
 	mkdir -p $@
-	git clone --depth 1 --branch v9.9.1 git@github.com:scampanoni/noelle.git $@
+	git clone --depth 1 --branch v9.6.0 git@github.com:scampanoni/noelle.git $@
 
 uninstall:
 	rm -rf $(INSTALL_DIR)
