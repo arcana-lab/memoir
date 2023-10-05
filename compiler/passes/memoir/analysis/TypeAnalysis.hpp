@@ -95,10 +95,12 @@ protected:
   Type *visitUInt32TypeInst(UInt32TypeInst &I);
   Type *visitUInt16TypeInst(UInt16TypeInst &I);
   Type *visitUInt8TypeInst(UInt8TypeInst &I);
+  Type *visitUInt2TypeInst(UInt2TypeInst &I);
   Type *visitInt64TypeInst(Int64TypeInst &I);
   Type *visitInt32TypeInst(Int32TypeInst &I);
   Type *visitInt16TypeInst(Int16TypeInst &I);
   Type *visitInt8TypeInst(Int8TypeInst &I);
+  Type *visitInt2TypeInst(Int2TypeInst &I);
   Type *visitBoolTypeInst(BoolTypeInst &I);
   Type *visitFloatTypeInst(FloatTypeInst &I);
   Type *visitDoubleTypeInst(DoubleTypeInst &I);

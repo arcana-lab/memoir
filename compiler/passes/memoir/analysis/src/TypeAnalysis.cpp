@@ -108,6 +108,10 @@ Type *TypeAnalysis::visitUInt8TypeInst(UInt8TypeInst &I) {
   return &(Type::get_u8_type());
 }
 
+Type *TypeAnalysis::visitUInt2TypeInst(UInt2TypeInst &I) {
+  return &(Type::get_u2_type());
+}
+
 Type *TypeAnalysis::visitInt64TypeInst(Int64TypeInst &I) {
   return &(Type::get_i64_type());
 }
@@ -122,6 +126,10 @@ Type *TypeAnalysis::visitInt16TypeInst(Int16TypeInst &I) {
 
 Type *TypeAnalysis::visitInt8TypeInst(Int8TypeInst &I) {
   return &(Type::get_i8_type());
+}
+
+Type *TypeAnalysis::visitInt2TypeInst(Int2TypeInst &I) {
+  return &(Type::get_i2_type());
 }
 
 Type *TypeAnalysis::visitBoolTypeInst(BoolTypeInst &I) {
@@ -211,17 +219,17 @@ Type *TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
 Type *TypeAnalysis::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Get the length of dimensions
-   */
+  // Get the length of dimensions.
+  auto num_dimensions = I.getNumberOfDimensions();
+
   vector<size_t> length_of_dimensions;
-  for (auto dim_idx = 0; dim_idx < I.getNumberOfDimensions(); dim_idx++) {
-    length_of_dimensions.push_back(I.getLengthOfDimension(dim_idx));
+  length_of_dimensions.resize(num_dimensions);
+
+  for (auto dim_idx = 0; dim_idx < num_dimensions; dim_idx++) {
+    length_of_dimensions[dim_idx] = I.getLengthOfDimension(dim_idx);
   }
 
-  /*
-   * Build the new type.
-   */
+  // Build the new type.
   auto &type =
       Type::get_static_tensor_type(I.getElementType(), length_of_dimensions);
 

@@ -24,6 +24,10 @@ IntegerType &Type::get_u8_type() {
   return IntegerType::get<8, false>();
 }
 
+IntegerType &Type::get_u2_type() {
+  return IntegerType::get<2, false>();
+}
+
 IntegerType &Type::get_i64_type() {
   return IntegerType::get<64, true>();
 }
@@ -45,7 +49,7 @@ IntegerType &Type::get_i2_type() {
 }
 
 IntegerType &Type::get_bool_type() {
-  return IntegerType::get<1, true>();
+  return IntegerType::get<1, false>();
 }
 
 template <unsigned BW, bool S>

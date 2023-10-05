@@ -56,6 +56,10 @@ TO_STRING_IMPL(UInt16TypeInst)
 GET_TYPE_IMPL(UInt8TypeInst)
 TO_STRING_IMPL(UInt8TypeInst)
 
+// UInt8TypeInst implementation
+GET_TYPE_IMPL(UInt2TypeInst)
+TO_STRING_IMPL(UInt2TypeInst)
+
 /*
  * Int64TypeInst implementation
  */

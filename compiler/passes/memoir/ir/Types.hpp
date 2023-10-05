@@ -53,6 +53,7 @@ public:
   static IntegerType &get_u32_type();
   static IntegerType &get_u16_type();
   static IntegerType &get_u8_type();
+  static IntegerType &get_u2_type();
   static IntegerType &get_i64_type();
   static IntegerType &get_i32_type();
   static IntegerType &get_i16_type();
@@ -106,16 +107,20 @@ protected:
 
 struct IntegerType : public Type {
 public:
+  // Creation.
   template <unsigned BW, bool S>
   static IntegerType &get();
 
+  // Access.
   unsigned getBitWidth() const;
   bool isSigned() const;
 
+  // RTTI.
   static bool classof(const Type *T) {
     return (T->getCode() == TypeCode::INTEGER);
   }
 
+  // Debug.
   std::string toString(std::string indent = "") const override;
   opt<std::string> get_code() const override;
 
@@ -204,20 +209,24 @@ protected:
 
 struct StructType : public Type {
 public:
+  // Creation.
   static StructType &define(DefineStructTypeInst &definition,
                             std::string name,
                             vector<Type *> field_types);
   static StructType &get(std::string name);
 
+  // Access.
   DefineStructTypeInst &getDefinition() const;
   std::string getName() const;
   unsigned getNumFields() const;
   Type &getFieldType(unsigned field_index) const;
 
+  // RTTI.
   static bool classof(const Type *T) {
     return (T->getCode() == TypeCode::STRUCT);
   }
 
+  // Debug.
   std::string toString(std::string indent = "") const override;
   opt<std::string> get_code() const override;
 

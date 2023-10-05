@@ -160,6 +160,22 @@ protected:
   friend class MemOIRInst;
 };
 
+struct UInt2TypeInst : public TypeInst {
+public:
+  Type &getType() const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::UINT2_TYPE);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  UInt2TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst){};
+
+  friend class MemOIRInst;
+};
+
 struct Int64TypeInst : public TypeInst {
 public:
   Type &getType() const override;

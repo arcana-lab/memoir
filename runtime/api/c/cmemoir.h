@@ -51,6 +51,7 @@ namespace memoir {
 #define memoir_u32_t MEMOIR_FUNC(u32_type)()
 #define memoir_u16_t MEMOIR_FUNC(u16_type)()
 #define memoir_u8_t MEMOIR_FUNC(u8_type)()
+#define memoir_u2_t MEMOIR_FUNC(u2_type)()
 #define memoir_i64_t MEMOIR_FUNC(i64_type)()
 #define memoir_i32_t MEMOIR_FUNC(i32_type)()
 #define memoir_i16_t MEMOIR_FUNC(i16_type)()
