@@ -90,6 +90,7 @@ private:
   map<llvm::Function *, llvm::noelle::DominatorSummary *>
       function_to_dominator_summary;
   map<llvm::PHINode *, unsigned> current_phi_index;
+  map<llvm::Argument *, set<llvm::CallBase *>> visited_calls;
 
   /*
    * Borrowed state

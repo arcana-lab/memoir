@@ -368,7 +368,7 @@ Collection *CollectionAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
 
   bool found_collection = false;
   for (auto const &[return_inst, incoming_collection] : incoming) {
-    if (incoming_collection) {
+    if (incoming_collection != nullptr) {
       found_collection = true;
       break;
     }
@@ -378,7 +378,7 @@ Collection *CollectionAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
     MEMOIZE_AND_RETURN(I, nullptr);
   }
 
-  auto ret_phi_collection = new RetPHICollection(I, incoming);
+  auto *ret_phi_collection = new RetPHICollection(I, incoming);
 
   MEMOIZE_AND_RETURN(I, ret_phi_collection);
 }
@@ -386,11 +386,13 @@ Collection *CollectionAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
 Collection *CollectionAnalysis::visitReturnInst(llvm::ReturnInst &I) {
   CHECK_MEMOIZED(I);
 
-  auto &returned_use = I.getOperandUse(0);
+  if (auto *returned_value = I.getReturnValue()) {
+    auto *returned_collection = this->getCollection(*returned_value);
 
-  auto returned_collection = this->getCollection(returned_use);
+    MEMOIZE_AND_RETURN(I, returned_collection);
+  }
 
-  MEMOIZE_AND_RETURN(I, returned_collection);
+  MEMOIZE_AND_RETURN(I, nullptr);
 }
 
 Collection *CollectionAnalysis::visitArgument(llvm::Argument &A) {
@@ -418,6 +420,7 @@ Collection *CollectionAnalysis::visitArgument(llvm::Argument &A) {
    * Iterate over all Call's in the program to find possible calls to this
    * function.
    */
+  auto &visited_calls = this->visited_calls[&A];
   for (auto &F : *parent_module) {
     for (auto &BB : F) {
       for (auto &I : BB) {
@@ -428,13 +431,19 @@ Collection *CollectionAnalysis::visitArgument(llvm::Argument &A) {
           continue;
         }
 
+        // Ignore calls that have already been visited.
+        if (visited_calls.find(call_base) != visited_calls.end()) {
+          continue;
+        }
+        visited_calls.insert(call_base);
+
         // Check the called function.
         auto callee = call_base->getCalledFunction();
         if (callee == parent_function) {
           // Handle direct calls.
           auto &call_argument_as_use =
               call_base->getArgOperandUse(A.getArgNo());
-          auto argument_collection = this->getCollection(call_argument_as_use);
+          auto *argument_collection = this->getCollection(call_argument_as_use);
           MEMOIR_NULL_CHECK(argument_collection,
                             "Incoming collection to Argument is NULL!");
 
