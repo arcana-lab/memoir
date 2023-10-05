@@ -111,7 +111,7 @@ struct SSADestructionPass : public ModulePass {
     return std::move(dfs_postorder_traversal_helper(root_node));
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
     println("BEGIN SSA Destruction pass");
     println();
 
@@ -122,6 +122,9 @@ struct SSADestructionPass : public ModulePass {
 
     SSADestructionStats stats;
 
+    // Initialize the reaching definitions.
+    SSADestructionVisitor SSADV(M, &stats);
+
     for (auto &F : M) {
       if (F.empty()) {
         continue;
@@ -129,7 +132,8 @@ struct SSADestructionPass : public ModulePass {
 
       bool no_memoir = true;
       for (auto &I : llvm::instructions(F)) {
-        if (Type::value_is_collection_type(I)) {
+        if (Type::value_is_collection_type(I)
+            || Type::value_is_struct_type(I)) {
           no_memoir = false;
           break;
         }
@@ -151,8 +155,8 @@ struct SSADestructionPass : public ModulePass {
       // Get a new value numbering instance.
       auto VN = ValueNumbering(M);
 
-      // Initialize the reaching definitions.
-      SSADestructionVisitor SSADV(DT, LA, VN, &stats);
+      // Hand over this function's analyses.
+      SSADV.setAnalyses(DT, LA, VN);
 
       // Get the depth-first, preorder traversal of the dominator tree rooted at
       // the entry basic block.
@@ -167,25 +171,26 @@ struct SSADestructionPass : public ModulePass {
         }
       }
 
-      // Get the depth-first, preorder traversal of the dominator tree rooted at
-      // the entry basic block.
-      // auto dfs_postorder = dfs_postorder_traversal(DT, entry_bb);
+      infoln("END: ", F.getName());
+      infoln("=========================");
+    }
 
-      infoln("Performing the coalescence");
-      for (auto *bb : dfs_preorder) {
+    // Get the depth-first, preorder traversal of the dominator tree rooted at
+    // the entry basic block.
+    // auto dfs_postorder = dfs_postorder_traversal(DT, entry_bb);
+    infoln("Performing the coalescence");
+    for (auto &F : M) {
+      for (auto &BB : F) {
         // Reverse iterate on instructions in the basic block.
-        for (auto it = bb->begin(); it != bb->end(); ++it) {
+        for (auto it = BB.begin(); it != BB.end(); ++it) {
           auto &I = *it;
           SSADV.do_coalesce(I);
         }
       }
-
-      infoln("Cleaning up dead instructions.");
-      SSADV.cleanup();
-
-      infoln("END: ", F.getName());
-      infoln("=========================");
     }
+
+    infoln("Cleaning up dead instructions.");
+    SSADV.cleanup();
 
     println("=========================");
     println("DONE SSA Destruction pass");

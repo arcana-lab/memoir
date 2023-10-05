@@ -14,6 +14,8 @@
 #include "memoir/analysis/LivenessAnalysis.hpp"
 #include "memoir/analysis/ValueNumbering.hpp"
 
+#include "memoir/lowering/TypeLayout.hpp"
+
 #include "llvm/ADT/MapVector.h"
 
 namespace llvm::memoir {
@@ -57,10 +59,11 @@ class SSADestructionVisitor
   friend class llvm::InstVisitor<SSADestructionVisitor, void>;
 
 public:
-  SSADestructionVisitor(llvm::noelle::DomTreeSummary &DT,
-                        LivenessAnalysis &LA,
-                        ValueNumbering &VN,
-                        SSADestructionStats *stats = nullptr);
+  SSADestructionVisitor(llvm::Module &M, SSADestructionStats *stats = nullptr);
+
+  void setAnalyses(llvm::noelle::DomTreeSummary &DT,
+                   LivenessAnalysis &LA,
+                   ValueNumbering &VN);
 
   // LLVM operations
   void visitInstruction(llvm::Instruction &I);
@@ -68,6 +71,7 @@ public:
   // Allocation operations
   void visitSequenceAllocInst(SequenceAllocInst &I);
   void visitAssocArrayAllocInst(AssocArrayAllocInst &I);
+  void visitStructAllocInst(StructAllocInst &I);
 
   // Deallocation operationts
   void visitDeleteCollectionInst(DeleteCollectionInst &I);
@@ -75,10 +79,15 @@ public:
   // Access operations
   void visitIndexReadInst(IndexReadInst &I);
   void visitIndexWriteInst(IndexWriteInst &I);
+  void visitIndexGetInst(IndexGetInst &I);
   void visitAssocReadInst(AssocReadInst &I);
   void visitAssocWriteInst(AssocWriteInst &I);
+  void visitAssocGetInst(AssocGetInst &I);
   void visitAssocHasInst(AssocHasInst &I);
   void visitAssocRemoveInst(AssocRemoveInst &I);
+  void visitStructReadInst(StructReadInst &I);
+  void visitStructWriteInst(StructWriteInst &I);
+  void visitStructGetInst(StructGetInst &I);
 
   // SSA operations
   void visitUsePHIInst(UsePHIInst &I);
@@ -87,15 +96,22 @@ public:
   void visitJoinInst(JoinInst &I);
   void visitSizeInst(SizeInst &I);
 
+  // Typechecking
+  void visitAssertCollectionTypeInst(AssertCollectionTypeInst &I);
+  void visitAssertStructTypeInst(AssertStructTypeInst &I);
+  void visitReturnTypeInst(ReturnTypeInst &I);
+
   void do_coalesce(llvm::Value &V);
 
   void cleanup();
 
 protected:
   // Analyses.
-  llvm::noelle::DomTreeSummary &DT;
-  LivenessAnalysis &LA;
-  ValueNumbering &VN;
+  llvm::Module &M;
+  llvm::noelle::DomTreeSummary *DT;
+  LivenessAnalysis *LA;
+  ValueNumbering *VN;
+  TypeConverter TC;
 
   // Owned state.
   map<MemOIRInst *, detail::View *> inst_to_view;
