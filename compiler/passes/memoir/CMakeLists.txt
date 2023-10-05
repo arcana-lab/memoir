@@ -3,6 +3,7 @@ set(dirs
   support
   utility
   analysis
+  lowering
   )
 
 set(memoir_include_dirs ${memoir_include_list})
