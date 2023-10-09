@@ -1,8 +1,16 @@
 #!/bin/bash -e
-GIT_ROOT=`git rev-parse --show-toplevel` ;
-LIB_DIR=${GIT_ROOT}/install/lib ;
+SOURCE=${BASH_SOURCE[0]}
+while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )
+  SOURCE=$(readlink "${SOURCE}")
+  # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+  [[ ${SOURCE} != /* ]] && SOURCE=$DIR/$SOURCE 
+done
+GIT_ROOT=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/../..
 
-source ${GIT_ROOT}/enable ;
+LIB_DIR=${GIT_ROOT}/install/lib
+
+source ${GIT_ROOT}/enable
 
 LOAD_CL=$(find ${LIB_DIR} -name "CommandLine.so" -printf ' -load %p ')
 LOAD_OTHER=$(find ${LIB_DIR} -name "*.so" -not -name "CommandLine.so" -printf ' -load %p ')
