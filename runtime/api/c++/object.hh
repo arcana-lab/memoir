@@ -8,7 +8,7 @@
 #include <list>
 #include <unordered_set>
 
-#include "fameta-counter/include/fameta/counter.hpp"
+#include <counter.hh>
 
 #include <memoir.h>
 
