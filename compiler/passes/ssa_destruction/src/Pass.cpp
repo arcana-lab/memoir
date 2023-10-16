@@ -131,11 +131,20 @@ struct SSADestructionPass : public ModulePass {
       }
 
       bool no_memoir = true;
-      for (auto &I : llvm::instructions(F)) {
-        if (Type::value_is_collection_type(I)
-            || Type::value_is_struct_type(I)) {
+      for (auto &A : F.args()) {
+        if (Type::value_is_collection_type(A)
+            || Type::value_is_struct_type(A)) {
           no_memoir = false;
           break;
+        }
+      }
+      if (no_memoir) {
+        for (auto &I : llvm::instructions(F)) {
+          if (Type::value_is_collection_type(I) || Type::value_is_struct_type(I)
+              || Type::value_is_type(I)) {
+            no_memoir = false;
+            break;
+          }
         }
       }
       if (no_memoir) {
