@@ -78,14 +78,20 @@ protected:
   map<llvm::Value *, Type *> value_to_type;
   map<llvm::Instruction *, set<Type *>> edge_types;
   map<llvm::Instruction *, set<llvm::Value *>> visited_edges;
+  set<llvm::Value *> visited;
 
   /*
    * Internal helper functions
    */
+  Type *getType_helper(llvm::Value &V);
   Type *findExisting(llvm::Value &V);
   Type *findExisting(MemOIRInst &I);
   void memoize(llvm::Value &V, Type *T);
   void memoize(MemOIRInst &I, Type *T);
+  bool beenVisited(llvm::Value &V);
+  bool beenVisited(MemOIRInst &I);
+  void markVisited(llvm::Value &V);
+  void markVisited(MemOIRInst &I);
 
   /*
    * Visitor functions
