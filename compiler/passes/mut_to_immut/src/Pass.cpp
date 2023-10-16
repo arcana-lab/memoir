@@ -95,18 +95,26 @@ struct MutToImmutPass : public ModulePass {
 
     MutToImmutStats stats;
 
-    const auto start = std::chrono::high_resolution_clock::now();
-
     for (auto &F : M) {
       if (F.empty()) {
         continue;
       }
 
       bool no_memoir = true;
-      for (auto &I : llvm::instructions(F)) {
-        if (Type::value_is_collection_type(I)) {
+      for (auto &A : F.args()) {
+        if (Type::value_is_collection_type(A)
+            || Type::value_is_struct_type(A)) {
           no_memoir = false;
           break;
+        }
+      }
+      if (no_memoir) {
+        for (auto &I : llvm::instructions(F)) {
+          if (Type::value_is_collection_type(I)
+              || Type::value_is_struct_type(I)) {
+            no_memoir = false;
+            break;
+          }
         }
       }
       if (no_memoir) {
@@ -169,7 +177,8 @@ struct MutToImmutPass : public ModulePass {
               continue;
             }
             // Add check if this is a mutator
-            if (!MemOIRInst::is_mutator(*memoir_inst)) {
+            if (!MemOIRInst::is_mutator(*memoir_inst)
+                && !isa<AccessInst>(memoir_inst)) {
               continue;
             }
             if (auto *append_inst = dyn_cast<SeqAppendInst>(memoir_inst)) {
@@ -304,13 +313,9 @@ struct MutToImmutPass : public ModulePass {
       infoln("=========================");
     }
 
-    const auto end = std::chrono::high_resolution_clock::now();
-    const std::chrono::duration<double> elapsed_seconds = end - start;
-    auto elapsed = elapsed_seconds.count();
-
     println("=========================");
     println("DONE mut2immut pass");
-    println("  Elapsed (s): ", elapsed);
+
     println();
     return true;
   }
