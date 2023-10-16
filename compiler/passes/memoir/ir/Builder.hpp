@@ -312,9 +312,50 @@ public:
     return inst;
   }
 
-  /* TODO
-   * Deletion Instructions
-   */
+  // Deletion Instructions
+  DeleteStructInst *CreateDeleteStructInst(llvm::Value *struct_to_delete) {
+    // Fetch the LLVM Function.
+    auto llvm_func =
+        FunctionNames::get_memoir_function(*(this->M),
+                                           MemOIR_Func::DELETE_STRUCT);
+
+    // Create the LLVM call.
+    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
+                                      llvm::ArrayRef({ struct_to_delete }));
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for delete struct operation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto delete_inst = dyn_cast_or_null<DeleteStructInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(delete_inst,
+                      "Could not create call to DeleteCollectionInst");
+
+    return delete_inst;
+  }
+
+  DeleteCollectionInst *CreateDeleteCollectionInst(
+      llvm::Value *collection_to_delete) {
+    // Fetch the LLVM Function.
+    auto llvm_func =
+        FunctionNames::get_memoir_function(*(this->M),
+                                           MemOIR_Func::DELETE_COLLECTION);
+
+    // Create the LLVM call.
+    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
+                                      llvm::ArrayRef({ collection_to_delete }));
+    MEMOIR_NULL_CHECK(
+        llvm_call,
+        "Could not create the call for delete collection operation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto delete_inst = dyn_cast_or_null<DeleteCollectionInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(delete_inst,
+                      "Could not create call to DeleteCollectionInst");
+
+    return delete_inst;
+  }
 
   /* TODO
    * Collection Operation Instructions
