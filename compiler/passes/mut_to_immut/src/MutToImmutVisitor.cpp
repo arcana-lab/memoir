@@ -336,6 +336,9 @@ void MutToImmutVisitor::visitSeqInsertInst(SeqInsertInst &I) {
                "insert.join.")
            ->getCallInst();
 
+  auto *delete_elem =
+      &builder.CreateDeleteCollectionInst(elem_alloc)->getCallInst();
+
   this->reaching_definitions[collection_orig] = insert_join;
   this->reaching_definitions[insert_join] = collection_value;
 
