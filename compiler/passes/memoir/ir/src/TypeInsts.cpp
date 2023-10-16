@@ -145,11 +145,15 @@ GET_TYPE_IMPL(DefineStructTypeInst)
 std::string DefineStructTypeInst::getName() const {
   auto &name_value = this->getNameOperand();
 
-  GlobalVariable *name_global;
-  auto name_gep = dyn_cast<GetElementPtrInst>(&name_value);
-  if (name_gep) {
+  GlobalVariable *name_global = nullptr;
+  if (auto name_gep = dyn_cast<llvm::GetElementPtrInst>(&name_value)) {
     auto name_ptr = name_gep->getPointerOperand();
     name_global = dyn_cast<GlobalVariable>(name_ptr);
+  } else if (auto name_const_gep = dyn_cast<llvm::ConstantExpr>(&name_value)) {
+    if (name_const_gep->isGEPWithNoNotionalOverIndexing()) {
+      auto name_ptr = name_const_gep->getOperand(0);
+      name_global = dyn_cast<GlobalVariable>(name_ptr);
+    }
   } else {
     name_global = dyn_cast<GlobalVariable>(&name_value);
   }
