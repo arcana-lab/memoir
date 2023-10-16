@@ -360,6 +360,30 @@ bool Type::value_is_struct_type(llvm::Value &value) {
   return type_name == "struct.memoir::Struct";
 }
 
+bool Type::value_is_type(llvm::Value &value) {
+  auto *type = value.getType();
+  if (!type) {
+    return false;
+  }
+  auto *ptr_type = dyn_cast<llvm::PointerType>(type);
+  if (!ptr_type) {
+    return false;
+  }
+  auto *elem_type = ptr_type->getElementType();
+  if (!elem_type) {
+    return false;
+  }
+  auto *elem_struct_type = dyn_cast<llvm::StructType>(elem_type);
+  if (!elem_struct_type) {
+    return false;
+  }
+  if (!elem_struct_type->hasName()) {
+    return false;
+  }
+  auto type_name = elem_struct_type->getName();
+  return type_name == "struct.memoir::Type";
+}
+
 /*
  * Abstract Type implementation
  */
