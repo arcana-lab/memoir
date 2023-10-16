@@ -2,7 +2,9 @@
 #define MEMOIR_TYPECONVERTER_H
 #pragma once
 
+#include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/Print.hpp"
 
 #include "memoir/ir/Structs.hpp"
 #include "memoir/ir/TypeVisitor.hpp"
@@ -33,20 +35,33 @@ namespace llvm::memoir {
 // to be big enough of an issue to warrant RTTI overhead.
 struct TypeLayout {
 public:
-  TypeLayout(llvm::Type &llvm_type) : llvm_type(llvm_type) {}
-  TypeLayout(llvm::IntegerType &llvm_integer_type,
+  TypeLayout(Type &memoir_type, llvm::Type &llvm_type)
+    : memoir_type(memoir_type),
+      llvm_type(llvm_type) {}
+  TypeLayout(IntegerType &memoir_integer_type,
+             llvm::IntegerType &llvm_integer_type,
              map<unsigned, pair<unsigned, unsigned>> bit_field_ranges)
-    : llvm_type(llvm_integer_type),
+    : memoir_type(memoir_integer_type),
+      llvm_type(llvm_integer_type),
       bit_field_ranges(bit_field_ranges) {}
-  TypeLayout(llvm::StructType &llvm_struct_type, vector<unsigned> field_offsets)
-    : llvm_type(llvm_struct_type),
+  TypeLayout(StructType &memoir_struct_type,
+             llvm::StructType &llvm_struct_type,
+             vector<unsigned> field_offsets)
+    : memoir_type(memoir_struct_type),
+      llvm_type(llvm_struct_type),
       field_offsets(field_offsets) {}
-  TypeLayout(llvm::StructType &llvm_struct_type,
+  TypeLayout(StructType &memoir_struct_type,
+             llvm::StructType &llvm_struct_type,
              vector<unsigned> field_offsets,
              map<unsigned, pair<unsigned, unsigned>> bit_field_ranges)
-    : llvm_type(llvm_struct_type),
+    : memoir_type(memoir_struct_type),
+      llvm_type(llvm_struct_type),
       field_offsets(field_offsets),
       bit_field_ranges(bit_field_ranges) {}
+
+  Type &get_memoir_type() const {
+    return memoir_type;
+  }
 
   llvm::Type &get_llvm_type() const {
     return llvm_type;
@@ -79,6 +94,7 @@ public:
   }
 
 protected:
+  Type &memoir_type;
   llvm::Type &llvm_type;
   vector<unsigned> field_offsets;
   map<unsigned, pair<unsigned, unsigned>> bit_field_ranges;
@@ -147,8 +163,8 @@ protected:
     // Create the type layout.
     auto *type_layout =
         (bitwidth == size_for_bitwidth)
-            ? new TypeLayout(llvm_type)
-            : new TypeLayout(llvm_type, { { 0, { 0, bitwidth } } });
+            ? new TypeLayout(T, llvm_type)
+            : new TypeLayout(T, llvm_type, { { 0, { 0, bitwidth } } });
 
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
@@ -161,7 +177,7 @@ protected:
                                       "Could not get the LLVM float type");
 
     // Create the type layout.
-    auto *type_layout = new TypeLayout(llvm_type);
+    auto *type_layout = new TypeLayout(T, llvm_type);
 
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
@@ -174,7 +190,7 @@ protected:
                                       "Could not get the LLVM double type");
 
     // Create the type layout.
-    auto *type_layout = new TypeLayout(llvm_type);
+    auto *type_layout = new TypeLayout(T, llvm_type);
 
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
@@ -183,12 +199,12 @@ protected:
     CHECK_MEMOIZED(T);
 
     // Get the LLVM type.
-    auto *llvm_void_type = llvm::Type::getVoidTy(this->C);
+    auto *llvm_void_type = llvm::Type::getInt8Ty(this->C);
     auto &llvm_type = MEMOIR_SANITIZE(llvm::PointerType::get(llvm_void_type, 0),
                                       "Could not get the LLVM void ptr type");
 
     // Create the type layout.
-    auto *type_layout = new TypeLayout(llvm_type);
+    auto *type_layout = new TypeLayout(T, llvm_type);
 
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
@@ -216,7 +232,7 @@ protected:
         "Could not construct the llvm VectorType for StaticTensorType.");
 
     // Create the type layout.
-    auto *type_layout = new TypeLayout(llvm_type);
+    auto *type_layout = new TypeLayout(T, llvm_type);
 
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
@@ -350,7 +366,7 @@ protected:
 
     // Create the type layout.
     auto *type_layout =
-        new TypeLayout(llvm_type, field_offsets, bit_field_ranges);
+        new TypeLayout(T, llvm_type, field_offsets, bit_field_ranges);
 
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
