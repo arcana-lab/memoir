@@ -10,7 +10,7 @@
 
 extern "C" {
 
-#define INSTANTIATE_STL_UNORDERED_MAP(K, C_KEY, V, C_VALUE)                    \
+#define INSTANTIATE_stl_unordered_map(K, C_KEY, V, C_VALUE)                    \
   typedef std::unordered_map<C_KEY, C_VALUE> K##_##V##_stl_unordered_map_t;    \
   typedef K##_##V##_stl_unordered_map_t *K##_##V##_stl_unordered_map_p;        \
                                                                                \
@@ -32,11 +32,25 @@ extern "C" {
     return table->count(key) != 0;                                             \
   }                                                                            \
                                                                                \
-  /* Get key-value pair */                                                     \
   cname alwaysinline used C_VALUE *K##_##V##_stl_unordered_map__get(           \
       K##_##V##_stl_unordered_map_p table,                                     \
       C_KEY key) {                                                             \
     return (C_VALUE *)(&((*table)[key]));                                      \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used C_VALUE K##_##V##_stl_unordered_map__read(           \
+      K##_##V##_stl_unordered_map_p table,                                     \
+      C_KEY key) {                                                             \
+    return (*table)[key];                                                      \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used                                                      \
+      K##_##V##_stl_unordered_map_p K##_##V##_stl_unordered_map__write(        \
+          K##_##V##_stl_unordered_map_p table,                                 \
+          C_KEY key,                                                           \
+          C_VALUE value) {                                                     \
+    (*table)[key] = value;                                                     \
+    return table;                                                              \
   }                                                                            \
                                                                                \
   cname alwaysinline used                                                      \

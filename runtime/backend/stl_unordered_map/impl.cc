@@ -1,4 +1,4 @@
-#include "stl_unordered_map.hh"
+#include "stl_unordered_map.h"
 
 // Generate the default hashtables.
 // #define HANDLE_INTEGER_TYPE(T, C_TYPE, BW, SIGNED) \
@@ -9,8 +9,11 @@
 //   uint32_t, T, C_TYPE)
 /* #include "types.def" */
 
+INSTANTIATE_stl_unordered_map(ptr, void *, ptr, void *)
+INSTANTIATE_stl_unordered_map(ptr, void *, boolean, bool)
+
 #pragma pack(1)
 typedef struct {
   char a[40];
 } collection_t;
-INSTANTIATE_STL_UNORDERED_MAP(u32, uint32_t, collection, collection_t)
+INSTANTIATE_stl_unordered_map(u32, uint32_t, collection, collection_t)
