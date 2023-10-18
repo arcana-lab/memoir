@@ -1,4 +1,4 @@
-#include "stl_map.hh"
+#include "stl_map.h"
 
 // Generate the default hashtables.
 // #define HANDLE_INTEGER_TYPE(T, C_TYPE, BW, SIGNED) \
