@@ -17,11 +17,9 @@ namespace memoir {
 
 extern "C" {
 
-/*
- * Type checking
- */
-__RUNTIME_ATTR
-bool MEMOIR_FUNC(assert_struct_type)(Type *type, Struct *object) {
+// Type checking
+
+bool MEMOIR_FUNC(assert_struct_type)(Type *type, struct_ref object) {
   if (object == nullptr) {
     return is_object_type(type);
   }
@@ -32,8 +30,7 @@ bool MEMOIR_FUNC(assert_struct_type)(Type *type, Struct *object) {
   return true;
 }
 
-__RUNTIME_ATTR
-bool MEMOIR_FUNC(assert_collection_type)(Type *type, Collection *object) {
+bool MEMOIR_FUNC(assert_collection_type)(Type *type, collection_ref object) {
   if (object == nullptr) {
     return is_object_type(type);
   }
@@ -44,18 +41,17 @@ bool MEMOIR_FUNC(assert_collection_type)(Type *type, Collection *object) {
   return true;
 }
 
-__RUNTIME_ATTR
 bool MEMOIR_FUNC(set_return_type)(Type *type) {
   return true;
 }
 
-__RUNTIME_ATTR
-uint64_t MEMOIR_FUNC(size)(Collection *collection) {
+// Collection operations.
+
+uint64_t MEMOIR_FUNC(size)(collection_ref collection) {
   return collection->size();
 }
 
-__RUNTIME_ATTR
-bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...) {
+bool MEMOIR_FUNC(assoc_has)(collection_ref collection, ...) {
   MEMOIR_ACCESS_CHECK(collection);
 
   va_list args;
@@ -69,8 +65,23 @@ bool MEMOIR_FUNC(assoc_has)(Collection *collection, ...) {
   return result;
 }
 
-__RUNTIME_ATTR
-void MEMOIR_FUNC(assoc_remove)(Collection *collection, ...) {
+__IMMUT_ATTR
+__ALLOC_ATTR
+
+const collection_ref MEMOIR_FUNC(assoc_remove)(const collection_ref collection,
+                                               ...) {
+  MEMOIR_ACCESS_CHECK(collection);
+
+  va_list args;
+
+  va_start(args, collection);
+
+  ((Collection *)collection)->remove_element(args);
+
+  va_end(args);
+}
+
+void MUT_FUNC(assoc_remove)(collection_ref collection, ...) {
   MEMOIR_ACCESS_CHECK(collection);
 
   va_list args;
@@ -82,8 +93,7 @@ void MEMOIR_FUNC(assoc_remove)(Collection *collection, ...) {
   va_end(args);
 }
 
-__RUNTIME_ATTR
-Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
+const collection_ref MEMOIR_FUNC(assoc_keys)(collection_ref collection) {
   MEMOIR_ACCESS_CHECK(collection);
 
   MEMOIR_TYPE_CHECK(collection, TypeCode::AssocArrayTy);
@@ -93,30 +103,36 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
   return assoc->keys();
 }
 
-/*
- * Integer accesses
- */
+// Integer accesses
 #define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BITWIDTH, IS_SIGNED)            \
-  __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(Struct * struct_to_access,       \
-                                              unsigned field_index) {          \
+                                                                               \
+  C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(                                 \
+      const struct_ref struct_to_access,                                       \
+      unsigned field_index) {                                                  \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check. */                                          \
     return (C_TYPE)(struct_to_access->get_field(field_index));                 \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
   void MEMOIR_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                     \
-                                             Struct * struct_to_access,        \
+                                             struct_ref struct_to_access,      \
                                              unsigned field_index) {           \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: Add field type check. */                                          \
     struct_to_access->set_field((uint64_t)value, field_index);                 \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(                                                          \
-      index_read_##TYPE_NAME)(Collection * collection_to_access, ...) {        \
+  void MUT_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                        \
+                                          struct_ref struct_to_access,         \
+                                          unsigned field_index) {              \
+    MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
+    /* TODO: Add field type check. */                                          \
+    struct_to_access->set_field((uint64_t)value, field_index);                 \
+  }                                                                            \
+                                                                               \
+  C_TYPE MEMOIR_FUNC(index_read_##TYPE_NAME)(                                  \
+      const collection_ref collection_to_access,                               \
+      ...) {                                                                   \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -130,10 +146,25 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
-  void MEMOIR_FUNC(index_write_##TYPE_NAME)(C_TYPE value,                      \
-                                            Collection * collection_to_access, \
-                                            ...) {                             \
+  const collection_ref MEMOIR_FUNC(index_write_##TYPE_NAME)(                   \
+      C_TYPE value,                                                            \
+      const collection_ref collection_to_access,                               \
+      ...) {                                                                   \
+    MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
+                                                                               \
+    va_list args;                                                              \
+                                                                               \
+    va_start(args, collection_to_access);                                      \
+                                                                               \
+    ((Collection *)collection_to_access)->set_element((uint64_t)value, args);  \
+                                                                               \
+    va_end(args);                                                              \
+    return collection_to_access;                                               \
+  }                                                                            \
+                                                                               \
+  void MUT_FUNC(index_write_##TYPE_NAME)(C_TYPE value,                         \
+                                         collection_ref collection_to_access,  \
+                                         ...) {                                \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -145,9 +176,8 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     va_end(args);                                                              \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(                                                          \
-      assoc_read_##TYPE_NAME)(Collection * collection_to_access, ...) {        \
+      assoc_read_##TYPE_NAME)(collection_ref collection_to_access, ...) {      \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -161,10 +191,10 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
-  void MEMOIR_FUNC(assoc_write_##TYPE_NAME)(C_TYPE value,                      \
-                                            Collection * collection_to_access, \
-                                            ...) {                             \
+  void MEMOIR_FUNC(assoc_write_##TYPE_NAME)(                                   \
+      C_TYPE value,                                                            \
+      collection_ref collection_to_access,                                     \
+      ...) {                                                                   \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
@@ -174,30 +204,26 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     va_end(args);                                                              \
   }
 
-/*
- * Primitive non-integer accesses
- */
+// Primitive non-integer accesses
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, CLASS)                        \
-  __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(Struct * struct_to_access,       \
+                                                                               \
+  C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(struct_ref struct_to_access,     \
                                               unsigned field_index) {          \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check */                                           \
     return (C_TYPE)struct_to_access->get_field(field_index);                   \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
   void MEMOIR_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                     \
-                                             Struct * struct_to_access,        \
+                                             struct_ref struct_to_access,      \
                                              unsigned field_index) {           \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check */                                           \
     struct_to_access->set_field((uint64_t)value, field_index);                 \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(                                                          \
-      index_read_##TYPE_NAME)(Collection * collection_to_access, ...) {        \
+      index_read_##TYPE_NAME)(collection_ref collection_to_access, ...) {      \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -208,10 +234,10 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
-  void MEMOIR_FUNC(index_write_##TYPE_NAME)(C_TYPE value,                      \
-                                            Collection * collection_to_access, \
-                                            ...) {                             \
+  void MEMOIR_FUNC(index_write_##TYPE_NAME)(                                   \
+      C_TYPE value,                                                            \
+      collection_ref collection_to_access,                                     \
+      ...) {                                                                   \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -220,9 +246,8 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     va_end(args);                                                              \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(                                                          \
-      assoc_read_##TYPE_NAME)(Collection * collection_to_access, ...) {        \
+      assoc_read_##TYPE_NAME)(collection_ref collection_to_access, ...) {      \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -233,10 +258,10 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
-  void MEMOIR_FUNC(assoc_write_##TYPE_NAME)(C_TYPE value,                      \
-                                            Collection * collection_to_access, \
-                                            ...) {                             \
+  void MEMOIR_FUNC(assoc_write_##TYPE_NAME)(                                   \
+      C_TYPE value,                                                            \
+      collection_ref collection_to_access,                                     \
+      ...) {                                                                   \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -245,30 +270,35 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     va_end(args);                                                              \
   }
 
-/*
- * Reference accessors have same handling as primitive types
- */
+// Reference accessors have same handling as primitive types
 #define HANDLE_REFERENCE_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX)                 \
-  __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(Struct * struct_to_access,       \
-                                              unsigned field_index) {          \
+  C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(                                 \
+      const struct_ref struct_to_access,                                       \
+      unsigned field_index) {                                                  \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check. */                                          \
     return (C_TYPE)struct_to_access->get_field(field_index);                   \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
   void MEMOIR_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                     \
-                                             Struct * struct_to_access,        \
+                                             struct_ref struct_to_access,      \
                                              unsigned field_index) {           \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check. */                                          \
     struct_to_access->set_field((uint64_t)value, field_index);                 \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(                                                          \
-      index_read_##TYPE_NAME)(Collection * collection_to_access, ...) {        \
+  void MUT_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                        \
+                                          struct_ref struct_to_access,         \
+                                          unsigned field_index) {              \
+    MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
+    /* TODO: add field type check. */                                          \
+    struct_to_access->set_field((uint64_t)value, field_index);                 \
+  }                                                                            \
+                                                                               \
+  C_TYPE MEMOIR_FUNC(index_read_##TYPE_NAME)(                                  \
+      const collection_ref collection_to_access,                               \
+      ...) {                                                                   \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -279,10 +309,22 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
-  void MEMOIR_FUNC(index_write_##TYPE_NAME)(C_TYPE value,                      \
-                                            Collection * collection_to_access, \
-                                            ...) {                             \
+  const collection_ref MEMOIR_FUNC(index_write_##TYPE_NAME)(                   \
+      C_TYPE value,                                                            \
+      const collection_ref collection_to_access,                               \
+      ...) {                                                                   \
+    MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
+                                                                               \
+    va_list args;                                                              \
+    va_start(args, collection_to_access);                                      \
+    collection_to_access->set_element((uint64_t)value, args);                  \
+    va_end(args);                                                              \
+    return collection_to_access;                                               \
+  }                                                                            \
+                                                                               \
+  void MUT_FUNC(index_write_##TYPE_NAME)(C_TYPE value,                         \
+                                         collection_ref collection_to_access,  \
+                                         ...) {                                \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -291,9 +333,9 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     va_end(args);                                                              \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(                                                          \
-      assoc_read_##TYPE_NAME)(Collection * collection_to_access, ...) {        \
+  C_TYPE MEMOIR_FUNC(assoc_read_##TYPE_NAME)(                                  \
+      const collection_ref collection_to_access,                               \
+      ...) {                                                                   \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -306,10 +348,25 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
-  void MEMOIR_FUNC(assoc_write_##TYPE_NAME)(C_TYPE value,                      \
-                                            Collection * collection_to_access, \
-                                            ...) {                             \
+  const collection_ref MEMOIR_FUNC(assoc_write_##TYPE_NAME)(                   \
+      C_TYPE value,                                                            \
+      const collection_ref collection_to_access,                               \
+      ...) {                                                                   \
+    MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
+                                                                               \
+    va_list args;                                                              \
+                                                                               \
+    va_start(args, collection_to_access);                                      \
+                                                                               \
+    collection_to_access->set_element((uint64_t)value, args);                  \
+                                                                               \
+    va_end(args);                                                              \
+    return collection_to_access;                                               \
+  }                                                                            \
+                                                                               \
+  void MUT_FUNC(assoc_write_##TYPE_NAME)(C_TYPE value,                         \
+                                         collection_ref collection_to_access,  \
+                                         ...) {                                \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -321,15 +378,15 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     va_end(args);                                                              \
   }
 
-/*
- * Nested object accesses
- */
+// Nested object accesses
 #define MEMOIR_Struct_CHECK MEMOIR_STRUCT_CHECK
 #define MEMOIR_Collection_CHECK MEMOIR_COLLECTION_CHECK
 #define HANDLE_NESTED_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX)                    \
-  __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(struct_get_##TYPE_NAME)(Struct * struct_to_access,        \
-                                             unsigned field_index) {           \
+  __IMMUT_ATTR                                                                 \
+                                                                               \
+  C_TYPE MEMOIR_FUNC(struct_get_##TYPE_NAME)(                                  \
+      const struct_ref struct_to_access,                                       \
+      unsigned field_index) {                                                  \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
                                                                                \
     auto element = struct_to_access->get_field(field_index);                   \
@@ -337,9 +394,10 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(index_get_##TYPE_NAME)(Collection * collection_to_access, \
-                                            ...) {                             \
+  __IMMUT_ATTR                                                                 \
+                                                                               \
+  C_TYPE MEMOIR_FUNC(                                                          \
+      index_get_##TYPE_NAME)(const collection_ref collection_to_access, ...) { \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
@@ -350,9 +408,8 @@ Collection *MEMOIR_FUNC(assoc_keys)(Collection *collection) {
     return (C_TYPE)element;                                                    \
   }                                                                            \
                                                                                \
-  __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(assoc_get_##TYPE_NAME)(Collection * collection_to_access, \
-                                            ...) {                             \
+  C_TYPE MEMOIR_FUNC(                                                          \
+      assoc_get_##TYPE_NAME)(const collection_ref collection_to_access, ...) { \
     MEMOIR_ACCESS_CHECK(collection_to_access);                                 \
                                                                                \
     va_list args;                                                              \
