@@ -18,8 +18,6 @@
 #include <type_traits>
 #include <vector>
 
-// #include <immer/vector.hpp>
-
 #include "objects.h"
 #include "types.h"
 
@@ -35,14 +33,6 @@ struct FloatType;
 struct DoubleType;
 struct PointerType;
 struct ReferenceType;
-
-// using immer_memory_policy =
-//     immer::memory_policy<immer::unsafe_free_list_heap_policy<immer::cpp_heap>,
-//                          immer::unsafe_refcount_policy,
-//                          immer::no_transience_policy>;
-
-// template <typename T>
-// using immer_vector = immer::vector<T, immer_memory_policy>;
 
 struct Object {
 public:
