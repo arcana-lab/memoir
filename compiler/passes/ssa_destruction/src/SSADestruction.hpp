@@ -5,8 +5,6 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 
-#include "noelle/core/DominatorSummary.hpp"
-
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
@@ -61,7 +59,7 @@ class SSADestructionVisitor
 public:
   SSADestructionVisitor(llvm::Module &M, SSADestructionStats *stats = nullptr);
 
-  void setAnalyses(llvm::noelle::DomTreeSummary &DT,
+  void setAnalyses(llvm::noelle::DominatorForest &DT,
                    LivenessAnalysis &LA,
                    ValueNumbering &VN);
 
@@ -108,7 +106,7 @@ public:
 protected:
   // Analyses.
   llvm::Module &M;
-  llvm::noelle::DomTreeSummary *DT;
+  llvm::noelle::DominatorForest *DT;
   LivenessAnalysis *LA;
   ValueNumbering *VN;
   TypeConverter TC;
