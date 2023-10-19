@@ -7,7 +7,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17")
 add_subdirectory(vector)
 add_subdirectory(hashtable)
 add_subdirectory(stl_unordered_map)
-add_subdirectory(stl_map)
+# add_subdirectory(stl_map)
 add_subdirectory(deepsjeng_ttable)
 add_subdirectory(stl_vector)
 
