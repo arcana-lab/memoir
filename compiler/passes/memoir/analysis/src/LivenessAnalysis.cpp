@@ -97,11 +97,12 @@ LivenessAnalysis::LivenessAnalysis(llvm::Function &F,
   : F(F),
     DFE(std::move(DFE)) {
   debugln("Start liveness analysis");
-  this->DFR = this->DFE.applyBackward(&F,
-                                      compute_gen,
-                                      compute_kill,
-                                      compute_in,
-                                      compute_out);
+  // this->DFR = this->DFE.applyBackward(&F,
+  //                                     compute_gen,
+  //                                     compute_kill,
+  //                                     compute_in,
+  //                                     compute_out);
+  this->DFR = nullptr; // TODO: update with new NOELLE API.
   debugln("End liveness analysis");
 }
 
