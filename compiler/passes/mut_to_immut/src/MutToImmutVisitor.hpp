@@ -5,7 +5,7 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 
-#include "noelle/core/DominatorSummary.hpp"
+#include "noelle/core/Noelle.hpp"
 
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/InstVisitor.hpp"
@@ -27,7 +27,7 @@ class MutToImmutVisitor
   friend class llvm::InstVisitor<MutToImmutVisitor, void>;
 
 public:
-  MutToImmutVisitor(llvm::noelle::DomTreeSummary &DT,
+  MutToImmutVisitor(llvm::noelle::DominatorForest &DT,
                     ordered_set<llvm::Value *> memoir_names,
                     map<llvm::PHINode *, llvm::Value *> inserted_phis,
                     MutToImmutStats *stats = nullptr);
@@ -68,7 +68,7 @@ public:
 protected:
   MemOIRBuilder *builder;
   ReachingDefMapTy reaching_definitions;
-  llvm::noelle::DomTreeSummary &DT;
+  llvm::noelle::DominatorForest &DT;
   set<llvm::Instruction *> instructions_to_delete;
   map<llvm::PHINode *, llvm::Value *> inserted_phis;
 

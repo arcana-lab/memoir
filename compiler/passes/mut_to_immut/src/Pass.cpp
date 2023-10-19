@@ -19,7 +19,6 @@
 #include "llvm/Support/raw_ostream.h"
 
 // NOELLE
-#include "noelle/core/DominatorSummary.hpp"
 #include "noelle/core/Noelle.hpp"
 
 // MemOIR
@@ -61,7 +60,7 @@ struct MutToImmutPass : public ModulePass {
 
   using DomTreeTraversalListTy = list<llvm::BasicBlock *>;
   static DomTreeTraversalListTy dfs_preorder_traversal_helper(
-      llvm::noelle::DomNodeSummary *root) {
+      llvm::noelle::DominatorNode *root) {
     MEMOIR_NULL_CHECK(root, "Root of dfs preorder traversal is NULL!");
 
     DomTreeTraversalListTy traversal = { root->getBlock() };
@@ -77,7 +76,7 @@ struct MutToImmutPass : public ModulePass {
   }
 
   static DomTreeTraversalListTy dfs_preorder_traversal(
-      llvm::noelle::DomTreeSummary &DT,
+      llvm::noelle::DominatorForest &DT,
       llvm::BasicBlock &root) {
     auto *root_node = DT.getNode(&root);
     MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found, blame NOELLE");

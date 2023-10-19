@@ -74,7 +74,7 @@ llvm::Value *MutToImmutVisitor::update_reaching_definition(
 }
 
 MutToImmutVisitor::MutToImmutVisitor(
-    llvm::noelle::DomTreeSummary &DT,
+    llvm::noelle::DominatorForest &DT,
     ordered_set<llvm::Value *> memoir_names,
     map<llvm::PHINode *, llvm::Value *> inserted_phis,
     MutToImmutStats *stats)
