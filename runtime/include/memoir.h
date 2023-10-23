@@ -26,55 +26,55 @@ extern "C" {
 #define __ALLOC_ATTR __declspec(allocator)
 #define __IMMUT_ATTR __attribute__((pure))
 
-typedef Type *restrict type_ref;
-typedef Collection *restrict collection_ref;
-typedef Struct *restrict struct_ref;
+typedef Type *__restrict__ type_ref;
+typedef Collection *__restrict__ collection_ref;
+typedef Struct *__restrict__ struct_ref;
 
 typedef struct {
-  const collection_ref first;
-  const collection_ref second;
+  collection_ref first;
+  collection_ref second;
 } collection_pair;
 
 #define MEMOIR_FUNC(name) memoir__##name
 #define MUT_FUNC(name) mut__##name
 
 // Struct Types
-__RUNTIME_ATTR const type_ref MEMOIR_FUNC(define_struct_type)(const char *name,
-                                                              int num_fields,
-                                                              ...);
+__RUNTIME_ATTR type_ref MEMOIR_FUNC(define_struct_type)(const char *name,
+                                                        int num_fields,
+                                                        ...);
 
 __RUNTIME_ATTR
 type_ref MEMOIR_FUNC(struct_type)(const char *name);
 
 // Static-length Tensor Type
 __RUNTIME_ATTR
-const type_ref MEMOIR_FUNC(static_tensor_type)(const type_ref element_type,
-                                               uint64_t num_dimensions,
-                                               ...);
+type_ref MEMOIR_FUNC(static_tensor_type)(const type_ref element_type,
+                                         uint64_t num_dimensions,
+                                         ...);
 // Collection Types
 __RUNTIME_ATTR
-const type_ref MEMOIR_FUNC(tensor_type)(const type_ref element_type,
-                                        uint64_t num_dimensions);
+type_ref MEMOIR_FUNC(tensor_type)(const type_ref element_type,
+                                  uint64_t num_dimensions);
 
 __RUNTIME_ATTR
-const type_ref MEMOIR_FUNC(assoc_array_type)(const type_ref key_type,
-                                             const type_ref value_type);
+type_ref MEMOIR_FUNC(assoc_array_type)(const type_ref key_type,
+                                       const type_ref value_type);
 
 __RUNTIME_ATTR
-const type_ref MEMOIR_FUNC(sequence_type)(const type_ref element_type);
+type_ref MEMOIR_FUNC(sequence_type)(const type_ref element_type);
 
 // Reference Type
 __RUNTIME_ATTR
-const type_ref MEMOIR_FUNC(ref_type)(const type_ref referenced_type);
+type_ref MEMOIR_FUNC(ref_type)(const type_ref referenced_type);
 
 // Primitive Types
 #define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BITWIDTH, IS_SIGNED)            \
   __RUNTIME_ATTR                                                               \
-  const type_ref MEMOIR_FUNC(TYPE_NAME##_type)();
+  type_ref MEMOIR_FUNC(TYPE_NAME##_type)();
 
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX)                 \
   __RUNTIME_ATTR                                                               \
-  const type_ref MEMOIR_FUNC(TYPE_NAME##_type)();
+  type_ref MEMOIR_FUNC(TYPE_NAME##_type)();
 
 // Object construction
 __IMMUT_ATTR
@@ -118,21 +118,25 @@ void MEMOIR_FUNC(delete_collection)(collection_ref collection);
 // Collection operations.
 __IMMUT_ATTR
 __RUNTIME_ATTR
-uint64_t MEMOIR_FUNC(size)(collection_ref collection);
+size_t MEMOIR_FUNC(size)(const collection_ref collection);
+
+__IMMUT_ATTR
+__RUNTIME_ATTR
+size_t MEMOIR_FUNC(end)();
 
 // Immutable sequence operations.
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-const collection_ref MEMOIR_FUNC(sequence_copy)(collection_ref collection,
-                                                size_t begin_index,
-                                                size_t end_index);
+collection_ref MEMOIR_FUNC(sequence_copy)(collection_ref collection,
+                                          size_t begin_index,
+                                          size_t end_index);
 
 #define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
   __IMMUT_ATTR                                                                 \
   __ALLOC_ATTR                                                                 \
   __RUNTIME_ATTR                                                               \
-  const collection_ref MEMOIR_FUNC(sequence_insert_##TYPE_NAME)(               \
+  collection_ref MEMOIR_FUNC(sequence_insert_##TYPE_NAME)(                     \
       C_TYPE value,                                                            \
       const collection_ref collection,                                         \
       size_t insertion_index);
@@ -140,7 +144,7 @@ const collection_ref MEMOIR_FUNC(sequence_copy)(collection_ref collection,
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-const collection_ref MEMOIR_FUNC(sequence_insert)(
+collection_ref MEMOIR_FUNC(sequence_insert)(
     const collection_ref collection_to_insert,
     const collection_ref collection,
     size_t insertion_index);
@@ -148,10 +152,9 @@ const collection_ref MEMOIR_FUNC(sequence_insert)(
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-const collection_ref MEMOIR_FUNC(sequence_remove)(
-    const collection_ref collection,
-    size_t begin_index,
-    size_t end_index);
+collection_ref MEMOIR_FUNC(sequence_remove)(const collection_ref collection,
+                                            size_t begin_index,
+                                            size_t end_index);
 
 __IMMUT_ATTR
 __ALLOC_ATTR
@@ -162,6 +165,15 @@ const collection_pair MEMOIR_FUNC(sequence_swap)(
     size_t end1,
     const collection_ref collection2,
     size_t begin2);
+
+__IMMUT_ATTR
+__ALLOC_ATTR
+__RUNTIME_ATTR
+collection_ref MEMOIR_FUNC(sequence_swap_within)(
+    const collection_ref collection,
+    size_t from_begin,
+    size_t from_end,
+    size_t to_begin);
 
 // Mutable sequence operations.
 #define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
@@ -218,14 +230,12 @@ bool MEMOIR_FUNC(assoc_has)(const collection_ref collection, ...);
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-const collection_ref MEMOIR_FUNC(assoc_insert)(const collection_ref collection,
-                                               ...);
+collection_ref MEMOIR_FUNC(assoc_insert)(const collection_ref collection, ...);
 
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-const collection_ref MEMOIR_FUNC(assoc_remove)(const collection_ref collection,
-                                               ...);
+collection_ref MEMOIR_FUNC(assoc_remove)(const collection_ref collection, ...);
 
 __IMMUT_ATTR
 __ALLOC_ATTR
@@ -255,8 +265,6 @@ void MUT_FUNC(assoc_remove)(collection_ref collection, ...);
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(                                                          \
       assoc_read_##TYPE_NAME)(const collection_ref collection_to_access, ...); \
-  __IMMUT_ATTR                                                                 \
-  __ALLOC_ATTR                                                                 \
   __RUNTIME_ATTR                                                               \
   void MEMOIR_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                     \
                                              struct_ref struct_to_access,      \
@@ -308,16 +316,29 @@ void MUT_FUNC(assoc_remove)(collection_ref collection, ...);
 
 // SSA renaming
 __IMMUT_ATTR
+__ALLOC_ATTR
 __RUNTIME_ATTR
 collection_ref MEMOIR_FUNC(defPHI)(const collection_ref collection);
 
 __IMMUT_ATTR
+__ALLOC_ATTR
 __RUNTIME_ATTR
 collection_ref MEMOIR_FUNC(usePHI)(const collection_ref collection);
 
+__IMMUT_ATTR
+__ALLOC_ATTR
+__RUNTIME_ATTR
+collection_ref MEMOIR_FUNC(argPHI)(const collection_ref collection);
+
+__IMMUT_ATTR
+__ALLOC_ATTR
+__RUNTIME_ATTR
+collection_ref MEMOIR_FUNC(retPHI)(const collection_ref collection);
+
 // Type checking and function signatures.
 __RUNTIME_ATTR
-bool MEMOIR_FUNC(assert_struct_type)(const type_ref type, const Struct *object);
+bool MEMOIR_FUNC(assert_struct_type)(const type_ref type,
+                                     const struct_ref object);
 __RUNTIME_ATTR
 bool MEMOIR_FUNC(assert_collection_type)(const type_ref type,
                                          const collection_ref object);

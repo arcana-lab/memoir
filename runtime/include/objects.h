@@ -199,6 +199,8 @@ public:
   // Iterators
   virtual seq_iter begin() = 0;
   virtual seq_iter end() = 0;
+  virtual seq_iter cbegin() const = 0;
+  virtual seq_iter cend() const = 0;
 
   // Mutable operations
   virtual void insert(uint64_t index, uint64_t value) = 0;
@@ -233,6 +235,8 @@ struct SequenceAlloc : public Sequence {
   // Iterators
   Sequence::seq_iter begin() override;
   Sequence::seq_iter end() override;
+  Sequence::seq_iter cbegin() const override;
+  Sequence::seq_iter cend() const override;
 
   // Mutable operations
   void insert(uint64_t index, uint64_t value) override;
@@ -271,6 +275,8 @@ struct SequenceView : public Sequence {
   // Iterators
   Sequence::seq_iter begin() override;
   Sequence::seq_iter end() override;
+  Sequence::seq_iter cbegin() const override;
+  Sequence::seq_iter cend() const override;
 
   // Mutable operations
   void insert(uint64_t index, uint64_t value) override;
