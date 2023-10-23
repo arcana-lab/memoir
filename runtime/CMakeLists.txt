@@ -3,7 +3,6 @@ project(MemOIR)
 set(CMAKE_C_FLAGS   "-O1 -Xclang -disable-llvm-passes -fdeclspec -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -g")
 
-include_directories(immer)
 include_directories(include)
 
 set(HEADER_FILES
@@ -17,15 +16,26 @@ set(PRIVATE_HEADER_FILES
   include/types.def)
 
 set(SRC_FILES
-  src/accessor.cpp
-  src/builder.cpp
-  src/mutable.cpp
-  src/elements.cpp
-  src/objects.cpp
-  src/collections.cpp
-  src/printer.cpp
-  src/types.cpp
-  src/ssa.cpp
+  # General-purpose
+  src/allocation.cpp
+  src/deletion.cpp
+  src/type.cpp
+  src/type_checking.cpp
+  
+  # SSA
+  src/ssa_access.cpp
+  src/ssa_operations.cpp
+  
+  # Mut
+  src/mut_access.cpp
+  src/mut_operations.cpp
+  
+  # Internal
+  src/detail/elements.cpp
+  src/detail/objects.cpp
+  src/detail/collections.cpp
+  src/detail/printer.cpp
+  src/detail/types.cpp
   )
 
 add_library(MemOIR STATIC ${SRC_FILES})
