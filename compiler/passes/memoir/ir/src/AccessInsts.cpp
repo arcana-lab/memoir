@@ -6,9 +6,7 @@
 
 namespace llvm::memoir {
 
-/*
- * AccessInst implementation
- */
+// AccessInst implementation
 CollectionType &AccessInst::getCollectionType() const {
   auto type = TypeAnalysis::analyze(this->getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine type of collection being read");
@@ -21,31 +19,11 @@ CollectionType &AccessInst::getCollectionType() const {
   return *collection_type;
 }
 
-/*
- * ReadInst implementation
- */
-llvm::Value &ReadInst::getValueRead() const {
-  return this->getCallInst();
-}
+// ReadInst implementation
+RESULT(ReadInst, ValueRead)
+OPERAND(ReadInst, ObjectOperand, 0)
 
-llvm::Value &ReadInst::getObjectOperand() const {
-  return *(this->getObjectOperandAsUse().get());
-}
-
-llvm::Use &ReadInst::getObjectOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(0);
-}
-
-/*
- * StructReadInst implementation
- */
-Collection &StructReadInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getCallInst());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine the struct being accessed");
-  return *collection;
-}
-
+// StructReadInst implementation
 CollectionType &StructReadInst::getCollectionType() const {
   auto type = TypeAnalysis::analyze(this->getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
@@ -58,12 +36,6 @@ CollectionType &StructReadInst::getCollectionType() const {
       FieldArrayType::get(*struct_type, this->getFieldIndex());
 
   return field_array_type;
-}
-
-Struct &StructReadInst::getStructAccessed() const {
-  auto strct = StructAnalysis::analyze(this->getObjectOperand());
-  MEMOIR_NULL_CHECK(strct, "Could not determine the struct being accessed");
-  return *strct;
 }
 
 unsigned StructReadInst::getFieldIndex() const {
@@ -83,113 +55,28 @@ unsigned StructReadInst::getFieldIndex() const {
   return (unsigned)field_index;
 }
 
-llvm::Value &StructReadInst::getFieldIndexOperand() const {
-  return *(this->getFieldIndexOperandAsUse().get());
-}
+OPERAND(StructReadInst, FieldIndexOperand, 1)
+TO_STRING(StructReadInst)
 
-llvm::Use &StructReadInst::getFieldIndexOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(1);
-}
-
-std::string StructReadInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "Struct Read: " + llvm_str;
-
-  return str;
-}
-
-/*
- * IndexReadInst implementation
- */
-Collection &IndexReadInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine the collection being accessed");
-  return *collection;
-}
-
+// IndexReadInst implementation
 unsigned IndexReadInst::getNumberOfDimensions() const {
   return (this->getCallInst().arg_size() - 1);
 }
+VAR_OPERAND(IndexReadInst, IndexOfDimensions, 1)
 
-llvm::Value &IndexReadInst::getIndexOfDimension(unsigned dim_idx) const {
-  return *(this->getIndexOfDimensionAsUse(dim_idx).get());
-}
+TO_STRING(IndexReadInst)
 
-llvm::Use &IndexReadInst::getIndexOfDimensionAsUse(unsigned dim_idx) const {
-  return this->getCallInst().getArgOperandUse(1 + dim_idx);
-}
+// AssocReadInst implementation
+OPERAND(AssocReadInst, KeyOperand, 1)
 
-std::string IndexReadInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
+TO_STRING(AssocReadInst)
 
-  str = "Index Read: " + llvm_str;
+// WriteInst implementation
+OPERAND(WriteInst, ValueWritten, 0)
 
-  return str;
-}
+OPERAND(WriteInst, ObjectOperand, 1)
 
-/*
- * AssocReadInst implementation
- */
-Collection &AssocReadInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine the collection being accessed");
-  return *collection;
-}
-
-llvm::Value &AssocReadInst::getKeyOperand() const {
-  return *(this->getKeyOperandAsUse().get());
-}
-
-llvm::Use &AssocReadInst::getKeyOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(1);
-}
-
-std::string AssocReadInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "Assoc Read: " + llvm_str;
-
-  return str;
-}
-
-/*
- * WriteInst implementation
- */
-llvm::Value &WriteInst::getValueWritten() const {
-  return *(this->getValueWrittenAsUse().get());
-}
-
-llvm::Use &WriteInst::getValueWrittenAsUse() const {
-  return this->getCallInst().getArgOperandUse(0);
-}
-
-llvm::Value &WriteInst::getObjectOperand() const {
-  return *(this->getObjectOperandAsUse().get());
-}
-
-llvm::Use &WriteInst::getObjectOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(1);
-}
-
-/*
- * StructWriteInst implementation
- */
-Collection &StructWriteInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine the struct being accessed");
-  return *collection;
-}
-
+// StructWriteInst implementation
 CollectionType &StructWriteInst::getCollectionType() const {
   auto type = TypeAnalysis::analyze(this->getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
@@ -202,12 +89,6 @@ CollectionType &StructWriteInst::getCollectionType() const {
       FieldArrayType::get(*struct_type, this->getFieldIndex());
 
   return field_array_type;
-}
-
-Struct &StructWriteInst::getStructAccessed() const {
-  auto strct = StructAnalysis::analyze(this->getObjectOperand());
-  MEMOIR_NULL_CHECK(strct, "Could not determine struct being accessed");
-  return *strct;
 }
 
 unsigned StructWriteInst::getFieldIndex() const {
@@ -227,109 +108,34 @@ unsigned StructWriteInst::getFieldIndex() const {
   return (unsigned)field_index;
 }
 
-llvm::Value &StructWriteInst::getFieldIndexOperand() const {
-  return *(this->getFieldIndexOperandAsUse().get());
-}
+OPERAND(StructWriteInst, FieldIndexOperand, 2)
 
-llvm::Use &StructWriteInst::getFieldIndexOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(2);
-}
+TO_STRING(StructWriteInst)
 
-std::string StructWriteInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "Struct Write: " + llvm_str;
-
-  return str;
-}
-
-/*
- * IndexWriteInst implementation
- */
-Collection &IndexWriteInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine collection being written to");
-  return *collection;
-}
+// IndexWriteInst implementation
+RESULTANT(IndexWriteInst, Collection)
 
 unsigned IndexWriteInst::getNumberOfDimensions() const {
   return (this->getCallInst().arg_size() - 2);
 }
 
-llvm::Value &IndexWriteInst::getIndexOfDimension(unsigned dim_idx) const {
-  return *(this->getIndexOfDimensionAsUse(dim_idx).get());
-}
+VAR_OPERAND(IndexWriteInst, IndexOfDimension, 2)
 
-llvm::Use &IndexWriteInst::getIndexOfDimensionAsUse(unsigned dim_idx) const {
-  return this->getCallInst().getArgOperandUse(2 + dim_idx);
-}
+TO_STRING(IndexWriteInst)
 
-std::string IndexWriteInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
+// AssocWriteInst implementation
+OPERAND(AssocWriteInst, Collection)
 
-  str = "Index Write: " + llvm_str;
+OPERAND(AssocWriteInst, KeyOperand, 2)
 
-  return str;
-}
+TO_STRING(AssocWriteInst)
 
-/*
- * AssocWriteInst implementation
- */
-Collection &AssocWriteInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine collection being written to");
-  return *collection;
-}
+// GetInst implementation
+RESULTANT(GetInst, NestedObject)
 
-llvm::Value &AssocWriteInst::getKeyOperand() const {
-  return *(this->getKeyOperandAsUse().get());
-}
+OPERAND(GetInst, ObjectOperand, 0)
 
-llvm::Use &AssocWriteInst::getKeyOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(2);
-}
-
-std::string AssocWriteInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "Assoc Write: " + llvm_str;
-
-  return str;
-}
-
-/*
- * GetInst implementation
- */
-llvm::Value &GetInst::getValueRead() const {
-  return this->getCallInst();
-}
-
-llvm::Value &GetInst::getObjectOperand() const {
-  return *(this->getObjectOperandAsUse().get());
-}
-
-llvm::Use &GetInst::getObjectOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(0);
-}
-
-/*
- * StructGetInst implementation
- */
-Collection &StructGetInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperand());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine the struct being accessed");
-  return *collection;
-}
-
+// StructGetInst implementation
 CollectionType &StructGetInst::getCollectionType() const {
   auto type = TypeAnalysis::analyze(this->getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
@@ -342,12 +148,6 @@ CollectionType &StructGetInst::getCollectionType() const {
       FieldArrayType::get(*struct_type, this->getFieldIndex());
 
   return field_array_type;
-}
-
-Struct &StructGetInst::getStructAccessed() const {
-  auto strct = StructAnalysis::analyze(this->getObjectOperand());
-  MEMOIR_NULL_CHECK(strct, "Could not determine the struct being accessed");
-  return *strct;
 }
 
 unsigned StructGetInst::getFieldIndex() const {
@@ -367,118 +167,26 @@ unsigned StructGetInst::getFieldIndex() const {
   return (unsigned)field_index;
 }
 
-llvm::Value &StructGetInst::getFieldIndexOperand() const {
-  return *(this->getFieldIndexOperandAsUse().get());
-}
+OPERAND(StructGetInst, FieldIndexOperand, 1)
 
-llvm::Use &StructGetInst::getFieldIndexOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(1);
-}
+TO_STRING(StructGetInst)
 
-std::string StructGetInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "Struct Get: " + llvm_str;
-
-  return str;
-}
-
-/*
- * IndexGetInst implementation
- */
-Collection &IndexGetInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine the collection being accessed");
-  return *collection;
-}
-
+// IndexGetInst implementation
 unsigned IndexGetInst::getNumberOfDimensions() const {
   return (this->getCallInst().arg_size() - 1);
 }
 
-llvm::Value &IndexGetInst::getIndexOfDimension(unsigned dim_idx) const {
-  return *(this->getIndexOfDimensionAsUse(dim_idx).get());
-}
+VAR_OPERAND(IndexGetInst, IndexOfDimension, 1)
 
-llvm::Use &IndexGetInst::getIndexOfDimensionAsUse(unsigned dim_idx) const {
-  return this->getCallInst().getArgOperandUse(1 + dim_idx);
-}
+TO_STRING(IndexGetInst)
 
-std::string IndexGetInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
+// AssocGetInst implementation
+OPERAND(AssocGetInst, KeyOperand, 1)
+TO_STRING(AssocGetInst)
 
-  str = "Index Get: " + llvm_str;
-
-  return str;
-}
-
-/*
- * AssocGetInst implementation
- */
-Collection &AssocGetInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine the collection being accessed");
-  return *collection;
-}
-
-llvm::Value &AssocGetInst::getKeyOperand() const {
-  return *(this->getKeyOperandAsUse().get());
-}
-
-llvm::Use &AssocGetInst::getKeyOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(1);
-}
-
-std::string AssocGetInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "Assoc Get: " + llvm_str;
-
-  return str;
-}
-
-/*
- * AssocHasInst implementation
- */
-Collection &AssocHasInst::getCollectionAccessed() const {
-  auto collection = CollectionAnalysis::analyze(this->getObjectOperandAsUse());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine collection being written to");
-  return *collection;
-}
-
-llvm::Value &AssocHasInst::getObjectOperand() const {
-  return *(this->getObjectOperandAsUse().get());
-}
-
-llvm::Use &AssocHasInst::getObjectOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(0);
-}
-
-llvm::Value &AssocHasInst::getKeyOperand() const {
-  return *(this->getKeyOperandAsUse().get());
-}
-
-llvm::Use &AssocHasInst::getKeyOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(1);
-}
-
-std::string AssocHasInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "Sequence Insert: " + llvm_str;
-
-  return str;
-}
+// AssocHasInst implementation
+OPERAND(AssocHasInst, ObjectOperand, 0)
+OPERAND(AssocHasInst, KeyOperand, 1)
+TO_STRING(AssocHasInst)
 
 } // namespace llvm::memoir

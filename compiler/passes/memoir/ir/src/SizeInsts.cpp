@@ -6,10 +6,13 @@
 
 namespace llvm::memoir {
 
-// ViewInst implemenatation
-RESULTANT(ViewInst, View)
-OPERAND(ViewInst, Collection, 0)
-OPERAND(ViewInst, BeginIndex, 1)
-OPERAND(ViewInst, EndIndex, 2)
-TO_STRING(ViewInst)
+// SizeInst implementation
+RESULTANT(SizeInst, Size)
+OPERAND(SizeInst, Collection, 0)
+TO_STRING(SizeInst)
+
+// EndInst implementation
+RESULTANT(EndInst, Value)
+TO_STRING(EndInst)
+
 } // namespace llvm::memoir
