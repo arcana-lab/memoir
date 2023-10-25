@@ -1,4 +1,4 @@
-#include "memoir/ir/InstructionUtils.hpp"
+#include "memoir/support/InstructionUtils.hpp"
 
 namespace llvm::memoir {
 

@@ -1,6 +1,6 @@
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/ir/InstructionUtils.hpp"
+#include "memoir/support/InstructionUtils.hpp"
 
 namespace llvm::memoir {
 
@@ -9,8 +9,8 @@ RESULTANT(CopyInst, Copy)
 OPERAND(CopyInst, CopiedCollection, 0)
 
 // SeqCopyInst implementation.
-OPERAND(CopyInst, BeginIndex, 1)
-OPERAND(CopyInst, EndIndex, 2)
-TO_STRING(CopyInst)
+OPERAND(SeqCopyInst, BeginIndex, 1)
+OPERAND(SeqCopyInst, EndIndex, 2)
+TO_STRING(SeqCopyInst)
 
 } // namespace llvm::memoir
