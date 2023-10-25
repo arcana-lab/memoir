@@ -743,6 +743,8 @@ protected:
 
 struct StructWriteInst : public WriteInst {
 public:
+  CollectionType &getCollectionType() const override;
+
   unsigned getFieldIndex() const;
   llvm::Value &getFieldIndexOperand() const;
   llvm::Use &getFieldIndexOperandAsUse() const;
