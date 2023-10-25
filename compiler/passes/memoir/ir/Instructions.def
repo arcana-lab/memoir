@@ -192,6 +192,7 @@ HANDLE_ASSOC_WRITE_INST_(ASSOC_WRITE_PTR, MEMOIR_FUNC(assoc_write_ptr), AssocWri
 HANDLE_ASSOC_WRITE_INST_(ASSOC_WRITE_STRUCT_REF, MEMOIR_FUNC(assoc_write_struct_ref), AssocWriteInst)
 HANDLE_ASSOC_WRITE_INST_(ASSOC_WRITE_COLLECTION_REF, MEMOIR_FUNC(assoc_write_collection_ref), AssocWriteInst)
 
+
 #ifndef HANDLE_GET_INST
 #define HANDLE_GET_INST(ENUM, FUNC, CLASS) HANDLE_ACCESS_INST(ENUM, FUNC, CLASS)
 #endif
@@ -218,19 +219,25 @@ HANDLE_INDEX_GET_INST_(INDEX_GET_COLLECTION, MEMOIR_FUNC(index_get_collection), 
 HANDLE_ASSOC_GET_INST_(ASSOC_GET_STRUCT, MEMOIR_FUNC(assoc_get_struct), AssocGetInst)
 HANDLE_ASSOC_GET_INST_(ASSOC_GET_COLLECTION, MEMOIR_FUNC(assoc_get_collection), AssocGetInst)
 
-/*
- * Struct and collection operations
- */
+/* Struct and collection operations */
 HANDLE_INST_(DELETE_STRUCT, MEMOIR_FUNC(delete_struct), DeleteStructInst)
 HANDLE_INST_(DELETE_COLLECTION, MEMOIR_FUNC(delete_collection), DeleteCollectionInst)
-HANDLE_INST_(JOIN, MEMOIR_FUNC(join), JoinInst)
-HANDLE_INST_(SLICE, MEMOIR_FUNC(get_slice), SliceInst)
 
-/*
- * Mutable collection operations
- */
+/* Insert operations */
+#ifndef HANDLE_INSERT_INST
+#define HANDLE_INSERT_INST(ENUM, FUNC, CLASS) HANDLE_INST(ENUM, FUNC, CLASS)
+#endif
+#define HANDLE_INSERT_INST_(ENUM, FUNC, CLASS) HANDLE_INSERT_INST(ENUM, FUNC, CLASS)
+
+/* Sequence insert range operation. */
+HANDLE_INSERT_INST_(SEQ_INSERT, MEMOIR_FUNC(sequence_insert), SeqInsertSeqInst)
+
+/* Assoc insert operation. */
+HANDLE_INSERT_INST_(ASSOC_INSERT, MEMOIR_FUNC(assoc_insert), AssocInsertInst)
+
+/* Sequence insert element operations */
 #ifndef HANDLE_SEQ_INSERT_INST
-#define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS) HANDLE_INST(ENUM, FUNC, CLASS)
+#define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS) HANDLE_INSERT_INST_(ENUM, FUNC, CLASS)
 #endif
 #define HANDLE_SEQ_INSERT_INST_(ENUM, FUNC, CLASS) HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS)
 HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_UINT64, MEMOIR_FUNC(sequence_insert_u64), SeqInsertInst)
@@ -250,40 +257,46 @@ HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_PTR, MEMOIR_FUNC(sequence_insert_ptr), SeqIns
 HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_STRUCT_REF, MEMOIR_FUNC(sequence_insert_struct_ref), SeqInsertInst)
 HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_COLLECTION_REF, MEMOIR_FUNC(sequence_insert_collection_ref), SeqInsertInst)
 
-/*
- * Mutable sequence operations.
- */
-HANDLE_INST_(SEQ_REMOVE, MEMOIR_FUNC(sequence_remove), SeqRemoveInst)
-HANDLE_INST_(SEQ_APPEND, MEMOIR_FUNC(sequence_append), SeqAppendInst)
-HANDLE_INST_(SEQ_SWAP, MEMOIR_FUNC(sequence_swap), SeqSwapInst)
-HANDLE_INST_(SEQ_SPLIT, MEMOIR_FUNC(sequence_split), SeqSplitInst)
-HANDLE_INST_(SEQ_INSERT, MEMOIR_FUNC(sequence_insert), SeqInsertSeqInst)
+/* Remove operations. */
+#ifndef HANDLE_REMOVE_INST
+#define HANDLE_REMOVE_INST(ENUM, FUNC, CLASS) HANDLE_INST(ENUM, FUNC, CLASS)
+#endif
+#define HANDLE_REMOVE_INST_(ENUM, FUNC, CLASS) HANDLE_REMOVE_INST(ENUM, FUNC, CLASS)
 
-/*
- * Associative operations.
- */
+HANDLE_REMOVE_INST_(SEQ_REMOVE, MEMOIR_FUNC(sequence_remove), SeqRemoveInst)
+HANDLE_REMOVE_INST_(ASSOC_REMOVE, MEMOIR_FUNC(assoc_remove), AssocRemoveInst)
+
+/* Copy operations. */
+#ifndef HANDLE_COPY_INST
+#define HANDLE_COPY_INST(ENUM, FUNC, CLASS) HANDLE_INST(ENUM, FUNC, CLASS)
+#endif
+#define HANDLE_COPY_INST_(ENUM, FUNC, CLASS) HANDLE_COPY_INST(ENUM, FUNC, CLASS)
+
+HANDLE_COPY_INST_(SEQ_COPY, MEMOIR_FUNC(sequence_copy), SeqCopyInst)
+
+/* Sequence operations. */
+HANDLE_INST_(SEQ_SWAP, MEMOIR_FUNC(sequence_swap), SeqSwapInst)
+HANDLE_INST_(SEQ_SWAP_WITHIN, MEMOIR_FUNC(sequence_swap_within), SeqSwapWithinInst)
+
+/* Associative operations. */
 HANDLE_ACCESS_INST_(ASSOC_HAS, MEMOIR_FUNC(assoc_has), AssocHasInst)
-HANDLE_INST_(ASSOC_REMOVE, MEMOIR_FUNC(assoc_remove), AssocRemoveInst)
 HANDLE_INST_(ASSOC_KEYS, MEMOIR_FUNC(assoc_keys), AssocKeysInst)
 
-/*
- * SSA/readonce operations.
- */
+/* SSA/readonce operations. */
 HANDLE_INST_(USE_PHI, MEMOIR_FUNC(usePHI), UsePHIInst)
 HANDLE_INST_(DEF_PHI, MEMOIR_FUNC(defPHI), DefPHIInst)
+HANDLE_INST_(ARG_PHI, MEMOIR_FUNC(argPHI), ArgPHIInst)
+HANDLE_INST_(RET_PHI, MEMOIR_FUNC(retPHI), RetPHIInst)
 
-/*
- * Lowering representations.
- */
+/* Lowering representations. */
 HANDLE_INST_(VIEW, MEMOIR_FUNC(view), ViewInst)
 
-/*
- * Type Checking
- */
+/* Type Checking */
 HANDLE_INST_(ASSERT_STRUCT_TYPE, MEMOIR_FUNC(assert_struct_type), AssertStructTypeInst)
 HANDLE_INST_(ASSERT_COLLECTION_TYPE, MEMOIR_FUNC(assert_collection_type), AssertCollectionTypeInst)
 HANDLE_INST_(SET_RETURN_TYPE, MEMOIR_FUNC(set_return_type), ReturnTypeInst)
 HANDLE_INST_(SIZE, MEMOIR_FUNC(size), SizeInst)
+HANDLE_INST_(END, MEMOIR_FUNC(end), EndInst)
 
 
 #undef HANDLE_INST
@@ -304,5 +317,9 @@ HANDLE_INST_(SIZE, MEMOIR_FUNC(size), SizeInst)
 #undef HANDLE_STRUCT_GET_INST
 #undef HANDLE_INDEX_GET_INST
 #undef HANDLE_ASSOC_GET_INST
+#undef HANDLE_INSERT_INST
 #undef HANDLE_SEQ_INSERT_INST
+#undef HANDLE_REMOVE_INST
+#undef HANDLE_COPY_INST
+#undef HANDLE_SWAP_INST
 // clang-format on
