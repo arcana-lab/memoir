@@ -12,6 +12,12 @@ std::ostream &operator<<(std::ostream &os, MemOIR_Func Enum) {
   case MemOIR_Func::ENUM:                                                      \
     os << #ENUM;                                                               \
     break;
+#include "memoir/ir/Instructions.def"
+#define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
+  case MemOIR_Func::ENUM:                                                      \
+    os << #ENUM;                                                               \
+    break;
+#include "memoir/ir/MutOperations.def"
   }
   return os;
 }
@@ -24,6 +30,13 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, MemOIR_Func Enum) {
   case MemOIR_Func::ENUM:                                                      \
     os << #ENUM;                                                               \
     break;
+#include "memoir/ir/Instructions.def"
+#define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
+  case MemOIR_Func::ENUM:                                                      \
+    os << #ENUM;                                                               \
+    break;
+
+#include "memoir/ir/MutOperations.def"
   }
   return os;
 }
@@ -92,6 +105,8 @@ bool FunctionNames::is_access(MemOIR_Func function_enum) {
       return false;
 #define HANDLE_ACCESS_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
 #include "memoir/ir/Instructions.def"
+#define HANDLE_ACCESS_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
+#include "memoir/ir/MutOperations.def"
       return true;
   }
 }
@@ -112,6 +127,9 @@ bool FunctionNames::is_write(MemOIR_Func function_enum) {
       return false;
 #define HANDLE_WRITE_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
 #include "memoir/ir/Instructions.def"
+#define HANDLE_WRITE_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
+#include "memoir/ir/MutOperations.def"
+
       return true;
   }
 }
@@ -179,6 +197,10 @@ bool FunctionNames::is_reference_type(MemOIR_Func function_enum) {
     default:
       return false;
   }
+}
+
+bool FunctionNames::is_mutator(MemOIR_Func function_enum) {
+  return (function_enum > MUT_BEGIN && function_enum < MUT_END)
 }
 
 bool FunctionNames::is_mutator(Module &M, MemOIR_Func function_enum) {
