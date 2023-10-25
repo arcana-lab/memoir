@@ -1,7 +1,6 @@
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/analysis/CollectionAnalysis.hpp"
-#include "memoir/analysis/StructAnalysis.hpp"
+#include "memoir/support/InstructionUtils.hpp"
 
 namespace llvm::memoir {
 

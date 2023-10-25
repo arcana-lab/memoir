@@ -1,25 +1,16 @@
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/analysis/CollectionAnalysis.hpp"
-#include "memoir/analysis/StructAnalysis.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
 
 #include "memoir/support/Assert.hpp"
+#include "memoir/support/InstructionUtils.hpp"
 
 namespace llvm::memoir {
 
-llvm::Value &AllocInst::getAllocation() const {
-  return this->getCallInst();
-}
+// Base AllocInst implementation
+RESULTANT(AllocInst, Allocation)
 
 // StructAllocInst implementation
-Struct &StructAllocInst::getStruct() const {
-  auto strct = StructAnalysis::analyze(this->getTypeOperand());
-  MEMOIR_NULL_CHECK(strct, "StructAnalysis returned NULL for StructAllocInst");
-
-  return *strct;
-}
-
 StructType &StructAllocInst::getStructType() const {
   // TODO: convert this to a dyn_cast later.
   return static_cast<StructType &>(this->getType());
@@ -75,20 +66,8 @@ unsigned TensorAllocInst::getNumberOfDimensions() const {
   return (unsigned)num_dims;
 }
 
-OPERAND(TensorAllocInst, NumberOfDimensionsOperand)
-
-llvm::Value &TensorAllocInst::getLengthOfDimensionOperand(
-    unsigned dimension_index) const {
-  return *(this->getLengthOfDimensionOperandAsUse(dimension_index).get());
-}
-
-llvm::Use &TensorAllocInst::getLengthOfDimensionOperandAsUse(
-    unsigned dimension_index) const {
-  MEMOIR_ASSERT((dimension_index < this->getNumberOfDimensions()),
-                "Attempt to get length of out-of-bounds dimensions");
-  return this->getCallInst().getArgOperandUse(2 + dimension_index);
-}
-
+OPERAND(TensorAllocInst, NumberOfDimensionsOperand, 1)
+VAR_OPERAND(TensorAllocInst, LengthOfDimensionOperand, 2)
 TO_STRING(TensorAllocInst)
 
 // AssocArrayAllocInst implementation
@@ -129,9 +108,9 @@ Type &SequenceAllocInst::getElementType() const {
   return *type;
 }
 
-OPERAND(SequenceAllocInst, Element, 0)
+OPERAND(SequenceAllocInst, ElementOperand, 0)
 
-OPERAND(SequenceAllocInst, Size, 1)
+OPERAND(SequenceAllocInst, SizeOperand, 1)
 
 TO_STRING(SequenceAllocInst)
 

@@ -1,8 +1,8 @@
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/analysis/CollectionAnalysis.hpp"
-#include "memoir/analysis/StructAnalysis.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
+
+#include "memoir/support/InstructionUtils.hpp"
 
 namespace llvm::memoir {
 
@@ -20,7 +20,7 @@ CollectionType &AccessInst::getCollectionType() const {
 }
 
 // ReadInst implementation
-RESULT(ReadInst, ValueRead)
+RESULTANT(ReadInst, ValueRead)
 OPERAND(ReadInst, ObjectOperand, 0)
 
 // StructReadInst implementation
@@ -62,7 +62,7 @@ TO_STRING(StructReadInst)
 unsigned IndexReadInst::getNumberOfDimensions() const {
   return (this->getCallInst().arg_size() - 1);
 }
-VAR_OPERAND(IndexReadInst, IndexOfDimensions, 1)
+VAR_OPERAND(IndexReadInst, IndexOfDimension, 1)
 
 TO_STRING(IndexReadInst)
 
@@ -124,7 +124,7 @@ VAR_OPERAND(IndexWriteInst, IndexOfDimension, 2)
 TO_STRING(IndexWriteInst)
 
 // AssocWriteInst implementation
-OPERAND(AssocWriteInst, Collection)
+RESULTANT(AssocWriteInst, Collection)
 
 OPERAND(AssocWriteInst, KeyOperand, 2)
 
