@@ -15,13 +15,9 @@
 #include "llvm/IR/Module.h"
 
 // MemOIR
-#include "memoir/ir/Collections.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
-#include "memoir/ir/Structs.hpp"
 
-#include "memoir/analysis/CollectionAnalysis.hpp"
-#include "memoir/analysis/StructAnalysis.hpp"
 #include "memoir/analysis/ValueExpression.hpp"
 
 namespace llvm::memoir {
