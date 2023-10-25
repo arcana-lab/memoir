@@ -61,9 +61,9 @@ std::string StructExpression::toString(std::string indent) const {
   return "struct";
 }
 
-std::string SliceExpression::toString(std::string indent) const {
-  return "slice";
-}
+// std::string SliceExpression::toString(std::string indent) const {
+// return "slice";
+// }
 
 std::string SizeExpression::toString(std::string indent) const {
   return "size";
