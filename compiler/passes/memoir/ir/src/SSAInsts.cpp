@@ -11,30 +11,8 @@ namespace llvm::memoir {
 /*
  * UsePHIInst implementation
  */
-Collection &UsePHIInst::getCollection() const {
-  auto collection = CollectionAnalysis::analyze(this->getCollectionValue());
-  MEMOIR_NULL_CHECK(collection, "Could not determine result of UsePHI");
-  return *collection;
-}
-
-llvm::Value &UsePHIInst::getCollectionValue() const {
-  return this->getCallInst();
-}
-
-Collection &UsePHIInst::getUsedCollection() const {
-  auto collection =
-      CollectionAnalysis::analyze(this->getUsedCollectionOperandAsUse());
-  MEMOIR_NULL_CHECK(collection, "Could not determine collection being used");
-  return *collection;
-}
-
-llvm::Value &UsePHIInst::getUsedCollectionOperand() const {
-  return *(this->getUsedCollectionOperandAsUse().get());
-}
-
-llvm::Use &UsePHIInst::getUsedCollectionOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(0);
-}
+RESULTANT(UsePHIInst, Collection)
+OPERAND(UsePHIInst, UsedCollection, 0)
 
 llvm::Instruction &UsePHIInst::getUseInst() const {
   // Look for metadata attached to this use.
@@ -54,43 +32,11 @@ void UsePHIInst::setUseInst(MemOIRInst &I) const {
   this->setUseInst(I.getCallInst());
 }
 
-std::string UsePHIInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
+TO_STRING(UsePHIInst)
 
-  str = "UsePHI: " + llvm_str;
-
-  return str;
-}
-
-/*
- * DefPHIInst implementation
- */
-Collection &DefPHIInst::getCollection() const {
-  auto collection = CollectionAnalysis::analyze(this->getCollectionValue());
-  MEMOIR_NULL_CHECK(collection, "Could not determine result of DefPHI");
-  return *collection;
-}
-
-llvm::Value &DefPHIInst::getCollectionValue() const {
-  return this->getCallInst();
-}
-
-Collection &DefPHIInst::getDefinedCollection() const {
-  auto collection =
-      CollectionAnalysis::analyze(this->getDefinedCollectionOperandAsUse());
-  MEMOIR_NULL_CHECK(collection, "Could not determine collection being used");
-  return *collection;
-}
-
-llvm::Value &DefPHIInst::getDefinedCollectionOperand() const {
-  return *(this->getDefinedCollectionOperandAsUse().get());
-}
-
-llvm::Use &DefPHIInst::getDefinedCollectionOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(0);
-}
+// DefPHIInst implementation
+RESULTANT(DefPHIInst, Collection)
+OPERAND(DefPHIInst, DefinedCollection, 0)
 
 llvm::Instruction &DefPHIInst::getDefInst() const {
   // Look for metadata attached to this definition.
@@ -110,13 +56,18 @@ void DefPHIInst::setDefInst(MemOIRInst &I) const {
   this->setDefInst(I.getCallInst());
 }
 
-std::string DefPHIInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
+TO_STRING(DefPHIInst)
 
-  str = "DefPHI: " + llvm_str;
+// ArgPHIInst implementation
+RESULTANT(ArgPHIInst, Collection)
+OPERAND(ArgPHIInst, 0)
+// TODO: implement metadata for storing the incoming collections.
+TO_STRING(ArgPHIInst)
 
-  return str;
-}
+// RetPHIInst implementation
+RESULTANT(RetPHIInst, Collection)
+OPERAND(RetPHIInst, 0)
+// TODO: implement metadata for storing the incoming collections.
+TO_STRING(RetPHIInst)
+
 } // namespace llvm::memoir
