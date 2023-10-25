@@ -12,7 +12,6 @@
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Types.hpp"
 
-#include "memoir/analysis/CollectionAnalysis.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/utility/FunctionNames.hpp"
 
@@ -57,32 +56,22 @@ public:
    */
   Type *getReturnType(llvm::Function &F);
 
-  /*
-   * Helper functions
-   */
+  // Helper functions
 
-  /*
-   * This class is not cloneable nor assignable
-   */
+  // This class is not cloneable nor assignable
   TypeAnalysis(TypeAnalysis &other) = delete;
   void operator=(const TypeAnalysis &) = delete;
 
 protected:
-  /*
-   * Owned state
-   */
+  // Owned state
 
-  /*
-   * Borrowed state
-   */
+  // Borrowed state
   map<llvm::Value *, Type *> value_to_type;
   map<llvm::Instruction *, set<Type *>> edge_types;
   map<llvm::Instruction *, set<llvm::Value *>> visited_edges;
   set<llvm::Value *> visited;
 
-  /*
-   * Internal helper functions
-   */
+  // Internal helper functions
   Type *getType_helper(llvm::Value &V);
   Type *findExisting(llvm::Value &V);
   Type *findExisting(MemOIRInst &I);
@@ -93,10 +82,16 @@ protected:
   void markVisited(llvm::Value &V);
   void markVisited(MemOIRInst &I);
 
-  /*
-   * Visitor functions
-   */
+  // Visitor functions
+  //// Base case
   Type *visitInstruction(llvm::Instruction &I);
+  //// LLVM instructions
+  Type *visitArgument(llvm::Argument &A);
+  Type *visitLLVMCallInst(llvm::CallInst &I);
+  Type *visitLoadInst(llvm::LoadInst &I);
+  Type *visitPHINode(llvm::PHINode &I);
+  Type *visitExtractValueInst(llvm::ExtractValueInst &I);
+  //// Type instructions
   Type *visitUInt64TypeInst(UInt64TypeInst &I);
   Type *visitUInt32TypeInst(UInt32TypeInst &I);
   Type *visitUInt16TypeInst(UInt16TypeInst &I);
@@ -118,41 +113,47 @@ protected:
   Type *visitTensorTypeInst(TensorTypeInst &I);
   Type *visitAssocArrayTypeInst(AssocArrayTypeInst &I);
   Type *visitSequenceTypeInst(SequenceTypeInst &I);
+  //// Allocation instructions
   Type *visitStructAllocInst(StructAllocInst &I);
   Type *visitTensorAllocInst(TensorAllocInst &I);
   Type *visitAssocArrayAllocInst(AssocArrayAllocInst &I);
   Type *visitSequenceAllocInst(SequenceAllocInst &I);
+  //// Access instructions
   Type *visitReadInst(ReadInst &I);
   Type *visitGetInst(GetInst &I);
-  // SSA operations
+  //// SSA operations
   Type *visitUsePHIInst(UsePHIInst &I);
   Type *visitDefPHIInst(DefPHIInst &I);
-  // SSA sequence operations
-  Type *visitJoinInst(JoinInst &I);
-  Type *visitSliceInst(SliceInst &I);
+  Type *visitArgPHIInst(ArgPHIInst &I);
+  Type *visitRetPHIInst(RetPHIInst &I);
+  //// SSA collection operations
+  Type *visitInsertInst(InsertInst &I);
+  Type *visitRemoveInst(RemoveInst &I);
+  Type *visitSwapInst(SwapInst &I);
+  Type *visitCopyInst(CopyInst &I);
+  //// Mut sequence operations
+  Type *visitMutSeqInsertInst(MutSeqInsertInst &I);
+  Type *visitMutSeqRemoveInst(MutSeqRemoveInst &I);
+  Type *visitMutSeqAppendInst(MutSeqAppendInst &I);
+  Type *visitMutSeqSwapInst(MutSeqSwapInst &I);
+  Type *visitMutSeqSwapWithinInst(MutSeqSwapWithinInst &I);
+  Type *visitMutSeqSplitInst(MutSeqSplitInst &I);
+  //// Lowering sequence operations
   Type *visitViewInst(ViewInst &I);
-  // Mut sequence operations
-  Type *visitSeqInsertInst(SeqInsertInst &I);
-  Type *visitSeqRemoveInst(SeqRemoveInst &I);
-  Type *visitSeqAppendInst(SeqAppendInst &I);
-  Type *visitSeqSwapInst(SeqSwapInst &I);
-  Type *visitSeqSplitInst(SeqSplitInst &I);
-  // Mut assoc operations
+  //// SSA assoc operations
   Type *visitAssocHasInst(AssocHasInst &I);
-  Type *visitAssocRemoveInst(AssocRemoveInst &I);
   Type *visitAssocKeysInst(AssocKeysInst &I);
-  // Type checking
+  Type *visitAssocRemoveInst(AssocRemoveInst &I);
+  Type *visitAssocInsertInst(AssocInsertInst &I);
+  //// Mut assoc operations
+  Type *visitMutAssocInsertInst(MutAssocInsertInst &I);
+  Type *visitMutAssocRemoveInst(MutAssocRemoveInst &I);
+  //// Type checking
   Type *visitAssertStructTypeInst(AssertStructTypeInst &I);
   Type *visitAssertCollectionTypeInst(AssertCollectionTypeInst &I);
   Type *visitReturnTypeInst(ReturnTypeInst &I);
-  Type *visitLLVMCallInst(llvm::CallInst &I);
-  Type *visitLoadInst(llvm::LoadInst &I);
-  Type *visitPHINode(llvm::PHINode &I);
-  Type *visitArgument(llvm::Argument &A);
 
-  /*
-   * Private constructor and logistics
-   */
+  // Private constructor and logistics
   TypeAnalysis();
 
   void _invalidate();
