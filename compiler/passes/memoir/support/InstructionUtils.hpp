@@ -1,9 +1,5 @@
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/support/Assert.hpp"
-
-#include "memoir/analysis/CollectionAnalysis.hpp"
-
 #define RESULTANT(CLASS, NAME)                                                 \
   llvm::Value &CLASS::get##NAME() const {                                      \
     return this->getCallInst();                                                \
