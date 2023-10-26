@@ -49,6 +49,10 @@ public:
   case MemOIR_Func::ENUM:                                                      \
     DELEGATE_MEMOIR(CLASS);
 #include "memoir/ir/Instructions.def"
+#define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
+  case MemOIR_Func::ENUM:                                                      \
+    DELEGATE_MEMOIR(CLASS);
+#include "memoir/ir/MutOperations.def"
     }
   };
 
@@ -173,7 +177,6 @@ public:
   RetTy visit##CLASS(CLASS &I) {                                               \
     DELEGATE(SwapInst);                                                        \
   };
-
 #include "memoir/ir/Instructions.def"
 
   // Mut instruction hierarchy.
