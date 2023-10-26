@@ -1,6 +1,6 @@
 #include <cstdio>
 
-#include "cmemoir.h"
+#include "cmemoir/cmemoir.h"
 
 using namespace memoir;
 
