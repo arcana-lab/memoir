@@ -1,5 +1,7 @@
 #include "memoir/analysis/ValueNumbering.hpp"
 
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+
 namespace llvm::memoir {
 
 // ValueTable implementation.
@@ -127,7 +129,7 @@ ValueExpression *ValueNumbering::lookupOrInsert(llvm::Use &U,
 ValueExpression *ValueNumbering::visitUse(llvm::Use &U) {
   // Check if this use is a collection.
   if (Type::value_is_collection_type(*U.get())) {
-    auto collection = CollectionAnalysis::analyze(U);
+    auto collection = U.get();
     if (collection) {
       return this->lookupOrInsert(U, new CollectionExpression(*collection));
     }
@@ -344,8 +346,8 @@ ValueExpression *ValueNumbering::visitSizeInst(SizeInst &I) {
 
   // Get the collection expression.
   auto op_expr =
-      this->lookupOrInsert(I.getCollectionOperandAsUse(),
-                           new CollectionExpression(I.getCollectionOperand()));
+      this->lookupOrInsert(I.getCollectionAsUse(),
+                           new CollectionExpression(I.getCollection()));
   auto collection_expr = dyn_cast<CollectionExpression>(op_expr);
   MEMOIR_NULL_CHECK(
       collection_expr,
