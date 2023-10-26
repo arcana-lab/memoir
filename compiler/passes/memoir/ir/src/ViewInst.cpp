@@ -2,7 +2,7 @@
 
 #include "memoir/support/Assert.hpp"
 
-#include "memoir/analysis/CollectionAnalysis.hpp"
+#include "memoir/support/InstructionUtils.hpp"
 
 namespace llvm::memoir {
 
