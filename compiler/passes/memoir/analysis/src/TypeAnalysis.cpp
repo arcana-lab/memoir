@@ -461,7 +461,7 @@ Type *TypeAnalysis::visitMutSeqSwapInst(MutSeqSwapInst &I) {
 Type *TypeAnalysis::visitMutSeqSwapWithinInst(MutSeqSwapWithinInst &I) {
   CHECK_MEMOIZED(I);
 
-  auto *type = this->getType_helper(I.getCollection());
+  auto *type = this->getType_helper(I.getFromCollection());
 
   MEMOIZE_AND_RETURN(I, type);
 }
