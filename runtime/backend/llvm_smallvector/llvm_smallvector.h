@@ -13,7 +13,10 @@
 extern "C" {
 
 #define INSTANTIATE_llvm_smallvector(T, C_TYPE)                                \
-  typedef llvm::SmallVector<C_TYPE, SMALL_SIZE> T##_llvm_smallvector_t;        \
+  typedef struct T##_llvm_smallvector {                                        \
+    T##_llvm_smallvector(size_t num) : _vec(num) {}                            \
+    llvm::SmallVector<C_TYPE, SMALL_SIZE> _vec;                                \
+  } T##_llvm_smallvector_t;                                                    \
   typedef T##_llvm_smallvector_t *T##_llvm_smallvector_p;                      \
                                                                                \
   cname alwaysinline used                                                      \
@@ -38,27 +41,27 @@ extern "C" {
   cname alwaysinline used C_TYPE *T##_llvm_smallvector__get(                   \
       T##_llvm_smallvector_p vec,                                              \
       size_t index) {                                                          \
-    return (C_TYPE *)(&((*vec)[index]));                                       \
+    return (C_TYPE *)(&(vec->_vec[index]));                                    \
   }                                                                            \
                                                                                \
   cname alwaysinline used C_TYPE T##_llvm_smallvector__read(                   \
       T##_llvm_smallvector_p vec,                                              \
       size_t index) {                                                          \
-    return (*vec)[index];                                                      \
+    return (vec->_vec)[index];                                                 \
   }                                                                            \
                                                                                \
   cname alwaysinline used void T##_llvm_smallvector__write(                    \
       T##_llvm_smallvector_p vec,                                              \
       size_t index,                                                            \
       C_TYPE value) {                                                          \
-    (*vec)[index] = value;                                                     \
+    (vec->_vec)[index] = value;                                                \
     return;                                                                    \
   }                                                                            \
                                                                                \
   cname alwaysinline used T##_llvm_smallvector_p T##_llvm_smallvector__remove( \
       T##_llvm_smallvector_p vec,                                              \
       size_t index) {                                                          \
-    vec->erase(vec->begin() + index);                                          \
+    vec->_vec.erase(vec->_vec.begin() + index);                                \
     return vec;                                                                \
   }                                                                            \
                                                                                \
@@ -67,7 +70,8 @@ extern "C" {
           T##_llvm_smallvector_p vec,                                          \
           size_t begin_index,                                                  \
           size_t end_index) {                                                  \
-    vec->erase(vec->begin() + begin_index, vec->begin() + end_index);          \
+    vec->_vec.erase(vec->_vec.begin() + begin_index,                           \
+                    vec->_vec.begin() + end_index);                            \
     return vec;                                                                \
   }                                                                            \
                                                                                \
@@ -75,7 +79,9 @@ extern "C" {
       T##_llvm_smallvector_p vec,                                              \
       size_t start,                                                            \
       T##_llvm_smallvector_p vec2) {                                           \
-    vec->insert(vec->begin() + start, vec2->begin(), vec2->end());             \
+    vec->_vec.insert(vec->_vec.begin() + start,                                \
+                     vec2->_vec.begin(),                                       \
+                     vec2->_vec.end());                                        \
     return vec;                                                                \
   }                                                                            \
                                                                                \
@@ -86,9 +92,9 @@ extern "C" {
           T##_llvm_smallvector_p vec2,                                         \
           size_t from,                                                         \
           size_t to) {                                                         \
-    vec->insert(vec->begin() + start,                                          \
-                vec2->begin() + from,                                          \
-                vec2->begin() + to);                                           \
+    vec->_vec.insert(vec->_vec.begin() + start,                                \
+                     vec2->_vec.begin() + from,                                \
+                     vec2->_vec.begin() + to);                                 \
     return vec;                                                                \
   }                                                                            \
   cname alwaysinline used void T##_llvm_smallvector__swap(                     \
@@ -96,15 +102,15 @@ extern "C" {
       size_t from,                                                             \
       size_t to,                                                               \
       size_t start) {                                                          \
-    std::swap_ranges(vec->begin() + from,                                      \
-                     vec->begin() + to,                                        \
-                     vec->begin() + start);                                    \
+    std::swap_ranges(vec->_vec.begin() + from,                                 \
+                     vec->_vec.begin() + to,                                   \
+                     vec->_vec.begin() + start);                               \
     return;                                                                    \
   }                                                                            \
                                                                                \
   cname alwaysinline used size_t T##_llvm_smallvector__size(                   \
       T##_llvm_smallvector_p vec) {                                            \
-    return vec->size();                                                        \
+    return vec->_vec.size();                                                   \
   }
 
 } // extern "C"
