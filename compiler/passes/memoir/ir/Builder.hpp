@@ -339,6 +339,56 @@ public:
     return inst;
   }
 
+  AssocWriteInst *CreateAssocWriteInst(Type &element_type,
+                                       llvm::Value *llvm_value_to_write,
+                                       llvm::Value *llvm_collection,
+                                       llvm::Value *llvm_assoc,
+                                       const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto llvm_func = FunctionNames::get_memoir_function(
+        *(this->M),
+        getAssocWriteEnumForType(element_type));
+
+    // Create the LLVM call.
+    auto llvm_call = this->CreateCall(
+        FunctionCallee(llvm_func),
+        llvm::ArrayRef({ llvm_value_to_write, llvm_collection, llvm_assoc }),
+        name);
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for assoc write operation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto inst = dyn_cast<AssocWriteInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(inst, "Could not create call to AssocWriteInst");
+    return inst;
+  }
+
+  MutAssocWriteInst *CreateMutAssocWriteInst(Type &element_type,
+                                             llvm::Value *llvm_value_to_write,
+                                             llvm::Value *llvm_collection,
+                                             llvm::Value *llvm_assoc,
+                                             const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto llvm_func = FunctionNames::get_memoir_function(
+        *(this->M),
+        getMutAssocWriteEnumForType(element_type));
+
+    // Create the LLVM call.
+    auto llvm_call = this->CreateCall(
+        FunctionCallee(llvm_func),
+        llvm::ArrayRef({ llvm_value_to_write, llvm_collection, llvm_assoc }),
+        name);
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for assoc write operation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto inst = dyn_cast<MutAssocWriteInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(inst, "Could not create call to MutAssocWriteInst");
+    return inst;
+  }
+
   // Deletion Instructions
   DeleteStructInst *CreateDeleteStructInst(llvm::Value *struct_to_delete) {
     // Fetch the LLVM Function.
@@ -773,6 +823,7 @@ public:
                                      llvm::Value *llvm_index,
                                      const Twine &name = "") {
     // Fetch the LLVM Function.
+    println(element_type);
     auto *llvm_func = FunctionNames::get_memoir_function(
         *(this->M),
         getSeqInsertEnumForType(element_type));
@@ -791,9 +842,9 @@ public:
     return inst;
   }
 
-  SeqInsertSeqInst *CreateSeqInsertSeqInst(llvm::Value *collection,
+  SeqInsertSeqInst *CreateSeqInsertSeqInst(llvm::Value *collection_to_insert,
+                                           llvm::Value *collection,
                                            llvm::Value *insertion_point,
-                                           llvm::Value *collection_to_insert,
                                            const Twine &name = "") {
     // Fetch the LLVM Function.
     auto llvm_func =
@@ -817,9 +868,9 @@ public:
   }
 
   MutSeqInsertSeqInst *CreateMutCreateSeqInsertSeqInst(
+      llvm::Value *collection_to_insert,
       llvm::Value *collection,
       llvm::Value *insertion_point,
-      llvm::Value *collection_to_insert,
       const Twine &name = "") {
     // Fetch the LLVM Function.
     auto llvm_func =
@@ -848,7 +899,7 @@ protected:
   llvm::Module *M;
 
 // Helper Functions
-#define READWRITE_ENUM_FOR_TYPE(ENUM_PREFIX, NAME)                             \
+#define ENUM_FOR_PRIMITIVE_TYPE(ENUM_PREFIX, NAME)                             \
   MemOIR_Func get##NAME##EnumForType(Type &type) {                             \
     if (isa<FloatType>(&type)) {                                               \
       return MemOIR_Func::ENUM_PREFIX##_FLOAT;                                 \
@@ -894,15 +945,18 @@ protected:
     MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");      \
   };
 
-  READWRITE_ENUM_FOR_TYPE(INDEX_READ, IndexRead)
-  READWRITE_ENUM_FOR_TYPE(ASSOC_READ, AssocRead)
-  READWRITE_ENUM_FOR_TYPE(STRUCT_READ, StructRead)
-  READWRITE_ENUM_FOR_TYPE(INDEX_WRITE, IndexWrite)
-  READWRITE_ENUM_FOR_TYPE(ASSOC_WRITE, AssocWrite)
-  READWRITE_ENUM_FOR_TYPE(STRUCT_WRITE, StructWrite)
-  READWRITE_ENUM_FOR_TYPE(SEQ_INSERT, SeqInsert)
+  ENUM_FOR_PRIMITIVE_TYPE(INDEX_READ, IndexRead)
+  ENUM_FOR_PRIMITIVE_TYPE(ASSOC_READ, AssocRead)
+  ENUM_FOR_PRIMITIVE_TYPE(STRUCT_READ, StructRead)
+  ENUM_FOR_PRIMITIVE_TYPE(INDEX_WRITE, IndexWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(ASSOC_WRITE, AssocWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(STRUCT_WRITE, StructWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(SEQ_INSERT, SeqInsert)
+  ENUM_FOR_PRIMITIVE_TYPE(MUT_INDEX_WRITE, MutIndexWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(MUT_ASSOC_WRITE, MutAssocWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(MUT_STRUCT_WRITE, MutStructWrite)
 
-#define GET_ENUM_FOR_TYPE(ENUM_PREFIX, NAME)                                   \
+#define ENUM_FOR_NESTED_TYPE(ENUM_PREFIX, NAME)                                \
   MemOIR_Func get##NAME##EnumForType(Type &type) {                             \
     if (isa<StructType>(&type)) {                                              \
       return MemOIR_Func::ENUM_PREFIX##_STRUCT;                                \
@@ -912,59 +966,9 @@ protected:
     MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");      \
   };
 
-  GET_ENUM_FOR_TYPE(INDEX_GET, IndexGet)
-  GET_ENUM_FOR_TYPE(ASSOC_GET, AssocGet)
-  GET_ENUM_FOR_TYPE(STRUCT_GET, StructGet)
-
-#define READWRITE_ENUM_FOR_TYPE(ENUM_PREFIX, NAME)                             \
-  MemOIR_Func get##NAME##EnumForType(Type &type) {                             \
-    if (isa<FloatType>(&type)) {                                               \
-      return MemOIR_Func::ENUM_PREFIX##_FLOAT;                                 \
-    } else if (isa<DoubleType>(&type)) {                                       \
-      return MemOIR_Func::ENUM_PREFIX##_DOUBLE;                                \
-    } else if (isa<PointerType>(&type)) {                                      \
-      return MemOIR_Func::ENUM_PREFIX##_PTR;                                   \
-    } else if (auto *integer_type = dyn_cast<IntegerType>(&type)) {            \
-      if (integer_type->isSigned()) {                                          \
-        switch (integer_type->getBitWidth()) {                                 \
-          case 64:                                                             \
-            return MemOIR_Func::ENUM_PREFIX##_UINT64;                          \
-          case 32:                                                             \
-            return MemOIR_Func::ENUM_PREFIX##_UINT32;                          \
-          case 16:                                                             \
-            return MemOIR_Func::ENUM_PREFIX##_UINT16;                          \
-          case 8:                                                              \
-            return MemOIR_Func::ENUM_PREFIX##_UINT8;                           \
-          default:                                                             \
-            MEMOIR_UNREACHABLE(                                                \
-                "Attempt to create unknown unsigned integer type!");           \
-        }                                                                      \
-      } else {                                                                 \
-        switch (integer_type->getBitWidth()) {                                 \
-          case 64:                                                             \
-            return MemOIR_Func::ENUM_PREFIX##_INT64;                           \
-          case 32:                                                             \
-            return MemOIR_Func::ENUM_PREFIX##_INT32;                           \
-          case 16:                                                             \
-            return MemOIR_Func::ENUM_PREFIX##_INT16;                           \
-          case 8:                                                              \
-            return MemOIR_Func::ENUM_PREFIX##_INT8;                            \
-          case 2:                                                              \
-            return MemOIR_Func::ENUM_PREFIX##_INT2;                            \
-          case 1:                                                              \
-            return MemOIR_Func::ENUM_PREFIX##_BOOL;                            \
-          default:                                                             \
-            MEMOIR_UNREACHABLE(                                                \
-                "Attempt to create unknown signed integer type!");             \
-        }                                                                      \
-      }                                                                        \
-    }                                                                          \
-    MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");      \
-  };
-
-  READWRITE_ENUM_FOR_TYPE(MUT_INDEX_WRITE, MutIndexWrite)
-  READWRITE_ENUM_FOR_TYPE(MUT_ASSOC_WRITE, MutAssocWrite)
-  READWRITE_ENUM_FOR_TYPE(MUT_STRUCT_WRITE, MutStructWrite)
+  ENUM_FOR_NESTED_TYPE(INDEX_GET, IndexGet)
+  ENUM_FOR_NESTED_TYPE(ASSOC_GET, AssocGet)
+  ENUM_FOR_NESTED_TYPE(STRUCT_GET, StructGet)
 
 }; // namespace llvm::memoir
 
