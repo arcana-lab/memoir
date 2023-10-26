@@ -13,11 +13,13 @@ OPERAND(SeqSwapInst, ToCollection, 3)
 OPERAND(SeqSwapInst, ToBeginIndex, 4)
 TO_STRING(SeqSwapInst)
 
-llvm::Value &getOriginalCollection(llvm::Value &collection) const {
-  return *(this->getOriginalCollectionAsUse(collection).get());
+llvm::Value &SeqSwapInst::getIncomingCollectionFor(
+    llvm::Value &collection) const {
+  return *(this->getIncomingCollectionForAsUse(collection).get());
 }
 
-llvm::Use &getOriginalCollectionAsUse(llvm::Value &collection) const {
+llvm::Use &SeqSwapInst::getIncomingCollectionForAsUse(
+    llvm::Value &collection) const {
   // Determine which incoming collection matches this value from the result
   // pair.
   auto &extract_inst = MEMOIR_SANITIZE(
@@ -56,13 +58,15 @@ OPERAND(SeqSwapWithinInst, EndIndex, 2)
 OPERAND(SeqSwapWithinInst, ToBeginIndex, 3)
 TO_STRING(SeqSwapWithinInst)
 
-llvm::Value &getOriginalCollection(llvm::Value &collection) const {
-  return *(this->getOriginalCollectionAsUse(collection).get());
+llvm::Value &SeqSwapWithinInst::getIncomingCollectionFor(
+    llvm::Value &collection) const {
+  return *(this->getIncomingCollectionForAsUse(collection).get());
 }
 
-llvm::Use &getOriginalCollectionAsUse(llvm::Value &collection) const {
+llvm::Use &SeqSwapWithinInst::getIncomingCollectionForAsUse(
+    llvm::Value &collection) const {
   // Determine if the collection value is the same as our result.
-  MEMOIR_ASSERT(collection == &this->getResult(),
+  MEMOIR_ASSERT(&collection == &this->getResult(),
                 "Value being checked is not the result of this SwapInst!");
 
   return this->getFromCollectionAsUse();

@@ -1018,8 +1018,9 @@ protected:
 struct SwapInst : public MemOIRInst {
   llvm::Value &getResult() const;
 
-  virtual llvm::Value &getIncomingCollection(llvm::Value &collection) const = 0;
-  virtual llvm::Use &getIncomingCollectionAsUse(
+  virtual llvm::Value &getIncomingCollectionFor(
+      llvm::Value &collection) const = 0;
+  virtual llvm::Use &getIncomingCollectionForAsUse(
       llvm::Value &collection) const = 0;
 
   virtual llvm::Value &getFromCollection() const = 0;
@@ -1050,8 +1051,9 @@ struct SwapInst : public MemOIRInst {
 
 struct SeqSwapInst : public SwapInst {
 public:
-  llvm::Value &getIncomingCollection(llvm::Value &collection) const override;
-  llvm::Use &getIncomingCollectionAsUse(llvm::Value &collection) const override;
+  llvm::Value &getIncomingCollectionFor(llvm::Value &collection) const override;
+  llvm::Use &getIncomingCollectionForAsUse(
+      llvm::Value &collection) const override;
 
   llvm::Value &getFromCollection() const override;
   llvm::Use &getFromCollectionAsUse() const override;
@@ -1082,8 +1084,9 @@ protected:
 
 struct SeqSwapWithinInst : public SwapInst {
 public:
-  llvm::Value &getIncomingCollection(llvm::Value &collection) const override;
-  llvm::Use &getIncomingCollectionAsUse(llvm::Value &collection) const override;
+  llvm::Value &getIncomingCollectionFor(llvm::Value &collection) const override;
+  llvm::Use &getIncomingCollectionForAsUse(
+      llvm::Value &collection) const override;
 
   llvm::Value &getFromCollection() const override;
   llvm::Use &getFromCollectionAsUse() const override;
@@ -1231,10 +1234,8 @@ protected:
 
 struct AssocRemoveInst : public RemoveInst {
 public:
-  llvm::Value &getResultCollection() const;
-
-  llvm::Value &getBaseCollection() const;
-  llvm::Use &getBaseCollectionAsUse() const;
+  llvm::Value &getBaseCollection() const override;
+  llvm::Use &getBaseCollectionAsUse() const override;
 
   llvm::Value &getKey() const;
   llvm::Use &getKeyAsUse() const;
@@ -1273,7 +1274,7 @@ protected:
 // SSA/readonce operations.
 struct UsePHIInst : public MemOIRInst {
 public:
-  llvm::Value &getCollection() const;
+  llvm::Value &getResultCollection() const;
 
   llvm::Value &getUsedCollection() const;
   llvm::Use &getUsedCollectionAsUse() const;
@@ -1296,7 +1297,7 @@ protected:
 
 struct DefPHIInst : public MemOIRInst {
 public:
-  llvm::Value &getCollection() const;
+  llvm::Value &getResultCollection() const;
 
   llvm::Value &getDefinedCollection() const;
   llvm::Use &getDefinedCollectionAsUse() const;

@@ -163,11 +163,11 @@ public:
   llvm::Value &getCollection() const;
   llvm::Use &getCollectionAsUse() const;
 
-  llvm::Value &getInserted() const;
-  llvm::Use &getInsertedAsUse() const;
+  llvm::Value &getInsertedCollection() const;
+  llvm::Use &getInsertedCollectionAsUse() const;
 
-  llvm::Value &getIndex() const;
-  llvm::Use &getIndexAsUse() const;
+  llvm::Value &getInsertionPoint() const;
+  llvm::Use &getInsertionPointAsUse() const;
 
   static bool classof(const MemOIRInst *I) {
     return (I->getKind() == MemOIR_Func::MUT_SEQ_INSERT);
@@ -283,14 +283,17 @@ protected:
 
 struct MutSeqSwapWithinInst : public MutInst {
 public:
-  llvm::Value &getCollection() const;
-  llvm::Use &getCollectionAsUse() const;
+  llvm::Value &getFromCollection() const;
+  llvm::Use &getFromCollectionAsUse() const;
 
   llvm::Value &getBeginIndex() const;
   llvm::Use &getBeginIndexAsUse() const;
 
   llvm::Value &getEndIndex() const;
   llvm::Use &getEndIndexAsUse() const;
+
+  llvm::Value &getToCollection() const;
+  llvm::Use &getToCollectionAsUse() const;
 
   llvm::Value &getToBeginIndex() const;
   llvm::Use &getToBeginIndexAsUse() const;

@@ -2,6 +2,8 @@
 
 #include "memoir/analysis/TypeAnalysis.hpp"
 
+#include "memoir/support/InstructionUtils.hpp"
+
 namespace llvm::memoir {
 
 // ReturnTypeInst implementation
@@ -11,7 +13,7 @@ Type &ReturnTypeInst::getType() const {
   return *type;
 }
 
-OPERAND(ReturnTypeInst, TypeOperand)
+OPERAND(ReturnTypeInst, TypeOperand, 0)
 TO_STRING(ReturnTypeInst)
 
 } // namespace llvm::memoir
