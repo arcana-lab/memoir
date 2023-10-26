@@ -177,12 +177,11 @@ struct MutToImmutPass : public ModulePass {
               continue;
             }
             // Add check if this is a mutator
-            if (!MemOIRInst::is_mutator(*memoir_inst)
-                && !isa<AccessInst>(memoir_inst)) {
+            if (!isa<MutInst>(memoir_inst) && !isa<AccessInst>(memoir_inst)) {
               continue;
             }
-            if (auto *append_inst = dyn_cast<SeqAppendInst>(memoir_inst)) {
-              if (name != &append_inst->getCollectionOperand()) {
+            if (auto *append_inst = dyn_cast<MutSeqAppendInst>(memoir_inst)) {
+              if (name != &append_inst->getCollection()) {
                 continue;
               }
             }
