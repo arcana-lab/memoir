@@ -289,7 +289,7 @@ HANDLE_INST_(ARG_PHI, MEMOIR_FUNC(argPHI), ArgPHIInst)
 HANDLE_INST_(RET_PHI, MEMOIR_FUNC(retPHI), RetPHIInst)
 
 /* Lowering representations. */
-HANDLE_INST_(VIEW, MEMOIR_FUNC(view), ViewInst)
+HANDLE_INST_(VIEW, MEMOIR_FUNC(sequence_view), ViewInst)
 
 /* Type Checking */
 HANDLE_INST_(ASSERT_STRUCT_TYPE, MEMOIR_FUNC(assert_struct_type), AssertStructTypeInst)
