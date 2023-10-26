@@ -1,4 +1,5 @@
 #include "memoir/ir/Instructions.hpp"
+#include "memoir/ir/MutOperations.hpp"
 
 namespace llvm::memoir {
 
@@ -48,6 +49,13 @@ MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
     return memoir_inst;                                                        \
   }
 #include "memoir/ir/Instructions.def"
+#define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
+  case MemOIR_Func::ENUM: {                                                    \
+    auto memoir_inst = new CLASS(*call_inst);                                  \
+    llvm_to_memoir[&I] = memoir_inst;                                          \
+    return memoir_inst;                                                        \
+  }
+#include "memoir/ir/MutOperations.def"
   }
 
   return nullptr;
