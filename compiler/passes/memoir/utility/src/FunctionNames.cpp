@@ -56,6 +56,22 @@ bool FunctionNames::is_memoir_call(llvm::CallInst &call_inst) {
   return is_memoir_call(*callee);
 }
 
+bool FunctionNames::is_mut_call(llvm::Function &function) {
+  auto memoir_enum = FunctionNames::get_memoir_enum(function);
+
+  return (memoir_enum > MemOIR_Func::BEGIN_MUT)
+         && (memoir_enum < MemOIR_Func::END_MUT);
+}
+
+bool FunctionNames::is_mut_call(llvm::CallInst &call_inst) {
+  auto *callee = call_inst.getCalledFunction();
+  if (callee == nullptr) {
+    return false;
+  }
+
+  return is_mut_call(*callee);
+}
+
 MemOIR_Func FunctionNames::get_memoir_enum(llvm::Function &function) {
   auto function_name = function.getName().str();
 
@@ -64,6 +80,13 @@ MemOIR_Func FunctionNames::get_memoir_enum(llvm::Function &function) {
     return MemOIR_Func::MEMOIR_ENUM;                                           \
   }
 #include "memoir/ir/Instructions.def"
+
+#define HANDLE_INST(MUT_ENUM, MUT_STR, _)                                      \
+  if (function_name == #MUT_STR) {                                             \
+    return MemOIR_Func::MUT_ENUM;                                              \
+  }
+#include "memoir/ir/MutOperations.def"
+
   return MemOIR_Func::NONE;
 }
 
@@ -86,6 +109,10 @@ Function *FunctionNames::get_memoir_function(Module &M,
   case MemOIR_Func::MEMOIR_ENUM:                                               \
     return M.getFunction(#MEMOIR_STR);
 #include "memoir/ir/Instructions.def"
+#define HANDLE_INST(MUT_ENUM, MUT_STR, _)                                      \
+  case MemOIR_Func::MUT_ENUM:                                                  \
+    return M.getFunction(#MUT_STR);
+#include "memoir/ir/MutOperations.def"
   }
 }
 
@@ -200,7 +227,7 @@ bool FunctionNames::is_reference_type(MemOIR_Func function_enum) {
 }
 
 bool FunctionNames::is_mutator(MemOIR_Func function_enum) {
-  return (function_enum > MUT_BEGIN && function_enum < MUT_END)
+  return (function_enum > BEGIN_MUT && function_enum < END_MUT);
 }
 
 bool FunctionNames::is_mutator(Module &M, MemOIR_Func function_enum) {

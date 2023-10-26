@@ -56,6 +56,10 @@ public:
 
   static bool is_memoir_call(llvm::CallInst &call_inst);
 
+  static bool is_mut_call(llvm::Function &function);
+
+  static bool is_mut_call(llvm::CallInst &call_inst);
+
   static MemOIR_Func get_memoir_enum(llvm::Function &function);
 
   static MemOIR_Func get_memoir_enum(llvm::CallInst &call_inst);
@@ -82,6 +86,8 @@ public:
   static bool is_write(MemOIR_Func function_enum);
 
   static bool is_get(MemOIR_Func function_enum);
+
+  static bool is_mutator(MemOIR_Func function_enum);
 
   static bool is_mutator(llvm::Module &M, MemOIR_Func function_enum);
 
