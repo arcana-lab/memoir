@@ -87,44 +87,51 @@ namespace memoir {
  */
 #define memoir_size(object) MEMOIR_FUNC(size)(object)
 
+#define memoir_end() MEMOIR_FUNC(end)()
+
 // Immutable sequence operations.
 #define memoir_sequence_slice(object, left, right)                             \
-  MEMOIR_FUNC(get_slice)(object, (uint64_t)left, (uint64_t)right)
+  MEMOIR_FUNC(sequence_copy)(object, (size_t)left, (size_t)right)
 
-#define memoir_join(object, ...)                                               \
-  MEMOIR_FUNC(join)                                                            \
-  (1 + MEMOIR_NARGS(__VA_ARGS__), object, __VA_ARGS__)
+#define memoir_sequence_copy(object, left, right)                              \
+  MEMOIR_FUNC(sequence_copy)(object, (size_t)left, (size_t)right)
 
 // Mutable sequence operations.
 #define memoir_seq_insert(ty, value, object, index)                            \
-  MEMOIR_FUNC(sequence_insert_##ty)(value, object, index)
+  MUT_FUNC(sequence_insert_##ty)(value, object, index)
 
 #define memoir_seq_insert_range(object_to_insert, object, index)               \
-  MEMOIR_FUNC(sequence_insert)(object_to_insert, object, index)
+  MUT_FUNC(sequence_insert)(object_to_insert, object, index)
 
 #define memoir_seq_remove(object, index)                                       \
-  MEMOIR_FUNC(sequence_remove)(object, index, index + 1)
+  MUT_FUNC(sequence_remove)(object, index, index + 1)
 
 #define memoir_seq_remove_range(object, begin, end)                            \
-  MEMOIR_FUNC(sequence_remove)(object, begin, end)
+  MUT_FUNC(sequence_remove)(object, begin, end)
 
 #define memoir_seq_append(object, other)                                       \
-  MEMOIR_FUNC(sequence_append)(object, other)
+  MUT_FUNC(sequence_append)(object, other)
 
 #define memoir_seq_swap(object, i, other, other_i)                             \
-  MEMOIR_FUNC(sequence_swap)(object, i, i + 1, other, other_i)
+  MUT_FUNC(sequence_swap_within)(object, i, i + 1, other, other_i)
 
 #define memoir_seq_swap_range(object, i, j, other, other_i)                    \
-  MEMOIR_FUNC(sequence_swap)(object, i, j, other, other_i)
+  MUT_FUNC(sequence_swap_within)(object, i, j, other, other_i)
 
-#define memoir_seq_split(object, i, j) MEMOIR_FUNC(sequence_split)(object, i, j)
+#define memoir_seq_swap_between(object, index, other, other_index)             \
+  MUT_FUNC(sequence_swap)(object, index, index + 1, other, other_index)
 
-#define memoir_seq_copy(object, i, j) memoir_seq_split(object, i, j)
+#define memoir_seq_swap_between_range(object, begin, end, other, other_begin)  \
+  MUT_FUNC(sequence_swap)(object, begin, end, other, other_begin)
+
+#define memoir_seq_split(object, i, j) MUT_FUNC(sequence_split)(object, i, j)
 
 // Associative array operations.
 #define memoir_assoc_has(object, key) MEMOIR_FUNC(assoc_has)(object, key)
 
-#define memoir_assoc_remove(object, key) MEMOIR_FUNC(assoc_remove)(object, key)
+#define memoir_assoc_insert(object, key) MUT_FUNC(assoc_insert)(object, key)
+
+#define memoir_assoc_remove(object, key) MUT_FUNC(assoc_remove)(object, key)
 
 #define memoir_assoc_keys(object) MEMOIR_FUNC(assoc_keys)(object)
 
@@ -156,11 +163,11 @@ namespace memoir {
  * Write accesses
  */
 #define memoir_struct_write(ty, val, strct, field_index)                       \
-  MEMOIR_FUNC(struct_write_##ty)(val, strct, (unsigned)field_index)
+  MUT_FUNC(struct_write_##ty)(val, strct, (unsigned)field_index)
 #define memoir_index_write(ty, val, cllct, ...)                                \
-  MEMOIR_FUNC(index_write_##ty)(val, cllct, MEMOIR_CAST_TO_SIZE_T(__VA_ARGS__))
+  MUT_FUNC(index_write_##ty)(val, cllct, MEMOIR_CAST_TO_SIZE_T(__VA_ARGS__))
 #define memoir_assoc_write(ty, val, cllct, key)                                \
-  MEMOIR_FUNC(assoc_write_##ty)(val, cllct, key)
+  MUT_FUNC(assoc_write_##ty)(val, cllct, key)
 
 /*
  * Nested struct/collection accesses
