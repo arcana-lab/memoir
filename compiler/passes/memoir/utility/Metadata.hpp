@@ -21,10 +21,10 @@ namespace memoir {
  * If you update this, make sure you
  * update the metadataToString map
  */
-enum MetadataType {
-  INTERNAL,
-  USE_PHI,
-  DEF_PHI,
+enum class MetadataType {
+  MD_INTERNAL,
+  MD_USE_PHI,
+  MD_DEF_PHI,
 };
 
 class MetadataManager {
@@ -76,9 +76,9 @@ private:
    */
   MetadataManager()
     : MDtoString{
-        { MetadataType::INTERNAL, "memoir.internal" },
-        { MetadataType::USE_PHI, "memoir.use-phi" },
-        { MetadataType::DEF_PHI, "memoir.def-phi" },
+        { MetadataType::MD_INTERNAL, "memoir.internal" },
+        { MetadataType::MD_USE_PHI, "memoir.use-phi" },
+        { MetadataType::MD_DEF_PHI, "memoir.def-phi" },
       } {}
 };
 
