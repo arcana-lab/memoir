@@ -21,7 +21,7 @@ public:
 
   NoelleWrapper();
 
-  Noelle &getNoelle();
+  Noelle &getNoelle(void);
 
   bool doInitialization(Module &M) override;
 

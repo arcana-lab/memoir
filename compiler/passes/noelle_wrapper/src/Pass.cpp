@@ -7,7 +7,7 @@ NoelleWrapper::NoelleWrapper()
     noelle(nullptr),
     dependenceAnalysis("MemOIR Dependence Analysis") {}
 
-Noelle &NoelleWrapper::getNoelle() {
+Noelle &NoelleWrapper::getNoelle(void) {
   if (!noelle) {
     noelle = &getAnalysis<llvm::noelle::Noelle>();
     noelle->addAnalysis(&dependenceAnalysis);
