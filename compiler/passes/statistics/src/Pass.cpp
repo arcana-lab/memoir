@@ -166,7 +166,6 @@ struct MemOIRStatsPass : public ModulePass {
       }
       for (auto &BB : F) {
         for (auto &I : BB) {
-          println(I);
           visitor.visit(I);
         }
       }
