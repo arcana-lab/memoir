@@ -113,16 +113,16 @@ namespace memoir {
   MUT_FUNC(sequence_append)(object, other)
 
 #define memoir_seq_swap(object, i, other, other_i)                             \
-  MUT_FUNC(sequence_swap_within)(object, i, i + 1, other, other_i)
+  MUT_FUNC(sequence_swap)(object, i, i + 1, other, other_i)
 
 #define memoir_seq_swap_range(object, i, j, other, other_i)                    \
-  MUT_FUNC(sequence_swap_within)(object, i, j, other, other_i)
+  MUT_FUNC(sequence_swap)(object, i, j, other, other_i)
 
-#define memoir_seq_swap_between(object, index, other, other_index)             \
-  MUT_FUNC(sequence_swap)(object, index, index + 1, other, other_index)
+#define memoir_seq_swap_within(object, index, other_index)                     \
+  MUT_FUNC(sequence_swap_within)(object, index, index + 1, other_index)
 
-#define memoir_seq_swap_between_range(object, begin, end, other, other_begin)  \
-  MUT_FUNC(sequence_swap)(object, begin, end, other, other_begin)
+#define memoir_seq_swap_within_range(object, begin, end, other_begin)          \
+  MUT_FUNC(sequence_swap_within)(object, begin, end, other_begin)
 
 #define memoir_seq_split(object, i, j) MUT_FUNC(sequence_split)(object, i, j)
 
