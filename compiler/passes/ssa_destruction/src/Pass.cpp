@@ -28,6 +28,8 @@
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
+#include "memoir/analysis/TypeAnalysis.hpp"
+
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
@@ -118,8 +120,6 @@ struct SSADestructionPass : public ModulePass {
     // Get NOELLE.
     auto &NOELLE = getAnalysis<llvm::noelle::Noelle>();
 
-    auto &CA = CollectionAnalysis::get(NOELLE);
-
     SSADestructionStats stats;
 
     // Initialize the reaching definitions.
@@ -134,6 +134,7 @@ struct SSADestructionPass : public ModulePass {
       for (auto &A : F.args()) {
         if (Type::value_is_collection_type(A)
             || Type::value_is_struct_type(A)) {
+          TypeAnalysis::analyze(A);
           no_memoir = false;
           break;
         }
@@ -142,6 +143,7 @@ struct SSADestructionPass : public ModulePass {
         for (auto &I : llvm::instructions(F)) {
           if (Type::value_is_collection_type(I) || Type::value_is_struct_type(I)
               || Type::value_is_type(I)) {
+            TypeAnalysis::analyze(I);
             no_memoir = false;
             break;
           }
