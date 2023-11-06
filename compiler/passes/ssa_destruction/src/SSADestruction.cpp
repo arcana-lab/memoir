@@ -556,8 +556,6 @@ void SSADestructionVisitor::visitIndexGetInst(IndexGetInst &I) {
   // Get a builder.
   MemOIRBuilder builder(I);
 
-  println(I);
-  println(I.getObjectOperand());
   auto &collection_type =
       MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
                           TypeAnalysis::analyze(I.getObjectOperand())),

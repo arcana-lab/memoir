@@ -23,6 +23,7 @@ endif
 O3_BACK=y
 # O3_LLC=y
 
+ifndef BUILD_DIR
 BUILD_DIR=build
 ## END USER CONFIG ##
 
@@ -38,6 +39,7 @@ LIBS=-lm -lstdc++
 CFLAGS=-I$(GIT_ROOT)/install/include -I$(GIT_ROOT)/install/include/api -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(LIBS)
 
 IR_FILE_RUNTIME=$(GIT_ROOT)/install/lib/memoir.bc
+IR_FILE_BACKENDS=$(wildcard $(GIT_ROOT)/install/lib/backend/*.bc)
 IR_FILE_DECL=$(GIT_ROOT)/install/lib/memoir.decl.bc
 IR_FILE_BACKENDS=$(wildcard $(GIT_ROOT)/install/lib/backend/*.bc)
 
@@ -106,7 +108,7 @@ lower: $(IR_FILE_LOWERED_OPT)
 	opt -always-inline $< -o $(IR_FILE)
 
 $(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
+	mkdir -p $@
 
 $(C_BITCODES): $(BUILD_DIR)/%.bc : %.c
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
@@ -117,8 +119,7 @@ $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 $(IR_FILE_INPUT):
 	$(EXTRACT) $(BITCODE_DIR)/$(INPUT_IR_FILE) --keep-const-init --rfunc="memoir__*" --func=main $(LLVM_DELETE) -o $@
 
-$(IR_FILE_RUNTIME):
-
+# MEMOIR CodeGen
 $(IR_FILE_NORM): $(IR_FILE_INPUT)
 	$(NORM) $< $@
 ifeq ($(O3_FRONT),y)

@@ -38,7 +38,7 @@ extern "C" {
   cname alwaysinline used C_TYPE *T##_llvm_smallvector__get(                   \
       T##_llvm_smallvector_p vec,                                              \
       size_t index) {                                                          \
-    return (C_TYPE *)(&((*vec)[index]));                                       \
+    return (C_TYPE *)(&(*vec)[index]);                                         \
   }                                                                            \
                                                                                \
   cname alwaysinline used C_TYPE T##_llvm_smallvector__read(                   \

@@ -13,7 +13,7 @@
 extern "C" {
 
 #define INSTANTIATE_llvm_smallptrset(K, C_KEY, V, C_VALUE)                     \
-  typedef struct K##_##V##_llvm_smallptrset_t {                                \
+  typedef struct K##_##V##_llvm_smallptrset {                                  \
     llvm::SmallPtrSet<C_KEY, SMALL_SIZE> _set;                                 \
   } K##_##V##_llvm_smallptrset_t;                                              \
   typedef K##_##V##_llvm_smallptrset_t *K##_##V##_llvm_smallptrset_p;          \
@@ -34,7 +34,7 @@ extern "C" {
                                                                                \
   cname alwaysinline used void K##_##V##_llvm_smallptrset__free(               \
       K##_##V##_llvm_smallptrset_p set) {                                      \
-    set->~K##_##V##_llvm_smallptrset_t();                                      \
+    delete set;                                                                \
     return;                                                                    \
   }                                                                            \
                                                                                \
