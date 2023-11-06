@@ -313,7 +313,7 @@ bool Type::is_collection_type(Type &type) {
 }
 
 bool Type::value_is_collection_type(llvm::Value &value) {
-  if (!isa<llvm::Instruction>(&value) || !isa<llvm::Argument>(&value)) {
+  if (!isa<llvm::Instruction>(&value) && !isa<llvm::Argument>(&value)) {
     return false;
   }
   auto *type = value.getType();
