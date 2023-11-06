@@ -2,6 +2,8 @@
 #define MEMOIR_FIELDELISION_H
 #pragma once
 
+#include <regex>
+
 // LLVM
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -32,6 +34,10 @@
 
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
+
+#ifndef FIELD_ELISION_TEST
+#  define FIELD_ELISION_TEST 1
+#endif
 
 /*
  * This class converts a field of a struct into an associative array.
@@ -124,18 +130,20 @@ protected:
     MEMOIR_NULL_CHECK(struct_type,
                       "Could not determine the StructType of a struct value!");
 
-    // TODO: remove this after done with testing!
-    // auto &struct_fields_to_elide = fields_to_elide[struct_type];
-    // bool found = false;
-    // for (auto candidate : struct_fields_to_elide) {
-    //   if (candidate.find(0) != candidate.end()) {
-    //     found = true;
-    //     break;
-    //   }
-    // }
-    // if (!found) {
-    //   fields_to_elide[struct_type].push_back({ 0 });
-    // }
+// TODO: remove this after done with testing!
+#if FIELD_ELISION_TEST
+    auto &struct_fields_to_elide = fields_to_elide[struct_type];
+    bool found = false;
+    for (auto candidate : struct_fields_to_elide) {
+      if (candidate.find(0) != candidate.end()) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      fields_to_elide[struct_type].push_back({ 0 });
+    }
+#endif
 
     // Check if this struct is of a type we care about.
     if (fields_to_elide.find(struct_type) == fields_to_elide.end()) {
@@ -299,8 +307,11 @@ protected:
 
     // Replace struct with assoc.
     // "memoir__struct"
-    auto suffix = name.substr(14);
-    auto replacement = "memoir__assoc" + suffix;
+    std::regex read_re("memoir__struct_read");
+    auto replacement = std::regex_replace(name, read_re, "memoir__assoc_read");
+    std::regex write_re("memoir__struct_write");
+    replacement = std::regex_replace(replacement, write_re, "mut__assoc_write");
+
     infoln("assoc function is ", replacement);
 
     // Get this function from the module.
@@ -684,15 +695,19 @@ protected:
       for (auto *access : accesses) {
         llvm::CallInst *access_as_call;
         unsigned field_index;
+        llvm::Use *field_index_as_use;
         if (auto *struct_read = dyn_cast<StructReadInst>(access)) {
           access_as_call = &struct_read->getCallInst();
           field_index = struct_read->getFieldIndex();
+          field_index_as_use = &struct_read->getFieldIndexOperandAsUse();
         } else if (auto *struct_write = dyn_cast<StructWriteInst>(access)) {
           access_as_call = &struct_write->getCallInst();
           field_index = struct_write->getFieldIndex();
+          field_index_as_use = &struct_write->getFieldIndexOperandAsUse();
         } else if (auto *struct_get = dyn_cast<StructWriteInst>(access)) {
           access_as_call = &struct_get->getCallInst();
           field_index = struct_get->getFieldIndex();
+          field_index_as_use = &struct_get->getFieldIndexOperandAsUse();
         } else {
           continue;
         }
@@ -746,6 +761,9 @@ protected:
 
         // Replace the called function.
         access_as_call->setCalledFunction(&replacement_function);
+
+        // Replace the index with the struct being accessed.
+        field_index_as_use->set(object_use.get());
 
         // Replace the struct to the elided collection.
         object_use.set(replacement_collection);
