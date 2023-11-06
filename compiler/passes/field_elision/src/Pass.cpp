@@ -27,7 +27,7 @@
 using namespace llvm::memoir;
 
 /*
- * This pass eliminates trivially dead fields from a struct definition.
+ * This pass performs the field elision optimization.
  *
  * Author(s): Tommy McMichen
  * Created: August 25, 2023
