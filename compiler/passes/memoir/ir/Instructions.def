@@ -274,9 +274,13 @@ HANDLE_REMOVE_INST_(ASSOC_REMOVE, MEMOIR_FUNC(assoc_remove), AssocRemoveInst)
 
 HANDLE_COPY_INST_(SEQ_COPY, MEMOIR_FUNC(sequence_copy), SeqCopyInst)
 
-/* Sequence operations. */
-HANDLE_INST_(SEQ_SWAP, MEMOIR_FUNC(sequence_swap), SeqSwapInst)
-HANDLE_INST_(SEQ_SWAP_WITHIN, MEMOIR_FUNC(sequence_swap_within), SeqSwapWithinInst)
+/* Swap operations. */
+#ifndef HANDLE_SWAP_INST
+#define HANDLE_SWAP_INST(ENUM, FUNC, CLASS) HANDLE_INST(ENUM, FUNC, CLASS)
+#endif
+#define HANDLE_SWAP_INST_(ENUM, FUNC, CLASS) HANDLE_SWAP_INST(ENUM, FUNC, CLASS)
+HANDLE_SWAP_INST_(SEQ_SWAP, MEMOIR_FUNC(sequence_swap), SeqSwapInst)
+HANDLE_SWAP_INST_(SEQ_SWAP_WITHIN, MEMOIR_FUNC(sequence_swap_within), SeqSwapWithinInst)
 
 /* Associative operations. */
 HANDLE_ACCESS_INST_(ASSOC_HAS, MEMOIR_FUNC(assoc_has), AssocHasInst)
