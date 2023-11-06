@@ -54,6 +54,14 @@ extern "C" {
   }                                                                            \
                                                                                \
   cname alwaysinline used                                                      \
+      K##_##V##_stl_unordered_map_p K##_##V##_stl_unordered_map__insert(       \
+          K##_##V##_stl_unordered_map_p table,                                 \
+          C_KEY key) {                                                         \
+    (*table)[key];                                                             \
+    return table;                                                              \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used                                                      \
       K##_##V##_stl_unordered_map_p K##_##V##_stl_unordered_map__remove(       \
           K##_##V##_stl_unordered_map_p table,                                 \
           C_KEY key) {                                                         \
