@@ -289,6 +289,32 @@ public:
   }
 
   // Access Instructions
+  StructWriteInst *CreateStructWriteInst(Type &element_type,
+                                         llvm::Value *llvm_value_to_write,
+                                         llvm::Value *llvm_collection,
+                                         llvm::Value *llvm_field_index,
+                                         const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto llvm_func = FunctionNames::get_memoir_function(
+        *(this->M),
+        getStructWriteEnumForType(element_type));
+
+    // Create the LLVM call.
+    auto llvm_call = this->CreateCall(
+        FunctionCallee(llvm_func),
+        llvm::ArrayRef<llvm::Value *>(
+            { llvm_value_to_write, llvm_collection, llvm_field_index }),
+        name);
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for struct write operation.");
+
+    // Cast to MemOIRInst and return.
+    auto memoir_inst = MemOIRInst::get(*llvm_call);
+    auto inst = dyn_cast<StructWriteInst>(memoir_inst);
+    MEMOIR_NULL_CHECK(inst, "Could not create call to StructWriteInst");
+    return inst;
+  }
+
   IndexWriteInst *CreateIndexWriteInst(Type &element_type,
                                        llvm::Value *llvm_value_to_write,
                                        llvm::Value *llvm_collection,
@@ -823,7 +849,6 @@ public:
                                      llvm::Value *llvm_index,
                                      const Twine &name = "") {
     // Fetch the LLVM Function.
-    println(element_type);
     auto *llvm_func = FunctionNames::get_memoir_function(
         *(this->M),
         getSeqInsertEnumForType(element_type));
