@@ -49,6 +49,18 @@ extern "C" {
     return;                                                                    \
   }                                                                            \
                                                                                \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__copy(               \
+      T##_stl_vector_p vec,                                                    \
+      size_t begin_index,                                                      \
+      size_t end_index) {                                                      \
+    T##_stl_vector_p new_vec = new T##_stl_vector_t();                         \
+    new_vec->resize(end_index - begin_index);                                  \
+    std::copy(vec->cbegin() + begin_index,                                     \
+              vec->cend() + end_index,                                         \
+              new_vec->begin());                                               \
+    return new_vec;                                                            \
+  }                                                                            \
+                                                                               \
   cname alwaysinline used T##_stl_vector_p T##_stl_vector__remove(             \
       T##_stl_vector_p vec,                                                    \
       size_t index) {                                                          \
@@ -61,6 +73,14 @@ extern "C" {
       size_t begin_index,                                                      \
       size_t end_index) {                                                      \
     vec->erase(vec->begin() + begin_index, vec->begin() + end_index);          \
+    return vec;                                                                \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_element(     \
+      T##_stl_vector_p vec,                                                    \
+      size_t start,                                                            \
+      C_TYPE value) {                                                          \
+    vec->insert(vec->begin() + start, value);                                  \
     return vec;                                                                \
   }                                                                            \
                                                                                \
@@ -86,10 +106,11 @@ extern "C" {
   cname alwaysinline used void T##_stl_vector__swap(T##_stl_vector_p vec,      \
                                                     size_t from,               \
                                                     size_t to,                 \
+                                                    T##_stl_vector_p vec2,     \
                                                     size_t start) {            \
     std::swap_ranges(vec->begin() + from,                                      \
                      vec->begin() + to,                                        \
-                     vec->begin() + start);                                    \
+                     vec2->begin() + start);                                   \
     return;                                                                    \
   }                                                                            \
                                                                                \
