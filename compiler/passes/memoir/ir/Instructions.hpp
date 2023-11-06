@@ -1391,8 +1391,8 @@ protected:
 // Deletion operations
 struct DeleteStructInst : public MemOIRInst {
 public:
-  llvm::Value &getStructDeleted() const;
-  llvm::Use &getStructDeletedAsUse() const;
+  llvm::Value &getDeletedStruct() const;
+  llvm::Use &getDeletedStructAsUse() const;
 
   static bool classof(const MemOIRInst *I) {
     return (I->getKind() == MemOIR_Func::DELETE_STRUCT);
@@ -1408,8 +1408,8 @@ protected:
 
 struct DeleteCollectionInst : public MemOIRInst {
 public:
-  llvm::Value &getCollectionDeleted() const;
-  llvm::Use &getCollectionDeletedAsUse() const;
+  llvm::Value &getDeletedCollection() const;
+  llvm::Use &getDeletedCollectionAsUse() const;
 
   static bool classof(const MemOIRInst *I) {
     return (I->getKind() == MemOIR_Func::DELETE_COLLECTION);
