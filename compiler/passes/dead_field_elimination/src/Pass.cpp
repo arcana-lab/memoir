@@ -31,6 +31,8 @@ using namespace llvm::memoir;
  * Created: August 25, 2023
  */
 
+namespace llvm::memoir {
+
 struct DeadFieldEliminationPass : public ModulePass {
   static char ID;
 
@@ -53,26 +55,27 @@ struct DeadFieldEliminationPass : public ModulePass {
     return;
   }
 };
+} // namespace llvm::memoir
 
 // Next there is code to register your pass to "opt"
-char DeadFieldEliminationPass::ID = 0;
-static RegisterPass<DeadFieldEliminationPass> X(
+char llvm::memoir::DeadFieldEliminationPass::ID = 0;
+static llvm::RegisterPass<llvm::memoir::DeadFieldEliminationPass> X(
     "memoir-dfe",
     "Eliminates dead fields from type definition.");
 
 // Next there is code to register your pass to "clang"
-static DeadFieldEliminationPass *_PassMaker = NULL;
-static RegisterStandardPasses _RegPass1(
-    PassManagerBuilder::EP_OptimizerLast,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
+static llvm::memoir::DeadFieldEliminationPass *_PassMaker = NULL;
+static llvm::RegisterStandardPasses _RegPass1(
+    llvm::PassManagerBuilder::EP_OptimizerLast,
+    [](const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
       if (!_PassMaker) {
-        PM.add(_PassMaker = new DeadFieldEliminationPass());
+        PM.add(_PassMaker = new llvm::memoir::DeadFieldEliminationPass());
       }
     }); // ** for -Ox
-static RegisterStandardPasses _RegPass2(
-    PassManagerBuilder::EP_EnabledOnOptLevel0,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
+static llvm::RegisterStandardPasses _RegPass2(
+    llvm::PassManagerBuilder::EP_EnabledOnOptLevel0,
+    [](const llvm::PassManagerBuilder &, llvm::legacy::PassManagerBase &PM) {
       if (!_PassMaker) {
-        PM.add(_PassMaker = new DeadFieldEliminationPass());
+        PM.add(_PassMaker = new llvm::memoir::DeadFieldEliminationPass());
       }
     }); // ** for -O0
