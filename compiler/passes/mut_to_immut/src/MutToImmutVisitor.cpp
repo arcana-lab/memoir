@@ -123,6 +123,7 @@ MutToImmutVisitor::MutToImmutVisitor(
 void MutToImmutVisitor::visitInstruction(llvm::Instruction &I) {
   for (auto &operand_use : I.operands()) {
     auto *operand_value = operand_use.get();
+    println(*operand_value);
     if (!Type::value_is_collection_type(*operand_value)) {
       continue;
     }
@@ -167,6 +168,40 @@ void MutToImmutVisitor::visitArgPHIInst(ArgPHIInst &I) {
 }
 
 void MutToImmutVisitor::visitRetPHIInst(RetPHIInst &I) {
+  return;
+}
+
+void MutToImmutVisitor::visitMutStructWriteInst(MutStructWriteInst &I) {
+  // NOTE: this is currently a direct translation to StructWriteInst, when we
+  // update to use FieldArrays explicitly, this is where they will need to be
+  // constructed.
+  MemOIRBuilder builder(I);
+
+  // Fetch type information.
+  auto *type = TypeAnalysis::analyze(I.getObjectOperand());
+  MEMOIR_NULL_CHECK(type, "Couldn't determine type of MutStructWriteInst!");
+  auto *struct_type = dyn_cast<StructType>(type);
+  MEMOIR_NULL_CHECK(struct_type,
+                    "MutStructWriteInst not operating on a struct type");
+  auto &field_type = struct_type->getFieldType(I.getFieldIndex());
+
+  // Split the live range of the collection being written.
+  // NOTE: this is only necessary when we are using Field Arrays explicitly.
+
+  // Fetch operand information.
+  auto *struct_value = &I.getObjectOperand();
+  auto *write_value = &I.getValueWritten();
+  auto *field_index = &I.getFieldIndexOperand();
+
+  // Create IndexWriteInst.
+  auto *ssa_write = builder.CreateStructWriteInst(field_type,
+                                                  write_value,
+                                                  struct_value,
+                                                  field_index);
+
+  // Mark old instruction for cleanup.
+  this->mark_for_cleanup(I);
+
   return;
 }
 
@@ -434,7 +469,7 @@ void MutToImmutVisitor::visitMutSeqAppendInst(MutSeqAppendInst &I) {
   // Create SeqInsertSeqInst.
   auto *ssa_append = builder.CreateSeqInsertSeqInst(appended_collection_value,
                                                     collection_value,
-                                                    (llvm::Value *)end,
+                                                    &end->getCallInst(),
                                                     "seq.append.");
 
   // Update reaching definitions.
@@ -469,11 +504,11 @@ void MutToImmutVisitor::visitMutSeqSwapInst(MutSeqSwapInst &I) {
 
   // Extract the FROM and TO collections
   auto *ssa_from_collection =
-      builder.CreateExtractValue((llvm::Value *)ssa_swap,
+      builder.CreateExtractValue(&ssa_swap->getCallInst(),
                                  llvm::ArrayRef<unsigned>({ 0 }),
                                  "seq.swap.from.");
   auto *ssa_to_collection =
-      builder.CreateExtractValue((llvm::Value *)ssa_swap,
+      builder.CreateExtractValue(&ssa_swap->getCallInst(),
                                  llvm::ArrayRef<unsigned>({ 1 }),
                                  "seq.swap.to.");
 

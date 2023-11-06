@@ -41,6 +41,7 @@ public:
   void visitArgPHIInst(ArgPHIInst &I);
   void visitRetPHIInst(RetPHIInst &I);
   // Access operations
+  void visitMutStructWriteInst(MutStructWriteInst &I);
   void visitMutIndexWriteInst(MutIndexWriteInst &I);
   void visitMutAssocWriteInst(MutAssocWriteInst &I);
   void visitIndexReadInst(IndexReadInst &I);
