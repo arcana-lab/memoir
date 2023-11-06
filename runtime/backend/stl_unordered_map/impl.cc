@@ -1,16 +1,13 @@
 #include "stl_unordered_map.h"
 
 // Generate the default hashtables.
-// #define HANDLE_INTEGER_TYPE(T, C_TYPE, BW, SIGNED) \
-//   INSTANTIATE_PTR_ASSOC(T, C_TYPE) \ INSTANTIATE_PRIMITIVE_ASSOC(u32,
-//   uint32_t, T, C_TYPE)
-// #define HANDLE_PRIMITIVE_TYPE(T, C_TYPE, PREFIX) \
-//   INSTANTIATE_PTR_ASSOC(T, C_TYPE) \ INSTANTIATE_PRIMITIVE_ASSOC(u32,
-//   uint32_t, T, C_TYPE)
-/* #include "types.def" */
-
-INSTANTIATE_stl_unordered_map(ptr, void *, ptr, void *)
-INSTANTIATE_stl_unordered_map(ptr, void *, boolean, bool)
+#define HANDLE_INTEGER_TYPE(T, C_TYPE, BW, SIGNED)                             \
+  INSTANTIATE_stl_unordered_map(ptr, void *, T, C_TYPE)                        \
+      INSTANTIATE_stl_unordered_map(struct_ref, void *, T, C_TYPE)
+#define HANDLE_PRIMITIVE_TYPE(T, C_TYPE, PREFIX)                               \
+  INSTANTIATE_stl_unordered_map(ptr, void *, T, C_TYPE)                        \
+      INSTANTIATE_stl_unordered_map(struct_ref, void *, T, C_TYPE)
+#include "types.def"
 
 #pragma pack(1)
 typedef struct {
