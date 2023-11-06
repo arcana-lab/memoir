@@ -1,4 +1,5 @@
 BENCH=deepsjeng_s
+BITCODE_DIR=/project/memoir-bitcodes/spec2017/deepsjeng_s
 INPUT_IR_FILE=$(BENCH).bc
 
 ## BEGIN USER CONFIG ##
@@ -96,7 +97,7 @@ $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
 
 $(IR_FILE_INPUT):
-	cp $(INPUT_IR_FILE) $@
+	cp $(BITCODE_DIR)/$(INPUT_IR_FILE) $@
 
 $(IR_FILE_RUNTIME):
 
