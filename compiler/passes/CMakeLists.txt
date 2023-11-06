@@ -17,7 +17,7 @@ add_subdirectory(command_line)
 
 # Transformation passes
 add_subdirectory(dead_collection_elimination)
-# add_subdirectory(dead_field_elimination)
+add_subdirectory(dead_field_elimination)
 # add_subdirectory(field_elision)
 # add_subdirectory(key_folding)
 # add_subdirectory(collection_lowering)
