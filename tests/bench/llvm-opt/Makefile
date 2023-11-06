@@ -1,4 +1,5 @@
 BENCH=llvm-opt
+BITCODE_DIR=/project/memoir-bitcodes/
 INPUT_IR_FILE=$(BENCH).bc
 
 ## BEGIN USER CONFIG ##
@@ -114,7 +115,7 @@ $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
 
 $(IR_FILE_INPUT):
-	$(EXTRACT) $(INPUT_IR_FILE) --keep-const-init --rfunc="memoir__*" --func=main $(LLVM_DELETE) -o $@
+	$(EXTRACT) $(BITCODE_DIR)/$(INPUT_IR_FILE) --keep-const-init --rfunc="memoir__*" --func=main $(LLVM_DELETE) -o $@
 
 $(IR_FILE_RUNTIME):
 
@@ -146,7 +147,7 @@ else
 endif
 
 $(IR_FILE_LLVM_STRIPPED):
-	$(EXTRACT) $(INPUT_IR_FILE) --delete --recursive --recurse-on-globals $(LLVM_DELETE) -o $@
+	$(EXTRACT) $(BITCODE_DIR)/$(INPUT_IR_FILE) --delete --recursive --recurse-on-globals $(LLVM_DELETE) -o $@
 
 $(IR_FILE_LINKED): $(IR_FILE) $(IR_FILE_LLVM_STRIPPED)
 	$(EXTRACT) --recursive --recurse-on-globals $(LLVM_DELETE) --keep-const-init $< -o $<
