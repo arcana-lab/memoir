@@ -121,6 +121,8 @@ protected:
   //// Access instructions
   Type *visitReadInst(ReadInst &I);
   Type *visitGetInst(GetInst &I);
+  Type *visitIndexWriteInst(IndexWriteInst &I);
+  Type *visitAssocWriteInst(AssocWriteInst &I);
   //// SSA operations
   Type *visitUsePHIInst(UsePHIInst &I);
   Type *visitDefPHIInst(DefPHIInst &I);
