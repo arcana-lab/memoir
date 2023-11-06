@@ -5,7 +5,7 @@ BUILD_DIR=build
 CC=clang++
 LL=llvm-link
 NORM=$(GIT_ROOT)/compiler/scripts/memoir-norm
-OPT=$(GIT_ROOT)/compiler/scripts/memoir-opt
+OPT=$(GIT_ROOT)/compiler/scripts/memoir-load
 
 LIBS=-lm -lstdc++
 CFLAGS=-I$(GIT_ROOT)/install/include -I$(GIT_ROOT)/install/include/api -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(LIBS)
@@ -42,13 +42,14 @@ compile: $(BUILD_DIR) $(BINARY)
 test: compile
 	$(BINARY) 2>&1 | tee $(BUILD_DIR)/test.out
 
-optimize: $(IR_FILE_OPT) $(IR_FILE_RUNTIME) $(IR_FILE_BACKENDS)
+optimize: $(IR_FILE_OPT) $(IR_FILE_BACKENDS)
 	$(LL) $^ -o $(IR_FILE)
 
-baseline: $(IR_FILE_SSA) $(IR_FILE_RUNTIME) $(IR_FILE_BACKENDS)
+baseline: $(IR_FILE_SSA) $(IR_FILE_BACKENDS)
 	$(LL) $^ -o $(IR_FILE)
 
-lower: $(IR_FILE_LOWERED)
+lower: $(IR_FILE_LOWERED) $(IR_FILE_RUNTIME)
+	$(LL) $^ -o $(IR_FILE)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
