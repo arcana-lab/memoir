@@ -5,11 +5,11 @@
 namespace llvm::memoir {
 
 // DeleteStructInst implementation
-OPERAND(DeleteStructInst, StructDeleted, 0)
+OPERAND(DeleteStructInst, DeletedStruct, 0)
 TO_STRING(DeleteStructInst)
 
 // DeleteCollectionInst implementation
-OPERAND(DeleteCollectionInst, CollectionDeleted, 0)
+OPERAND(DeleteCollectionInst, DeletedCollection, 0)
 TO_STRING(DeleteCollectionInst)
 
 } // namespace llvm::memoir
