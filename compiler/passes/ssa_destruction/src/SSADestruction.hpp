@@ -77,26 +77,42 @@ public:
   void visitDeleteCollectionInst(DeleteCollectionInst &I);
 
   // Access operations
+  //// Index accesses
   void visitIndexReadInst(IndexReadInst &I);
   void visitIndexWriteInst(IndexWriteInst &I);
   void visitIndexGetInst(IndexGetInst &I);
+  //// Assoc accesses
   void visitAssocReadInst(AssocReadInst &I);
   void visitAssocWriteInst(AssocWriteInst &I);
   void visitAssocGetInst(AssocGetInst &I);
   void visitAssocHasInst(AssocHasInst &I);
-  void visitAssocRemoveInst(AssocRemoveInst &I);
+  //// Struct accesses
   void visitStructReadInst(StructReadInst &I);
   void visitStructWriteInst(StructWriteInst &I);
   void visitStructGetInst(StructGetInst &I);
 
-  // SSA operations
+  // Sequence operations
+  void visitSeqInsertInst(SeqInsertInst &I);
+  void visitSeqInsertSeqInst(SeqInsertSeqInst &I);
+  void visitSeqRemoveInst(SeqRemoveInst &I);
+  void visitSeqCopyInst(SeqCopyInst &I);
+  void visitSeqSwapInst(SeqSwapInst &I);
+  void visitSeqSwapWithinInst(SeqSwapWithinInst &I);
+
+  // Assoc operations
+  void visitAssocInsertInst(AssocInsertInst &I);
+  void visitAssocRemoveInst(AssocRemoveInst &I);
+
+  // SSA collection operations
   void visitUsePHIInst(UsePHIInst &I);
   void visitDefPHIInst(DefPHIInst &I);
-  void visitSliceInst(SliceInst &I);
-  void visitJoinInst(JoinInst &I);
+  void visitArgPHIInst(ArgPHIInst &I);
+  void visitRetPHIInst(RetPHIInst &I);
   void visitSizeInst(SizeInst &I);
+  void visitEndInst(EndInst &I);
 
   // Typechecking
+  void visitTypeInst(TypeInst &I);
   void visitAssertCollectionTypeInst(AssertCollectionTypeInst &I);
   void visitAssertStructTypeInst(AssertStructTypeInst &I);
   void visitReturnTypeInst(ReturnTypeInst &I);
@@ -120,6 +136,7 @@ protected:
   map<llvm::Value *, llvm::Value *> coalesced_values;
   map<llvm::Value *, llvm::Value *> replaced_values;
   map<llvm::Value *, llvm::Value *> def_phi_replacements;
+  map<llvm::Value *, llvm::Value *> ret_phi_replacements;
   set<llvm::Instruction *> instructions_to_delete;
 
   llvm::Value *find_replacement(llvm::Value *value);
