@@ -49,6 +49,8 @@ Type *TypeAnalysis::getType(llvm::Value &V) {
 }
 
 Type *TypeAnalysis::getType_helper(llvm::Value &V) {
+
+  println(V);
   // If we have an instruction, visit it.
   // If the instruction has a type, return it.
   if (auto inst = dyn_cast<llvm::Instruction>(&V)) {
@@ -342,6 +344,23 @@ Type *TypeAnalysis::visitGetInst(GetInst &I) {
   MEMOIZE_AND_RETURN(I, &nested_type);
 }
 
+// Write access instructions.
+Type *TypeAnalysis::visitIndexWriteInst(IndexWriteInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getObjectOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitAssocWriteInst(AssocWriteInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getObjectOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
 // SSA Instructions
 Type *TypeAnalysis::visitUsePHIInst(UsePHIInst &I) {
   CHECK_MEMOIZED(I);
@@ -611,6 +630,7 @@ Type *TypeAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
       returned_types.insert(this->getReturnType(F));
     }
 
+    println(I);
     MEMOIR_ASSERT((returned_types.size() == 1),
                   "Could not determine the return type for indirect call!");
   }
