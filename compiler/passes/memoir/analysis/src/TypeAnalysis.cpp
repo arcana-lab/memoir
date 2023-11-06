@@ -180,7 +180,9 @@ Type *TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
   CHECK_MEMOIZED(I);
 
   // Get all users of the given name.
-  auto &name_value = I.getNameOperand();
+  auto &name_value = MEMOIR_SANITIZE(
+      I.getNameOperand().stripPointerCasts(),
+      "Could not get the name operand stripped of pointer casts");
 
   set<llvm::CallInst *> call_inst_users = {};
   for (auto *user : name_value.users()) {
