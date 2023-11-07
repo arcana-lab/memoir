@@ -36,7 +36,7 @@
 #include "memoir/utility/Metadata.hpp"
 
 #ifndef FIELD_ELISION_TEST
-#  define FIELD_ELISION_TEST 1
+#  define FIELD_ELISION_TEST 0
 #endif
 
 /*
