@@ -117,6 +117,8 @@ struct SSADestructionPass : public ModulePass {
     println("BEGIN SSA Destruction pass");
     println();
 
+    TypeAnalysis::invalidate();
+
     // Get NOELLE.
     auto &NOELLE = getAnalysis<llvm::noelle::Noelle>();
 
@@ -136,7 +138,6 @@ struct SSADestructionPass : public ModulePass {
             || Type::value_is_struct_type(A)) {
           TypeAnalysis::analyze(A);
           no_memoir = false;
-          break;
         }
       }
       if (no_memoir) {
@@ -145,7 +146,6 @@ struct SSADestructionPass : public ModulePass {
               || Type::value_is_type(I)) {
             TypeAnalysis::analyze(I);
             no_memoir = false;
-            break;
           }
         }
       }
@@ -206,6 +206,8 @@ struct SSADestructionPass : public ModulePass {
     println("=========================");
     println("DONE SSA Destruction pass");
     println();
+
+    TypeAnalysis::invalidate();
 
     return true;
   }
