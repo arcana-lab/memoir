@@ -28,6 +28,8 @@
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
+#include "memoir/analysis/TypeAnalysis.hpp"
+
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
@@ -90,6 +92,8 @@ struct MutToImmutPass : public ModulePass {
     println("BEGIN mut2immut pass");
     println();
 
+    TypeAnalysis::invalidate();
+
     // Get NOELLE.
     auto &NOELLE = getAnalysis<llvm::noelle::Noelle>();
 
@@ -110,8 +114,8 @@ struct MutToImmutPass : public ModulePass {
       }
       if (no_memoir) {
         for (auto &I : llvm::instructions(F)) {
-          if (Type::value_is_collection_type(I)
-              || Type::value_is_struct_type(I)) {
+          if (Type::value_is_collection_type(I) || Type::value_is_struct_type(I)
+              || Type::value_is_type(I)) {
             no_memoir = false;
             break;
           }
@@ -316,6 +320,10 @@ struct MutToImmutPass : public ModulePass {
     println("DONE mut2immut pass");
 
     println();
+
+    TypeAnalysis::invalidate();
+    MemOIRInst::invalidate();
+
     return true;
   }
 
