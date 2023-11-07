@@ -88,15 +88,6 @@ extern "C" {
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used                                                      \
-      T##_llvm_smallvector_p T##_llvm_smallvector__insert_element(             \
-          T##_llvm_smallvector_p vec,                                          \
-          size_t start,                                                        \
-          C_TYPE value) {                                                      \
-    vec->insert(vec->begin() + start, value);                                  \
-    return vec;                                                                \
-  }                                                                            \
-                                                                               \
   cname alwaysinline used T##_llvm_smallvector_p T##_llvm_smallvector__insert( \
       T##_llvm_smallvector_p vec,                                              \
       size_t start,                                                            \
