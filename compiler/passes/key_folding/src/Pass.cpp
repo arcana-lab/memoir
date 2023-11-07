@@ -42,7 +42,7 @@ struct KeyFoldingPass : public ModulePass {
   }
 
   bool runOnModule(Module &M) override {
-    println("Running dead field elimination pass");
+    println("Running key folding pass");
     println();
 
     auto KF = KeyFolding(M);
