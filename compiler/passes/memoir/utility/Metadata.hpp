@@ -46,6 +46,22 @@ public:
   static bool hasMetadata(llvm::Instruction &I, MetadataType MT);
   static llvm::Value *getMetadata(llvm::Instruction &I, MetadataType MT);
 
+  static void insertMetadata(llvm::Function &F,
+                             MetadataType MT,
+                             std::string str);
+
+  static void removeMetadata(llvm::Function &F,
+                             MetadataType MT,
+                             std::string str);
+
+  static void insertMetadata(llvm::Instruction &I,
+                             MetadataType MT,
+                             std::string str);
+
+  static void removeMetadata(llvm::Instruction &I,
+                             MetadataType MT,
+                             std::string str);
+
   /*
    * Singleton access
    */
@@ -68,6 +84,14 @@ private:
   void setMetadata(llvm::Instruction &I, std::string str, llvm::Value *value);
   bool hasMetadata(llvm::Instruction &I, std::string str);
   llvm::Value *getMetadata(llvm::Instruction &I, std::string str);
+
+  void insertMetadata(llvm::Function &F, std::string kind, std::string str);
+
+  void removeMetadata(llvm::Function &F, std::string kind, std::string str);
+
+  void insertMetadata(llvm::Instruction &I, std::string kind, std::string str);
+
+  void removeMetadata(llvm::Instruction &I, std::string kind, std::string str);
 
   map<MetadataType, std::string> MDtoString;
 
