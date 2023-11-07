@@ -123,7 +123,6 @@ MutToImmutVisitor::MutToImmutVisitor(
 void MutToImmutVisitor::visitInstruction(llvm::Instruction &I) {
   for (auto &operand_use : I.operands()) {
     auto *operand_value = operand_use.get();
-    println(*operand_value);
     if (!Type::value_is_collection_type(*operand_value)) {
       continue;
     }
