@@ -20,12 +20,8 @@ add_subdirectory(dead_collection_elimination)
 add_subdirectory(dead_field_elimination)
 add_subdirectory(field_elision)
 add_subdirectory(key_folding)
-# add_subdirectory(collection_lowering)
 
 # DEPRECATED Passes
-# add_subdirectory(object_abstraction)
-# add_subdirectory(object_inlining)
-# add_subdirectory(object_lowering)
 # add_subdirectory(struct_of_arrays)
 # add_subdirectory(slice_canonicalization)
 # add_subdirectory(slice_propagation)
