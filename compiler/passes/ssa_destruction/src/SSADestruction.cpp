@@ -105,10 +105,13 @@ void SSADestructionVisitor::visitSequenceAllocInst(SequenceAllocInst &I) {
         llvm::ArrayRef<llvm::Value *>({ llvm_alloca, vector_size }));
   }
 
-  auto *collection =
-      builder.CreatePointerCast(llvm_call, I.getCallInst().getType());
+  auto *return_type = I.getCallInst().getType();
+  if (!return_type->isVoidTy()) {
+    auto *collection =
+        builder.CreatePointerCast(llvm_call, I.getCallInst().getType());
 
-  this->coalesce(I, *collection);
+    this->coalesce(I, *collection);
+  }
 
   this->markForCleanup(I);
 #endif
@@ -311,8 +314,6 @@ void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
 
 void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
 #if COLLECTION_SELECTION
-
-  println(I);
   auto &collection_type =
       MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
                           TypeAnalysis::analyze(I.getCollection())),
@@ -1370,21 +1371,16 @@ void SSADestructionVisitor::visitSeqSwapWithinInst(SeqSwapWithinInst &I) {
   auto *function_type = function_callee.getFunctionType();
   auto *seq = builder.CreatePointerCast(&I.getFromCollection(),
                                         function_type->getParamType(0));
-  println(*seq);
   auto *begin = builder.CreateBitOrPointerCast(&I.getBeginIndex(),
                                                function_type->getParamType(1));
-  println(*begin);
   auto *end = builder.CreateBitOrPointerCast(&I.getEndIndex(),
                                              function_type->getParamType(2));
-  println(*end);
   auto *to_begin =
       builder.CreateBitOrPointerCast(&I.getToBeginIndex(),
                                      function_type->getParamType(4));
-  println(*to_begin);
   auto *llvm_call =
       builder.CreateCall(function_callee,
                          llvm::ArrayRef({ seq, begin, end, seq, to_begin }));
-  println(*llvm_call);
   MEMOIR_NULL_CHECK(llvm_call,
                     "Could not create the call for SeqSwapWithinInst");
 
