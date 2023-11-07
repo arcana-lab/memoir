@@ -156,7 +156,6 @@ void SSADestructionVisitor::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
   auto *function_type = function_callee.getFunctionType();
 
   llvm::CallInst *llvm_call;
-
   if (escaped) {
     llvm_call = builder.CreateCall(function_callee);
   } else {
