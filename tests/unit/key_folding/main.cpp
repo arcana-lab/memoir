@@ -4,7 +4,6 @@
 
 using namespace memoir;
 
-// Second argument is dead.
 auto type = memoir_define_struct_type("Foo", memoir_u64_t, memoir_u64_t);
 
 int main() {
