@@ -31,14 +31,9 @@ MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
     if (found_inst.getKind() == memoir_enum) {
       return &found_inst;
     }
-
-    /*
-     * If the enums don't match, erase the existing.
-     * TODO: actually delete the found instruction
-     */
-    llvm_to_memoir.erase(found);
   }
 
+  // If the enums don't match, construct a new one in place.
   switch (memoir_enum) {
     default:
       MEMOIR_UNREACHABLE("Unknown MemOIR instruction encountered");
@@ -59,6 +54,12 @@ MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
   }
 
   return nullptr;
+}
+
+void MemOIRInst::invalidate() {
+  // TODO: Delete all old instructions.
+  delete MemOIRInst::llvm_to_memoir;
+  MemOIRInst::llvm_to_memoir = nullptr;
 }
 
 /*

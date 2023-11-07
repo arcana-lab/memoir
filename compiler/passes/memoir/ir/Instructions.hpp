@@ -34,6 +34,7 @@ struct MemOIRInst {
 public:
   static MemOIRInst *get(llvm::Instruction &I);
   static bool is_mutator(MemOIRInst &I);
+  static void invalidate();
 
   MemOIRFunction &getFunction() const;
   llvm::CallInst &getCallInst() const;
