@@ -109,6 +109,7 @@ void SSADestructionVisitor::visitSequenceAllocInst(SequenceAllocInst &I) {
       builder.CreatePointerCast(llvm_call, I.getCallInst().getType());
 
   this->coalesce(I, *collection);
+
   this->markForCleanup(I);
 #endif
   return;
@@ -184,8 +185,6 @@ void SSADestructionVisitor::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
   }
   MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for hashtable alloc");
 
-  println("  --> ", *llvm_call);
-
   auto *collection =
       builder.CreatePointerCast(llvm_call, I.getCallInst().getType());
 
@@ -253,7 +252,7 @@ void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
 #if COLLECTION_SELECTION
   auto &collection_type =
       MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
-                          TypeAnalysis::analyze(I.getCollectionOperand())),
+                          TypeAnalysis::analyze(I.getDeletedCollection())),
                       "Couldn't determine type of collection");
   if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
     auto &element_type = seq_type->getElementType();
@@ -272,7 +271,7 @@ void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
 
     auto *function_type = function_callee.getFunctionType();
     auto *vector_value =
-        builder.CreatePointerCast(&I.getCollectionOperand(),
+        builder.CreatePointerCast(&I.getDeletedCollection(),
                                   function_type->getParamType(0));
     auto *llvm_call =
         builder.CreateCall(function_callee, llvm::ArrayRef({ vector_value }));
@@ -299,7 +298,7 @@ void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
 
     auto *function_type = function_callee.getFunctionType();
     auto *assoc_value =
-        builder.CreatePointerCast(&I.getCollectionOperand(),
+        builder.CreatePointerCast(&I.getDeletedCollection(),
                                   function_type->getParamType(0));
     auto *llvm_call =
         builder.CreateCall(function_callee, llvm::ArrayRef({ assoc_value }));
@@ -313,10 +312,13 @@ void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
 
 void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
 #if COLLECTION_SELECTION
+
+  println(I);
   auto &collection_type =
       MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
-                          TypeAnalysis::analyze(I.getCollectionOperand())),
+                          TypeAnalysis::analyze(I.getCollection())),
                       "Couldn't determine type of collection");
+
   std::string name;
   if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
     auto &element_type = seq_type->getElementType();
@@ -342,7 +344,7 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
   MemOIRBuilder builder(I);
 
   auto *function_type = function_callee.getFunctionType();
-  auto *value = builder.CreatePointerCast(&I.getCollectionOperand(),
+  auto *value = builder.CreatePointerCast(&I.getCollection(),
                                           function_type->getParamType(0));
   auto *llvm_call =
       builder.CreateCall(function_callee, llvm::ArrayRef({ value }));
@@ -353,6 +355,123 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
   this->markForCleanup(I);
 #else
 #endif
+  return;
+}
+
+static llvm::Value &contextualize_end(EndInst &end_inst,
+                                      llvm::Use &use,
+                                      InsertInst &insert_inst) {
+  MemOIRBuilder builder(insert_inst);
+
+  auto *size_inst = builder.CreateSizeInst(&insert_inst.getBaseCollection());
+
+  MEMOIR_NULL_CHECK(size_inst,
+                    "Could not contextualize EndInst for InsertInst!");
+
+  use.set(&size_inst->getCallInst());
+
+  return size_inst->getCallInst();
+}
+
+static llvm::Value &contextualize_end(EndInst &end_inst,
+                                      llvm::Use &use,
+                                      RemoveInst &remove_inst) {
+  MemOIRBuilder builder(remove_inst);
+
+  auto *size_inst = builder.CreateSizeInst(&remove_inst.getBaseCollection());
+  MEMOIR_NULL_CHECK(size_inst,
+                    "Could not contextualize EndInst for RemoveInst!");
+
+  use.set(&size_inst->getCallInst());
+
+  return size_inst->getCallInst();
+}
+
+static llvm::Value &contextualize_end(EndInst &end_inst,
+                                      llvm::Use &use,
+                                      CopyInst &copy_inst) {
+  MemOIRBuilder builder(copy_inst);
+
+  auto *size_inst = builder.CreateSizeInst(&copy_inst.getCopiedCollection());
+  MEMOIR_NULL_CHECK(size_inst, "Could not contextualize EndInst for CopyInst!");
+
+  use.set(&size_inst->getCallInst());
+
+  return size_inst->getCallInst();
+}
+
+static llvm::Value &contextualize_end(EndInst &end_inst,
+                                      llvm::Use &use,
+                                      SeqSwapInst &swap_inst) {
+  MemOIRBuilder builder(swap_inst);
+
+  // TODO: this assumes that TO operands will all be _after_ the TO collection
+  // operand. Could make this more extensible, but that would require something
+  // akin to TableGen.
+  auto &collection =
+      (use.getOperandNo() > swap_inst.getToCollectionAsUse().getOperandNo())
+          ? swap_inst.getToCollection()
+          : swap_inst.getFromCollection();
+
+  auto *size_inst = builder.CreateSizeInst(&collection);
+  MEMOIR_NULL_CHECK(size_inst, "Could not contextualize EndInst for CopyInst!");
+
+  use.set(&size_inst->getCallInst());
+
+  return size_inst->getCallInst();
+}
+
+static llvm::Value &contextualize_end(EndInst &end_inst,
+                                      llvm::Use &use,
+                                      SeqSwapWithinInst &swap_within_inst) {
+  MemOIRBuilder builder(swap_within_inst);
+
+  auto *size_inst =
+      builder.CreateSizeInst(&swap_within_inst.getFromCollection());
+  MEMOIR_NULL_CHECK(size_inst,
+                    "Could not contextualize EndInst for SeqSwapWithinInst!");
+
+  use.set(&size_inst->getCallInst());
+
+  return size_inst->getCallInst();
+}
+
+void SSADestructionVisitor::visitEndInst(EndInst &I) {
+  // Contextualize EndInst for each of its users.
+  for (auto &use : I.getCallInst().uses()) {
+    auto *user = use.getUser();
+    auto *user_as_inst = dyn_cast_or_null<llvm::Instruction>(user);
+    if (!user_as_inst) {
+      // We don't care about non-instruction users.
+      continue;
+    }
+
+    // Handle end in the context of its use.
+    if (auto *insert_inst = as<InsertInst>(user_as_inst)) {
+      auto &contextualized = contextualize_end(I, use, *insert_inst);
+    } else if (auto *remove_inst = as<RemoveInst>(user_as_inst)) {
+      auto &contextualized = contextualize_end(I, use, *remove_inst);
+    } else if (auto *copy_inst = as<CopyInst>(user_as_inst)) {
+      auto &contextualized = contextualize_end(I, use, *copy_inst);
+    } else if (auto *swap_inst = as<SeqSwapInst>(user_as_inst)) {
+      auto &contextualized = contextualize_end(I, use, *swap_inst);
+    } else if (auto *swap_within_inst = as<SeqSwapWithinInst>(user_as_inst)) {
+      auto &contextualized = contextualize_end(I, use, *swap_within_inst);
+    } else if (auto *phi_node = dyn_cast<llvm::PHINode>(user_as_inst)) {
+      MEMOIR_UNREACHABLE(
+          "Contextualizing EndInst at a PHINode is not yet supported!");
+    } else if (auto *call = dyn_cast<llvm::CallBase>(user_as_inst)) {
+      MEMOIR_UNREACHABLE(
+          "Contextualizing EndInst intraprocedurally is not yet supported!");
+    } else {
+      println(*user_as_inst);
+      MEMOIR_UNREACHABLE(
+          "Unknown user of EndInst, above use is not yet supported!");
+    }
+  }
+
+  this->markForCleanup(I);
+
   return;
 }
 
@@ -518,6 +637,7 @@ void SSADestructionVisitor::visitIndexGetInst(IndexGetInst &I) {
 
 void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
 #if COLLECTION_SELECTION
+  println(I.getObjectOperand());
   auto &collection_type =
       MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
                           TypeAnalysis::analyze(I.getObjectOperand())),
@@ -552,6 +672,9 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
         llvm::ArrayRef({ vector_value, vector_index, write_value }));
     MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for vector write");
 
+    // Coalesce the input operand with the result of the defPHI.
+    this->coalesce(I.getCollection(), I.getObjectOperand());
+
     // Cleanup the old instruction.
     this->markForCleanup(I);
 
@@ -581,6 +704,9 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
     // Construct the write to the element.
     builder.CreateStore(&value_written, gep);
 
+    // Coalesce the input operand with the result of the defPHI.
+    this->coalesce(I.getCollection(), I.getObjectOperand());
+
     // Cleanup the old instruction.
     this->markForCleanup(I);
   }
@@ -589,6 +715,7 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
   return;
 }
 
+// Assoc accesses lowering implementation.
 void SSADestructionVisitor::visitAssocReadInst(AssocReadInst &I) {
 #if COLLECTION_SELECTION
   auto &assoc_type =
@@ -668,29 +795,8 @@ void SSADestructionVisitor::visitAssocWriteInst(AssocWriteInst &I) {
       llvm::ArrayRef({ assoc_value, assoc_index, write_value }));
   MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for AssocWrite");
 
-  auto *collection =
-      builder.CreatePointerCast(llvm_call, I.getObjectOperand().getType());
-
-  // Coalesce the result with the corresponding DefPHI.
-  for (auto *user : I.getObjectOperand().users()) {
-    auto *user_as_inst = dyn_cast<llvm::Instruction>(user);
-    if (!user_as_inst) {
-      continue;
-    }
-    if (!((user_as_inst->getParent() == I.getParent())
-          && (user_as_inst > &I.getCallInst()))) {
-      continue;
-    }
-    auto *user_as_memoir = MemOIRInst::get(*user_as_inst);
-    if (!user_as_memoir) {
-      continue;
-    }
-
-    if (auto *def_phi = dyn_cast<DefPHIInst>(user_as_memoir)) {
-      this->def_phi_replacements[&def_phi->getCallInst()] = collection;
-      break;
-    }
-  }
+  // Coalesce the input operand with the result of the defPHI.
+  this->coalesce(I.getCollection(), I.getObjectOperand());
 
   this->markForCleanup(I);
 
@@ -733,10 +839,13 @@ void SSADestructionVisitor::visitAssocGetInst(AssocGetInst &I) {
                          llvm::ArrayRef({ assoc_value, assoc_key }));
   MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for AssocRead");
 
-  auto *collection =
-      builder.CreatePointerCast(llvm_call, I.getCallInst().getType());
+  auto *return_type = I.getCallInst().getType();
+  if (!return_type->isVoidTy()) {
+    auto *collection =
+        builder.CreatePointerCast(llvm_call, I.getCallInst().getType());
 
-  this->coalesce(I, *collection);
+    this->coalesce(I, *collection);
+  }
 
   this->markForCleanup(I);
 #endif
@@ -786,71 +895,7 @@ void SSADestructionVisitor::visitAssocHasInst(AssocHasInst &I) {
   return;
 }
 
-void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
-
-#if COLLECTION_SELECTION
-  auto &assoc_type =
-      MEMOIR_SANITIZE(dyn_cast_or_null<AssocArrayType>(
-                          TypeAnalysis::analyze(I.getCollectionOperand())),
-                      "Couldn't determine type of written collection");
-
-  auto &key_type = assoc_type.getKeyType();
-  auto &value_type = assoc_type.getValueType();
-
-  auto key_code = key_type.get_code();
-  auto value_code = value_type.get_code();
-  auto name = *key_code + "_" + *value_code + "_" ASSOC_IMPL "__remove";
-
-  auto *function = this->M.getFunction(name);
-  auto function_callee = FunctionCallee(function);
-  if (function == nullptr) {
-    warnln("Couldn't find AssocRemove name for ", name);
-    return;
-  }
-
-  MemOIRBuilder builder(I);
-
-  auto *function_type = function_callee.getFunctionType();
-  auto *assoc = builder.CreatePointerCast(&I.getCollectionOperand(),
-                                          function_type->getParamType(0));
-  auto *assoc_key =
-      builder.CreateBitOrPointerCast(&I.getKeyOperand(),
-                                     function_type->getParamType(1));
-
-  auto *llvm_call =
-      builder.CreateCall(function_callee, llvm::ArrayRef({ assoc, assoc_key }));
-  MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for AssocRemove");
-
-  auto *collection =
-      builder.CreatePointerCast(llvm_call, I.getCollectionOperand().getType());
-
-  // Coalesce the result with the corresponding DefPHI.
-  for (auto *user : I.getCollectionOperand().users()) {
-    auto *user_as_inst = dyn_cast<llvm::Instruction>(user);
-    if (!user_as_inst) {
-      continue;
-    }
-    if (!((user_as_inst->getParent() == I.getParent())
-          && (user_as_inst > &I.getCallInst()))) {
-      continue;
-    }
-    auto *user_as_memoir = MemOIRInst::get(*user_as_inst);
-    if (!user_as_memoir) {
-      continue;
-    }
-
-    if (auto *def_phi = dyn_cast<DefPHIInst>(user_as_memoir)) {
-      this->def_phi_replacements[&def_phi->getCallInst()] = collection;
-      break;
-    }
-  }
-
-  this->markForCleanup(I);
-
-#endif
-  return;
-}
-
+// Struct access lowering.
 void SSADestructionVisitor::visitStructReadInst(StructReadInst &I) {
   // Make a builder.
   MemOIRBuilder builder(I);
@@ -969,8 +1014,8 @@ void SSADestructionVisitor::visitStructWriteInst(StructWriteInst &I) {
   // Get the value being written.
   auto *value_written = &I.getValueWritten();
 
-  // If the field is a bit field, load the resident value, perform the requisite
-  // bit twiddling, and then store the value.
+  // If the field is a bit field, load the resident value, perform the
+  // requisite bit twiddling, and then store the value.
   if (struct_layout.is_bit_field(field_index)) {
     llvm::Value *load = builder.CreateLoad(gep);
 
@@ -1024,14 +1069,446 @@ void SSADestructionVisitor::visitStructWriteInst(StructWriteInst &I) {
 }
 
 void SSADestructionVisitor::visitStructGetInst(StructGetInst &I) {
-
   return;
 }
 
+// Sequence operations lowering implementation.
+void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
+#if COLLECTION_SELECTION
+  auto &seq_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
+                          TypeAnalysis::analyze(I.getBaseCollection())),
+                      "Couldn't determine type of written collection");
+
+  auto &elem_type = seq_type.getElementType();
+
+  auto elem_code = elem_type.get_code();
+  auto name = *elem_code + "_" SEQ_IMPL "__insert_element";
+
+  auto *function = this->M.getFunction(name);
+  auto function_callee = FunctionCallee(function);
+  if (function == nullptr) {
+    warnln("Couldn't find function for ", name);
+    return;
+  }
+
+  MemOIRBuilder builder(I);
+
+  auto *function_type = function_callee.getFunctionType();
+  auto *seq = builder.CreatePointerCast(&I.getBaseCollection(),
+                                        function_type->getParamType(0));
+  auto *insertion_point =
+      builder.CreateBitOrPointerCast(&I.getInsertionPoint(),
+                                     function_type->getParamType(1));
+
+  auto *insertion_value =
+      builder.CreateBitOrPointerCast(&I.getValueInserted(),
+                                     function_type->getParamType(2));
+
+  auto *llvm_call = builder.CreateCall(
+      function_callee,
+      llvm::ArrayRef({ seq, insertion_point, insertion_value }));
+  MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for SeqInsertInst");
+
+  auto *return_type = I.getResultCollection().getType();
+  if (!return_type->isVoidTy()) {
+    auto *collection = builder.CreatePointerCast(llvm_call, return_type);
+
+    // Coalesce the result with the input operand.
+    this->coalesce(I, *collection);
+  }
+
+  // Mark the old instruction for cleanup.
+  this->markForCleanup(I);
+#endif
+  return;
+}
+
+void SSADestructionVisitor::visitSeqInsertSeqInst(SeqInsertSeqInst &I) {
+#if COLLECTION_SELECTION
+  auto &seq_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
+                          TypeAnalysis::analyze(I.getBaseCollection())),
+                      "Couldn't determine type of written collection");
+
+  auto &elem_type = seq_type.getElementType();
+
+  auto elem_code = elem_type.get_code();
+  // TODO: check if we are inserting a copy/view, if we are, remove the copy
+  // and use *__insert_range
+  auto name = *elem_code + "_" SEQ_IMPL "__insert";
+
+  auto *function = this->M.getFunction(name);
+  auto function_callee = FunctionCallee(function);
+  if (function == nullptr) {
+    warnln("Couldn't find function for ", name);
+    return;
+  }
+
+  MemOIRBuilder builder(I);
+
+  auto *function_type = function_callee.getFunctionType();
+  auto *seq = builder.CreatePointerCast(&I.getBaseCollection(),
+                                        function_type->getParamType(0));
+  auto *insertion_point =
+      builder.CreateBitOrPointerCast(&I.getInsertionPoint(),
+                                     function_type->getParamType(1));
+  auto *seq_to_insert =
+      builder.CreateBitOrPointerCast(&I.getInsertedCollection(),
+                                     function_type->getParamType(2));
+
+  auto *llvm_call = builder.CreateCall(
+      function_callee,
+      llvm::ArrayRef({ seq, insertion_point, seq_to_insert }));
+  MEMOIR_NULL_CHECK(llvm_call,
+                    "Could not create the call for SeqInsertSeqInst");
+
+  auto *return_type = I.getResultCollection().getType();
+  if (!return_type->isVoidTy()) {
+    auto *collection = builder.CreatePointerCast(llvm_call, return_type);
+
+    // Coalesce the result with the input operand.
+    this->coalesce(I, *collection);
+  }
+  // Mark the old instruction for cleanup.
+  this->markForCleanup(I);
+#endif
+  return;
+}
+
+void SSADestructionVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
+#if COLLECTION_SELECTION
+  auto &seq_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
+                          TypeAnalysis::analyze(I.getBaseCollection())),
+                      "Couldn't determine type of written collection");
+
+  auto &elem_type = seq_type.getElementType();
+
+  auto elem_code = elem_type.get_code();
+  // TODO: check if we statically know that this is a single element. If it
+  // is, we make this a *__remove
+  auto name = *elem_code + "_" SEQ_IMPL "__remove_range";
+
+  auto *function = this->M.getFunction(name);
+  auto function_callee = FunctionCallee(function);
+  if (function == nullptr) {
+    warnln("Couldn't find function for ", name);
+    return;
+  }
+
+  MemOIRBuilder builder(I);
+
+  auto *function_type = function_callee.getFunctionType();
+  auto *seq = builder.CreatePointerCast(&I.getBaseCollection(),
+                                        function_type->getParamType(0));
+  auto *begin = builder.CreateBitOrPointerCast(&I.getBeginIndex(),
+                                               function_type->getParamType(1));
+  auto *end = builder.CreateBitOrPointerCast(&I.getEndIndex(),
+                                             function_type->getParamType(2));
+
+  auto *llvm_call =
+      builder.CreateCall(function_callee, llvm::ArrayRef({ seq, begin, end }));
+  MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for SeqRemoveInst");
+
+  auto *return_type = I.getResultCollection().getType();
+  if (!return_type->isVoidTy()) {
+    auto *collection = builder.CreatePointerCast(llvm_call, return_type);
+
+    // Coalesce the result with the input operand.
+    this->coalesce(I, *collection);
+  }
+
+  // Mark the old instruction for cleanup.
+  this->markForCleanup(I);
+#endif
+  return;
+}
+
+void SSADestructionVisitor::visitSeqCopyInst(SeqCopyInst &I) {
+  // TODO: reintroduce Views for optimizations.
+#if COLLECTION_SELECTION
+  auto &seq_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
+                          TypeAnalysis::analyze(I.getCopiedCollection())),
+                      "Couldn't determine type of written collection");
+
+  auto &elem_type = seq_type.getElementType();
+
+  auto elem_code = elem_type.get_code();
+  auto name = *elem_code + "_" SEQ_IMPL "__copy";
+
+  auto *function = this->M.getFunction(name);
+  auto function_callee = FunctionCallee(function);
+  if (function == nullptr) {
+    warnln("Couldn't find function for ", name);
+    return;
+  }
+
+  MemOIRBuilder builder(I);
+
+  auto *function_type = function_callee.getFunctionType();
+  auto *seq = builder.CreatePointerCast(&I.getCopiedCollection(),
+                                        function_type->getParamType(0));
+  auto *begin = builder.CreateBitOrPointerCast(&I.getBeginIndex(),
+                                               function_type->getParamType(1));
+  auto *end = builder.CreateBitOrPointerCast(&I.getEndIndex(),
+                                             function_type->getParamType(2));
+  auto *llvm_call =
+      builder.CreateCall(function_callee, llvm::ArrayRef({ seq, begin, end }));
+  MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for SeqCopyInst");
+
+  auto *return_type = I.getCopy().getType();
+  if (!return_type->isVoidTy()) {
+    auto *collection = builder.CreatePointerCast(llvm_call, return_type);
+
+    // Coalesce the result with the input operand.
+    this->coalesce(I, *collection);
+  }
+
+  // Mark the old instruction for cleanup.
+  this->markForCleanup(I);
+#endif
+  return;
+}
+
+void SSADestructionVisitor::visitSeqSwapInst(SeqSwapInst &I) {
+#if COLLECTION_SELECTION
+  auto &seq_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
+                          TypeAnalysis::analyze(I.getFromCollection())),
+                      "Couldn't determine type of written collection");
+
+  auto &elem_type = seq_type.getElementType();
+
+  auto elem_code = elem_type.get_code();
+  auto name = *elem_code + "_" SEQ_IMPL "__swap";
+
+  auto *function = this->M.getFunction(name);
+  auto function_callee = FunctionCallee(function);
+  if (function == nullptr) {
+    warnln("Couldn't find function for ", name);
+    return;
+  }
+
+  MemOIRBuilder builder(I);
+
+  auto *function_type = function_callee.getFunctionType();
+  auto *seq = builder.CreatePointerCast(&I.getFromCollection(),
+                                        function_type->getParamType(0));
+  auto *begin = builder.CreateBitOrPointerCast(&I.getBeginIndex(),
+                                               function_type->getParamType(1));
+  auto *end = builder.CreateBitOrPointerCast(&I.getEndIndex(),
+                                             function_type->getParamType(2));
+  auto *to_seq = builder.CreatePointerCast(&I.getToCollection(),
+                                           function_type->getParamType(3));
+  auto *to_begin =
+      builder.CreateBitOrPointerCast(&I.getToBeginIndex(),
+                                     function_type->getParamType(4));
+
+  auto *llvm_call =
+      builder.CreateCall(function_callee,
+                         llvm::ArrayRef({ seq, begin, end, to_seq, to_begin }));
+  MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for SeqSwapInst");
+
+  // Coalesce the results with the input operands.
+  auto &result_pair = I.getResult();
+  for (auto &use : result_pair.uses()) {
+    auto *user = use.getUser();
+    auto *user_as_inst = dyn_cast_or_null<llvm::Instruction>(user);
+    if (!user_as_inst) {
+      continue;
+    }
+    if (auto *extract_value = dyn_cast<llvm::ExtractValueInst>(user_as_inst)) {
+      auto extract_index = *(extract_value->idx_begin());
+      switch (extract_index) {
+        case 0:
+          this->coalesce(*extract_value, I.getFromCollection());
+          this->markForCleanup(*extract_value);
+          break;
+        case 1:
+          this->coalesce(*extract_value, I.getToCollection());
+          this->markForCleanup(*extract_value);
+          break;
+        default:
+          break;
+      }
+    } else if (auto *phi = dyn_cast<llvm::PHINode>(user_as_inst)) {
+      MEMOIR_UNREACHABLE(
+          "Result pair from SeqSwapInst used by PHI, tell Tommy to implement this.");
+    } else {
+      MEMOIR_UNREACHABLE("Result pair used by unknown instruction!");
+    }
+  }
+
+  // Mark the old instruction for cleanup.
+  this->markForCleanup(I);
+#endif
+  return;
+}
+
+void SSADestructionVisitor::visitSeqSwapWithinInst(SeqSwapWithinInst &I) {
+#if COLLECTION_SELECTION
+  auto &seq_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
+                          TypeAnalysis::analyze(I.getFromCollection())),
+                      "Couldn't determine type of written collection");
+
+  auto &elem_type = seq_type.getElementType();
+
+  auto elem_code = elem_type.get_code();
+  auto name = *elem_code + "_" SEQ_IMPL "__swap";
+
+  auto *function = this->M.getFunction(name);
+  auto function_callee = FunctionCallee(function);
+  if (function == nullptr) {
+    warnln("Couldn't find function for ", name);
+    return;
+  }
+
+  MemOIRBuilder builder(I);
+
+  auto *function_type = function_callee.getFunctionType();
+  auto *seq = builder.CreatePointerCast(&I.getFromCollection(),
+                                        function_type->getParamType(0));
+  println(*seq);
+  auto *begin = builder.CreateBitOrPointerCast(&I.getBeginIndex(),
+                                               function_type->getParamType(1));
+  println(*begin);
+  auto *end = builder.CreateBitOrPointerCast(&I.getEndIndex(),
+                                             function_type->getParamType(2));
+  println(*end);
+  auto *to_begin =
+      builder.CreateBitOrPointerCast(&I.getToBeginIndex(),
+                                     function_type->getParamType(4));
+  println(*to_begin);
+  auto *llvm_call =
+      builder.CreateCall(function_callee,
+                         llvm::ArrayRef({ seq, begin, end, seq, to_begin }));
+  println(*llvm_call);
+  MEMOIR_NULL_CHECK(llvm_call,
+                    "Could not create the call for SeqSwapWithinInst");
+
+  auto *return_type = I.getCallInst().getType();
+  if (!return_type->isVoidTy()) {
+    auto *collection =
+        builder.CreatePointerCast(llvm_call, I.getCallInst().getType());
+
+    // Coalesce the result with the input operand.
+    this->coalesce(I.getResult(), I.getFromCollection());
+  }
+
+  // Mark the old instruction for cleanup.
+  this->markForCleanup(I);
+#endif
+  return;
+}
+
+// Assoc operations lowering implementation.
+void SSADestructionVisitor::visitAssocInsertInst(AssocInsertInst &I) {
+#if COLLECTION_SELECTION
+  auto &assoc_type = MEMOIR_SANITIZE(
+      dyn_cast_or_null<AssocArrayType>(
+          TypeAnalysis::analyze(I.getBaseCollection())),
+      "Couldn't determine type of collection being inserted into.");
+
+  auto &key_type = assoc_type.getKeyType();
+  auto &value_type = assoc_type.getValueType();
+
+  auto key_code = key_type.get_code();
+  auto value_code = value_type.get_code();
+  auto name = *key_code + "_" + *value_code + "_" ASSOC_IMPL "__insert";
+
+  auto *function = this->M.getFunction(name);
+  auto function_callee = FunctionCallee(function);
+  if (function == nullptr) {
+    warnln("Couldn't find function for ", name);
+    return;
+  }
+
+  MemOIRBuilder builder(I);
+
+  auto *function_type = function_callee.getFunctionType();
+  auto *assoc = builder.CreatePointerCast(&I.getBaseCollection(),
+                                          function_type->getParamType(0));
+  auto *assoc_key =
+      builder.CreateBitOrPointerCast(&I.getInsertionPoint(),
+                                     function_type->getParamType(1));
+
+  auto *llvm_call =
+      builder.CreateCall(function_callee, llvm::ArrayRef({ assoc, assoc_key }));
+  MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for AssocRemove");
+
+  auto *return_type = I.getCallInst().getType();
+  if (!return_type->isVoidTy()) {
+    auto *collection =
+        builder.CreatePointerCast(llvm_call, I.getResultCollection().getType());
+
+    // Coalesce the result with the input operand.
+    this->coalesce(I.getResultCollection(), I.getBaseCollection());
+  }
+
+  this->markForCleanup(I);
+
+#endif
+  return;
+}
+
+void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
+#if COLLECTION_SELECTION
+  auto &assoc_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<AssocArrayType>(
+                          TypeAnalysis::analyze(I.getBaseCollection())),
+                      "Couldn't determine type of written collection");
+
+  auto &key_type = assoc_type.getKeyType();
+  auto &value_type = assoc_type.getValueType();
+
+  auto key_code = key_type.get_code();
+  auto value_code = value_type.get_code();
+  auto name = *key_code + "_" + *value_code + "_" ASSOC_IMPL "__remove";
+
+  auto *function = this->M.getFunction(name);
+  auto function_callee = FunctionCallee(function);
+  if (function == nullptr) {
+    warnln("Couldn't find AssocRemove name for ", name);
+    return;
+  }
+
+  MemOIRBuilder builder(I);
+
+  auto *function_type = function_callee.getFunctionType();
+  auto *assoc = builder.CreatePointerCast(&I.getBaseCollection(),
+                                          function_type->getParamType(0));
+  auto *assoc_key =
+      builder.CreateBitOrPointerCast(&I.getKey(),
+                                     function_type->getParamType(1));
+
+  auto *llvm_call =
+      builder.CreateCall(function_callee, llvm::ArrayRef({ assoc, assoc_key }));
+  MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for AssocRemove");
+
+  auto *return_type = I.getCallInst().getType();
+  if (!return_type->isVoidTy()) {
+    // TODO: this may need more work.
+    auto *collection =
+        builder.CreatePointerCast(llvm_call, I.getResultCollection().getType());
+
+    // Coalesce the result with the input operand.
+    this->coalesce(I.getResultCollection(), I.getBaseCollection());
+  }
+
+  this->markForCleanup(I);
+
+#endif
+  return;
+}
+
+// General-purpose SSA lowering.
 void SSADestructionVisitor::visitUsePHIInst(UsePHIInst &I) {
 
-  auto &used_collection = I.getUsedCollectionOperand();
-  auto &collection = I.getCollectionValue();
+  auto &used_collection = I.getUsedCollection();
+  auto &collection = I.getResultCollection();
 
   this->coalesce(collection, used_collection);
 
@@ -1042,8 +1519,8 @@ void SSADestructionVisitor::visitUsePHIInst(UsePHIInst &I) {
 
 void SSADestructionVisitor::visitDefPHIInst(DefPHIInst &I) {
 
-  auto &defined_collection = I.getDefinedCollectionOperand();
-  auto &collection = I.getCollectionValue();
+  auto &defined_collection = I.getDefinedCollection();
+  auto &collection = I.getResultCollection();
 
   auto found_replacement = this->def_phi_replacements.find(&I.getCallInst());
   if (found_replacement != this->def_phi_replacements.end()) {
@@ -1057,731 +1534,36 @@ void SSADestructionVisitor::visitDefPHIInst(DefPHIInst &I) {
   return;
 }
 
-static void slice_to_view(SliceInst &I) {
+void SSADestructionVisitor::visitArgPHIInst(ArgPHIInst &I) {
 
-  auto &call_inst = I.getCallInst();
-  auto *view_func = FunctionNames::get_memoir_function(*call_inst.getModule(),
-                                                       MemOIR_Func::VIEW);
-  MEMOIR_NULL_CHECK(view_func, "Could not find the memoir view function");
-  call_inst.setCalledFunction(view_func);
-  return;
-}
+  auto &input_collection = I.getInputCollection();
+  auto &collection = I.getResultCollection();
 
-void SSADestructionVisitor::visitSliceInst(SliceInst &I) {
+  this->coalesce(collection, input_collection);
 
-  auto &collection = I.getCollectionOperand();
-  auto &slice = I.getSliceAsValue();
-
-  // If the collection is dead immediately following,
-  // then we can replace this slice with a view.
-  if (!this->LA->is_live(collection, I)) {
-    slice_to_view(I);
-    return;
-  }
-
-  // If the slice is disjoint from the live slice range of the collection.
-  bool is_disjoint = true;
-  auto &slice_begin = I.getBeginIndex();
-  auto &slice_end = I.getEndIndex();
-  set<SliceInst *> slice_users = {};
-  for (auto *user : collection.users()) {
-    auto *user_as_inst = dyn_cast<llvm::Instruction>(user);
-    if (!user_as_inst) {
-      // This is an overly conservative check.
-      is_disjoint = false;
-      break;
-    }
-
-    // Check that the user is dominated by this instruction.
-    if (!this->DT->dominates(&I.getCallInst(), user_as_inst)) {
-      break;
-    }
-
-    auto *user_as_memoir = MemOIRInst::get(*user_as_inst);
-    if (!user_as_memoir) {
-      // Also overly conservative, we _can_ handle PHIs.
-      is_disjoint = false;
-      break;
-    }
-
-    if (auto *user_as_slice = dyn_cast<SliceInst>(user_as_memoir)) {
-      // We will check all slice users for non-overlapping index spaces, _if_
-      // there are no other users.
-      slice_users.insert(user_as_slice);
-      continue;
-    }
-
-    if (auto *user_as_access = dyn_cast<AccessInst>(user_as_memoir)) {
-      // TODO: check the interval range of the index.
-    }
-
-    is_disjoint = false;
-    break;
-  }
-
-  if (!is_disjoint) {
-    return;
-  }
-
-  slice_users.erase(&I);
-
-  // Check the slice users to see if they are non-overlapping.
-  if (!slice_users.empty()) {
-    auto &slice_begin = I.getBeginIndex();
-    auto &slice_end = I.getEndIndex();
-    set<SliceInst *> visited = {};
-    list<llvm::Value *> limits = { &slice_begin, &slice_end };
-    debugln("check non-overlapping");
-    while (visited.size() < slice_users.size()) {
-      bool found_new_limit = false;
-      for (auto *user_as_slice : slice_users) {
-        if (visited.find(user_as_slice) != visited.end()) {
-          continue;
-        }
-
-        auto &user_slice_begin = user_as_slice->getBeginIndex();
-        auto &user_slice_end = user_as_slice->getEndIndex();
-
-        debugln("lower limit: ", *limits.front());
-        debugln("upper limit: ", *limits.back());
-        debugln(" user begin: ", user_slice_begin);
-        debugln(" user   end: ", user_slice_end);
-
-        // Check if this slice range is overlapping.
-        if (&user_slice_begin == limits.back()) {
-          visited.insert(user_as_slice);
-          limits.push_back(&user_slice_end);
-          found_new_limit = true;
-        } else if (&user_slice_end == limits.front()) {
-          visited.insert(user_as_slice);
-          limits.push_front(&user_slice_begin);
-          found_new_limit = true;
-        }
-      }
-
-      // If we found a new limit, continue working.
-      if (!found_new_limit) {
-        break;
-      }
-    }
-
-    // Otherwise, we need to bring out the big guns and check for relations.
-    auto *slice_begin_expr = this->VN->get(slice_begin);
-    auto *slice_end_expr = this->VN->get(slice_end);
-    ValueExpression *new_lower_limit = nullptr;
-    ValueExpression *new_upper_limit = nullptr;
-    for (auto *user_as_slice : slice_users) {
-      if (visited.find(user_as_slice) != visited.end()) {
-        continue;
-      }
-
-      // Check if this slice range is non-overlapping, with an offset.
-      auto *user_slice_begin_expr =
-          this->VN->get(user_as_slice->getBeginIndex());
-      MEMOIR_NULL_CHECK(user_slice_begin_expr,
-                        "Error making value expression for begin index");
-      auto *user_slice_end_expr = this->VN->get(user_as_slice->getEndIndex());
-      MEMOIR_NULL_CHECK(user_slice_end_expr,
-                        "Error making value expression for end index");
-
-      debugln("Checking left");
-      debugln("  ", user_as_slice->getBeginIndex());
-      debugln("  ", slice_begin);
-      auto check_left = *user_slice_end_expr < *slice_begin_expr;
-
-      debugln("Checking right");
-      debugln("  ", user_as_slice->getEndIndex());
-      debugln("  ", slice_end);
-      auto check_right = *user_slice_begin_expr > *slice_end_expr;
-
-      if (check_left || check_right) {
-        continue;
-      } else {
-        warnln("Big guns failed,"
-               " open an issue if this shouldn't have happened.");
-        is_disjoint = false;
-      }
-    }
-  }
-
-  if (is_disjoint) {
-    slice_to_view(I);
-  }
+  this->markForCleanup(I);
 
   return;
 }
 
-void SSADestructionVisitor::visitJoinInst(JoinInst &I) {
+void SSADestructionVisitor::visitRetPHIInst(RetPHIInst &I) {
 
-  auto &collection = I.getCollectionAsValue();
-  auto num_joined = I.getNumberOfJoins();
+  auto &input_collection = I.getInputCollection();
+  auto &collection = I.getResultCollection();
 
-  // For each join operand, if it is dead after the join, we can coallesce this
-  // join with it.
-  bool all_dead = true;
-  for (auto join_idx = 0; join_idx < num_joined; join_idx++) {
-    auto &joined_use = I.getJoinedOperandAsUse(join_idx);
-    auto &joined_collection =
-        MEMOIR_SANITIZE(joined_use.get(), "Use by join is NULL!");
-    if (this->LA->is_live(joined_collection, I)) {
-      all_dead = false;
-
-      debugln("Live after join!");
-      debugln("        ", joined_collection);
-      debugln("  after ", I);
-
-      break;
-    }
+  auto found_replacement = this->ret_phi_replacements.find(&collection);
+  if (found_replacement != this->ret_phi_replacements.end()) {
+    this->coalesce(collection, *found_replacement->second);
+  } else {
+    this->coalesce(collection, input_collection);
   }
 
-  if (!all_dead) {
-    infoln("Not all incoming values are dead after a join.");
-    infoln(" |-> ", I);
-    return;
-  }
-
-  // If all operands of the join are views of the same collection:
-  //  - If views are in order, coallesce resultant and the viewed collection.
-  //  - Otherwise, determine if the size is the same after the join:
-  //     - If the size is the same, convert to a swap.
-  //     - Otherwise, convert to a remove.
-  vector<size_t> view_indices = {};
-  view_indices.reserve(num_joined);
-  vector<ViewInst *> views = {};
-  views.reserve(num_joined);
-  bool all_views = true;
-  llvm::Value *base_collection = nullptr;
-  for (auto join_idx = 0; join_idx < num_joined; join_idx++) {
-    auto &joined_use = I.getJoinedOperandAsUse(join_idx);
-    auto &joined_collection =
-        MEMOIR_SANITIZE(joined_use.get(), "Use by join is NULL!");
-
-    auto *joined_as_inst = dyn_cast<llvm::Instruction>(&joined_collection);
-    if (!joined_as_inst) {
-      all_views = false;
-      break;
-    }
-
-    auto *joined_collection_as_memoir = MemOIRInst::get(*joined_as_inst);
-    llvm::Value *used_collection;
-    if (auto *view_inst =
-            dyn_cast_or_null<ViewInst>(joined_collection_as_memoir)) {
-      auto &viewed_collection = view_inst->getCollectionOperand();
-      used_collection = &viewed_collection;
-      views.push_back(view_inst);
-      view_indices.push_back(join_idx);
-    } else {
-      infoln("Join uses non-view");
-      infoln(" |-> ", I);
-      all_views = false;
-      continue;
-    }
-
-    // See if we are still using the same base collection.
-    if (base_collection == nullptr) {
-      base_collection = used_collection;
-      continue;
-    } else if (base_collection == used_collection) {
-      continue;
-    } else {
-      base_collection = nullptr;
-      break;
-    }
-  }
-
-  if (base_collection != nullptr && all_views) {
-    infoln("Join uses a single base collection");
-    infoln(" |-> ", I);
-
-    // Determine if the size is the same.
-    set<ViewInst *> visited = {};
-    list<size_t> view_order = {};
-    list<pair<llvm::Value *, llvm::Value *>> ranges_to_remove = {};
-    llvm::Value *lower_limit = nullptr;
-    llvm::Value *upper_limit = nullptr;
-    bool swappable = true;
-    while (visited.size() != views.size()) {
-      bool new_limit = false;
-      for (auto view_idx = 0; view_idx < views.size(); view_idx++) {
-        auto *view = views[view_idx];
-        auto &begin_index = view->getBeginIndex();
-        auto &end_index = view->getEndIndex();
-        if (lower_limit == nullptr) {
-          lower_limit = &begin_index;
-          upper_limit = &end_index;
-          visited.insert(view);
-          view_order.push_back(view_idx);
-          new_limit = true;
-          continue;
-        } else if (lower_limit == &end_index) {
-          lower_limit = &begin_index;
-          visited.insert(view);
-          view_order.push_front(view_idx);
-          new_limit = true;
-          continue;
-        } else if (upper_limit == &begin_index) {
-          upper_limit = &end_index;
-          visited.insert(view);
-          view_order.push_back(view_idx);
-          new_limit = true;
-          continue;
-        }
-      }
-
-      if (new_limit) {
-        continue;
-      }
-
-      // Determine the ranges that must be removed.
-      auto *lower_limit_expr = this->VN->get(*lower_limit);
-      auto *upper_limit_expr = this->VN->get(*upper_limit);
-      ValueExpression *new_lower_limit_expr = nullptr;
-      ViewInst *lower_limit_view = nullptr;
-      ValueExpression *new_upper_limit_expr = nullptr;
-      ViewInst *upper_limit_view = nullptr;
-      for (auto view_idx = 0; view_idx < views.size(); view_idx++) {
-        auto *view = views[view_idx];
-        if (visited.find(view) != visited.end()) {
-          continue;
-        }
-
-        // Find the nearest
-        auto &view_begin_expr =
-            MEMOIR_SANITIZE(this->VN->get(view->getBeginIndex()),
-                            "Error making value expression for begin index");
-        auto &view_end_expr =
-            MEMOIR_SANITIZE(this->VN->get(view->getEndIndex()),
-                            "Error making value expression for end index");
-
-        auto check_left = view_end_expr < *lower_limit_expr;
-        auto check_right = view_begin_expr > *upper_limit_expr;
-
-        if (check_left) {
-          // Check if this is the new lower bound.
-          if (new_lower_limit_expr == nullptr) {
-            new_lower_limit_expr = &view_end_expr;
-            lower_limit_view = view;
-            new_limit = true;
-          } else if (view_end_expr < *new_lower_limit_expr) {
-            new_lower_limit_expr = &view_end_expr;
-            lower_limit_view = view;
-            new_limit = true;
-          }
-          continue;
-        } else if (check_right) {
-          // Check if this is the new upper bound.
-          if (new_upper_limit_expr == nullptr) {
-            new_upper_limit_expr = &view_begin_expr;
-            upper_limit_view = view;
-            new_limit = true;
-          } else if (view_begin_expr > *new_upper_limit_expr) {
-            new_upper_limit_expr = &view_begin_expr;
-            upper_limit_view = view;
-            new_limit = true;
-          }
-          continue;
-        }
-      }
-
-      // If we found a new limit, update the lower and/or upper limit and mark
-      // the range for removal.
-      if (new_limit) {
-        if (lower_limit_view != nullptr) {
-          auto &new_lower_limit = lower_limit_view->getEndIndex();
-          ranges_to_remove.push_front(make_pair(&new_lower_limit, lower_limit));
-          lower_limit = &new_lower_limit;
-        }
-
-        if (upper_limit_view != nullptr) {
-          auto &new_upper_limit = upper_limit_view->getBeginIndex();
-          ranges_to_remove.push_back(make_pair(upper_limit, &new_upper_limit));
-          upper_limit = &new_upper_limit;
-        }
-
-        // Keep on chugging.
-        continue;
-      }
-
-      println("!!!!");
-      println("The join: ", I);
-      MEMOIR_UNREACHABLE(
-          "We shouldn't be here, couldnt' find out what to swap/remove forthe above join!");
-    }
-
-    if (swappable) {
-      infoln("Convert the join to a swap.");
-      infoln(" |-> ", I);
-      infoln(" |-> Original order:");
-      for (auto view_idx : view_order) {
-        infoln(" | |-> ", *views[view_idx]);
-      }
-      infoln(" |-> New order:");
-      for (auto view : views) {
-        infoln(" | |-> ", *view);
-      }
-
-#if COLLECTION_SELECTION
-      auto &collection_type =
-          MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
-                              TypeAnalysis::analyze(I.getCallInst())),
-                          "Couldn't determine type of join");
-
-      auto &element_type = collection_type.getElementType();
-
-      // TODO: make this more extensible.
-      auto element_code = element_type.get_code();
-      auto vector_name = *element_code + "_" SEQ_IMPL "__swap";
-
-      auto *function = this->M.getFunction(vector_name);
-      auto function_callee = FunctionCallee(function);
-      if (function == nullptr) {
-        println("Couldn't find vector swap range for ", vector_name);
-        MEMOIR_UNREACHABLE("see above");
-      }
-
-      MemOIRBuilder builder(I);
-
-      auto *function_type = function_callee.getFunctionType();
-      auto *vector_value =
-          builder.CreatePointerCast(base_collection,
-                                    function_type->getParamType(0));
-#endif
-
-      auto new_idx = 0;
-      auto i = 0;
-      for (auto it = view_order.begin(); it != view_order.end(); ++it, i++) {
-        auto orig_idx = *it;
-        if (orig_idx != new_idx) {
-          infoln(" |-> Swap ", orig_idx, " <=> ", new_idx);
-
-          // Check that these views are the same size.
-          auto &from_begin = views[orig_idx]->getBeginIndex();
-          auto *from_begin_expr = this->VN->get(from_begin);
-          auto &from_end = views[orig_idx]->getEndIndex();
-          auto *from_end_expr = this->VN->get(from_end);
-          auto &to_begin = views[new_idx]->getBeginIndex();
-          auto *to_begin_expr = this->VN->get(to_begin);
-          auto &to_end = views[new_idx]->getEndIndex();
-          auto *to_end_expr = this->VN->get(to_end);
-
-          // Create the expression for the size calculation.
-          auto *from_size_expr = new BasicExpression(
-              llvm::Instruction::Sub,
-              vector<ValueExpression *>({ from_end_expr, from_begin_expr }));
-          auto *to_size_expr = new BasicExpression(
-              llvm::Instruction::Sub,
-              vector<ValueExpression *>({ to_end_expr, to_begin_expr }));
-
-          // If they are the same size, swap them.
-          if (*from_size_expr == *to_size_expr) {
-            // Create the swap.
-            MemOIRBuilder builder(I);
-#if COLLECTION_SELECTION
-            vector_value = builder.CreateCall(
-                function_callee,
-                llvm::ArrayRef(
-                    { vector_value, &from_begin, &from_end, &to_begin }));
-            MEMOIR_NULL_CHECK(
-                vector_value,
-                "Could not create the call for vector remove range");
-#else
-            builder.CreateSeqSwapInst(base_collection,
-                                      &from_begin,
-                                      &from_end,
-                                      &to_begin);
-#endif
-
-            // Swap the operands.
-            auto &from_use = I.getJoinedOperandAsUse(orig_idx);
-            auto &to_use = I.getJoinedOperandAsUse(new_idx);
-            from_use.swap(to_use);
-
-            // NOTE: we don't need to update other users here, as these views
-            // were already checked to be dead following.
-
-            // Update the view order post-swap.
-            auto r = view_order.size() - 1;
-            for (auto rit = view_order.rbegin(); r > i; ++rit, r--) {
-              if (*rit == new_idx) {
-                std::swap(*(views.begin() + i), *(views.begin() + r));
-                std::swap(*it, *rit);
-                break;
-              }
-            }
-          } else {
-            MEMOIR_UNREACHABLE("Size of from and to for swap are not the same! "
-                               "Someone must have changed the program.");
-          }
-        }
-        new_idx++;
-      }
-
-      // Replace the join with the base collection that has been swapped.
-      this->coalesce(I, *base_collection);
-      this->markForCleanup(I);
-    }
-
-#if COLLECTION_SELECTION
-    auto &collection_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
-                            TypeAnalysis::analyze(I.getCallInst())),
-                        "Couldn't determine type of join");
-
-    auto &element_type = collection_type.getElementType();
-
-    // TODO: make this more extensible.
-    auto element_code = element_type.get_code();
-    auto vector_remove_range_name =
-        *element_code + "_" SEQ_IMPL "__remove_range";
-
-    auto *function = this->M.getFunction(vector_remove_range_name);
-    auto function_callee = FunctionCallee(function);
-    if (function == nullptr) {
-      println("Couldn't find vector remove range for ",
-              vector_remove_range_name);
-      MEMOIR_UNREACHABLE("see above");
-    }
-
-    MemOIRBuilder builder(I);
-
-    auto *function_type = function_callee.getFunctionType();
-    auto *vector_value =
-        builder.CreatePointerCast(base_collection,
-                                  function_type->getParamType(0));
-#endif
-
-    // Now to remove any ranges that were marked.
-    for (auto range : ranges_to_remove) {
-      auto *begin = range.first;
-      auto *end = range.second;
-      MemOIRBuilder builder(I);
-      // TODO: check if this range is alive as a view, if it is we need to
-      // convert it to a slice.
-#if COLLECTION_SELECTION
-      vector_value =
-          builder.CreateCall(function_callee,
-                             llvm::ArrayRef({ vector_value, begin, end }));
-      MEMOIR_NULL_CHECK(vector_value,
-                        "Could not create the call for vector remove range");
-#else
-      builder.CreateSeqRemoveInst(base_collection, begin, end);
-#endif
-    }
-
-#if COLLECTION_SELECTION
-    auto *collection =
-        builder.CreatePointerCast(vector_value, I.getCallInst().getType());
-    this->coalesce(I, *collection);
-#endif
-
-  } else if (base_collection != nullptr) /* not all_views */ {
-    // Determine if the views are in order.
-    // If they are, we do an insert.
-    llvm::Value *lower_limit, *upper_limit;
-    bool base_is_ordered = true;
-    auto idx_it = view_indices.begin();
-    for (auto view_it = views.begin(); view_it != views.end(); ++view_it) {
-      auto *view = *view_it;
-      auto cur_idx = *idx_it;
-      if (++idx_it == view_indices.end()) {
-        break;
-      }
-      auto next_idx = *idx_it;
-      if (next_idx > cur_idx + 1) {
-        auto *next_view = *(++view_it);
-        --view_it; // revert the last iteration.
-
-        auto &cur_view_end = view->getEndIndex();
-        auto &next_view_begin = next_view->getBeginIndex();
-
-        // If the views at this insertion point are the same, then we need to
-        // insert.
-        if (&cur_view_end == &next_view_begin) {
-          MemOIRBuilder builder(I);
-
-#if COLLECTION_SELECTION
-          auto &collection_type =
-              MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
-                                  TypeAnalysis::analyze(I.getCallInst())),
-                              "Couldn't determine type of join");
-
-          auto &element_type = collection_type.getElementType();
-
-          auto element_code = element_type.get_code();
-          auto vector_remove_range_name =
-              *element_code + "_" SEQ_IMPL "__insert";
-
-          auto *function = this->M.getFunction(vector_remove_range_name);
-          if (function == nullptr) {
-            println("Couldn't find vector insert for ",
-                    vector_remove_range_name);
-            MEMOIR_UNREACHABLE("see above");
-          }
-          auto function_callee = FunctionCallee(function);
-
-          auto *function_type = function_callee.getFunctionType();
-          auto *vector =
-              builder.CreatePointerCast(base_collection,
-                                        function_type->getParamType(0));
-#endif
-
-          llvm::Value *insertion_point = nullptr;
-          llvm::Value *last_inserted_collection = nullptr;
-          for (auto idx = cur_idx + 1; idx < next_idx; idx++) {
-            // Get the collection to insert.
-            auto &collection_to_insert = I.getJoinedOperand(idx);
-
-            // Track the insertion point.
-            if (insertion_point == nullptr) {
-              insertion_point = &cur_view_end;
-            } else {
-              // TODO: improve me.
-#if COLLECTION_SELECTION
-              auto vector_size_name = *element_code + "_" SEQ_IMPL "__size";
-
-              auto *size_function = this->M.getFunction(vector_size_name);
-              if (size_function == nullptr) {
-                println("Couldn't find vector size for ", vector_size_name);
-                MEMOIR_UNREACHABLE("see above");
-              }
-              auto size_function_callee = FunctionCallee(size_function);
-
-              auto *last_size = builder.CreateCall(
-                  size_function_callee,
-                  llvm::ArrayRef({ last_inserted_collection }));
-#else
-              auto *last_size =
-                  &builder.CreateSizeInst(last_inserted_collection)
-                       ->getCallInst();
-#endif
-              insertion_point = builder.CreateAdd(insertion_point, last_size);
-            }
-
-            // TODO: See if the collection is a single element, if so use its
-            // specialized insert method. Tricky part is finding the value to
-            // insert.
-            // auto &inserted_collection = I.getJoinedCollection(idx);
-            // if (auto *inserted_alloc =
-            //         dyn_cast<BaseCollection>(inserted_collection)) {
-            //   auto *collection_alloc = inserted_alloc->getAllocation();
-            //   auto *sequence_alloc =
-            //       dyn_cast_or_null<SequenceAllocInst>(collection_alloc);
-            //   MEMOIR_NULL_CHECK(sequence_alloc,
-            //                     "Allocation being inserted is not a
-            //                     sequence!");
-            //   auto &sequence_size = sequence_alloc->getSizeOperand();
-            //   if (auto *size_as_const_int =
-            //           dyn_cast<llvm::ConstantInt *>(&sequence_size)) {
-            //     if (size_as_const_int->isOne()) {
-            //       auto *element_type = sequence_alloc->getElementType();
-            //       builder.CreateSeqInsertInst(base_collection,
-            //       insertion_point, value_to_insert
-            //     }
-            //   }
-            // }
-
-            // Create the insert instruction.
-#if COLLECTION_SELECTION
-            auto *vector_to_insert =
-                builder.CreatePointerCast(&collection_to_insert,
-                                          function_type->getParamType(2));
-            vector = builder.CreateCall(
-                function_callee,
-                llvm::ArrayRef({ vector, insertion_point, vector_to_insert }));
-            last_inserted_collection = vector;
-#else
-            builder.CreateSeqInsertSeqInst(base_collection,
-                                           insertion_point,
-                                           &collection_to_insert);
-            last_inserted_collection = &collection_to_insert;
-#endif
-          }
-
-#if COLLECTION_SELECTION
-          vector = builder.CreatePointerCast(vector, I.getCallInst().getType());
-          this->coalesce(I, *vector);
-#else
-          this->coalesce(I, *base_collection);
-#endif
-          this->markForCleanup(I);
-        }
-      }
-    }
-  }
-
-  // Otherwise, some operands are views from a different collection:
-  //  - If the size is the same, convert to a swap.
-  //  - Otherwise, convert to an append.
-  else /* not base_collection, not all_views*/ {
-
-    // If there are no views being used, we simply have an append.
-    if (views.empty()) {
-      MemOIRBuilder builder(I);
-
-      auto &first_joined_operand = I.getJoinedOperand(0);
-
-#if COLLECTION_SELECTION
-      auto &collection_type =
-          MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
-                              TypeAnalysis::analyze(I.getCallInst())),
-                          "Couldn't determine type of join");
-      auto &element_type = collection_type.getElementType();
-
-      auto element_code = element_type.get_code();
-
-      auto insert_name = *element_code + "_" SEQ_IMPL "__insert";
-      auto size_name = *element_code + "_" SEQ_IMPL "__size";
-
-      auto *insert_function = this->M.getFunction(insert_name);
-      if (insert_function == nullptr) {
-        println("Couldn't find vector insert for ", insert_name);
-        MEMOIR_UNREACHABLE("see above");
-      }
-      auto insert_function_callee = FunctionCallee(insert_function);
-      auto *insert_function_type = insert_function_callee.getFunctionType();
-
-      auto *size_function = this->M.getFunction(size_name);
-      if (size_function == nullptr) {
-        println("Couldn't find vector size for ", size_name);
-        MEMOIR_UNREACHABLE("see above");
-      }
-      auto size_function_callee = FunctionCallee(size_function);
-      auto *size_function_type = size_function_callee.getFunctionType();
-
-      auto *vector =
-          builder.CreatePointerCast(&first_joined_operand,
-                                    insert_function_type->getParamType(0));
-
-      auto *insertion_point =
-          builder.CreateCall(size_function_callee, llvm::ArrayRef({ vector }));
-#endif
-
-      for (auto join_idx = 1; join_idx < num_joined; join_idx++) {
-        auto &joined_operand = I.getJoinedOperand(join_idx);
-#if COLLECTION_SELECTION
-        auto *insertion_point = builder.CreateCall(size_function_callee,
-                                                   llvm::ArrayRef({ vector }));
-
-        auto *vector_to_insert =
-            builder.CreatePointerCast(&joined_operand,
-                                      insert_function_type->getParamType(2));
-        vector = builder.CreateCall(
-            insert_function_callee,
-            llvm::ArrayRef<llvm::Value *>(
-                { vector, insertion_point, vector_to_insert }));
-#else
-        builder.CreateSeqAppendInst(&first_joined_operand, &joined_operand);
-#endif
-      }
-
-      this->coalesce(I, first_joined_operand);
-      this->markForCleanup(I);
-    }
-  }
+  this->markForCleanup(I);
 
   return;
 }
 
+// Type erasure.
 void SSADestructionVisitor::visitAssertCollectionTypeInst(
     AssertCollectionTypeInst &I) {
 #if COLLECTION_SELECTION
@@ -1854,6 +1636,7 @@ void SSADestructionVisitor::visitTypeInst(TypeInst &I) {
   return;
 }
 
+// Logistics implementation.
 void SSADestructionVisitor::cleanup() {
   for (auto *inst : instructions_to_delete) {
     infoln(*inst);
