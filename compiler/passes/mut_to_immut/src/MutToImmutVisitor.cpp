@@ -51,6 +51,7 @@ llvm::Value *MutToImmutVisitor::update_reaching_definition(
     reaching_variable = next_reaching_variable;
 
     // If the reaching definition dominates the program point, update it.
+    // If this is an instruction, consult the dominator tree.
     if (auto *reaching_definition =
             dyn_cast_or_null<llvm::Instruction>(reaching_variable)) {
       if (this->DT.dominates(reaching_definition, program_point)) {
@@ -58,9 +59,10 @@ llvm::Value *MutToImmutVisitor::update_reaching_definition(
       }
     }
 
-    // Arguments dominate all program points in the function.
-    if (auto *reaching_definition_as_argument =
-            dyn_cast_or_null<llvm::Argument>(reaching_variable)) {
+    // Otherwise, if this is an argument; it dominates all program points in the
+    // function.
+    else if (auto *reaching_definition_as_argument =
+                 dyn_cast_or_null<llvm::Argument>(reaching_variable)) {
       break;
     }
 
@@ -143,8 +145,13 @@ void MutToImmutVisitor::visitPHINode(llvm::PHINode &I) {
     auto *reaching_definition =
         this->update_reaching_definition(named_variable, I);
 
-    this->set_reaching_definition(&I, reaching_definition);
-    this->set_reaching_definition(reaching_definition, &I);
+    // Update the reaching definition for the named variable.
+    this->set_reaching_definition(named_variable, &I);
+    if (reaching_definition == &I) {
+      this->set_reaching_definition(&I, reaching_definition);
+    } else {
+      this->set_reaching_definition(&I, named_variable);
+    }
   } else {
     this->set_reaching_definition(&I, &I);
   }
