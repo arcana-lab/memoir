@@ -88,9 +88,9 @@ struct MutToImmutPass : public ModulePass {
   }
 
   bool runOnModule(Module &M) override {
-    println();
-    println("BEGIN mut2immut pass");
-    println();
+    infoln();
+    infoln("BEGIN mut2immut pass");
+    infoln();
 
     TypeAnalysis::invalidate();
 
@@ -316,10 +316,10 @@ struct MutToImmutPass : public ModulePass {
       infoln("=========================");
     }
 
-    println("=========================");
-    println("DONE mut2immut pass");
+    infoln("=========================");
+    infoln("DONE mut2immut pass");
 
-    println();
+    infoln();
 
     TypeAnalysis::invalidate();
     MemOIRInst::invalidate();
