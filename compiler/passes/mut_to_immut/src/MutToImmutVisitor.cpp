@@ -28,11 +28,9 @@ llvm::Value *MutToImmutVisitor::update_reaching_definition(
   // reaching definition.
   auto *reaching_variable = variable;
 
-  // println("Computing reaching definition:");
-  // println("  for", *variable);
-  // println("  at ", *program_point);
-
-  // println(*(program_point->getParent()));
+  debugln("Computing reaching definition:");
+  debugln("  for", *variable);
+  debugln("  at ", *program_point);
 
   do {
     auto found_reaching_definition =
@@ -44,11 +42,11 @@ llvm::Value *MutToImmutVisitor::update_reaching_definition(
 
     auto *next_reaching_variable = found_reaching_definition->second;
 
-    // if (next_reaching_variable) {
-    //   println("=> ", *next_reaching_variable);
-    // } else {
-    //   println("=> NULL");
-    // }
+    if (next_reaching_variable) {
+      debugln("=> ", *next_reaching_variable);
+    } else {
+      debugln("=> NULL");
+    }
 
     reaching_variable = next_reaching_variable;
 
@@ -146,7 +144,7 @@ void MutToImmutVisitor::visitPHINode(llvm::PHINode &I) {
         this->update_reaching_definition(named_variable, I);
 
     this->set_reaching_definition(&I, reaching_definition);
-    this->set_reaching_definition(named_variable, &I);
+    this->set_reaching_definition(reaching_definition, &I);
   } else {
     this->set_reaching_definition(&I, &I);
   }
