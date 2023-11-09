@@ -50,7 +50,6 @@ Type *TypeAnalysis::getType(llvm::Value &V) {
 
 Type *TypeAnalysis::getType_helper(llvm::Value &V) {
 
-  println(V);
   // If we have an instruction, visit it.
   // If the instruction has a type, return it.
   if (auto inst = dyn_cast<llvm::Instruction>(&V)) {
@@ -632,7 +631,6 @@ Type *TypeAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
       returned_types.insert(this->getReturnType(F));
     }
 
-    println(I);
     MEMOIR_ASSERT((returned_types.size() == 1),
                   "Could not determine the return type for indirect call!");
   }
@@ -766,7 +764,7 @@ Type *TypeAnalysis::visitPHINode(llvm::PHINode &I) {
 
   // Check that all incoming types are the same.
   if (incoming_types.size() != 1) {
-    warnln("Could not statically determine the type of PHI node.");
+    // warnln("Could not statically determine the type of PHI node.");
     return nullptr;
   }
 
