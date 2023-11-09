@@ -109,7 +109,11 @@ public:
     stats.inc_trivial_ssa();
   }
 
-  void visitWriteInst(WriteInst &I) {
+  void visitIndexWriteInst(IndexWriteInst &I) {
+    stats.inc_trivial_ssa();
+  }
+
+  void visitAssocWriteInst(AssocWriteInst &I) {
     stats.inc_trivial_ssa();
   }
 
