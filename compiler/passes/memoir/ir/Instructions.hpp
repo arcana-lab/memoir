@@ -317,7 +317,7 @@ public:
   Type &getType() const override;
   Type &getReferencedType() const;
   llvm::Value &getReferencedTypeOperand() const;
-  llvm::Use &getReferencedTypeAsUse() const;
+  llvm::Use &getReferencedTypeOperandAsUse() const;
 
   static bool classof(const MemOIRInst *I) {
     return (I->getKind() == MemOIR_Func::REFERENCE_TYPE);
