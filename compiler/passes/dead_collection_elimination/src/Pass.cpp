@@ -60,20 +60,3 @@ char DeadCollectionEliminationPass::ID = 0;
 static RegisterPass<DeadCollectionEliminationPass> X(
     "memoir-dce",
     "Eliminates dead collection allocations, slices and joins.");
-
-// Next there is code to register your pass to "clang"
-static DeadCollectionEliminationPass *_PassMaker = NULL;
-static RegisterStandardPasses _RegPass1(
-    PassManagerBuilder::EP_OptimizerLast,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-      if (!_PassMaker) {
-        PM.add(_PassMaker = new DeadCollectionEliminationPass());
-      }
-    }); // ** for -Ox
-static RegisterStandardPasses _RegPass2(
-    PassManagerBuilder::EP_EnabledOnOptLevel0,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-      if (!_PassMaker) {
-        PM.add(_PassMaker = new DeadCollectionEliminationPass());
-      }
-    }); // ** for -O0
