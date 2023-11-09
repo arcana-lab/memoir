@@ -49,7 +49,6 @@
 namespace llvm::memoir {
 
 class FieldElision {
-  using IndexSetTy = set<unsigned>;
   using ValueSetTy = set<llvm::Value *>;
   using InstSetTy = set<llvm::Instruction *>;
   using ArgSetTy = set<llvm::Argument *>;
@@ -63,6 +62,7 @@ class FieldElision {
   using FieldsToAccessesMapTy = map<llvm::Function *, TypeToFieldAccessesMapTy>;
 
 public:
+  using IndexSetTy = set<unsigned>;
   using FieldsToElideMapTy = map<StructType *, list<IndexSetTy>>;
 
   bool transformed;
@@ -167,6 +167,11 @@ protected:
   FieldsToAccessesMapTy analyze(llvm::Module &M,
                                 FieldsToElideMapTy &fields_to_elide) {
     FieldsToAccessesMapTy fields_to_accesses = {};
+
+    // If there are no fields to elide, return.
+    if (fields_to_elide.empty()) {
+      return fields_to_accesses;
+    }
 
     // Find all structs.
     map<llvm::Function *, TypeToStructsMapTy> structs_of_type = {};
@@ -417,6 +422,11 @@ protected:
                  FieldsToElideMapTy &fields_to_elide,
                  FieldsToAccessesMapTy fields_to_accesses) {
     bool transformed = false;
+
+    // If there are no fields to elide, return.
+    if (fields_to_elide.empty()) {
+      return transformed;
+    }
 
     set<llvm::Instruction *> instructions_to_delete = {};
 
