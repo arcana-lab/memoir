@@ -1,5 +1,5 @@
 BENCH=llvm-opt
-BITCODE_DIR=/project/memoir-bitcodes/
+BITCODE_DIR=/project/memoir-bitcodes
 INPUT_IR_FILE=$(BENCH).bc
 
 ## BEGIN USER CONFIG ##
