@@ -51,6 +51,10 @@ using namespace llvm::memoir;
 
 namespace llvm::memoir {
 
+static llvm::cl::opt<bool> EnableCollectionLowering(
+    "collection-lowering",
+    llvm::cl::desc("Enable collection lowering"));
+
 struct SSADestructionPass : public ModulePass {
   static char ID;
 
@@ -114,8 +118,8 @@ struct SSADestructionPass : public ModulePass {
   }
 
   bool runOnModule(llvm::Module &M) override {
-    println("BEGIN SSA Destruction pass");
-    println();
+    infoln("BEGIN SSA Destruction pass");
+    infoln();
 
     TypeAnalysis::invalidate();
 
@@ -125,7 +129,7 @@ struct SSADestructionPass : public ModulePass {
     SSADestructionStats stats;
 
     // Initialize the reaching definitions.
-    SSADestructionVisitor SSADV(M, &stats);
+    SSADestructionVisitor SSADV(M, &stats, EnableCollectionLowering);
 
     for (auto &F : M) {
       if (F.empty()) {
@@ -203,9 +207,9 @@ struct SSADestructionPass : public ModulePass {
     infoln("Cleaning up dead instructions.");
     SSADV.cleanup();
 
-    println("=========================");
-    println("DONE SSA Destruction pass");
-    println();
+    infoln("=========================");
+    infoln("DONE SSA Destruction pass");
+    infoln();
 
     TypeAnalysis::invalidate();
 

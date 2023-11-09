@@ -59,7 +59,9 @@ class SSADestructionVisitor
   friend class llvm::InstVisitor<SSADestructionVisitor, void>;
 
 public:
-  SSADestructionVisitor(llvm::Module &M, SSADestructionStats *stats = nullptr);
+  SSADestructionVisitor(llvm::Module &M,
+                        SSADestructionStats *stats = nullptr,
+                        bool enable_collection_lowering = false);
 
   void setAnalyses(llvm::noelle::DomTreeSummary &DT,
                    LivenessAnalysis &LA,
@@ -131,6 +133,7 @@ protected:
 
   // Owned state.
   map<MemOIRInst *, detail::View *> inst_to_view;
+  bool enable_collection_lowering;
 
   // Borrowed state.
   map<llvm::Value *, llvm::Value *> coalesced_values;
