@@ -4,14 +4,14 @@ INPUT_IR_FILE=$(BENCH).bc
 
 ## BEGIN USER CONFIG ##
 
-# USE_MEMOIR=y
+USE_MEMOIR=y
 ifeq ($(USE_MEMOIR),y)
 INPUT_IR_FILE:=$(patsubst %.bc,%.memoir.bc,$(INPUT_IR_FILE))
 else
 INPUT_IR_FILE:=$(patsubst %.bc,%.baseline.bc,$(INPUT_IR_FILE))
 endif
 
-# O3_CLANG=y
+O3_CLANG=y
 ifeq ($(O3_CLANG),y)
 INPUT_IR_FILE:=$(patsubst %.bc,%.clangO3.bc,$(INPUT_IR_FILE))
 else
