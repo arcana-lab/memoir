@@ -3,8 +3,12 @@ BENCHMARKS=mcf_s deepsjeng_s llvm-opt
 NUM_RUNS=10
 
 # Output files
-COMPILE_TIMES_OUT=compile_times.csv
-NUM_COLLECTIONS_OUT=collections.csv
+ifndef COMPILE_TIMES_OUT
+COMPILE_TIMES_OUT=compile_times.txt
+endif
+ifndef NUM_COLLECTIONS_OUT
+NUM_COLLECTIONS_OUT=collections.txt
+endif
 
 # Input files
 IR_FILES=$(patsubst %,%/build/normalized.bc,$(BENCHMARKS))
