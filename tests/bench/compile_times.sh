@@ -9,7 +9,7 @@ BENCHMARKS="${@}"
 OPT=memoir-load
 
 touch ${OUTPUT_FILE}
-echo "bench,config,opt,run,time" > ${OUTPUT_FILE}
+echo "" > ${OUTPUT_FILE}
 
 TMP_FILE=$(mktemp)
 echo -n "" > ${TMP_FILE}
@@ -32,6 +32,7 @@ END {
 '
 }
 
+printf "%-20s ┃ %-20s\n" "" "# Collections" >> ${OUTPUT_FILE}
 printf "%-20s ┃ %-23s ┃ %-23s\n" "" "MemOIR" "LLVM" >> ${OUTPUT_FILE}
 printf "%-20s ┃ %-10s ┃ %-10s ┃ %-10s ┃ %-10s\n" "Benchmark" "O0" "O3" "O0" "O3" >> ${OUTPUT_FILE}
 for i in $(seq 1 21) ; do printf "━" >> ${OUTPUT_FILE} ; done
