@@ -23,10 +23,14 @@ TypeAnalysis::TypeAnalysis() {
   this->markVisited(V);                                                        \
   debugln("TypeAnalysis: visiting ", V);
 
+#define MEMOIZE(V, T)                                                          \
+  /* Memoize the type */                                                       \
+  this->memoize(V, T);
+
 #define MEMOIZE_AND_RETURN(V, T)                                               \
   debugln("TypeAnalysis: done ", V);                                           \
-  /* Memoize the type */                                                       \
-  this->memoize(V, T);                                                         \
+  /* Memoize */                                                                \
+  MEMOIZE(V, T)                                                                \
   /* Return */                                                                 \
   return T
 
@@ -45,6 +49,7 @@ Type *TypeAnalysis::getType(llvm::Value &V) {
 }
 
 Type *TypeAnalysis::getType_helper(llvm::Value &V) {
+
   // If we have an instruction, visit it.
   // If the instruction has a type, return it.
   if (auto inst = dyn_cast<llvm::Instruction>(&V)) {
@@ -156,9 +161,7 @@ Type *TypeAnalysis::visitReferenceTypeInst(ReferenceTypeInst &I) {
 Type *TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Get the types of each field.
-   */
+  // Get the types of each field.
   vector<Type *> field_types;
   for (auto field_idx = 0; field_idx < I.getNumberOfFields(); field_idx++) {
     auto &field_type_value = I.getFieldTypeOperand(field_idx);
@@ -166,9 +169,7 @@ Type *TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
     field_types.push_back(field_type);
   }
 
-  /*
-   * Build the StructType
-   */
+  // Build the StructType
   auto &type = StructType::define(I, I.getName(), field_types);
 
   MEMOIZE_AND_RETURN(I, &type);
@@ -177,10 +178,10 @@ Type *TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
 Type *TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Get all users of the given name.
-   */
-  auto &name_value = I.getNameOperand();
+  // Get all users of the given name.
+  auto &name_value = MEMOIR_SANITIZE(
+      I.getNameOperand().stripPointerCasts(),
+      "Could not get the name operand stripped of pointer casts");
 
   set<llvm::CallInst *> call_inst_users = {};
   for (auto *user : name_value.users()) {
@@ -195,9 +196,7 @@ Type *TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
     }
   }
 
-  /*
-   * For each user, find the call to define the struct type.
-   */
+  // For each user, find the call to define the struct type.
   for (auto *call : call_inst_users) {
     if (FunctionNames::is_memoir_call(*call)) {
       auto func_enum = FunctionNames::get_memoir_enum(*call);
@@ -238,9 +237,7 @@ Type *TypeAnalysis::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
 Type *TypeAnalysis::visitTensorTypeInst(TensorTypeInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Build the TensorType.
-   */
+  // Build the TensorType.
   auto &type =
       Type::get_tensor_type(I.getElementType(), I.getNumberOfDimensions());
 
@@ -250,9 +247,7 @@ Type *TypeAnalysis::visitTensorTypeInst(TensorTypeInst &I) {
 Type *TypeAnalysis::visitAssocArrayTypeInst(AssocArrayTypeInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Build the AssocArrayType.
-   */
+  // Build the AssocArrayType.
   auto &type = AssocArrayType::get(I.getKeyType(), I.getValueType());
 
   MEMOIZE_AND_RETURN(I, &type);
@@ -261,23 +256,17 @@ Type *TypeAnalysis::visitAssocArrayTypeInst(AssocArrayTypeInst &I) {
 Type *TypeAnalysis::visitSequenceTypeInst(SequenceTypeInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Build the SequenceType.
-   */
+  // Build the SequenceType.
   auto &type = SequenceType::get(I.getElementType());
 
   MEMOIZE_AND_RETURN(I, &type);
 }
 
-/*
- * AllocInsts
- */
+// Allocation instructions.
 Type *TypeAnalysis::visitStructAllocInst(StructAllocInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Recurse on the type operand.
-   */
+  // Recurse on the type operand.
   auto type = this->getType_helper(I.getTypeOperand());
 
   MEMOIR_NULL_CHECK(type,
@@ -289,15 +278,11 @@ Type *TypeAnalysis::visitStructAllocInst(StructAllocInst &I) {
 Type *TypeAnalysis::visitTensorAllocInst(TensorAllocInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Determine the element type.
-   */
+  // Determine the element type.
   auto element_type = this->getType_helper(I.getElementOperand());
   MEMOIR_NULL_CHECK(element_type, "Element type of tensor allocation is NULL");
 
-  /*
-   * Build the TensorType.
-   */
+  // Build the TensorType.
   auto &type = Type::get_tensor_type(*element_type, I.getNumberOfDimensions());
 
   MEMOIZE_AND_RETURN(I, &type);
@@ -306,17 +291,13 @@ Type *TypeAnalysis::visitTensorAllocInst(TensorAllocInst &I) {
 Type *TypeAnalysis::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Determine the Key and Value types.
-   */
+  // Determine the Key and Value types.
   auto key_type = this->getType_helper(I.getKeyOperand());
   MEMOIR_NULL_CHECK(key_type, "Key type of assoc array allocation is NULL");
   auto value_type = this->getType_helper(I.getValueOperand());
   MEMOIR_NULL_CHECK(value_type, "Value type of assoc array allocation is NULL");
 
-  /*
-   * Build the AssocArrayType.
-   */
+  // Build the AssocArrayType.
   auto &type = Type::get_assoc_array_type(*key_type, *value_type);
 
   MEMOIZE_AND_RETURN(I, &type);
@@ -325,69 +306,68 @@ Type *TypeAnalysis::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
 Type *TypeAnalysis::visitSequenceAllocInst(SequenceAllocInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Determine the element type.
-   */
+  // Determine the element type.
   auto element_type = this->getType_helper(I.getElementOperand());
   MEMOIR_NULL_CHECK(element_type, "Element type of sequence is NULL");
 
-  /*
-   * Build the SequenceType.
-   */
+  // Build the SequenceType.
   auto &type = Type::get_sequence_type(*element_type);
 
   MEMOIZE_AND_RETURN(I, &type);
 }
 
-/*
- * Reference Read Instructions.
- */
+// Reference Read Instructions.
 Type *TypeAnalysis::visitReadInst(ReadInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Determine the type of the read collection's elements.
-   */
+  // Determine the type of the read collection's elements.
   auto &collection_type = I.getCollectionType();
   auto &element_type = collection_type.getElementType();
 
-  /*
-   * If the element type is a reference type, unwrap it.
-   */
+  // If the element type is a reference type, unwrap it.
   if (auto reference_type = dyn_cast<ReferenceType>(&element_type)) {
     auto &referenced_type = reference_type->getReferencedType();
     MEMOIZE_AND_RETURN(I, &referenced_type);
   }
 
-  /*
-   * Otherwise, return the bare element type.
-   */
+  // Otherwise, return the bare element type.
   MEMOIZE_AND_RETURN(I, &element_type);
 }
 
-/*
- * Nested Access Instructions.
- */
+// Nested Access Instructions.
 Type *TypeAnalysis::visitGetInst(GetInst &I) {
   CHECK_MEMOIZED(I);
 
-  /*
-   * Determine the type of the nested collection.
-   */
+  // Determine the type of the nested collection.
   auto &collection_type = I.getCollectionType();
   auto &nested_type = collection_type.getElementType();
 
   MEMOIZE_AND_RETURN(I, &nested_type);
 }
 
-/*
- * SSA Instructions
- */
+// Write access instructions.
+Type *TypeAnalysis::visitIndexWriteInst(IndexWriteInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getObjectOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitAssocWriteInst(AssocWriteInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getObjectOperand());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+// SSA Instructions
 Type *TypeAnalysis::visitUsePHIInst(UsePHIInst &I) {
   CHECK_MEMOIZED(I);
 
   // Visit the used collection to determine its type.
-  auto *type = this->getType_helper(I.getUsedCollectionOperand());
+  auto *type = this->getType_helper(I.getUsedCollection());
 
   MEMOIZE_AND_RETURN(I, type);
 }
@@ -396,129 +376,143 @@ Type *TypeAnalysis::visitDefPHIInst(DefPHIInst &I) {
   CHECK_MEMOIZED(I);
 
   // Visit the defined collection to determine its type.
-  auto *type = this->getType_helper(I.getDefinedCollectionOperand());
+  auto *type = this->getType_helper(I.getDefinedCollection());
 
   MEMOIZE_AND_RETURN(I, type);
 }
 
-/*
- * Join and Slice Instructions
- */
-Type *TypeAnalysis::visitJoinInst(JoinInst &I) {
+Type *TypeAnalysis::visitArgPHIInst(ArgPHIInst &I) {
   CHECK_MEMOIZED(I);
 
-  // See if we already have an edge set for this PHI node
-  // auto found_edge_types = this->edge_types.find(&I.getCallInst());
-  // if (found_edge_types == this->edge_types.end()) {
-  // this->edge_types[&I.getCallInst()] = {};
-  // this->visited_edges[&I.getCallInst()] = {};
-  // found_edge_types = this->edge_types.find(&I.getCallInst());
-  // }
-
-  auto &incoming_types = this->edge_types[&I.getCallInst()];
-  auto &already_visited_edges = this->visited_edges[&I.getCallInst()];
-
-  // Get all incoming types.
-  for (auto join_index = 0; join_index < I.getNumberOfJoins(); join_index++) {
-    auto &incoming_value = I.getJoinedOperand(join_index);
-
-    // Check if the incoming value has already been visited
-    if (already_visited_edges.count(&incoming_value) > 0) {
-      continue;
-    }
-
-    // Add the incoming value to the list of visited edges.
-    already_visited_edges.insert(&incoming_value);
-
-    // Get the Type of the incoming value.
-    auto incoming_type = this->getType_helper(incoming_value);
-
-    // Insert the incoming Type into the set of incoming types.
-    // NOTE: there should only be ONE type in the set after this loop.
-    if (incoming_type != nullptr) {
-      incoming_types.insert(incoming_type);
-    }
-  }
-
-  // Check that all incoming types are the same.
-  if (incoming_types.size() != 1) {
-    warnln("Could not statically determine the type of join inst.");
-    return nullptr;
-  }
-
-  // Get the single Type.
-  auto type = *(incoming_types.begin());
+  // Visit the incoming collection to determine its type.
+  auto *type = this->getType_helper(I.getInputCollection());
 
   MEMOIZE_AND_RETURN(I, type);
 }
 
-Type *TypeAnalysis::visitSliceInst(SliceInst &I) {
+Type *TypeAnalysis::visitRetPHIInst(RetPHIInst &I) {
   CHECK_MEMOIZED(I);
 
-  // Determine the type of the sliced collection.
-  auto type = this->getType_helper(I.getCollectionOperand());
-  // MEMOIR_NULL_CHECK(type, "Could not determine the incoming type for
-  // slice!");
+  // Visit the incoming collection to determine its type.
+  auto *type = this->getType_helper(I.getInputCollection());
 
   MEMOIZE_AND_RETURN(I, type);
 }
 
+// SSA collection operations.
+Type *TypeAnalysis::visitCopyInst(CopyInst &I) {
+  CHECK_MEMOIZED(I);
+
+  // Determine the type of the copied collection.
+  auto type = this->getType_helper(I.getCopiedCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitInsertInst(InsertInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getBaseCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitRemoveInst(RemoveInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getBaseCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitSwapInst(SwapInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getFromCollection());
+
+  if (type == nullptr) {
+    type = this->getType_helper(I.getToCollection());
+
+    // Forward the type information along.
+    MEMOIZE(I.getFromCollection(), type);
+  } else {
+    // Forward the type information along.
+    MEMOIZE(I.getToCollection(), type);
+  }
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+// Mutable sequence operations.
+Type *TypeAnalysis::visitMutSeqInsertInst(MutSeqInsertInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitMutSeqRemoveInst(MutSeqRemoveInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitMutSeqSwapInst(MutSeqSwapInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getFromCollection());
+
+  if (type == nullptr) {
+    type = this->getType_helper(I.getToCollection());
+
+    // Forward the type information along.
+    MEMOIZE(I.getFromCollection(), type);
+  } else {
+    // Forward the type information along.
+    MEMOIZE(I.getToCollection(), type);
+  }
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitMutSeqSwapWithinInst(MutSeqSwapWithinInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getFromCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitMutSeqAppendInst(MutSeqAppendInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitMutSeqSplitInst(MutSeqSplitInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+// Lowering sequence operations.
 Type *TypeAnalysis::visitViewInst(ViewInst &I) {
   CHECK_MEMOIZED(I);
 
   // Determine the type of the viewed collection.
-  auto type = this->getType_helper(I.getCollectionOperand());
-  // MEMOIR_NULL_CHECK(type, "Could not determine the incoming type for view!");
+  auto type = this->getType_helper(I.getCollection());
 
   MEMOIZE_AND_RETURN(I, type);
 }
 
-/*
- * Mutable instructions.
- */
-Type *TypeAnalysis::visitSeqInsertInst(SeqInsertInst &I) {
-  CHECK_MEMOIZED(I);
-
-  auto *type = this->getType_helper(I.getCollectionOperand());
-
-  MEMOIZE_AND_RETURN(I, type);
-}
-
-Type *TypeAnalysis::visitSeqRemoveInst(SeqRemoveInst &I) {
-  CHECK_MEMOIZED(I);
-
-  auto *type = this->getType_helper(I.getCollectionOperand());
-
-  MEMOIZE_AND_RETURN(I, type);
-}
-
-Type *TypeAnalysis::visitSeqAppendInst(SeqAppendInst &I) {
-  CHECK_MEMOIZED(I);
-
-  auto *type = this->getType_helper(I.getCollectionOperand());
-
-  MEMOIZE_AND_RETURN(I, type);
-}
-
-Type *TypeAnalysis::visitSeqSwapInst(SeqSwapInst &I) {
-  CHECK_MEMOIZED(I);
-
-  auto *type = this->getType_helper(I.getFromCollectionOperand());
-
-  MEMOIZE_AND_RETURN(I, type);
-}
-
-Type *TypeAnalysis::visitSeqSplitInst(SeqSplitInst &I) {
-  CHECK_MEMOIZED(I);
-
-  auto *type = this->getType_helper(I.getCollectionOperand());
-
-  MEMOIZE_AND_RETURN(I, type);
-}
-
-/*
-[ * Associative instructions.
- */
+// SSA assoc operations.
 Type *TypeAnalysis::visitAssocHasInst(AssocHasInst &I) {
   CHECK_MEMOIZED(I);
 
@@ -527,18 +521,10 @@ Type *TypeAnalysis::visitAssocHasInst(AssocHasInst &I) {
   MEMOIZE_AND_RETURN(I, type);
 }
 
-Type *TypeAnalysis::visitAssocRemoveInst(AssocRemoveInst &I) {
-  CHECK_MEMOIZED(I);
-
-  auto *type = this->getType_helper(I.getCollectionOperand());
-
-  MEMOIZE_AND_RETURN(I, type);
-}
-
 Type *TypeAnalysis::visitAssocKeysInst(AssocKeysInst &I) {
   CHECK_MEMOIZED(I);
 
-  auto *type = this->getType_helper(I.getCollectionOperand());
+  auto *type = this->getType_helper(I.getCollection());
   auto *assoc_type = dyn_cast_or_null<AssocArrayType>(type);
   MEMOIR_NULL_CHECK(assoc_type,
                     "Collection passed to assoc_keys is not an assoc");
@@ -549,9 +535,24 @@ Type *TypeAnalysis::visitAssocKeysInst(AssocKeysInst &I) {
   MEMOIZE_AND_RETURN(I, &key_seq_type);
 }
 
-/*
- * Type Checking Instructions
- */
+// Mut assoc operations.
+Type *TypeAnalysis::visitMutAssocInsertInst(MutAssocInsertInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitMutAssocRemoveInst(MutAssocRemoveInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+// Type Checking instruction.
 Type *TypeAnalysis::visitAssertStructTypeInst(AssertStructTypeInst &I) {
   CHECK_MEMOIZED(I);
 
@@ -588,9 +589,7 @@ Type *TypeAnalysis::visitReturnTypeInst(ReturnTypeInst &I) {
   MEMOIZE_AND_RETURN(I, type);
 }
 
-/*
- * LLVM Instructions
- */
+// LLVM Instructions
 Type *TypeAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
   CHECK_MEMOIZED(I);
 
@@ -639,16 +638,32 @@ Type *TypeAnalysis::visitLLVMCallInst(llvm::CallInst &I) {
   MEMOIZE_AND_RETURN(I, return_type);
 }
 
+Type *TypeAnalysis::visitExtractValueInst(llvm::ExtractValueInst &I) {
+  CHECK_MEMOIZED(I);
+
+  // Get the aggregate operand.
+  auto &aggregate =
+      MEMOIR_SANITIZE(I.getAggregateOperand(),
+                      "Aggregate operand of ExtractValueInst is NULL!");
+
+  // Recurse on the aggregate.
+  auto *type = this->getType_helper(aggregate);
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
 Type *TypeAnalysis::getReturnType(llvm::Function &F) {
   if (F.empty()) {
     return nullptr;
   }
 
   // See if we have a to ReturnTypeInst we can use.
-  for (auto &I : llvm::instructions(F)) {
-    if (auto *memoir_inst = MemOIRInst::get(I)) {
-      if (auto *return_type_inst = dyn_cast<ReturnTypeInst>(memoir_inst)) {
-        return this->getType_helper(return_type_inst->getTypeOperand());
+  for (auto &BB : F) {
+    for (auto &I : BB) {
+      if (auto *memoir_inst = MemOIRInst::get(I)) {
+        if (auto *return_type_inst = dyn_cast<ReturnTypeInst>(memoir_inst)) {
+          return this->getType_helper(return_type_inst->getTypeOperand());
+        }
       }
     }
   }
@@ -749,7 +764,7 @@ Type *TypeAnalysis::visitPHINode(llvm::PHINode &I) {
 
   // Check that all incoming types are the same.
   if (incoming_types.size() != 1) {
-    warnln("Could not statically determine the type of PHI node.");
+    // warnln("Could not statically determine the type of PHI node.");
     return nullptr;
   }
 

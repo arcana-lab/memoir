@@ -192,7 +192,7 @@ protected:
 
             assoc_allocations[assoc_alloc] = assoc_type;
 
-            debugln("Found Assoc Alloc: ", assoc_alloc);
+            debugln("Found Assoc Alloc: ", *assoc_alloc);
           }
         }
       }
@@ -381,7 +381,6 @@ protected:
 
       // Check that all collections accessed _must_ be the same allocation.
       set<CollectionAllocInst *> collections_referenced = {};
-
       visited.clear();
       worklist.clear();
       worklist.insert(worklist.end(),
@@ -390,6 +389,7 @@ protected:
       while (!worklist.empty()) {
         // Pop an item of the worklist.
         auto *workitem = worklist.back();
+        println(*workitem);
         worklist.pop_back();
 
         // Check that this item hasn't been visited.
@@ -399,7 +399,8 @@ protected:
           visited.insert(workitem);
         }
 
-        // If the workitem is an instruction, handle each case in turn.
+        // If the workitem is an instruction, handle each case, traversing UP
+        // the def-use chain.
         if (auto *inst = dyn_cast<llvm::Instruction>(workitem)) {
           if (auto *memoir_inst = MemOIRInst::get(*inst)) {
             if (auto *seq_alloc = dyn_cast<SequenceAllocInst>(memoir_inst)) {
@@ -408,16 +409,25 @@ protected:
                            dyn_cast<AssocArrayAllocInst>(memoir_inst)) {
               collections_referenced.insert(assoc_alloc);
             } else if (auto *use_phi = dyn_cast<UsePHIInst>(memoir_inst)) {
-              worklist.push_back(&use_phi->getCallInst());
+              worklist.push_back(&use_phi->getUsedCollection());
             } else if (auto *def_phi = dyn_cast<DefPHIInst>(memoir_inst)) {
-              worklist.push_back(&def_phi->getCallInst());
+              worklist.push_back(&def_phi->getDefinedCollection());
+            } else if (auto *seq_write_inst =
+                           dyn_cast<IndexWriteInst>(memoir_inst)) {
+              worklist.push_back(&seq_write_inst->getObjectOperand());
+            } else if (auto *assoc_write_inst =
+                           dyn_cast<AssocWriteInst>(memoir_inst)) {
+              worklist.push_back(&assoc_write_inst->getObjectOperand());
             } else {
               // TODO: add handling for slice and join instructions, this is
               // tricky though and would be better served by insert/remove
               // operators.
             }
           } else if (auto *phi = dyn_cast<llvm::PHINode>(inst)) {
-            worklist.push_back(phi);
+            for (auto &incoming_use : phi->incoming_values()) {
+              auto *incoming = incoming_use.get();
+              worklist.push_back(incoming);
+            }
           } else if (auto *call = dyn_cast<llvm::CallBase>(inst)) {
             // Round up all the possible callees and iterate on their returns.
 

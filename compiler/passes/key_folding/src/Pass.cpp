@@ -42,7 +42,7 @@ struct KeyFoldingPass : public ModulePass {
   }
 
   bool runOnModule(Module &M) override {
-    println("Running dead field elimination pass");
+    println("Running key folding pass");
     println();
 
     auto KF = KeyFolding(M);
@@ -60,21 +60,3 @@ char KeyFoldingPass::ID = 0;
 static RegisterPass<KeyFoldingPass> X(
     "memoir-kf",
     "Folds the key-space of an assoc onto a sequence when possible.");
-
-// Next there is code to register your pass to "clang"
-static KeyFoldingPass *_PassMaker = NULL;
-static RegisterStandardPasses _RegPass1(PassManagerBuilder::EP_OptimizerLast,
-                                        [](const PassManagerBuilder &,
-                                           legacy::PassManagerBase &PM) {
-                                          if (!_PassMaker) {
-                                            PM.add(_PassMaker =
-                                                       new KeyFoldingPass());
-                                          }
-                                        }); // ** for -Ox
-static RegisterStandardPasses _RegPass2(
-    PassManagerBuilder::EP_EnabledOnOptLevel0,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-      if (!_PassMaker) {
-        PM.add(_PassMaker = new KeyFoldingPass());
-      }
-    }); // ** for -O0

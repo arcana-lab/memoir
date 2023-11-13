@@ -25,8 +25,6 @@
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/analysis/CollectionAnalysis.hpp"
-#include "memoir/analysis/StructAnalysis.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
 
 #include "memoir/support/Assert.hpp"
@@ -37,8 +35,7 @@
 #include "memoir/utility/Metadata.hpp"
 
 /*
- * This class eliminates dead collections, slices and joins within an LLVM
- * Module.
+ * This class eliminates dead collections within an MemOIR program.
  *
  * Author(s): Tommy McMichen
  * Created: April 3, 2023
@@ -96,7 +93,7 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitJoinInst(JoinInst &I) {
+  set<llvm::Value *> visitInsertInst(InsertInst &I) {
     set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();
@@ -107,7 +104,29 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitSliceInst(SliceInst &I) {
+  set<llvm::Value *> visitRemoveInst(RemoveInst &I) {
+    set<llvm::Value *> dead_values = {};
+
+    auto &llvm_inst = I.getCallInst();
+    if (llvm_inst.hasNUses(0)) {
+      dead_values.insert(&llvm_inst);
+    }
+
+    return dead_values;
+  }
+
+  set<llvm::Value *> visitCopyInst(CopyInst &I) {
+    set<llvm::Value *> dead_values = {};
+
+    auto &llvm_inst = I.getCallInst();
+    if (llvm_inst.hasNUses(0)) {
+      dead_values.insert(&llvm_inst);
+    }
+
+    return dead_values;
+  }
+
+  set<llvm::Value *> visitSwapInst(SwapInst &I) {
     set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();

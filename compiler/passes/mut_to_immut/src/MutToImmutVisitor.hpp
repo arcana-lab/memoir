@@ -38,23 +38,28 @@ public:
   // SSA operations
   void visitUsePHIInst(UsePHIInst &I);
   void visitDefPHIInst(DefPHIInst &I);
+  void visitArgPHIInst(ArgPHIInst &I);
+  void visitRetPHIInst(RetPHIInst &I);
   // Access operations
-  void visitIndexWriteInst(IndexWriteInst &I);
-  void visitAssocWriteInst(AssocWriteInst &I);
+  void visitMutStructWriteInst(MutStructWriteInst &I);
+  void visitMutIndexWriteInst(MutIndexWriteInst &I);
+  void visitMutAssocWriteInst(MutAssocWriteInst &I);
   void visitIndexReadInst(IndexReadInst &I);
   void visitAssocReadInst(AssocReadInst &I);
   void visitIndexGetInst(IndexGetInst &I);
   void visitAssocGetInst(AssocGetInst &I);
-  // Sequence operations
-  void visitSeqInsertInst(SeqInsertInst &I);
-  void visitSeqInsertSeqInst(SeqInsertSeqInst &I);
-  void visitSeqRemoveInst(SeqRemoveInst &I);
-  void visitSeqAppendInst(SeqAppendInst &I);
-  void visitSeqSwapInst(SeqSwapInst &I);
-  void visitSeqSplitInst(SeqSplitInst &I);
-  // Assoc operations
+  // MUT Sequence operations
+  void visitMutSeqInsertInst(MutSeqInsertInst &I);
+  void visitMutSeqInsertSeqInst(MutSeqInsertSeqInst &I);
+  void visitMutSeqRemoveInst(MutSeqRemoveInst &I);
+  void visitMutSeqAppendInst(MutSeqAppendInst &I);
+  void visitMutSeqSwapInst(MutSeqSwapInst &I);
+  void visitMutSeqSplitInst(MutSeqSplitInst &I);
+  // SSA Assoc operations
   void visitAssocHasInst(AssocHasInst &I);
-  void visitAssocRemoveInst(AssocRemoveInst &I);
+  // MUT Assoc operations
+  void visitMutAssocInsertInst(MutAssocInsertInst &I);
+  void visitMutAssocRemoveInst(MutAssocRemoveInst &I);
 
   llvm::Value *update_reaching_definition(llvm::Value *variable,
                                           MemOIRInst &program_point);
@@ -62,6 +67,18 @@ public:
                                           llvm::Instruction &program_point);
   llvm::Value *update_reaching_definition(llvm::Value *variable,
                                           llvm::Instruction *program_point);
+
+  void set_reaching_definition(llvm::Value *variable,
+                               llvm::Value *reaching_definition);
+  void set_reaching_definition(llvm::Value *variable,
+                               MemOIRInst *reaching_definition);
+  void set_reaching_definition(MemOIRInst *variable,
+                               llvm::Value *reaching_definition);
+  void set_reaching_definition(MemOIRInst *variable,
+                               MemOIRInst *reaching_definition);
+
+  void mark_for_cleanup(llvm::Instruction &I);
+  void mark_for_cleanup(MemOIRInst &I);
 
   void cleanup();
 

@@ -2,9 +2,13 @@
 #define MEMOIR_BUILDER_H
 #pragma once
 
+#include <initializer_list>
+#include <type_traits>
+
 #include "llvm/IR/IRBuilder.h"
 
 #include "memoir/ir/Instructions.hpp"
+#include "memoir/ir/MutOperations.hpp"
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
@@ -28,6 +32,13 @@ public:
       IRBuilder<>((InsertAfter) ? IP : IP->getNextNode()) {
     MEMOIR_NULL_CHECK(this->M,
                       "Could not determine LLVM Module of insertion point.");
+  }
+
+  MemOIRBuilder(MemOIRInst &IP, bool InsertAfter = true)
+    : MemOIRBuilder(&IP.getCallInst(), InsertAfter) {}
+
+  llvm::Module &getModule() {
+    return *(this->M);
   }
 
   /*
@@ -105,30 +116,16 @@ public:
    */
 #define HANDLE_PRIMITIVE_TYPE_INST(ENUM, FUNC, CLASS)                          \
   CLASS *Create##CLASS(const Twine &name = "") {                               \
-    auto llvm_func =                                                           \ 
-      FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::ENUM);       \
-    auto llvm_call = this->CreateCall(llvm_func, None, name);                  \
-    MEMOIR_NULL_CHECK(llvm_call,                                               \
-                      "Could not construct the LLVM Call to " #FUNC);          \
-    auto memoir_inst = MemOIRInst::get(*llvm_call);                            \
-    auto type_inst = dyn_cast<CLASS>(memoir_inst);                             \
-    return type_inst;                                                          \
+    return this->create<CLASS>(MemOIR_Func::ENUM, {}, name);                   \
   }
 #include "memoir/ir/Instructions.def"
 
-  /*
-   * Derived Type Instructions
-   */
+  // Derived Type Instructions
   DefineStructTypeInst *CreateDefineStructTypeInst(
       const char *type_name,
       int num_fields,
       vector<llvm::Value *> field_types,
       const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M),
-                                           MemOIR_Func::DEFINE_STRUCT_TYPE);
-
     // Create the LLVM type name and number of fields constant.
     auto llvm_type_name = this->CreateGlobalString(type_name, "type.struct.");
     auto llvm_num_fields = this->getInt64(num_fields);
@@ -140,33 +137,17 @@ public:
     }
 
     // Create the call.
-    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
-                                      llvm::ArrayRef(llvm_args),
-                                      name);
-
-    // Convert to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto define_struct_type_inst = dyn_cast<DefineStructTypeInst>(memoir_inst);
-    return define_struct_type_inst;
+    return this->create<DefineStructTypeInst>(MemOIR_Func::DEFINE_STRUCT_TYPE,
+                                              llvm::ArrayRef(llvm_args),
+                                              name);
   }
 
   StructTypeInst *CreateStructTypeInst(llvm::Value *llvm_type_name,
                                        const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M),
-                                           MemOIR_Func::STRUCT_TYPE);
 
-    // Create the call.
-    auto llvm_args = vector<llvm::Value *>({ llvm_type_name });
-    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
-                                      llvm::ArrayRef(llvm_args),
-                                      name);
-
-    // Convert to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto struct_type_inst = dyn_cast<StructTypeInst>(memoir_inst);
-    return struct_type_inst;
+    return this->create<StructTypeInst>(MemOIR_Func::STRUCT_TYPE,
+                                        { llvm_type_name },
+                                        name);
   }
 
   ReferenceTypeInst *CreateReferenceTypeInst(llvm::Value *referenced_type,
@@ -192,9 +173,7 @@ public:
 
   // TODO: Add the other derived type instructions.
 
-  /*
-   * Allocation Instructions
-   */
+  // Allocation Instructions
   SequenceAllocInst *CreateSequenceAllocInst(Type &type,
                                              uint64_t size,
                                              const Twine &name = "") {
@@ -222,24 +201,9 @@ public:
   SequenceAllocInst *CreateSequenceAllocInst(llvm::Value *type,
                                              llvm::Value *size,
                                              const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M),
-                                           MemOIR_Func::ALLOCATE_SEQUENCE);
-
-    // Create the LLVM call.
-    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
-                                      llvm::ArrayRef({ type, size }),
-                                      name);
-    MEMOIR_NULL_CHECK(llvm_call,
-                      "Could not create the call for sequence allocation.");
-
-    // Cast to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto seq_alloc_inst = dyn_cast<SequenceAllocInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(seq_alloc_inst,
-                      "Could not create call to AllocateSequence");
-    return seq_alloc_inst;
+    return this->create<SequenceAllocInst>(MemOIR_Func::ALLOCATE_SEQUENCE,
+                                           { type, size },
+                                           name);
   }
 
   // Assoc allocation
@@ -264,359 +228,306 @@ public:
   AssocArrayAllocInst *CreateAssocArrayAllocInst(llvm::Value *key_type,
                                                  llvm::Value *value_type,
                                                  const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto *llvm_func =
-        FunctionNames::get_memoir_function(*(this->M),
-                                           MemOIR_Func::ALLOCATE_ASSOC_ARRAY);
-
-    // Create the LLVM call.
-    auto *llvm_call = this->CreateCall(FunctionCallee(llvm_func),
-                                       llvm::ArrayRef({ key_type, value_type }),
-                                       name);
-    MEMOIR_NULL_CHECK(llvm_call,
-                      "Could not create the call for sequence allocation.");
-
-    // Cast to MemOIRInst and return.
-    auto *memoir_inst = MemOIRInst::get(*llvm_call);
-    auto *alloc_inst = dyn_cast<AssocArrayAllocInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(alloc_inst, "Could not create AssocArrayAllocInst");
-
-    return alloc_inst;
+    return this->create<AssocArrayAllocInst>(MemOIR_Func::ALLOCATE_ASSOC_ARRAY,
+                                             { key_type, value_type },
+                                             name);
   }
 
-  /* TODO
-   * Access Instructions
-   */
+  // Access Instructions
+  StructWriteInst *CreateStructWriteInst(Type &element_type,
+                                         llvm::Value *llvm_value_to_write,
+                                         llvm::Value *llvm_collection,
+                                         llvm::Value *llvm_field_index,
+                                         const Twine &name = "") {
+    return this->create<StructWriteInst>(
+        getStructWriteEnumForType(element_type),
+        { llvm_value_to_write, llvm_collection, llvm_field_index },
+        name);
+  }
+
   IndexWriteInst *CreateIndexWriteInst(Type &element_type,
                                        llvm::Value *llvm_value_to_write,
                                        llvm::Value *llvm_collection,
                                        llvm::Value *llvm_index,
                                        const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func = FunctionNames::get_memoir_function(
-        *(this->M),
-        getIndexWriteEnumForType(element_type));
-
-    // Create the LLVM call.
-    auto llvm_call = this->CreateCall(
-        FunctionCallee(llvm_func),
-        llvm::ArrayRef({ llvm_value_to_write, llvm_collection, llvm_index }),
+    return this->create<IndexWriteInst>(
+        getIndexWriteEnumForType(element_type),
+        { llvm_value_to_write, llvm_collection, llvm_index },
         name);
-    MEMOIR_NULL_CHECK(llvm_call,
-                      "Could not create the call for index write operation.");
+  }
 
-    // Cast to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto inst = dyn_cast<IndexWriteInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(inst, "Could not create call to IndexWriteInst");
-    return inst;
+  MutIndexWriteInst *CreateMutIndexWriteInst(Type &element_type,
+                                             llvm::Value *llvm_value_to_write,
+                                             llvm::Value *llvm_collection,
+                                             llvm::Value *llvm_index,
+                                             const Twine &name = "") {
+    return this->create<MutIndexWriteInst>(
+        getMutIndexWriteEnumForType(element_type),
+        { llvm_value_to_write, llvm_collection, llvm_index },
+        name);
+  }
+
+  AssocWriteInst *CreateAssocWriteInst(Type &element_type,
+                                       llvm::Value *llvm_value_to_write,
+                                       llvm::Value *llvm_collection,
+                                       llvm::Value *llvm_assoc,
+                                       const Twine &name = "") {
+    return this->create<AssocWriteInst>(
+        getAssocWriteEnumForType(element_type),
+        { llvm_value_to_write, llvm_collection, llvm_assoc },
+        name);
+  }
+
+  MutAssocWriteInst *CreateMutAssocWriteInst(Type &element_type,
+                                             llvm::Value *llvm_value_to_write,
+                                             llvm::Value *llvm_collection,
+                                             llvm::Value *llvm_assoc,
+                                             const Twine &name = "") {
+    return this->create<MutAssocWriteInst>(
+        getMutAssocWriteEnumForType(element_type),
+        { llvm_value_to_write, llvm_collection, llvm_assoc },
+        name);
   }
 
   // Deletion Instructions
   DeleteStructInst *CreateDeleteStructInst(llvm::Value *struct_to_delete) {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M),
-                                           MemOIR_Func::DELETE_STRUCT);
-
-    // Create the LLVM call.
-    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
-                                      llvm::ArrayRef({ struct_to_delete }));
-    MEMOIR_NULL_CHECK(llvm_call,
-                      "Could not create the call for delete struct operation.");
-
-    // Cast to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto delete_inst = dyn_cast_or_null<DeleteStructInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(delete_inst,
-                      "Could not create call to DeleteCollectionInst");
-
-    return delete_inst;
+    return this->create<DeleteStructInst>(MemOIR_Func::DELETE_STRUCT,
+                                          { struct_to_delete });
   }
 
   DeleteCollectionInst *CreateDeleteCollectionInst(
       llvm::Value *collection_to_delete) {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M),
-                                           MemOIR_Func::DELETE_COLLECTION);
-
-    // Create the LLVM call.
-    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
-                                      llvm::ArrayRef({ collection_to_delete }));
-    MEMOIR_NULL_CHECK(
-        llvm_call,
-        "Could not create the call for delete collection operation.");
-
-    // Cast to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto delete_inst = dyn_cast_or_null<DeleteCollectionInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(delete_inst,
-                      "Could not create call to DeleteCollectionInst");
-
-    return delete_inst;
+    return this->create<DeleteCollectionInst>(MemOIR_Func::DELETE_COLLECTION,
+                                              { collection_to_delete });
   }
 
-  /* TODO
-   * Collection Operation Instructions
-   */
-  SliceInst *CreateSliceInst(llvm::Value *collection_to_slice,
-                             llvm::Value *left,
-                             llvm::Value *right,
-                             const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::SLICE);
-
-    // Create the LLVM call.
-    auto llvm_call =
-        this->CreateCall(FunctionCallee(llvm_func),
-                         llvm::ArrayRef({ collection_to_slice, left, right }),
-                         name);
-    MEMOIR_NULL_CHECK(llvm_call,
-                      "Could not create the call for slice operation.");
-
-    // Cast to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto slice_inst = dyn_cast<SliceInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(slice_inst, "Could not create call to SliceInst");
-    return slice_inst;
+  // Assoc operations.
+  //// SSA assoc operations.
+  AssocInsertInst *CreateAssocInsertInst(llvm::Value *collection,
+                                         llvm::Value *key_value,
+                                         const Twine &name = "") {
+    return this->create<AssocInsertInst>(MemOIR_Func::ASSOC_INSERT,
+                                         { collection, key_value },
+                                         name);
   }
 
-  SliceInst *CreateSliceInst(llvm::Value *collection_to_slice,
-                             llvm::Value *left,
-                             int64_t right,
-                             const Twine &name = "") {
-    // Create the right constant.
-    auto right_constant = this->getInt64(right);
-
-    // Call the base builder method.
-    return this->CreateSliceInst(collection_to_slice,
-                                 left,
-                                 right_constant,
-                                 name);
+  AssocRemoveInst *CreateAssocRemoveInst(llvm::Value *collection,
+                                         llvm::Value *key_value,
+                                         const Twine &name = "") {
+    return this->create<AssocRemoveInst>(
+        MemOIR_Func::ASSOC_REMOVE,
+        llvm::ArrayRef({ collection, key_value }),
+        name);
   }
 
-  SliceInst *CreateSliceInst(llvm::Value *collection_to_slice,
-                             int64_t left,
-                             llvm::Value *right,
-                             const Twine &name = "") {
-    // Create the left constant.
-    auto left_constant = this->getInt64(left);
-
-    // Call the base builder method.
-    return this->CreateSliceInst(collection_to_slice,
-                                 left_constant,
-                                 right,
-                                 name);
+  //// Mutable assoc operations.
+  MutAssocInsertInst *CreateMutAssocInsertInst(llvm::Value *collection,
+                                               llvm::Value *key_value,
+                                               const Twine &name = "") {
+    return this->create<MutAssocInsertInst>(MemOIR_Func::MUT_ASSOC_INSERT,
+                                            { collection, key_value },
+                                            name);
   }
 
-  SliceInst *CreateSliceInst(llvm::Value *collection_to_slice,
-                             int64_t left,
-                             int64_t right,
-                             const Twine &name = "") {
-    // Create the left constant.
-    auto left_constant = this->getInt64(left);
-
-    // Create the right constant.
-    auto right_constant = this->getInt64(right);
-
-    // Call the base builder method.
-    return this->CreateSliceInst(collection_to_slice,
-                                 left_constant,
-                                 right_constant,
-                                 name);
+  MutAssocRemoveInst *CreateMutAssocRemoveInst(llvm::Value *collection,
+                                               llvm::Value *key_value,
+                                               const Twine &name = "") {
+    return this->create<MutAssocRemoveInst>(MemOIR_Func::MUT_ASSOC_REMOVE,
+                                            { collection, key_value },
+                                            name);
   }
 
-  JoinInst *CreateJoinInst(vector<llvm::Value *> collections_to_join,
-                           const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::JOIN);
-
-    // Create the LLVM argument list.
-    auto num_joins = collections_to_join.size();
-    MEMOIR_ASSERT(num_joins <= 255,
-                  "Attempt to join more that 255 collection!");
-    auto llvm_num_joins = this->getInt8(num_joins);
-    vector<llvm::Value *> llvm_args{ llvm_num_joins };
-    for (auto collection : collections_to_join) {
-      llvm_args.push_back(collection);
-    }
-
-    // Create the LLVM call.
-    auto llvm_call =
-        this->CreateCall(FunctionCallee(llvm_func), llvm_args, name);
-
-    // Cast to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto join_inst = dyn_cast<JoinInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(join_inst, "Could not create the call to JoinInst");
-    return join_inst;
-  }
-
-  SizeInst *CreateSizeInst(llvm::Value *collection_to_slice,
-                           const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::SIZE);
-
-    // Create the LLVM call.
-    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
-                                      llvm::ArrayRef({ collection_to_slice }),
-                                      name);
-    MEMOIR_NULL_CHECK(llvm_call,
-                      "Could not create the call for size operation.");
-
-    // Cast to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto size_inst = dyn_cast<SizeInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(size_inst, "Could not create call to SizeInst");
-    return size_inst;
-  }
-
-  /*
-   * SSA/readonc operations.
-   */
-  UsePHIInst *CreateUsePHI(llvm::Value *collection, const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::USE_PHI);
-
-    // Create the LLVM call.
-    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
-                                      llvm::ArrayRef({ collection }),
-                                      name);
-    MEMOIR_NULL_CHECK(llvm_call,
-                      "Could not create the call for UsePHI operation.");
-
-    // Cast to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto inst = dyn_cast<UsePHIInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(inst, "Could not create call to UsePHIInst");
-    return inst;
-  }
-
-  DefPHIInst *CreateDefPHI(llvm::Value *collection, const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::DEF_PHI);
-
-    // Create the LLVM call.
-    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
-                                      llvm::ArrayRef({ collection }),
-                                      name);
-    MEMOIR_NULL_CHECK(llvm_call,
-                      "Could not create the call for DefPHI operation.");
-
-    // Cast to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto inst = dyn_cast<DefPHIInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(inst, "Could not create call to DefPHIInst");
-    return inst;
-  }
-
-  /*
-   * Mutable sequence operations.
-   */
-  SeqAppendInst *CreateSeqAppendInst(llvm::Value *collection,
-                                     llvm::Value *collection_to_append,
-                                     const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::SEQ_APPEND);
-    MEMOIR_NULL_CHECK(llvm_func, "Couldn't find the memoir function!");
-
-    // Create the LLVM call.
-    auto llvm_call =
-        this->CreateCall(FunctionCallee(llvm_func),
-                         llvm::ArrayRef({ collection, collection_to_append }),
-                         name);
-    MEMOIR_NULL_CHECK(
-        llvm_call,
-        "Could not create the call for sequence append operation.");
-
-    // Cast to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto inst = dyn_cast<SeqAppendInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(inst, "Could not create call to SeqAppendInst");
-    return inst;
-  }
-
-  SeqSwapInst *CreateSeqSwapInst(llvm::Value *collection,
+  // Sequence operations.
+  //// SSA sequence operations.
+  SeqSwapInst *CreateSeqSwapInst(llvm::Value *from_collection,
                                  llvm::Value *from_begin,
                                  llvm::Value *from_end,
+                                 llvm::Value *to_collection,
                                  llvm::Value *to_begin,
                                  const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto *llvm_func =
-        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::SEQ_SWAP);
-    MEMOIR_NULL_CHECK(llvm_func, "Couldn't find the memoir function!");
-
-    // Create the LLVM call.
-    auto *llvm_call = this->CreateCall(
-        FunctionCallee(llvm_func),
-        llvm::ArrayRef(
-            { collection, from_begin, from_end, collection, to_begin }),
+    return this->create<SeqSwapInst>(
+        MemOIR_Func::SEQ_SWAP,
+        { from_collection, from_begin, from_end, to_collection, to_begin },
         name);
-    MEMOIR_NULL_CHECK(llvm_call,
-                      "Could not create the call for sequence swap operation.");
-
-    // Cast to MemOIRInst and return.
-    auto *memoir_inst = MemOIRInst::get(*llvm_call);
-    auto *inst = dyn_cast_or_null<SeqSwapInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(inst, "Could not create call to SeqSwapInst");
-    return inst;
   }
 
+  SeqSwapWithinInst *CreateSeqSwapWithinInst(llvm::Value *collection,
+                                             llvm::Value *from_begin,
+                                             llvm::Value *from_end,
+                                             llvm::Value *to_begin,
+                                             const Twine &name = "") {
+    return this->create<SeqSwapWithinInst>(
+        MemOIR_Func::SEQ_SWAP_WITHIN,
+        { collection, from_begin, from_end, collection, to_begin },
+        name);
+  }
   SeqRemoveInst *CreateSeqRemoveInst(llvm::Value *collection,
                                      llvm::Value *begin,
                                      llvm::Value *end,
                                      const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto *llvm_func =
-        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::SEQ_REMOVE);
-    MEMOIR_NULL_CHECK(llvm_func, "Couldn't find the memoir function!");
-
-    // Create the LLVM call.
-    auto *llvm_call =
-        this->CreateCall(FunctionCallee(llvm_func),
-                         llvm::ArrayRef({ collection, begin, end }),
-                         name);
-    MEMOIR_NULL_CHECK(
-        llvm_call,
-        "Could not create the call for sequence remove operation.");
-
-    // Cast to MemOIRInst and return.
-    auto *memoir_inst = MemOIRInst::get(*llvm_call);
-    auto *inst = dyn_cast_or_null<SeqRemoveInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(inst, "Could not create call to SeqRemoveInst");
-    return inst;
+    return this->create<SeqRemoveInst>(MemOIR_Func::SEQ_REMOVE,
+                                       { collection, begin, end },
+                                       name);
   }
 
-  SeqInsertSeqInst *CreateSeqInsertSeqInst(llvm::Value *collection,
-                                           llvm::Value *insertion_point,
-                                           llvm::Value *collection_to_insert,
-                                           const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M), MemOIR_Func::SEQ_INSERT);
-    MEMOIR_NULL_CHECK(llvm_func, "Couldn't find the memoir function!");
-
-    // Create the LLVM call.
-    auto llvm_call = this->CreateCall(
-        FunctionCallee(llvm_func),
-        llvm::ArrayRef({ collection_to_insert, collection, insertion_point }),
+  SeqInsertInst *CreateSeqInsertInst(Type &element_type,
+                                     llvm::Value *llvm_value_to_write,
+                                     llvm::Value *llvm_collection,
+                                     llvm::Value *llvm_index,
+                                     const Twine &name = "") {
+    return this->create<SeqInsertInst>(
+        getSeqInsertEnumForType(element_type),
+        { llvm_value_to_write, llvm_collection, llvm_index },
         name);
-    MEMOIR_NULL_CHECK(
-        llvm_call,
-        "Could not create the call for sequence insert operation.");
+  }
 
-    // Cast to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto inst = dyn_cast<SeqInsertSeqInst>(memoir_inst);
-    MEMOIR_NULL_CHECK(inst, "Could not create call to SeqInsertSeqInst");
-    return inst;
+  SeqInsertSeqInst *CreateSeqInsertSeqInst(llvm::Value *collection_to_insert,
+                                           llvm::Value *collection,
+                                           llvm::Value *insertion_point,
+                                           const Twine &name = "") {
+    return this->create<SeqInsertSeqInst>(
+        MemOIR_Func::SEQ_INSERT,
+        { collection_to_insert, collection, insertion_point },
+        name);
+  }
+
+  SeqCopyInst *CreateSeqCopyInst(llvm::Value *collection,
+                                 llvm::Value *left,
+                                 llvm::Value *right,
+                                 const Twine &name = "") {
+    return this->create<SeqCopyInst>(MemOIR_Func::SEQ_COPY,
+                                     { collection, left, right },
+                                     name);
+  }
+
+  SeqCopyInst *CreateSeqCopyInst(llvm::Value *collection_to_slice,
+                                 llvm::Value *left,
+                                 int64_t right,
+                                 const Twine &name = "") {
+    // Create the right constant.
+    auto right_constant = this->getInt64(right);
+
+    // Call the base builder method.
+    return this->CreateSeqCopyInst(collection_to_slice,
+                                   left,
+                                   right_constant,
+                                   name);
+  }
+
+  SeqCopyInst *CreateSeqCopyInst(llvm::Value *collection_to_slice,
+                                 int64_t left,
+                                 llvm::Value *right,
+                                 const Twine &name = "") {
+    // Create the left constant.
+    auto left_constant = this->getInt64(left);
+
+    // Call the base builder method.
+    return this->CreateSeqCopyInst(collection_to_slice,
+                                   left_constant,
+                                   right,
+                                   name);
+  }
+
+  SeqCopyInst *CreateSeqCopyInst(llvm::Value *collection_to_slice,
+                                 int64_t left,
+                                 int64_t right,
+                                 const Twine &name = "") {
+    // Create the left constant.
+    auto left_constant = this->getInt64(left);
+
+    // Create the right constant.
+    auto right_constant = this->getInt64(right);
+
+    // Call the base builder method.
+    return this->CreateSeqCopyInst(collection_to_slice,
+                                   left_constant,
+                                   right_constant,
+                                   name);
+  }
+
+  //// Mutable sequence operations.
+  MutSeqAppendInst *CreateMutSeqAppendInst(llvm::Value *collection,
+                                           llvm::Value *collection_to_append,
+                                           const Twine &name = "") {
+    return this->create<MutSeqAppendInst>(MemOIR_Func::MUT_SEQ_APPEND,
+                                          { collection, collection_to_append },
+                                          name);
+  }
+
+  MutSeqSwapInst *CreateMutSeqSwapInst(llvm::Value *from_collection,
+                                       llvm::Value *from_begin,
+                                       llvm::Value *from_end,
+                                       llvm::Value *to_collection,
+                                       llvm::Value *to_begin,
+                                       const Twine &name = "") {
+    return this->create<MutSeqSwapInst>(
+        MemOIR_Func::MUT_SEQ_SWAP,
+        { from_collection, from_begin, from_end, to_collection, to_begin },
+        name);
+  }
+
+  MutSeqSwapWithinInst *CreateMutSeqSwapWithinInst(llvm::Value *collection,
+                                                   llvm::Value *from_begin,
+                                                   llvm::Value *from_end,
+                                                   llvm::Value *to_begin,
+                                                   const Twine &name = "") {
+    return this->create<MutSeqSwapWithinInst>(
+        MemOIR_Func::MUT_SEQ_SWAP_WITHIN,
+        { collection, from_begin, from_end, collection, to_begin },
+        name);
+  }
+
+  MutSeqRemoveInst *CreateMutSeqRemoveInst(llvm::Value *collection,
+                                           llvm::Value *begin,
+                                           llvm::Value *end,
+                                           const Twine &name = "") {
+    return this->create<MutSeqRemoveInst>(MemOIR_Func::MUT_SEQ_REMOVE,
+                                          { collection, begin, end },
+                                          name);
+  }
+
+  MutSeqInsertInst *CreateMutSeqInsertInst(Type &element_type,
+                                           llvm::Value *llvm_value_to_write,
+                                           llvm::Value *llvm_collection,
+                                           llvm::Value *llvm_index,
+                                           const Twine &name = "") {
+    return this->create<MutSeqInsertInst>(
+        getMutSeqInsertEnumForType(element_type),
+        { llvm_value_to_write, llvm_collection, llvm_index },
+        name);
+  }
+
+  MutSeqInsertSeqInst *CreateMutSeqInsertSeqInst(
+      llvm::Value *collection_to_insert,
+      llvm::Value *collection,
+      llvm::Value *insertion_point,
+      const Twine &name = "") {
+    return this->create<MutSeqInsertSeqInst>(
+        MemOIR_Func::MUT_SEQ_INSERT,
+        { collection_to_insert, collection, insertion_point },
+        name);
+  }
+
+  // General-purpose collection operations.
+  //// Size operations.
+  SizeInst *CreateSizeInst(llvm::Value *collection_to_slice,
+                           const Twine &name = "") {
+    return this->create<SizeInst>(MemOIR_Func::SIZE,
+                                  { collection_to_slice },
+                                  name);
+  }
+
+  EndInst *CreateEndInst(const Twine &name = "") {
+    return this->create<EndInst>(MemOIR_Func::END, {}, name);
+  }
+
+  //// SSA renaming operations.
+  UsePHIInst *CreateUsePHI(llvm::Value *collection, const Twine &name = "") {
+    return this->create<UsePHIInst>(MemOIR_Func::USE_PHI, { collection }, name);
+  }
+
+  DefPHIInst *CreateDefPHI(llvm::Value *collection, const Twine &name = "") {
+    return this->create<DefPHIInst>(MemOIR_Func::DEF_PHI, { collection }, name);
   }
 
 protected:
@@ -624,7 +535,50 @@ protected:
   llvm::Module *M;
 
   // Helper Functions
-#define READWRITE_ENUM_FOR_TYPE(ENUM_PREFIX, NAME)                             \
+  template <typename T,
+            std::enable_if_t<std::is_base_of_v<MemOIRInst, T>, bool> = true>
+  T *create(MemOIR_Func memoir_enum,
+            std::initializer_list<llvm::Value *> arguments = {},
+            const Twine &name = "") {
+    return this->create<T>(memoir_enum,
+                           llvm::ArrayRef<llvm::Value *>(arguments),
+                           name);
+  }
+
+  template <typename T,
+            std::enable_if_t<std::is_base_of_v<MemOIRInst, T>, bool> = true>
+  T *create(MemOIR_Func memoir_enum,
+            llvm::ArrayRef<llvm::Value *> arguments = {},
+            const Twine &name = "") {
+    // Use the general-purpose helper to construct the call.
+    auto *llvm_call = this->createMemOIRCall(memoir_enum, arguments, name);
+
+    // Cast to MemOIRInst and return.
+    auto inst = as<T>(llvm_call);
+    MEMOIR_NULL_CHECK(inst, "Type mismatch for result of llvm call!");
+
+    // Return.
+    return inst;
+  }
+
+  llvm::CallInst *createMemOIRCall(MemOIR_Func memoir_enum,
+                                   llvm::ArrayRef<llvm::Value *> arguments = {},
+                                   const Twine &name = "") {
+    // Fetch the LLVM Function.
+    auto *llvm_func =
+        FunctionNames::get_memoir_function(*(this->M), memoir_enum);
+
+    // Create the call.
+    auto *llvm_call =
+        this->CreateCall(FunctionCallee(llvm_func), arguments, name);
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Error creating LLVM call to memoir function!");
+
+    // Return.
+    return llvm_call;
+  }
+
+#define ENUM_FOR_PRIMITIVE_TYPE(ENUM_PREFIX, NAME)                             \
   MemOIR_Func get##NAME##EnumForType(Type &type) {                             \
     if (isa<FloatType>(&type)) {                                               \
       return MemOIR_Func::ENUM_PREFIX##_FLOAT;                                 \
@@ -670,14 +624,19 @@ protected:
     MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");      \
   };
 
-  READWRITE_ENUM_FOR_TYPE(INDEX_READ, IndexRead)
-  READWRITE_ENUM_FOR_TYPE(ASSOC_READ, AssocRead)
-  READWRITE_ENUM_FOR_TYPE(STRUCT_READ, StructRead)
-  READWRITE_ENUM_FOR_TYPE(INDEX_WRITE, IndexWrite)
-  READWRITE_ENUM_FOR_TYPE(ASSOC_WRITE, AssocWrite)
-  READWRITE_ENUM_FOR_TYPE(STRUCT_WRITE, StructWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(INDEX_READ, IndexRead)
+  ENUM_FOR_PRIMITIVE_TYPE(ASSOC_READ, AssocRead)
+  ENUM_FOR_PRIMITIVE_TYPE(STRUCT_READ, StructRead)
+  ENUM_FOR_PRIMITIVE_TYPE(INDEX_WRITE, IndexWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(ASSOC_WRITE, AssocWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(STRUCT_WRITE, StructWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(SEQ_INSERT, SeqInsert)
+  ENUM_FOR_PRIMITIVE_TYPE(MUT_INDEX_WRITE, MutIndexWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(MUT_ASSOC_WRITE, MutAssocWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(MUT_STRUCT_WRITE, MutStructWrite)
+  ENUM_FOR_PRIMITIVE_TYPE(MUT_SEQ_INSERT, MutSeqInsert)
 
-#define GET_ENUM_FOR_TYPE(ENUM_PREFIX, NAME)                                   \
+#define ENUM_FOR_NESTED_TYPE(ENUM_PREFIX, NAME)                                \
   MemOIR_Func get##NAME##EnumForType(Type &type) {                             \
     if (isa<StructType>(&type)) {                                              \
       return MemOIR_Func::ENUM_PREFIX##_STRUCT;                                \
@@ -687,10 +646,11 @@ protected:
     MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");      \
   };
 
-  GET_ENUM_FOR_TYPE(INDEX_GET, IndexGet)
-  GET_ENUM_FOR_TYPE(ASSOC_GET, AssocGet)
-  GET_ENUM_FOR_TYPE(STRUCT_GET, StructGet)
-};
+  ENUM_FOR_NESTED_TYPE(INDEX_GET, IndexGet)
+  ENUM_FOR_NESTED_TYPE(ASSOC_GET, AssocGet)
+  ENUM_FOR_NESTED_TYPE(STRUCT_GET, StructGet)
+
+}; // namespace llvm::memoir
 
 } // namespace llvm::memoir
 

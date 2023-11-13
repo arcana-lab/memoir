@@ -1,4 +1,5 @@
 #include "memoir/ir/Instructions.hpp"
+#include "memoir/ir/MutOperations.hpp"
 
 namespace llvm::memoir {
 
@@ -8,7 +9,7 @@ MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
   if (MemOIRInst::llvm_to_memoir == nullptr) {
     MemOIRInst::llvm_to_memoir = new map<llvm::Instruction *, MemOIRInst *>();
   }
-  auto &llvm2memoir = *MemOIRInst::llvm_to_memoir;
+  auto &llvm_to_memoir = *MemOIRInst::llvm_to_memoir;
 
   auto call_inst = dyn_cast<llvm::CallInst>(&I);
   if (!call_inst) {
@@ -24,33 +25,41 @@ MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
   /*
    * Check if there is an existing MemOIRInst.
    */
-  auto found = llvm2memoir.find(&I);
-  if (found != llvm2memoir.end()) {
+  auto found = llvm_to_memoir.find(&I);
+  if (found != llvm_to_memoir.end()) {
     auto &found_inst = *(found->second);
     if (found_inst.getKind() == memoir_enum) {
       return &found_inst;
     }
-
-    /*
-     * If the enums don't match, erase the existing.
-     * TODO: actually delete the found instruction
-     */
-    llvm2memoir.erase(found);
   }
 
+  // If the enums don't match, construct a new one in place.
   switch (memoir_enum) {
     default:
       MEMOIR_UNREACHABLE("Unknown MemOIR instruction encountered");
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   case MemOIR_Func::ENUM: {                                                    \
     auto memoir_inst = new CLASS(*call_inst);                                  \
-    llvm2memoir[&I] = memoir_inst;                                             \
+    llvm_to_memoir[&I] = memoir_inst;                                          \
     return memoir_inst;                                                        \
   }
 #include "memoir/ir/Instructions.def"
+#define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
+  case MemOIR_Func::ENUM: {                                                    \
+    auto memoir_inst = new CLASS(*call_inst);                                  \
+    llvm_to_memoir[&I] = memoir_inst;                                          \
+    return memoir_inst;                                                        \
+  }
+#include "memoir/ir/MutOperations.def"
   }
 
   return nullptr;
+}
+
+void MemOIRInst::invalidate() {
+  // TODO: Delete all old instructions.
+  delete MemOIRInst::llvm_to_memoir;
+  MemOIRInst::llvm_to_memoir = nullptr;
 }
 
 /*

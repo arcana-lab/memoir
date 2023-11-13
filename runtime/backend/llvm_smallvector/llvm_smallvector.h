@@ -38,7 +38,7 @@ extern "C" {
   cname alwaysinline used C_TYPE *T##_llvm_smallvector__get(                   \
       T##_llvm_smallvector_p vec,                                              \
       size_t index) {                                                          \
-    return (C_TYPE *)(&((*vec)[index]));                                       \
+    return (C_TYPE *)(&(*vec)[index]);                                         \
   }                                                                            \
                                                                                \
   cname alwaysinline used C_TYPE T##_llvm_smallvector__read(                   \
@@ -55,6 +55,14 @@ extern "C" {
     return;                                                                    \
   }                                                                            \
                                                                                \
+  cname alwaysinline used T##_llvm_smallvector_p T##_llvm_smallvector__copy(   \
+      T##_llvm_smallvector_p vec,                                              \
+      size_t begin_index,                                                      \
+      size_t end_index) {                                                      \
+    return new T##_llvm_smallvector_t(vec->begin() + begin_index,              \
+                                      vec->begin() + end_index);               \
+  }                                                                            \
+                                                                               \
   cname alwaysinline used T##_llvm_smallvector_p T##_llvm_smallvector__remove( \
       T##_llvm_smallvector_p vec,                                              \
       size_t index) {                                                          \
@@ -68,6 +76,15 @@ extern "C" {
           size_t begin_index,                                                  \
           size_t end_index) {                                                  \
     vec->erase(vec->begin() + begin_index, vec->begin() + end_index);          \
+    return vec;                                                                \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used                                                      \
+      T##_llvm_smallvector_p T##_llvm_smallvector__insert_element(             \
+          T##_llvm_smallvector_p vec,                                          \
+          size_t start,                                                        \
+          C_TYPE value) {                                                      \
+    vec->insert(vec->begin() + start, value);                                  \
     return vec;                                                                \
   }                                                                            \
                                                                                \
@@ -91,14 +108,16 @@ extern "C" {
                 vec2->begin() + to);                                           \
     return vec;                                                                \
   }                                                                            \
+                                                                               \
   cname alwaysinline used void T##_llvm_smallvector__swap(                     \
       T##_llvm_smallvector_p vec,                                              \
       size_t from,                                                             \
       size_t to,                                                               \
+      T##_llvm_smallvector_p vec2,                                             \
       size_t start) {                                                          \
     std::swap_ranges(vec->begin() + from,                                      \
                      vec->begin() + to,                                        \
-                     vec->begin() + start);                                    \
+                     vec2->begin() + start);                                   \
     return;                                                                    \
   }                                                                            \
                                                                                \

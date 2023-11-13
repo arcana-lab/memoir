@@ -1,27 +1,16 @@
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/analysis/CollectionAnalysis.hpp"
-#include "memoir/analysis/StructAnalysis.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
 
 #include "memoir/support/Assert.hpp"
+#include "memoir/support/InstructionUtils.hpp"
 
 namespace llvm::memoir {
 
-llvm::Value &AllocInst::getAllocation() const {
-  return this->getCallInst();
-}
+// Base AllocInst implementation
+RESULTANT(AllocInst, Allocation)
 
-/*
- * StructAllocInst implementation
- */
-Struct &StructAllocInst::getStruct() const {
-  auto strct = StructAnalysis::analyze(this->getTypeOperand());
-  MEMOIR_NULL_CHECK(strct, "StructAnalysis returned NULL for StructAllocInst");
-
-  return *strct;
-}
-
+// StructAllocInst implementation
 StructType &StructAllocInst::getStructType() const {
   // TODO: convert this to a dyn_cast later.
   return static_cast<StructType &>(this->getType());
@@ -35,40 +24,17 @@ Type &StructAllocInst::getType() const {
   return *type;
 }
 
-llvm::Value &StructAllocInst::getTypeOperand() const {
-  return *(this->getTypeOperandAsUse().get());
-}
+OPERAND(StructAllocInst, TypeOperand, 0)
 
-llvm::Use &StructAllocInst::getTypeOperandAsUse() const {
-  return this->getCallInst().getOperandUse(0);
-}
+TO_STRING(StructAllocInst)
 
-std::string StructAllocInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "StructAllocInst: " + llvm_str;
-
-  return str;
-}
-
-/*
- * CollectionAllocInst implementation
- */
+// CollectionAllocInst implementation
 Type &CollectionAllocInst::getType() const {
   return this->getCollectionType();
 }
 
-/*
- * TensorAllocInst implementation
- */
-Collection &TensorAllocInst::getCollection() const {
-  auto collection = CollectionAnalysis::analyze(this->getCallInst());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine the Collection being allocated");
-  return *collection;
-}
+// TensorAllocInst implementation
+RESULTANT(TensorAllocInst, Collection)
 
 CollectionType &TensorAllocInst::getCollectionType() const {
   return Type::get_tensor_type(this->getElementType(),
@@ -81,13 +47,7 @@ Type &TensorAllocInst::getElementType() const {
   return *type;
 }
 
-llvm::Value &TensorAllocInst::getElementOperand() const {
-  return *(this->getElementOperandAsUse().get());
-}
-
-llvm::Use &TensorAllocInst::getElementOperandAsUse() const {
-  return this->getCallInst().getOperandUse(0);
-}
+OPERAND(TensorAllocInst, ElementOperand, 0)
 
 unsigned TensorAllocInst::getNumberOfDimensions() const {
   auto &num_dims_as_value = this->getNumberOfDimensionsOperand();
@@ -106,45 +66,12 @@ unsigned TensorAllocInst::getNumberOfDimensions() const {
   return (unsigned)num_dims;
 }
 
-llvm::Value &TensorAllocInst::getNumberOfDimensionsOperand() const {
-  return *(this->getNumberOfDimensionsOperandAsUse().get());
-}
+OPERAND(TensorAllocInst, NumberOfDimensionsOperand, 1)
+VAR_OPERAND(TensorAllocInst, LengthOfDimensionOperand, 2)
+TO_STRING(TensorAllocInst)
 
-llvm::Use &TensorAllocInst::getNumberOfDimensionsOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(1);
-}
-
-llvm::Value &TensorAllocInst::getLengthOfDimensionOperand(
-    unsigned dimension_index) const {
-  return *(this->getLengthOfDimensionOperandAsUse(dimension_index).get());
-}
-
-llvm::Use &TensorAllocInst::getLengthOfDimensionOperandAsUse(
-    unsigned dimension_index) const {
-  MEMOIR_ASSERT((dimension_index < this->getNumberOfDimensions()),
-                "Attempt to get length of out-of-bounds dimensions");
-  return this->getCallInst().getArgOperandUse(2 + dimension_index);
-}
-
-std::string TensorAllocInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "TensorAllocInst: " + llvm_str;
-
-  return str;
-}
-
-/*
- * AssocArrayAllocInst implementation
- */
-Collection &AssocArrayAllocInst::getCollection() const {
-  auto collection = CollectionAnalysis::analyze(this->getCallInst());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine the Collection being allocated");
-  return *collection;
-}
+// AssocArrayAllocInst implementation
+RESULTANT(AssocArrayAllocInst, Collection)
 
 CollectionType &AssocArrayAllocInst::getCollectionType() const {
   return Type::get_assoc_array_type(this->getKeyType(), this->getValueType());
@@ -156,13 +83,7 @@ Type &AssocArrayAllocInst::getKeyType() const {
   return *type;
 }
 
-llvm::Value &AssocArrayAllocInst::getKeyOperand() const {
-  return *(this->getKeyOperandAsUse().get());
-}
-
-llvm::Use &AssocArrayAllocInst::getKeyOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(0);
-}
+OPERAND(AssocArrayAllocInst, KeyOperand, 0)
 
 Type &AssocArrayAllocInst::getValueType() const {
   auto type = TypeAnalysis::get().getType(this->getValueOperand());
@@ -170,33 +91,12 @@ Type &AssocArrayAllocInst::getValueType() const {
   return *type;
 }
 
-llvm::Value &AssocArrayAllocInst::getValueOperand() const {
-  return *(this->getValueOperandAsUse().get());
-}
+OPERAND(AssocArrayAllocInst, ValueOperand, 1)
 
-llvm::Use &AssocArrayAllocInst::getValueOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(1);
-}
+TO_STRING(AssocArrayAllocInst)
 
-std::string AssocArrayAllocInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "AssocArrayAllocInst: " + llvm_str;
-
-  return str;
-}
-
-/*
- * SequenceAllocInst implementation
- */
-Collection &SequenceAllocInst::getCollection() const {
-  auto collection = CollectionAnalysis::analyze(this->getCallInst());
-  MEMOIR_NULL_CHECK(collection,
-                    "Could not determine the Collection being allocated");
-  return *collection;
-}
+// SequenceAllocInst implementation
+RESULTANT(SequenceAllocInst, Collection)
 
 CollectionType &SequenceAllocInst::getCollectionType() const {
   return Type::get_sequence_type(this->getElementType());
@@ -208,30 +108,10 @@ Type &SequenceAllocInst::getElementType() const {
   return *type;
 }
 
-llvm::Value &SequenceAllocInst::getElementOperand() const {
-  return *(this->getElementOperandAsUse().get());
-}
+OPERAND(SequenceAllocInst, ElementOperand, 0)
 
-llvm::Use &SequenceAllocInst::getElementOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(0);
-}
+OPERAND(SequenceAllocInst, SizeOperand, 1)
 
-llvm::Value &SequenceAllocInst::getSizeOperand() const {
-  return *(this->getSizeOperandAsUse().get());
-}
-
-llvm::Use &SequenceAllocInst::getSizeOperandAsUse() const {
-  return this->getCallInst().getArgOperandUse(1);
-}
-
-std::string SequenceAllocInst::toString(std::string indent) const {
-  std::string str, llvm_str;
-  llvm::raw_string_ostream llvm_ss(llvm_str);
-  llvm_ss << this->getCallInst();
-
-  str = "SequenceAllocInst: " + llvm_str;
-
-  return str;
-}
+TO_STRING(SequenceAllocInst)
 
 } // namespace llvm::memoir

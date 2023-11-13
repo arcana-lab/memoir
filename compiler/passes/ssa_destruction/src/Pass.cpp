@@ -27,6 +27,8 @@
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
+#include "memoir/analysis/TypeAnalysis.hpp"
+
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
@@ -47,6 +49,10 @@ using namespace llvm::memoir;
  */
 
 namespace llvm::memoir {
+
+static llvm::cl::opt<bool> EnableCollectionLowering(
+    "collection-lowering",
+    llvm::cl::desc("Enable collection lowering"));
 
 struct SSADestructionPass : public ModulePass {
   static char ID;
@@ -111,18 +117,18 @@ struct SSADestructionPass : public ModulePass {
   }
 
   bool runOnModule(llvm::Module &M) override {
-    println("BEGIN SSA Destruction pass");
-    println();
+    infoln("BEGIN SSA Destruction pass");
+    infoln();
+
+    TypeAnalysis::invalidate();
 
     // Get NOELLE.
     auto &NOELLE = getAnalysis<llvm::noelle::Noelle>();
 
-    auto &CA = CollectionAnalysis::get(NOELLE);
-
     SSADestructionStats stats;
 
     // Initialize the reaching definitions.
-    SSADestructionVisitor SSADV(M, &stats);
+    SSADestructionVisitor SSADV(M, &stats, EnableCollectionLowering);
 
     for (auto &F : M) {
       if (F.empty()) {
@@ -133,16 +139,16 @@ struct SSADestructionPass : public ModulePass {
       for (auto &A : F.args()) {
         if (Type::value_is_collection_type(A)
             || Type::value_is_struct_type(A)) {
+          TypeAnalysis::analyze(A);
           no_memoir = false;
-          break;
         }
       }
       if (no_memoir) {
         for (auto &I : llvm::instructions(F)) {
           if (Type::value_is_collection_type(I) || Type::value_is_struct_type(I)
               || Type::value_is_type(I)) {
+            TypeAnalysis::analyze(I);
             no_memoir = false;
-            break;
           }
         }
       }
@@ -200,9 +206,11 @@ struct SSADestructionPass : public ModulePass {
     infoln("Cleaning up dead instructions.");
     SSADV.cleanup();
 
-    println("=========================");
-    println("DONE SSA Destruction pass");
-    println();
+    infoln("=========================");
+    infoln("DONE SSA Destruction pass");
+    infoln();
+
+    TypeAnalysis::invalidate();
 
     return true;
   }

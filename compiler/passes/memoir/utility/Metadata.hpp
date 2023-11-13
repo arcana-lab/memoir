@@ -21,10 +21,10 @@ namespace memoir {
  * If you update this, make sure you
  * update the metadataToString map
  */
-enum MetadataType {
-  INTERNAL,
-  USE_PHI,
-  DEF_PHI,
+enum class MetadataType {
+  MD_INTERNAL,
+  MD_USE_PHI,
+  MD_DEF_PHI,
 };
 
 class MetadataManager {
@@ -45,6 +45,22 @@ public:
                           llvm::Value *value);
   static bool hasMetadata(llvm::Instruction &I, MetadataType MT);
   static llvm::Value *getMetadata(llvm::Instruction &I, MetadataType MT);
+
+  static void insertMetadata(llvm::Function &F,
+                             MetadataType MT,
+                             std::string str);
+
+  static void removeMetadata(llvm::Function &F,
+                             MetadataType MT,
+                             std::string str);
+
+  static void insertMetadata(llvm::Instruction &I,
+                             MetadataType MT,
+                             std::string str);
+
+  static void removeMetadata(llvm::Instruction &I,
+                             MetadataType MT,
+                             std::string str);
 
   /*
    * Singleton access
@@ -69,6 +85,14 @@ private:
   bool hasMetadata(llvm::Instruction &I, std::string str);
   llvm::Value *getMetadata(llvm::Instruction &I, std::string str);
 
+  void insertMetadata(llvm::Function &F, std::string kind, std::string str);
+
+  void removeMetadata(llvm::Function &F, std::string kind, std::string str);
+
+  void insertMetadata(llvm::Instruction &I, std::string kind, std::string str);
+
+  void removeMetadata(llvm::Instruction &I, std::string kind, std::string str);
+
   map<MetadataType, std::string> MDtoString;
 
   /*
@@ -76,9 +100,9 @@ private:
    */
   MetadataManager()
     : MDtoString{
-        { MetadataType::INTERNAL, "memoir.internal" },
-        { MetadataType::USE_PHI, "memoir.use-phi" },
-        { MetadataType::DEF_PHI, "memoir.def-phi" },
+        { MetadataType::MD_INTERNAL, "memoir.internal" },
+        { MetadataType::MD_USE_PHI, "memoir.use-phi" },
+        { MetadataType::MD_DEF_PHI, "memoir.def-phi" },
       } {}
 };
 

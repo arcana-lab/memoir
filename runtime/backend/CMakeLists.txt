@@ -17,6 +17,10 @@ list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(HandleLLVMOptions)
 include(AddLLVM)
 include_directories(${LLVM_INCLUDE_DIRS})
+link_libraries(LLVMSupport)
+
+set(LLVM_BACKEND_INSTALL_LIBDIR ${BACKEND_INSTALL_LIBDIR}/llvm)
+set(LLVM_BACKEND_INSTALL_INCLUDEDIR ${BACKEND_INSTALL_INCLUDEDIR}/llvm)
 
 add_subdirectory(llvm_smallvector)
 add_subdirectory(llvm_densemap)

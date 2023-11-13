@@ -27,13 +27,20 @@ namespace llvm::memoir {
  * Macro to apply the memoir prefix to the function name
  */
 #define MEMOIR_FUNC(name) memoir__##name
+#define MUT_FUNC(name) mut__##name
 
 /*
  * Enum of MemOIR functions
  */
-enum class MemOIR_Func {
+enum MemOIR_Func {
+  BEGIN_MEMOIR,
 #define HANDLE_INST(ENUM, FUNC, CLASS) ENUM,
 #include "memoir/ir/Instructions.def"
+  END_MEMOIR,
+  BEGIN_MUT,
+#define HANDLE_INST(ENUM, FUNC, CLASS) ENUM,
+#include "memoir/ir/MutOperations.def"
+  END_MUT,
   NONE
 };
 
@@ -48,6 +55,10 @@ public:
   static bool is_memoir_call(llvm::Function &function);
 
   static bool is_memoir_call(llvm::CallInst &call_inst);
+
+  static bool is_mut_call(llvm::Function &function);
+
+  static bool is_mut_call(llvm::CallInst &call_inst);
 
   static MemOIR_Func get_memoir_enum(llvm::Function &function);
 
@@ -76,7 +87,10 @@ public:
 
   static bool is_get(MemOIR_Func function_enum);
 
+  static bool is_mutator(MemOIR_Func function_enum);
+
   static bool is_mutator(llvm::Module &M, MemOIR_Func function_enum);
+
   static bool is_mutator(llvm::Function &F);
 };
 

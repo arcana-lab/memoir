@@ -517,37 +517,37 @@ public:
   Struct &S;
 };
 
-struct SliceExpression : public MemOIRExpression {
-public:
-  SliceExpression(SliceInst &I) : MemOIRExpression(EK_Slice), I(&I) {}
-  SliceExpression(CollectionExpression &C,
-                  ValueExpression &left,
-                  ValueExpression &right)
-    : MemOIRExpression(EK_Slice),
-      CE(&C),
-      left_index(&left),
-      right_index(&right) {}
+// struct SliceExpression : public MemOIRExpression {
+// public:
+//   SliceExpression(SliceInst &I) : MemOIRExpression(EK_Slice), I(&I) {}
+//   SliceExpression(CollectionExpression &C,
+//                   ValueExpression &left,
+//                   ValueExpression &right)
+//     : MemOIRExpression(EK_Slice),
+//       CE(&C),
+//       left_index(&left),
+//       right_index(&right) {}
 
-  bool isAvailable(llvm::Instruction &IP,
-                   const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) override;
+//   bool isAvailable(llvm::Instruction &IP,
+//                    const llvm::DominatorTree *DT = nullptr,
+//                    llvm::CallBase *call_context = nullptr) override;
 
-  llvm::Value *materialize(llvm::Instruction &IP,
-                           MemOIRBuilder *builder = nullptr,
-                           const llvm::DominatorTree *DT = nullptr,
-                           llvm::CallBase *call_context = nullptr) override;
+//   llvm::Value *materialize(llvm::Instruction &IP,
+//                            MemOIRBuilder *builder = nullptr,
+//                            const llvm::DominatorTree *DT = nullptr,
+//                            llvm::CallBase *call_context = nullptr) override;
 
-  std::string toString(std::string indent = "") const override;
+//   std::string toString(std::string indent = "") const override;
 
-  static bool classof(const ValueExpression *E) {
-    return (E->getKind() == EK_Slice);
-  }
+//   static bool classof(const ValueExpression *E) {
+//     return (E->getKind() == EK_Slice);
+//   }
 
-  SliceInst *I;
-  CollectionExpression *CE;
-  ValueExpression *left_index;
-  ValueExpression *right_index;
-};
+//   SliceInst *I;
+//   CollectionExpression *CE;
+//   ValueExpression *left_index;
+//   ValueExpression *right_index;
+// };
 
 struct SizeExpression : public MemOIRExpression {
 public:

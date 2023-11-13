@@ -28,12 +28,3 @@ For more verbose outputs, use your judgement with either `memoir::infoln` or  `m
 
 When formatting your git commit messages, please prefix with "[module1][module2]".
 For example, if you make a change to `compiler/passes/memoir/ir/Instructions.hpp`, you should prepend "[compiler][ir]" to your commit message.
-
-
-## TODOs
-- [ ] Support for static length tensors (on `static-tensor` branch)
-  - [x] Add to runtime
-  - [x] Add to common analyses
-  - [ ] Add to object lowering
-- [ ] Support for copy/clone (on `copy-and-clone` branch)
-  - [ ] Ensure that this is needed by benchmarks

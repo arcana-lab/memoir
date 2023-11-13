@@ -8,7 +8,7 @@
 #include "noelle/core/Noelle.hpp"
 
 // MemOIR
-#include "memoir/ir/CollectionVisitor.hpp"
+#include "memoir/ir/InstVisitor.hpp"
 
 #include "memoir/support/InternalDatatypes.hpp"
 
@@ -23,8 +23,9 @@
  */
 
 namespace llvm::memoir {
-class SizeAnalysis : CollectionVisitor<SizeAnalysis, ValueExpression *> {
-  friend class CollectionVisitor<SizeAnalysis, ValueExpression *>;
+class SizeAnalysis : InstVisitor<SizeAnalysis, ValueExpression *> {
+  friend class InstVisitor<SizeAnalysis, ValueExpression *>;
+  friend class llvm::InstVisitor<SizeAnalysis, ValueExpression *>;
 
 public:
   /**
@@ -44,21 +45,19 @@ public:
    * @returns A ValueExpression representing the size of the collection, or NULL
    *          if the size could not be determined.
    */
-  ValueExpression *getSize(Collection &C);
+  ValueExpression *getSize(llvm::Value &C);
 
 protected:
   // Analysis visitor methods.
-  ValueExpression *visitBaseCollection(BaseCollection &C);
-  ValueExpression *visitFieldArray(FieldArray &C);
-  ValueExpression *visitNestedCollection(NestedCollection &C);
-  ValueExpression *visitReferencedCollection(ReferencedCollection &C);
-  ValueExpression *visitControlPHICollection(ControlPHICollection &C);
-  ValueExpression *visitRetPHICollection(RetPHICollection &C);
-  ValueExpression *visitArgPHICollection(ArgPHICollection &C);
-  ValueExpression *visitDefPHICollection(DefPHICollection &C);
-  ValueExpression *visitUsePHICollection(UsePHICollection &C);
-  ValueExpression *visitJoinPHICollection(JoinPHICollection &C);
-  ValueExpression *visitSliceCollection(SliceCollection &C);
+  // TODO: flesh me out!
+  ValueExpression *visitArgument(llvm::Argument &A);
+  ValueExpression *visitInstruction(llvm::Instruction &I);
+  ValueExpression *visitSequenceAllocInst(SequenceAllocInst &I);
+  ValueExpression *visitPHINode(llvm::PHINode &I);
+  ValueExpression *visitRetPHIInst(RetPHIInst &I);
+  ValueExpression *visitArgPHIInst(ArgPHIInst &I);
+  ValueExpression *visitDefPHIInst(DefPHIInst &I);
+  ValueExpression *visitUsePHIInst(UsePHIInst &I);
 
   // Owned state.
 

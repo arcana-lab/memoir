@@ -101,11 +101,39 @@ public:
     stats.inc_trivial_ssa();
   }
 
-  void visitSliceInst(SliceInst &I) {
+  void visitArgPHIInst(ArgPHIInst &I) {
+    stats.inc_trivial_ssa();
+  }
+
+  void visitRetPHIInst(RetPHIInst &I) {
+    stats.inc_trivial_ssa();
+  }
+
+  void visitIndexWriteInst(IndexWriteInst &I) {
+    stats.inc_trivial_ssa();
+  }
+
+  void visitAssocWriteInst(AssocWriteInst &I) {
+    stats.inc_trivial_ssa();
+  }
+
+  void visitInsertInst(InsertInst &I) {
     stats.inc_ssa();
   }
 
-  void visitJoinInst(JoinInst &I) {
+  void visitRemoveInst(RemoveInst &I) {
+    stats.inc_ssa();
+  }
+
+  void visitCopyInst(CopyInst &I) {
+    stats.inc_mut();
+  }
+
+  void visitSeqSwapInst(SeqSwapInst &I) {
+    stats.inc_ssa(2);
+  }
+
+  void visitSeqSwapWithin(SeqSwapWithinInst &I) {
     stats.inc_ssa();
   }
 
@@ -114,7 +142,7 @@ public:
     stats.inc_ssa();
   }
 
-  void visitSeqSplitInst(SeqSplitInst &I) {
+  void visitMutSeqSplitInst(MutSeqSplitInst &I) {
     stats.inc_mut();
     stats.inc_ssa();
   }

@@ -27,6 +27,8 @@
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
+#include "memoir/analysis/TypeAnalysis.hpp"
+
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
@@ -85,9 +87,11 @@ struct MutToImmutPass : public ModulePass {
   }
 
   bool runOnModule(Module &M) override {
-    println();
-    println("BEGIN mut2immut pass");
-    println();
+    infoln();
+    infoln("BEGIN mut2immut pass");
+    infoln();
+
+    TypeAnalysis::invalidate();
 
     // Get NOELLE.
     auto &NOELLE = getAnalysis<llvm::noelle::Noelle>();
@@ -109,8 +113,8 @@ struct MutToImmutPass : public ModulePass {
       }
       if (no_memoir) {
         for (auto &I : llvm::instructions(F)) {
-          if (Type::value_is_collection_type(I)
-              || Type::value_is_struct_type(I)) {
+          if (Type::value_is_collection_type(I) || Type::value_is_struct_type(I)
+              || Type::value_is_type(I)) {
             no_memoir = false;
             break;
           }
@@ -176,12 +180,11 @@ struct MutToImmutPass : public ModulePass {
               continue;
             }
             // Add check if this is a mutator
-            if (!MemOIRInst::is_mutator(*memoir_inst)
-                && !isa<AccessInst>(memoir_inst)) {
+            if (!isa<MutInst>(memoir_inst) && !isa<AccessInst>(memoir_inst)) {
               continue;
             }
-            if (auto *append_inst = dyn_cast<SeqAppendInst>(memoir_inst)) {
-              if (name != &append_inst->getCollectionOperand()) {
+            if (auto *append_inst = dyn_cast<MutSeqAppendInst>(memoir_inst)) {
+              if (name != &append_inst->getCollection()) {
                 continue;
               }
             }
@@ -312,10 +315,14 @@ struct MutToImmutPass : public ModulePass {
       infoln("=========================");
     }
 
-    println("=========================");
-    println("DONE mut2immut pass");
+    infoln("=========================");
+    infoln("DONE mut2immut pass");
 
-    println();
+    infoln();
+
+    TypeAnalysis::invalidate();
+    MemOIRInst::invalidate();
+
     return true;
   }
 

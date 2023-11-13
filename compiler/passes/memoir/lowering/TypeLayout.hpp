@@ -6,7 +6,6 @@
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
 
-#include "memoir/ir/Structs.hpp"
 #include "memoir/ir/TypeVisitor.hpp"
 #include "memoir/ir/Types.hpp"
 

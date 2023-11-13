@@ -14,7 +14,7 @@ void Normalization::transformRuntime() {
 
   set<llvm::Function *> functions_to_delete;
   for (auto &F : M) {
-    if (FunctionNames::is_memoir_call(F)) {
+    if (FunctionNames::is_memoir_call(F) || FunctionNames::is_mut_call(F)) {
       F.deleteBody();
     } else {
       functions_to_delete.insert(&F);
@@ -22,6 +22,7 @@ void Normalization::transformRuntime() {
   }
 
   for (auto func : functions_to_delete) {
+    debugln("Deleting ", func->getName());
     func->removeFromParent();
   }
 
