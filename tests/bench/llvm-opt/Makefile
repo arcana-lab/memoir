@@ -1,8 +1,11 @@
 BENCH=llvm-opt
+ifndef BITCODE_DIR
 BITCODE_DIR=/project/memoir-bitcodes
-INPUT_IR_FILE=$(BENCH).bc
+endif
 
 ## BEGIN USER CONFIG ##
+ifndef INPUT_IR_FILE
+INPUT_IR_FILE=$(BENCH).bc
 
 USE_MEMOIR=y
 ifeq ($(USE_MEMOIR),y)
@@ -16,6 +19,9 @@ ifeq ($(O3_CLANG),y)
 INPUT_IR_FILE:=$(patsubst %.bc,%.clangO3.bc,$(INPUT_IR_FILE))
 else
 INPUT_IR_FILE:=$(patsubst %.bc,%.clangO0.bc,$(INPUT_IR_FILE))
+endif
+
+INPUT_IR_FILE := $(BITCODE_DIR)/$(INPUT_IR_FILE)
 endif
 
 # O3_FRONT=y
@@ -60,7 +66,7 @@ IR_FILE_LLVM_STRIPPED=$(BUILD_DIR)/input.stripped.bc
 IR_FILE_LINKED=$(BUILD_DIR)/linked.bc
 
 OBJ_FILE=$(patsubst %.bc,%.o,$(IR_FILE))
-BINARY:=$(BUILD_DIR)/$(patsubst %.bc,%,$(INPUT_IR_FILE))
+BINARY:=$(BUILD_DIR)/$(patsubst %.bc,%,$(notdir $(INPUT_IR_FILE)))
 ifeq ($(O3_FRONT),y)
 BINARY:=$(BINARY).O3front
 endif
@@ -151,7 +157,7 @@ else
 endif
 
 $(IR_FILE_LLVM_STRIPPED):
-	$(EXTRACT) $(BITCODE_DIR)/$(INPUT_IR_FILE) --delete --recursive --recurse-on-globals $(LLVM_DELETE) -o $@
+	$(EXTRACT) $(INPUT_IR_FILE) --delete --recursive --recurse-on-globals $(LLVM_DELETE) -o $@
 
 $(IR_FILE_LINKED): $(IR_FILE) $(IR_FILE_LLVM_STRIPPED)
 	$(EXTRACT) --recursive --recurse-on-globals $(LLVM_DELETE) --keep-const-init $< -o $<
