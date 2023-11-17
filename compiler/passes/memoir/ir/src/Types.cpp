@@ -182,10 +182,40 @@ StaticTensorType &Type::get_static_tensor_type(Type &element_type,
 
 StaticTensorType &StaticTensorType::get(Type &element_type,
                                         vector<size_t> dimension_sizes) {
-  return *(new StaticTensorType(element_type,
-                                dimension_sizes.size(),
-                                dimension_sizes));
+  if (StaticTensorType::static_tensor_types == nullptr) {
+    StaticTensorType::static_tensor_types =
+        new ordered_multimap<Type *, StaticTensorType *>();
+  }
+
+  auto existing_types =
+      StaticTensorType::static_tensor_types->equal_range(&element_type);
+  for (auto it = existing_types.first; it != existing_types.second; ++it) {
+    auto *existing_type = it->second;
+    auto num_dimensions = existing_type->getNumberOfDimensions();
+    if (num_dimensions != dimension_sizes.size()) {
+      continue;
+    }
+
+    for (auto dim_index = 0; dim_index < num_dimensions; ++dim_index) {
+      if (existing_type->getLengthOfDimension(dim_index)
+          != dimension_sizes[dim_index]) {
+        continue;
+      }
+    }
+
+    return *(existing_type);
+  }
+
+  auto *type = new StaticTensorType(element_type,
+                                    dimension_sizes.size(),
+                                    dimension_sizes);
+  *StaticTensorType::static_tensor_types->insert({ &element_type, type });
+
+  return *type;
 }
+
+ordered_multimap<Type *, StaticTensorType *>
+    *StaticTensorType::static_tensor_types = nullptr;
 
 // TensorType getter.
 TensorType &Type::get_tensor_type(Type &element_type, unsigned num_dimensions) {

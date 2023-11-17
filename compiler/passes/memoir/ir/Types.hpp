@@ -319,6 +319,8 @@ protected:
                    unsigned number_of_dimensions,
                    vector<size_t> length_of_dimensions);
 
+  static ordered_multimap<Type *, StaticTensorType *> *static_tensor_types;
+
   friend class TypeAnalysis;
 };
 
