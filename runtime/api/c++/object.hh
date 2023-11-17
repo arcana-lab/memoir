@@ -8,7 +8,7 @@
 #include <list>
 #include <unordered_set>
 
-#include <counter.hh>
+#include "memoir++/counter.hh"
 
 #include <memoir.h>
 

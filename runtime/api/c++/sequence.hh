@@ -6,8 +6,8 @@
 
 #include "memoir.h"
 
-#include "collection.hh"
-#include "object.hh"
+#include "memoir++/collection.hh"
+#include "memoir++/object.hh"
 
 namespace memoir {
 
@@ -164,17 +164,17 @@ protected:
   public:
     // using inner_type = typename std::remove_pointer_t<T>;
 
-    primitive_sequence_element &operator=(primitive_sequence_element &&other) {
-      this->target_object = std::move(other.target_object);
-      this->idx = std::move(other.idx);
-      return *this;
-    }
+    // primitive_sequence_element &operator=(primitive_sequence_element &&other) {
+    //   this->target_object = std::move(other.target_object);
+    //   this->idx = std::move(other.idx);
+    //   return *this;
+    // }
 
-    primitive_sequence_element &operator=(primitive_sequence_element other) {
-      this->target_object = std::swap(this->target_object, other.target_object);
-      this->idx = std::swap(this->idx, other.idx);
-      return *this;
-    }
+    // primitive_sequence_element &operator=(primitive_sequence_element other) {
+    //   this->target_object = std::swap(this->target_object, other.target_object);
+    //   this->idx = std::swap(this->idx, other.idx);
+    //   return *this;
+    // }
 
     T operator=(T val) const {
       if constexpr (std::is_pointer_v<T>) {
