@@ -124,7 +124,7 @@ $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
 
 $(IR_FILE_INPUT):
-	$(EXTRACT) $(BITCODE_DIR)/$(INPUT_IR_FILE) --keep-const-init --rfunc="memoir__*" --func=main $(LLVM_DELETE) -o $@
+	$(EXTRACT) $(INPUT_IR_FILE) --keep-const-init --rfunc="memoir__*" --func=main $(LLVM_DELETE) -o $@
 
 $(IR_FILE_RUNTIME):
 
