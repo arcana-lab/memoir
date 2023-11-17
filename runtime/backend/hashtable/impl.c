@@ -1,6 +1,6 @@
 #include "hashtable.h"
 
-// Generate the default hashtables.
+// Generate the hault hashtables.
 #define HANDLE_INTEGER_TYPE(T, C_TYPE, BW, SIGNED)                             \
   INSTANTIATE_PTR_HASHTABLE(T, C_TYPE)                                         \
   INSTANTIATE_PRIMITIVE_HASHTABLE(u32, uint32_t, T, C_TYPE)

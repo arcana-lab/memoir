@@ -1,4 +1,7 @@
+set(impl "vector")
+
 set(HEADER_FILES
+  ${impl}.h
   )
 
 set(PRIVATE_HEADER_FILES
