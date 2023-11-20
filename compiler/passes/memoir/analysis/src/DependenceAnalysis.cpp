@@ -40,6 +40,15 @@ struct DependenceSummary {
 
 static DependenceSummary checkDataDependenceViaDuChain(Instruction *fromInst,
                                                        Instruction *toInst) {
+  // This function is only invoked when at least one of either `fromInst`
+  // or `toInst` is a call to MemOIR function.
+  //
+  // Because MemOIR collections are in SSA:
+  // * every MemOIR collection and its symbol must be immutable;
+  // * an arbitrary LLVM pointer cannot alias with any MemOIR collection;
+  //
+  // Because of usePHI:
+  // * no RAR dependency (false dependency) will be misclassified as RAW;
   auto N = toInst->getNumOperands();
   for (auto i = 0u; i < N; i++) {
     if (fromInst == toInst->getOperand(i)) {
@@ -114,20 +123,6 @@ MemoryDataDependenceStrength DependenceAnalysis::
                                         Instruction *toInst,
                                         Function &function) {
   return checkMemOIRDataDependence(fromInst, toInst).query(t);
-}
-
-MemoryDataDependenceStrength DependenceAnalysis::
-    isThereThisMemoryDataDependenceType(DataDependenceType t,
-                                        Instruction *fromInst,
-                                        Instruction *toInst,
-                                        LoopStructure &loop) {
-  return checkMemOIRDataDependence(fromInst, toInst).query(t);
-}
-
-bool DependenceAnalysis::canThisDependenceBeLoopCarried(
-    DGEdge<Value, Value> *dep,
-    LoopStructure &loop) {
-  return true;
 }
 
 } // namespace llvm::memoir
