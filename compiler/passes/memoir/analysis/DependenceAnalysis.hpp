@@ -34,12 +34,6 @@ public:
       Instruction *toInst,
       Function &function) override;
 
-  MemoryDataDependenceStrength isThereThisMemoryDataDependenceType(
-      DataDependenceType t,
-      Instruction *fromInst,
-      Instruction *toInst,
-      LoopStructure &loop) override;
-
   bool canThisDependenceBeLoopCarried(DGEdge<Value, Value> *dep,
                                       LoopStructure &loop) override;
 };

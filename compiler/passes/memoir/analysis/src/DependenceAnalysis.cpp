@@ -2,7 +2,7 @@
 
 namespace llvm::memoir {
 
-CallInst *isMemOIRCall(Instruction *i) {
+static CallInst *isMemOIRCall(Instruction *i) {
   CallInst *call = dyn_cast<CallInst>(i);
   if (!call)
     return nullptr;
@@ -38,6 +38,25 @@ struct DependenceSummary {
   }
 };
 
+static DependenceSummary checkDataDependenceViaDuChain(Instruction *fromInst,
+                                                       Instruction *toInst) {
+  auto N = toInst->getNumOperands();
+  for (auto i = 0u; i < N; i++) {
+    if (fromInst == toInst->getOperand(i)) {
+      return DependenceSummary{
+        .RAW = MUST_EXIST,
+        .WAR = CANNOT_EXIST,
+        .WAW = CANNOT_EXIST,
+      };
+    }
+  }
+  return DependenceSummary{
+    .RAW = CANNOT_EXIST,
+    .WAR = CANNOT_EXIST,
+    .WAW = CANNOT_EXIST,
+  };
+}
+
 static DependenceSummary checkMemOIRDataDependence(Instruction *fromInst,
                                                    Instruction *toInst) {
   CallInst *fromMemOIRCall = isMemOIRCall(fromInst);
@@ -45,46 +64,25 @@ static DependenceSummary checkMemOIRDataDependence(Instruction *fromInst,
 
   // MemOIR Inst --> MemOIR Inst
   if (fromMemOIRCall && toMemOIRCall) {
-    for (Value *arg : toMemOIRCall->args()) {
-      if (fromMemOIRCall == arg) {
-        return DependenceSummary{
-          .RAW = MUST_EXIST,
-          .WAR = CANNOT_EXIST,
-          .WAW = CANNOT_EXIST,
-        };
-      }
-    }
-    return DependenceSummary{
-      .RAW = CANNOT_EXIST,
-      .WAR = CANNOT_EXIST,
-      .WAW = CANNOT_EXIST,
-    };
+    return checkDataDependenceViaDuChain(fromInst, toInst);
   }
 
   // MemOIR Inst --> General Inst
   else if (fromMemOIRCall && !toMemOIRCall) {
-    return DependenceSummary{
-      .RAW = MAY_EXIST,
-      .WAR = MAY_EXIST,
-      .WAW = MAY_EXIST,
-    };
+    return checkDataDependenceViaDuChain(fromInst, toInst);
   }
 
   // General Inst --> MemOIR Inst
   else if (!fromMemOIRCall && toMemOIRCall) {
-    return DependenceSummary{
-      .RAW = MAY_EXIST,
-      .WAR = MAY_EXIST,
-      .WAW = MAY_EXIST,
-    };
+    return checkDataDependenceViaDuChain(fromInst, toInst);
   }
 
   // General Inst --> General Inst
   else {
     return DependenceSummary{
-      .RAW = CANNOT_EXIST,
-      .WAR = CANNOT_EXIST,
-      .WAW = CANNOT_EXIST,
+      .RAW = MAY_EXIST,
+      .WAR = MAY_EXIST,
+      .WAW = MAY_EXIST,
     };
   }
 }
@@ -100,12 +98,6 @@ bool DependenceAnalysis::canThereBeAMemoryDataDependence(Instruction *fromInst,
 bool DependenceAnalysis::canThereBeAMemoryDataDependence(Instruction *fromInst,
                                                          Instruction *toInst,
                                                          Function &function) {
-  return checkMemOIRDataDependence(fromInst, toInst).exists();
-}
-
-bool DependenceAnalysis::canThereBeAMemoryDataDependence(Instruction *fromInst,
-                                                         Instruction *toInst,
-                                                         LoopStructure &loop) {
   return checkMemOIRDataDependence(fromInst, toInst).exists();
 }
 
