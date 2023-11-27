@@ -45,7 +45,7 @@ protected:
       } else if constexpr (std::is_pointer_v<T>) {
         using inner_type = typename std::remove_pointer_t<T>;
         if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
-          MEMOIR_FUNC(index_write_struct_ref)
+          MUT_FUNC(index_write_struct_ref)
           (val->target_object, this->target_object, this->idx);
           return val;
         }
@@ -112,7 +112,7 @@ protected:
       } else if constexpr (std::is_pointer_v<T>) {
         using inner_type = typename std::remove_pointer_t<T>;
         if constexpr (std::is_base_of_v<memoir::collection, inner_type>) {
-          MEMOIR_FUNC(index_write_collection_ref)
+          MUT_FUNC(index_write_collection_ref)
           (val->target_object, this->target_object, this->idx);
           return val;
         }
@@ -178,13 +178,13 @@ protected:
 
     T operator=(T val) const {
       if constexpr (std::is_pointer_v<T>) {
-        MEMOIR_FUNC(index_write_ptr)
+        MUT_FUNC(index_write_ptr)
         (val, this->target_object, this->idx);
         return val;
       }
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
   else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
-    MEMOIR_FUNC(index_write_##TYPE_NAME)                                       \
+    MUT_FUNC(index_write_##TYPE_NAME)                                          \
     (val, this->target_object, this->idx);                                     \
     return val;                                                                \
   }
