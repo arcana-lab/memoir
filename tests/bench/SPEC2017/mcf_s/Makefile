@@ -1,21 +1,29 @@
-BENCH=deepsjeng_s
-BITCODE_DIR=/project/memoir-bitcodes/spec2017/deepsjeng_s
-INPUT_IR_FILE=$(BENCH).bc
+BENCH=mcf_s
+ifndef BITCODE_DIR
+BITCODE_DIR=/project/memoir-bitcodes/spec2017/$(BENCH)
+endif
 
 ## BEGIN USER CONFIG ##
 
-USE_MEMOIR=y
+ifndef INPUT_IR_FILE
+INPUT_IR_FILE=$(BENCH).bc
+
+# USE_MEMOIR=y
 ifeq ($(USE_MEMOIR),y)
 INPUT_IR_FILE:=$(patsubst %.bc,%.memoir.bc,$(INPUT_IR_FILE))
 else
 INPUT_IR_FILE:=$(patsubst %.bc,%.baseline.bc,$(INPUT_IR_FILE))
 endif
 
-O3_CLANG=y
+# O3_CLANG=y
 ifeq ($(O3_CLANG),y)
 INPUT_IR_FILE:=$(patsubst %.bc,%.clangO3.bc,$(INPUT_IR_FILE))
 else
 INPUT_IR_FILE:=$(patsubst %.bc,%.clangO0.bc,$(INPUT_IR_FILE))
+endif
+
+INPUT_IR_FILE := $(BITCODE_DIR)/$(INPUT_IR_FILE)
+
 endif
 
 # O3_FRONT=y
@@ -52,7 +60,7 @@ IR_FILE_LOWERED=$(BUILD_DIR)/lowered.bc
 IR_FILE_LOWERED_OPT=$(BUILD_DIR)/lowered.opt.bc
 
 OBJ_FILE=$(patsubst %.bc,%.o,$(IR_FILE))
-BINARY:=$(BUILD_DIR)/$(patsubst %.bc,%,$(INPUT_IR_FILE))
+BINARY:=$(BUILD_DIR)/$(patsubst %.bc,%,$(notdir $(INPUT_IR_FILE)))
 ifeq ($(O3_FRONT),y)
 BINARY:=$(BINARY).O3front
 endif
@@ -97,7 +105,7 @@ $(CPP_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
 
 $(IR_FILE_INPUT):
-	cp $(BITCODE_DIR)/$(INPUT_IR_FILE) $@
+	cp $(INPUT_IR_FILE) $@
 
 $(IR_FILE_RUNTIME):
 

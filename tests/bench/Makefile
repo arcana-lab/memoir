@@ -1,14 +1,15 @@
+SHELL := /bin/bash
+
+# Input(s):
+# BITCODE_DIR = <Directory of bitcodes>
+
 # Configuration
-BENCHMARKS=mcf_s deepsjeng_s llvm-opt
-NUM_RUNS=10
+BENCHMARKS ?= SPEC2017/mcf_s SPEC2017/deepsjeng_s LLVM/opt
+NUM_RUNS ?= 10
 
 # Output files
-ifndef COMPILE_TIMES_OUT
-COMPILE_TIMES_OUT=compile_times.txt
-endif
-ifndef NUM_COLLECTIONS_OUT
-NUM_COLLECTIONS_OUT=collections.txt
-endif
+COMPILE_TIMES_OUT ?= compile_times.txt
+NUM_COLLECTIONS_OUT ?= collections.txt
 
 # Input files
 IR_FILES=$(patsubst %,%/build/normalized.bc,$(BENCHMARKS))
@@ -21,8 +22,8 @@ compile_times: $(IR_FILES)
 num_collections: $(IR_FILES)
 	./num_collections.sh $(NUM_COLLECTIONS_OUT) $(BENCHMARKS)
 
-$(IR_FILES): %/build/normalized.bc: %
-	make -C $< setup build/normalized.bc USE_MEMOIR=y CLANG_O3=y
+$(IR_FILES): %/build/normalized.bc: % $(notdir $(dir %)) $(notdir $(dir $(dir %))) # SUITE/BENCH SUITE BENCH
+	@make -B -C $< setup build/normalized.bc USE_MEMOIR=y INPUT_IR_FILE=$(shell find $(BITCODE_DIR)/$< -name "*.bc" -type f | head -1) || ( printf "\e[31;1m  ERROR: \e[97mFailed to normalize IR file for $<!\e[0m\n" ; exit 1 )
 
 clean:
 	rm $(COMPILE_TIMES_OUT)

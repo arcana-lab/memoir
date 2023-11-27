@@ -1,4 +1,4 @@
-#include "sequence.hh"
+#include "memoir++/sequence.hh"
 
 namespace memoir {
 
