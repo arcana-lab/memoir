@@ -48,7 +48,9 @@ printf "\n" >> ${OUTPUT_FILE}
 
 
 for BENCH in ${BENCHMARKS}
-do    
+do
+    BENCH_NAME="$(basename ${BENCH})"
+    
     IR_FILE=${BENCH}/build/normalized.bc
 
     # MemOIR O0
@@ -83,6 +85,6 @@ do
     LLVM_O3_MEDIAN="$(median ${TMP_FILE})"
     echo "" > ${TMP_FILE}
 
-    printf "%-20s ┃ %-10s ┃ %-10s ┃ %-10s ┃ %-10s\n" "${BENCH}" "${MEMOIR_O0_MEDIAN}" "${MEMOIR_O3_MEDIAN}" "${LLVM_O0_MEDIAN}" "${LLVM_O3_MEDIAN}" >> ${OUTPUT_FILE}
+    printf "%-20s ┃ %-10s ┃ %-10s ┃ %-10s ┃ %-10s\n" "${BENCH_NAME}" "${MEMOIR_O0_MEDIAN}" "${MEMOIR_O3_MEDIAN}" "${LLVM_O0_MEDIAN}" "${LLVM_O3_MEDIAN}" >> ${OUTPUT_FILE}
 
 done
