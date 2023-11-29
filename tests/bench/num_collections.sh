@@ -21,7 +21,8 @@ printf "\n" >> ${OUTPUT_FILE}
 
 for BENCH in ${BENCHES}
 do
-    printf "%-20s ┃ " "${BENCH}" >> ${OUTPUT_FILE}
+    BENCH_NAME="$(basename ${BENCH})"
+    printf "%-20s ┃ " "${BENCH_NAME}" >> ${OUTPUT_FILE}
     IR_FILE=${BENCH}/build/normalized.bc
     2>&1 ${OPT} --memoir-stats --mut2immut --memoir-stats --ssa-destruction --memoir-stats ${IR_FILE} -disable-output | awk -f num_collections.awk >> ${OUTPUT_FILE}
 done
