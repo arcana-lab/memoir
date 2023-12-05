@@ -27,5 +27,3 @@ add_subdirectory(key_folding)
 # add_subdirectory(slice_propagation)
 # add_subdirectory(sequence_provisioning)
 # add_subdirectory(example)
-
-add_subdirectory(noelle_wrapper)
