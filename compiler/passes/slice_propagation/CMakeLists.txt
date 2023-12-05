@@ -1,5 +1,5 @@
 # Project
-set(pass_name "SlicePropagation")
+set(pass_name "memoir_slice_propagation")
 project(${pass_name})
 
 # Dependences

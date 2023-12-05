@@ -1,5 +1,5 @@
 # Project
-set(pass_name "Statistics")
+set(pass_name "memoir_statistics")
 project(${pass_name})
 
 # Dependences
