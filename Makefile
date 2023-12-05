@@ -43,6 +43,11 @@ $(NOELLE_DIR):
 	git clone --depth 1 --branch master /project/parallelizing_compiler/repositories/noelle $@
 
 uninstall:
+	find $(MEMOIR_INSTALL_DIR)/bin -type f -name "memoir*" -exec rm {} \;
+	find $(MEMOIR_INSTALL_DIR)/lib -type f -name "memoir*.so" -exec rm {} \;
+	find $(MEMOIR_INSTALL_DIR)/lib -type f -name "memoir*.bc" -exec rm {} \;
+
+fulluninstall:
 	rm -rf $(MEMOIR_INSTALL_DIR)
 	rm .noelle
 
@@ -51,4 +56,4 @@ clean:
 	make -C $(HOOKS_DIR) clean
 	rm -rf $(BUILD_DIR)
 
-.PHONY: all noelle build install postinstall uninstall clean test
+.PHONY: all noelle build install postinstall uninstall fulluninstall  clean test
