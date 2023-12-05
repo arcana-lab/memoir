@@ -1,4 +1,5 @@
-project(MemOIR)
+set(runtime_name "memoir-runtime")
+project(${runtime_name})
 
 set(CMAKE_C_FLAGS   "-O1 -Xclang -disable-llvm-passes -fdeclspec -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -g")
@@ -38,34 +39,38 @@ set(SRC_FILES
   src/detail/types.cpp
   )
 
-add_library(MemOIR STATIC ${SRC_FILES})
-target_include_directories(MemOIR PUBLIC include/)
-set_target_properties(MemOIR PROPERTIES
+add_library(${runtime_name} STATIC ${SRC_FILES})
+target_include_directories(${runtime_name} PUBLIC include/)
+set_target_properties(${runtime_name} PROPERTIES
   LINKER_LANGUAGE CXX
   PUBLIC_HEADER "${HEADER_FILES}"
   PRIVATE_HEADER "${PRIVATE_HEADER_FILES}")
 
 install(
-  TARGETS MemOIR
+  TARGETS ${runtime_name}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
   PRIVATE_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 llvmir_attach_bc_target(
-  TARGET memoir_bitcodes
-  DEPENDS MemOIR)
+  TARGET ${runtime_name}_bitcodes
+  DEPENDS ${runtime_name})
 
 llvmir_attach_link_target(
-  TARGET memoir
-  DEPENDS memoir_bitcodes
+  TARGET ${runtime_name}_bitcode
+  DEPENDS ${runtime_name}_bitcodes
   OUTPUT_DIR ${CMAKE_INSTALL_LIBDIR})
 
-add_dependencies(memoir MemOIR)
+add_dependencies(${runtime_name}_bitcode ${runtime_name})
 
-set_property(TARGET memoir_bitcodes PROPERTY
+set_property(
+  TARGET ${runtime_name}_bitcodes
+  PROPERTY
   EXCLUDE_FROM_ALL OFF)
-set_property(TARGET memoir PROPERTY
+set_property(
+  TARGET ${runtime_name}_bitcode
+  PROPERTY
   EXCLUDE_FROM_ALL OFF)
 
 add_subdirectory(backend)
