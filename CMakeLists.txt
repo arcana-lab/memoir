@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 project(ObjectIR C CXX ASM)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 
 find_program(CLANG_PATH clang)
 find_program(CLANGXX_PATH clang++)
@@ -31,3 +31,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_subdirectory(runtime)
 add_subdirectory(compiler)
 #add_subdirectory(tests)
+
+install(
+  PROGRAMS
+  memoir-env
+
+  TYPE BIN
+  )
