@@ -41,7 +41,6 @@ hooks:
 $(NOELLE_DIR):
 	mkdir -p $@
 	git clone --depth 1 --branch master /project/parallelizing_compiler/repositories/noelle $@
-	cd $@ ; git checkout ebf11f10
 
 uninstall:
 	rm -rf $(INSTALL_DIR)
