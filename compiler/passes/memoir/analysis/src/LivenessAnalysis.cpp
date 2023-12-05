@@ -8,7 +8,7 @@ namespace llvm::memoir {
 
 // Transfer functions.
 void compute_gen(llvm::Instruction *inst,
-                 llvm::noelle::DataFlowResult *result) {
+                 arcana::noelle::DataFlowResult *result) {
   // GEN = Use(I)
   for (auto &operand : inst->operands()) {
     auto *operand_value = operand.get();
@@ -19,7 +19,7 @@ void compute_gen(llvm::Instruction *inst,
 }
 
 void compute_kill(llvm::Instruction *inst,
-                  llvm::noelle::DataFlowResult *result) {
+                  arcana::noelle::DataFlowResult *result) {
   // KILL = Def(I)
   if (Type::value_is_collection_type(*inst)) {
     result->KILL(inst).insert(inst);
@@ -28,7 +28,7 @@ void compute_kill(llvm::Instruction *inst,
 
 void compute_in(std::set<llvm::Value *> &in,
                 llvm::Instruction *inst,
-                llvm::noelle::DataFlowResult *result) {
+                arcana::noelle::DataFlowResult *result) {
   auto &gen = result->GEN(inst);
   auto &kill = result->KILL(inst);
   auto &out = result->OUT(inst);
@@ -45,7 +45,7 @@ void compute_in(std::set<llvm::Value *> &in,
 
 void compute_out(std::set<llvm::Value *> &out,
                  llvm::Instruction *successor,
-                 llvm::noelle::DataFlowResult *result) {
+                 arcana::noelle::DataFlowResult *result) {
   if (isa<llvm::PHINode>(successor)
       && successor == &*successor->getParent()->begin()) {
     auto *successor_bb = successor->getParent();
@@ -93,7 +93,7 @@ void compute_out(std::set<llvm::Value *> &out,
 
 // Constructor and analysis invocation.
 LivenessAnalysis::LivenessAnalysis(llvm::Function &F,
-                                   llvm::noelle::DataFlowEngine DFE)
+                                   arcana::noelle::DataFlowEngine DFE)
   : F(F),
     DFE(std::move(DFE)) {
   debugln("Start liveness analysis");

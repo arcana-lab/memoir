@@ -11,7 +11,7 @@
 
 #include "Normalization.hpp"
 
-using namespace llvm::noelle;
+using namespace arcana::noelle;
 
 namespace {
 

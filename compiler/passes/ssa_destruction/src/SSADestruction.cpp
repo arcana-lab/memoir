@@ -33,7 +33,7 @@ SSADestructionVisitor::SSADestructionVisitor(llvm::Module &M,
   // Do nothing.
 }
 
-void SSADestructionVisitor::setAnalyses(llvm::noelle::DominatorForest &DT,
+void SSADestructionVisitor::setAnalyses(arcana::noelle::DominatorForest &DT,
                                         LivenessAnalysis &LA,
                                         ValueNumbering &VN) {
   this->DT = &DT;

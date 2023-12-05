@@ -63,7 +63,7 @@ public:
                         SSADestructionStats *stats = nullptr,
                         bool enable_collection_lowering = false);
 
-  void setAnalyses(llvm::noelle::DominatorForest &DT,
+  void setAnalyses(arcana::noelle::DominatorForest &DT,
                    LivenessAnalysis &LA,
                    ValueNumbering &VN);
 
@@ -126,7 +126,7 @@ public:
 protected:
   // Analyses.
   llvm::Module &M;
-  llvm::noelle::DominatorForest *DT;
+  arcana::noelle::DominatorForest *DT;
   LivenessAnalysis *LA;
   ValueNumbering *VN;
   TypeConverter TC;

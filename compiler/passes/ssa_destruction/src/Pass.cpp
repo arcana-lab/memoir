@@ -65,7 +65,7 @@ struct SSADestructionPass : public ModulePass {
 
   using DomTreeTraversalListTy = list<llvm::BasicBlock *>;
   static DomTreeTraversalListTy dfs_preorder_traversal_helper(
-      llvm::noelle::DominatorNode *root) {
+      arcana::noelle::DominatorNode *root) {
     MEMOIR_NULL_CHECK(root, "Root of dfs preorder traversal is NULL!");
 
     DomTreeTraversalListTy traversal = { root->getBlock() };
@@ -81,7 +81,7 @@ struct SSADestructionPass : public ModulePass {
   }
 
   static DomTreeTraversalListTy dfs_preorder_traversal(
-      llvm::noelle::DominatorForest &DT,
+      arcana::noelle::DominatorForest &DT,
       llvm::BasicBlock &root) {
     auto *root_node = DT.getNode(&root);
     MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found, blame NOELLE");
@@ -90,7 +90,7 @@ struct SSADestructionPass : public ModulePass {
   }
 
   static DomTreeTraversalListTy dfs_postorder_traversal_helper(
-      llvm::noelle::DominatorNode *root) {
+      arcana::noelle::DominatorNode *root) {
     MEMOIR_NULL_CHECK(root, "Root of dfs postorder traversal is NULL!");
 
     DomTreeTraversalListTy traversal = {};
@@ -108,7 +108,7 @@ struct SSADestructionPass : public ModulePass {
   }
 
   static DomTreeTraversalListTy dfs_postorder_traversal(
-      llvm::noelle::DominatorForest &DT,
+      arcana::noelle::DominatorForest &DT,
       llvm::BasicBlock &root) {
     auto *root_node = DT.getNode(&root);
     MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found, blame NOELLE");
@@ -123,7 +123,7 @@ struct SSADestructionPass : public ModulePass {
     TypeAnalysis::invalidate();
 
     // Get NOELLE.
-    auto &NOELLE = getAnalysis<llvm::noelle::Noelle>();
+    auto &NOELLE = getAnalysis<arcana::noelle::Noelle>();
 
     SSADestructionStats stats;
 
@@ -216,7 +216,7 @@ struct SSADestructionPass : public ModulePass {
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<llvm::noelle::Noelle>();
+    AU.addRequired<arcana::noelle::Noelle>();
     AU.addRequired<llvm::DominanceFrontierWrapperPass>();
     return;
   }

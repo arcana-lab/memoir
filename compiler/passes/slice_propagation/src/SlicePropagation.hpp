@@ -60,7 +60,7 @@ public:
    */
   SlicePropagation(llvm::Module &M,
                    llvm::Pass &P,
-                   llvm::noelle::Noelle &noelle);
+                   arcana::noelle::Noelle &noelle);
 
   /**
    * Analyze the given module for opportunities to propagate slices.
@@ -158,7 +158,7 @@ protected:
   // Borrowed state.
   llvm::Module &M;
   llvm::Pass &P;
-  llvm::noelle::Noelle &noelle;
+  arcana::noelle::Noelle &noelle;
   TypeAnalysis &TA;
   StructAnalysis &SA;
   CollectionAnalysis &CA;

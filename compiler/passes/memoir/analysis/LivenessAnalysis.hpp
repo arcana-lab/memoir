@@ -13,7 +13,7 @@ namespace llvm::memoir {
 class LivenessAnalysis {
 public:
   // Construction and analysis invocation.
-  LivenessAnalysis(llvm::Function &F, llvm::noelle::DataFlowEngine DFE);
+  LivenessAnalysis(llvm::Function &F, arcana::noelle::DataFlowEngine DFE);
 
   // Queries.
   bool is_live(llvm::Value &V, MemOIRInst &I, bool after = true);
@@ -24,8 +24,8 @@ public:
 
 protected:
   llvm::Function &F;
-  llvm::noelle::DataFlowEngine DFE;
-  llvm::noelle::DataFlowResult *DFR;
+  arcana::noelle::DataFlowEngine DFE;
+  arcana::noelle::DataFlowResult *DFR;
 };
 
 } // namespace llvm::memoir

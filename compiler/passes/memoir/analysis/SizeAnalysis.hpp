@@ -33,7 +33,7 @@ public:
    * @param noelle A reference to Noelle
    * @param VN A reference to a ValueNumbering analysis
    */
-  SizeAnalysis(llvm::noelle::Noelle &noelle, ValueNumbering &VN)
+  SizeAnalysis(arcana::noelle::Noelle &noelle, ValueNumbering &VN)
     : noelle(noelle),
       VN(VN) {}
   ~SizeAnalysis();
@@ -62,7 +62,7 @@ protected:
   // Owned state.
 
   // Borrowed state.
-  llvm::noelle::Noelle &noelle;
+  arcana::noelle::Noelle &noelle;
   ValueNumbering &VN;
 };
 
