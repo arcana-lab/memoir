@@ -20,7 +20,6 @@ set(dirs
   support
   utility
   analysis
-  lowering
   )
 foreach(dir ${dirs})
   # Fetch the header files.

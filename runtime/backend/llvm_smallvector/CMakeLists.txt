@@ -35,7 +35,7 @@ llvmir_attach_link_target(
   DEPENDS backend_${impl}_bitcodes
   OUTPUT_DIR ${LLVM_BACKEND_INSTALL_LIBDIR})
 
-add_dependencies(${impl} MemOIR)
+add_dependencies(${impl} ${runtime_name})
 
 set_property(TARGET backend_${impl}_bitcodes PROPERTY
   EXCLUDE_FROM_ALL OFF)

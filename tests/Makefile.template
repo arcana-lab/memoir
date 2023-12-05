@@ -4,8 +4,8 @@ BUILD_DIR=build
 
 CC=clang++
 LL=llvm-link
-NORM=$(GIT_ROOT)/compiler/scripts/memoir-norm
-OPT=$(GIT_ROOT)/compiler/scripts/memoir-load
+NORM=memoir-norm
+OPT=memoir-load
 
 LIBS=-lm -lstdc++
 CFLAGS=-I$(GIT_ROOT)/install/include -I$(GIT_ROOT)/install/include/api -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(LIBS)

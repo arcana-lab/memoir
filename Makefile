@@ -4,7 +4,7 @@ HOOKS_DIR=.githooks
 MEMOIR_INSTALL_DIR ?= $(shell realpath install)
 
 NORM_RUNTIME=$(MEMOIR_INSTALL_DIR)/bin/memoir-norm-runtime
-RUNTIME_BC=$(MEMOIR_INSTALL_DIR)/lib/memoir.bc
+RUNTIME_BC=$(MEMOIR_INSTALL_DIR)/lib/memoir.impl.bc
 DECL_BC=$(MEMOIR_INSTALL_DIR)/lib/memoir.decl.bc
 
 all: noelle hooks postinstall
