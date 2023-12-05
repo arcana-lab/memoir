@@ -9,7 +9,7 @@ NoelleWrapper::NoelleWrapper()
 
 Noelle &NoelleWrapper::getNoelle(void) {
   if (!noelle) {
-    noelle = &getAnalysis<llvm::noelle::Noelle>();
+    noelle = &getAnalysis<arcana::noelle::Noelle>();
     noelle->addAnalysis(&dependenceAnalysis);
   }
   return *noelle;
@@ -24,7 +24,7 @@ bool NoelleWrapper::runOnModule(Module &M) {
 }
 
 void NoelleWrapper::getAnalysisUsage(AnalysisUsage &AU) const {
-  AU.addRequired<llvm::noelle::Noelle>();
+  AU.addRequired<arcana::noelle::Noelle>();
 }
 
 // Next there is code to register your pass to "opt"
