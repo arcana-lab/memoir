@@ -1,3 +1,6 @@
+# Install scripts.
+add_subdirectory(scripts)
+
 # Configure z3
 find_package(Z3 CONFIG REQUIRED HINTS /project/tommy-software/z3/z3-4.12.2/install/lib64/cmake/z3)
 
@@ -18,8 +21,8 @@ message(STATUS "Z3_LIBRARIES=${Z3_LIBRARIES}")
 include_directories(
   ${Z3_INCLUDE_DIR}
   ${LLVM_INCLUDE_DIRS}
-  noelle/install/include
-  noelle/install/include/svf)
+  ${CMAKE_INSTALL_INCLUDEDIR}
+  )
 
 link_libraries(${Z3_LIBRARIES})
 

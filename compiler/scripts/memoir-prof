@@ -11,11 +11,11 @@ while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a sym
   # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
   [[ ${SOURCE} != /* ]] && SOURCE=$DIR/$SOURCE 
 done
-GIT_ROOT=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/../..
+MEMOIR_HOME=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/../..
 
-LIB_DIR=${GIT_ROOT}/install/lib ;
+LIB_DIR=${MEMOIR_HOME}/install/lib ;
 
-source ${GIT_ROOT}/enable ;
+source ${MEMOIR_HOME}/enable ;
 
 IR_FILE_IN="$1" ;
 shift ;
