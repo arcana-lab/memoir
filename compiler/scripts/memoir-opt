@@ -79,11 +79,11 @@ while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a sym
   # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
   [[ ${SOURCE} != /* ]] && SOURCE=$DIR/$SOURCE 
 done
-GIT_ROOT=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/../..
+MEMOIR_HOME=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..
 
-LIB_DIR=${GIT_ROOT}/install/lib
+LIB_DIR=${MEMOIR_HOME}/install/lib
 
-source ${GIT_ROOT}/enable
+source ${MEMOIR_HOME}/enable
 
 echo "Running MemOIR compiler (I: ${INPUT_IR_FILE}, O: ${OUTPUT_IR_FILE})"
 
@@ -100,7 +100,7 @@ if [[ "${NORMALIZE}" == "true" ]] ; then
 
     echo "Normalizing the bitcode (I: ${IR_FILE}, O: ${NORM_IR_FILE})"
     
-    ${GIT_ROOT}/compiler/scripts/memoir-norm ${IR_FILE} ${IR_FILE}
+    ${MEMOIR_HOME}/bin/memoir-norm ${IR_FILE} ${IR_FILE}
     cp ${IR_FILE} ${NORM_IR_FILE}
 
     echo "Done normalizing"
@@ -113,7 +113,7 @@ if [[ "${LOWER}" == "true" ]] ; then
     LOWERED_IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}.lowered.bc
 
     echo "Lowering the bitcode (I: ${IR_FILE}, O: ${LOWERED_IR_FILE})"
-    ${GIT_ROOT}/compiler/scripts/memoir-lower ${IR_FILE} ${IR_FILE} ;
+    ${MEMOIR_HOME}/bin/memoir-lower ${IR_FILE} ${IR_FILE} ;
 
     cp ${IR_FILE} ${LOWERED_IR_FILE}
 

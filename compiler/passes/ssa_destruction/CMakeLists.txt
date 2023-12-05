@@ -1,9 +1,6 @@
 # Project
-set(pass_name "SSADestruction")
+set(pass_name "memoir_ssa_destruction")
 project(${pass_name})
-
-# Dependences
-#include(${CMAKE_CURRENT_SOURCE_DIR}/../../../src/scripts/DependencesCMake.txt)
 
 # Sources
 file(GLOB pass_sources "src/*.cpp")

@@ -6,23 +6,20 @@ set(dirs
   lowering
   )
 
+# Install the include files.
 set(memoir_include_dirs ${memoir_include_list})
 foreach(dir ${dirs})
   # Install header files
-  file(GLOB_RECURSE memoir_include ${CMAKE_CURRENT_SOURCE_DIR}/${dir} "*.[h|hpp|def]")
-  install(FILES ${memoir_include}
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/include/memoir/${dir})
-
-  # Append this include dir for compilation
-  list(APPEND memoir_include_dirs ${CMAKE_CURRENT_SOURCE_DIR}/${dir})
+  file(GLOB_RECURSE memoir_include ${dir} "*.hpp" "*.h" "*.def")
+  install(
+    FILES
+    ${memoir_include}
+    DESTINATION
+    ${CMAKE_INSTALL_INCLUDEDIR}/memoir/${dir}
+    )
 endforeach()
-set_property(GLOBAL PROPERTY MEMOIR_INCLUDE_DIRS "${memoir_include_dirs}")
 
-# Add all include directories
-get_property(memoir_include_dirs GLOBAL PROPERTY MEMOIR_INCLUDE_DIRS)
-include_directories(${memoir_include_dirs})
-
-# Add each Pass
+# Collect the memoir source files.
 set(memoir_sources ${memoir_source_list})
 foreach(dir ${dirs})
   # Add source files

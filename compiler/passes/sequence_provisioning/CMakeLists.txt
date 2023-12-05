@@ -1,5 +1,5 @@
 # Project
-set(pass_name "SequenceProvisioning")
+set(pass_name "memoir_sequence_provisioning")
 project(${pass_name})
 
 # Dependences

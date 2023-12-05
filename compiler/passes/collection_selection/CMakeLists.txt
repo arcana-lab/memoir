@@ -1,6 +1,9 @@
 # Project
-set(pass_name "memoir_dead_code_elimination")
+set(pass_name "memoir_collection_selection")
 project(${pass_name})
+
+# Dependences
+#include(${CMAKE_CURRENT_SOURCE_DIR}/../../../src/scripts/DependencesCMake.txt)
 
 # Sources
 file(GLOB pass_sources "src/*.cpp")

@@ -1,5 +1,5 @@
 # Project
-set(pass_name "DeadFieldElimination")
+set(pass_name "memoir_dead_field_elimination")
 project(${pass_name})
 
 # Dependences

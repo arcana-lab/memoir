@@ -1,18 +1,18 @@
-NOELLE_DIR=compiler/noelle
+NOELLE_DIR ?= compiler/noelle
 BUILD_DIR=.build.dir
 HOOKS_DIR=.githooks
-INSTALL_DIR=install
+MEMOIR_INSTALL_DIR ?= $(shell realpath install)
 
-NORM_RUNTIME=./compiler/scripts/normalize_runtime.sh
-RUNTIME_BC=install/lib/memoir.bc
-DECL_BC=install/lib/memoir.decl.bc
+NORM_RUNTIME=$(MEMOIR_INSTALL_DIR)/bin/memoir-norm-runtime
+RUNTIME_BC=$(MEMOIR_INSTALL_DIR)/lib/memoir.bc
+DECL_BC=$(MEMOIR_INSTALL_DIR)/lib/memoir.decl.bc
 
 all: noelle hooks postinstall
 
 build:
 	mkdir -p $(BUILD_DIR)
-	mkdir -p $(INSTALL_DIR)
-	cmake -DCMAKE_C_COMPILER=`which clang` -DCMAKE_CXX_COMPILER=`which clang++` -S . -B $(BUILD_DIR)
+	mkdir -p $(MEMOIR_INSTALL_DIR)
+	cmake -DCMAKE_C_COMPILER=`which clang` -DCMAKE_CXX_COMPILER=`which clang++` -DCMAKE_INSTALL_PREFIX=$(MEMOIR_INSTALL_DIR) -S . -B $(BUILD_DIR)
 	make -C $(BUILD_DIR) all -j32
 
 install: build
@@ -32,7 +32,7 @@ test: all
 noelle: .noelle
 
 .noelle: $(NOELLE_DIR)
-	make -C $<
+	export NOELLE_INSTALL_DIR=$(MEMOIR_INSTALL_DIR) && make -C $<
 	touch $@
 
 hooks:
@@ -43,7 +43,7 @@ $(NOELLE_DIR):
 	git clone --depth 1 --branch master /project/parallelizing_compiler/repositories/noelle $@
 
 uninstall:
-	rm -rf $(INSTALL_DIR)
+	rm -rf $(MEMOIR_INSTALL_DIR)
 	rm .noelle
 
 clean:
