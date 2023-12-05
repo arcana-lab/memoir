@@ -5,14 +5,9 @@ set(pass_name "memoir_command_line")
 file(GLOB pass_sources "src/*.cpp")
 
 # Declare the LLVM pass to compile
-add_llvm_library(
+add_memoir_transform(
   ${pass_name}
-  MODULE
-  ${pass_sources}
-  ${memoir_sources})
-
-install(
-  TARGETS ${PassName}
-  LIBRARY
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  )
+  CORE
+  FILES
+  ${pass_sources} 
+)
