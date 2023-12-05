@@ -18,12 +18,21 @@ message(STATUS "LLVM_DIR IS ${LLVM_CMAKE_DIR}.")
 
 message(STATUS "Z3_LIBRARIES=${Z3_LIBRARIES}")
 
+# Compiler options.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -g3 ")
+
 include_directories(
+  # Z3
   ${Z3_INCLUDE_DIR}
+  # LLVM
   ${LLVM_INCLUDE_DIRS}
+  # External dependencies (NOELLE)
   ${CMAKE_INSTALL_INCLUDEDIR}
+  # memoir dependencies
+  ${CMAKE_CURRENT_SOURCE_DIR}
   )
 
 link_libraries(${Z3_LIBRARIES})
 
-add_subdirectory(passes)
+# Build the compiler.
+add_subdirectory(memoir)
