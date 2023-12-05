@@ -31,10 +31,3 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_subdirectory(runtime)
 add_subdirectory(compiler)
 #add_subdirectory(tests)
-
-install(
-  PROGRAMS
-  memoir-env
-
-  TYPE BIN
-  )

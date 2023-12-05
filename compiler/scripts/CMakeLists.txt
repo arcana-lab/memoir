@@ -1,5 +1,6 @@
 install(
   PROGRAMS
+  memoir-env
   memoir-load
   memoir-lower
   memoir-norm
