@@ -13,7 +13,8 @@ LIB_DIR=${MEMOIR_HOME}/lib
 NOELLE_LOAD=${MEMOIR_HOME}/bin/noelle-load
 
 LOAD_CL=$(find ${LIB_DIR} -name "memoir_command_line.so" -printf ' -load %p ')
+LOAD_MEMOIR=$(find ${LIB_DIR} -name "memoir.so" -printf ' -load %p ')
 LOAD_OTHER=$(find ${LIB_DIR} -name "memoir_*.so" -not -name "memoir_command_line.so" -printf ' -load %p ')
-LOAD_PASSES="${LOAD_CL} ${LOAD_OTHER}"
+LOAD_PASSES="${LOAD_CL} ${LOAD_MEMOIR} ${LOAD_OTHER}"
 
 ${NOELLE_LOAD} "${LOAD_PASSES}" --memoir-cl "$@"

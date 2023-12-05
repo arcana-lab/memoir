@@ -81,9 +81,9 @@ while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a sym
 done
 MEMOIR_HOME=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..
 
-LIB_DIR=${MEMOIR_HOME}/install/lib
+LIB_DIR=${MEMOIR_HOME}/lib
 
-source ${MEMOIR_HOME}/enable
+source ${MEMOIR_HOME}/bin/memoir-env
 
 echo "Running MemOIR compiler (I: ${INPUT_IR_FILE}, O: ${OUTPUT_IR_FILE})"
 
