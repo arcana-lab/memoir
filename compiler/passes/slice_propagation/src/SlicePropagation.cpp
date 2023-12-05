@@ -12,7 +12,7 @@ namespace llvm::memoir {
 // Constructor.
 SlicePropagation::SlicePropagation(llvm::Module &M,
                                    llvm::Pass &P,
-                                   llvm::noelle::Noelle &noelle)
+                                   arcana::noelle::Noelle &noelle)
   : M(M),
     P(P),
     noelle(noelle),

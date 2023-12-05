@@ -64,7 +64,7 @@ struct SlicePropagationPass : public ModulePass {
     println();
 
     // Get the required analyses.
-    auto &noelle = getAnalysis<llvm::noelle::Noelle>();
+    auto &noelle = getAnalysis<arcana::noelle::Noelle>();
     auto &TA = TypeAnalysis::get();
     auto &SA = StructAnalysis::get();
     auto &CA = CollectionAnalysis::get(noelle);
@@ -84,7 +84,7 @@ struct SlicePropagationPass : public ModulePass {
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<llvm::noelle::Noelle>();
+    AU.addRequired<arcana::noelle::Noelle>();
     AU.addRequired<llvm::DominatorTreeWrapperPass>();
     return;
   }

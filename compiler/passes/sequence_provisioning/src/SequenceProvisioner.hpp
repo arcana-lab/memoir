@@ -25,7 +25,7 @@ class SequenceProvisioner : public InstVisitor<SequenceProvisioner> {
 
 public:
   SequenceProvisioner(llvm::Module &M,
-                      llvm::noelle::Noelle &noelle,
+                      arcana::noelle::Noelle &noelle,
                       CollectionAnalysis &CA,
                       SizeAnalysis &SizeA)
     : M(M),
@@ -48,7 +48,7 @@ protected:
 
   // Borrowed state.
   llvm::Module &M;
-  llvm::noelle::Noelle &noelle;
+  arcana::noelle::Noelle &noelle;
   CollectionAnalysis &CA;
   SizeAnalysis &SizeA;
 
