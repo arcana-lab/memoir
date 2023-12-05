@@ -1,11 +1,8 @@
 # Project
 set(pass_name "memoir_ssa_destruction")
-project(${pass_name})
 
 # Sources
 file(GLOB pass_sources "src/*.cpp")
-
-get_property(memoir_sources GLOBAL PROPERTY MEMOIR_SOURCES)
 
 # Declare the LLVM pass to compile
 add_llvm_library(
@@ -14,5 +11,9 @@ add_llvm_library(
   ${pass_sources}
   ${memoir_sources})
 
-install(TARGETS ${PassName}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(
+  TARGETS
+  ${PassName}
+  LIBRARY
+  DESTINATION
+  ${CMAKE_INSTALL_LIBDIR})
