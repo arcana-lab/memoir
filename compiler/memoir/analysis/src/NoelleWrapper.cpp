@@ -1,4 +1,4 @@
-#include "NoelleWrapper.hpp"
+#include "memoir/analysis/NoelleWrapper.hpp"
 
 namespace llvm::memoir {
 
