@@ -1,4 +1,4 @@
-set(runtime_name "memoir-runtime")
+set(runtime_name "memoir.impl")
 project(${runtime_name})
 
 set(CMAKE_C_FLAGS   "-O1 -Xclang -disable-llvm-passes -fdeclspec -fPIC")
@@ -39,39 +39,53 @@ set(SRC_FILES
   src/detail/types.cpp
   )
 
-add_library(${runtime_name} STATIC ${SRC_FILES})
-target_include_directories(${runtime_name} PUBLIC include/)
-set_target_properties(${runtime_name} PROPERTIES
-  LINKER_LANGUAGE CXX
-  PUBLIC_HEADER "${HEADER_FILES}"
-  PRIVATE_HEADER "${PRIVATE_HEADER_FILES}")
+function(add_bitcode name)
+  cmake_parse_arguments(
+		SRC        # prefix of output variables
+		""         # Boolean arguments
+		""         # Single value arguments
+		"SOURCES"  # multi value arguments
+		${ARGN}    # arguments of the function to parse, here we take the all original ones
+    )
+  
+  add_library(${runtime_name}_native STATIC ${SRC_SOURCES})
+  target_include_directories(${name}_native PUBLIC include/)
+  set_target_properties(${name}_native PROPERTIES
+    LINKER_LANGUAGE CXX
+    PUBLIC_HEADER "${HEADER_FILES}"
+    PRIVATE_HEADER "${PRIVATE_HEADER_FILES}")
 
-install(
-  TARGETS ${runtime_name}
-  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-  PRIVATE_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  install(
+    TARGETS ${name}_native
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    PRIVATE_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-llvmir_attach_bc_target(
-  TARGET ${runtime_name}_bitcodes
-  DEPENDS ${runtime_name})
+  llvmir_attach_bc_target(
+    TARGET ${name}_bitcodes
+    DEPENDS ${name}_native
+    )
 
-llvmir_attach_link_target(
-  TARGET ${runtime_name}_bitcode
-  DEPENDS ${runtime_name}_bitcodes
-  OUTPUT_DIR ${CMAKE_INSTALL_LIBDIR})
+  llvmir_attach_link_target(
+    TARGET ${name}
+    DEPENDS ${name}_bitcodes
+    OUTPUT_DIR ${CMAKE_INSTALL_LIBDIR}
+    )
 
-add_dependencies(${runtime_name}_bitcode ${runtime_name})
+  set_property(
+    TARGET ${name}
+    PROPERTY
+    EXCLUDE_FROM_ALL OFF
+    )
 
-set_property(
-  TARGET ${runtime_name}_bitcodes
-  PROPERTY
-  EXCLUDE_FROM_ALL OFF)
-set_property(
-  TARGET ${runtime_name}_bitcode
-  PROPERTY
-  EXCLUDE_FROM_ALL OFF)
+endfunction()
+
+add_bitcode(
+  ${runtime_name}
+  SOURCES
+  ${SRC_FILES}
+  )
 
 add_subdirectory(backend)
 add_subdirectory(api)
