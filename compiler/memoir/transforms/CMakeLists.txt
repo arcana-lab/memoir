@@ -1,27 +1,19 @@
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -g3 ")
-
-# Configure subdirectories
-include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-
-# Substrate
-add_subdirectory(memoir)
-
-# Core
+# Core.
 add_subdirectory(normalization)
 add_subdirectory(mut_to_immut)
 add_subdirectory(ssa_destruction)
 
-# Utility passes
+# Utility passes.
 add_subdirectory(statistics)
 add_subdirectory(command_line)
 
-# Transformation passes
+# Transformation passes.
 add_subdirectory(dead_collection_elimination)
 add_subdirectory(dead_field_elimination)
 add_subdirectory(field_elision)
 add_subdirectory(key_folding)
 
-# DEPRECATED Passes
+# DEPRECATED passes.
 # add_subdirectory(struct_of_arrays)
 # add_subdirectory(slice_canonicalization)
 # add_subdirectory(slice_propagation)
