@@ -1,13 +1,9 @@
-# Pass
-set(pass_name "memoir_command_line")
-
 # Sources
-file(GLOB pass_sources "src/*.cpp")
+file(GLOB sources "src/*.cpp")
 
-# Declare the LLVM pass to compile
-add_memoir_transform(
-  ${pass_name}
+# Add command line utility to memoir core.
+add_memoir_sources(
   CORE
   FILES
-  ${pass_sources} 
+  ${sources} 
 )
