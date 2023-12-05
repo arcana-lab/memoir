@@ -8,7 +8,7 @@
 
 namespace llvm::memoir {
 
-class DependenceAnalysis : public llvm::noelle::DependenceAnalysis {
+class DependenceAnalysis : public arcana::noelle::DependenceAnalysis {
 public:
   DependenceAnalysis(const std::string &name);
 

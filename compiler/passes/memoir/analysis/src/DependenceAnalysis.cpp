@@ -97,7 +97,7 @@ static DependenceSummary checkMemOIRDataDependence(Instruction *fromInst,
 }
 
 DependenceAnalysis::DependenceAnalysis(const std::string &name)
-  : noelle::DependenceAnalysis(name) {}
+  : arcana::noelle::DependenceAnalysis(name) {}
 
 bool DependenceAnalysis::canThereBeAMemoryDataDependence(Instruction *fromInst,
                                                          Instruction *toInst) {
