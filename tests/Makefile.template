@@ -10,7 +10,7 @@ OPT=memoir-load
 LIBS=-lm -lstdc++
 CFLAGS=-I$(GIT_ROOT)/install/include -I$(GIT_ROOT)/install/include/api -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(LIBS)
 
-IR_FILE_RUNTIME=$(GIT_ROOT)/install/lib/memoir.bc
+IR_FILE_RUNTIME=$(GIT_ROOT)/install/lib/memoir.impl.bc
 IR_FILE_DECL=$(GIT_ROOT)/install/lib/memoir.decl.bc
 IR_FILE_BACKENDS=$(wildcard $(GIT_ROOT)/install/lib/backend/*.bc)
 
