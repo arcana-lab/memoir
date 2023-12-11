@@ -33,11 +33,3 @@ add_subdirectory(compiler)
 
 # Enable file.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/.enable.in ${CMAKE_CURRENT_SOURCE_DIR}/enable @ONLY)
-install(
-  FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/enable
-  RENAME
-  memoir-enable
-  DESTINATION
-  ${CMAKE_INSTALL_BINDIR}
-  )

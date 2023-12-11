@@ -6,6 +6,7 @@ install(
   memoir-norm-runtime
   memoir-opt
   memoir-prof
+  memoir-enable
   
   TYPE BIN
   )

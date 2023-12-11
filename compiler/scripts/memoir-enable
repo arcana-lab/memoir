@@ -7,13 +7,7 @@ while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a sym
   # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
   [[ ${SOURCE} != /* ]] && SOURCE=$DIR/$SOURCE 
 done
-MEMOIR_HOME=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )
+MEMOIR_HOME=$(realpath $( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..)
 
-MEMOIR_ENV="${MEMOIR_HOME}/install/bin/memoir-env"
-
-if [ ! -f ${MEMOIR_ENV} ] ; then
-    printf "\e[31m;1mmemoir is not installed in its usual location!\e[0m\n"
-    printf "  Add the installation to your PATH"
-fi
-
-source ${MEMOIR_ENV}
+export PATH=${MEMOIR_HOME}/bin:${PATH}
+export LD_LIBRARY_PATH=${MEMOIR_HOME}/lib:${LD_LIBRARY_PATH}
