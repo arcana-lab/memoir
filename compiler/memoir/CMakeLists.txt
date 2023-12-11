@@ -32,27 +32,10 @@ endfunction()
 
 
 # Install the include files.
-set(dirs
-  ir
-  support
-  utility
-  analysis
-  )
-foreach(dir ${dirs})
-  # Fetch the header files.
-  file(GLOB_RECURSE memoir_include ${dir} "*.hpp" "*.h" "*.def")
-
-  # Install header files.
-  install(
-    FILES
-    ${memoir_include}
-    DESTINATION
-    ${CMAKE_INSTALL_INCLUDEDIR}/memoir/${dir}
-    )
-
-  # Add the source files.
-  add_subdirectory(${dir})
-endforeach()
+add_subdirectory(ir)
+add_subdirectory(support)
+add_subdirectory(utility)
+add_subdirectory(analysis)
 
 install(
   TARGETS memoir_core

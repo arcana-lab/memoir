@@ -1,3 +1,17 @@
+# Get the module name.
+get_filename_component(name ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+
+# Collect all header files.
+file(GLOB_RECURSE headers "*.hpp" "*.h" "*.hh" "*.def")
+
+# Install header files.
+install(
+  FILES
+  ${headers}
+  DESTINATION
+  ${CMAKE_INSTALL_INCLUDEDIR}/memoir/${name}
+  )
+
 # Collect all source files.
 file(GLOB_RECURSE sources "*.cpp" "*.c" "*.cc")
 
