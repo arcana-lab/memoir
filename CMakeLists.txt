@@ -30,3 +30,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_subdirectory(runtime)
 add_subdirectory(compiler)
 #add_subdirectory(tests)
+
+# Enable file.
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/.enable.in ${CMAKE_CURRENT_SOURCE_DIR}/enable @ONLY)

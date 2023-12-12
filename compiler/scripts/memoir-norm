@@ -16,7 +16,7 @@ MEMOIR_HOME=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..
 
 LIB_DIR=${MEMOIR_HOME}/lib ;
 
-source ${MEMOIR_HOME}/bin/memoir-env
+source ${MEMOIR_HOME}/bin/memoir-enable
 
 IR_FILE_IN="$1" ;
 IR_FILE_OUT="$2" ;

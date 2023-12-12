@@ -6,15 +6,10 @@ while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a sym
   # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
   [[ ${SOURCE} != /* ]] && SOURCE=$DIR/$SOURCE 
 done
-MEMOIR_HOME=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..
+MEMOIR_HOME=$(realpath $( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..)
 
 LIB_DIR=${MEMOIR_HOME}/lib
 
 NOELLE_LOAD=${MEMOIR_HOME}/bin/noelle-load
 
-LOAD_CL=$(find ${LIB_DIR} -name "memoir_command_line.so" -printf ' -load %p ')
-LOAD_MEMOIR=$(find ${LIB_DIR} -name "memoir.so" -printf ' -load %p ')
-LOAD_OTHER=$(find ${LIB_DIR} -name "memoir_*.so" -not -name "memoir_command_line.so" -printf ' -load %p ')
-LOAD_PASSES="${LOAD_CL} ${LOAD_MEMOIR} ${LOAD_OTHER}"
-
-${NOELLE_LOAD} "${LOAD_PASSES}" --memoir-cl "$@"
+${NOELLE_LOAD} -load ${LIB_DIR}/memoir.so --memoir-cl "$@"

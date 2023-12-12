@@ -83,7 +83,7 @@ MEMOIR_HOME=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..
 
 LIB_DIR=${MEMOIR_HOME}/lib
 
-source ${MEMOIR_HOME}/bin/memoir-env
+source ${MEMOIR_HOME}/bin/memoir-enable
 
 echo "Running MemOIR compiler (I: ${INPUT_IR_FILE}, O: ${OUTPUT_IR_FILE})"
 
