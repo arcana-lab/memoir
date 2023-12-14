@@ -33,7 +33,7 @@ IR_FILE=${OUT_DIR}/temp.bc
 cp ${IR_FILE_IN} ${IR_FILE} ;
 
 IR_FILE_MEM2REG=${OUT_DIR}/${IR_FILE_FILENAME}_mem2reg.bc ;
-opt -mem2reg ${IR_FILE} -o ${IR_FILE} ;
+opt -mem2reg --break-crit-edges ${IR_FILE} -o ${IR_FILE} ;
 # cp ${IR_FILE_MEM2REG} ${IR_FILE} ;
 
 IR_FILE_NOELLE_NORM=${OUT_DIR}/${IR_FILE_FILENAME}_noelle_norm.bc ;
