@@ -293,17 +293,22 @@ struct MutToImmutPass : public ModulePass {
               continue;
             }
 
-            debugln("Updating successor PHI: ");
-            debugln(phi);
-
             auto &incoming_use = phi.getOperandUse(phi.getBasicBlockIndex(bb));
             auto *incoming_value = incoming_use.get();
+
+            debugln("Updating successor PHI (index=",
+                    incoming_use.getOperandNo(),
+                    ") : ");
+            debugln(phi);
 
             // Update the reaching definition for the incoming edge.
             auto *reaching_definition =
                 MTIV.update_reaching_definition(incoming_value,
                                                 bb->getTerminator());
             incoming_use.set(reaching_definition);
+            debugln("Updated successor PHI: ");
+            debugln(phi);
+            debugln();
           }
         }
       }
