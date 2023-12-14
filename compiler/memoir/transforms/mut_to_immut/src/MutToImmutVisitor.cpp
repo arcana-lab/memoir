@@ -150,7 +150,7 @@ void MutToImmutVisitor::visitPHINode(llvm::PHINode &I) {
     if (reaching_definition == &I) {
       this->set_reaching_definition(&I, reaching_definition);
     } else {
-      this->set_reaching_definition(&I, named_variable);
+      this->set_reaching_definition(&I, reaching_definition);
     }
   } else {
     this->set_reaching_definition(&I, &I);
