@@ -28,3 +28,16 @@ For more verbose outputs, use your judgement with either `memoir::infoln` or  `m
 
 When formatting your git commit messages, please prefix with "[module1][module2]".
 For example, if you make a change to `compiler/passes/memoir/ir/Instructions.hpp`, you should prepend "[compiler][ir]" to your commit message.
+
+## Additional Information
+Our CGO'24 paper has additional information about MemOIR, you can find it [here](http://mcmichen.cc/files/MEMOIR_CGO_2024.pdf).
+
+If you use or build upon MemOIR, we kindly ask that you cite us:
+```
+@inproceedings(MCMICHEN:2024:MEMOIR,
+    title={Representing Data Collections in an SSA Form},
+    author={McMichen, Tommy and Greiner, Nathan and Zhong, Peter and Sossai, Federico and Patel, Atmn and Campanoni, Simone},
+    booktitle={International Symposium on Code Generation and Optimization, 2024. CGO 2024.},
+    year={2024},
+}
+```
