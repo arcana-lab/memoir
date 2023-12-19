@@ -39,7 +39,7 @@ bool MEMOIR_FUNC(assert_collection_type)(const type_ref type,
   }
 
   MEMOIR_ASSERT((type->equals(object->get_type())),
-                "Struct is not the correct type");
+                "Collection is not the correct type");
 
   return true;
 }
