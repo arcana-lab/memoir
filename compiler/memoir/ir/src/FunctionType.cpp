@@ -1,45 +1,39 @@
-#include "memoir/ir/Function.hpp"
+#include "memoir/ir/FunctionType.hpp"
 
 namespace llvm::memoir {
 
-MemOIRFunctionType::MemOIRFunctionType(llvm::FunctionType &FT,
-                                       Type *return_type,
-                                       vector<Type *> param_types)
-  : FT(FT),
-    return_type(return_type),
-    param_types(param_types) {
-  // Do nothing.
-}
-
-llvm::FunctionType &MemOIRFunctionType::getLLVMFunctionType() const {
+llvm::FunctionType &FunctionType::getLLVMFunctionType() const {
   return this->FT;
 }
 
-Type *MemOIRFunctionType::getReturnType() const {
-  return this->return_type;
-}
+std::variant<Type *, llvm::Type *> FunctionType::getReturnType() const {
 
-llvm::Type *MemOIRFunctionType::getReturnLLVMType() const {
+  // If the MEMOIR return type is non-NULL, return it.
+  if (this->return_type != nullptr) {
+    return this->return_type;
+  }
+
+  // Otherwise, get the LLVM return type in the LLVM function type.
   return this->getLLVMFunctionType().getReturnType();
 }
 
-unsigned MemOIRFunctionType::getNumParams() const {
+unsigned FunctionType::getNumParams() const {
   return this->getLLVMFunctionType().getNumParams();
 }
 
-Type *MemOIRFunctionType::getParamType(unsigned param_index) const {
+std::variant<Type *, llvm::Type *> FunctionType::getParamType(
+    unsigned param_index) const {
   MEMOIR_ASSERT((param_index < this->param_types.size()),
                 "Attempt to get out-of-range parameter type");
 
-  return this->param_types.at(param_index);
-}
+  // If there's a MEMOIR type for this parameter, return it.
+  auto found_param = this->param_types.find(param_index);
+  if (found_param != this->param_types.end()) {
+    return found_param->second;
+  }
 
-llvm::Type *MemOIRFunctionType::getParamLLVMType(unsigned param_index) const {
+  // Otherwise, lookup the LLVM type in the LLVM function type.
   return this->getLLVMFunctionType().getParamType(param_index);
-}
-
-MemOIRFunctionType::~MemOIRFunctionType() {
-  // Do nothing.
 }
 
 } // namespace llvm::memoir

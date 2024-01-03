@@ -21,7 +21,6 @@
 
 // MemOIR
 #include "memoir/ir/Builder.hpp"
-#include "memoir/ir/Function.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
@@ -569,7 +568,7 @@ protected:
         }
 
         // Build a new sequence allocation.
-        MemOIRBuilder builder(*assoc_alloc, /*InsertAfter=*/false);
+        MemOIRBuilder builder(*assoc_alloc);
 
         // The value operand _will_ be available, because we are inserting
         // immediately before the existing allocation.

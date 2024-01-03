@@ -34,11 +34,9 @@ SSADestructionVisitor::SSADestructionVisitor(llvm::Module &M,
 }
 
 void SSADestructionVisitor::setAnalyses(arcana::noelle::DominatorForest &DT,
-                                        LivenessAnalysis &LA,
-                                        ValueNumbering &VN) {
+                                        LivenessAnalysis &LA) {
   this->DT = &DT;
   this->LA = &LA;
-  this->VN = &VN;
 
   return;
 }

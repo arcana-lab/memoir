@@ -65,17 +65,8 @@ void MemOIRInst::invalidate() {
 /*
  * Top-level methods
  */
-MemOIRFunction &MemOIRInst::getFunction() const {
-  auto bb = this->getCallInst().getParent();
-  MEMOIR_ASSERT(
-      (bb != nullptr),
-      "Attempt to get function of instruction that has no basic block parent");
-
-  auto func = bb->getParent();
-  MEMOIR_ASSERT((func != nullptr),
-                "Attempt to get MemOIRFunction for NULL function");
-
-  return MemOIRFunction::get(*func);
+llvm::Function &MemOIRInst::getFunction() const {
+  return this->getLLVMFunction();
 }
 
 llvm::CallInst &MemOIRInst::getCallInst() const {

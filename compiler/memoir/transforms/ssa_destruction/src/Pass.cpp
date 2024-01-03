@@ -23,7 +23,6 @@
 
 // MemOIR
 #include "memoir/ir/Builder.hpp"
-#include "memoir/ir/Function.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
@@ -167,10 +166,11 @@ struct SSADestructionPass : public ModulePass {
       auto LA = LivenessAnalysis(F, NOELLE.getDataFlowEngine());
 
       // Get a new value numbering instance.
-      auto VN = ValueNumbering(M);
+      // auto VN = ValueNumbering(M);
 
       // Hand over this function's analyses.
-      SSADV.setAnalyses(DT, LA, VN);
+      SSADV.setAnalyses(DT, LA);
+      // SSADV.setAnalyses(DT, LA, VN);
 
       // Get the depth-first, preorder traversal of the dominator tree rooted at
       // the entry basic block.

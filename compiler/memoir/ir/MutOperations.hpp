@@ -13,7 +13,6 @@
 
 #include "memoir/utility/FunctionNames.hpp"
 
-#include "memoir/ir/Function.hpp"
 #include "memoir/ir/Types.hpp"
 
 /*
@@ -25,10 +24,7 @@
 
 namespace llvm::memoir {
 
-struct MemOIRFunction;
-struct Collection;
 struct CollectionType;
-struct Struct;
 
 // Abstract Mut Operation.
 struct MutInst : public MemOIRInst {

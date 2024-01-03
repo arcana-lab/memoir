@@ -17,7 +17,6 @@
 #include "llvm/Support/raw_ostream.h"
 
 // MemOIR
-#include "memoir/ir/Function.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 

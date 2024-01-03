@@ -12,7 +12,6 @@
 #include "memoir/ir/Instructions.hpp"
 
 #include "memoir/analysis/LivenessAnalysis.hpp"
-#include "memoir/analysis/ValueNumbering.hpp"
 
 #include "memoir/lowering/TypeLayout.hpp"
 
@@ -63,9 +62,7 @@ public:
                         SSADestructionStats *stats = nullptr,
                         bool enable_collection_lowering = false);
 
-  void setAnalyses(arcana::noelle::DominatorForest &DT,
-                   LivenessAnalysis &LA,
-                   ValueNumbering &VN);
+  void setAnalyses(arcana::noelle::DominatorForest &DT, LivenessAnalysis &LA);
 
   // LLVM operations
   void visitInstruction(llvm::Instruction &I);
@@ -128,7 +125,6 @@ protected:
   llvm::Module &M;
   arcana::noelle::DominatorForest *DT;
   LivenessAnalysis *LA;
-  ValueNumbering *VN;
   TypeConverter TC;
 
   // Owned state.

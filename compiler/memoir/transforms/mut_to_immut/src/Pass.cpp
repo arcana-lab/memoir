@@ -23,7 +23,6 @@
 
 // MemOIR
 #include "memoir/ir/Builder.hpp"
-#include "memoir/ir/Function.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 

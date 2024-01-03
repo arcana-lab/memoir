@@ -11,10 +11,10 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include "memoir/support/Casting.hpp"
+#include "memoir/support/InternalDatatypes.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"
 
-#include "memoir/ir/Function.hpp"
 #include "memoir/ir/Types.hpp"
 
 /*
@@ -26,7 +26,6 @@
 
 namespace llvm::memoir {
 
-struct MemOIRFunction;
 struct CollectionType;
 
 // Abstract MemOIR Instruction
@@ -36,7 +35,7 @@ public:
   static bool is_mutator(MemOIRInst &I);
   static void invalidate();
 
-  MemOIRFunction &getFunction() const;
+  llvm::Function &getFunction() const;
   llvm::CallInst &getCallInst() const;
   llvm::Function &getLLVMFunction() const;
   llvm::Module *getModule() const;

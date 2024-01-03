@@ -20,7 +20,6 @@
 
 // MemOIR
 #include "memoir/ir/Builder.hpp"
-#include "memoir/ir/Function.hpp"
 #include "memoir/ir/Instructions.hpp"
 
 #include "memoir/analysis/CollectionAnalysis.hpp"

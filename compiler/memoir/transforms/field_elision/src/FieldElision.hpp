@@ -22,7 +22,6 @@
 
 // MemOIR
 #include "memoir/ir/Builder.hpp"
-#include "memoir/ir/Function.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
@@ -565,7 +564,7 @@ protected:
     // function.
     auto &entry_bb = entry_function.getEntryBlock();
     auto *entry_insertion_point = entry_bb.getFirstNonPHI();
-    MemOIRBuilder builder(entry_insertion_point, /* InsertAfter= */ false);
+    MemOIRBuilder builder(entry_insertion_point);
     for (auto const &[struct_type, candidates] : fields_to_elide) {
       auto &struct_ref_type = Type::get_ref_type(*struct_type);
       auto *struct_ref_type_inst = builder.CreateTypeInst(struct_ref_type);

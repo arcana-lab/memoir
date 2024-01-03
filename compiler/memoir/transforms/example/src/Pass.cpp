@@ -12,7 +12,6 @@
 
 #include "noelle/core/Noelle.hpp"
 
-#include "memoir/ir/Function.hpp"
 #include "memoir/ir/Instructions.hpp"
 
 // #include "memoir/analysis/AccessAnalysis.hpp"
