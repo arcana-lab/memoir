@@ -118,7 +118,6 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
 }
 
 static inferred_type function_has_return_type_annotation(llvm::Function &F) {
-  println("getting return type");
   // Check the LLVM return type of the function.
   auto *return_type = F.getReturnType();
 
@@ -184,14 +183,14 @@ bool TypeInference::infer(llvm::Function &F) {
   for (auto &A : F.args()) {
     // If we weren't able to infer the argument type, warn the user!
     if (!infer_argument_type(A)) {
-      warnln("Unable to type argument ", A, " in function ", F.getName());
+      // warnln("Unable to type argument ", A, " in function ", F.getName());
     }
   }
 
   // Infer the type of function returns.
   if (!infer_return_type(F)) {
     // If we weren't able to infer the return type, warn the user!
-    warnln("Unable to type return in function ", F.getName());
+    // warnln("Unable to type return in function ", F.getName());
   }
 
   return true;
@@ -241,7 +240,7 @@ bool TypeInference::annotate(llvm::Module &M) {
 
   // Annotate each of the argument types.
   for (auto const [argument, type] : argument_types_to_annotate) {
-    println("Annotating ",
+    debugln("Annotating ",
             *argument,
             " in ",
             argument->getParent()->getName(),
@@ -252,8 +251,7 @@ bool TypeInference::annotate(llvm::Module &M) {
 
   // Annotate each of the return types.
   for (auto const [function, type] : return_types_to_annotate) {
-    println("Annotating ", function->getName(), " return of type ", *type);
-    println(*function);
+    debugln("Annotating ", function->getName(), " return of type ", *type);
     annotate_return_type(*function, *type);
   }
 
