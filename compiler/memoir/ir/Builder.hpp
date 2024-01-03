@@ -1,6 +1,5 @@
 #ifndef MEMOIR_BUILDER_H
 #define MEMOIR_BUILDER_H
-#pragma once
 
 #include <initializer_list>
 #include <type_traits>
@@ -27,14 +26,14 @@ public:
                       "Could not determine LLVM Module of basic block.");
   }
 
-  MemOIRBuilder(llvm::Instruction *IP, bool InsertAfter = true)
+  MemOIRBuilder(llvm::Instruction *IP, bool InsertAfter = false)
     : M(IP->getModule()),
-      IRBuilder<>((InsertAfter) ? IP : IP->getNextNode()) {
+      IRBuilder<>((InsertAfter) ? IP->getNextNode() : IP) {
     MEMOIR_NULL_CHECK(this->M,
                       "Could not determine LLVM Module of insertion point.");
   }
 
-  MemOIRBuilder(MemOIRInst &IP, bool InsertAfter = true)
+  MemOIRBuilder(MemOIRInst &IP, bool InsertAfter = false)
     : MemOIRBuilder(&IP.getCallInst(), InsertAfter) {}
 
   llvm::Module &getModule() {
@@ -106,7 +105,8 @@ public:
     } else if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {
       return nullptr;
     } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
-      return nullptr;
+      return this->CreateSequenceTypeInst(
+          &this->CreateTypeInst(seq_type->getElementType())->getCallInst());
     }
     MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");
   }
@@ -152,23 +152,24 @@ public:
 
   ReferenceTypeInst *CreateReferenceTypeInst(llvm::Value *referenced_type,
                                              const Twine &name = "") {
-    // Fetch the LLVM Function.
-    auto llvm_func =
-        FunctionNames::get_memoir_function(*(this->M),
-                                           MemOIR_Func::REFERENCE_TYPE);
+    return this->create<ReferenceTypeInst>(MemOIR_Func::REFERENCE_TYPE,
+                                           { referenced_type },
+                                           name);
+  }
 
-    // Build the list of arguments.
-    auto llvm_args = vector<llvm::Value *>({ referenced_type });
+  SequenceTypeInst *CreateSequenceTypeInst(llvm::Value *element_type,
+                                           const Twine &name = "") {
+    return this->create<SequenceTypeInst>(MemOIR_Func::SEQUENCE_TYPE,
+                                          { element_type },
+                                          name);
+  }
 
-    // Create the call.
-    auto llvm_call = this->CreateCall(FunctionCallee(llvm_func),
-                                      llvm::ArrayRef(llvm_args),
-                                      name);
-
-    // Convert to MemOIRInst and return.
-    auto memoir_inst = MemOIRInst::get(*llvm_call);
-    auto ref_type_inst = dyn_cast<ReferenceTypeInst>(memoir_inst);
-    return ref_type_inst;
+  AssocArrayTypeInst *CreateAssocArrayTypeInst(llvm::Value *key_type,
+                                               llvm::Value *value_type,
+                                               const Twine &name = "") {
+    return this->create<AssocArrayTypeInst>(MemOIR_Func::ASSOC_ARRAY_TYPE,
+                                            { key_type, value_type },
+                                            name);
   }
 
   // TODO: Add the other derived type instructions.
@@ -530,6 +531,64 @@ public:
     return this->create<DefPHIInst>(MemOIR_Func::DEF_PHI, { collection }, name);
   }
 
+  // Type annotations.
+  MemOIRInst *CreateAssertTypeInst(llvm::Value *object,
+                                   Type &type,
+                                   const Twine &name = "") {
+    // If the type is a CollectionType, create an AssertCollectionTypeInst.
+    if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
+      return this->CreateAssertCollectionTypeInst(object,
+                                                  *collection_type,
+                                                  name);
+    }
+
+    // If the type is a StructType, create an AssertStructTypeInst.
+    if (auto *struct_type = dyn_cast<StructType>(&type)) {
+      return this->CreateAssertStructTypeInst(object, *struct_type, name);
+    }
+  }
+
+  AssertStructTypeInst *CreateAssertStructTypeInst(llvm::Value *strct,
+                                                   Type &type,
+                                                   const Twine &name = "") {
+    // Create the type instruction.
+    auto *type_inst = CreateTypeInst(type, name);
+
+    // Create the type annotation.
+    return this->create<AssertStructTypeInst>(
+        MemOIR_Func::ASSERT_STRUCT_TYPE,
+        { &type_inst->getCallInst(), strct });
+  }
+
+  AssertCollectionTypeInst *CreateAssertCollectionTypeInst(
+      llvm::Value *collection,
+      Type &type,
+      const Twine &name = "") {
+    // Create the type instruction.
+    auto *type_inst = CreateTypeInst(type, name);
+
+    // Create the type annotation.
+    return this->create<AssertCollectionTypeInst>(
+        MemOIR_Func::ASSERT_COLLECTION_TYPE,
+        { &type_inst->getCallInst(), collection });
+  }
+
+  ReturnTypeInst *CreateReturnTypeInst(llvm::Value *type_as_value,
+                                       const Twine &name = "") {
+    // Create the type annotation.
+    return this->create<ReturnTypeInst>(MemOIR_Func::SET_RETURN_TYPE,
+                                        { type_as_value },
+                                        name);
+  }
+
+  ReturnTypeInst *CreateReturnTypeInst(Type &type, const Twine &name = "") {
+    // Create the type instruction.
+    auto *type_inst = CreateTypeInst(type, name);
+
+    // Create the type annotation.
+    return this->CreateReturnTypeInst(&type_inst->getCallInst(), name);
+  }
+
 protected:
   // Borrowed state
   llvm::Module *M;
@@ -568,9 +627,19 @@ protected:
     auto *llvm_func =
         FunctionNames::get_memoir_function(*(this->M), memoir_enum);
 
+    // Create the function callee.
+    auto callee = FunctionCallee(llvm_func);
+
+    // Get the function type so that we know if it's okay to name the resultant.
+    auto *llvm_func_type = callee.getFunctionType();
+    auto *return_type =
+        llvm_func_type == nullptr ? nullptr : llvm_func_type->getReturnType();
+
     // Create the call.
-    auto *llvm_call =
-        this->CreateCall(FunctionCallee(llvm_func), arguments, name);
+    auto *llvm_call = (return_type == nullptr || return_type->isVoidTy())
+                          ? this->CreateCall(callee, arguments)
+                          : this->CreateCall(callee, arguments, name);
+
     MEMOIR_NULL_CHECK(llvm_call,
                       "Error creating LLVM call to memoir function!");
 
