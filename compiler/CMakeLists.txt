@@ -26,10 +26,10 @@ include_directories(
   ${Z3_INCLUDE_DIR}
   # LLVM
   ${LLVM_INCLUDE_DIRS}
-  # External dependencies (NOELLE)
-  ${CMAKE_INSTALL_INCLUDEDIR}
   # memoir dependencies
   ${CMAKE_CURRENT_SOURCE_DIR}
+  # External dependencies (NOELLE)
+  ${CMAKE_INSTALL_INCLUDEDIR}
   )
 
 link_libraries(${Z3_LIBRARIES})
