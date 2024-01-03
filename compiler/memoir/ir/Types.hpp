@@ -85,6 +85,9 @@ public:
   static bool value_is_collection_type(llvm::Value &value);
   static bool value_is_struct_type(llvm::Value &value);
   static bool value_is_type(llvm::Value &value);
+  static bool llvm_type_is_collection_type(llvm::Type &type);
+  static bool llvm_type_is_struct_type(llvm::Type &type);
+  static bool llvm_type_is_type(llvm::Type &type);
 
   TypeCode getCode() const;
 

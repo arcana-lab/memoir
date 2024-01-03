@@ -342,15 +342,8 @@ bool Type::is_collection_type(Type &type) {
   }
 }
 
-bool Type::value_is_collection_type(llvm::Value &value) {
-  if (!isa<llvm::Instruction>(&value) && !isa<llvm::Argument>(&value)) {
-    return false;
-  }
-  auto *type = value.getType();
-  if (!type) {
-    return false;
-  }
-  auto *ptr_type = dyn_cast<llvm::PointerType>(type);
+bool Type::llvm_type_is_collection_type(llvm::Type &type) {
+  auto *ptr_type = dyn_cast<llvm::PointerType>(&type);
   if (!ptr_type) {
     return false;
   }
@@ -369,12 +362,8 @@ bool Type::value_is_collection_type(llvm::Value &value) {
   return type_name == "struct.memoir::Collection";
 }
 
-bool Type::value_is_struct_type(llvm::Value &value) {
-  auto *type = value.getType();
-  if (!type) {
-    return false;
-  }
-  auto *ptr_type = dyn_cast<llvm::PointerType>(type);
+bool Type::llvm_type_is_struct_type(llvm::Type &type) {
+  auto *ptr_type = dyn_cast<llvm::PointerType>(&type);
   if (!ptr_type) {
     return false;
   }
@@ -393,12 +382,8 @@ bool Type::value_is_struct_type(llvm::Value &value) {
   return type_name == "struct.memoir::Struct";
 }
 
-bool Type::value_is_type(llvm::Value &value) {
-  auto *type = value.getType();
-  if (!type) {
-    return false;
-  }
-  auto *ptr_type = dyn_cast<llvm::PointerType>(type);
+bool Type::llvm_type_is_type(llvm::Type &type) {
+  auto *ptr_type = dyn_cast<llvm::PointerType>(&type);
   if (!ptr_type) {
     return false;
   }
@@ -415,6 +400,33 @@ bool Type::value_is_type(llvm::Value &value) {
   }
   auto type_name = elem_struct_type->getName();
   return type_name == "struct.memoir::Type";
+}
+
+bool Type::value_is_collection_type(llvm::Value &value) {
+  if (!isa<llvm::Instruction>(&value) && !isa<llvm::Argument>(&value)) {
+    return false;
+  }
+  auto *type = value.getType();
+  if (!type) {
+    return false;
+  }
+  return llvm_type_is_collection_type(*type);
+}
+
+bool Type::value_is_struct_type(llvm::Value &value) {
+  auto *type = value.getType();
+  if (!type) {
+    return false;
+  }
+  return llvm_type_is_struct_type(*type);
+}
+
+bool Type::value_is_type(llvm::Value &value) {
+  auto *type = value.getType();
+  if (!type) {
+    return false;
+  }
+  return llvm_type_is_type(*type);
 }
 
 /*
