@@ -281,7 +281,7 @@ void MutToImmutVisitor::visitMutAssocWriteInst(MutAssocWriteInst &I) {
 }
 
 void MutToImmutVisitor::visitIndexReadInst(IndexReadInst &I) {
-  MemOIRBuilder builder(I, false);
+  MemOIRBuilder builder(I, true);
 
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
@@ -305,7 +305,7 @@ void MutToImmutVisitor::visitIndexReadInst(IndexReadInst &I) {
 }
 
 void MutToImmutVisitor::visitAssocReadInst(AssocReadInst &I) {
-  MemOIRBuilder builder(I, false);
+  MemOIRBuilder builder(I, true);
 
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
@@ -329,7 +329,7 @@ void MutToImmutVisitor::visitAssocReadInst(AssocReadInst &I) {
 }
 
 void MutToImmutVisitor::visitIndexGetInst(IndexGetInst &I) {
-  MemOIRBuilder builder(I, false);
+  MemOIRBuilder builder(I, true);
 
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
@@ -353,7 +353,7 @@ void MutToImmutVisitor::visitIndexGetInst(IndexGetInst &I) {
 }
 
 void MutToImmutVisitor::visitAssocGetInst(AssocGetInst &I) {
-  MemOIRBuilder builder(I, false);
+  MemOIRBuilder builder(I, true);
 
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
@@ -562,7 +562,7 @@ void MutToImmutVisitor::visitMutSeqSplitInst(MutSeqSplitInst &I) {
 }
 
 void MutToImmutVisitor::visitAssocHasInst(AssocHasInst &I) {
-  MemOIRBuilder builder(I, false);
+  MemOIRBuilder builder(I, true);
 
   // Split the live range of the collection being written.
   auto *collection_orig = &I.getObjectOperand();
@@ -583,7 +583,7 @@ void MutToImmutVisitor::visitAssocHasInst(AssocHasInst &I) {
 }
 
 void MutToImmutVisitor::visitMutAssocRemoveInst(MutAssocRemoveInst &I) {
-  MemOIRBuilder builder(I, false);
+  MemOIRBuilder builder(I);
 
   // Split the live range of the collection being written.
   auto *collection_orig = &I.getCollection();
@@ -607,7 +607,7 @@ void MutToImmutVisitor::visitMutAssocRemoveInst(MutAssocRemoveInst &I) {
 }
 
 void MutToImmutVisitor::visitMutAssocInsertInst(MutAssocInsertInst &I) {
-  MemOIRBuilder builder(I, false);
+  MemOIRBuilder builder(I);
 
   // Split the live range of the collection being written.
   auto *collection_orig = &I.getCollection();
