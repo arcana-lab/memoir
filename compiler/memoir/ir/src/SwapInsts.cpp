@@ -15,7 +15,7 @@ TO_STRING(SeqSwapInst)
 
 llvm::Value &SeqSwapInst::getIncomingCollectionFor(
     llvm::Value &collection) const {
-  return *(this->getIncomingCollectionForAsUse(collection).get());
+  return *(this->getIncomingCollectionAsUseFor(collection).get());
 }
 
 llvm::Use &SeqSwapInst::getIncomingCollectionAsUseFor(
@@ -60,7 +60,7 @@ TO_STRING(SeqSwapWithinInst)
 
 llvm::Value &SeqSwapWithinInst::getIncomingCollectionFor(
     llvm::Value &collection) const {
-  return *(this->getIncomingCollectionForAsUse(collection).get());
+  return *(this->getIncomingCollectionAsUseFor(collection).get());
 }
 
 llvm::Use &SeqSwapWithinInst::getIncomingCollectionAsUseFor(
