@@ -1020,7 +1020,7 @@ struct SwapInst : public MemOIRInst {
 
   virtual llvm::Value &getIncomingCollectionFor(
       llvm::Value &collection) const = 0;
-  virtual llvm::Use &getIncomingCollectionForAsUse(
+  virtual llvm::Use &getIncomingCollectionAsUseFor(
       llvm::Value &collection) const = 0;
 
   virtual llvm::Value &getFromCollection() const = 0;
@@ -1052,7 +1052,7 @@ struct SwapInst : public MemOIRInst {
 struct SeqSwapInst : public SwapInst {
 public:
   llvm::Value &getIncomingCollectionFor(llvm::Value &collection) const override;
-  llvm::Use &getIncomingCollectionForAsUse(
+  llvm::Use &getIncomingCollectionAsUseFor(
       llvm::Value &collection) const override;
 
   llvm::Value &getFromCollection() const override;
@@ -1085,7 +1085,7 @@ protected:
 struct SeqSwapWithinInst : public SwapInst {
 public:
   llvm::Value &getIncomingCollectionFor(llvm::Value &collection) const override;
-  llvm::Use &getIncomingCollectionForAsUse(
+  llvm::Use &getIncomingCollectionAsUseFor(
       llvm::Value &collection) const override;
 
   llvm::Value &getFromCollection() const override;

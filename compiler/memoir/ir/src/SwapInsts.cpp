@@ -18,7 +18,7 @@ llvm::Value &SeqSwapInst::getIncomingCollectionFor(
   return *(this->getIncomingCollectionForAsUse(collection).get());
 }
 
-llvm::Use &SeqSwapInst::getIncomingCollectionForAsUse(
+llvm::Use &SeqSwapInst::getIncomingCollectionAsUseFor(
     llvm::Value &collection) const {
   // Determine which incoming collection matches this value from the result
   // pair.
@@ -63,7 +63,7 @@ llvm::Value &SeqSwapWithinInst::getIncomingCollectionFor(
   return *(this->getIncomingCollectionForAsUse(collection).get());
 }
 
-llvm::Use &SeqSwapWithinInst::getIncomingCollectionForAsUse(
+llvm::Use &SeqSwapWithinInst::getIncomingCollectionAsUseFor(
     llvm::Value &collection) const {
   // Determine if the collection value is the same as our result.
   MEMOIR_ASSERT(&collection == &this->getResult(),
