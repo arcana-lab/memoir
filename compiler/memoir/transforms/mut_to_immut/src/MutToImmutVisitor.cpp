@@ -110,10 +110,12 @@ MutToImmutVisitor::MutToImmutVisitor(
     arcana::noelle::DominatorForest &DT,
     ordered_set<llvm::Value *> memoir_names,
     map<llvm::PHINode *, llvm::Value *> inserted_phis,
-    MutToImmutStats *stats)
+    MutToImmutStats *stats,
+    bool construct_use_phis)
   : DT(DT),
     inserted_phis(inserted_phis),
-    stats(stats) {
+    stats(stats),
+    construct_use_phis(construct_use_phis) {
   this->reaching_definitions = {};
   for (auto *name : memoir_names) {
     this->set_reaching_definition(name, name);
@@ -281,8 +283,6 @@ void MutToImmutVisitor::visitMutAssocWriteInst(MutAssocWriteInst &I) {
 }
 
 void MutToImmutVisitor::visitIndexReadInst(IndexReadInst &I) {
-  MemOIRBuilder builder(I, true);
-
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
@@ -290,23 +290,25 @@ void MutToImmutVisitor::visitIndexReadInst(IndexReadInst &I) {
   // Update the read to operate on the reaching definition.
   I.getObjectOperandAsUse().set(collection_value);
 
-  // Build a UsePHI for the instruction.
-  auto *use_phi = builder.CreateUsePHI(collection_value);
-  auto *use_phi_value = &use_phi->getResultCollection();
+  if (this->construct_use_phis) {
+    MemOIRBuilder builder(I, true);
 
-  // Set the UseInst for the UsePHI.
-  // use_phi->setUseInst(I);
+    // Build a UsePHI for the instruction.
+    auto *use_phi = builder.CreateUsePHI(collection_value);
+    auto *use_phi_value = &use_phi->getResultCollection();
 
-  // Update the reaching definitions.
-  this->set_reaching_definition(collection_orig, use_phi_value);
-  this->set_reaching_definition(use_phi_value, collection_value);
+    // Set the UseInst for the UsePHI.
+    // use_phi->setUseInst(I);
+
+    // Update the reaching definitions.
+    this->set_reaching_definition(collection_orig, use_phi_value);
+    this->set_reaching_definition(use_phi_value, collection_value);
+  }
 
   return;
 }
 
 void MutToImmutVisitor::visitAssocReadInst(AssocReadInst &I) {
-  MemOIRBuilder builder(I, true);
-
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
@@ -314,23 +316,25 @@ void MutToImmutVisitor::visitAssocReadInst(AssocReadInst &I) {
   // Update the read to operate on the reaching definition.
   I.getObjectOperandAsUse().set(collection_value);
 
-  // Build a UsePHI for the instruction.
-  auto *use_phi = builder.CreateUsePHI(collection_value);
-  auto *use_phi_value = &use_phi->getResultCollection();
+  if (this->construct_use_phis) {
+    MemOIRBuilder builder(I, true);
 
-  // Set the UseInst for the UsePHI.
-  // use_phi->setUseInst(I);
+    // Build a UsePHI for the instruction.
+    auto *use_phi = builder.CreateUsePHI(collection_value);
+    auto *use_phi_value = &use_phi->getResultCollection();
 
-  // Update the reaching definitions.
-  this->set_reaching_definition(collection_orig, use_phi_value);
-  this->set_reaching_definition(use_phi_value, collection_value);
+    // Set the UseInst for the UsePHI.
+    // use_phi->setUseInst(I);
+
+    // Update the reaching definitions.
+    this->set_reaching_definition(collection_orig, use_phi_value);
+    this->set_reaching_definition(use_phi_value, collection_value);
+  }
 
   return;
 }
 
 void MutToImmutVisitor::visitIndexGetInst(IndexGetInst &I) {
-  MemOIRBuilder builder(I, true);
-
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
@@ -338,23 +342,25 @@ void MutToImmutVisitor::visitIndexGetInst(IndexGetInst &I) {
   // Update the read to operate on the reaching definition.
   I.getObjectOperandAsUse().set(collection_value);
 
-  // Build a UsePHI for the instruction.
-  auto *use_phi = builder.CreateUsePHI(collection_value);
-  auto *use_phi_value = &use_phi->getResultCollection();
+  if (this->construct_use_phis) {
+    MemOIRBuilder builder(I, true);
 
-  // Set the UseInst for the UsePHI.
-  // use_phi->setUseInst(I);
+    // Build a UsePHI for the instruction.
+    auto *use_phi = builder.CreateUsePHI(collection_value);
+    auto *use_phi_value = &use_phi->getResultCollection();
 
-  // Update the reaching definitions.
-  this->set_reaching_definition(collection_orig, use_phi_value);
-  this->set_reaching_definition(use_phi_value, collection_value);
+    // Set the UseInst for the UsePHI.
+    // use_phi->setUseInst(I);
+
+    // Update the reaching definitions.
+    this->set_reaching_definition(collection_orig, use_phi_value);
+    this->set_reaching_definition(use_phi_value, collection_value);
+  }
 
   return;
 }
 
 void MutToImmutVisitor::visitAssocGetInst(AssocGetInst &I) {
-  MemOIRBuilder builder(I, true);
-
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
@@ -362,16 +368,20 @@ void MutToImmutVisitor::visitAssocGetInst(AssocGetInst &I) {
   // Update the read to operate on the reaching definition.
   I.getObjectOperandAsUse().set(collection_value);
 
-  // Build a UsePHI for the instruction.
-  auto *use_phi = builder.CreateUsePHI(collection_value);
-  auto *use_phi_value = &use_phi->getResultCollection();
+  if (this->construct_use_phis) {
+    MemOIRBuilder builder(I, true);
 
-  // Set the UseInst for the UsePHI.
-  // use_phi->setUseInst(I);
+    // Build a UsePHI for the instruction.
+    auto *use_phi = builder.CreateUsePHI(collection_value);
+    auto *use_phi_value = &use_phi->getResultCollection();
 
-  // Update the reaching definitions.
-  this->set_reaching_definition(collection_orig, use_phi_value);
-  this->set_reaching_definition(use_phi_value, collection_value);
+    // Set the UseInst for the UsePHI.
+    // use_phi->setUseInst(I);
+
+    // Update the reaching definitions.
+    this->set_reaching_definition(collection_orig, use_phi_value);
+    this->set_reaching_definition(use_phi_value, collection_value);
+  }
 
   return;
 }
@@ -562,22 +572,24 @@ void MutToImmutVisitor::visitMutSeqSplitInst(MutSeqSplitInst &I) {
 }
 
 void MutToImmutVisitor::visitAssocHasInst(AssocHasInst &I) {
-  MemOIRBuilder builder(I, true);
+  if (this->construct_use_phis) {
+    MemOIRBuilder builder(I, true);
 
-  // Split the live range of the collection being written.
-  auto *collection_orig = &I.getObjectOperand();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
+    // Split the live range of the collection being written.
+    auto *collection_orig = &I.getObjectOperand();
+    auto *collection_value = update_reaching_definition(collection_orig, I);
 
-  // Update the write to operate on the reaching definition.
-  I.getObjectOperandAsUse().set(collection_value);
+    // Update the write to operate on the reaching definition.
+    I.getObjectOperandAsUse().set(collection_value);
 
-  // Build a DefPHI for the instruction.
-  auto *use_phi = builder.CreateUsePHI(collection_value);
-  auto *use_phi_value = &use_phi->getUsedCollection();
+    // Build a DefPHI for the instruction.
+    auto *use_phi = builder.CreateUsePHI(collection_value);
+    auto *use_phi_value = &use_phi->getUsedCollection();
 
-  // Update the reaching definitions.
-  this->set_reaching_definition(collection_orig, use_phi_value);
-  this->set_reaching_definition(use_phi_value, collection_value);
+    // Update the reaching definitions.
+    this->set_reaching_definition(collection_orig, use_phi_value);
+    this->set_reaching_definition(use_phi_value, collection_value);
+  }
 
   return;
 }

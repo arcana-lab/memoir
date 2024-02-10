@@ -50,6 +50,10 @@ using namespace llvm::memoir;
 
 namespace llvm::memoir {
 
+llvm::cl::opt<bool> construct_use_phis(
+    "enable-use-phis",
+    cl::desc("Enable construction of Use PHIs."));
+
 struct MutToImmutPass : public ModulePass {
   static char ID;
 
@@ -182,6 +186,11 @@ struct MutToImmutPass : public ModulePass {
             if (!isa<MutInst>(memoir_inst) && !isa<AccessInst>(memoir_inst)) {
               continue;
             }
+            // Only enable read instructions if UsePHIs are enabled.
+            if (!construct_use_phis
+                && (isa<ReadInst>(memoir_inst) || isa<GetInst>(memoir_inst))) {
+              continue;
+            }
             if (auto *append_inst = dyn_cast<MutSeqAppendInst>(memoir_inst)) {
               if (name != &append_inst->getCollection()) {
                 continue;
@@ -273,7 +282,11 @@ struct MutToImmutPass : public ModulePass {
       }
 
       // Initialize the reaching definitions.
-      MutToImmutVisitor MTIV(DT, memoir_names, inserted_phis, &stats);
+      MutToImmutVisitor MTIV(DT,
+                             memoir_names,
+                             inserted_phis,
+                             &stats,
+                             construct_use_phis);
 
       // Apply rewrite rules and renaming for reaching definitions.
       infoln("Applying rewrite rules");

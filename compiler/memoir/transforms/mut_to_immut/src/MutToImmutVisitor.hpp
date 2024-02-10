@@ -30,7 +30,8 @@ public:
   MutToImmutVisitor(arcana::noelle::DominatorForest &DT,
                     ordered_set<llvm::Value *> memoir_names,
                     map<llvm::PHINode *, llvm::Value *> inserted_phis,
-                    MutToImmutStats *stats = nullptr);
+                    MutToImmutStats *stats = nullptr,
+                    bool construct_use_phis = false);
 
   // LLVM operations
   void visitInstruction(llvm::Instruction &I);
@@ -88,6 +89,9 @@ protected:
   arcana::noelle::DominatorForest &DT;
   set<llvm::Instruction *> instructions_to_delete;
   map<llvm::PHINode *, llvm::Value *> inserted_phis;
+
+  // Options.
+  bool construct_use_phis;
 
   // Statistics
   MutToImmutStats *stats;
