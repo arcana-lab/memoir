@@ -49,10 +49,9 @@ enum ExpressionKind {
   EK_BasicEnd,
   EK_MemOIRStart,
   EK_MemOIR,
-  EK_Collection,
-  EK_Struct,
   EK_Slice,
   EK_Size,
+  EK_End,
   EK_MemOIREnd
 };
 
@@ -462,98 +461,9 @@ public:
   }
 };
 
-struct CollectionExpression : public MemOIRExpression {
-public:
-  CollectionExpression(Collection &C)
-    : MemOIRExpression(EK_Collection),
-      C(&C) {}
-  CollectionExpression(llvm::Value &V)
-    : MemOIRExpression(EK_Collection),
-      C(nullptr) {
-    this->value = &V;
-  }
-
-  bool equals(const ValueExpression &E) const override;
-
-  bool isAvailable(llvm::Instruction &IP,
-                   const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) override;
-
-  llvm::Value *materialize(llvm::Instruction &IP,
-                           MemOIRBuilder *builder = nullptr,
-                           const llvm::DominatorTree *DT = nullptr,
-                           llvm::CallBase *call_context = nullptr) override;
-
-  std::string toString(std::string indent = "") const override;
-
-  static bool classof(const ValueExpression *E) {
-    return (E->getKind() == EK_Collection);
-  }
-
-  Collection *C;
-};
-
-struct StructExpression : public MemOIRExpression {
-public:
-  StructExpression(Struct &S) : MemOIRExpression(EK_Struct), S(S) {}
-
-  bool equals(const ValueExpression &E) const override;
-
-  bool isAvailable(llvm::Instruction &IP,
-                   const llvm::DominatorTree *DT = nullptr,
-                   llvm::CallBase *call_context = nullptr) override;
-
-  llvm::Value *materialize(llvm::Instruction &IP,
-                           MemOIRBuilder *builder = nullptr,
-                           const llvm::DominatorTree *DT = nullptr,
-                           llvm::CallBase *call_context = nullptr) override;
-
-  std::string toString(std::string indent = "") const override;
-
-  static bool classof(const ValueExpression *E) {
-    return (E->getKind() == EK_Struct);
-  }
-
-  Struct &S;
-};
-
-// struct SliceExpression : public MemOIRExpression {
-// public:
-//   SliceExpression(SliceInst &I) : MemOIRExpression(EK_Slice), I(&I) {}
-//   SliceExpression(CollectionExpression &C,
-//                   ValueExpression &left,
-//                   ValueExpression &right)
-//     : MemOIRExpression(EK_Slice),
-//       CE(&C),
-//       left_index(&left),
-//       right_index(&right) {}
-
-//   bool isAvailable(llvm::Instruction &IP,
-//                    const llvm::DominatorTree *DT = nullptr,
-//                    llvm::CallBase *call_context = nullptr) override;
-
-//   llvm::Value *materialize(llvm::Instruction &IP,
-//                            MemOIRBuilder *builder = nullptr,
-//                            const llvm::DominatorTree *DT = nullptr,
-//                            llvm::CallBase *call_context = nullptr) override;
-
-//   std::string toString(std::string indent = "") const override;
-
-//   static bool classof(const ValueExpression *E) {
-//     return (E->getKind() == EK_Slice);
-//   }
-
-//   SliceInst *I;
-//   CollectionExpression *CE;
-//   ValueExpression *left_index;
-//   ValueExpression *right_index;
-// };
-
 struct SizeExpression : public MemOIRExpression {
 public:
-  SizeExpression(CollectionExpression *CE)
-    : MemOIRExpression(EK_Size),
-      CE(CE) {}
+  SizeExpression(ValueExpression *CE) : MemOIRExpression(EK_Size), CE(CE) {}
   SizeExpression() : SizeExpression(nullptr) {}
 
   bool equals(const ValueExpression &E) const override;
@@ -579,7 +489,29 @@ public:
     return (E->getKind() == EK_Size);
   }
 
-  CollectionExpression *CE;
+  ValueExpression *CE;
+};
+
+struct EndExpression : public MemOIRExpression {
+public:
+  EndExpression() : MemOIRExpression(EK_End) {}
+
+  bool equals(const ValueExpression &E) const override;
+
+  bool isAvailable(llvm::Instruction &IP,
+                   const llvm::DominatorTree *DT = nullptr,
+                   llvm::CallBase *call_context = nullptr) override;
+
+  llvm::Value *materialize(llvm::Instruction &IP,
+                           MemOIRBuilder *builder = nullptr,
+                           const llvm::DominatorTree *DT = nullptr,
+                           llvm::CallBase *call_context = nullptr) override;
+
+  std::string toString(std::string indent = "") const override;
+
+  static bool classof(const ValueExpression *E) {
+    return (E->getKind() == EK_End);
+  }
 };
 
 // Casting.

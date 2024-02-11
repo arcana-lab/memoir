@@ -299,20 +299,6 @@ bool PHIExpression::equals(const ValueExpression &E) const {
   return false;
 }
 
-// CollectionExpression
-bool CollectionExpression::equals(const ValueExpression &E) const {
-  CHECK_OTHER(E, CollectionExpression);
-  // TODO
-  return false;
-}
-
-// StructExpression
-bool StructExpression::equals(const ValueExpression &E) const {
-  CHECK_OTHER(E, StructExpression);
-  // TODO
-  return false;
-}
-
 // SizeExpression
 bool SizeExpression::equals(const ValueExpression &E) const {
   CHECK_OTHER(E, SizeExpression);
@@ -332,6 +318,13 @@ opt<z3::expr> SizeExpression::to_expr(z3::context &c,
   assumptions.push_back(implication);
 
   return collection_expr;
+}
+
+// EndExpression
+bool EndExpression::equals(const ValueExpression &E) const {
+  CHECK_OTHER(E, EndExpression);
+  // TODO
+  return false;
 }
 
 } // namespace llvm::memoir

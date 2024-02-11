@@ -14,10 +14,16 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
 }
 
 std::string ConstantExpression::toString(std::string indent) const {
-  return "constant";
+  std::string llvm_str = "";
+  llvm::raw_string_ostream ss(llvm_str);
+  ss << C;
+  return "constant(" + llvm_str + ")";
 }
 
 std::string VariableExpression::toString(std::string indent) const {
+  if (V.hasName()) {
+    return "variable(" + V.getName().str() + ")";
+  }
   return "variable";
 }
 
@@ -53,20 +59,12 @@ std::string CallExpression::toString(std::string indent) const {
   return "call";
 }
 
-std::string CollectionExpression::toString(std::string indent) const {
-  return "collection";
-}
-
-std::string StructExpression::toString(std::string indent) const {
-  return "struct";
-}
-
-// std::string SliceExpression::toString(std::string indent) const {
-// return "slice";
-// }
-
 std::string SizeExpression::toString(std::string indent) const {
   return "size";
+}
+
+std::string EndExpression::toString(std::string indent) const {
+  return "end";
 }
 
 } // namespace llvm::memoir
