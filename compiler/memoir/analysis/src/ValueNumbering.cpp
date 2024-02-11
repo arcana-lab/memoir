@@ -127,13 +127,13 @@ ValueExpression *ValueNumbering::lookupOrInsert(llvm::Use &U,
 
 // Value visitors.
 ValueExpression *ValueNumbering::visitUse(llvm::Use &U) {
-  // Check if this use is a collection.
-  if (Type::value_is_collection_type(*U.get())) {
-    auto collection = U.get();
-    if (collection) {
-      return this->lookupOrInsert(U, new CollectionExpression(*collection));
-    }
-  }
+  // // Check if this use is a collection.
+  // if (Type::value_is_collection_type(*U.get())) {
+  //   auto collection = U.get();
+  //   if (collection) {
+  //     return this->lookupOrInsert(U, new CollectionExpression(*collection));
+  //   }
+  // }
 
   // Otherwise, visit the Value being used.
   auto used_value = U.get();
@@ -345,13 +345,9 @@ ValueExpression *ValueNumbering::visitSizeInst(SizeInst &I) {
   this->insert(I, size_expr);
 
   // Get the collection expression.
-  auto op_expr =
+  auto collection_expr =
       this->lookupOrInsert(I.getCollectionAsUse(),
-                           new CollectionExpression(I.getCollection()));
-  auto collection_expr = dyn_cast<CollectionExpression>(op_expr);
-  MEMOIR_NULL_CHECK(
-      collection_expr,
-      "SizeInst does not an operand of type CollectionExpression!");
+                           this->visitValue(I.getCollection()));
 
   // Initialize the size expression.
   size_expr->CE = collection_expr;
