@@ -207,17 +207,17 @@ void LiveRangeAnalysis::evaluate(LiveRangeConstraintGraph &graph) {
   }
 
   // Print the results.
-  println("Valuation:");
+  debugln("Valuation:");
   for (auto *node : graph) {
     auto *range = graph.node_prop(node);
 
     this->live_ranges[node][nullptr] = range;
 
-    println(*node);
+    debugln(*node);
     if (range) {
-      println("    ==  ", *range);
+      debugln("    ==  ", *range);
     } else {
-      println("    ==  ⊥");
+      debugln("    ==  ⊥");
     }
   }
 

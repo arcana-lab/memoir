@@ -32,11 +32,20 @@ struct ValueRange;
  */
 class RangeAnalysis {
 public:
+  /**
+   * Construct a new intraprocedural range analysis.
+   * Requires abstractions from NOELLE.
+   */
   RangeAnalysis(llvm::Function &F, arcana::noelle::Noelle &noelle);
-  ~RangeAnalysis();
 
+  /**
+   * Queries the value range for the given LLVM Use @use.
+   */
   ValueRange &get_value_range(llvm::Use &use);
 
+  /**
+   * Prints the results of the Range Analysis.
+   */
   void dump();
 
 protected:
@@ -68,6 +77,9 @@ protected:
 
   // Analysis driver.
   bool analyze(llvm::Function &F, arcana::noelle::Noelle &noelle);
+
+public:
+  ~RangeAnalysis();
 };
 
 /**
@@ -76,10 +88,16 @@ protected:
  */
 struct ValueRange {
 public:
+  /**
+   * Get the Value Expression for the lower range.
+   */
   ValueExpression &get_lower() const {
     return this->_lower;
   }
 
+  /**
+   * Get the Value Expression for the upper range.
+   */
   ValueExpression &get_upper() const {
     return this->_upper;
   }

@@ -35,7 +35,6 @@ public:
       context_sensitive(context_sensitive) {
     this->run();
   }
-  ~LiveRangeAnalysis();
 
   /**
    * Query the live range for MEMOIR sequence variable @V.
@@ -79,6 +78,9 @@ protected:
   llvm::Module &M;
   arcana::noelle::Noelle &noelle;
   bool context_sensitive;
+
+public:
+  ~LiveRangeAnalysis();
 };
 
 struct LiveRangeConstraintGraph

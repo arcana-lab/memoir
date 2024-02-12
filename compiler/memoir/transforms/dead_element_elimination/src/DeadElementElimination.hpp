@@ -46,6 +46,10 @@ namespace llvm::memoir {
 
 class DeadElementElimination {
 public:
+  /**
+   * Performs Dead Element Elimination on the input program @M.
+   * Requires the results of Live Range Analysis @LRA.
+   */
   DeadElementElimination(llvm::Module &M, LiveRangeAnalysis &LRA)
     : M(M),
       LRA(LRA) {
@@ -53,6 +57,9 @@ public:
     this->_transformed = this->run();
   }
 
+  /**
+   * Queries wether the transformation modified the program or not.
+   */
   bool transformed() const {
     return this->_transformed;
   }
