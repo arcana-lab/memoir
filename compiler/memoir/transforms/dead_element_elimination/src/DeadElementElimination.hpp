@@ -180,8 +180,53 @@ protected:
             auto &original_collection = write_inst->getObjectOperand();
             phi->addIncoming(&original_collection, original_bb);
 
-          } else if (auto *insert_inst = as<IndexWriteInst>(inst)) {
-            warnln("Insert instruction is unimplemented!");
+          } else if (auto *insert_inst = as<SeqInsertInst>(inst)) {
+
+            // Fetch the insertion point.
+            auto &index = insert_inst->getInsertionPoint();
+
+            // We will first construct the conditional check on the index.
+            MemOIRBuilder builder(inst);
+            llvm::Value *cond = nullptr;
+            if (materialized_upper) {
+              auto *upper_cmp =
+                  builder.CreateICmpULT(&index, materialized_upper);
+              cond = upper_cmp;
+            }
+
+            if (!cond) {
+              MEMOIR_UNREACHABLE("Could not create the comparison!");
+            }
+
+            // Save the original basic block.
+            auto *original_bb = inst->getParent();
+
+            // Then, construct a hammock to move the insert to.
+            // NOTE: @new_terminator is the terminator of the "then" basic
+            // block.
+            auto *then_terminator =
+                llvm::SplitBlockAndInsertIfThen(/* Condition = */ cond,
+                                                /* Split Before = */ inst,
+                                                /* Unreachable = */ false);
+
+            // Create a PHI at the split point.
+            builder.SetInsertPoint(inst);
+            auto *phi = builder.CreatePHI(inst->getType(), 2, "dee");
+
+            // Move the instruction to the "then" basic block.
+            inst->moveBefore(then_terminator);
+
+            // Replace uses of the insert result with the PHI node.
+            inst->replaceAllUsesWith(phi);
+
+            // Patch up the PHI for the "then" branch.
+            auto *then_bb = then_terminator->getParent();
+            phi->addIncoming(inst, then_bb);
+
+            // Patch up the PHI for the "else" branch.
+            auto &original_collection = insert_inst->getBaseCollection();
+            phi->addIncoming(&original_collection, original_bb);
+
           } else if (auto *swap_inst = as<SeqSwapInst>(inst)) {
             warnln("Swap instruction is unimplemented!");
           } else if (auto *swap_within_inst = as<SeqSwapWithinInst>(inst)) {
