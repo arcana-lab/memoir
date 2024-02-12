@@ -129,7 +129,7 @@ bool RangeAnalysis::analyze(llvm::Function &F, arcana::noelle::Noelle &noelle) {
 
   // Get all the loops in the function.
   auto &loops = MEMOIR_SANITIZE(
-      noelle.getLoops(&F),
+      noelle.getLoopContents(&F),
       "NOELLE gave us NULL instead of a vector of loop structures!");
 
   // For each index value, determine the range of its uses:

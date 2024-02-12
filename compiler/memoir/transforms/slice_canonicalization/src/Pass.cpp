@@ -64,12 +64,12 @@ struct SliceCanonicalizationPass : public ModulePass {
     auto &SA = StructAnalysis::get();
     auto &CA = CollectionAnalysis::get(noelle);
 
-    auto loops = noelle.getLoops();
+    auto loops = noelle.getLoopContents();
     MEMOIR_NULL_CHECK(loops, "Unable to get the loops from NOELLE!");
 
     // Gather all memoir collections and their canonical ranges.
     for (auto loop : *loops) {
-      MEMOIR_NULL_CHECK(loop, "NOELLE gave us a NULL LoopDependenceInfo");
+      MEMOIR_NULL_CHECK(loop, "NOELLE gave us a NULL LoopContent");
 
       auto loop_structure = loop->getLoopStructure();
       MEMOIR_NULL_CHECK(loop_structure, "NOELLE gave us a NULL LoopStructure");
