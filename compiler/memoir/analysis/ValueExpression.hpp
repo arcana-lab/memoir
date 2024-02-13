@@ -271,6 +271,10 @@ public:
       this->arguments.push_back(operand);
     }
   }
+  BasicExpression(unsigned opcode,
+                  std::initializer_list<ValueExpression *> operands)
+    : BasicExpression(opcode, vector<ValueExpression *>(operands)) {}
+
   BasicExpression(ExpressionKind EK, llvm::Instruction &I)
     : ValueExpression(EK, &I, I.getOpcode()),
       I(&I) {}
