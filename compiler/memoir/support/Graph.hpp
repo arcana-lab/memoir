@@ -46,7 +46,7 @@ public:
     for (auto &[n, e] : this->outgoing(a))
       if (n == b)
         return e.prop();
-    abort(); // no edge!
+    MEMOIR_UNREACHABLE("Unable to find edge!");
   }
 
   // Given a start node, produce a vector that is the depth first
