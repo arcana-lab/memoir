@@ -89,6 +89,13 @@ public:
 struct ValueRange {
 public:
   /**
+   * Construct a new value range of [@lower,@upper).
+   */
+  ValueRange(ValueExpression &lower, ValueExpression &upper)
+    : _lower(lower),
+      _upper(upper) {}
+
+  /**
    * Get the Value Expression for the lower range.
    */
   ValueExpression &get_lower() const {
@@ -109,10 +116,6 @@ public:
   }
 
 protected:
-  ValueRange(ValueExpression &lower, ValueExpression &upper)
-    : _lower(lower),
-      _upper(upper) {}
-
   ValueExpression &_lower;
   ValueExpression &_upper;
 
