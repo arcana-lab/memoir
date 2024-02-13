@@ -49,8 +49,8 @@ using namespace llvm::memoir;
 
 namespace llvm::memoir {
 
-static llvm::cl::opt<bool> EnableCollectionLowering(
-    "collection-lowering",
+static llvm::cl::opt<bool> DisableCollectionLowering(
+    "disable-collection-lowering",
     llvm::cl::desc("Enable collection lowering"));
 
 struct SSADestructionPass : public ModulePass {
@@ -127,7 +127,7 @@ struct SSADestructionPass : public ModulePass {
     SSADestructionStats stats;
 
     // Initialize the reaching definitions.
-    SSADestructionVisitor SSADV(M, &stats, EnableCollectionLowering);
+    SSADestructionVisitor SSADV(M, &stats, !DisableCollectionLowering);
 
     for (auto &F : M) {
       if (F.empty()) {
