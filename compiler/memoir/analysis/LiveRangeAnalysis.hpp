@@ -56,6 +56,18 @@ public:
     return this->live_ranges;
   }
 
+  /**
+   * Perform the disjunctive merge of two value ranges, @range1 and @range2.
+   * Returns the resultant value range.
+   */
+  static ValueRange *disjunctive_merge(ValueRange *range1, ValueRange *range2);
+
+  /**
+   * Perform the conjunctive merge of two value ranges, @range1 and @range2.
+   * Returns the resultant value range.
+   */
+  static ValueRange *conjunctive_merge(ValueRange *range1, ValueRange *range2);
+
 protected:
   // Analysis driver.
   void run();
@@ -83,11 +95,19 @@ public:
   ~LiveRangeAnalysis();
 };
 
+using Constraint = std::function<ValueRange *(ValueRange *)>;
+
 struct LiveRangeConstraintGraph
-  : public DirectedGraph<llvm::Value *, llvm::Use *, ValueRange *> {
+  : public DirectedGraph<llvm::Value *, Constraint, ValueRange *> {
 public:
+  // Constraints.
+  ValueRange *propagate_edge(llvm::Value *from,
+                             llvm::Value *to,
+                             Constraint constraint);
+
+  // Construction.
   void add_uses_to_graph(RangeAnalysis &RA, llvm::Instruction &I);
-  void add_use_to_graph(llvm::Use &U);
+  void add_use_to_graph(llvm::Use &U, Constraint constraint);
   void add_index_use_to_graph(llvm::Use &U, llvm::Value &C);
   void add_index_to_graph(llvm::Value &V, ValueRange &VR);
   void add_seq_to_graph(llvm::Value &V);

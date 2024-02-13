@@ -152,17 +152,15 @@ void LiveRangeAnalysis::evaluate(LiveRangeConstraintGraph &graph) {
 
     // Evaluate the root of the SCC.
     auto &merged_range = graph.node_prop(root);
-    for (auto [in, _] : condensation.incoming(root)) {
+    for (auto [in, e] : condensation.incoming(root)) {
 
       // Get the incoming live range.
-      auto *range = graph.node_prop(in);
+      auto *range = graph.propagate_edge(in, root, e.prop());
 
       // If the range is underdefined, skip it.
       if (range == nullptr) {
         continue;
       }
-
-      println("merging ", *range);
 
       // Merge the range with the current range.
       // TODO: flesh this out.
@@ -183,10 +181,10 @@ void LiveRangeAnalysis::evaluate(LiveRangeConstraintGraph &graph) {
       }
 
       auto &merged_range = graph.node_prop(node);
-      for (auto [in, _] : graph.incoming(node)) {
+      for (auto [in, e] : graph.incoming(node)) {
 
         // Get the incoming live range.
-        auto *range = graph.node_prop(in);
+        auto *range = graph.propagate_edge(in, node, e.prop());
 
         // If the range is underdefined, skip it.
         if (range == nullptr) {
@@ -239,6 +237,81 @@ LiveRangeAnalysis::~LiveRangeAnalysis() {
        intraprocedural_range_analyses) {
     delete range_analysis;
   }
+}
+
+// Operators.
+
+static ValueExpression &create_min(ValueExpression &expr1,
+                                   ValueExpression &expr2) {
+  return *(new SelectExpression(
+      new ICmpExpression(llvm::CmpInst::Predicate::ICMP_ULE, expr1, expr2),
+      &expr1,
+      &expr2));
+}
+
+static ValueExpression &create_max(ValueExpression &expr1,
+                                   ValueExpression &expr2) {
+  return *(new SelectExpression(
+      new ICmpExpression(llvm::CmpInst::Predicate::ICMP_UGE, expr1, expr2),
+      &expr1,
+      &expr2));
+}
+
+ValueRange *LiveRangeAnalysis::disjunctive_merge(ValueRange *range1,
+                                                 ValueRange *range2) {
+
+  // If either range is NULL, return the other.
+  if (range1 == nullptr) {
+    return range2;
+  }
+  if (range2 == nullptr) {
+    return range1;
+  }
+
+  // Unpack the value ranges.
+  auto &upper1 = range1->get_upper();
+  auto &lower1 = range1->get_lower();
+  auto &upper2 = range2->get_upper();
+  auto &lower2 = range2->get_lower();
+
+  // Construct the disjunctive merge of the two ranges.
+  auto &lower_min = create_min(lower1, lower2);
+
+  auto &upper_max = create_max(upper1, upper2);
+
+  // Construct the new value range.
+  auto *new_range = new ValueRange(lower_min, upper_max);
+
+  // Return.
+  return new_range;
+}
+
+ValueRange *LiveRangeAnalysis::conjunctive_merge(ValueRange *range1,
+                                                 ValueRange *range2) {
+  // If either range is NULL, return the other.
+  if (range1 == nullptr) {
+    return range2;
+  }
+  if (range2 == nullptr) {
+    return range1;
+  }
+
+  // Unpack the value ranges.
+  auto &upper1 = range1->get_upper();
+  auto &lower1 = range1->get_lower();
+  auto &upper2 = range2->get_upper();
+  auto &lower2 = range2->get_lower();
+
+  // Construct the conjunctive merge of the two ranges.
+  auto &lower_max = create_max(lower1, lower2);
+
+  auto &upper_min = create_min(upper1, upper2);
+
+  // Construct the new value range.
+  auto *new_range = new ValueRange(lower_max, upper_min);
+
+  // Return.
+  return new_range;
 }
 
 } // namespace llvm::memoir
