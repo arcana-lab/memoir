@@ -5,7 +5,7 @@ A case for memory object representation in the LLVM IR
 The compiler depends on z3.
 
 ## Building
-To build our noelle instance and the MemOIR passes:
+To build our noelle instance and the MEMOIR passes:
 `make`
 
 To build the unit tests:
@@ -29,10 +29,12 @@ For more verbose outputs, use your judgement with either `memoir::infoln` or  `m
 When formatting your git commit messages, please prefix with "[module1][module2]".
 For example, if you make a change to `compiler/passes/memoir/ir/Instructions.hpp`, you should prepend "[compiler][ir]" to your commit message.
 
-## Additional Information
-Our CGO'24 paper has additional information about MemOIR, you can find it [here](http://mcmichen.cc/files/MEMOIR_CGO_2024.pdf).
+## Documentation
+The [MEMOIR Developer Manual](http://mcmichen.cc/memoir-docs) provides a high-level view of MEMOIR, the compiler, and the supported language APIs.
 
-If you use or build upon MemOIR, we kindly ask that you cite us:
+Our [CGO'24 paper](http://mcmichen.cc/files/MEMOIR_CGO_2024.pdf) has additional information about MEMOIR.
+
+If you use or build upon MEMOIR, we kindly ask that you cite us:
 ```
 @inproceedings(MCMICHEN:2024:MEMOIR,
     title={Representing Data Collections in an SSA Form},
