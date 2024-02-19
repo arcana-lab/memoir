@@ -1,0 +1,61 @@
+#!/bin/bash
+
+function flags {
+    echo "  FLAGS:"
+    echo "    --prefix     Print the installation prefix."
+    echo "    --includedir Directory containing MEMOIR headers."
+    echo "    --bindir     Directory containing MEMOIR executables."
+    echo "    --libdir     Directory containing MEMOIR libraries."
+    echo "    --cflags     C compiler flags for files that include MEMOIR headers."
+    echo "    --cxxflags   C++ compiler flags for files that include MEMOIR headers."
+}
+
+if [[ $# -lt 1 ]]
+then
+    flags
+    exit 1
+fi
+  
+
+while [[ $# -gt 0 ]] ;
+do
+    case $1 in
+        --includedir)
+            echo "@CMAKE_INSTALL_INCLUDEDIR@"
+            shift
+            ;;
+        --bindir)
+            echo "@CMAKE_INSTALL_BINDIR@"
+            shift
+            ;;
+        --libdir)
+            echo "@CMAKE_INSTALL_LIBDIR@"
+            shift
+            ;;
+        --cflags)
+            echo "-I@CMAKE_INSTALL_INCLUDEDIR@"
+            shift
+            ;;
+        --cxxflags)
+            echo "-I@CMAKE_INSTALL_INCLUDEDIR@ -fno-exceptions -fno-rtti"
+            shift
+            ;;
+        -h|--help)
+            flags
+            exit 1
+            ;;
+        -*|--*)
+            PASSES+=("$1")
+            shift
+            ;;
+        *)
+            if [ -n "${INPUT_IR_FILE}" ] ; then
+                echo "Too many positional arguments passed!"
+                usage
+                exit 1
+            fi
+            INPUT_IR_FILE=$1
+            shift
+            ;;
+    esac
+done
