@@ -228,20 +228,3 @@ struct SSADestructionPass : public ModulePass {
 char SSADestructionPass::ID = 0;
 static RegisterPass<SSADestructionPass> X("ssa-destruction",
                                           "Destructs the MemOIR SSA form.");
-
-// Next there is code to register your pass to "clang"
-static SSADestructionPass *_PassMaker = NULL;
-static RegisterStandardPasses _RegPass1(
-    PassManagerBuilder::EP_OptimizerLast,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-      if (!_PassMaker) {
-        PM.add(_PassMaker = new SSADestructionPass());
-      }
-    }); // ** for -Ox
-static RegisterStandardPasses _RegPass2(
-    PassManagerBuilder::EP_EnabledOnOptLevel0,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-      if (!_PassMaker) {
-        PM.add(_PassMaker = new SSADestructionPass());
-      }
-    }); // ** for -O0
