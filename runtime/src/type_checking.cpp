@@ -25,7 +25,7 @@ bool MEMOIR_FUNC(assert_struct_type)(const type_ref type,
     return is_object_type(type);
   }
 
-  MEMOIR_ASSERT((type->equals(object->get_type())),
+  MEMOIR_ASSERT((type->equals(((detail::Object *)object)->get_type())),
                 "Struct is not the correct type");
 
   return true;
@@ -38,7 +38,7 @@ bool MEMOIR_FUNC(assert_collection_type)(const type_ref type,
     return is_object_type(type);
   }
 
-  MEMOIR_ASSERT((type->equals(object->get_type())),
+  MEMOIR_ASSERT((type->equals(((detail::Object *)object)->get_type())),
                 "Collection is not the correct type");
 
   return true;

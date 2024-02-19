@@ -5,6 +5,7 @@
 #include "objects.h"
 
 namespace memoir {
+namespace detail {
 
 /*
  * Element factory method
@@ -147,4 +148,5 @@ uint64_t init_element(Type *type) {
   }
 }
 
+} // namespace detail
 } // namespace memoir

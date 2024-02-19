@@ -4,6 +4,7 @@
 #include "objects.h"
 
 namespace memoir {
+namespace detail {
 
 /*
  * Collection Objects
@@ -878,4 +879,5 @@ void SequenceView::grow(uint64_t size) {
   this->_sequence->grow(size);
 };
 
+} // namespace detail
 } // namespace memoir

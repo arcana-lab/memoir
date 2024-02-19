@@ -34,6 +34,7 @@ struct DoubleType;
 struct PointerType;
 struct ReferenceType;
 
+namespace detail {
 struct Object {
 public:
   // Owned state
@@ -57,8 +58,10 @@ public:
 
   virtual std::string to_string() = 0;
 };
+} // namespace detail
 
-struct Struct : public Object {
+namespace detail {
+struct Struct : public detail::Object {
 public:
   // Owned state
   std::vector<uint64_t> fields;
@@ -80,8 +83,10 @@ public:
   // Debug
   std::string to_string() override;
 };
+} // namespace detail
 
-struct Collection : public Object {
+namespace detail {
+struct Collection : public detail::Object {
 public:
   // Access
   virtual uint64_t get_element(va_list args) = 0;
@@ -133,7 +138,7 @@ public:
   std::string to_string() override;
 };
 
-struct AssocArray : public Collection {
+struct AssocArray : public detail::Collection {
 public:
   using key_t = uint64_t;
   using value_t = uint64_t;
@@ -169,7 +174,7 @@ public:
   std::string to_string() override;
 };
 
-struct Sequence : public Collection {
+struct Sequence : public detail::Collection {
 protected:
   using seq_iter = std::vector<uint64_t>::iterator;
   using const_seq_iter = std::vector<uint64_t>::const_iterator;
@@ -210,7 +215,7 @@ public:
   virtual void grow(uint64_t size) = 0;
 };
 
-struct SequenceAlloc : public Sequence {
+struct SequenceAlloc : public detail::Sequence {
   // Owned state
   std::vector<uint64_t> _sequence;
 
@@ -249,7 +254,7 @@ struct SequenceAlloc : public Sequence {
   std::string to_string() override;
 };
 
-struct SequenceView : public Sequence {
+struct SequenceView : public detail::Sequence {
   // Borrowed state
   SequenceAlloc *_sequence;
 
@@ -292,6 +297,12 @@ struct SequenceView : public Sequence {
 
 uint64_t init_element(Type *type);
 std::vector<uint64_t> init_elements(Type *type, size_t num = 1);
+
+} // namespace detail
+
+struct Object : private detail::Object {};
+struct Struct : private detail::Struct {};
+struct Collection : private detail::Collection {};
 
 } // namespace memoir
 

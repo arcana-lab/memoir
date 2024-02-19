@@ -4,6 +4,7 @@
 #include "objects.h"
 
 namespace memoir {
+namespace detail {
 
 /*
  * Abstract Object implementation
@@ -89,4 +90,5 @@ bool Struct::is_struct() const {
   return true;
 }
 
+} // namespace detail
 } // namespace memoir

@@ -47,7 +47,7 @@ collection_ref MEMOIR_FUNC(retPHI)(const collection_ref in) {
 __IMMUT_ATTR
 __RUNTIME_ATTR
 size_t MEMOIR_FUNC(size)(const collection_ref collection) {
-  return collection->size();
+  return ((detail::Collection *)collection)->size();
 }
 
 __IMMUT_ATTR
@@ -68,8 +68,16 @@ collection_ref MEMOIR_FUNC(sequence_copy)(const collection_ref collection,
 
   MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);
 
-  auto *seq = static_cast<Sequence *>(collection);
-  auto *seq_type = static_cast<SequenceType *>(collection->get_type());
+  auto *seq = (detail::Sequence *)(collection);
+  auto *seq_type = static_cast<SequenceType *>(seq->get_type());
+
+  if (i == (size_t)-1) {
+    i = seq->size();
+  }
+
+  if (j == (size_t)-1) {
+    j = seq->size();
+  }
 
   MEMOIR_ASSERT((i <= j), "Reverse split is unsupported.");
 
@@ -81,7 +89,8 @@ collection_ref MEMOIR_FUNC(sequence_copy)(const collection_ref collection,
 
   seq->erase(i, j);
 
-  return new SequenceAlloc(seq_type, std::move(new_container));
+  return (collection_ref) new detail::SequenceAlloc(seq_type,
+                                                    std::move(new_container));
 }
 
 #define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
@@ -95,8 +104,11 @@ collection_ref MEMOIR_FUNC(sequence_copy)(const collection_ref collection,
     /* Insert an element into a sequence. */                                   \
     MEMOIR_ACCESS_CHECK(collection);                                           \
     MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);                       \
-    auto *seq = static_cast<Sequence *>(collection);                           \
+    auto *seq = (detail::Sequence *)(collection);                              \
     auto *seq_type = static_cast<SequenceType *>(seq->get_type());             \
+    if (index == (size_t)-1) {                                                 \
+      index = seq->size();                                                     \
+    }                                                                          \
                                                                                \
     std::vector<uint64_t> new_container;                                       \
     new_container.resize(seq->size() + 1);                                     \
@@ -106,7 +118,9 @@ collection_ref MEMOIR_FUNC(sequence_copy)(const collection_ref collection,
               seq->cend(),                                                     \
               new_container.begin() + index + 1);                              \
                                                                                \
-    return new SequenceAlloc(seq_type, std::move(new_container));              \
+    return (collection_ref) new detail::SequenceAlloc(                         \
+        seq_type,                                                              \
+        std::move(new_container));                                             \
   }
 #include "types.def"
 
@@ -121,9 +135,13 @@ collection_ref MEMOIR_FUNC(sequence_insert)(
   MEMOIR_ACCESS_CHECK(collection_to_insert);
   MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);
   MEMOIR_TYPE_CHECK(collection_to_insert, TypeCode::SequenceTy);
-  auto *seq = static_cast<Sequence *>(collection);
-  auto *seq_to_insert = static_cast<Sequence *>(collection_to_insert);
+  auto *seq = (detail::Sequence *)(collection);
+  auto *seq_to_insert = (detail::Sequence *)(collection_to_insert);
   auto *seq_type = static_cast<SequenceType *>(seq->get_type());
+
+  if (index == (size_t)(-1)) {
+    index = seq->size();
+  }
 
   std::vector<uint64_t> new_container;
   new_container.resize(seq->size() + seq_to_insert->size());
@@ -135,7 +153,8 @@ collection_ref MEMOIR_FUNC(sequence_insert)(
             seq->cend(),
             new_container.begin() + index + seq_to_insert->size());
 
-  return new SequenceAlloc(seq_type, std::move(new_container));
+  return (collection_ref) new detail::SequenceAlloc(seq_type,
+                                                    std::move(new_container));
 }
 __IMMUT_ATTR
 __ALLOC_ATTR
@@ -148,15 +167,24 @@ collection_ref MEMOIR_FUNC(sequence_remove)(const collection_ref collection,
 
   MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);
 
-  auto *seq = static_cast<Sequence *>(collection);
+  auto *seq = (detail::Sequence *)(collection);
   auto *seq_type = static_cast<SequenceType *>(seq->get_type());
+
+  if (begin == (size_t)(-1)) {
+    begin = seq->size();
+  }
+
+  if (end == (size_t)(-1)) {
+    end = seq->size();
+  }
 
   std::vector<uint64_t> new_container;
   new_container.resize(seq->size() - (end - begin));
   std::copy(seq->cbegin(), seq->cbegin() + begin, new_container.begin());
   std::copy(seq->cbegin() + end, seq->cend(), new_container.begin() + begin);
 
-  return new SequenceAlloc(seq_type, std::move(new_container));
+  return (collection_ref) new detail::SequenceAlloc(seq_type,
+                                                    std::move(new_container));
 }
 
 __IMMUT_ATTR
@@ -174,9 +202,21 @@ const collection_pair MEMOIR_FUNC(sequence_swap)(
   MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);
   MEMOIR_TYPE_CHECK(collection2, TypeCode::SequenceTy);
 
-  auto *seq1 = static_cast<Sequence *>(collection);
-  auto *seq2 = static_cast<Sequence *>(collection2);
+  auto *seq1 = (detail::Sequence *)(collection);
+  auto *seq2 = (detail::Sequence *)(collection2);
   auto *seq_type = static_cast<SequenceType *>(seq1->get_type());
+
+  if (i == (size_t)(-1)) {
+    i = seq1->size();
+  }
+
+  if (j == (size_t)(-1)) {
+    j = seq1->size();
+  }
+
+  if (i2 == (size_t)(-1)) {
+    i2 = seq2->size();
+  }
 
   MEMOIR_ASSERT((i <= j), "Reverse swap is unsupported.");
 
@@ -195,8 +235,10 @@ const collection_pair MEMOIR_FUNC(sequence_swap)(
   }
 
   collection_pair pair;
-  pair.first = new SequenceAlloc(seq_type, std::move(new1));
-  pair.second = new SequenceAlloc(seq_type, std::move(new2));
+  pair.first =
+      (collection_ref) new detail::SequenceAlloc(seq_type, std::move(new1));
+  pair.second =
+      (collection_ref) new detail::SequenceAlloc(seq_type, std::move(new2));
   return pair;
 }
 
@@ -213,8 +255,20 @@ collection_ref MEMOIR_FUNC(sequence_swap_within)(
 
   MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);
 
-  auto *seq = static_cast<Sequence *>(collection);
+  auto *seq = (detail::Sequence *)(collection);
   auto *seq_type = static_cast<SequenceType *>(seq->get_type());
+
+  if (from_begin == (size_t)(-1)) {
+    from_begin = seq->size();
+  }
+
+  if (from_end == (size_t)(-1)) {
+    from_end = seq->size();
+  }
+
+  if (to_begin == (size_t)(-1)) {
+    to_begin = seq->size();
+  }
 
   MEMOIR_ASSERT((from_begin <= from_end), "Reverse swap is unsupported.");
 
@@ -233,7 +287,8 @@ collection_ref MEMOIR_FUNC(sequence_swap_within)(
     std::swap(*it1, *it2);
   }
 
-  return new SequenceAlloc(seq_type, std::move(new_container));
+  return (collection_ref) new detail::SequenceAlloc(seq_type,
+                                                    std::move(new_container));
 }
 
 // Assoc operations.
@@ -246,7 +301,7 @@ bool MEMOIR_FUNC(assoc_has)(const collection_ref collection, ...) {
 
   va_start(args, collection);
 
-  auto result = collection->has_element(args);
+  auto result = ((detail::Collection *)collection)->has_element(args);
 
   va_end(args);
 
@@ -263,17 +318,17 @@ collection_ref MEMOIR_FUNC(assoc_remove)(const collection_ref collection, ...) {
 
   va_start(args, collection);
 
-  auto *assoc = static_cast<AssocArray *>(collection);
+  auto *assoc = (detail::AssocArray *)(collection);
   auto *assoc_type = static_cast<AssocArrayType *>(assoc->get_type());
 
-  auto *new_assoc = new AssocArray(assoc_type);
+  auto *new_assoc = new detail::AssocArray(assoc_type);
   new_assoc->assoc_array.insert(assoc->assoc_array.cbegin(),
                                 assoc->assoc_array.cend());
   new_assoc->remove_element(args);
 
   va_end(args);
 
-  return new_assoc;
+  return (collection_ref)new_assoc;
 }
 
 __IMMUT_ATTR
@@ -286,17 +341,17 @@ collection_ref MEMOIR_FUNC(assoc_insert)(const collection_ref collection, ...) {
 
   va_start(args, collection);
 
-  auto *assoc = static_cast<AssocArray *>(collection);
+  auto *assoc = (detail::AssocArray *)(collection);
   auto *assoc_type = static_cast<AssocArrayType *>(assoc->get_type());
 
-  auto *new_assoc = new AssocArray(assoc_type);
+  auto *new_assoc = new detail::AssocArray(assoc_type);
   new_assoc->assoc_array.insert(assoc->assoc_array.cbegin(),
                                 assoc->assoc_array.cend());
   new_assoc->get_element(args);
 
   va_end(args);
 
-  return new_assoc;
+  return (collection_ref)new_assoc;
 }
 
 __IMMUT_ATTR
@@ -307,10 +362,10 @@ collection_ref MEMOIR_FUNC(assoc_keys)(const collection_ref collection) {
 
   MEMOIR_TYPE_CHECK(collection, TypeCode::AssocArrayTy);
 
-  auto *assoc = static_cast<AssocArray *>(collection);
+  auto *assoc = (detail::AssocArray *)(collection);
 
-  return assoc->keys();
+  return (collection_ref)assoc->keys();
 }
 
-} // namespace memoir
+} // extern "C"
 } // namespace memoir

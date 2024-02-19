@@ -29,7 +29,8 @@ extern "C" {
       unsigned field_index) {                                                  \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check. */                                          \
-    return (C_TYPE)(struct_to_access->get_field(field_index));                 \
+    return (C_TYPE)(                                                           \
+        ((detail::Struct *)struct_to_access)->get_field(field_index));         \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -38,7 +39,8 @@ extern "C" {
                                              unsigned field_index) {           \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: Add field type check. */                                          \
-    struct_to_access->set_field((uint64_t)value, field_index);                 \
+    ((detail::Struct *)struct_to_access)                                       \
+        ->set_field((uint64_t)value, field_index);                             \
   }                                                                            \
                                                                                \
   __IMMUT_ATTR                                                                 \
@@ -52,7 +54,8 @@ extern "C" {
                                                                                \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    auto element = collection_to_access->get_element(args);                    \
+    auto element =                                                             \
+        ((detail::Collection *)collection_to_access)->get_element(args);       \
                                                                                \
     va_end(args);                                                              \
                                                                                \
@@ -72,7 +75,8 @@ extern "C" {
                                                                                \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    ((Collection *)collection_to_access)->set_element((uint64_t)value, args);  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
                                                                                \
     va_end(args);                                                              \
     return collection_to_access;                                               \
@@ -88,7 +92,8 @@ extern "C" {
                                                                                \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    auto element = collection_to_access->get_element(args);                    \
+    auto element =                                                             \
+        ((detail::Collection *)collection_to_access)->get_element(args);       \
                                                                                \
     va_end(args);                                                              \
                                                                                \
@@ -106,7 +111,8 @@ extern "C" {
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    collection_to_access->set_element((uint64_t)value, args);                  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
                                                                                \
     va_end(args);                                                              \
     return collection_to_access;                                               \
@@ -121,7 +127,8 @@ extern "C" {
                                               unsigned field_index) {          \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check */                                           \
-    return (C_TYPE)struct_to_access->get_field(field_index);                   \
+    return (C_TYPE)((detail::Struct *)struct_to_access)                        \
+        ->get_field(field_index);                                              \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -130,7 +137,8 @@ extern "C" {
                                              unsigned field_index) {           \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check */                                           \
-    struct_to_access->set_field((uint64_t)value, field_index);                 \
+    ((detail::Struct *)struct_to_access)                                       \
+        ->set_field((uint64_t)value, field_index);                             \
   }                                                                            \
                                                                                \
   __IMMUT_ATTR                                                                 \
@@ -141,7 +149,8 @@ extern "C" {
                                                                                \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
-    auto element = collection_to_access->get_element(args);                    \
+    auto element =                                                             \
+        ((detail::Collection *)collection_to_access)->get_element(args);       \
     va_end(args);                                                              \
                                                                                \
     return (C_TYPE)element;                                                    \
@@ -158,7 +167,8 @@ extern "C" {
                                                                                \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
-    collection_to_access->set_element((uint64_t)value, args);                  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
     va_end(args);                                                              \
     return collection_to_access;                                               \
   }                                                                            \
@@ -171,7 +181,8 @@ extern "C" {
                                                                                \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
-    auto element = collection_to_access->get_element(args);                    \
+    auto element =                                                             \
+        ((detail::Collection *)collection_to_access)->get_element(args);       \
     va_end(args);                                                              \
                                                                                \
     return (C_TYPE)element;                                                    \
@@ -188,7 +199,8 @@ extern "C" {
                                                                                \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
-    collection_to_access->set_element((uint64_t)value, args);                  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
     va_end(args);                                                              \
     return collection_to_access;                                               \
   }
@@ -202,7 +214,8 @@ extern "C" {
       unsigned field_index) {                                                  \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check. */                                          \
-    return (C_TYPE)struct_to_access->get_field(field_index);                   \
+    return (C_TYPE)((detail::Struct *)struct_to_access)                        \
+        ->get_field(field_index);                                              \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -211,7 +224,8 @@ extern "C" {
                                              unsigned field_index) {           \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check. */                                          \
-    struct_to_access->set_field((uint64_t)value, field_index);                 \
+    ((detail::Struct *)struct_to_access)                                       \
+        ->set_field((uint64_t)value, field_index);                             \
   }                                                                            \
                                                                                \
   __IMMUT_ATTR                                                                 \
@@ -223,7 +237,8 @@ extern "C" {
                                                                                \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
-    auto element = collection_to_access->get_element(args);                    \
+    auto element =                                                             \
+        ((detail::Collection *)collection_to_access)->get_element(args);       \
     va_end(args);                                                              \
                                                                                \
     return (C_TYPE)element;                                                    \
@@ -240,7 +255,8 @@ extern "C" {
                                                                                \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
-    collection_to_access->set_element((uint64_t)value, args);                  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
     va_end(args);                                                              \
     return collection_to_access;                                               \
   }                                                                            \
@@ -256,7 +272,8 @@ extern "C" {
                                                                                \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    auto element = collection_to_access->get_element(args);                    \
+    auto element =                                                             \
+        ((detail::Collection *)collection_to_access)->get_element(args);       \
                                                                                \
     va_end(args);                                                              \
     return (C_TYPE)element;                                                    \
@@ -275,7 +292,8 @@ extern "C" {
                                                                                \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    collection_to_access->set_element((uint64_t)value, args);                  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
                                                                                \
     va_end(args);                                                              \
     return collection_to_access;                                               \
@@ -292,7 +310,8 @@ extern "C" {
       unsigned field_index) {                                                  \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
                                                                                \
-    auto element = struct_to_access->get_field(field_index);                   \
+    auto element =                                                             \
+        ((detail::Struct *)struct_to_access)->get_field(field_index);          \
                                                                                \
     return (C_TYPE)element;                                                    \
   }                                                                            \
@@ -305,7 +324,8 @@ extern "C" {
                                                                                \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
-    auto element = collection_to_access->get_element(args);                    \
+    auto element =                                                             \
+        ((detail::Collection *)collection_to_access)->get_element(args);       \
     va_end(args);                                                              \
                                                                                \
     return (C_TYPE)element;                                                    \
@@ -319,7 +339,8 @@ extern "C" {
                                                                                \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
-    auto element = collection_to_access->get_element(args);                    \
+    auto element =                                                             \
+        ((detail::Collection *)collection_to_access)->get_element(args);       \
     va_end(args);                                                              \
                                                                                \
     return (C_TYPE)element;                                                    \

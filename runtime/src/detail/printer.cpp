@@ -5,6 +5,7 @@
 #include "types.h"
 
 namespace memoir {
+namespace detail {
 
 std::string Struct::to_string() {
   std::string str = "(Struct: \n";
@@ -41,6 +42,8 @@ std::string SequenceAlloc::to_string() {
 std::string SequenceView::to_string() {
   return "(SequenceView)";
 }
+
+} // namespace detail
 
 /*
  * Types

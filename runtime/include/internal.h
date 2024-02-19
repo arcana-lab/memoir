@@ -21,23 +21,24 @@
 
 #define MEMOIR_TYPE_CHECK(obj, type_code)                                      \
   MEMOIR_ASSERT((obj != nullptr), "Attempt to check type of NULL object");     \
-  MEMOIR_ASSERT((obj->get_type() != nullptr),                                  \
+  MEMOIR_ASSERT((((detail::Object *)obj)->get_type() != nullptr),              \
                 "Type is NULL, type check failed");                            \
-  MEMOIR_ASSERT((obj->get_type()->getCode() == type_code),                     \
+  MEMOIR_ASSERT((((detail::Object *)obj)->get_type()->getCode() == type_code), \
                 "Type code mismatch, expected: " #type_code)
 
 #define MEMOIR_OBJECT_CHECK(obj)                                               \
   MEMOIR_ASSERT((obj != nullptr), "Attempt to get NULL object");               \
-  MEMOIR_ASSERT(is_object_type(obj->get_type()),                               \
+  MEMOIR_ASSERT(is_object_type(((detail::Object *)obj)->get_type()),           \
                 "Element is not a nested object")
 
 #define MEMOIR_STRUCT_CHECK(obj)                                               \
   MEMOIR_ASSERT((obj != nullptr), "Attempt to get NULL object");               \
-  MEMOIR_ASSERT(is_struct_type(obj->get_type()), "Element is not a struct type")
+  MEMOIR_ASSERT(is_struct_type(((detail::Object *)obj)->get_type()),           \
+                "Element is not a struct type")
 
 #define MEMOIR_COLLECTION_CHECK(obj)                                           \
   MEMOIR_ASSERT((obj != nullptr), "Attempt to get NULL object");               \
-  MEMOIR_ASSERT(is_collection_type(obj->get_type()),                           \
+  MEMOIR_ASSERT(is_collection_type(((detail::Object *)obj)->get_type()),       \
                 "Element is not of collection type")
 
 #define MEMOIR_INTEGER_CHECK(obj, bw, s, name)                                 \

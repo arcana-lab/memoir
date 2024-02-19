@@ -25,7 +25,8 @@ extern "C" {
                                           unsigned field_index) {              \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: Add field type check. */                                          \
-    struct_to_access->set_field((uint64_t)value, field_index);                 \
+    ((detail::Struct *)struct_to_access)                                       \
+        ->set_field((uint64_t)value, field_index);                             \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -38,7 +39,8 @@ extern "C" {
                                                                                \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    collection_to_access->set_element((uint64_t)value, args);                  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
                                                                                \
     va_end(args);                                                              \
   }                                                                            \
@@ -51,7 +53,8 @@ extern "C" {
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    collection_to_access->set_element((uint64_t)value, args);                  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
                                                                                \
     va_end(args);                                                              \
   }
@@ -64,7 +67,8 @@ extern "C" {
                                           unsigned field_index) {              \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check */                                           \
-    struct_to_access->set_field((uint64_t)value, field_index);                 \
+    ((detail::Struct *)struct_to_access)                                       \
+        ->set_field((uint64_t)value, field_index);                             \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -75,7 +79,8 @@ extern "C" {
                                                                                \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
-    collection_to_access->set_element((uint64_t)value, args);                  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
     va_end(args);                                                              \
   }                                                                            \
                                                                                \
@@ -87,7 +92,8 @@ extern "C" {
                                                                                \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
-    collection_to_access->set_element((uint64_t)value, args);                  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
     va_end(args);                                                              \
   }
 
@@ -99,7 +105,8 @@ extern "C" {
                                           unsigned field_index) {              \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check. */                                          \
-    struct_to_access->set_field((uint64_t)value, field_index);                 \
+    ((detail::Struct *)struct_to_access)                                       \
+        ->set_field((uint64_t)value, field_index);                             \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
@@ -110,7 +117,8 @@ extern "C" {
                                                                                \
     va_list args;                                                              \
     va_start(args, collection_to_access);                                      \
-    collection_to_access->set_element((uint64_t)value, args);                  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
     va_end(args);                                                              \
   }                                                                            \
                                                                                \
@@ -124,7 +132,8 @@ extern "C" {
                                                                                \
     va_start(args, collection_to_access);                                      \
                                                                                \
-    collection_to_access->set_element((uint64_t)value, args);                  \
+    ((detail::Collection *)collection_to_access)                               \
+        ->set_element((uint64_t)value, args);                                  \
                                                                                \
     va_end(args);                                                              \
   }
