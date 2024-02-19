@@ -96,6 +96,9 @@ namespace memoir {
 #define memoir_sequence_copy(object, left, right)                              \
   MEMOIR_FUNC(sequence_copy)(object, (size_t)left, (size_t)right)
 
+#define memoir_seq_copy(object, left, right)                                   \
+  MEMOIR_FUNC(sequence_copy)(object, (size_t)left, (size_t)right)
+
 // Mutable sequence operations.
 #define memoir_seq_insert(ty, value, object, index)                            \
   MUT_FUNC(sequence_insert_##ty)(value, object, index)
