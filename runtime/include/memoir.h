@@ -140,6 +140,7 @@ collection_ref MEMOIR_FUNC(sequence_copy)(collection_ref collection,
       C_TYPE value,                                                            \
       const collection_ref collection,                                         \
       size_t insertion_index);
+#include "types.def"
 
 __IMMUT_ATTR
 __ALLOC_ATTR
@@ -157,7 +158,6 @@ collection_ref MEMOIR_FUNC(sequence_remove)(const collection_ref collection,
                                             size_t end_index);
 
 __IMMUT_ATTR
-__ALLOC_ATTR
 __RUNTIME_ATTR
 const collection_pair MEMOIR_FUNC(sequence_swap)(
     const collection_ref collection1,
