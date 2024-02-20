@@ -1206,9 +1206,12 @@ void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
         builder.CreateBitOrPointerCast(&I.getInsertionPoint(),
                                        function_type->getParamType(1));
 
+    auto *value_param_type = function_type->getParamType(2);
     auto *insertion_value =
-        builder.CreateBitOrPointerCast(&I.getValueInserted(),
-                                       function_type->getParamType(2));
+        (isa<llvm::IntegerType>(value_param_type))
+            ? builder.CreateZExtOrTrunc(&I.getValueInserted(), value_param_type)
+            : builder.CreateBitOrPointerCast(&I.getValueInserted(),
+                                             value_param_type);
 
     auto *llvm_call = builder.CreateCall(
         function_callee,
