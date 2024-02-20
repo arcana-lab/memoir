@@ -55,6 +55,7 @@ public:
   void visitMutSeqRemoveInst(MutSeqRemoveInst &I);
   void visitMutSeqAppendInst(MutSeqAppendInst &I);
   void visitMutSeqSwapInst(MutSeqSwapInst &I);
+  void visitMutSeqSwapWithinInst(MutSeqSwapWithinInst &I);
   void visitMutSeqSplitInst(MutSeqSplitInst &I);
   // SSA Assoc operations
   void visitAssocHasInst(AssocHasInst &I);

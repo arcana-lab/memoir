@@ -539,6 +539,35 @@ void MutToImmutVisitor::visitMutSeqSwapInst(MutSeqSwapInst &I) {
   return;
 }
 
+void MutToImmutVisitor::visitMutSeqSwapWithinInst(MutSeqSwapWithinInst &I) {
+  MemOIRBuilder builder(I);
+
+  auto *from_collection_orig = &I.getFromCollection();
+  auto *from_collection_value =
+      update_reaching_definition(from_collection_orig, I);
+  auto *from_begin_value = &I.getBeginIndex();
+  auto *from_end_value = &I.getEndIndex();
+  auto *to_begin_value = &I.getToBeginIndex();
+  println("to begin: ", *to_begin_value);
+
+  // Create SeqSwapWithinInst
+  auto *ssa_from_collection =
+      builder.CreateSeqSwapWithinInst(from_collection_value,
+                                      from_begin_value,
+                                      from_end_value,
+                                      to_begin_value,
+                                      "seq.swap.");
+
+  // Update the reaching definitions.
+  this->set_reaching_definition(from_collection_orig, ssa_from_collection);
+  this->set_reaching_definition(ssa_from_collection, from_collection_value);
+
+  // Mark instruction for cleanup.
+  this->mark_for_cleanup(I);
+
+  return;
+}
+
 void MutToImmutVisitor::visitMutSeqSplitInst(MutSeqSplitInst &I) {
   MemOIRBuilder builder(I);
 
