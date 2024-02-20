@@ -1,45 +1,83 @@
 #!/bin/bash -e
 
-if [ $# -lt 1 ] ; then
-    echo "This script will normalize the bitcode for usage in MemOIR and NOELLE passes." ;
-    echo "  USAGE: `basename $0` <INPUT IR FILE> <OUTPUT IR FILE> [<OPTIONS, ...>]" ;
+function usage {
+    echo "This script will normalize an LLVM program to be a MEMOIR program.";
+    echo "  USAGE: `basename $0` <INPUT FILE> -o <OUTPUT FILE> [<OPTIONS, ...>]"
+}
+
+function flags {
+    echo "  FLAGS:"
+    echo "    -h,--help              Display this help message."
+    echo "    -o,--output <filename> Specifies the output file."
+    echo "    --stats                Print statistics about the MEMOIR program."
+}
+
+if [[ $# -lt 1 ]]; then
+    usage
+    exit 1
 fi
 
-SOURCE=${BASH_SOURCE[0]}
-while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a symlink
-  DIR=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )
-  SOURCE=$(readlink "${SOURCE}")
-  # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
-  [[ ${SOURCE} != /* ]] && SOURCE=$DIR/$SOURCE 
+PREPASSES=()
+POSTPASSES=()
+
+while [[ $# -gt 0 ]] ;
+do
+    case $1 in
+        -o|--output)
+            OUTPUT_IR_FILE=$2
+            shift
+            shift
+            ;;
+        -h|--help)
+            usage
+            echo ""
+            flags
+            exit 1
+            ;;
+        --stats)
+            PREPASSES+=("--memoir-stats")
+            POSTPASSES+=("--memoir-stats")
+            shift
+            ;;
+        *)
+            if [ -n "${INPUT_IR_FILE}" ] ; then
+                echo "Too many positional arguments passed!"
+                usage
+                exit 1
+            fi
+            INPUT_IR_FILE=$1
+            shift
+            ;;
+    esac
 done
-MEMOIR_HOME=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..
 
-LIB_DIR=${MEMOIR_HOME}/lib ;
+if [ -z ${INPUT_IR_FILE} ] ; then
+    echo "No input IR file specified."
+    usage
+    exit 1
+fi
 
-source ${MEMOIR_HOME}/bin/memoir-enable
+if [ -z ${OUTPUT_IR_FILE} ] ; then
+    echo "No output IR file specified."
+    usage
+    exit 1
+fi
 
-IR_FILE_IN="$1" ;
-IR_FILE_OUT="$2" ;
+IR_FILE=$(mktemp --suffix=.bc)
+cp ${INPUT_IR_FILE} ${IR_FILE}
 
-echo "" ;
-echo "Normalization pipeline (I: ${IR_FILE_IN}, O: ${IR_FILE_OUT})" ;
+# Run some generally helpful LLVM transformations.
+opt --always-inline -mem2reg -argpromotion -sroa --break-crit-edges ${IR_FILE} -o ${IR_FILE}
 
-IR_FILE_BASENAME=$(basename -- ${IR_FILE_OUT}) ;
-IR_FILE_FILENAME="${IR_FILE_BASENAME%.bc}" ;
+# Run NOELLE norm so that it is happy.
+noelle-norm ${IR_FILE} -o ${IR_FILE}
 
-OUT_DIR=$(dirname ${IR_FILE_OUT}) ;
-
-IR_FILE=${OUT_DIR}/temp.bc
-cp ${IR_FILE_IN} ${IR_FILE} ;
-
-opt --always-inline -mem2reg -argpromotion -sroa --break-crit-edges ${IR_FILE} -o ${IR_FILE} ;
-
-IR_FILE_NOELLE_NORM=${OUT_DIR}/${IR_FILE_FILENAME}_noelle_norm.bc ;
-noelle-norm ${IR_FILE} -o ${IR_FILE};
-
-IR_FILE_PROF=${OUT_DIR}/${IR_FILE_FILENAME}_prof.bc ;
 # ${MEMOIR_HOME}/bin/memoir-prof ${IR_FILE} ${IR_FILE_PROF} ;
 
-mv ${IR_FILE} ${IR_FILE_OUT} ;
+# Link in the IR declarations.
+llvm-link ${IR_FILE} $(memoir-config --libdir)/memoir.decl.bc -o ${IR_FILE}
 
-echo "" ;
+# Run SSA construction and type inference.
+memoir-load ${PREPASSES[@]} --mut2immut --memoir-type-infer ${POSTPASSES[@]} ${IR_FILE} -o ${IR_FILE}
+
+mv ${IR_FILE} ${OUTPUT_IR_FILE}
