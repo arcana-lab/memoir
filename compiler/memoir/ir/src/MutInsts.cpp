@@ -75,9 +75,10 @@ TO_STRING(MutSeqSwapInst)
 
 // MutSeqSwapWithinInst implementation.
 OPERAND(MutSeqSwapWithinInst, FromCollection, 0)
+OPERAND(MutSeqSwapWithinInst, ToCollection, 0)
 OPERAND(MutSeqSwapWithinInst, BeginIndex, 1)
 OPERAND(MutSeqSwapWithinInst, EndIndex, 2)
-OPERAND(MutSeqSwapWithinInst, ToBeginIndex, 4)
+OPERAND(MutSeqSwapWithinInst, ToBeginIndex, 3)
 TO_STRING(MutSeqSwapWithinInst)
 
 // MutSeqSplitInst implementation.
