@@ -4,14 +4,14 @@
 
 using namespace memoir;
 
-#define KEY0 1
-#define KEY1 2
-#define KEY2 3
-#define INVALID_KEY 1000
+#define KEY0 (uint64_t)1
+#define KEY1 (uint64_t)2
+#define KEY2 (uint64_t)3
+#define INVALID_KEY (uint64_t)1000
 
-#define VAL0 10
-#define VAL1 20
-#define VAL2 30
+#define VAL0 (uint64_t)10
+#define VAL1 (uint64_t)20
+#define VAL2 (uint64_t)30
 
 #define EXPECTED0 true
 #define EXPECTED1 true
@@ -23,8 +23,11 @@ int main() {
 
   auto map = memoir_allocate_assoc_array(memoir_u64_t, memoir_u64_t);
 
+  memoir_assoc_insert(map, KEY0);
   memoir_assoc_write(u64, VAL0, map, KEY0);
+  memoir_assoc_insert(map, KEY1);
   memoir_assoc_write(u64, VAL1, map, KEY1);
+  memoir_assoc_insert(map, KEY2);
   memoir_assoc_write(u64, VAL2, map, KEY2);
 
   printf("Reading map\n");
