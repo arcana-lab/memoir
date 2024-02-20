@@ -606,6 +606,9 @@ protected:
       auto &argument_order = function_to_argument_order[&F];
       auto &elision_values = function_to_elision_values[&F];
 
+      // TODO
+      // Insert type annotations for the arguments.
+
       // Collect the calls and accesses.
       set<llvm::CallBase *> calls = {};
       set<AccessInst *> accesses = {};
