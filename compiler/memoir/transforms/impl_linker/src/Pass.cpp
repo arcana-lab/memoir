@@ -52,7 +52,10 @@ using namespace llvm::memoir;
 
 namespace llvm::memoir {
 
-llvm::cl::opt<llvm::StringRef> impl_file_output("impl-out-file");
+llvm::cl::opt<std::string> impl_file_output(
+    "impl-out-file",
+    llvm::cl::desc("Specify output filename for ImplLinker."),
+    llvm::cl::value_desc("filename"));
 
 struct ImplLinkerPass : public ModulePass {
   static char ID;
@@ -108,13 +111,21 @@ struct ImplLinkerPass : public ModulePass {
     }
 
     // Emit the implementation code.
-    IL.emit();
+    if (impl_file_output.getNumOccurrences()) {
+      std::error_code error;
+      llvm::raw_fd_ostream os(impl_file_output, error);
+      if (error) {
+        MEMOIR_UNREACHABLE("ImplLinker: Could not open output file!");
+      }
+      IL.emit(os);
+    } else {
+      IL.emit();
+    }
 
     return false;
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<arcana::noelle::Noelle>();
     return;
   }
 };

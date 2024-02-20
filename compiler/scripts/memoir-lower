@@ -1,39 +1,75 @@
 #!/bin/bash -e
 
-if [ $# -lt 1 ] ; then
-    echo "This script will lower the bitcode from MemOIR to LLVM IR." ;
-    echo "  USAGE: `basename $0` <INPUT IR FILE> <OUTPUT IR FILE>  [<OPTIONS, ...>]" ;
+function usage {
+    echo "This script will run MemOIR optimizations.";
+    echo "  USAGE: `basename $0` <INPUT FILE> -o <OUTPUT FILE> [<OPTIONS, ...>]"
+}
+
+function flags {
+    echo "  FLAGS:" 
+    echo "    -o,--output <FILENAME>" 
+    echo "      Specifies the output file" 
+}
+
+if [[ $# -lt 1 ]]; then
+    usage
+    exit 1
 fi
 
+PASSES=()
 
-SOURCE=${BASH_SOURCE[0]}
-while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a symlink
-  DIR=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )
-  SOURCE=$(readlink "${SOURCE}")
-  # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
-  [[ ${SOURCE} != /* ]] && SOURCE=$DIR/$SOURCE 
+while [[ $# -gt 0 ]] ;
+do
+    case $1 in
+        -o|--output)
+            OUTPUT_IR_FILE=$2
+            shift
+            shift
+            ;;
+        -h|--help)
+            usage
+            echo ""
+            flags
+            exit 1
+            ;;
+        *)
+            if [ -n "${INPUT_IR_FILE}" ] ; then
+                echo "Too many positional arguments passed!"
+                usage
+                exit 1
+            fi
+            INPUT_IR_FILE=$1
+            shift
+            ;;
+    esac
 done
-GIT_ROOT=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..
 
-LIB_DIR=${GIT_ROOT}/lib ;
+if [ -z ${INPUT_IR_FILE} ] ; then
+    echo "No input IR file specified."
+    usage
+    exit 1
+fi
 
-IR_FILE_IN="$1" ;
-IR_FILE_OUT="$2" ;
+if [ -z ${OUTPUT_IR_FILE} ] ; then
+    echo "No output IR file specified."
+    usage
+    exit 1
+fi
 
-echo "" ;
-echo "Lowering pipeline (I: ${IR_FILE_IN}, O: ${IR_FILE_OUT})" ;
+# Run the ImplLinker.
+TEMP_FILE=$(mktemp --suffix=".cpp")
+memoir-load ${INPUT_IR_FILE} --memoir-impl-linker --impl-out-file ${TEMP_FILE} -o /dev/null
 
-IR_FILE_BASENAME=$(basename -- ${IR_FILE_IN}) ;
-IR_FILE_FILENAME="${IR_FILE_BASENAME%.*}" ;
+# Compile the collection implementations to bitcode.
+TEMP_BC=$(mktemp --suffix=".bc")
+clang++ ${TEMP_FILE} -c -emit-llvm -I$(memoir-config --includedir) -o ${TEMP_BC}
+rm ${TEMP_FILE}
 
-OUT_DIR=$(dirname ${IR_FILE_IN}) ;
+# Link the bitcode.
+llvm-link ${INPUT_IR_FILE} ${TEMP_BC} -o ${OUTPUT_IR_FILE}
 
-IR_FILE=${OUT_DIR}/${IR_FILE_FILENAME}_temp.bc ;
-cp ${IR_FILE_IN} ${IR_FILE} ;
+# Peform SSA destruction.
+memoir-load --ssa-destruction ${OUTPUT_IR_FILE} -o ${OUTPUT_IR_FILE}
 
-IR_FILE_LOWERED=${OUT_DIR}/${IR_FILE_FILENAME}_lowered.bc ;
-echo "Lower Objects (I: ${IR_FILE}, O: ${IR_FILE_LOWERED})" ;
-noelle-load -load ${LIB_DIR}/ObjectLowering.so -ObjectLowering ${IR_FILE} -o ${IR_FILE} ;
-cp ${IR_FILE} ${IR_FILE_LOWERED} ;
-
-cp ${IR_FILE} ${IR_FILE_OUT} ;
+# Cleanup.
+rm ${TEMP_BC}

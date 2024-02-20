@@ -43,6 +43,9 @@ add_subdirectory(key_folding)
 add_subdirectory(type_inference)
 add_subdirectory(dead_element_elimination)
 
+# Lowering passes.
+add_subdirectory(impl_linker)
+
 # DEPRECATED passes.
 # add_subdirectory(struct_of_arrays)
 # add_subdirectory(slice_canonicalization)

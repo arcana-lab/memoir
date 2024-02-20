@@ -27,9 +27,12 @@ public:
                        TypeLayout &key_type_layout,
                        TypeLayout &value_type_layout);
 
-  void emit();
+  void implement_type(TypeLayout &struct_type_layout);
+
+  void emit(llvm::raw_ostream &os = llvm::errs());
 
 protected:
+  ordered_set<TypeLayout *> struct_implementations;
   ordered_multimap<std::string, TypeLayout *> seq_implementations;
   ordered_multimap<std::string, tuple<TypeLayout *, TypeLayout *>>
       assoc_implementations;

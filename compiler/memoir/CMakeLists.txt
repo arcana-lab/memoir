@@ -36,6 +36,7 @@ add_subdirectory(ir)
 add_subdirectory(support)
 add_subdirectory(utility)
 add_subdirectory(analysis)
+add_subdirectory(lowering)
 
 install(
   TARGETS memoir_core
