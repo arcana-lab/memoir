@@ -513,6 +513,22 @@ Type *TypeAnalysis::visitViewInst(ViewInst &I) {
 }
 
 // SSA assoc operations.
+Type *TypeAnalysis::visitAssocInsertInst(AssocInsertInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getBaseCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
+Type *TypeAnalysis::visitAssocRemoveInst(AssocRemoveInst &I) {
+  CHECK_MEMOIZED(I);
+
+  auto *type = this->getType_helper(I.getBaseCollection());
+
+  MEMOIZE_AND_RETURN(I, type);
+}
+
 Type *TypeAnalysis::visitAssocHasInst(AssocHasInst &I) {
   CHECK_MEMOIZED(I);
 
