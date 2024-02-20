@@ -1,1 +1,1 @@
---memoir-fe
+--memoir-fe --elide=Foo:1 --memoir-type-infer --mut2immut
