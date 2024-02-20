@@ -242,8 +242,11 @@ void SSADestructionVisitor::visitStructAllocInst(StructAllocInst &I) {
                                                   /* Name = */ "struct.");
   MEMOIR_NULL_CHECK(allocation, "Couldn't create malloc for StructAllocInst");
 
+  auto *alloc_ptr =
+      builder.CreatePointerCast(allocation, I.getCallInst().getType());
+
   // Replace the struct allocation with the new allocation.
-  this->coalesce(I, *allocation);
+  this->coalesce(I, *alloc_ptr);
 
   this->markForCleanup(I);
 
