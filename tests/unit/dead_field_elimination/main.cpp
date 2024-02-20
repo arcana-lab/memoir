@@ -12,8 +12,6 @@ auto objTy =
 auto escaped_type =
     memoir_define_struct_type("Esc", memoir_u64_t, memoir_u64_t, memoir_u64_t);
 
-extern void escape_hatch(Struct *);
-
 int main() {
   auto myObj = memoir_allocate_struct(objTy);
 
@@ -40,7 +38,7 @@ int main() {
   memoir_struct_write(u64, 123, escapee, 2);
 
   // Uncomment the following line to test the escape analysis.
-  // escape_hatch(escapee);
+  printf("%p\n", escapee);
 
   return 0;
 }
