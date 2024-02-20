@@ -209,7 +209,20 @@ protected:
   }
 
   TypeLayout &visitReferenceType(ReferenceType &T) {
-    MEMOIR_UNREACHABLE("ReferenceType lowering is unimplemented.");
+    CHECK_MEMOIZED(T);
+
+    // Get the type layout of the referenced type.
+    auto &referenced_type = this->visit(T.getReferencedType());
+
+    // Create the pointer type.
+    auto &llvm_type = MEMOIR_SANITIZE(
+        llvm::PointerType::get(&referenced_type.get_llvm_type(), 0),
+        "Could not construct the llvm PointerType for ReferenceType!");
+
+    // Create the type layout.
+    auto *type_layout = new TypeLayout(T, llvm_type);
+
+    MEMOIZE_AND_RETURN(T, *type_layout);
   }
 
   TypeLayout &visitStaticTensorType(StaticTensorType &T) {

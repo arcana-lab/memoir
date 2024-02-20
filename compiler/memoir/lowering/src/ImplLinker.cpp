@@ -5,7 +5,7 @@
 namespace llvm::memoir {
 
 void ImplLinker::implement_type(TypeLayout &type_layout) {
-  // Get the LLVM type.
+  // Unpack the type layout.
   auto &llvm_type = type_layout.get_llvm_type();
 
   // If it is a struct type, add it to set of structs to implement.
@@ -56,7 +56,7 @@ static std::string memoir_to_c_type(Type &T) {
   } else if (isa<PointerType>(&T)) {
     return "(void *)";
   } else if (auto *ref_type = dyn_cast<ReferenceType>(&T)) {
-    return "(" + memoir_to_c_type(ref_type->getReferencedType()) + " *)";
+    return memoir_to_c_type(ref_type->getReferencedType()) + " *";
   } else if (auto *struct_type = dyn_cast<StructType>(&T)) {
     return "impl__" + struct_type->getName();
   } else if (auto *collection_type = dyn_cast<CollectionType>(&T)) {
@@ -67,6 +67,9 @@ static std::string memoir_to_c_type(Type &T) {
 }
 
 void ImplLinker::emit(llvm::raw_ostream &os) {
+  // General include headers.
+  fprintln(os, "#include <stdint.h>");
+
   // Instantiate the struct implementations.
   for (auto *struct_layout : this->struct_implementations) {
     // Get the size of the struct layout in bytes.
@@ -76,14 +79,7 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
 
     // Create a C struct for it.
     auto type_name = memoir_to_c_type(struct_layout->get_memoir_type());
-    fprintln(os,
-             "typedef struct _",
-             type_name,
-             " { char _storage[",
-             struct_size,
-             "]; } ",
-             type_name,
-             ";");
+    fprintln(os, "typedef uint8_t ", type_name, "[", struct_size, "];");
   }
 
   // Instantiate the sequence implementations.

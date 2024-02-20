@@ -105,6 +105,15 @@ struct ImplLinkerPass : public ModulePass {
 
             // Implement the assoc.
             IL.implement_assoc(impl_name, key_layout, value_layout);
+          } else if (auto *define_type = as<DefineStructTypeInst>(&I)) {
+            // Get the struct type.
+            auto &struct_type = define_type->getType();
+
+            // Get the type layout for the struct.
+            auto &struct_layout = TC.convert(struct_type);
+
+            // Implement the struct.
+            IL.implement_type(struct_layout);
           }
         }
       }
