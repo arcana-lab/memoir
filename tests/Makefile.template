@@ -4,5 +4,6 @@ CFILES=$(wildcard *.c)
 CXXFILES=$(wildcard *.cpp)
 EXTRA_CFLAGS=
 EXTRA_CXXFLAGS=
+OPTFLAGS=
 
 include ../../Makefile.include

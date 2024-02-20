@@ -3,6 +3,7 @@
 #   CXXFILES       := list of C++ files for build
 #   EXTRA_CFLAGS   := test specific C flags
 #   EXTRA_CXXFLAGS := test specific C++ flags
+#   OPTFLAGS       := flags to use for bitcode optimization
 #   BUILD_DIR      := location for build (optional)
 #   BINARY_NAME    := name of final binary.
 
@@ -81,7 +82,7 @@ $(IR_FILE_SSA): $(IR_FILE_NORM)
 	memoir-load --memoir-stats --mut2immut --memoir-stats $< -o $@
 
 $(IR_FILE_OPT): $(IR_FILE_SSA)
-	opt -O3 $< -o $@
+	memoir-load $(OPTFLAGS) $< -o $@
 
 $(IR_FILE_LOWERED): $(IR_FILE_OPT)
 	$(LOWER) $< -o $@
