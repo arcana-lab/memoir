@@ -54,7 +54,7 @@ static std::string memoir_to_c_type(Type &T) {
   } else if (isa<DoubleType>(&T)) {
     return "double";
   } else if (isa<PointerType>(&T)) {
-    return "(void *)";
+    return "void *";
   } else if (auto *ref_type = dyn_cast<ReferenceType>(&T)) {
     return memoir_to_c_type(ref_type->getReferencedType()) + " *";
   } else if (auto *struct_type = dyn_cast<StructType>(&T)) {
@@ -69,6 +69,7 @@ static std::string memoir_to_c_type(Type &T) {
 void ImplLinker::emit(llvm::raw_ostream &os) {
   // General include headers.
   fprintln(os, "#include <stdint.h>");
+  fprintln(os, "#include <array>");
 
   // Instantiate the struct implementations.
   for (auto *struct_layout : this->struct_implementations) {
@@ -79,7 +80,16 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
 
     // Create a C struct for it.
     auto type_name = memoir_to_c_type(struct_layout->get_memoir_type());
-    fprintln(os, "typedef uint8_t ", type_name, "[", struct_size, "];");
+    fprintln(os,
+             "typedef struct _",
+             type_name,
+             " {\n",
+             "  std::array<uint8_t, ",
+             struct_size,
+             "> _storage;\n",
+             "}",
+             type_name,
+             ";");
   }
 
   // Instantiate the sequence implementations.
