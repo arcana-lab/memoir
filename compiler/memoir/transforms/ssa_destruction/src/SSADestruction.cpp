@@ -1583,11 +1583,14 @@ void SSADestructionVisitor::visitSeqSwapWithinInst(SeqSwapWithinInst &I) {
     MEMOIR_NULL_CHECK(llvm_call,
                       "Could not create the call for SeqSwapWithinInst");
 
-    auto *return_type = I.getCallInst().getType();
+    auto *return_type = llvm_call->getType();
     if (!return_type->isVoidTy()) {
       auto *collection =
           builder.CreatePointerCast(llvm_call, I.getCallInst().getType());
 
+      // Coalesce the result with the original resultant.
+      this->coalesce(I.getResult(), *collection);
+    } else {
       // Coalesce the result with the input operand.
       this->coalesce(I.getResult(), I.getFromCollection());
     }
@@ -1613,6 +1616,7 @@ void SSADestructionVisitor::visitSeqSwapWithinInst(SeqSwapWithinInst &I) {
     // Cleanup the old instruction.
     this->markForCleanup(I);
   }
+
   return;
 }
 
