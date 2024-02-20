@@ -27,7 +27,7 @@ class MutToImmutVisitor
   friend class llvm::InstVisitor<MutToImmutVisitor, void>;
 
 public:
-  MutToImmutVisitor(arcana::noelle::DominatorForest &DT,
+  MutToImmutVisitor(llvm::DominatorTree &DT,
                     ordered_set<llvm::Value *> memoir_names,
                     map<llvm::PHINode *, llvm::Value *> inserted_phis,
                     MutToImmutStats *stats = nullptr,
@@ -86,7 +86,7 @@ public:
 protected:
   MemOIRBuilder *builder;
   ReachingDefMapTy reaching_definitions;
-  arcana::noelle::DominatorForest &DT;
+  llvm::DominatorTree &DT;
   set<llvm::Instruction *> instructions_to_delete;
   map<llvm::PHINode *, llvm::Value *> inserted_phis;
 

@@ -18,9 +18,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
-// NOELLE
-#include "noelle/core/Noelle.hpp"
-
 // MemOIR
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/InstVisitor.hpp"
@@ -63,9 +60,10 @@ struct MutToImmutPass : public ModulePass {
     return false;
   }
 
+  using DomTreeNode = llvm::DomTreeNodeBase<llvm::BasicBlock>;
   using DomTreeTraversalListTy = list<llvm::BasicBlock *>;
   static DomTreeTraversalListTy dfs_preorder_traversal_helper(
-      arcana::noelle::DominatorNode *root) {
+      DomTreeNode *root) {
     MEMOIR_NULL_CHECK(root, "Root of dfs preorder traversal is NULL!");
 
     DomTreeTraversalListTy traversal = { root->getBlock() };
@@ -81,10 +79,9 @@ struct MutToImmutPass : public ModulePass {
   }
 
   static DomTreeTraversalListTy dfs_preorder_traversal(
-      arcana::noelle::DominatorForest &DT,
-      llvm::BasicBlock &root) {
-    auto *root_node = DT.getNode(&root);
-    MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found, blame NOELLE");
+      llvm::DominatorTree &DT) {
+    auto *root_node = DT.getRootNode();
+    MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found, blame LLVM");
 
     return dfs_preorder_traversal_helper(root_node);
   }
@@ -95,9 +92,6 @@ struct MutToImmutPass : public ModulePass {
     infoln();
 
     TypeAnalysis::invalidate();
-
-    // Get NOELLE.
-    auto &NOELLE = getAnalysis<arcana::noelle::Noelle>();
 
     MutToImmutStats stats;
 
@@ -132,7 +126,7 @@ struct MutToImmutPass : public ModulePass {
       infoln("BEGIN: ", F.getName());
 
       // Get the dominator forest.
-      auto &DT = NOELLE.getDominators(&F)->DT;
+      auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>(F).getDomTree();
 
       // Get the dominance frontier.
       auto &DF = getAnalysis<llvm::DominanceFrontierWrapperPass>(F)
@@ -140,8 +134,7 @@ struct MutToImmutPass : public ModulePass {
 
       // Get the depth-first, preorder traversal of the dominator tree rooted at
       // the entry basic block.
-      auto &entry_bb = F.getEntryBlock();
-      auto dfs_traversal = dfs_preorder_traversal(DT, entry_bb);
+      auto dfs_traversal = dfs_preorder_traversal(DT);
 
       // Collect all source-level collection pointers names.
       ordered_set<llvm::Value *> memoir_names = {};
@@ -344,7 +337,7 @@ struct MutToImmutPass : public ModulePass {
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
-    AU.addRequired<arcana::noelle::Noelle>();
+    AU.addRequired<llvm::DominatorTreeWrapperPass>();
     AU.addRequired<llvm::DominanceFrontierWrapperPass>();
     return;
   }

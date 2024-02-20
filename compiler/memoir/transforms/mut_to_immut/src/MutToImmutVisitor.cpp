@@ -107,7 +107,7 @@ void MutToImmutVisitor::mark_for_cleanup(MemOIRInst &I) {
 }
 
 MutToImmutVisitor::MutToImmutVisitor(
-    arcana::noelle::DominatorForest &DT,
+    llvm::DominatorTree &DT,
     ordered_set<llvm::Value *> memoir_names,
     map<llvm::PHINode *, llvm::Value *> inserted_phis,
     MutToImmutStats *stats,
