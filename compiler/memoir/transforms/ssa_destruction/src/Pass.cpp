@@ -62,9 +62,10 @@ struct SSADestructionPass : public ModulePass {
     return false;
   }
 
+  using DomTreeNode = llvm::DomTreeNodeBase<llvm::BasicBlock>;
   using DomTreeTraversalListTy = list<llvm::BasicBlock *>;
   static DomTreeTraversalListTy dfs_preorder_traversal_helper(
-      arcana::noelle::DominatorNode *root) {
+      DomTreeNode *root) {
     MEMOIR_NULL_CHECK(root, "Root of dfs preorder traversal is NULL!");
 
     DomTreeTraversalListTy traversal = { root->getBlock() };
@@ -80,16 +81,15 @@ struct SSADestructionPass : public ModulePass {
   }
 
   static DomTreeTraversalListTy dfs_preorder_traversal(
-      arcana::noelle::DominatorForest &DT,
-      llvm::BasicBlock &root) {
-    auto *root_node = DT.getNode(&root);
+      llvm::DominatorTree &DT) {
+    auto *root_node = DT.getRootNode();
     MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found, blame NOELLE");
 
     return std::move(dfs_preorder_traversal_helper(root_node));
   }
 
   static DomTreeTraversalListTy dfs_postorder_traversal_helper(
-      arcana::noelle::DominatorNode *root) {
+      DomTreeNode *root) {
     MEMOIR_NULL_CHECK(root, "Root of dfs postorder traversal is NULL!");
 
     DomTreeTraversalListTy traversal = {};
@@ -107,9 +107,8 @@ struct SSADestructionPass : public ModulePass {
   }
 
   static DomTreeTraversalListTy dfs_postorder_traversal(
-      arcana::noelle::DominatorForest &DT,
-      llvm::BasicBlock &root) {
-    auto *root_node = DT.getNode(&root);
+      llvm::DominatorTree &DT) {
+    auto *root_node = DT.getRootNode();
     MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found, blame NOELLE");
 
     return std::move(dfs_postorder_traversal_helper(root_node));
@@ -160,7 +159,7 @@ struct SSADestructionPass : public ModulePass {
       infoln("BEGIN: ", F.getName());
 
       // Get the dominator forest.
-      auto &DT = NOELLE.getDominators(&F)->DT;
+      auto &DT = getAnalysis<llvm::DominatorTreeWrapperPass>(F).getDomTree();
 
       // Compute the liveness analysis.
       auto LA = LivenessAnalysis(F, NOELLE.getDataFlowEngine());
@@ -175,7 +174,7 @@ struct SSADestructionPass : public ModulePass {
       // Get the depth-first, preorder traversal of the dominator tree rooted at
       // the entry basic block.
       auto &entry_bb = F.getEntryBlock();
-      auto dfs_preorder = dfs_preorder_traversal(DT, entry_bb);
+      auto dfs_preorder = dfs_preorder_traversal(DT);
 
       // Apply rewrite rules and renaming for reaching definitions.
       infoln("Coallescing collection variables");
@@ -191,7 +190,7 @@ struct SSADestructionPass : public ModulePass {
 
     // Get the depth-first, preorder traversal of the dominator tree rooted at
     // the entry basic block.
-    // auto dfs_postorder = dfs_postorder_traversal(DT, entry_bb);
+    // auto dfs_postorder = dfs_postorder_traversal(DT);
     infoln("Performing the coalescence");
     for (auto &F : M) {
       for (auto &BB : F) {
@@ -217,6 +216,7 @@ struct SSADestructionPass : public ModulePass {
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<arcana::noelle::Noelle>();
+    AU.addRequired<llvm::DominatorTreeWrapperPass>();
     AU.addRequired<llvm::DominanceFrontierWrapperPass>();
     return;
   }

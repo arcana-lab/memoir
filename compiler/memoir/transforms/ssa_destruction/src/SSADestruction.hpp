@@ -5,8 +5,6 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 
-#include "noelle/core/Noelle.hpp"
-
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
@@ -62,7 +60,7 @@ public:
                         SSADestructionStats *stats = nullptr,
                         bool enable_collection_lowering = false);
 
-  void setAnalyses(arcana::noelle::DominatorForest &DT, LivenessAnalysis &LA);
+  void setAnalyses(llvm::DominatorTree &DT, LivenessAnalysis &LA);
 
   // LLVM operations
   void visitInstruction(llvm::Instruction &I);
@@ -123,7 +121,7 @@ public:
 protected:
   // Analyses.
   llvm::Module &M;
-  arcana::noelle::DominatorForest *DT;
+  llvm::DominatorTree *DT;
   LivenessAnalysis *LA;
   TypeConverter TC;
 
