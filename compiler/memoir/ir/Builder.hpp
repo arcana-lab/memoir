@@ -362,7 +362,7 @@ public:
                                              const Twine &name = "") {
     return this->create<SeqSwapWithinInst>(
         MemOIR_Func::SEQ_SWAP_WITHIN,
-        { collection, from_begin, from_end, collection, to_begin },
+        { collection, from_begin, from_end, to_begin },
         name);
   }
   SeqRemoveInst *CreateSeqRemoveInst(llvm::Value *collection,
