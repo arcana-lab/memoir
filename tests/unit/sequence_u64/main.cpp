@@ -9,7 +9,7 @@ using namespace memoir;
 #define VAL2 30
 
 int main() {
-  std::cout << "\nInitializing sequence\n";
+  printf("\nInitializing sequence\n");
 
   auto seq = memoir_allocate_sequence(memoir_u64_t, 3);
 
@@ -17,19 +17,19 @@ int main() {
   memoir_index_write(u64, VAL1, seq, 1);
   memoir_index_write(u64, VAL2, seq, 2);
 
-  std::cout << "\nReading sequence\n";
+  printf("\nReading sequence\n");
 
   auto read0 = memoir_index_read(u64, seq, 0);
   auto read1 = memoir_index_read(u64, seq, 1);
   auto read2 = memoir_index_read(u64, seq, 2);
 
-  std::cout << " Result:\n";
-  std::cout << "  HEAD -> " << std::to_string(read0) << "\n";
-  std::cout << "       -> " << std::to_string(read1) << "\n";
-  std::cout << "       -> " << std::to_string(read2) << "\n\n";
+  printf(" Result:\n");
+  printf("  HEAD -> %d\n", read0);
+  printf("       -> %d\n", read1);
+  printf("       -> %d\n\n", read2);
 
-  std::cout << "Expected:\n";
-  std::cout << "  HEAD -> " << std::to_string(VAL0) << "\n";
-  std::cout << "       -> " << std::to_string(VAL1) << "\n";
-  std::cout << "       -> " << std::to_string(VAL2) << "\n\n";
+  printf("Expected:\n");
+  printf("  HEAD -> %d\n", VAL0);
+  printf("       -> %d\n", VAL1);
+  printf("       -> %d\n\n", VAL2);
 }
