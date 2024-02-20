@@ -99,11 +99,14 @@ public:
     } else if (auto *field_array_type = dyn_cast<FieldArrayType>(&type)) {
       return this->CreateTypeInst(field_array_type->getStructType());
     } else if (auto *static_tensor_type = dyn_cast<StaticTensorType>(&type)) {
-      return nullptr;
+      MEMOIR_UNREACHABLE("CreateStaticTensorType is unimplemented!");
     } else if (auto *tensor_type = dyn_cast<TensorType>(&type)) {
-      return nullptr;
+      MEMOIR_UNREACHABLE("CreateTensorType is unimplemented!");
     } else if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {
-      return nullptr;
+      return this->CreateAssocArrayTypeInst(
+          &this->CreateTypeInst(assoc_type->getKeyType())->getCallInst(),
+          &this->CreateTypeInst(assoc_type->getValueType())->getCallInst(),
+          name);
     } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
       return this->CreateSequenceTypeInst(
           &this->CreateTypeInst(seq_type->getElementType())->getCallInst());
@@ -565,12 +568,13 @@ public:
       Type &type,
       const Twine &name = "") {
     // Create the type instruction.
-    auto *type_inst = CreateTypeInst(type, name);
+    auto &type_inst = MEMOIR_SANITIZE(CreateTypeInst(type, name),
+                                      "Could not construct type instruction!");
 
     // Create the type annotation.
     return this->create<AssertCollectionTypeInst>(
         MemOIR_Func::ASSERT_COLLECTION_TYPE,
-        { &type_inst->getCallInst(), collection });
+        { &type_inst.getCallInst(), collection });
   }
 
   ReturnTypeInst *CreateReturnTypeInst(llvm::Value *type_as_value,
