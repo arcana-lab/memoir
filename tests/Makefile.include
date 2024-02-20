@@ -1,0 +1,98 @@
+# INPUT:
+#   CFILES         := list of C files for build
+#   CXXFILES       := list of C++ files for build
+#   EXTRA_CFLAGS   := test specific C flags
+#   EXTRA_CXXFLAGS := test specific C++ flags
+#   BUILD_DIR      := location for build (optional)
+#   BINARY_NAME    := name of final binary.
+
+INCLUDE_DIR=$(shell memoir-config --includedir)
+LIB_DIR=$(shell memoir-config --libdir)
+IR_FILE_RUNTIME=$(LIB_DIR)/memoir.impl.bc
+IR_FILE_DECL=$(LIB_DIR)/memoir.decl.bc
+
+ifeq ($(BUILD_DIR),)
+BUILD_DIR=build
+endif
+
+ifeq ($(BINARY_NAME),)
+BINARY_NAME=a.out
+endif
+
+CC=clang++
+CXX=clang++
+LL=llvm-link
+OPT=memoir-opt
+LOWER=memoir-lower
+
+LIBS=-lm -lstdc++ $(EXTRA_LIBS)
+CFLAGS=-I$(INCLUDE_DIR) -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(EXTRA_CFLAGS) $(LIBS)
+CXXFLAGS=-I$(INCLUDE_DIR) -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(EXTRA_CXXFLAGS) $(LIBS)
+
+IR_FILE_INPUT=$(BUILD_DIR)/input.bc
+IR_FILE_NORM=$(BUILD_DIR)/normalized.bc
+IR_FILE_SSA=$(BUILD_DIR)/ssa.bc
+IR_FILE_OPT=$(BUILD_DIR)/optimized.bc
+IR_FILE_LOWERED=$(BUILD_DIR)/lowered.bc
+IR_FILE_PROGRAM=$(BUILD_DIR)/linked.bc
+IR_FILE=$(BUILD_DIR)/program.bc
+
+OBJ_FILE=$(patsubst %.bc,%.o,$(IR_FILE))
+BINARY=$(BUILD_DIR)/$(BINARY_NAME)
+
+C_BITCODES := $(patsubst %.c,$(BUILD_DIR)/%.bc,$(CFILES))
+CXX_BITCODES :=  $(patsubst %.cpp,$(BUILD_DIR)/%.bc,$(CXXFILES))
+
+all: setup optimize compile test
+
+noopt: setup baseline compile test
+
+setup: $(BUILD_DIR)
+
+compile: $(BUILD_DIR) $(BINARY)
+
+test: compile
+	$(BINARY) 2>&1 | tee $(BUILD_DIR)/test.out
+
+optimize: $(IR_FILE_LOWERED)
+	cp $< $(IR_FILE)
+
+baseline: $(IR_FILE_INPUT)
+	$(LL) $< $(IR_FILE_RUNTIME) -o $(IR_FILE)
+
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
+
+$(C_BITCODES): $(BUILD_DIR)/%.bc : %.c
+	@printf "Building C file\n"
+	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
+
+$(CXX_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
+	$(CXX) $(CXXFLAGS) -emit-llvm -c $< -o $@
+
+$(IR_FILE_INPUT): $(C_BITCODES) $(CXX_BITCODES)
+	$(LL) $^ -o $@
+
+$(IR_FILE_NORM): $(IR_FILE_INPUT)
+	$(OPT) --norm $< -o $@
+	$(LL) $@ $(IR_FILE_DECL) -o $@
+
+$(IR_FILE_SSA): $(IR_FILE_NORM)
+	memoir-load --memoir-stats --mut2immut --memoir-stats $< -o $@
+
+$(IR_FILE_OPT): $(IR_FILE_SSA)
+	opt -O3 $< -o $@
+
+$(IR_FILE_LOWERED): $(IR_FILE_OPT)
+	$(LOWER) $< -o $@
+
+$(OBJ_FILE): $(IR_FILE)
+	llc -filetype=obj $< -o $@
+
+$(BINARY): $(OBJ_FILE)
+	$(CC) $< -o $@
+
+.PHONY: all noopt setup compile test optimize baseline clean
+
+clean:
+	rm -rf $(BUILD_DIR)
