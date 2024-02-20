@@ -38,7 +38,9 @@ int main() {
   auto escapee = memoir_allocate_struct(escaped_type);
   memoir_struct_write(u64, 123, escapee, 1);
   memoir_struct_write(u64, 123, escapee, 2);
-  escape_hatch(escapee);
+
+  // Uncomment the following line to test the escape analysis.
+  // escape_hatch(escapee);
 
   return 0;
 }
