@@ -1131,6 +1131,49 @@ void SSADestructionVisitor::visitStructWriteInst(StructWriteInst &I) {
 }
 
 void SSADestructionVisitor::visitStructGetInst(StructGetInst &I) {
+  if (this->enable_collection_lowering) {
+    MemOIRBuilder builder(I);
+
+    // Get the type of the struct being accessed.
+    auto &collection_type = I.getCollectionType();
+    auto *field_array_type = cast<FieldArrayType>(&collection_type);
+    auto &struct_type = field_array_type->getStructType();
+    auto &struct_layout = TC.convert(struct_type);
+    auto &llvm_type = struct_layout.get_llvm_type();
+
+    // Get the struct being accessed as an LLVM value.
+    auto &struct_value = I.getObjectOperand();
+
+    // Get the field information for the access.
+    auto field_index = I.getFieldIndex();
+    auto field_offset = struct_layout.get_field_offset(field_index);
+
+    // Get the constant for the given field offset.
+    auto &data_layout = this->M.getDataLayout();
+    auto *int_ptr_type = builder.getIntPtrTy(data_layout);
+
+    // Construct a pointer cast to the LLVM struct type.
+    auto *ptr =
+        builder.CreatePointerCast(&struct_value,
+                                  llvm::PointerType::get(&llvm_type, 0));
+
+    // Construct the GEP for the field.
+    auto *gep = builder.CreateStructGEP(ptr, field_offset);
+
+    // If the field is a bit field, load the resident value, perform the
+    // requisite bit twiddling, and then store the value.
+    if (struct_layout.is_bit_field(field_index)) {
+      MEMOIR_UNREACHABLE("Nested objects cannot be bit fields!");
+    }
+
+    // Coalesce and return.
+    this->coalesce(I, *gep);
+
+    this->markForCleanup(I);
+  } else {
+    // Do nothing.
+  }
+
   return;
 }
 
