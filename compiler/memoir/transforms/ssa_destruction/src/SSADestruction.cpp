@@ -1635,7 +1635,7 @@ void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
 
     auto key_code = key_type.get_code();
     auto value_code = value_type.get_code();
-    auto name = *key_code + "_" + *value_code + "_" ASSOC_IMPL "__removev";
+    auto name = *key_code + "_" + *value_code + "_" ASSOC_IMPL "__remove";
 
     auto *function = this->M.getFunction(name);
     auto function_callee = FunctionCallee(function);
