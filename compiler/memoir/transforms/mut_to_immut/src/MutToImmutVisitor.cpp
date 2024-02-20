@@ -548,7 +548,6 @@ void MutToImmutVisitor::visitMutSeqSwapWithinInst(MutSeqSwapWithinInst &I) {
   auto *from_begin_value = &I.getBeginIndex();
   auto *from_end_value = &I.getEndIndex();
   auto *to_begin_value = &I.getToBeginIndex();
-  println("to begin: ", *to_begin_value);
 
   // Create SeqSwapWithinInst
   auto *ssa_from_collection =
