@@ -1,9 +1,9 @@
 BUILD_DIR=build
-# BINARY_NAME=
+BINARY_NAME=$(shell basename ${PWD})
 CFILES=$(wildcard *.c)
 CXXFILES=$(wildcard *.cpp)
 EXTRA_CFLAGS=
 EXTRA_CXXFLAGS=
-OPTFLAGS=$(shell cat optflags)
+OPTFLAGS=$(shell [ -f optflags ] && cat optflags)
 
 include ../../Makefile.include
