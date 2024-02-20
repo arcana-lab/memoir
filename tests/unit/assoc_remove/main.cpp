@@ -4,9 +4,9 @@
 
 using namespace memoir;
 
-#define KEY0 1
-#define KEY1 2
-#define KEY2 3
+#define KEY0 (uint64_t)1
+#define KEY1 (uint64_t)2
+#define KEY2 (uint64_t)3
 
 #define VAL0 10
 #define VAL1 20
@@ -21,8 +21,11 @@ int main() {
 
   auto map = memoir_allocate_assoc_array(memoir_u64_t, memoir_u64_t);
 
+  memoir_assoc_insert(map, KEY0);
   memoir_assoc_write(u64, VAL0, map, KEY0);
+  memoir_assoc_insert(map, KEY1);
   memoir_assoc_write(u64, VAL1, map, KEY1);
+  memoir_assoc_insert(map, KEY2);
   memoir_assoc_write(u64, VAL2, map, KEY2);
 
   printf("Removing from map\n");
