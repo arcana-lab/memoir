@@ -656,7 +656,7 @@ protected:
     } else if (isa<PointerType>(&type)) {                                      \
       return MemOIR_Func::ENUM_PREFIX##_PTR;                                   \
     } else if (auto *integer_type = dyn_cast<IntegerType>(&type)) {            \
-      if (integer_type->isSigned()) {                                          \
+      if (!integer_type->isSigned()) {                                         \
         switch (integer_type->getBitWidth()) {                                 \
           case 64:                                                             \
             return MemOIR_Func::ENUM_PREFIX##_UINT64;                          \
