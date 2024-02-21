@@ -659,6 +659,8 @@ protected:
       return MemOIR_Func::ENUM_PREFIX##_DOUBLE;                                \
     } else if (isa<PointerType>(&type)) {                                      \
       return MemOIR_Func::ENUM_PREFIX##_PTR;                                   \
+    } else if (isa<ReferenceType>(&type)) {                                    \
+      return MemOIR_Func::ENUM_PREFIX##_STRUCT_REF;                            \
     } else if (auto *integer_type = dyn_cast<IntegerType>(&type)) {            \
       if (!integer_type->isSigned()) {                                         \
         switch (integer_type->getBitWidth()) {                                 \

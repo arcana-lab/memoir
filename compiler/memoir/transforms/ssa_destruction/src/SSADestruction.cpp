@@ -671,7 +671,13 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
       auto *vector_index =
           builder.CreateZExtOrBitCast(&I.getIndexOfDimension(0),
                                       function_type->getParamType(1));
-      auto *write_value = &I.getValueWritten();
+
+      auto *write_type = function_type->getParamType(2);
+      auto *write_value =
+          (isa<llvm::IntegerType>(write_type))
+              ? &I.getValueWritten()
+              : builder.CreateBitOrPointerCast(&I.getValueWritten(),
+                                               write_type);
 
       auto *llvm_call = builder.CreateCall(
           function_callee,
@@ -717,7 +723,6 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
       // Cleanup the old instruction.
       this->markForCleanup(I);
     }
-
   } else {
     // Get type information.
     auto &element_type = collection_type.getElementType();
