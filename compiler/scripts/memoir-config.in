@@ -33,11 +33,15 @@ do
             shift
             ;;
         --cflags)
-            echo "-I@CMAKE_INSTALL_INCLUDEDIR@"
+            echo "-I@CMAKE_INSTALL_INCLUDEDIR@ -fdeclspec"
             shift
             ;;
         --cxxflags)
-            echo "-I@CMAKE_INSTALL_INCLUDEDIR@ -fno-exceptions -fno-rtti"
+            echo "-I@CMAKE_INSTALL_INCLUDEDIR@ -fdeclspec -fno-exceptions -fno-rtti"
+            shift
+            ;;
+        --ldflags)
+            echo "-L@CMAKE_INSTALL_LIBDIR@ -lmemoir-runtime -lstdc++"
             shift
             ;;
         -h|--help)
