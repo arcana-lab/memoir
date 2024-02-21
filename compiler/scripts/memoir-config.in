@@ -37,7 +37,7 @@ do
             shift
             ;;
         --cxxflags)
-            echo "-I@CMAKE_INSTALL_INCLUDEDIR@ -fdeclspec -fno-exceptions -fno-rtti"
+            echo "-I@CMAKE_INSTALL_INCLUDEDIR@ -fdeclspec"
             shift
             ;;
         --ldflags)
