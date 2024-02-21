@@ -1117,6 +1117,18 @@ void SSADestructionVisitor::visitStructWriteInst(StructWriteInst &I) {
       value_written = builder.CreateOr(value_written, load);
     }
 
+    // Cast the value written to match the gep type.
+    if (auto *gep_ptr_type = dyn_cast<llvm::PointerType>(gep->getType())) {
+      // Get the element type.
+      auto *elem_type = gep_ptr_type->getElementType();
+
+      // Create a Bit/PointerCast for non-integer types.
+      if (!isa<llvm::IntegerType>(elem_type)) {
+        value_written =
+            builder.CreateBitOrPointerCast(value_written, elem_type);
+      }
+    }
+
     // Construct the load.
     auto &store = MEMOIR_SANITIZE(
         builder.CreateStore(value_written, gep, /* isVolatile = */ false),
