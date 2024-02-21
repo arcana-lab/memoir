@@ -18,6 +18,7 @@ fi
 
 PASSES=()
 CLANG_ARGS=()
+LINK_FLAGS=()
 
 while [[ $# -gt 0 ]]
 do
@@ -48,6 +49,11 @@ do
             OPT_LEVEL="$1"
             shift
             ;;
+        -l*|-L*)
+            CLANG_ARGS+=("$1")
+            LINK_FLAGS+=("$1")
+            shift
+            ;;
         *)
             CLANG_ARGS+=("$1")
             shift
@@ -63,12 +69,12 @@ fi
 
 if [ "${MODE}" = "compile" ]
 then
-    gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectoriz -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument -fno-exceptions ${CLANG_ARGS[@]} $(memoir-config --cxxflags)
+    gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectorize -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument ${CLANG_ARGS[@]} $(memoir-config --cxxflags)
     exit
 fi
 
 # Generate the bitcode.
-gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectorize -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument -fno-exceptions ${CLANG_ARGS[@]} $(memoir-config --cxxflags --ldflags)
+gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectorize -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument ${CLANG_ARGS[@]} $(memoir-config --cxxflags --ldflags)
 
 # Extract the bitcode.
 IR_FILE=${OUTPUT_FILE}.bc

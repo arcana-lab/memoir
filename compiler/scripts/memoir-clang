@@ -63,7 +63,7 @@ fi
 
 if [ "${MODE}" = "compile" ]
 then
-    gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectoriz -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument -fno-exceptions ${CLANG_ARGS[@]} $(memoir-config --cxxflags)
+    gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectorize -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument -fno-exceptions ${CLANG_ARGS[@]} $(memoir-config --cxxflags)
     exit
 fi
 
