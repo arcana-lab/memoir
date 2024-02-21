@@ -1,0 +1,110 @@
+#!/bin/bash
+
+function usage {
+    echo "This script will run MemOIR optimizations.";
+    echo "  USAGE: `basename $0` <INPUT FILE> -o <OUTPUT FILE> [<OPTIONS, ...>]"
+}
+
+function flags {
+    echo "  FLAGS:" 
+    echo "    -o,--output <FILENAME>" 
+    echo "      Specifies the output file" 
+}
+
+if [[ $# -lt 1 ]]; then
+    usage
+    exit 1
+fi
+
+PASSES=()
+CLANG_ARGS=()
+
+while [[ $# -gt 0 ]]
+do
+    case $1 in
+        -o|--output)
+            OUTPUT_FILE=$2
+            CLANG_ARGS+=("-o ${OUTPUT_FILE}")
+            shift
+            shift
+            ;;
+        -c)
+            MODE="compile"
+            shift
+            ;;
+        --emit-memoir)
+            EMIT_MEMOIR="y"
+            shift
+            ;;
+        --emit-llvm)
+            EMIT_LLVM="n"
+            shift
+            ;;
+        --memoir-*)
+            MEMOIR_ARGS+=("$1")
+            shift
+            ;;
+        -O*)
+            OPT_LEVEL="$1"
+            shift
+            ;;
+        *)
+            CLANG_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [ -z ${OUTPUT_FILE} ] ; then
+    echo "No output file specified."
+    usage
+    exit 1
+fi
+
+if [ "${MODE}" = "compile" ]
+then
+    gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectoriz -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument -fno-exceptions ${CLANG_ARGS[@]} $(memoir-config --cxxflags)
+    exit
+fi
+
+# Generate the bitcode.
+gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectorize -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument -fno-exceptions ${CLANG_ARGS[@]} $(memoir-config --cflags --ldflags)
+
+# Extract the bitcode.
+IR_FILE=${OUTPUT_FILE}.bc
+get-bc ${OUTPUT_FILE}
+
+# Normalize the bitcode
+memoir-norm ${IR_FILE} -o ${IR_FILE}
+
+# Perform optimizations.
+memoir-load ${MEMOIR_ARGS} ${IR_FILE} -o ${IR_FILE}
+
+# If we are not linking, and we are emitting MEMOIR, do so now.
+if [ "${EMIT_MEMOIR}" = "y" ]
+then
+    # Emit the MEMOIR bitcode.
+    cp ${IR_FILE} ${OUTPUT_FILE}
+    exit
+fi
+
+# Lower to LLVM.
+memoir-lower ${IR_FILE} -o ${IR_FILE}
+
+# If we are not linking, and we are emitting LLVM bitcode, do so now.
+if [ "${EMIT_LLVM}" = "y" ]
+then
+    # Emit the LLVM bitcode.
+    cp ${IR_FILE} ${OUTPUT_FILE}
+    exit
+fi
+
+# Compile the bitcode to object code.
+OBJ_FILE=${OUTPUT_FILE}.o
+llc ${OPT_LEVEL} ${IR_FILE} --filetype=obj -o ${OBJ_FILE}
+
+# Compile to binary.
+clang ${OBJ_FILE} -o ${OUTPUT_FILE} $(memoir-config --ldflags) ${LINK_FLAGS[@]}
+
+# Cleanup
+rm ${IR_FILE} ${OBJ_FILE}
