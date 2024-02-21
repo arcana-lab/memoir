@@ -53,11 +53,9 @@ extern "C" {
       T##_stl_vector_p vec,                                                    \
       size_t begin_index,                                                      \
       size_t end_index) {                                                      \
-    T##_stl_vector_p new_vec = new T##_stl_vector_t();                         \
-    new_vec->resize(end_index - begin_index);                                  \
-    std::copy(vec->cbegin() + begin_index,                                     \
-              vec->cend() + end_index,                                         \
-              new_vec->begin());                                               \
+    T##_stl_vector_p new_vec =                                                 \
+        new T##_stl_vector_t(vec->cbegin() + begin_index,                      \
+                             vec->cbegin() + end_index);                       \
     return new_vec;                                                            \
   }                                                                            \
                                                                                \
