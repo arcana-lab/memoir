@@ -29,6 +29,11 @@ int main() {
   // Update the inner fields
   c_ptr->a = 456;
 
-  std::cout << "a: " << c_ptr->a << "\n";
-  std::cout << "b: " << c_ptr->b << "\n";
+  printf("Result:\n");
+  printf("  a: %lu\n", c_ptr->a);
+  printf("  b: %lu\n", c_ptr->b);
+
+  printf("Expected:\n");
+  printf("  a: %lu\n", uint64_t(456));
+  printf("  b: %lu\n", uint64_t(2));
 }
