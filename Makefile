@@ -25,9 +25,9 @@ postinstall: install
 benchmark: all
 	make -C $(BUILD_DIR) bitcodes -j32
 
-test: all
+test:
 	make -C $(BUILD_DIR) tests -j32
-	ctest --tests-dir $(BUILD_DIR)
+	cd $(BUILD_DIR) && ctest
 
 noelle: .noelle
 
