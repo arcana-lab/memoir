@@ -7,6 +7,8 @@ install(
   memoir-opt
   memoir-prof
   memoir-enable
+  memoir-clang
+  memoir-clang++
   
   TYPE BIN
 )
