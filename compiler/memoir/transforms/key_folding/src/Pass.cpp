@@ -22,7 +22,7 @@
 // Key Folding
 #include "KeyFolding.hpp"
 
-using namespace llvm::memoir;
+namespace llvm::memoir {
 
 /*
  * This pass folds the key-space of an assoc onto a sequence's index space when
@@ -57,6 +57,8 @@ struct KeyFoldingPass : public ModulePass {
 
 // Next there is code to register your pass to "opt"
 char KeyFoldingPass::ID = 0;
-static RegisterPass<KeyFoldingPass> X(
+static llvm::RegisterPass<KeyFoldingPass> X(
     "memoir-kf",
     "Folds the key-space of an assoc onto a sequence when possible.");
+
+} // namespace llvm::memoir

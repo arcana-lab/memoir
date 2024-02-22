@@ -23,7 +23,7 @@
 
 #include "DeadElementElimination.hpp"
 
-using namespace llvm::memoir;
+namespace llvm::memoir {
 
 /*
  * This pass eliminates updates to dead elements of collections.
@@ -62,6 +62,8 @@ struct DeadElementEliminationPass : public ModulePass {
 
 // Next there is code to register your pass to "opt"
 char DeadElementEliminationPass::ID = 0;
-static RegisterPass<DeadElementEliminationPass> X(
+static llvm::RegisterPass<DeadElementEliminationPass> X(
     "memoir-dee",
     "Eliminates dead element updates.");
+
+} // namespace llvm::memoir

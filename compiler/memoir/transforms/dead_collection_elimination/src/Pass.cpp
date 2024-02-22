@@ -22,7 +22,7 @@
 // Dead Code Elimination
 #include "DeadCollectionElimination.hpp"
 
-using namespace llvm::memoir;
+namespace llvm::memoir {
 
 /*
  * This pass canonicalizes the conservative iteration space of sequences in
@@ -57,6 +57,8 @@ struct DeadCollectionEliminationPass : public ModulePass {
 
 // Next there is code to register your pass to "opt"
 char DeadCollectionEliminationPass::ID = 0;
-static RegisterPass<DeadCollectionEliminationPass> X(
+static llvm::RegisterPass<DeadCollectionEliminationPass> X(
     "memoir-dce",
-    "Eliminates dead collection allocations, slices and joins.");
+    "Eliminates dead collection allocations.");
+
+} // namespace llvm::memoir
