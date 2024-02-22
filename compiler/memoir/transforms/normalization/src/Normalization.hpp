@@ -8,31 +8,23 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include <unordered_set>
-
 #include "memoir/utility/Metadata.hpp"
 
 /*
- * Pass to normalize the object-ir runtime and object-ir programs.
+ * Pass to normalize the MEMOIR runtime and MEMOIR programs.
  *
  * Author: Tommy McMichen
  * Created: June 13, 2022
  */
 
-using namespace llvm;
-
-namespace normalization {
+namespace llvm::memoir {
 
 class Normalization {
 private:
-  Module &M;
-
-  std::unordered_set<CallInst *> callsToObjectIR;
-
-  const std::string OBJECTIR_INTERNAL = "objectir.internal";
+  llvm::Module &M;
 
 public:
-  Normalization(Module &M);
+  Normalization(llvm::Module &M);
 
   /*
    * Analyze the program
@@ -50,6 +42,6 @@ public:
   void transformRuntime();
 };
 
-} // namespace normalization
+} // namespace llvm::memoir
 
 #endif

@@ -31,7 +31,7 @@ struct NormalizationPass : public ModulePass {
   bool runOnModule(Module &M) override {
     errs() << "Running normalization pass\n";
 
-    auto normalization = new normalization::Normalization(M);
+    auto normalization = new Normalization(M);
 
     if (OnlyRuntime) {
       errs() << "Normalizing MemOIR Runtime\n";

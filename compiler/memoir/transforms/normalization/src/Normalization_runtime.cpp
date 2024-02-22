@@ -6,9 +6,7 @@
 
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
-using namespace llvm::memoir;
-
-namespace normalization {
+namespace llvm::memoir {
 
 void Normalization::transformRuntime() {
 
@@ -29,4 +27,4 @@ void Normalization::transformRuntime() {
   return;
 }
 
-} // namespace normalization
+} // namespace llvm::memoir
