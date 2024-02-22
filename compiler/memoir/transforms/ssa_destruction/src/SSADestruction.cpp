@@ -1742,6 +1742,49 @@ void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
   return;
 }
 
+void SSADestructionVisitor::visitAssocKeysInst(AssocKeysInst &I) {
+  if (this->enable_collection_lowering) {
+    auto &assoc_type =
+        MEMOIR_SANITIZE(dyn_cast_or_null<AssocArrayType>(
+                            TypeAnalysis::analyze(I.getCollection())),
+                        "Couldn't determine type assoc collection");
+
+    auto &key_type = assoc_type.getKeyType();
+    auto &value_type = assoc_type.getValueType();
+
+    auto key_code = key_type.get_code();
+    auto value_code = value_type.get_code();
+    auto name = *key_code + "_" + *value_code + "_" ASSOC_IMPL "__keys";
+
+    auto *function = this->M.getFunction(name);
+    auto function_callee = FunctionCallee(function);
+    if (function == nullptr) {
+      warnln("Couldn't find AssocKeys name for ", name);
+      return;
+    }
+
+    MemOIRBuilder builder(I);
+
+    auto *function_type = function_callee.getFunctionType();
+    auto *assoc = builder.CreatePointerCast(&I.getCollection(),
+                                            function_type->getParamType(0));
+
+    auto *llvm_call =
+        builder.CreateCall(function_callee, llvm::ArrayRef({ assoc }));
+    MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for AssocKeys");
+
+    auto *collection =
+        builder.CreatePointerCast(llvm_call, I.getCallInst().getType());
+
+    this->coalesce(I, *collection);
+
+    this->markForCleanup(I);
+  } else {
+    // Do nothing.
+  }
+  return;
+}
+
 // General-purpose SSA lowering.
 void SSADestructionVisitor::visitUsePHIInst(UsePHIInst &I) {
 

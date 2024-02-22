@@ -99,6 +99,7 @@ public:
   // Assoc operations
   void visitAssocInsertInst(AssocInsertInst &I);
   void visitAssocRemoveInst(AssocRemoveInst &I);
+  void visitAssocKeysInst(AssocKeysInst &I);
 
   // SSA collection operations
   void visitUsePHIInst(UsePHIInst &I);
