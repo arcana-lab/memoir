@@ -4,6 +4,8 @@
 
 #include <unordered_map>
 
+#include <backend/stl_vector.h>
+
 #define cname extern "C"
 #define alwaysinline __attribute__((always_inline)) inline
 #define used __attribute__((used))
@@ -72,6 +74,15 @@ extern "C" {
   cname alwaysinline used size_t K##_##V##_stl_unordered_map__size(            \
       K##_##V##_stl_unordered_map_p table) {                                   \
     return table->size();                                                      \
+  }                                                                            \
+  cname alwaysinline used K##_stl_vector_p K##_##V##_stl_unordered_map__keys(  \
+      K##_##V##_stl_unordered_map_p table) {                                   \
+    auto *keys = K##_stl_vector__allocate(table->size());                      \
+    size_t i = 0;                                                              \
+    for (const auto &[key, _] : *table) {                                      \
+      (*keys)[i++] = key;                                                      \
+    }                                                                          \
+    return keys;                                                               \
   }
 
 } // extern "C"
