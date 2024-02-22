@@ -13,7 +13,7 @@
 
 using namespace arcana::noelle;
 
-namespace {
+namespace llvm::memoir {
 
 static cl::opt<bool> OnlyRuntime("only-runtime",
                                  cl::init(false),
@@ -52,28 +52,10 @@ struct NormalizationPass : public ModulePass {
   }
 };
 
-} // namespace
+} // namespace llvm::memoir
 
 // Next there is code to register your pass to "opt"
-char NormalizationPass::ID = 0;
-static RegisterPass<NormalizationPass> X(
+char llvm::memoir::NormalizationPass::ID = 0;
+static llvm::RegisterPass<llvm::memoir::NormalizationPass> X(
     "memoir-norm",
     "Normalizes the MemOIR language and runtime");
-
-// Next there is code to register your pass to "clang"
-static NormalizationPass *_PassMaker = NULL;
-static RegisterStandardPasses _RegPass1(PassManagerBuilder::EP_OptimizerLast,
-                                        [](const PassManagerBuilder &,
-                                           legacy::PassManagerBase &PM) {
-                                          if (!_PassMaker) {
-                                            PM.add(_PassMaker =
-                                                       new NormalizationPass());
-                                          }
-                                        }); // ** for -Ox
-static RegisterStandardPasses _RegPass2(
-    PassManagerBuilder::EP_EnabledOnOptLevel0,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-      if (!_PassMaker) {
-        PM.add(_PassMaker = new NormalizationPass());
-      }
-    }); // ** for -O0
