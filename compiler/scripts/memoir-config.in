@@ -41,7 +41,7 @@ do
             shift
             ;;
         --ldflags)
-            echo "-L@CMAKE_INSTALL_LIBDIR@ -lmemoir-runtime -lstdc++"
+            echo "-L@CMAKE_INSTALL_LIBDIR@ -lmemoir.impl_native -lstdc++"
             shift
             ;;
         -h|--help)
