@@ -24,8 +24,13 @@ public:
   /**
    * Live-Range analysis driver.
    * Constructs a live range valuation for MEMOIR sequence variables in an LLVM
-   * module @M using analyses from @noelle. Can toggle context sensitivity
-   * with @context_sensitive, defaults to context insesitive.
+   * module M using analyses from noelle. Can toggle context sensitivity
+   * with context_sensitive, defaults to context insesitive.
+   *
+   * @param M LLVM Module to analyze
+   * @param noelle NOELLE instance
+   * @param context_sensitive Toggle whether the analysis should be context
+   * sensitive or not.
    */
   LiveRangeAnalysis(llvm::Module &M,
                     arcana::noelle::Noelle &noelle,
@@ -37,14 +42,19 @@ public:
   }
 
   /**
-   * Query the live range for MEMOIR sequence variable @V.
-   * If @V is not a MEMOIR sequence variable, returns NULL!
+   * Query the live range for MEMOIR sequence variable V.
+   * If V is not a MEMOIR sequence variable, returns NULL!
+   *
+   * @param V Value to query live range of
    */
   ValueRange *get_live_range(llvm::Value &V) const;
 
   /**
-   * Query the live range for MEMOIR sequence variable @V in calling context @C.
-   * If @V is not a MEMOIR sequence variable, returns NULL!
+   * Query the live range for MEMOIR sequence variable V in calling context C.
+   * If V is not a MEMOIR sequence variable, returns NULL!
+   *
+   * @param V Value to query live range of
+   * @param C Calling context for context-sensitive results.
    */
   ValueRange *get_live_range(llvm::Value &V, llvm::CallBase &C) const;
 
@@ -57,13 +67,13 @@ public:
   }
 
   /**
-   * Perform the disjunctive merge of two value ranges, @range1 and @range2.
+   * Perform the disjunctive merge of two value ranges, range1 and range2.
    * Returns the resultant value range.
    */
   static ValueRange *disjunctive_merge(ValueRange *range1, ValueRange *range2);
 
   /**
-   * Perform the conjunctive merge of two value ranges, @range1 and @range2.
+   * Perform the conjunctive merge of two value ranges, range1 and range2.
    * Returns the resultant value range.
    */
   static ValueRange *conjunctive_merge(ValueRange *range1, ValueRange *range2);
