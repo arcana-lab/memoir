@@ -14,6 +14,8 @@ while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a sym
 done
 MEMOIR_HOME=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..
 
+source ${MEMOIR_HOME}/bin/memoir-enable
+
 IN_IR_FILE="$1"
 OUT_IR_FILE="$2"
 
