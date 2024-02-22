@@ -8,9 +8,9 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "memoir/support/Casting.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"
