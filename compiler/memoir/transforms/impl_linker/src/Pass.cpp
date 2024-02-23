@@ -62,7 +62,7 @@ struct ImplLinkerPass : public ModulePass {
 
   ImplLinkerPass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
@@ -135,7 +135,7 @@ struct ImplLinkerPass : public ModulePass {
     return false;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     return;
   }
 };

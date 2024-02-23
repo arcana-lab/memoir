@@ -24,11 +24,11 @@ struct NormalizationPass : public ModulePass {
 
   NormalizationPass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
     errs() << "Running normalization pass\n";
 
     auto normalization = new Normalization(M);
@@ -47,7 +47,7 @@ struct NormalizationPass : public ModulePass {
     return true;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     return;
   }
 };

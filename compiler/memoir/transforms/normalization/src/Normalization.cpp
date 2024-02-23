@@ -2,7 +2,7 @@
 
 namespace llvm::memoir {
 
-Normalization::Normalization(Module &M) : M(M) {
+Normalization::Normalization(llvm::Module &M) : M(M) {
   // Do initialization.
 }
 

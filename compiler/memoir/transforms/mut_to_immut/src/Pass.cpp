@@ -56,7 +56,7 @@ struct MutToImmutPass : public ModulePass {
 
   MutToImmutPass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
@@ -86,7 +86,7 @@ struct MutToImmutPass : public ModulePass {
     return dfs_preorder_traversal_helper(root_node);
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
     infoln();
     infoln("BEGIN mut2immut pass");
     infoln();
@@ -336,7 +336,7 @@ struct MutToImmutPass : public ModulePass {
     return true;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     AU.addRequired<llvm::DominatorTreeWrapperPass>();
     AU.addRequired<llvm::DominanceFrontierWrapperPass>();
     return;

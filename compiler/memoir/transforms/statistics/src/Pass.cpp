@@ -152,11 +152,11 @@ struct MemOIRStatsPass : public ModulePass {
 
   MemOIRStatsPass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
     println("BEGIN stats pass");
     println();
 
@@ -187,7 +187,7 @@ struct MemOIRStatsPass : public ModulePass {
     return false;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     return;
   }
 };

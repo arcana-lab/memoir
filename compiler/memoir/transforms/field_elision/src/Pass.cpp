@@ -48,11 +48,11 @@ struct FieldElisionPass : public ModulePass {
 
   FieldElisionPass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
     infoln("========================");
     infoln("BEGIN field elision pass");
     infoln();
@@ -131,7 +131,7 @@ struct FieldElisionPass : public ModulePass {
     return false;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     AU.addRequired<llvm::CallGraphWrapperPass>();
     return;
   }

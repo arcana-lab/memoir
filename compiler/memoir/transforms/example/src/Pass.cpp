@@ -33,11 +33,11 @@ struct ExamplePass : public ModulePass {
 
   ExamplePass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
     errs() << "Running example pass\n\n";
 
     auto &noelle = getAnalysis<Noelle>();
@@ -135,7 +135,7 @@ struct ExamplePass : public ModulePass {
     return false;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     AU.addRequired<Noelle>();
     return;
   }

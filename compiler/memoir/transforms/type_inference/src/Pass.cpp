@@ -33,18 +33,18 @@ struct TypeInferencePass : public ModulePass {
 
   TypeInferencePass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
 
     auto type_inference = new TypeInference(M);
 
     return type_inference->run();
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     return;
   }
 };

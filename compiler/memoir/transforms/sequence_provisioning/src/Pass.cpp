@@ -55,11 +55,11 @@ struct SequenceProvisioningPass : public ModulePass {
 
   SequenceProvisioningPass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
     println("Running sequence provisioning pass");
     println();
 
@@ -78,7 +78,7 @@ struct SequenceProvisioningPass : public ModulePass {
     return false;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     AU.addRequired<arcana::noelle::Noelle>();
     AU.addRequired<llvm::DominatorTreeWrapperPass>();
     return;

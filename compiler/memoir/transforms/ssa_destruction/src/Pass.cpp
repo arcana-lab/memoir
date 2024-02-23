@@ -58,7 +58,7 @@ struct SSADestructionPass : public ModulePass {
 
   SSADestructionPass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
@@ -214,7 +214,7 @@ struct SSADestructionPass : public ModulePass {
     return true;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     AU.addRequired<arcana::noelle::Noelle>();
     AU.addRequired<llvm::DominatorTreeWrapperPass>();
     AU.addRequired<llvm::DominanceFrontierWrapperPass>();

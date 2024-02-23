@@ -47,11 +47,11 @@ struct CommandLinePass : public ModulePass {
 
   CommandLinePass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
     println("print enabled");
     infoln("quick enabled");
     debugln("debug enabled");
@@ -59,7 +59,7 @@ struct CommandLinePass : public ModulePass {
     return false;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     return;
   }
 };

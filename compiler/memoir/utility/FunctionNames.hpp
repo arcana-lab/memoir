@@ -64,7 +64,7 @@ public:
 
   static MemOIR_Func get_memoir_enum(llvm::CallInst &call_inst);
 
-  static llvm::Function *get_memoir_function(Module &M,
+  static llvm::Function *get_memoir_function(llvm::Module &M,
                                              MemOIR_Func function_enum);
 
   static bool is_type(MemOIR_Func function_enum);

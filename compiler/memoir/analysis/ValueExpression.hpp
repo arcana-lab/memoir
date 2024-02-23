@@ -340,7 +340,7 @@ public:
   ICmpExpression(llvm::CmpInst::Predicate pred,
                  ValueExpression &LHS,
                  ValueExpression &RHS)
-    : BasicExpression(EK_ICmp, (Instruction::ICmp << 8) | pred),
+    : BasicExpression(EK_ICmp, (llvm::Instruction::ICmp << 8) | pred),
       predicate(pred) {
     this->arguments.push_back(&LHS);
     this->arguments.push_back(&RHS);

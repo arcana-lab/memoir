@@ -38,11 +38,11 @@ struct DeadFieldEliminationPass : public ModulePass {
 
   DeadFieldEliminationPass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
     println("Running dead field elimination pass");
     println();
 
@@ -51,7 +51,7 @@ struct DeadFieldEliminationPass : public ModulePass {
     return DFE.transformed;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     return;
   }
 };

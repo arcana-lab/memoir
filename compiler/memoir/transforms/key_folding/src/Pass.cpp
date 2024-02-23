@@ -37,11 +37,11 @@ struct KeyFoldingPass : public ModulePass {
 
   KeyFoldingPass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
     println("Running key folding pass");
     println();
 
@@ -50,7 +50,7 @@ struct KeyFoldingPass : public ModulePass {
     return KF.transformed;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     return;
   }
 };

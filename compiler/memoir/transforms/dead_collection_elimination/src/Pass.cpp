@@ -37,11 +37,11 @@ struct DeadCollectionEliminationPass : public ModulePass {
 
   DeadCollectionEliminationPass() : ModulePass(ID) {}
 
-  bool doInitialization(Module &M) override {
+  bool doInitialization(llvm::Module &M) override {
     return false;
   }
 
-  bool runOnModule(Module &M) override {
+  bool runOnModule(llvm::Module &M) override {
     println("Running dead collection elimination pass");
     println();
 
@@ -50,7 +50,7 @@ struct DeadCollectionEliminationPass : public ModulePass {
     return true;
   }
 
-  void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
     return;
   }
 };

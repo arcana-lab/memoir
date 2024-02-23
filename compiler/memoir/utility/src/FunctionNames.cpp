@@ -100,7 +100,7 @@ MemOIR_Func FunctionNames::get_memoir_enum(llvm::CallInst &call_inst) {
   return get_memoir_enum(*callee);
 }
 
-Function *FunctionNames::get_memoir_function(Module &M,
+Function *FunctionNames::get_memoir_function(llvm::Module &M,
                                              MemOIR_Func function_enum) {
   switch (function_enum) {
     default:
@@ -230,7 +230,7 @@ bool FunctionNames::is_mutator(MemOIR_Func function_enum) {
   return (function_enum > BEGIN_MUT && function_enum < END_MUT);
 }
 
-bool FunctionNames::is_mutator(Module &M, MemOIR_Func function_enum) {
+bool FunctionNames::is_mutator(llvm::Module &M, MemOIR_Func function_enum) {
   auto *memoir_function = get_memoir_function(M, function_enum);
   if (!memoir_function) {
     return false;
