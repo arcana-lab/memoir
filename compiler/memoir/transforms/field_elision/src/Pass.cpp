@@ -71,8 +71,7 @@ struct FieldElisionPass : public ModulePass {
     for (auto &func_use : define_struct_type_func->uses()) {
       auto *func_user = func_use.getUser();
       auto *func_user_as_inst = dyn_cast_or_null<llvm::Instruction>(func_user);
-      if (auto *define_inst =
-              dyn_cast_into<DefineStructTypeInst>(func_user_as_inst)) {
+      if (auto *define_inst = into<DefineStructTypeInst>(func_user_as_inst)) {
         auto type_name = define_inst->getName();
         type_definitions[type_name] = define_inst;
       }

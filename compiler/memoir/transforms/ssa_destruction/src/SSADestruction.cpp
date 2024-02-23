@@ -453,16 +453,15 @@ void SSADestructionVisitor::visitEndInst(EndInst &I) {
     }
 
     // Handle end in the context of its use.
-    if (auto *insert_inst = dyn_cast_into<InsertInst>(user_as_inst)) {
+    if (auto *insert_inst = into<InsertInst>(user_as_inst)) {
       auto &contextualized = contextualize_end(I, use, *insert_inst);
-    } else if (auto *remove_inst = dyn_cast_into<RemoveInst>(user_as_inst)) {
+    } else if (auto *remove_inst = into<RemoveInst>(user_as_inst)) {
       auto &contextualized = contextualize_end(I, use, *remove_inst);
-    } else if (auto *copy_inst = dyn_cast_into<CopyInst>(user_as_inst)) {
+    } else if (auto *copy_inst = into<CopyInst>(user_as_inst)) {
       auto &contextualized = contextualize_end(I, use, *copy_inst);
-    } else if (auto *swap_inst = dyn_cast_into<SeqSwapInst>(user_as_inst)) {
+    } else if (auto *swap_inst = into<SeqSwapInst>(user_as_inst)) {
       auto &contextualized = contextualize_end(I, use, *swap_inst);
-    } else if (auto *swap_within_inst =
-                   dyn_cast_into<SeqSwapWithinInst>(user_as_inst)) {
+    } else if (auto *swap_within_inst = into<SeqSwapWithinInst>(user_as_inst)) {
       auto &contextualized = contextualize_end(I, use, *swap_within_inst);
     } else if (auto *phi_node = dyn_cast<llvm::PHINode>(user_as_inst)) {
       MEMOIR_UNREACHABLE(

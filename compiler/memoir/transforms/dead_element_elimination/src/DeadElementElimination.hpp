@@ -131,7 +131,7 @@ protected:
           }
 
           // Perform the rewrite rule.
-          if (auto *write_inst = dyn_cast_into<IndexWriteInst>(inst)) {
+          if (auto *write_inst = into<IndexWriteInst>(inst)) {
 
             // Fetch the index of the write instruction.
             auto &index = write_inst->getIndexOfDimension(0);
@@ -187,7 +187,7 @@ protected:
             auto &original_collection = write_inst->getObjectOperand();
             phi->addIncoming(&original_collection, original_bb);
 
-          } else if (auto *insert_inst = dyn_cast_into<SeqInsertInst>(inst)) {
+          } else if (auto *insert_inst = into<SeqInsertInst>(inst)) {
 
             // Fetch the insertion point.
             auto &index = insert_inst->getInsertionPoint();
@@ -234,10 +234,9 @@ protected:
             auto &original_collection = insert_inst->getBaseCollection();
             phi->addIncoming(&original_collection, original_bb);
 
-          } else if (auto *swap_inst = dyn_cast_into<SeqSwapInst>(inst)) {
+          } else if (auto *swap_inst = into<SeqSwapInst>(inst)) {
             warnln("Swap instruction is unimplemented!");
-          } else if (auto *swap_within_inst =
-                         dyn_cast_into<SeqSwapWithinInst>(inst)) {
+          } else if (auto *swap_within_inst = into<SeqSwapWithinInst>(inst)) {
             warnln("Swap instruction is unimplemented!");
           }
         }

@@ -17,7 +17,7 @@ template <
     class From,
     std::enable_if_t<std::is_base_of_v<MemOIRInst, To>, bool> = true,
     std::enable_if_t<std::is_base_of_v<llvm::Instruction, From>, bool> = true>
-To *dyn_cast_into(From *I) {
+To *into(From *I) {
   if (I == nullptr) {
     return nullptr;
   }
@@ -30,7 +30,7 @@ template <
     class From,
     std::enable_if_t<std::is_base_of_v<MemOIRInst, To>, bool> = true,
     std::enable_if_t<std::is_base_of_v<llvm::Instruction, From>, bool> = true>
-To *dyn_cast_into(From &I) {
+To *into(From &I) {
   auto *memoir_inst = MemOIRInst::get(I);
   return dyn_cast_or_null<To>(memoir_inst);
 }
@@ -40,7 +40,7 @@ template <
     class From,
     std::enable_if_t<std::is_base_of_v<llvm::Instruction, To>, bool> = true,
     std::enable_if_t<std::is_base_of_v<MemOIRInst, From>, bool> = true>
-To *dyn_cast_into(From *I) {
+To *into(From *I) {
   return dyn_cast_or_null<To>(&I->getCallInst());
 }
 
@@ -49,7 +49,7 @@ template <
     class From,
     std::enable_if_t<std::is_base_of_v<llvm::Instruction, To>, bool> = true,
     std::enable_if_t<std::is_base_of_v<MemOIRInst, From>, bool> = true>
-To *dyn_cast_into(From &I) {
+To *into(From &I) {
   return dyn_cast_or_null<To>(&I.getCallInst());
 }
 
