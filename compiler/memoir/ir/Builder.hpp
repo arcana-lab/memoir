@@ -617,7 +617,7 @@ protected:
     auto *llvm_call = this->createMemOIRCall(memoir_enum, arguments, name);
 
     // Cast to MemOIRInst and return.
-    auto inst = as<T>(llvm_call);
+    auto inst = dyn_cast_into<T>(llvm_call);
     MEMOIR_NULL_CHECK(inst, "Type mismatch for result of llvm call!");
 
     // Return.

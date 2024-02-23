@@ -83,7 +83,7 @@ struct ImplLinkerPass : public ModulePass {
       // Collect all of the collection allocations in the program.
       for (auto &BB : F) {
         for (auto &I : BB) {
-          if (auto *seq_alloc = as<SequenceAllocInst>(&I)) {
+          if (auto *seq_alloc = dyn_cast_into<SequenceAllocInst>(&I)) {
             // Get the implementation name for this allocation.
             auto impl_name = SEQ_IMPL;
 
@@ -93,7 +93,7 @@ struct ImplLinkerPass : public ModulePass {
             // Implement the sequence.
             IL.implement_seq(impl_name, element_layout);
 
-          } else if (auto *assoc_alloc = as<AssocAllocInst>(&I)) {
+          } else if (auto *assoc_alloc = dyn_cast_into<AssocAllocInst>(&I)) {
             // Get the implementation name for this allocation.
             auto impl_name = ASSOC_IMPL;
 
@@ -105,7 +105,8 @@ struct ImplLinkerPass : public ModulePass {
 
             // Implement the assoc.
             IL.implement_assoc(impl_name, key_layout, value_layout);
-          } else if (auto *define_type = as<DefineStructTypeInst>(&I)) {
+          } else if (auto *define_type =
+                         dyn_cast_into<DefineStructTypeInst>(&I)) {
             // Get the struct type.
             auto &struct_type = define_type->getType();
 

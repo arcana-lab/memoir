@@ -76,7 +76,7 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysis &RA,
                                                  llvm::Instruction &I) {
 
   // Handle MEMOIR instructions.
-  if (auto *memoir_inst = as<MemOIRInst>(&I)) {
+  if (auto *memoir_inst = dyn_cast_into<MemOIRInst>(&I)) {
 
     // For indexed operations, construct their indices as nodes in the graph and
     // the proper constraints edge.

@@ -8,7 +8,6 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include "memoir/support/InternalDatatypes.hpp"
@@ -1483,30 +1482,6 @@ protected:
 
   friend class MemOIRInst;
 };
-
-// Functions to dyn_cast an llvm::Instruction to a MemOIRInst
-template <
-    class To,
-    class From,
-    std::enable_if_t<std::is_base_of_v<MemOIRInst, To>, bool> = true,
-    std::enable_if_t<std::is_base_of_v<llvm::Instruction, From>, bool> = true>
-To *as(From *I) {
-  if (I == nullptr) {
-    return nullptr;
-  }
-  auto *memoir_inst = MemOIRInst::get(*I);
-  return dyn_cast_or_null<To>(memoir_inst);
-}
-
-template <
-    class To,
-    class From,
-    std::enable_if_t<std::is_base_of_v<MemOIRInst, To>, bool> = true,
-    std::enable_if_t<std::is_base_of_v<llvm::Instruction, From>, bool> = true>
-To *as(From &I) {
-  auto *memoir_inst = MemOIRInst::get(I);
-  return dyn_cast_or_null<To>(memoir_inst);
-}
 
 } // namespace llvm::memoir
 

@@ -1,5 +1,7 @@
 #include "TypeInference.hpp"
 
+#include "memoir/support/Casting.hpp"
+
 #include "llvm/IR/CFG.h"
 
 namespace llvm::memoir {
@@ -39,14 +41,16 @@ static inferred_type argument_has_type_annotation(llvm::Argument &A) {
     // If the argument is a collection type, see if the user is an
     // AssertCollectionTypeInst.
     if (arg_is_collection_type) {
-      if (auto *assert_inst = as<AssertCollectionTypeInst>(user_as_inst)) {
+      if (auto *assert_inst =
+              dyn_cast_into<AssertCollectionTypeInst>(user_as_inst)) {
         return { true, &assert_inst->getType() };
       }
     }
     // Otherwise, if the argument is a struct type, see if the user is an
     // AssertStructTypeInst.
     else if (arg_is_struct_type) {
-      if (auto *assert_inst = as<AssertStructTypeInst>(user_as_inst)) {
+      if (auto *assert_inst =
+              dyn_cast_into<AssertStructTypeInst>(user_as_inst)) {
         return { true, &assert_inst->getType() };
       }
     }
@@ -133,7 +137,7 @@ static inferred_type function_has_return_type_annotation(llvm::Function &F) {
   for (auto &BB : F) {
     for (auto &I : BB) {
       // If there is a return type annotation, return true.
-      if (auto *return_type_inst = as<ReturnTypeInst>(I)) {
+      if (auto *return_type_inst = dyn_cast_into<ReturnTypeInst>(I)) {
         return { true, &return_type_inst->getType() };
       }
     }
