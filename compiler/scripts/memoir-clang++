@@ -33,6 +33,10 @@ do
             MODE="compile"
             shift
             ;;
+        -emit-mut)
+            EMIT_MUT="y"
+            shift
+            ;;
         -emit-memoir)
             EMIT_MEMOIR="y"
             shift
@@ -80,6 +84,15 @@ gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectorize -Xclang -disable-O0-optn
 IR_FILE=${OUTPUT_FILE}.bc
 get-bc ${OUTPUT_FILE}
 
+# If we are not linking, and we are emitting MEMOIR, do so now.
+if [ "${EMIT_MUT}" = "y" ]
+then
+    # Emit the MEMOIR bitcode.
+    mv ${IR_FILE} ${OUTPUT_FILE}
+    exit
+fi
+
+
 # Normalize the bitcode
 memoir-norm ${IR_FILE} -o ${IR_FILE}
 
@@ -90,7 +103,7 @@ memoir-load ${MEMOIR_ARGS} ${IR_FILE} -o ${IR_FILE}
 if [ "${EMIT_MEMOIR}" = "y" ]
 then
     # Emit the MEMOIR bitcode.
-    cp ${IR_FILE} ${OUTPUT_FILE}
+    mv ${IR_FILE} ${OUTPUT_FILE}
     exit
 fi
 
@@ -101,7 +114,7 @@ memoir-lower ${IR_FILE} -o ${IR_FILE}
 if [ "${EMIT_LLVM}" = "y" ]
 then
     # Emit the LLVM bitcode.
-    cp ${IR_FILE} ${OUTPUT_FILE}
+    mv ${IR_FILE} ${OUTPUT_FILE}
     exit
 fi
 
