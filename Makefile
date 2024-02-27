@@ -43,13 +43,14 @@ $(NOELLE_DIR):
 	git clone --depth 1 --branch master git@github.com:arcana-lab/noelle.git $@
 
 uninstall:
-	find $(MEMOIR_INSTALL_DIR)/bin -type f -name "memoir*" -exec rm {} \;
-	find $(MEMOIR_INSTALL_DIR)/lib -type f -name "memoir*.so" -exec rm {} \;
-	find $(MEMOIR_INSTALL_DIR)/lib -type f -name "memoir*.bc" -exec rm {} \;
+	-cat $(BUILD_DIR)/install_manifest.txt | xargs rm -f
+	rm -f enable
+	rm -rf $(BUILD_DIR)
 
-fulluninstall:
-	rm -rf $(MEMOIR_INSTALL_DIR)
-	rm .noelle
+fulluninstall: uninstall
+	[[ -d compiler/noelle ]] && make -C compiler/noelle uninstall
+	[[ -d compiler/noelle ]] && rm -rf compiler/noelle
+	rm -f .noelle
 
 clean:
 	make -C $(BUILD_DIR) clean -j32
