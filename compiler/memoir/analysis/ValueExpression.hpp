@@ -10,9 +10,6 @@
 
 #include "llvm/Transforms/Utils/Cloning.h"
 
-// z3
-#include "z3++.h"
-
 // MemOIR
 #include "memoir/ir/Builder.hpp"
 
@@ -72,19 +69,6 @@ public:
 
   // Equality.
   virtual bool equals(const ValueExpression &E) const = 0;
-  bool operator==(const ValueExpression &E) const;
-  bool operator!=(const ValueExpression &E) const;
-  bool operator==(const llvm::Value &Other) const;
-  bool operator!=(const llvm::Value &Other) const;
-  bool operator<(const ValueExpression &E) const;
-  bool operator<=(const ValueExpression &E) const;
-  bool operator>(const ValueExpression &E) const;
-  bool operator>=(const ValueExpression &E) const;
-  virtual opt<z3::expr> to_expr(z3::context &c,
-                                z3::solver &s,
-                                z3::expr_vector &assumptions,
-                                uint32_t &name,
-                                map<llvm::Value *, uint32_t> &env) const;
 
   // Accessors.
   llvm::Value *getValue() const;
@@ -151,11 +135,6 @@ public:
   }
 
   bool equals(const ValueExpression &E) const override;
-  opt<z3::expr> to_expr(z3::context &c,
-                        z3::solver &s,
-                        z3::expr_vector &assumptions,
-                        uint32_t &name,
-                        map<llvm::Value *, uint32_t> &env) const override;
 
   llvm::Constant &getConstant() const;
 
@@ -185,11 +164,6 @@ public:
   }
 
   bool equals(const ValueExpression &E) const override;
-  opt<z3::expr> to_expr(z3::context &c,
-                        z3::solver &s,
-                        z3::expr_vector &assumptions,
-                        uint32_t &name,
-                        map<llvm::Value *, uint32_t> &env) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -216,11 +190,6 @@ public:
   }
 
   bool equals(const ValueExpression &E) const override;
-  opt<z3::expr> to_expr(z3::context &c,
-                        z3::solver &s,
-                        z3::expr_vector &assumptions,
-                        uint32_t &name,
-                        map<llvm::Value *, uint32_t> &env) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -285,11 +254,6 @@ public:
   };
 
   bool equals(const ValueExpression &E) const override;
-  opt<z3::expr> to_expr(z3::context &c,
-                        z3::solver &s,
-                        z3::expr_vector &assumptions,
-                        uint32_t &name,
-                        map<llvm::Value *, uint32_t> &env) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,
@@ -419,12 +383,6 @@ public:
   llvm::Type *getLLVMType() const override;
   llvm::PHINode *getPHI() const;
 
-  opt<z3::expr> to_expr(z3::context &c,
-                        z3::solver &s,
-                        z3::expr_vector &assumptions,
-                        uint32_t &name,
-                        map<llvm::Value *, uint32_t> &env) const override;
-
   llvm::Value *materialize(llvm::Instruction &IP,
                            MemOIRBuilder *builder = nullptr,
                            const llvm::DominatorTree *DT = nullptr,
@@ -471,12 +429,6 @@ public:
   SizeExpression() : SizeExpression(nullptr) {}
 
   bool equals(const ValueExpression &E) const override;
-
-  opt<z3::expr> to_expr(z3::context &c,
-                        z3::solver &s,
-                        z3::expr_vector &assumptions,
-                        uint32_t &name,
-                        map<llvm::Value *, uint32_t> &env) const override;
 
   bool isAvailable(llvm::Instruction &IP,
                    const llvm::DominatorTree *DT = nullptr,

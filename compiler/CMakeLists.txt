@@ -1,8 +1,6 @@
+
 # Install scripts.
 add_subdirectory(scripts)
-
-# Configure z3
-find_package(Z3 CONFIG REQUIRED HINTS /project/tommy-software/z3/z3-4.12.2/install/lib64/cmake/z3)
 
 # Configure LLVM 
 find_package(LLVM 9 REQUIRED CONFIG)
@@ -16,14 +14,10 @@ include(AddLLVM)
 
 message(STATUS "LLVM_DIR IS ${LLVM_CMAKE_DIR}.")
 
-message(STATUS "Z3_LIBRARIES=${Z3_LIBRARIES}")
-
 # Compiler options.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -g3 ")
 
 include_directories(
-  # Z3
-  ${Z3_INCLUDE_DIR}
   # LLVM
   ${LLVM_INCLUDE_DIRS}
   # memoir dependencies
@@ -36,3 +30,4 @@ link_libraries(${Z3_LIBRARIES})
 
 # Build the compiler.
 add_subdirectory(memoir)
+
