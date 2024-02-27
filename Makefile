@@ -32,7 +32,7 @@ test:
 noelle: .noelle
 
 .noelle: $(NOELLE_DIR)
-	export NOELLE_INSTALL_DIR=$(MEMOIR_INSTALL_DIR) && make -C $<
+	NOELLE_INSTALL_DIR=$(MEMOIR_INSTALL_DIR) NOELLE_SCAF=OFF NOELLE_SVF=OFF NOELLE_AUTOTUNER=OFF make -C $<
 	touch $@
 
 hooks:
@@ -40,7 +40,7 @@ hooks:
 
 $(NOELLE_DIR):
 	mkdir -p $@
-	git clone --depth 1 --branch master /project/parallelizing_compiler/repositories/noelle $@
+	git clone --depth 1 --branch master git@github.com:arcana-lab/noelle.git $@
 
 uninstall:
 	find $(MEMOIR_INSTALL_DIR)/bin -type f -name "memoir*" -exec rm {} \;
