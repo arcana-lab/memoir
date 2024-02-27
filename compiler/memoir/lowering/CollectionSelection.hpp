@@ -61,10 +61,9 @@ protected:
     for (auto &F : M) {
       for (auto &BB : F) {
         for (auto &I : BB) {
-          if (auto *seq_alloc_inst = dyn_cast_into<SequenceAllocInst>(I)) {
+          if (auto *seq_alloc_inst = into<SequenceAllocInst>(I)) {
             selections[&I].insert(SelectionTy::SelVector);
-          } else if (auto *assoc_alloc_inst =
-                         dyn_cast_into<AssocAllocInst>(I)) {
+          } else if (auto *assoc_alloc_inst = into<AssocAllocInst>(I)) {
             selections[&I].insert(SelectionTy::SelHashtable);
           }
         }
