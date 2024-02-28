@@ -52,10 +52,6 @@ struct CommandLinePass : public ModulePass {
   }
 
   bool runOnModule(llvm::Module &M) override {
-    println("print enabled");
-    infoln("quick enabled");
-    debugln("debug enabled");
-
     return false;
   }
 
@@ -71,20 +67,3 @@ char memoir::CommandLinePass::ID = 0;
 static RegisterPass<memoir::CommandLinePass> X(
     "memoir-cl",
     "Gathers common command line options.");
-
-// Next there is code to register your pass to "clang"
-static memoir::CommandLinePass *_PassMaker = NULL;
-static RegisterStandardPasses _RegPass1(
-    PassManagerBuilder::EP_OptimizerLast,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-      if (!_PassMaker) {
-        PM.add(_PassMaker = new memoir::CommandLinePass());
-      }
-    }); // ** for -Ox
-static RegisterStandardPasses _RegPass2(
-    PassManagerBuilder::EP_EnabledOnOptLevel0,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-      if (!_PassMaker) {
-        PM.add(_PassMaker = new memoir::CommandLinePass());
-      }
-    }); // ** for -O0
