@@ -29,7 +29,7 @@ test:
 	make -C $(BUILD_DIR) tests -j32
 	cd $(BUILD_DIR) && ctest
 
-documentation:
+documentation: all
 	make -C $(BUILD_DIR)/docs documentation -j32 
 
 noelle: .noelle
