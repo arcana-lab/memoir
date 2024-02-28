@@ -12,7 +12,7 @@ all: noelle hooks postinstall
 build:
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(MEMOIR_INSTALL_DIR)
-	cmake -DCMAKE_C_COMPILER=`which clang` -DCMAKE_CXX_COMPILER=`which clang++` -DCMAKE_INSTALL_PREFIX=$(MEMOIR_INSTALL_DIR) -S . -B $(BUILD_DIR)
+	cmake -DCMAKE_INSTALL_PREFIX=$(MEMOIR_INSTALL_DIR) -DCMAKE_C_COMPILER=`which clang` -DCMAKE_CXX_COMPILER=`which clang++` -S . -B $(BUILD_DIR)
 	make -C $(BUILD_DIR) all -j32
 
 install: build
