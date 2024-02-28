@@ -29,6 +29,9 @@ test:
 	make -C $(BUILD_DIR) tests -j32
 	cd $(BUILD_DIR) && ctest
 
+documentation:
+	make -C $(BUILD_DIR)/docs documentation -j32 
+
 noelle: .noelle
 
 .noelle: $(NOELLE_DIR)

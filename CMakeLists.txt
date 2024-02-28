@@ -33,3 +33,7 @@ add_subdirectory(compiler)
 
 # Enable file.
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/.enable.in ${CMAKE_CURRENT_SOURCE_DIR}/enable @ONLY)
+
+# Documentation
+option(BUILD_DOC "Build documentation" ON)
+add_subdirectory(docs)
