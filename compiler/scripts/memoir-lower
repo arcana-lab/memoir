@@ -62,7 +62,7 @@ memoir-load ${INPUT_IR_FILE} --memoir-impl-linker --impl-out-file ${TEMP_FILE} -
 
 # Compile the collection implementations to bitcode.
 TEMP_BC=$(mktemp --suffix=".bc")
-clang++ ${TEMP_FILE} -c -emit-llvm -I$(memoir-config --includedir) -o ${TEMP_BC}
+clang++ ${TEMP_FILE} -c -emit-llvm -I$(memoir-config --includedir) -std=c++17 -o ${TEMP_BC}
 rm ${TEMP_FILE}
 
 # Link the bitcode.
