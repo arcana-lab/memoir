@@ -10,13 +10,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
-#include "noelle/core/Noelle.hpp"
-
 #include "memoir/ir/Instructions.hpp"
 
-// #include "memoir/analysis/AccessAnalysis.hpp"
-#include "memoir/analysis/CollectionAnalysis.hpp"
-#include "memoir/analysis/StructAnalysis.hpp"
 #include "memoir/analysis/TypeAnalysis.hpp"
 
 #include "memoir/support/InternalDatatypes.hpp"
@@ -24,11 +19,54 @@
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
 
-using namespace llvm::memoir;
+/*
+ * This file contains an implementation of the pass from "Writing a Pass" in the
+ * MEMOIR User Guide.
+ *
+ * Author(s): Tommy McMichen
+ */
 
 namespace {
 
-struct ExamplePass : public ModulePass {
+class MyVisitor : public llvm::memoir::InstVisitor<MyVisitor, void> {
+  // In order for the wrapper to work, we need to declare our parent classes as
+  // friends.
+  friend class llvm::memoir::InstVisitor<MyVisitor, void>;
+  friend class llvm::InstVisitor<MyVisitor, void>;
+
+public:
+  // We will store the results of our analysis here:
+  std::map<std::string, uint32_t> instruction_counts;
+
+  // We _always_ need to implement visitInstruction!
+  void visitInstruction(llvm::Instruction &I) {
+    // Do nothing.
+    return;
+  }
+
+  // Count all access instructions (read, write, get) together:
+  void visitAccessInst(llvm::memoir::AccessInst &I) {
+    this->instruction_counts["access"]++;
+    return;
+  }
+
+  // Let's do the same for allocation instructions:
+  void visitAllocInst(llvm::memoir::AllocInst &I) {
+    this->instruction_counts["alloc"]++;
+    return;
+  }
+
+  // Put everything else into an "other" bucket.
+  // NOTE: since visitAllocInst and visitAccessInst are
+  //       implemented, visitMemOIRInst will _never_ be
+  //       passed an AllocInst nor an AccessInst.
+  void visitMemOIRInst(llvm::memoir::MemOIRInst &I) {
+    this->instruction_counts["other"]++;
+    return;
+  }
+};
+
+struct ExamplePass : public llvm::ModulePass {
   static char ID;
 
   ExamplePass() : ModulePass(ID) {}
@@ -38,130 +76,35 @@ struct ExamplePass : public ModulePass {
   }
 
   bool runOnModule(llvm::Module &M) override {
-    errs() << "Running example pass\n\n";
+    // Initialize our visitor:
+    MyVisitor visitor;
 
-    auto &noelle = getAnalysis<Noelle>();
-    auto &type_analysis = TypeAnalysis::get();
-
-    errs() << "=========================================\n";
-    errs() << "Fetching all Types\n\n";
-    for (auto &F : M) {
-      if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
-        continue;
-      }
-
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (auto type = TypeAnalysis::analyze(I)) {
-            errs() << "Found type for " << I << "\n";
-            errs() << *type << "\n\n";
-          }
+    // Analyze the program.
+    for (llvm::Function &F : M) {
+      for (llvm::BasicBlock &BB : F) {
+        for (llvm::Instruction &I : BB) {
+          visitor.visit(I);
         }
       }
     }
-    errs() << "=========================================\n\n";
 
-    errs() << "=========================================\n";
-    errs() << "Fetching all Structs\n\n";
-    for (auto &F : M) {
-      if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
-        continue;
-      }
-
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (auto call_inst = dyn_cast<CallInst>(&I)) {
-            if (!FunctionNames::is_memoir_call(*call_inst)) {
-              continue;
-            }
-
-            if (auto strct = StructAnalysis::analyze(*call_inst)) {
-              errs() << "Found struct for " << I << "\n";
-              errs() << *strct << "\n\n";
-            }
-          }
-        }
-      }
+    // Print the results of our visitor:
+    for (const auto &[type, count] : visitor.instruction_counts) {
+      llvm::memoir::println(type, " -> ", count, "\n");
     }
-    errs() << "=========================================\n\n";
 
-    errs() << "=========================================\n";
-    errs() << "Fetching all Collections\n\n";
-    auto &CA = CollectionAnalysis::get(noelle);
-    for (auto &F : M) {
-      if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
-        continue;
-      }
-
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (auto call_inst = dyn_cast<CallInst>(&I)) {
-            if (!FunctionNames::is_memoir_call(*call_inst)) {
-              continue;
-            }
-
-            if (auto cllct = CollectionAnalysis::analyze(*call_inst)) {
-              errs() << "Found collection for " << I << "\n";
-              errs() << *cllct << "\n\n";
-            }
-          }
-        }
-      }
-    }
-    errs() << "=========================================\n\n";
-
-    // errs() << "Fetching all Access Summaries\n\n";
-    // for (auto &F : M) {
-    //   if (memoir::MetadataManager::hasMetadata(F, MetadataType::INTERNAL)) {
-    //     continue;
-    //   }
-
-    //   for (auto &BB : F) {
-    //     for (auto &I : BB) {
-    //       if (auto call_inst = dyn_cast<CallInst>(&I)) {
-    //         if (!FunctionNames::is_memoir_call(*call_inst)) {
-    //           continue;
-    //         }
-
-    //         if (auto access_summary = access_analysis.getAccessSummary(I)) {
-    //           errs() << "Found access summary for " << I << "\n";
-    //           errs() << *access_summary << "\n\n";
-    //         }
-    //       }
-    //     }
-    //   }
-    // }
-
+    // We did not modify the program, so we return false.
     return false;
   }
 
   void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
-    AU.addRequired<Noelle>();
     return;
   }
 };
 
-} // namespace
-
 // Next there is code to register your pass to "opt"
 char ExamplePass::ID = 0;
-static RegisterPass<ExamplePass> X("ExamplePass",
-                                   "An example pass using the MemOIR analyses");
-
-// Next there is code to register your pass to "clang"
-static ExamplePass *_PassMaker = NULL;
-static RegisterStandardPasses _RegPass1(PassManagerBuilder::EP_OptimizerLast,
-                                        [](const PassManagerBuilder &,
-                                           legacy::PassManagerBase &PM) {
-                                          if (!_PassMaker) {
-                                            PM.add(_PassMaker =
-                                                       new ExamplePass());
-                                          }
-                                        }); // ** for -Ox
-static RegisterStandardPasses _RegPass2(
-    PassManagerBuilder::EP_EnabledOnOptLevel0,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-      if (!_PassMaker) {
-        PM.add(_PassMaker = new ExamplePass());
-      }
-    }); // ** for -O0
+static llvm::RegisterPass<ExamplePass> X(
+    "memoir-example",
+    "An example pass using the MemOIR analyses");
+} // namespace
