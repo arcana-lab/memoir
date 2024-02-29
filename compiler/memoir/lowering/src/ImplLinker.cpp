@@ -22,6 +22,7 @@ void ImplLinker::implement_seq(std::string impl_name,
   this->implement_type(element_type_layout);
 
   insert_unique(this->seq_implementations, impl_name, &element_type_layout);
+
   return;
 }
 
@@ -34,6 +35,14 @@ void ImplLinker::implement_assoc(std::string impl_name,
   insert_unique(this->assoc_implementations,
                 impl_name,
                 std::make_tuple(&key_type_layout, &value_type_layout));
+
+  // For the time being, we will need to instantiate the stl_vector for the key
+  // type to handle keys. Properly handling the keys iterator as a collection
+  // all its own is future work.
+  if (impl_name == "stl_unordered_map") {
+    this->implement_seq("stl_vector", key_type_layout);
+  }
+
   return;
 }
 
