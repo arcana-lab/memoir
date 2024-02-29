@@ -2,7 +2,7 @@
 
 #include "memoir/ir/Types.hpp"
 
-#include "memoir/support/InstructionUtils.hpp"
+#include "memoir/utility/InstructionUtils.hpp"
 
 namespace llvm::memoir {
 

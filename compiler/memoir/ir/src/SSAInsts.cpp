@@ -1,7 +1,7 @@
 #include "memoir/ir/Instructions.hpp"
 
 #include "memoir/support/Assert.hpp"
-#include "memoir/support/InstructionUtils.hpp"
+#include "memoir/utility/InstructionUtils.hpp"
 
 #include "memoir/utility/Metadata.hpp"
 

@@ -4,7 +4,7 @@
 
 #include "memoir/analysis/TypeAnalysis.hpp"
 
-#include "memoir/support/InstructionUtils.hpp"
+#include "memoir/utility/InstructionUtils.hpp"
 
 /*
  * Implementation of the MemOIR Type Instructions.
