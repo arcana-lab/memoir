@@ -3,7 +3,7 @@
 #include "memoir/analysis/TypeAnalysis.hpp"
 
 #include "memoir/support/Assert.hpp"
-#include "memoir/support/InstructionUtils.hpp"
+#include "memoir/utility/InstructionUtils.hpp"
 
 namespace llvm::memoir {
 
