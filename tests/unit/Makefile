@@ -2,20 +2,18 @@ ifndef TESTS
 TESTS := $(patsubst %/, %, $(sort $(wildcard */)))
 endif
 
-BUILD_DIRS=$(patsubst %, %/build, $(TESTS))
+TEST_MAKEFILES=$(patsubst %,%/Makefile,$(TESTS))
 
-all: build
+all: $(TESTS)
 
-links:
-	../scripts/links.sh $(TESTS) ;
+$(TESTS): %: %/Makefile
+	make -C $@
 
-build: links
-	../scripts/compile.sh $(TESTS) ;
+%/Makefile:
+	[[ ! -f $@ ]] && cp ../Makefile.template $@
 
-test: build
-	../scripts/test.sh $(TESTS) ;
+clean: 
+	find $(TESTS) -type d -maxdepth 0 -exec make -C {} clean \;
 
-.PHONY: links build test all
+.PHONY: all clean $(TESTS) $(CLEAN_TESTS)
 
-clean:
-	rm -rf $(BUILD_DIRS)
