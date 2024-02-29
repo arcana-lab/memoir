@@ -45,7 +45,7 @@ do
             EMIT_LLVM="y"
             shift
             ;;
-        --memoir-*)
+        --memoir-*|-memoir-*)
             MEMOIR_ARGS+=("$1")
             shift
             ;;
@@ -109,6 +109,9 @@ fi
 
 # Lower to LLVM.
 memoir-lower ${IR_FILE} -o ${IR_FILE}
+
+# Optimize LLVM bitcode.
+opt ${OPT_LEVEL} ${IR_FILE} -o ${IR_FILE}
 
 # If we are not linking, and we are emitting LLVM bitcode, do so now.
 if [ "${EMIT_LLVM}" = "y" ]
