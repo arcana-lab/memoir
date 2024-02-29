@@ -5,8 +5,8 @@ set(pass_name "memoir_example")
 file(GLOB pass_sources "src/*.cpp")
 
 # Declare the LLVM pass to compile
-add_llvm_library(
+add_memoir_transform(
   ${pass_name}
-  MODULE
+  FILES
   ${pass_sources}
-  ${memoir_sources})
+)
