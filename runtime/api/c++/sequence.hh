@@ -45,7 +45,7 @@ protected:
       } else if constexpr (std::is_pointer_v<T>) {
         using inner_type = typename std::remove_pointer_t<T>;
         if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
-          MEMOIR_FUNC(index_write_struct_ref)
+          MUT_FUNC(index_write_struct_ref)
           (val->target_object, this->target_object, this->idx);
           return val;
         }
@@ -112,7 +112,7 @@ protected:
       } else if constexpr (std::is_pointer_v<T>) {
         using inner_type = typename std::remove_pointer_t<T>;
         if constexpr (std::is_base_of_v<memoir::collection, inner_type>) {
-          MEMOIR_FUNC(index_write_collection_ref)
+          MUT_FUNC(index_write_collection_ref)
           (val->target_object, this->target_object, this->idx);
           return val;
         }
@@ -164,27 +164,28 @@ protected:
   public:
     // using inner_type = typename std::remove_pointer_t<T>;
 
-    // primitive_sequence_element &operator=(primitive_sequence_element &&other) {
+    // primitive_sequence_element &operator=(primitive_sequence_element &&other)
+    // {
     //   this->target_object = std::move(other.target_object);
     //   this->idx = std::move(other.idx);
     //   return *this;
     // }
 
     // primitive_sequence_element &operator=(primitive_sequence_element other) {
-    //   this->target_object = std::swap(this->target_object, other.target_object);
-    //   this->idx = std::swap(this->idx, other.idx);
+    //   this->target_object = std::swap(this->target_object,
+    //   other.target_object); this->idx = std::swap(this->idx, other.idx);
     //   return *this;
     // }
 
     T operator=(T val) const {
       if constexpr (std::is_pointer_v<T>) {
-        MEMOIR_FUNC(index_write_ptr)
+        MUT_FUNC(index_write_ptr)
         (val, this->target_object, this->idx);
         return val;
       }
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
   else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
-    MEMOIR_FUNC(index_write_##TYPE_NAME)                                       \
+    MUT_FUNC(index_write_##TYPE_NAME)                                          \
     (val, this->target_object, this->idx);                                     \
     return val;                                                                \
   }
@@ -319,27 +320,27 @@ public:
   };
   using const_reverse_iterator = const reverse_iterator;
 
-  sequence(size_type n)
+  always_inline sequence(size_type n = 0)
     : sequence(memoir::MEMOIR_FUNC(allocate_sequence)(to_memoir_type<T>(), n)) {
     // Do nothing.
   }
 
-  sequence(memoir::Collection *seq) : collection(seq) {
+  always_inline sequence(memoir::Collection *seq) : collection(seq) {
     // Do nothing.
   }
 
   // Copy-constructor.
-  sequence(const sequence &x) : sequence(x.size()) {
+  always_inline sequence(const sequence &x) : sequence(x.size()) {
     for (size_type i = 0; i < x.size(); ++i) {
       (*this)[i] = (value_type)x[i];
     }
   }
 
   // Move-constructor.
-  sequence(sequence &&x) : collection(x._storage) {}
+  always_inline sequence(sequence &&x) : collection(x._storage) {}
 
   // TODO
-  void assign(size_type count, const T &value) {
+  always_inline void assign(size_type count, const T &value) {
     if (this->size() != count) {
       MEMOIR_FUNC(delete_collection)(this->_storage);
       this->_storage =
@@ -351,89 +352,88 @@ public:
   }
 
   // Element access.
-  sequence_element operator[](size_type idx) {
+  always_inline sequence_element operator[](size_type idx) {
     return sequence_element(this->_storage, idx);
   }
 
-  sequence_element operator[](size_type idx) const {
+  always_inline sequence_element operator[](size_type idx) const {
     return sequence_element(this->_storage, idx);
   }
 
-  sequence_element at(size_type idx) const {
+  always_inline sequence_element at(size_type idx) const {
     if (idx < 0 || idx > this->size()) {
       throw std::out_of_range("sequence.at() out of bounds");
     }
     return (*this)[idx];
   }
 
-  sequence_element front() {
+  always_inline sequence_element front() {
     return (*this)[0];
   }
 
-  sequence_element back() {
+  always_inline sequence_element back() {
     return (*this)[this->size() - 1];
   }
 
   // Iterators.
-  iterator begin() {
+  always_inline iterator begin() {
     return iterator(this->_storage, 0);
   }
 
-  iterator end() {
+  always_inline iterator end() {
     return iterator(this->_storage, this->size());
   }
 
-  const_iterator cbegin() const {
+  always_inline const_iterator cbegin() const {
     return iterator(this->_storage, 0);
   }
 
-  const_iterator cend() const {
+  always_inline const_iterator cend() const {
     return iterator(this->_storage, this->size());
   }
 
-  reverse_iterator rbegin() {
+  always_inline reverse_iterator rbegin() {
     return reverse_iterator(this->_storage, this->size() - 1);
   }
 
-  reverse_iterator rend() {
+  always_inline reverse_iterator rend() {
     return reverse_iterator(this->_storage, -1);
   }
 
-  const_reverse_iterator crbegin() const {
+  always_inline const_reverse_iterator crbegin() const {
     return reverse_iterator(this->_storage, this->size() - 1);
   }
 
-  const_reverse_iterator crend() const {
+  always_inline const_reverse_iterator crend() const {
     return reverse_iterator(this->_storage, -1);
   }
 
   // Capacity.
-  size_type size() const {
+  always_inline size_type size() const {
     return MEMOIR_FUNC(size)(this->_storage);
   }
 
-  bool empty() const {
+  always_inline bool empty() const {
     return this->size() == 0;
   }
 
   // Modifiers.
-  void clear() {
+  always_inline void clear() {
     MEMOIR_FUNC(sequence_remove)(this->_storage, 0, this->size());
   }
 
-  void insert(T value, size_type index) {
+  always_inline void insert(T value, size_type index) {
     if constexpr (std::is_pointer_v<T>) {
       using inner_type = typename std::remove_pointer_t<T>;
       if constexpr (is_specialization<inner_type, memoir::object>) {
-        MEMOIR_FUNC(sequence_insert_struct_ref)(value, this->_storage, index);
+        MUT_FUNC(sequence_insert_struct_ref)(value, this->_storage, index);
       } else {
-        MEMOIR_FUNC(sequence_insert_ptr)(value, this->_storage, index);
+        MUT_FUNC(sequence_insert_ptr)(value, this->_storage, index);
       }
     }
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
   else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
-    return MEMOIR_FUNC(                                                        \
-        sequence_insert_##TYPE_NAME)(value, this->_storage, index);            \
+    MUT_FUNC(sequence_insert_##TYPE_NAME)(value, this->_storage, index);       \
   }
 #define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
   HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)
@@ -442,29 +442,29 @@ public:
 #undef HANDLE_INTEGER_TYPE
   }
 
-  void insert(const sequence &to_insert, size_type index) {
-    MEMOIR_FUNC(sequence_insert)(to_insert._storage, this->_storage, index);
+  always_inline void insert(const sequence &to_insert, size_type index) {
+    MUT_FUNC(sequence_insert)(to_insert._storage, this->_storage, index);
   }
 
-  iterator insert(const_iterator pos, const T &value) {
+  always_inline iterator insert(const_iterator pos, const T &value) {
     this->insert(pos._index, value);
     return iterator(this->_storage, pos._index);
   }
 
-  iterator insert(const_iterator pos, T &&value) {
+  always_inline iterator insert(const_iterator pos, T &&value) {
     this->insert(pos._index, value);
     return iterator(this->_storage, pos._index);
   }
 
-  void remove(size_type from, size_type to) {
-    MEMOIR_FUNC(sequence_remove)(this->_storage, from, to);
+  always_inline void remove(size_type from, size_type to) {
+    MUT_FUNC(sequence_remove)(this->_storage, from, to);
   }
 
-  void remove(size_type index) {
-    MEMOIR_FUNC(sequence_remove)(this->_storage, index, index + 1);
+  always_inline void remove(size_type index) {
+    MUT_FUNC(sequence_remove)(this->_storage, index, index + 1);
   }
 
-  iterator erase(const_iterator pos) {
+  always_inline iterator erase(const_iterator pos) {
     if (pos._storage != this->_storage) {
       return pos;
     }
@@ -475,7 +475,7 @@ public:
     return iterator(this->_storage, pos._index);
   }
 
-  iterator erase(const_iterator first, const_iterator last) {
+  always_inline iterator erase(const_iterator first, const_iterator last) {
     if (this->_storage != first.storage || this->_storage != last.storage) {
       return last;
     }
@@ -488,38 +488,40 @@ public:
     }
   }
 
-  void resize(size_type count) {
+  always_inline void resize(size_type count) {
     if (count == this->size()) {
       return;
     }
     this->remove(count, this->size());
   }
 
-  void resize(size_type count, const T &value) {
+  always_inline void resize(size_type count, const T &value) {
     this->assign(count, value);
   }
 
   // TODO
   // void swap(list<T> &other);
 
-  void append(const sequence &to_append) {
+  always_inline void append(const sequence &to_append) {
     MEMOIR_FUNC(sequence_append)(this->_storage, to_append._storage);
   }
 
-  void swap(size_type from_begin, size_type from_end, size_type to_begin) {
+  always_inline void swap(size_type from_begin,
+                          size_type from_end,
+                          size_type to_begin) {
     MEMOIR_FUNC(sequence_swap)
     (this->_storage, from_begin, from_end, this->_storage, to_begin);
   }
 
-  sequence split(size_type from, size_type to) {
+  always_inline sequence split(size_type from, size_type to) {
     return sequence(MEMOIR_FUNC(sequence_split)(this->_storage, from, to));
   }
 
-  sequence copy(size_type from, size_type to) {
+  always_inline sequence copy(size_type from, size_type to) {
     return sequence(MEMOIR_FUNC(sequence_slice)(this->_storage, from, to));
   }
 
-  sequence copy() {
+  always_inline sequence copy() {
     return this->copy(0, this->size());
   }
 }; // class sequence

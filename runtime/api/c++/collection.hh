@@ -6,6 +6,8 @@
 
 namespace memoir {
 
+#define always_inline __attribute__((always_inline))
+
 // Base element.
 class element {
   // Nothing.
@@ -14,7 +16,7 @@ class element {
 // Base collection.
 class collection {
 public:
-  collection(memoir::Collection *storage) : _storage(storage) {}
+  always_inline collection(memoir::Collection *storage) : _storage(storage) {}
 
 protected:
   memoir::Collection *const _storage;
