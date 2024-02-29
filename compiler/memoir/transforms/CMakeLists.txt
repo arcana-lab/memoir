@@ -45,10 +45,3 @@ add_subdirectory(dead_element_elimination)
 
 # Lowering passes.
 add_subdirectory(impl_linker)
-
-# DEPRECATED passes.
-# add_subdirectory(struct_of_arrays)
-# add_subdirectory(slice_canonicalization)
-# add_subdirectory(slice_propagation)
-# add_subdirectory(sequence_provisioning)
-# add_subdirectory(example)
