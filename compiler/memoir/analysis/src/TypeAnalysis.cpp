@@ -183,14 +183,21 @@ Type *TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
       I.getNameOperand().stripPointerCasts(),
       "Could not get the name operand stripped of pointer casts");
 
-  set<llvm::CallInst *> call_inst_users = {};
+  set<DefineStructTypeInst *> call_inst_users = {};
   for (auto *user : name_value.users()) {
-    if (auto *user_as_call = dyn_cast<llvm::CallInst>(user)) {
-      call_inst_users.insert(user_as_call);
+
+    if (auto *type_def = into<DefineStructTypeInst>(user)) {
+      call_inst_users.insert(type_def);
     } else if (auto *user_as_gep = dyn_cast<llvm::GetElementPtrInst>(user)) {
       for (auto *gep_user : user_as_gep->users()) {
-        if (auto *gep_user_as_call = dyn_cast<llvm::CallInst>(gep_user)) {
-          call_inst_users.insert(gep_user_as_call);
+        if (auto *type_def = into<DefineStructTypeInst>(gep_user)) {
+          call_inst_users.insert(type_def);
+        }
+      }
+    } else if (auto *user_as_gep = dyn_cast<llvm::ConstantExpr>(user)) {
+      for (auto *gep_user : user_as_gep->users()) {
+        if (auto *type_def = into<DefineStructTypeInst>(gep_user)) {
+          call_inst_users.insert(type_def);
         }
       }
     }
@@ -198,16 +205,10 @@ Type *TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
 
   // For each user, find the call to define the struct type.
   for (auto *call : call_inst_users) {
-    if (FunctionNames::is_memoir_call(*call)) {
-      auto func_enum = FunctionNames::get_memoir_enum(*call);
-
-      if (func_enum == MemOIR_Func::DEFINE_STRUCT_TYPE) {
-        auto defined_type = this->getType_helper(*call);
-        MEMOIR_NULL_CHECK(defined_type,
-                          "Could not determine the defined struct type");
-        MEMOIZE_AND_RETURN(I, defined_type);
-      }
-    }
+    auto *defined_type = this->visitDefineStructTypeInst(*call);
+    MEMOIR_NULL_CHECK(defined_type,
+                      "Could not determine the defined struct type");
+    MEMOIZE_AND_RETURN(I, defined_type);
   }
 
   MEMOIR_UNREACHABLE(
