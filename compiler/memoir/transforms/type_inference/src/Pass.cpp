@@ -39,6 +39,8 @@ struct TypeInferencePass : public ModulePass {
 
   bool runOnModule(llvm::Module &M) override {
 
+    TypeAnalysis::invalidate();
+
     auto type_inference = new TypeInference(M);
 
     return type_inference->run();
