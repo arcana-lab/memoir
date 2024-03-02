@@ -18,6 +18,8 @@ fi
 
 PASSES=()
 CLANG_ARGS=()
+MEMOIR_NORM_ARGS=()
+MEMOIR_ARGS=()
 LINK_FLAGS=()
 
 while [[ $# -gt 0 ]]
@@ -43,6 +45,10 @@ do
             ;;
         -emit-llvm)
             EMIT_LLVM="y"
+            shift
+            ;;
+        --memoir-enable-use-phi)
+            MEMOIR_NORM_ARGS+=("$1")
             shift
             ;;
         --memoir-*|-memoir-*)
@@ -94,10 +100,10 @@ fi
 
 
 # Normalize the bitcode
-memoir-norm ${IR_FILE} -o ${IR_FILE}
+memoir-norm ${MEMOIR_NORM_ARGS[@]} ${IR_FILE} -o ${IR_FILE}
 
 # Perform optimizations.
-memoir-load ${MEMOIR_ARGS} ${IR_FILE} -o ${IR_FILE}
+memoir-load ${MEMOIR_ARGS[@]} ${IR_FILE} -o ${IR_FILE}
 
 # If we are not linking, and we are emitting MEMOIR, do so now.
 if [ "${EMIT_MEMOIR}" = "y" ]
