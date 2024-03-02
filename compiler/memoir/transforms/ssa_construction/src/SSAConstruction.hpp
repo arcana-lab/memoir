@@ -17,21 +17,21 @@ namespace llvm::memoir {
 
 using ReachingDefMapTy = map<llvm::Value *, llvm::Value *>;
 
-struct MutToImmutStats {
+struct SSAConstructionStats {
   using CountTy = uint32_t;
 };
 
-class MutToImmutVisitor
-  : public llvm::memoir::InstVisitor<MutToImmutVisitor, void> {
-  friend class llvm::memoir::InstVisitor<MutToImmutVisitor, void>;
-  friend class llvm::InstVisitor<MutToImmutVisitor, void>;
+class SSAConstructionVisitor
+  : public llvm::memoir::InstVisitor<SSAConstructionVisitor, void> {
+  friend class llvm::memoir::InstVisitor<SSAConstructionVisitor, void>;
+  friend class llvm::InstVisitor<SSAConstructionVisitor, void>;
 
 public:
-  MutToImmutVisitor(llvm::DominatorTree &DT,
-                    ordered_set<llvm::Value *> memoir_names,
-                    map<llvm::PHINode *, llvm::Value *> inserted_phis,
-                    MutToImmutStats *stats = nullptr,
-                    bool construct_use_phis = false);
+  SSAConstructionVisitor(llvm::DominatorTree &DT,
+                         ordered_set<llvm::Value *> memoir_names,
+                         map<llvm::PHINode *, llvm::Value *> inserted_phis,
+                         SSAConstructionStats *stats = nullptr,
+                         bool construct_use_phis = false);
 
   // LLVM operations
   void visitInstruction(llvm::Instruction &I);
@@ -95,7 +95,7 @@ protected:
   bool construct_use_phis;
 
   // Statistics
-  MutToImmutStats *stats;
+  SSAConstructionStats *stats;
 };
 
 } // namespace llvm::memoir

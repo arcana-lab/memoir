@@ -33,7 +33,7 @@
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
 
-#include "MutToImmutVisitor.hpp"
+#include "SSAConstruction.hpp"
 
 using namespace llvm::memoir;
 
@@ -48,13 +48,13 @@ using namespace llvm::memoir;
 namespace llvm::memoir {
 
 llvm::cl::opt<bool> construct_use_phis(
-    "enable-use-phis",
+    "memoir-enable-use-phis",
     cl::desc("Enable construction of Use PHIs."));
 
-struct MutToImmutPass : public ModulePass {
+struct SSAConstructionPass : public ModulePass {
   static char ID;
 
-  MutToImmutPass() : ModulePass(ID) {}
+  SSAConstructionPass() : ModulePass(ID) {}
 
   bool doInitialization(llvm::Module &M) override {
     return false;
@@ -88,12 +88,12 @@ struct MutToImmutPass : public ModulePass {
 
   bool runOnModule(llvm::Module &M) override {
     infoln();
-    infoln("BEGIN mut2immut pass");
+    infoln("BEGIN SSA construction pass");
     infoln();
 
     TypeAnalysis::invalidate();
 
-    MutToImmutStats stats;
+    SSAConstructionStats stats;
 
     for (auto &F : M) {
       if (F.empty()) {
@@ -275,11 +275,11 @@ struct MutToImmutPass : public ModulePass {
       }
 
       // Initialize the reaching definitions.
-      MutToImmutVisitor MTIV(DT,
-                             memoir_names,
-                             inserted_phis,
-                             &stats,
-                             construct_use_phis);
+      SSAConstructionVisitor MTIV(DT,
+                                  memoir_names,
+                                  inserted_phis,
+                                  &stats,
+                                  construct_use_phis);
 
       // Apply rewrite rules and renaming for reaching definitions.
       infoln("Applying rewrite rules");
@@ -326,7 +326,7 @@ struct MutToImmutPass : public ModulePass {
     }
 
     infoln("=========================");
-    infoln("DONE mut2immut pass");
+    infoln("DONE SSA construction pass");
 
     infoln();
 
@@ -346,7 +346,7 @@ struct MutToImmutPass : public ModulePass {
 } // namespace llvm::memoir
 
 // Next there is code to register your pass to "opt"
-char MutToImmutPass::ID = 0;
-static RegisterPass<MutToImmutPass> X(
-    "mut2immut",
+char SSAConstructionPass::ID = 0;
+static RegisterPass<SSAConstructionPass> X(
+    "memoir-ssa-construction",
     "Converts mutable collection operations to their immutable, SSA form.");

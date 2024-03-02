@@ -1,4 +1,4 @@
-#include "MutToImmutVisitor.hpp"
+#include "SSAConstruction.hpp"
 
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/Casting.hpp"
@@ -8,19 +8,19 @@
 
 namespace llvm::memoir {
 
-llvm::Value *MutToImmutVisitor::update_reaching_definition(
+llvm::Value *SSAConstructionVisitor::update_reaching_definition(
     llvm::Value *variable,
     MemOIRInst &I) {
   return this->update_reaching_definition(variable, I.getCallInst());
 }
 
-llvm::Value *MutToImmutVisitor::update_reaching_definition(
+llvm::Value *SSAConstructionVisitor::update_reaching_definition(
     llvm::Value *variable,
     llvm::Instruction &I) {
   return this->update_reaching_definition(variable, &I);
 }
 
-llvm::Value *MutToImmutVisitor::update_reaching_definition(
+llvm::Value *SSAConstructionVisitor::update_reaching_definition(
     llvm::Value *variable,
     llvm::Instruction *program_point) {
   // Search through the chain of definitions for variable until we find the
@@ -73,44 +73,44 @@ llvm::Value *MutToImmutVisitor::update_reaching_definition(
   return reaching_variable;
 }
 
-void MutToImmutVisitor::set_reaching_definition(
+void SSAConstructionVisitor::set_reaching_definition(
     llvm::Value *variable,
     llvm::Value *reaching_definition) {
   this->reaching_definitions[variable] = reaching_definition;
 }
 
-void MutToImmutVisitor::set_reaching_definition(
+void SSAConstructionVisitor::set_reaching_definition(
     llvm::Value *variable,
     MemOIRInst *reaching_definition) {
   this->set_reaching_definition(variable, &reaching_definition->getCallInst());
 }
 
-void MutToImmutVisitor::set_reaching_definition(
+void SSAConstructionVisitor::set_reaching_definition(
     MemOIRInst *variable,
     llvm::Value *reaching_definition) {
   this->set_reaching_definition(&variable->getCallInst(), reaching_definition);
 }
 
-void MutToImmutVisitor::set_reaching_definition(
+void SSAConstructionVisitor::set_reaching_definition(
     MemOIRInst *variable,
     MemOIRInst *reaching_definition) {
   this->set_reaching_definition(&variable->getCallInst(),
                                 &reaching_definition->getCallInst());
 }
 
-void MutToImmutVisitor::mark_for_cleanup(llvm::Instruction &I) {
+void SSAConstructionVisitor::mark_for_cleanup(llvm::Instruction &I) {
   this->instructions_to_delete.insert(&I);
 }
 
-void MutToImmutVisitor::mark_for_cleanup(MemOIRInst &I) {
+void SSAConstructionVisitor::mark_for_cleanup(MemOIRInst &I) {
   this->mark_for_cleanup(I.getCallInst());
 }
 
-MutToImmutVisitor::MutToImmutVisitor(
+SSAConstructionVisitor::SSAConstructionVisitor(
     llvm::DominatorTree &DT,
     ordered_set<llvm::Value *> memoir_names,
     map<llvm::PHINode *, llvm::Value *> inserted_phis,
-    MutToImmutStats *stats,
+    SSAConstructionStats *stats,
     bool construct_use_phis)
   : DT(DT),
     inserted_phis(inserted_phis),
@@ -122,7 +122,7 @@ MutToImmutVisitor::MutToImmutVisitor(
   }
 }
 
-void MutToImmutVisitor::visitInstruction(llvm::Instruction &I) {
+void SSAConstructionVisitor::visitInstruction(llvm::Instruction &I) {
   for (auto &operand_use : I.operands()) {
     auto *operand_value = operand_use.get();
     if (!Type::value_is_collection_type(*operand_value)) {
@@ -140,7 +140,7 @@ void MutToImmutVisitor::visitInstruction(llvm::Instruction &I) {
   return;
 }
 
-void MutToImmutVisitor::visitPHINode(llvm::PHINode &I) {
+void SSAConstructionVisitor::visitPHINode(llvm::PHINode &I) {
   auto found_inserted_phi = this->inserted_phis.find(&I);
   if (found_inserted_phi != this->inserted_phis.end()) {
     auto *named_variable = found_inserted_phi->second;
@@ -161,23 +161,23 @@ void MutToImmutVisitor::visitPHINode(llvm::PHINode &I) {
   return;
 }
 
-void MutToImmutVisitor::visitUsePHIInst(UsePHIInst &I) {
+void SSAConstructionVisitor::visitUsePHIInst(UsePHIInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitDefPHIInst(DefPHIInst &I) {
+void SSAConstructionVisitor::visitDefPHIInst(DefPHIInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitArgPHIInst(ArgPHIInst &I) {
+void SSAConstructionVisitor::visitArgPHIInst(ArgPHIInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitRetPHIInst(RetPHIInst &I) {
+void SSAConstructionVisitor::visitRetPHIInst(RetPHIInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutStructWriteInst(MutStructWriteInst &I) {
+void SSAConstructionVisitor::visitMutStructWriteInst(MutStructWriteInst &I) {
   // NOTE: this is currently a direct translation to StructWriteInst, when we
   // update to use FieldArrays explicitly, this is where they will need to be
   // constructed.
@@ -211,7 +211,7 @@ void MutToImmutVisitor::visitMutStructWriteInst(MutStructWriteInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutIndexWriteInst(MutIndexWriteInst &I) {
+void SSAConstructionVisitor::visitMutIndexWriteInst(MutIndexWriteInst &I) {
   MemOIRBuilder builder(I);
 
   // Fetch type information.
@@ -247,7 +247,7 @@ void MutToImmutVisitor::visitMutIndexWriteInst(MutIndexWriteInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutAssocWriteInst(MutAssocWriteInst &I) {
+void SSAConstructionVisitor::visitMutAssocWriteInst(MutAssocWriteInst &I) {
   MemOIRBuilder builder(I);
 
   // Fetch type information.
@@ -282,7 +282,7 @@ void MutToImmutVisitor::visitMutAssocWriteInst(MutAssocWriteInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitIndexReadInst(IndexReadInst &I) {
+void SSAConstructionVisitor::visitIndexReadInst(IndexReadInst &I) {
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
@@ -308,7 +308,7 @@ void MutToImmutVisitor::visitIndexReadInst(IndexReadInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitAssocReadInst(AssocReadInst &I) {
+void SSAConstructionVisitor::visitAssocReadInst(AssocReadInst &I) {
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
@@ -334,7 +334,7 @@ void MutToImmutVisitor::visitAssocReadInst(AssocReadInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitIndexGetInst(IndexGetInst &I) {
+void SSAConstructionVisitor::visitIndexGetInst(IndexGetInst &I) {
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
@@ -360,7 +360,7 @@ void MutToImmutVisitor::visitIndexGetInst(IndexGetInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitAssocGetInst(AssocGetInst &I) {
+void SSAConstructionVisitor::visitAssocGetInst(AssocGetInst &I) {
   // Split the live range of the collection being read.
   auto *collection_orig = &I.getObjectOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
@@ -386,7 +386,7 @@ void MutToImmutVisitor::visitAssocGetInst(AssocGetInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutSeqInsertInst(MutSeqInsertInst &I) {
+void SSAConstructionVisitor::visitMutSeqInsertInst(MutSeqInsertInst &I) {
   MemOIRBuilder builder(I);
 
   // Fetch type information.
@@ -419,7 +419,7 @@ void MutToImmutVisitor::visitMutSeqInsertInst(MutSeqInsertInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutSeqInsertSeqInst(MutSeqInsertSeqInst &I) {
+void SSAConstructionVisitor::visitMutSeqInsertSeqInst(MutSeqInsertSeqInst &I) {
   MemOIRBuilder builder(I);
 
   auto *collection_orig = &I.getCollection();
@@ -444,7 +444,7 @@ void MutToImmutVisitor::visitMutSeqInsertSeqInst(MutSeqInsertSeqInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutSeqRemoveInst(MutSeqRemoveInst &I) {
+void SSAConstructionVisitor::visitMutSeqRemoveInst(MutSeqRemoveInst &I) {
   MemOIRBuilder builder(I);
 
   auto *collection_orig = &I.getCollection();
@@ -468,7 +468,7 @@ void MutToImmutVisitor::visitMutSeqRemoveInst(MutSeqRemoveInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutSeqAppendInst(MutSeqAppendInst &I) {
+void SSAConstructionVisitor::visitMutSeqAppendInst(MutSeqAppendInst &I) {
   MemOIRBuilder builder(I);
 
   auto *collection_orig = &I.getCollection();
@@ -496,7 +496,7 @@ void MutToImmutVisitor::visitMutSeqAppendInst(MutSeqAppendInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutSeqSwapInst(MutSeqSwapInst &I) {
+void SSAConstructionVisitor::visitMutSeqSwapInst(MutSeqSwapInst &I) {
   MemOIRBuilder builder(I);
 
   auto *from_collection_orig = &I.getFromCollection();
@@ -539,7 +539,8 @@ void MutToImmutVisitor::visitMutSeqSwapInst(MutSeqSwapInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutSeqSwapWithinInst(MutSeqSwapWithinInst &I) {
+void SSAConstructionVisitor::visitMutSeqSwapWithinInst(
+    MutSeqSwapWithinInst &I) {
   MemOIRBuilder builder(I);
 
   auto *from_collection_orig = &I.getFromCollection();
@@ -567,7 +568,7 @@ void MutToImmutVisitor::visitMutSeqSwapWithinInst(MutSeqSwapWithinInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutSeqSplitInst(MutSeqSplitInst &I) {
+void SSAConstructionVisitor::visitMutSeqSplitInst(MutSeqSplitInst &I) {
   MemOIRBuilder builder(I);
 
   auto *split_value = &I.getSplit();
@@ -599,7 +600,7 @@ void MutToImmutVisitor::visitMutSeqSplitInst(MutSeqSplitInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitAssocHasInst(AssocHasInst &I) {
+void SSAConstructionVisitor::visitAssocHasInst(AssocHasInst &I) {
   if (this->construct_use_phis) {
     MemOIRBuilder builder(I, true);
 
@@ -622,7 +623,7 @@ void MutToImmutVisitor::visitAssocHasInst(AssocHasInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutAssocRemoveInst(MutAssocRemoveInst &I) {
+void SSAConstructionVisitor::visitMutAssocRemoveInst(MutAssocRemoveInst &I) {
   MemOIRBuilder builder(I);
 
   // Split the live range of the collection being written.
@@ -646,7 +647,7 @@ void MutToImmutVisitor::visitMutAssocRemoveInst(MutAssocRemoveInst &I) {
   return;
 }
 
-void MutToImmutVisitor::visitMutAssocInsertInst(MutAssocInsertInst &I) {
+void SSAConstructionVisitor::visitMutAssocInsertInst(MutAssocInsertInst &I) {
   MemOIRBuilder builder(I);
 
   // Split the live range of the collection being written.
@@ -670,7 +671,7 @@ void MutToImmutVisitor::visitMutAssocInsertInst(MutAssocInsertInst &I) {
   return;
 }
 
-void MutToImmutVisitor::cleanup() {
+void SSAConstructionVisitor::cleanup() {
   for (auto *inst : instructions_to_delete) {
     infoln(*inst);
     inst->eraseFromParent();
