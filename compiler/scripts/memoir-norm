@@ -39,6 +39,10 @@ do
             POSTPASSES+=("--memoir-stats")
             shift
             ;;
+        --memoir-enable-use-phi)
+            POSTPASSES+=("$1")
+            shift
+            ;;
         *)
             if [ -n "${INPUT_IR_FILE}" ] ; then
                 echo "Too many positional arguments passed!"
@@ -78,6 +82,6 @@ noelle-norm ${IR_FILE} -o ${IR_FILE}
 llvm-link ${IR_FILE} $(memoir-config --libdir)/memoir.decl.bc -o ${IR_FILE}
 
 # Run SSA construction and type inference.
-memoir-load ${PREPASSES[@]} --memoir-type-infer --mut2immut ${POSTPASSES[@]} ${IR_FILE} -o ${IR_FILE}
+memoir-load ${PREPASSES[@]} --memoir-type-infer --memoir-ssa-construction ${POSTPASSES[@]} ${IR_FILE} -o ${IR_FILE}
 
 mv ${IR_FILE} ${OUTPUT_IR_FILE}

@@ -28,7 +28,7 @@ endfunction()
 
 # Core.
 add_subdirectory(normalization)
-add_subdirectory(mut_to_immut)
+add_subdirectory(ssa_construction)
 add_subdirectory(ssa_destruction)
 
 # Utility passes.
