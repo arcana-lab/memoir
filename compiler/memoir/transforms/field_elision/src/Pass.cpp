@@ -79,7 +79,7 @@ struct FieldElisionPass : public ModulePass {
 
     // Parse the list of elision candidates.
     for (auto &elide_str : FieldsToElide) {
-      println("Elision candidate: ", elide_str);
+      infoln("Elision candidate: ", elide_str);
 
       // Parse the type name.
       size_t token_index = 0;
@@ -101,7 +101,7 @@ struct FieldElisionPass : public ModulePass {
           MEMOIR_SANITIZE(dyn_cast<StructType>(&elide_type),
                           "Elided type is not a struct type!");
 
-      memoir::print("elision candidate: ", type_name, ".");
+      memoir::info("elision candidate: ", type_name, ".");
       FieldElision::IndexSetTy field_indices = {};
       for (token_index = next_index + 1; next_index < elide_str.size();
            token_index = next_index + 1) {
@@ -109,12 +109,12 @@ struct FieldElisionPass : public ModulePass {
         next_index = elide_str.find(',', token_index);
         // Extract the token.
         auto index_str = elide_str.substr(token_index, next_index);
-        memoir::print(index_str, ",");
+        memoir::info(index_str, ",");
 
         // Insert the field index into the set.
         field_indices.insert(std::stoi(index_str));
       }
-      println();
+      infoln();
 
       fields_to_elide[&elide_struct_type].push_back(field_indices);
     }
