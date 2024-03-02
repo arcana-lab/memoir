@@ -297,7 +297,7 @@ protected:
           current_field_width += bit_field_width;
           bit_field_ranges[field_index] =
               make_pair(bit_field_start, current_field_width);
-          println("new bit field (",
+          debugln("new bit field (",
                   bit_field_start,
                   ", ",
                   current_field_width,
@@ -361,7 +361,7 @@ protected:
     if (current_field_width != 0) {
       // Get the integer type.
       auto bit_field_size = get_next_size(current_field_width);
-      println(current_field_width, " ==> ", bit_field_size);
+      debugln(current_field_width, " ==> ", bit_field_size);
       auto *bit_field_int_type =
           llvm::IntegerType::get(this->C, bit_field_size);
 

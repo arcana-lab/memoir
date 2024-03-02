@@ -20,7 +20,7 @@ llvm::Value *ConstantExpression::materialize(llvm::Instruction &IP,
                                              MemOIRBuilder *builder,
                                              const llvm::DominatorTree *DT,
                                              llvm::CallBase *call_context) {
-  println("Materializing ", *this);
+  debugln("Materializing ", *this);
   return &C;
 }
 

@@ -42,8 +42,8 @@ struct DeadElementEliminationPass : public ModulePass {
   }
 
   bool runOnModule(llvm::Module &M) override {
-    println("Running dead element elimination pass");
-    println();
+    debugln("Running dead element elimination pass");
+    debugln();
 
     auto &noelle = getAnalysis<arcana::noelle::Noelle>();
 

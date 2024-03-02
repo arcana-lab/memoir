@@ -42,8 +42,8 @@ struct DeadCollectionEliminationPass : public ModulePass {
   }
 
   bool runOnModule(llvm::Module &M) override {
-    println("Running dead collection elimination pass");
-    println();
+    debugln("Running dead collection elimination pass");
+    debugln();
 
     auto DCE = DeadCollectionElimination(M);
 

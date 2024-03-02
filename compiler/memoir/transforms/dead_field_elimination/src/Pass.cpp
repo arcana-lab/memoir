@@ -43,8 +43,8 @@ struct DeadFieldEliminationPass : public ModulePass {
   }
 
   bool runOnModule(llvm::Module &M) override {
-    println("Running dead field elimination pass");
-    println();
+    debugln("Running dead field elimination pass");
+    debugln();
 
     auto DFE = DeadFieldElimination(M);
 

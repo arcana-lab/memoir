@@ -12,12 +12,12 @@ bool ArgumentExpression::isAvailable(llvm::Instruction &IP,
   // Get the insertion basic block and function.
   auto insertion_bb = IP.getParent();
   if (!insertion_bb) {
-    println("Couldn't get the insertion basic block");
+    debugln("Couldn't get the insertion basic block");
     return false;
   }
   auto insertion_func = insertion_bb->getParent();
   if (!insertion_func) {
-    println("Couldn't get the insertion function");
+    debugln("Couldn't get the insertion function");
     return false;
   }
 
@@ -41,9 +41,9 @@ llvm::Value *ArgumentExpression::materialize(llvm::Instruction &IP,
                                              MemOIRBuilder *builder,
                                              const llvm::DominatorTree *DT,
                                              llvm::CallBase *call_context) {
-  println("Materializing ", *this);
-  println("  ", this->A);
-  println("  at ", IP);
+  debugln("Materializing ", *this);
+  debugln("  ", this->A);
+  debugln("  at ", IP);
 
   // Check if this Argument is available.
   if (!isAvailable(IP, DT, call_context)) {
@@ -53,19 +53,19 @@ llvm::Value *ArgumentExpression::materialize(llvm::Instruction &IP,
   // Get the insertion basic block and function.
   auto insertion_bb = IP.getParent();
   if (!insertion_bb) {
-    println("Couldn't determine insertion basic block");
+    debugln("Couldn't determine insertion basic block");
     return nullptr;
   }
   auto insertion_func = insertion_bb->getParent();
   if (!insertion_func) {
-    println("Couldn't determine insertion function");
+    debugln("Couldn't determine insertion function");
     return nullptr;
   }
 
   // Check that the insertion point and the argument are in the same function.
   auto value_func = this->A.getParent();
   if (value_func == insertion_func) {
-    println("argument is available, forwarding along.");
+    debugln("argument is available, forwarding along.");
     return &(this->A);
   }
 
@@ -77,7 +77,7 @@ llvm::Value *ArgumentExpression::materialize(llvm::Instruction &IP,
       if (auto *materialized_argument =
               handleCallContext(*this, this->A, *call_context, builder, DT)) {
 
-        println("  Materialized: ", *materialized_argument);
+        debugln("  Materialized: ", *materialized_argument);
         return materialized_argument;
       }
     }

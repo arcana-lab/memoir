@@ -258,15 +258,15 @@ ValueRange &RangeAnalysis::create_overdefined_range() {
 }
 
 void RangeAnalysis::dump() {
-  println("RangeAnalysis results:");
+  debugln("RangeAnalysis results:");
 
   for (auto const *range : this->ranges) {
-    println("  Range: ", *range);
+    debugln("  Range: ", *range);
   }
 
   for (auto const &[use, range] : this->use_to_range) {
-    println("  For use of ", *use->get(), " at ", *use->getUser());
-    println("    Range = ", *range);
+    debugln("  For use of ", *use->get(), " at ", *use->getUser());
+    debugln("    Range = ", *range);
   }
 }
 
