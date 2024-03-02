@@ -42,8 +42,8 @@ struct KeyFoldingPass : public ModulePass {
   }
 
   bool runOnModule(llvm::Module &M) override {
-    println("Running key folding pass");
-    println();
+    debugln("Running key folding pass");
+    debugln();
 
     auto KF = KeyFolding(M);
 

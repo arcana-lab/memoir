@@ -66,10 +66,10 @@ llvm::Value *BasicExpression::materialize(llvm::Instruction &IP,
                                           MemOIRBuilder *builder,
                                           const llvm::DominatorTree *DT,
                                           llvm::CallBase *call_context) {
-  println("Materializing ", *this);
-  println("  opcode= ", this->opcode);
+  debugln("Materializing ", *this);
+  debugln("  opcode= ", this->opcode);
   if (this->isAvailable(IP, DT, call_context)) {
-    println("  Expression is available!");
+    debugln("  Expression is available!");
   }
 
   MemOIRBuilder local_builder(&IP);
@@ -77,9 +77,9 @@ llvm::Value *BasicExpression::materialize(llvm::Instruction &IP,
   // Materialize the operands.
   vector<llvm::Value *> materialized_operands = {};
   for (auto *operand_expr : this->arguments) {
-    println("Materializing operand");
-    println("  ", *operand_expr);
-    println("  at ", IP);
+    debugln("Materializing operand");
+    debugln("  ", *operand_expr);
+    debugln("  at ", IP);
     auto *materialized_operand =
         operand_expr->materialize(IP, nullptr, DT, call_context);
     MEMOIR_NULL_CHECK(materialized_operand,
@@ -93,7 +93,7 @@ llvm::Value *BasicExpression::materialize(llvm::Instruction &IP,
         local_builder.CreateBinOp((llvm::Instruction::BinaryOps)this->opcode,
                                   materialized_operands.at(0),
                                   materialized_operands.at(1));
-    println("  materialized: ", *materialized_binary_op);
+    debugln("  materialized: ", *materialized_binary_op);
     return materialized_binary_op;
   }
 
@@ -102,14 +102,14 @@ llvm::Value *BasicExpression::materialize(llvm::Instruction &IP,
     auto *materialized_unary_op =
         local_builder.CreateUnOp((llvm::Instruction::UnaryOps)this->opcode,
                                  materialized_operands.at(0));
-    println("  materialized: ", *materialized_unary_op);
+    debugln("  materialized: ", *materialized_unary_op);
     return materialized_unary_op;
   }
 
-  println("Couldn't materialize the BasicExpression!");
-  println(*this);
+  debugln("Couldn't materialize the BasicExpression!");
+  debugln(*this);
   if (this->I) {
-    println(*this->I);
+    debugln(*this->I);
   }
   return nullptr;
 }
@@ -127,9 +127,9 @@ llvm::Value *CastExpression::materialize(llvm::Instruction &IP,
                                          MemOIRBuilder *builder,
                                          const llvm::DominatorTree *DT,
                                          llvm::CallBase *call_context) {
-  println("Materializing ", *this);
+  debugln("Materializing ", *this);
   if (this->isAvailable(IP, DT, call_context)) {
-    println("  Expression is available!");
+    debugln("  Expression is available!");
   }
 
   MemOIRBuilder local_builder(&IP);
@@ -166,9 +166,9 @@ llvm::Value *ICmpExpression::materialize(llvm::Instruction &IP,
                                          MemOIRBuilder *builder,
                                          const llvm::DominatorTree *DT,
                                          llvm::CallBase *call_context) {
-  println("Materializing ", *this);
+  debugln("Materializing ", *this);
   if (this->isAvailable(IP, DT, call_context)) {
-    println("  Expression is available!");
+    debugln("  Expression is available!");
   }
 
   MemOIRBuilder local_builder(&IP);
@@ -209,7 +209,7 @@ llvm::Value *PHIExpression::materialize(llvm::Instruction &IP,
                                         MemOIRBuilder *builder,
                                         const llvm::DominatorTree *DT,
                                         llvm::CallBase *call_context) {
-  println("Materializing ", *this);
+  debugln("Materializing ", *this);
   // TODO
   return nullptr;
 }
@@ -239,7 +239,7 @@ llvm::Value *SelectExpression::materialize(llvm::Instruction &IP,
                                            MemOIRBuilder *builder,
                                            const llvm::DominatorTree *DT,
                                            llvm::CallBase *call_context) {
-  println("Materializing ", *this);
+  debugln("Materializing ", *this);
 
   // Check that this SelectExpression is available.
   if (!this->isAvailable(IP, DT, call_context)) {
@@ -249,10 +249,10 @@ llvm::Value *SelectExpression::materialize(llvm::Instruction &IP,
   // If we are already a materialized instruction, check if we dominate the
   // insertion point. If we do, return the instruction.
   if ((this->I != nullptr) && (DT != nullptr)) {
-    println(*this->I);
+    debugln(*this->I);
     if (DT->dominates(this->I, &IP)) {
-      println("instruction dominates insertion point, forwarding along.");
-      println(*this->I);
+      debugln("instruction dominates insertion point, forwarding along.");
+      debugln(*this->I);
       return this->I;
     }
   }
@@ -261,7 +261,7 @@ llvm::Value *SelectExpression::materialize(llvm::Instruction &IP,
   // list.
   if ((this->I != nullptr) && (call_context != nullptr)) {
     if (call_context->hasArgument(this->I)) {
-      println("instruction is available via the call, forwarding the argument");
+      debugln("instruction is available via the call, forwarding the argument");
       // FIXME: return the argument instead of the instruction.
       return this->I;
     }
@@ -277,7 +277,7 @@ llvm::Value *SelectExpression::materialize(llvm::Instruction &IP,
           sanitize(this->materialize(*call_context, builder, DT),
                    "Could not materialize value at the call site");
 
-      println("materialized ", materialized_value);
+      debugln("materialized ", materialized_value);
 
       // Handle the call.
       if (auto *materialized_argument = handleCallContext(*this,
@@ -294,17 +294,17 @@ llvm::Value *SelectExpression::materialize(llvm::Instruction &IP,
   // Sanity check the operands.
   auto *condition_expr = this->getCondition();
   if (!condition_expr) {
-    println("SelectExpression: Condition expression is NULL!");
+    debugln("SelectExpression: Condition expression is NULL!");
     return nullptr;
   }
   auto *true_expr = this->getTrueValue();
   if (!true_expr) {
-    println("SelectExpression: True value expression is NULL!");
+    debugln("SelectExpression: True value expression is NULL!");
     return nullptr;
   }
   auto *false_expr = this->getFalseValue();
   if (!false_expr) {
-    println("SelectExpression: False value expression is NULL!");
+    debugln("SelectExpression: False value expression is NULL!");
     return nullptr;
   }
 
@@ -369,7 +369,7 @@ llvm::Value *SelectExpression::materialize(llvm::Instruction &IP,
       materialized_select,
       "SelectExpression: Could not create the materialized select.");
 
-  println("Materialized: ", *materialized_select);
+  debugln("Materialized: ", *materialized_select);
 
   return materialized_select;
 }
@@ -379,7 +379,7 @@ llvm::Value *CallExpression::materialize(llvm::Instruction &IP,
                                          MemOIRBuilder *builder,
                                          const llvm::DominatorTree *DT,
                                          llvm::CallBase *call_context) {
-  println("Materializing ", *this);
+  debugln("Materializing ", *this);
   // TODO
   return nullptr;
 }

@@ -9,7 +9,7 @@ namespace llvm::memoir {
 bool EndExpression::isAvailable(llvm::Instruction &IP,
                                 const llvm::DominatorTree *DT,
                                 llvm::CallBase *call_context) {
-  println("Checking availability ", *this);
+  debugln("Checking availability ", *this);
 
   // TODO!
   return false;
@@ -19,7 +19,7 @@ llvm::Value *EndExpression::materialize(llvm::Instruction &IP,
                                         MemOIRBuilder *builder,
                                         const llvm::DominatorTree *DT,
                                         llvm::CallBase *call_context) {
-  println("Materializing ", *this);
+  debugln("Materializing ", *this);
 
   // TODO!
   return nullptr;

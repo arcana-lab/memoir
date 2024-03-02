@@ -388,7 +388,7 @@ protected:
       while (!worklist.empty()) {
         // Pop an item of the worklist.
         auto *workitem = worklist.back();
-        println(*workitem);
+        debugln(*workitem);
         worklist.pop_back();
 
         // Check that this item hasn't been visited.

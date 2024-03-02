@@ -10,16 +10,8 @@
 
 #include "SSADestruction.hpp"
 
-// #define ASSOC_IMPL "hashtable"
 #define ASSOC_IMPL "stl_unordered_map"
-// #define ASSOC_IMPL "stl_map"
-// #define ASSOC_IMPL "deepsjeng_ttable"
-// #define ASSOC_IMPL "llvm_densemap"
-// #define ASSOC_IMPL "llvm_smallptrset"
-
-// #define SEQ_IMPL "vector"
 #define SEQ_IMPL "stl_vector"
-// #define SEQ_IMPL "llvm_smallvector"
 
 namespace llvm::memoir {
 
@@ -140,9 +132,9 @@ void SSADestructionVisitor::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
 
       auto &data_layout = M.getDataLayout();
       auto llvm_value_size = data_layout.getTypeAllocSize(&llvm_value_type);
-      println("value type size = ", llvm_value_size);
+      debugln("value type size = ", llvm_value_size);
       if (auto *arr_type = dyn_cast<llvm::ArrayType>(&llvm_value_type)) {
-        println("  element size = ",
+        debugln("  element size = ",
                 data_layout.getTypeAllocSize(arr_type->getElementType()));
       }
     }

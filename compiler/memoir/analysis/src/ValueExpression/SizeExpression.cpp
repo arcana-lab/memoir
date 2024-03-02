@@ -9,9 +9,9 @@ namespace llvm::memoir {
 bool SizeExpression::isAvailable(llvm::Instruction &IP,
                                  const llvm::DominatorTree *DT,
                                  llvm::CallBase *call_context) {
-  println("Materializing ", *this);
+  debugln("Materializing ", *this);
   if (!CE) {
-    println("Could not find the collection expression being sized");
+    debugln("Could not find the collection expression being sized");
     return false;
   }
 
@@ -22,7 +22,7 @@ llvm::Value *SizeExpression::materialize(llvm::Instruction &IP,
                                          MemOIRBuilder *builder,
                                          const llvm::DominatorTree *DT,
                                          llvm::CallBase *call_context) {
-  println("Materializing ", *this);
+  debugln("Materializing ", *this);
   if (!CE) {
     return nullptr;
   }
