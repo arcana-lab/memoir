@@ -2,7 +2,8 @@
 A case for memory object representation in the LLVM IR
 
 ## Dependencies
-The compiler depends on z3.
+The compiler depends on LLVM 9.0.0.
+All other dependencies are installed automatically during the build process.
 
 ## Building
 To build our noelle instance and the MEMOIR passes:
@@ -31,6 +32,8 @@ For example, if you make a change to `compiler/passes/memoir/ir/Instructions.hpp
 
 ## Documentation
 The [MEMOIR Developer Manual](http://mcmichen.cc/memoir-docs) provides a high-level view of MEMOIR, the compiler, and the supported language APIs.
+
+The [MEMOIR Doxygen](http://mcmichen.cc/memoir-doxygen) provides source-level documentation of the MEMOIR compiler infrastructure.
 
 Our [CGO'24 paper](http://mcmichen.cc/files/MEMOIR_CGO_2024.pdf) has additional information about MEMOIR.
 
