@@ -18,6 +18,16 @@ To clean the build:
 To uninstall the existing build:
 `make uninstall`
 
+To clean the build and all dependencies:
+`make fullclean`
+
+To uninstall the existing build and all dependencies:
+`make fulluninstall`
+
+To build the Doxygen documentation:
+`make documentation`
+The results will be stored in `docs/build`.
+
 ## Contributing
 For folks contributing, please ensure that you are using `clang-format` before pushing your changes.
 There is a script in the top-level Makefile to setup a githook for this, but if you don't have clang-format installed, it won't work.
