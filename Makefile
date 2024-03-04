@@ -43,7 +43,7 @@ hooks:
 
 $(NOELLE_DIR):
 	mkdir -p $@
-	git clone --depth 1 --branch master git@github.com:arcana-lab/noelle.git $@
+	git clone --depth 1 --branch v9.14.0 git@github.com:arcana-lab/noelle.git $@
 
 uninstall:
 	-cat $(BUILD_DIR)/install_manifest.txt | xargs rm -f
