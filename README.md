@@ -49,10 +49,11 @@ Our [CGO'24 paper](http://mcmichen.cc/files/MEMOIR_CGO_2024.pdf) has additional 
 
 If you use or build upon MEMOIR, we kindly ask that you cite us:
 ```
-@inproceedings(MCMICHEN:2024:MEMOIR,
+@inproceedings{MEMOIR:MCMICHEN:2024,
     title={Representing Data Collections in an SSA Form},
     author={McMichen, Tommy and Greiner, Nathan and Zhong, Peter and Sossai, Federico and Patel, Atmn and Campanoni, Simone},
-    booktitle={International Symposium on Code Generation and Optimization, 2024. CGO 2024.},
+    booktitle={CGO},
     year={2024},
+    url={https://doi.org/10.1109/CGO57630.2024.10444817}
 }
 ```
