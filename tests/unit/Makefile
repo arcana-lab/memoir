@@ -10,7 +10,7 @@ $(TESTS): %: %/Makefile
 	make -C $@
 
 %/Makefile:
-	[[ ! -f $@ ]] && cp ../Makefile.template $@
+	[ ! -f $@ ] && cp ../Makefile.template $@
 
 clean: 
 	find $(TESTS) -type d -maxdepth 0 -exec make -C {} clean \;
