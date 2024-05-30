@@ -26,8 +26,7 @@ benchmark: all
 	make -C $(BUILD_DIR) bitcodes -j32
 
 test:
-	make -C $(BUILD_DIR) tests -j32
-	cd $(BUILD_DIR) && ctest
+	make -C tests -j32
 
 documentation: all
 	make -C $(BUILD_DIR)/docs documentation -j32 
