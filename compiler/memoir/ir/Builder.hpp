@@ -21,14 +21,14 @@ public:
   /*
    * MemOIRBuilder Constructors
    */
-  MemOIRBuilder(llvm::BasicBlock *BB) : M(BB->getModule()), IRBuilder<>(BB) {
+  MemOIRBuilder(llvm::BasicBlock *BB) : IRBuilder<>(BB), M(BB->getModule()) {
     MEMOIR_NULL_CHECK(this->M,
                       "Could not determine LLVM Module of basic block.");
   }
 
   MemOIRBuilder(llvm::Instruction *IP, bool InsertAfter = false)
-    : M(IP->getModule()),
-      IRBuilder<>((InsertAfter) ? IP->getNextNode() : IP) {
+    : IRBuilder<>((InsertAfter) ? IP->getNextNode() : IP),
+      M(IP->getModule()) {
     MEMOIR_NULL_CHECK(this->M,
                       "Could not determine LLVM Module of insertion point.");
   }
@@ -549,6 +549,8 @@ public:
     if (auto *struct_type = dyn_cast<StructType>(&type)) {
       return this->CreateAssertStructTypeInst(object, *struct_type, name);
     }
+
+    MEMOIR_UNREACHABLE("Unknown type to assert!");
   }
 
   AssertStructTypeInst *CreateAssertStructTypeInst(llvm::Value *strct,

@@ -163,7 +163,7 @@ Type *TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
 
   // Get the types of each field.
   vector<Type *> field_types;
-  for (auto field_idx = 0; field_idx < I.getNumberOfFields(); field_idx++) {
+  for (unsigned field_idx = 0; field_idx < I.getNumberOfFields(); field_idx++) {
     auto &field_type_value = I.getFieldTypeOperand(field_idx);
     auto *field_type = this->getType_helper(field_type_value);
     field_types.push_back(field_type);
@@ -224,7 +224,7 @@ Type *TypeAnalysis::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
   vector<size_t> length_of_dimensions;
   length_of_dimensions.resize(num_dimensions);
 
-  for (auto dim_idx = 0; dim_idx < num_dimensions; dim_idx++) {
+  for (unsigned dim_idx = 0; dim_idx < num_dimensions; dim_idx++) {
     length_of_dimensions[dim_idx] = I.getLengthOfDimension(dim_idx);
   }
 
