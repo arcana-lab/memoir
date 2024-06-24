@@ -49,7 +49,7 @@ namespace llvm::memoir {
 
 llvm::cl::opt<bool> construct_use_phis(
     "memoir-enable-use-phis",
-    cl::desc("Enable construction of Use PHIs."));
+    llvm::cl::desc("Enable construction of Use PHIs."));
 
 using DomTreeNode = llvm::DomTreeNodeBase<llvm::BasicBlock>;
 using DomTreeTraversalListTy = list<llvm::BasicBlock *>;
