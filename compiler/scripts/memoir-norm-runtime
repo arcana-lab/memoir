@@ -25,7 +25,7 @@ cp ${IN_IR_FILE} ${TMP_IR_FILE}
 
 echo "Normalize Runtime (I: ${IN_IR_FILE}, O: ${OUT_IR_FILE})"
 
-CMD="llvm-extract -glob llvm.used -rfunc memoir__* ${TMP_IR_FILE} -o ${TMP_IR_FILE}"
+CMD="llvm-extract -glob llvm.compiler.used -rfunc memoir__* ${TMP_IR_FILE} -o ${TMP_IR_FILE}"
 echo "$CMD"
 eval $CMD
 
