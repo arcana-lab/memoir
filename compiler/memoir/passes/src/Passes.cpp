@@ -36,6 +36,8 @@ llvmGetPassPluginInfo() {
                             llvm::memoir::SSAConstructionPass);
                    REGISTER("memoir-ssa-destruction",
                             llvm::memoir::SSADestructionPass);
+                   REGISTER("memoir-impl-linker", llvm::memoir::ImplLinkerPass);
+                   REGISTER("memoir-norm", llvm::memoir::NormalizationPass);
 
                    return false;
                  });

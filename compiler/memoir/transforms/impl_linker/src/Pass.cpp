@@ -17,10 +17,9 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
-// NOELLE
-#include "noelle/core/Noelle.hpp"
-
 // MemOIR
+#include "memoir/passes/Passes.hpp"
+
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
@@ -57,92 +56,73 @@ llvm::cl::opt<std::string> impl_file_output(
     llvm::cl::desc("Specify output filename for ImplLinker."),
     llvm::cl::value_desc("filename"));
 
-struct ImplLinkerPass : public ModulePass {
-  static char ID;
+llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
+                                            llvm::ModuleAnalysisManager &MAM) {
+  TypeAnalysis::invalidate();
 
-  ImplLinkerPass() : ModulePass(ID) {}
+  // Get the TypeConverter.
+  TypeConverter TC(M.getContext());
 
-  bool doInitialization(llvm::Module &M) override {
-    return false;
-  }
+  // Get the ImplLinker.
+  ImplLinker IL(M);
 
-  bool runOnModule(llvm::Module &M) override {
-    TypeAnalysis::invalidate();
+  for (auto &F : M) {
+    if (F.empty()) {
+      continue;
+    }
 
-    // Get the TypeConverter.
-    TypeConverter TC(M.getContext());
+    // Collect all of the collection allocations in the program.
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        if (auto *seq_alloc = into<SequenceAllocInst>(&I)) {
+          // Get the implementation name for this allocation.
+          auto impl_name = SEQ_IMPL;
 
-    // Get the ImplLinker.
-    ImplLinker IL(M);
+          // Get the type layout for the element type.
+          auto &element_layout = TC.convert(seq_alloc->getElementType());
 
-    for (auto &F : M) {
-      if (F.empty()) {
-        continue;
-      }
+          // Implement the sequence.
+          IL.implement_seq(impl_name, element_layout);
 
-      // Collect all of the collection allocations in the program.
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (auto *seq_alloc = into<SequenceAllocInst>(&I)) {
-            // Get the implementation name for this allocation.
-            auto impl_name = SEQ_IMPL;
+        } else if (auto *assoc_alloc = into<AssocAllocInst>(&I)) {
+          // Get the implementation name for this allocation.
+          auto impl_name = ASSOC_IMPL;
 
-            // Get the type layout for the element type.
-            auto &element_layout = TC.convert(seq_alloc->getElementType());
+          // Get the type layout for the key type.
+          auto &key_layout = TC.convert(assoc_alloc->getKeyType());
 
-            // Implement the sequence.
-            IL.implement_seq(impl_name, element_layout);
+          // Get the type layout for the value type.
+          auto &value_layout = TC.convert(assoc_alloc->getValueType());
 
-          } else if (auto *assoc_alloc = into<AssocAllocInst>(&I)) {
-            // Get the implementation name for this allocation.
-            auto impl_name = ASSOC_IMPL;
+          // Implement the assoc.
+          IL.implement_assoc(impl_name, key_layout, value_layout);
+        } else if (auto *define_type = into<DefineStructTypeInst>(&I)) {
+          // Get the struct type.
+          auto &struct_type = define_type->getType();
 
-            // Get the type layout for the key type.
-            auto &key_layout = TC.convert(assoc_alloc->getKeyType());
+          // Get the type layout for the struct.
+          auto &struct_layout = TC.convert(struct_type);
 
-            // Get the type layout for the value type.
-            auto &value_layout = TC.convert(assoc_alloc->getValueType());
-
-            // Implement the assoc.
-            IL.implement_assoc(impl_name, key_layout, value_layout);
-          } else if (auto *define_type = into<DefineStructTypeInst>(&I)) {
-            // Get the struct type.
-            auto &struct_type = define_type->getType();
-
-            // Get the type layout for the struct.
-            auto &struct_layout = TC.convert(struct_type);
-
-            // Implement the struct.
-            IL.implement_type(struct_layout);
-          }
+          // Implement the struct.
+          IL.implement_type(struct_layout);
         }
       }
     }
+  }
 
-    // Emit the implementation code.
-    if (impl_file_output.getNumOccurrences()) {
-      std::error_code error;
-      llvm::raw_fd_ostream os(impl_file_output, error);
-      if (error) {
-        MEMOIR_UNREACHABLE("ImplLinker: Could not open output file!");
-      }
-      IL.emit(os);
-    } else {
-      IL.emit();
+  // Emit the implementation code.
+  if (impl_file_output.getNumOccurrences()) {
+    std::error_code error;
+    llvm::raw_fd_ostream os(impl_file_output, error);
+    if (error) {
+      MEMOIR_UNREACHABLE("ImplLinker: Could not open output file!");
     }
-
-    return false;
+    IL.emit(os);
+  } else {
+    IL.emit();
   }
 
-  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
-    return;
-  }
-};
+  return llvm::PreservedAnalyses::none();
+}
 
 } // namespace llvm::memoir
-
-// Next there is code to register your pass to "opt"
-char ImplLinkerPass::ID = 0;
-static RegisterPass<ImplLinkerPass> X(
-    "memoir-impl-linker",
-    "Instantiates the needed collection implementations.");

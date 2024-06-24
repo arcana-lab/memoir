@@ -7,11 +7,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
-#include "noelle/core/Noelle.hpp"
-
 #include "Normalization.hpp"
-
-using namespace arcana::noelle;
 
 namespace llvm::memoir {
 
