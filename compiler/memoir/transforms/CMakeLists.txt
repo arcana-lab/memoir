@@ -33,7 +33,6 @@ add_subdirectory(ssa_destruction)
 
 # Utility passes.
 add_subdirectory(statistics)
-add_subdirectory(command_line)
 
 # Transformation passes.
 # add_subdirectory(dead_collection_elimination)
