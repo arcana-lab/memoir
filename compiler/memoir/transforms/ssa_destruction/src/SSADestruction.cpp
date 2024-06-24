@@ -25,10 +25,8 @@ SSADestructionVisitor::SSADestructionVisitor(llvm::Module &M,
   // Do nothing.
 }
 
-void SSADestructionVisitor::setAnalyses(llvm::DominatorTree &DT,
-                                        LivenessAnalysis &LA) {
+void SSADestructionVisitor::setAnalyses(llvm::DominatorTree &DT) {
   this->DT = &DT;
-  this->LA = &LA;
 
   return;
 }
