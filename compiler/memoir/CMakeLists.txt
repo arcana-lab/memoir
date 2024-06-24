@@ -1,6 +1,22 @@
-add_llvm_library(memoir MODULE /dev/null)
+add_llvm_library(
+  memoir
 
-add_llvm_library(memoir_core MODULE /dev/null)
+  MODULE
+  /dev/null
+
+  PLUGIN_TOOL
+  opt
+)
+
+add_llvm_library(
+  memoir_core
+  
+  MODULE
+  /dev/null
+
+  PLUGIN_TOOL
+  opt
+)
 
 function(add_memoir_sources)
   cmake_parse_arguments(
