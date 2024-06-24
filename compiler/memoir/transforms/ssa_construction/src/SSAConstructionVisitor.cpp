@@ -1,4 +1,4 @@
-#include "SSAConstruction.hpp"
+#include "SSAConstructionVisitor.hpp"
 
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/Casting.hpp"
