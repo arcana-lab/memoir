@@ -55,9 +55,9 @@ struct MutWriteInst : public MutInst {
   };
 
 protected:
-  MutWriteInst(llvm::CallInst &call_inst) : MutInst(call_inst){};
+  MutWriteInst(llvm::CallInst &call_inst) : MutInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 // Mutable write operations.
@@ -78,9 +78,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutStructWriteInst(llvm::CallInst &call_inst) : MutWriteInst(call_inst){};
+  MutStructWriteInst(llvm::CallInst &call_inst) : MutWriteInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 struct MutIndexWriteInst : public MutWriteInst {
@@ -100,9 +100,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutIndexWriteInst(llvm::CallInst &call_inst) : MutWriteInst(call_inst){};
+  MutIndexWriteInst(llvm::CallInst &call_inst) : MutWriteInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 struct MutAssocWriteInst : public MutWriteInst {
@@ -121,9 +121,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutAssocWriteInst(llvm::CallInst &call_inst) : MutWriteInst(call_inst){};
+  MutAssocWriteInst(llvm::CallInst &call_inst) : MutWriteInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 // Insert operations.
@@ -149,9 +149,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutSeqInsertInst(llvm::CallInst &call_inst) : MutInst(call_inst){};
+  MutSeqInsertInst(llvm::CallInst &call_inst) : MutInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 struct MutSeqInsertSeqInst : public MutInst {
@@ -172,9 +172,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutSeqInsertSeqInst(llvm::CallInst &call_inst) : MutInst(call_inst){};
+  MutSeqInsertSeqInst(llvm::CallInst &call_inst) : MutInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 // Remove operation
@@ -196,9 +196,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutSeqRemoveInst(llvm::CallInst &call_inst) : MutInst(call_inst){};
+  MutSeqRemoveInst(llvm::CallInst &call_inst) : MutInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 // Append operation
@@ -217,9 +217,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutSeqAppendInst(llvm::CallInst &call_inst) : MutInst(call_inst){};
+  MutSeqAppendInst(llvm::CallInst &call_inst) : MutInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 // Split operation
@@ -242,9 +242,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutSeqSplitInst(llvm::CallInst &call_inst) : MutInst(call_inst){};
+  MutSeqSplitInst(llvm::CallInst &call_inst) : MutInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 // Swap operations
@@ -272,9 +272,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutSeqSwapInst(llvm::CallInst &call_inst) : MutInst(call_inst){};
+  MutSeqSwapInst(llvm::CallInst &call_inst) : MutInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 struct MutSeqSwapWithinInst : public MutInst {
@@ -301,9 +301,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutSeqSwapWithinInst(llvm::CallInst &call_inst) : MutInst(call_inst){};
+  MutSeqSwapWithinInst(llvm::CallInst &call_inst) : MutInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 // Assoc operations.
@@ -322,9 +322,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutAssocInsertInst(llvm::CallInst &call_inst) : MutInst(call_inst){};
+  MutAssocInsertInst(llvm::CallInst &call_inst) : MutInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 struct MutAssocRemoveInst : public MutInst {
@@ -342,9 +342,9 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  MutAssocRemoveInst(llvm::CallInst &call_inst) : MutInst(call_inst){};
+  MutAssocRemoveInst(llvm::CallInst &call_inst) : MutInst(call_inst) {};
 
-  friend class MemOIRInst;
+  friend struct MemOIRInst;
 };
 
 } // namespace llvm::memoir

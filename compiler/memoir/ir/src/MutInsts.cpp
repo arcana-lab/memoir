@@ -1,3 +1,5 @@
+#include "llvm/IR/Constants.h"
+
 #include "memoir/ir/MutOperations.hpp"
 
 #include "memoir/ir/Types.hpp"
