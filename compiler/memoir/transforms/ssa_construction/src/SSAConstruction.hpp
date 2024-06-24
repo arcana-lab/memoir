@@ -5,8 +5,6 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 
-#include "noelle/core/Noelle.hpp"
-
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
