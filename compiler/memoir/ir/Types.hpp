@@ -101,6 +101,8 @@ public:
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Type &T);
   friend bool operator<(const Type &L, const Type &R);
 
+  virtual ~Type() = default;
+
 protected:
   TypeCode code;
 

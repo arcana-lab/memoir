@@ -13,7 +13,7 @@
 
 namespace llvm::memoir {
 
-#define DELEGATE(CLASS_TO_VISIT)                                               \
+#define DELEGATE_INST(CLASS_TO_VISIT)                                          \
   return static_cast<SubClass *>(this)->visit##CLASS_TO_VISIT(                 \
       static_cast<CLASS_TO_VISIT &>(I))
 
@@ -26,7 +26,7 @@ namespace llvm::memoir {
       static_cast<CLASS_TO_VISIT &>(I.getCallInst()))
 
 template <typename SubClass, typename RetTy = void>
-struct InstVisitor : public llvm::InstVisitor<SubClass, RetTy> {
+class InstVisitor : public llvm::InstVisitor<SubClass, RetTy> {
   friend class llvm::InstVisitor<SubClass, RetTy>;
 
 public:
@@ -66,146 +66,146 @@ public:
   };
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE(MemOIRInst);                                                      \
+    DELEGATE_INST(MemOIRInst);                                                 \
   };
 
   // Access instruction hierarchy.
   RetTy visitAccessInst(AccessInst &I) {
-    DELEGATE(MemOIRInst);
+    DELEGATE_INST(MemOIRInst);
   };
 #define HANDLE_ACCESS_INST(ENUM, FUNC, CLASS) /* No handling. */
 
   // Read instruction hierarchy.
   RetTy visitReadInst(ReadInst &I) {
-    DELEGATE(AccessInst);
+    DELEGATE_INST(AccessInst);
   };
   RetTy visitStructReadInst(StructReadInst &I) {
-    DELEGATE(ReadInst);
+    DELEGATE_INST(ReadInst);
   };
   RetTy visitIndexReadInst(IndexReadInst &I) {
-    DELEGATE(ReadInst);
+    DELEGATE_INST(ReadInst);
   };
   RetTy visitAssocReadInst(AssocReadInst &I) {
-    DELEGATE(ReadInst);
+    DELEGATE_INST(ReadInst);
   };
 
   // Write instruction hierarchy.
   RetTy visitWriteInst(WriteInst &I) {
-    DELEGATE(AccessInst);
+    DELEGATE_INST(AccessInst);
   };
   RetTy visitStructWriteInst(StructWriteInst &I) {
-    DELEGATE(WriteInst);
+    DELEGATE_INST(WriteInst);
   };
   RetTy visitIndexWriteInst(IndexWriteInst &I) {
-    DELEGATE(WriteInst);
+    DELEGATE_INST(WriteInst);
   };
   RetTy visitAssocWriteInst(AssocWriteInst &I) {
-    DELEGATE(WriteInst);
+    DELEGATE_INST(WriteInst);
   };
 
   // Get instruction hierarchy.
   RetTy visitGetInst(GetInst &I) {
-    DELEGATE(AccessInst);
+    DELEGATE_INST(AccessInst);
   };
   RetTy visitStructGetInst(StructGetInst &I) {
-    DELEGATE(GetInst);
+    DELEGATE_INST(GetInst);
   };
   RetTy visitIndexGetInst(IndexGetInst &I) {
-    DELEGATE(GetInst);
+    DELEGATE_INST(GetInst);
   };
   RetTy visitAssocGetInst(AssocGetInst &I) {
-    DELEGATE(GetInst);
+    DELEGATE_INST(GetInst);
   };
   RetTy visitAssocHasInst(AssocHasInst &I) {
-    DELEGATE(AccessInst);
+    DELEGATE_INST(AccessInst);
   };
 
   // Type instruction hierarchy.
   RetTy visitTypeInst(TypeInst &I) {
-    DELEGATE(MemOIRInst);
+    DELEGATE_INST(MemOIRInst);
   };
 #define HANDLE_TYPE_INST(ENUM, FUNC, CLASS)                                    \
   RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE(TypeInst);                                                        \
+    DELEGATE_INST(TypeInst);                                                   \
   };
 
   // Alloc instruction hierarchy.
   RetTy visitAllocInst(AllocInst &I) {
-    DELEGATE(MemOIRInst);
+    DELEGATE_INST(MemOIRInst);
   };
 #define HANDLE_ALLOC_INST(ENUM, FUNC, CLASS)                                   \
   RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE(AllocInst);                                                       \
+    DELEGATE_INST(AllocInst);                                                  \
   };
 
   // Insert instruction hierarchy.
   RetTy visitInsertInst(InsertInst &I) {
-    DELEGATE(MemOIRInst);
+    DELEGATE_INST(MemOIRInst);
   };
 #define HANDLE_INSERT_INST(ENUM, FUNC, CLASS)                                  \
   RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE(InsertInst);                                                      \
+    DELEGATE_INST(InsertInst);                                                 \
   };
   RetTy visitSeqInsertInst(SeqInsertInst &I) {
-    DELEGATE(InsertInst);
+    DELEGATE_INST(InsertInst);
   };
 #define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS) /* No handling. */
 
   // Remove instruction hierarchy.
   RetTy visitRemoveInst(RemoveInst &I) {
-    DELEGATE(MemOIRInst);
+    DELEGATE_INST(MemOIRInst);
   };
 #define HANDLE_REMOVE_INST(ENUM, FUNC, CLASS)                                  \
   RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE(RemoveInst);                                                      \
+    DELEGATE_INST(RemoveInst);                                                 \
   };
 
   // Copy instruction hierarchy.
   RetTy visitCopyInst(CopyInst &I) {
-    DELEGATE(MemOIRInst);
+    DELEGATE_INST(MemOIRInst);
   };
 #define HANDLE_COPY_INST(ENUM, FUNC, CLASS)                                    \
   RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE(CopyInst);                                                        \
+    DELEGATE_INST(CopyInst);                                                   \
   };
 
   // Swap instruction hierarchy.
   RetTy visitSwapInst(SwapInst &I) {
-    DELEGATE(MemOIRInst);
+    DELEGATE_INST(MemOIRInst);
   };
 #define HANDLE_SWAP_INST(ENUM, FUNC, CLASS)                                    \
   RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE(SwapInst);                                                        \
+    DELEGATE_INST(SwapInst);                                                   \
   };
 #include "memoir/ir/Instructions.def"
 
   // Mut instruction hierarchy.
   RetTy visitMutInst(MutInst &I) {
-    DELEGATE(MemOIRInst);
+    DELEGATE_INST(MemOIRInst);
   };
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE(MutInst);                                                         \
+    DELEGATE_INST(MutInst);                                                    \
   };
 
   // Mut Write instruction hierarchy.
   RetTy visitMutWriteInst(MutWriteInst &I) {
-    DELEGATE(MutInst);
+    DELEGATE_INST(MutInst);
   };
   RetTy visitMutStructWriteInst(MutStructWriteInst &I) {
-    DELEGATE(MutWriteInst);
+    DELEGATE_INST(MutWriteInst);
   };
   RetTy visitMutIndexWriteInst(MutIndexWriteInst &I) {
-    DELEGATE(MutWriteInst);
+    DELEGATE_INST(MutWriteInst);
   };
   RetTy visitMutAssocWriteInst(MutAssocWriteInst &I) {
-    DELEGATE(MutWriteInst);
+    DELEGATE_INST(MutWriteInst);
   };
 #define HANDLE_WRITE_INST(ENUM, FUNC, CLASS) /* No handling. */
 
   // MutSeqInsertInst hierarchy.
   RetTy visitMutSeqInsertInst(MutSeqInsertInst &I) {
-    DELEGATE(MutInst);
+    DELEGATE_INST(MutInst);
   };
 #define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS) /* No handling. */
 
