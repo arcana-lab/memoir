@@ -11,12 +11,12 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
-
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
 // MemOIR
+#include "memoir/passes/Passes.hpp"
+
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
@@ -147,72 +147,36 @@ public:
   }
 };
 
-struct MemOIRStatsPass : public ModulePass {
-  static char ID;
+llvm::PreservedAnalyses StatisticsPass::run(llvm::Module &M,
+                                            llvm::ModuleAnalysisManager &MAM) {
+  println("BEGIN stats pass");
+  println();
 
-  MemOIRStatsPass() : ModulePass(ID) {}
+  MemOIRStats stats;
+  StatsVisitor visitor(stats);
 
-  bool doInitialization(llvm::Module &M) override {
-    return false;
-  }
-
-  bool runOnModule(llvm::Module &M) override {
-    println("BEGIN stats pass");
-    println();
-
-    MemOIRStats stats;
-    StatsVisitor visitor(stats);
-
-    for (auto &F : M) {
-      if (F.empty()) {
-        continue;
-      }
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          visitor.visit(I);
-        }
+  for (auto &F : M) {
+    if (F.empty()) {
+      continue;
+    }
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        visitor.visit(I);
       }
     }
-
-    println("=========================");
-    println("STATS");
-    println("  NumMut = ", stats.num_mut_collections);
-    println("  NumSSA = ", stats.num_ssa_collections);
-    println("  NumTrivial = ", stats.num_trivial_ssa_collections);
-    println("  NumNonTrivial = ",
-            stats.num_ssa_collections - stats.num_trivial_ssa_collections);
-    println("=========================");
-    println("DONE stats pass");
-
-    return false;
   }
 
-  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
-    return;
-  }
-};
+  println("=========================");
+  println("STATS");
+  println("  NumMut = ", stats.num_mut_collections);
+  println("  NumSSA = ", stats.num_ssa_collections);
+  println("  NumTrivial = ", stats.num_trivial_ssa_collections);
+  println("  NumNonTrivial = ",
+          stats.num_ssa_collections - stats.num_trivial_ssa_collections);
+  println("=========================");
+  println("DONE stats pass");
+
+  return llvm::PreservedAnalyses::all();
+}
 
 } // namespace llvm::memoir
-
-// Next there is code to register your pass to "opt"
-char memoir::MemOIRStatsPass::ID = 0;
-static RegisterPass<memoir::MemOIRStatsPass> X(
-    "memoir-stats",
-    "Collects various statistics about a MemOIR program.");
-
-// Next there is code to register your pass to "clang"
-static memoir::MemOIRStatsPass *_PassMaker = NULL;
-static RegisterStandardPasses _RegPass1(
-    PassManagerBuilder::EP_OptimizerLast,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-      if (!_PassMaker) {
-        PM.add(_PassMaker = new memoir::MemOIRStatsPass());
-      }
-    }); // ** for -Ox
-static RegisterStandardPasses _RegPass2(
-    PassManagerBuilder::EP_EnabledOnOptLevel0,
-    [](const PassManagerBuilder &, legacy::PassManagerBase &PM) {
-      if (!_PassMaker) {
-        PM.add(_PassMaker = new memoir::MemOIRStatsPass());
-      }
-    }); // ** for -O0

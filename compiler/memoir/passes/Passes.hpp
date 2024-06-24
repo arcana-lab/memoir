@@ -4,6 +4,11 @@
 // LLVM
 #include "llvm/Pass.h"
 
+#include "llvm/IR/PassManager.h"
+
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
+
 // Macro to declare passes.
 #define MODULE_PASS(PASS_NAME)                                                 \
   struct PASS_NAME : public llvm::PassInfoMixin<PASS_NAME> {                   \
@@ -17,6 +22,7 @@ MODULE_PASS(SSAConstructionPass);
 MODULE_PASS(SSADestructionPass);
 MODULE_PASS(ImplLinkerPass);
 MODULE_PASS(NormalizationPass);
+MODULE_PASS(StatisticsPass);
 
 } // namespace llvm::memoir
 

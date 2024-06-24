@@ -1,8 +1,3 @@
-// LLVM
-#include "llvm/IR/PassManager.h"
-#include "llvm/Passes/PassBuilder.h"
-#include "llvm/Passes/PassPlugin.h"
-
 // MEMOIR
 #include "memoir/passes/Passes.hpp"
 
@@ -38,6 +33,7 @@ llvmGetPassPluginInfo() {
                             llvm::memoir::SSADestructionPass);
                    REGISTER("memoir-impl-linker", llvm::memoir::ImplLinkerPass);
                    REGISTER("memoir-norm", llvm::memoir::NormalizationPass);
+                   REGISTER("memoir-stats", llvm::memoir::StatisticsPass);
 
                    return false;
                  });
