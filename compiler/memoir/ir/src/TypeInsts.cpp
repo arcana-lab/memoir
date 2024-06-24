@@ -137,10 +137,8 @@ std::string DefineStructTypeInst::getName() const {
     auto name_ptr = name_gep->getPointerOperand();
     name_global = dyn_cast<GlobalVariable>(name_ptr);
   } else if (auto name_const_gep = dyn_cast<llvm::ConstantExpr>(&name_value)) {
-    if (name_const_gep->isGEPWithNoNotionalOverIndexing()) {
-      auto name_ptr = name_const_gep->getOperand(0);
-      name_global = dyn_cast<GlobalVariable>(name_ptr);
-    }
+    auto name_ptr = name_const_gep->getOperand(0);
+    name_global = dyn_cast<GlobalVariable>(name_ptr);
   } else {
     name_global = dyn_cast<GlobalVariable>(&name_value);
   }
@@ -152,7 +150,7 @@ std::string DefineStructTypeInst::getName() const {
   MEMOIR_NULL_CHECK(name_constant,
                     "DefineStructTypeInst name is not a constant data array");
 
-  return name_constant->getAsCString();
+  return name_constant->getAsCString().str();
 }
 
 OPERAND(DefineStructTypeInst, NameOperand, 0)
@@ -209,7 +207,7 @@ std::string StructTypeInst::getName() const {
   MEMOIR_NULL_CHECK(name_constant,
                     "DefineStructTypeInst name is not a constant data array");
 
-  return name_constant->getAsCString();
+  return name_constant->getAsCString().str();
 }
 
 OPERAND(StructTypeInst, NameOperand, 0)
