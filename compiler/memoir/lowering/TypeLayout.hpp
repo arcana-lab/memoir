@@ -277,7 +277,7 @@ protected:
     // Get the type layout of each field.
     unsigned current_field_width = 0;
     unsigned current_field_offset = 0;
-    for (auto field_index = 0; field_index < num_fields; ++field_index) {
+    for (unsigned field_index = 0; field_index < num_fields; ++field_index) {
       // Get the field type.
       auto &field_type = T.getFieldType(field_index);
 
