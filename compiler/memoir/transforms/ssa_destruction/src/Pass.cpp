@@ -55,21 +55,21 @@ static DomTreeTraversalListTy dfs_preorder_traversal_helper(DomTreeNode *root) {
 
   DomTreeTraversalListTy traversal = { root->getBlock() };
 
-  for (auto *child : root->getChildren()) {
+  for (auto *child : root->children()) {
     auto child_traversal = dfs_preorder_traversal_helper(child);
     traversal.insert(traversal.end(),
                      child_traversal.begin(),
                      child_traversal.end());
   }
 
-  return std::move(traversal);
+  return traversal;
 }
 
 static DomTreeTraversalListTy dfs_preorder_traversal(llvm::DominatorTree &DT) {
   auto *root_node = DT.getRootNode();
   MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found in DominatorTree.");
 
-  return std::move(dfs_preorder_traversal_helper(root_node));
+  return dfs_preorder_traversal_helper(root_node);
 }
 
 static DomTreeTraversalListTy dfs_postorder_traversal_helper(
@@ -78,7 +78,7 @@ static DomTreeTraversalListTy dfs_postorder_traversal_helper(
 
   DomTreeTraversalListTy traversal = {};
 
-  for (auto *child : root->getChildren()) {
+  for (auto *child : root->children()) {
     auto child_traversal = dfs_preorder_traversal_helper(child);
     traversal.insert(traversal.end(),
                      child_traversal.begin(),
@@ -87,14 +87,15 @@ static DomTreeTraversalListTy dfs_postorder_traversal_helper(
 
   traversal.push_back(root->getBlock());
 
-  return std::move(traversal);
+  return traversal;
 }
 
-static DomTreeTraversalListTy dfs_postorder_traversal(llvm::DominatorTree &DT) {
+[[maybe_unused]] static DomTreeTraversalListTy dfs_postorder_traversal(
+    llvm::DominatorTree &DT) {
   auto *root_node = DT.getRootNode();
   MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found in DominatorTree");
 
-  return std::move(dfs_postorder_traversal_helper(root_node));
+  return dfs_postorder_traversal_helper(root_node);
 }
 
 PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
@@ -125,11 +126,13 @@ PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
       }
     }
     if (no_memoir) {
-      for (auto &I : llvm::instructions(F)) {
-        if (Type::value_is_collection_type(I) || Type::value_is_struct_type(I)
-            || Type::value_is_type(I)) {
-          TypeAnalysis::analyze(I);
-          no_memoir = false;
+      for (auto &BB : F) {
+        for (auto &I : BB) {
+          if (Type::value_is_collection_type(I) || Type::value_is_struct_type(I)
+              || Type::value_is_type(I)) {
+            TypeAnalysis::analyze(I);
+            no_memoir = false;
+          }
         }
       }
     }
@@ -152,7 +155,6 @@ PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
 
     // Get the depth-first, preorder traversal of the dominator tree rooted at
     // the entry basic block.
-    auto &entry_bb = F.getEntryBlock();
     auto dfs_preorder = dfs_preorder_traversal(DT);
 
     // Apply rewrite rules and renaming for reaching definitions.
