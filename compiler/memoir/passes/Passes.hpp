@@ -15,6 +15,8 @@ namespace llvm::memoir {
 
 MODULE_PASS(SSAConstructionPass);
 MODULE_PASS(SSADestructionPass);
+MODULE_PASS(ImplLinkerPass);
+MODULE_PASS(NormalizationPass);
 
 } // namespace llvm::memoir
 
