@@ -7,7 +7,7 @@ NORM_RUNTIME=$(MEMOIR_INSTALL_DIR)/bin/memoir-norm-runtime
 RUNTIME_BC=$(MEMOIR_INSTALL_DIR)/lib/memoir.impl.bc
 DECL_BC=$(MEMOIR_INSTALL_DIR)/lib/memoir.decl.bc
 
-all: noelle hooks postinstall
+all: hooks postinstall
 
 build:
 	mkdir -p $(BUILD_DIR)
@@ -37,12 +37,12 @@ noelle: .noelle
 	NOELLE_INSTALL_DIR=$(MEMOIR_INSTALL_DIR) NOELLE_SCAF=OFF NOELLE_SVF=OFF NOELLE_AUTOTUNER=OFF make -C $<
 	touch $@
 
-hooks:
-	make -C $(HOOKS_DIR) all
-
 $(NOELLE_DIR):
 	mkdir -p $@
 	git clone --depth 1 --branch v9.14.0 git@github.com:arcana-lab/noelle.git $@
+
+hooks:
+	make -C $(HOOKS_DIR) all
 
 uninstall:
 	-cat $(BUILD_DIR)/install_manifest.txt | xargs rm -f
