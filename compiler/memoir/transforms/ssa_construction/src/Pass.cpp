@@ -58,7 +58,7 @@ static DomTreeTraversalListTy dfs_preorder_traversal_helper(DomTreeNode *root) {
 
   DomTreeTraversalListTy traversal = { root->getBlock() };
 
-  for (auto *child : root->getChildren()) {
+  for (auto *child : root->children()) {
     auto child_traversal = dfs_preorder_traversal_helper(child);
     traversal.insert(traversal.end(),
                      child_traversal.begin(),
