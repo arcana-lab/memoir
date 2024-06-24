@@ -36,15 +36,15 @@ add_subdirectory(statistics)
 add_subdirectory(command_line)
 
 # Transformation passes.
-add_subdirectory(dead_collection_elimination)
-add_subdirectory(dead_field_elimination)
-add_subdirectory(field_elision)
-add_subdirectory(key_folding)
-add_subdirectory(type_inference)
-add_subdirectory(dead_element_elimination)
+# add_subdirectory(dead_collection_elimination)
+# add_subdirectory(dead_field_elimination)
+# add_subdirectory(field_elision)
+# add_subdirectory(key_folding)
+# add_subdirectory(type_inference)
+# add_subdirectory(dead_element_elimination)
 
 # Lowering passes.
 add_subdirectory(impl_linker)
 
 # Analysis passes.
-add_subdirectory(example)
+# add_subdirectory(example)
