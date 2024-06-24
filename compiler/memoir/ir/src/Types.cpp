@@ -196,7 +196,7 @@ StaticTensorType &StaticTensorType::get(Type &element_type,
       continue;
     }
 
-    for (auto dim_index = 0; dim_index < num_dimensions; ++dim_index) {
+    for (unsigned dim_index = 0; dim_index < num_dimensions; ++dim_index) {
       if (existing_type->getLengthOfDimension(dim_index)
           != dimension_sizes[dim_index]) {
         continue;
@@ -343,65 +343,34 @@ bool Type::is_collection_type(Type &type) {
 }
 
 bool Type::llvm_type_is_collection_type(llvm::Type &type) {
-  auto *ptr_type = dyn_cast<llvm::PointerType>(&type);
-  if (!ptr_type) {
+  if (not isa<llvm::PointerType>(&type)) {
     return false;
   }
-  auto *elem_type = ptr_type->getElementType();
-  if (!elem_type) {
-    return false;
-  }
-  auto *elem_struct_type = dyn_cast<llvm::StructType>(elem_type);
-  if (!elem_struct_type) {
-    return false;
-  }
-  if (!elem_struct_type->hasName()) {
-    return false;
-  }
-  auto type_name = elem_struct_type->getName();
-  return type_name == "struct.memoir::Collection";
+
+  // TODO: this needs to be fixed!
+  return true;
 }
 
 bool Type::llvm_type_is_struct_type(llvm::Type &type) {
-  auto *ptr_type = dyn_cast<llvm::PointerType>(&type);
-  if (!ptr_type) {
+  if (not isa<llvm::PointerType>(&type)) {
     return false;
   }
-  auto *elem_type = ptr_type->getElementType();
-  if (!elem_type) {
-    return false;
-  }
-  auto *elem_struct_type = dyn_cast<llvm::StructType>(elem_type);
-  if (!elem_struct_type) {
-    return false;
-  }
-  if (!elem_struct_type->hasName()) {
-    return false;
-  }
-  auto type_name = elem_struct_type->getName();
-  return type_name == "struct.memoir::Struct";
+
+  // TODO: this needs to be fixed!
+  return true;
 }
 
+// TODO: this needs to be overhauled.
 bool Type::llvm_type_is_type(llvm::Type &type) {
-  auto *ptr_type = dyn_cast<llvm::PointerType>(&type);
-  if (!ptr_type) {
+  if (not dyn_cast<llvm::PointerType>(&type)) {
     return false;
   }
-  auto *elem_type = ptr_type->getElementType();
-  if (!elem_type) {
-    return false;
-  }
-  auto *elem_struct_type = dyn_cast<llvm::StructType>(elem_type);
-  if (!elem_struct_type) {
-    return false;
-  }
-  if (!elem_struct_type->hasName()) {
-    return false;
-  }
-  auto type_name = elem_struct_type->getName();
-  return type_name == "struct.memoir::Type";
+
+  // TODO: this needs to be fixed!
+  return true;
 }
 
+// TODO: this needs to be overhauled.
 bool Type::value_is_collection_type(llvm::Value &value) {
   if (!isa<llvm::Instruction>(&value) && !isa<llvm::Argument>(&value)) {
     return false;
@@ -458,9 +427,9 @@ TypeCode Type::getCode() const {
  * IntegerType implementation
  */
 IntegerType::IntegerType(unsigned bitwidth, bool is_signed)
-  : bitwidth(bitwidth),
-    is_signed(is_signed),
-    Type(TypeCode::INTEGER) {
+  : Type(TypeCode::INTEGER),
+    bitwidth(bitwidth),
+    is_signed(is_signed) {
   // Do nothing.
 }
 
@@ -561,8 +530,8 @@ opt<std::string> PointerType::get_code() const {
  * ReferenceType implementation
  */
 ReferenceType::ReferenceType(Type &referenced_type)
-  : referenced_type(referenced_type),
-    Type(TypeCode::REFERENCE) {
+  : Type(TypeCode::REFERENCE),
+    referenced_type(referenced_type) {
   // Do nothing.
 }
 
@@ -593,10 +562,10 @@ opt<std::string> ReferenceType::get_code() const {
 StructType::StructType(DefineStructTypeInst &definition,
                        std::string name,
                        vector<Type *> field_types)
-  : definition(definition),
+  : Type(TypeCode::STRUCT),
+    definition(definition),
     name(name),
-    field_types(field_types),
-    Type(TypeCode::STRUCT) {
+    field_types(field_types) {
   // Do nothing.
 }
 
@@ -652,9 +621,9 @@ opt<std::string> CollectionType::get_code() const {
  * FieldArrayType implementation
  */
 FieldArrayType::FieldArrayType(StructType &struct_type, unsigned field_index)
-  : struct_type(struct_type),
-    field_index(field_index),
-    CollectionType(TypeCode::FIELD_ARRAY) {
+  : CollectionType(TypeCode::FIELD_ARRAY),
+    struct_type(struct_type),
+    field_index(field_index) {
   // Do nothing.
 }
 
@@ -691,10 +660,10 @@ std::string FieldArrayType::toString(std::string indent) const {
 StaticTensorType::StaticTensorType(Type &element_type,
                                    unsigned number_of_dimensions,
                                    vector<size_t> length_of_dimensions)
-  : element_type(element_type),
+  : CollectionType(TypeCode::STATIC_TENSOR),
+    element_type(element_type),
     number_of_dimensions(number_of_dimensions),
-    length_of_dimensions(length_of_dimensions),
-    CollectionType(TypeCode::STATIC_TENSOR) {
+    length_of_dimensions(length_of_dimensions) {
   // Do nothing.
 }
 
@@ -722,7 +691,7 @@ std::string StaticTensorType::toString(std::string indent) const {
   str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
   str += indent + "  # of dimensions: "
          + std::to_string(this->getNumberOfDimensions()) + "\n";
-  for (auto dim = 0; dim < this->length_of_dimensions.size(); dim++) {
+  for (size_t dim = 0; dim < this->length_of_dimensions.size(); dim++) {
     str += indent + "  dimension " + std::to_string(dim) + ": "
            + std::to_string(this->length_of_dimensions.at(dim)) + "\n";
   }
@@ -735,9 +704,9 @@ std::string StaticTensorType::toString(std::string indent) const {
  * TensorType implementation
  */
 TensorType::TensorType(Type &element_type, unsigned number_of_dimensions)
-  : element_type(element_type),
-    number_of_dimensions(number_of_dimensions),
-    CollectionType(TypeCode::TENSOR) {
+  : CollectionType(TypeCode::TENSOR),
+    element_type(element_type),
+    number_of_dimensions(number_of_dimensions) {
   // Do nothing.
 }
 
@@ -746,7 +715,7 @@ Type &TensorType::getElementType() const {
 }
 
 unsigned TensorType::getNumberOfDimensions() const {
-  return this->getNumberOfDimensions();
+  return this->number_of_dimensions;
 }
 
 std::string TensorType::toString(std::string indent) const {
@@ -766,9 +735,9 @@ std::string TensorType::toString(std::string indent) const {
  * AssocArrayType implementation
  */
 AssocArrayType::AssocArrayType(Type &key_type, Type &value_type)
-  : key_type(key_type),
-    value_type(value_type),
-    CollectionType(TypeCode::ASSOC_ARRAY) {
+  : CollectionType(TypeCode::ASSOC_ARRAY),
+    key_type(key_type),
+    value_type(value_type) {
   // Do nothing.
 }
 
@@ -801,8 +770,8 @@ std::string AssocArrayType::toString(std::string indent) const {
  * SequenceType implementation
  */
 SequenceType::SequenceType(Type &element_type)
-  : element_type(element_type),
-    CollectionType(TypeCode::SEQUENCE) {
+  : CollectionType(TypeCode::SEQUENCE),
+    element_type(element_type) {
   // Do nothing.
 }
 
