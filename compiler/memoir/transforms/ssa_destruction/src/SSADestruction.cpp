@@ -1,3 +1,5 @@
+#include "llvm/IR/DerivedTypes.h"
+
 #include "memoir/utility/FunctionNames.hpp"
 
 #include "memoir/support/Assert.hpp"
@@ -20,8 +22,8 @@ SSADestructionVisitor::SSADestructionVisitor(llvm::Module &M,
                                              bool enable_collection_lowering)
   : M(M),
     TC(M.getContext()),
-    stats(stats),
-    enable_collection_lowering(enable_collection_lowering) {
+    enable_collection_lowering(enable_collection_lowering),
+    stats(stats) {
   // Do nothing.
 }
 
@@ -57,7 +59,6 @@ void SSADestructionVisitor::visitSequenceAllocInst(SequenceAllocInst &I) {
 
     MemOIRBuilder builder(I);
 
-    auto *function_type = function_callee.getFunctionType();
     auto *vector_size = &I.getSizeOperand();
 
     llvm::CallInst *llvm_call;
@@ -68,16 +69,8 @@ void SSADestructionVisitor::visitSequenceAllocInst(SequenceAllocInst &I) {
                         "Could not create the call for vector alloc");
     } else {
       // Create/fetch the struct type.
-      llvm::StructType *struct_type = nullptr;
-      if (function != nullptr) {
-        auto *param_type = function->getFunctionType()->getParamType(0);
-        auto *ptr_type = dyn_cast<llvm::PointerType>(param_type);
-        auto *elem_type = ptr_type->getElementType();
-        struct_type = dyn_cast<llvm::StructType>(elem_type);
-      } else if (struct_type == nullptr) {
-        auto struct_name = "struct." + impl_prefix + "_t";
-        struct_type = llvm::StructType::create(M.getContext(), struct_name);
-      }
+      auto struct_name = "struct." + impl_prefix + "_t";
+      auto *struct_type = llvm::StructType::create(M.getContext(), struct_name);
       MEMOIR_NULL_CHECK(
           struct_type,
           "Could not find or create the LLVM StructType for " ASSOC_IMPL "!");
@@ -104,7 +97,7 @@ void SSADestructionVisitor::visitSequenceAllocInst(SequenceAllocInst &I) {
     // Do nothing.
   }
   return;
-}
+} // namespace llvm::memoir
 
 void SSADestructionVisitor::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
   if (this->enable_collection_lowering) {
@@ -144,23 +137,13 @@ void SSADestructionVisitor::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
 
     MemOIRBuilder builder(I);
 
-    auto *function_type = function_callee.getFunctionType();
-
     llvm::CallInst *llvm_call;
     if (escaped) {
       llvm_call = builder.CreateCall(function_callee);
     } else {
       // Create/fetch the struct type.
-      llvm::StructType *struct_type = nullptr;
-      if (function != nullptr) {
-        auto *param_type = function->getFunctionType()->getParamType(0);
-        auto *ptr_type = dyn_cast<llvm::PointerType>(param_type);
-        auto *elem_type = ptr_type->getElementType();
-        struct_type = dyn_cast<llvm::StructType>(elem_type);
-      } else if (struct_type == nullptr) {
-        auto struct_name = "struct." + impl_prefix + "_t";
-        struct_type = llvm::StructType::create(M.getContext(), struct_name);
-      }
+      auto struct_name = "struct." + impl_prefix + "_t";
+      auto *struct_type = llvm::StructType::create(M.getContext(), struct_name);
       MEMOIR_NULL_CHECK(
           struct_type,
           "Could not find or create the LLVM StructType for " ASSOC_IMPL "!");
@@ -222,14 +205,12 @@ void SSADestructionVisitor::visitStructAllocInst(StructAllocInst &I) {
   // function!");
 
   // Create the allocation.
-  auto *insertion_point = &I.getCallInst();
-  auto *allocation = llvm::CallInst::CreateMalloc(insertion_point,
-                                                  int_ptr_type,
-                                                  llvm_struct_type,
-                                                  llvm_struct_size_constant,
-                                                  /* ArraySize = */ nullptr,
-                                                  /* MallocF = */ nullptr,
-                                                  /* Name = */ "struct.");
+  auto *allocation = builder.CreateMalloc(int_ptr_type,
+                                          llvm_struct_type,
+                                          llvm_struct_size_constant,
+                                          /* ArraySize = */ nullptr,
+                                          /* MallocF = */ nullptr,
+                                          /* Name = */ "struct.");
   MEMOIR_NULL_CHECK(allocation, "Couldn't create malloc for StructAllocInst");
 
   auto *alloc_ptr =
@@ -444,15 +425,15 @@ void SSADestructionVisitor::visitEndInst(EndInst &I) {
 
     // Handle end in the context of its use.
     if (auto *insert_inst = into<InsertInst>(user_as_inst)) {
-      auto &contextualized = contextualize_end(I, use, *insert_inst);
+      contextualize_end(I, use, *insert_inst);
     } else if (auto *remove_inst = into<RemoveInst>(user_as_inst)) {
-      auto &contextualized = contextualize_end(I, use, *remove_inst);
+      contextualize_end(I, use, *remove_inst);
     } else if (auto *copy_inst = into<CopyInst>(user_as_inst)) {
-      auto &contextualized = contextualize_end(I, use, *copy_inst);
+      contextualize_end(I, use, *copy_inst);
     } else if (auto *swap_inst = into<SeqSwapInst>(user_as_inst)) {
-      auto &contextualized = contextualize_end(I, use, *swap_inst);
+      contextualize_end(I, use, *swap_inst);
     } else if (auto *swap_within_inst = into<SeqSwapWithinInst>(user_as_inst)) {
-      auto &contextualized = contextualize_end(I, use, *swap_within_inst);
+      contextualize_end(I, use, *swap_within_inst);
     } else if (auto *phi_node = dyn_cast<llvm::PHINode>(user_as_inst)) {
       MEMOIR_UNREACHABLE(
           "Contextualizing EndInst at a PHINode is not yet supported!");
@@ -530,11 +511,12 @@ void SSADestructionVisitor::visitIndexReadInst(IndexReadInst &I) {
 
       // Construct a gep for the element.
       auto *gep = builder.CreateInBoundsGEP(
+          &llvm_type,
           ptr,
           llvm::ArrayRef<llvm::Value *>({ builder.getInt32(0), &index }));
 
       // Construct the load of the element.
-      auto *load = builder.CreateLoad(gep);
+      auto *load = builder.CreateLoad(&llvm_type, gep);
 
       // Replace old read value with the new one.
       this->coalesce(I, *load);
@@ -614,6 +596,7 @@ void SSADestructionVisitor::visitIndexGetInst(IndexGetInst &I) {
 
       // Construct a gep for the element.
       auto *gep = builder.CreateInBoundsGEP(
+          &llvm_type,
           ptr,
           llvm::ArrayRef<llvm::Value *>({ builder.getInt32(0), &index }));
 
@@ -699,6 +682,7 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
 
       // Construct a gep for the element.
       auto *gep = builder.CreateInBoundsGEP(
+          &llvm_type,
           ptr,
           llvm::ArrayRef<llvm::Value *>({ builder.getInt32(0), &index }));
 
@@ -723,10 +707,10 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
     auto &index = I.getIndexOfDimension(0);
 
     // Construct the MutWriteInst.
-    auto *mut_write = builder.CreateMutIndexWriteInst(element_type,
-                                                      &value_written,
-                                                      &collection,
-                                                      &index);
+    builder.CreateMutIndexWriteInst(element_type,
+                                    &value_written,
+                                    &collection,
+                                    &index);
 
     // Coalesce the original collection with the operand.
     this->coalesce(I, collection);
@@ -832,10 +816,10 @@ void SSADestructionVisitor::visitAssocWriteInst(AssocWriteInst &I) {
     auto &key = I.getKeyOperand();
 
     // Construct the MutWriteInst.
-    auto *mut_write = builder.CreateMutAssocWriteInst(value_type,
-                                                      &value_written,
-                                                      &collection,
-                                                      &key);
+    builder.CreateMutAssocWriteInst(value_type,
+                                    &value_written,
+                                    &collection,
+                                    &key);
 
     // Coalesce the original collection with the operand.
     this->coalesce(I, collection);
@@ -953,7 +937,7 @@ void SSADestructionVisitor::visitStructReadInst(StructReadInst &I) {
     auto *field_array_type = cast<FieldArrayType>(&collection_type);
     auto &struct_type = field_array_type->getStructType();
     auto &struct_layout = TC.convert(struct_type);
-    auto &llvm_type = struct_layout.get_llvm_type();
+    auto *llvm_type = cast<llvm::StructType>(&struct_layout.get_llvm_type());
 
     // Get the struct being accessed as an LLVM value.
     auto &struct_value = I.getObjectOperand();
@@ -961,21 +945,18 @@ void SSADestructionVisitor::visitStructReadInst(StructReadInst &I) {
     // Get the field information for the access.
     auto field_index = I.getFieldIndex();
     auto field_offset = struct_layout.get_field_offset(field_index);
-
-    // Get the constant for the given field offset.
-    auto &data_layout = this->M.getDataLayout();
-    auto *int_ptr_type = builder.getIntPtrTy(data_layout);
+    auto *llvm_field_type = llvm_type->getElementType(field_offset);
 
     // Construct a pointer cast to the LLVM struct type.
-    auto *ptr =
-        builder.CreatePointerCast(&struct_value,
-                                  llvm::PointerType::get(&llvm_type, 0));
+    auto *ptr = builder.CreatePointerCast(&struct_value,
+                                          llvm::PointerType::get(llvm_type, 0));
 
     // Construct the GEP for the field.
-    auto *gep = builder.CreateStructGEP(ptr, field_offset);
+    auto *gep = builder.CreateStructGEP(llvm_type, ptr, field_offset);
 
     // Construct the load.
-    llvm::Value *load = builder.CreateLoad(gep, /* isVolatile = */ false);
+    llvm::Value *load =
+        builder.CreateLoad(llvm_field_type, gep, /* isVolatile = */ false);
 
     // If the field is a bit field, pay the bit twiddler their due.
     if (struct_layout.is_bit_field(field_index)) {
@@ -996,7 +977,7 @@ void SSADestructionVisitor::visitStructReadInst(StructReadInst &I) {
           // Get the size of the containing bit field.
           auto *llvm_field_type = I.getCallInst().getType();
           auto *llvm_int_field_type = cast<llvm::IntegerType>(llvm_field_type);
-          auto llvm_field_width = int_field_type->getBitWidth();
+          auto llvm_field_width = llvm_int_field_type->getBitWidth();
 
           // SHIFT the bit field over to the top bits.
           auto left_shift_distance = llvm_field_width - bit_field_end;
@@ -1015,7 +996,7 @@ void SSADestructionVisitor::visitStructReadInst(StructReadInst &I) {
 
       // MASK the value.
       uint64_t mask = 0;
-      for (int i = 0; i < bit_field_width; ++i) {
+      for (unsigned int i = 0; i < bit_field_width; ++i) {
         mask |= 1 << i;
       }
       load = builder.CreateAnd(load, mask);
@@ -1044,7 +1025,7 @@ void SSADestructionVisitor::visitStructWriteInst(StructWriteInst &I) {
     auto *field_array_type = cast<FieldArrayType>(&collection_type);
     auto &struct_type = field_array_type->getStructType();
     auto &struct_layout = TC.convert(struct_type);
-    auto &llvm_type = struct_layout.get_llvm_type();
+    auto &llvm_type = cast<llvm::StructType>(struct_layout.get_llvm_type());
 
     // Get the struct being accessed as an LLVM value.
     auto &struct_value = I.getObjectOperand();
@@ -1052,10 +1033,7 @@ void SSADestructionVisitor::visitStructWriteInst(StructWriteInst &I) {
     // Get the field information for the access.
     auto field_index = I.getFieldIndex();
     auto field_offset = struct_layout.get_field_offset(field_index);
-
-    // Get the constant for the given field offset.
-    auto &data_layout = this->M.getDataLayout();
-    auto *int_ptr_type = builder.getIntPtrTy(data_layout);
+    auto *llvm_field_type = llvm_type.getElementType(field_offset);
 
     // Construct a pointer cast to the LLVM struct type.
     auto *ptr =
@@ -1063,7 +1041,7 @@ void SSADestructionVisitor::visitStructWriteInst(StructWriteInst &I) {
                                   llvm::PointerType::get(&llvm_type, 0));
 
     // Construct the GEP for the field.
-    auto *gep = builder.CreateStructGEP(ptr, field_offset);
+    auto *gep = builder.CreateStructGEP(&llvm_type, ptr, field_offset);
 
     // Get the value being written.
     auto *value_written = &I.getValueWritten();
@@ -1071,7 +1049,7 @@ void SSADestructionVisitor::visitStructWriteInst(StructWriteInst &I) {
     // If the field is a bit field, load the resident value, perform the
     // requisite bit twiddling, and then store the value.
     if (struct_layout.is_bit_field(field_index)) {
-      llvm::Value *load = builder.CreateLoad(gep);
+      llvm::Value *load = builder.CreateLoad(llvm_field_type, gep);
 
       // Fetch the bit field range.
       auto bit_field_range = *(struct_layout.get_bit_field_range(field_index));
@@ -1107,16 +1085,10 @@ void SSADestructionVisitor::visitStructWriteInst(StructWriteInst &I) {
       value_written = builder.CreateOr(value_written, load);
     }
 
-    // Cast the value written to match the gep type.
-    if (auto *gep_ptr_type = dyn_cast<llvm::PointerType>(gep->getType())) {
-      // Get the element type.
-      auto *elem_type = gep_ptr_type->getElementType();
-
-      // Create a Bit/PointerCast for non-integer types.
-      if (!isa<llvm::IntegerType>(elem_type)) {
-        value_written =
-            builder.CreateBitOrPointerCast(value_written, elem_type);
-      }
+    // Cast the value written to match the gep type if it's a non-integer type.
+    if (not isa<llvm::IntegerType>(llvm_field_type)) {
+      value_written =
+          builder.CreateBitOrPointerCast(value_written, llvm_field_type);
     }
 
     // Construct the load.
@@ -1127,15 +1099,13 @@ void SSADestructionVisitor::visitStructWriteInst(StructWriteInst &I) {
     // Coalesce and return.
     this->coalesce(I, store);
 
-    // I.getCallInst().replaceAllUsesWith(&store);
-
     this->markForCleanup(I);
   } else {
     // Do nothing.
   }
 
   return;
-}
+} // namespace llvm::memoir
 
 void SSADestructionVisitor::visitStructGetInst(StructGetInst &I) {
   if (this->enable_collection_lowering) {
@@ -1155,17 +1125,13 @@ void SSADestructionVisitor::visitStructGetInst(StructGetInst &I) {
     auto field_index = I.getFieldIndex();
     auto field_offset = struct_layout.get_field_offset(field_index);
 
-    // Get the constant for the given field offset.
-    auto &data_layout = this->M.getDataLayout();
-    auto *int_ptr_type = builder.getIntPtrTy(data_layout);
-
     // Construct a pointer cast to the LLVM struct type.
     auto *ptr =
         builder.CreatePointerCast(&struct_value,
                                   llvm::PointerType::get(&llvm_type, 0));
 
     // Construct the GEP for the field.
-    auto *gep = builder.CreateStructGEP(ptr, field_offset);
+    auto *gep = builder.CreateStructGEP(&llvm_type, ptr, field_offset);
 
     // If the field is a bit field, load the resident value, perform the
     // requisite bit twiddling, and then store the value.
@@ -1242,10 +1208,10 @@ void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
     auto &index = I.getInsertionPoint();
 
     // Construct the MutWriteInst.
-    auto *mut_inst = builder.CreateMutSeqInsertInst(elem_type,
-                                                    &value_inserted,
-                                                    &collection,
-                                                    &index);
+    builder.CreateMutSeqInsertInst(elem_type,
+                                   &value_inserted,
+                                   &collection,
+                                   &index);
 
     // Coalesce the original collection with the operand.
     this->coalesce(I, collection);
@@ -1311,9 +1277,9 @@ void SSADestructionVisitor::visitSeqInsertSeqInst(SeqInsertSeqInst &I) {
     auto &index = I.getInsertionPoint();
 
     // Construct the Mut instruction.
-    auto *mut_inst = builder.CreateMutSeqInsertSeqInst(&inserted_collection,
-                                                       &collection,
-                                                       &index);
+    builder.CreateMutSeqInsertSeqInst(&inserted_collection,
+                                      &collection,
+                                      &index);
 
     // Coalesce the original collection with the operand.
     this->coalesce(I, collection);
@@ -1377,8 +1343,7 @@ void SSADestructionVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
     auto &end_index = I.getEndIndex();
 
     // Construct the Mut instruction.
-    auto *mut_inst =
-        builder.CreateMutSeqRemoveInst(&collection, &begin_index, &end_index);
+    builder.CreateMutSeqRemoveInst(&collection, &begin_index, &end_index);
 
     // Coalesce the original collection with the operand.
     this->coalesce(I, collection);
@@ -1522,11 +1487,11 @@ void SSADestructionVisitor::visitSeqSwapInst(SeqSwapInst &I) {
     auto &to_begin_index = I.getToBeginIndex();
 
     // Construct the Mut instruction.
-    auto *mut_inst = builder.CreateMutSeqSwapInst(&from_collection,
-                                                  &begin_index,
-                                                  &end_index,
-                                                  &to_collection,
-                                                  &to_begin_index);
+    builder.CreateMutSeqSwapInst(&from_collection,
+                                 &begin_index,
+                                 &end_index,
+                                 &to_collection,
+                                 &to_begin_index);
     // Coalesce the original collections with the operand.
     for (auto &use : I.getCallInst().uses()) {
       auto *user = use.getUser();
@@ -1612,10 +1577,10 @@ void SSADestructionVisitor::visitSeqSwapWithinInst(SeqSwapWithinInst &I) {
     auto &to_begin_index = I.getToBeginIndex();
 
     // Construct the Mut instruction.
-    auto *mut_inst = builder.CreateMutSeqSwapWithinInst(&collection,
-                                                        &begin_index,
-                                                        &end_index,
-                                                        &to_begin_index);
+    builder.CreateMutSeqSwapWithinInst(&collection,
+                                       &begin_index,
+                                       &end_index,
+                                       &to_begin_index);
 
     // Coalesce the original collection with the operand.
     this->coalesce(I, collection);
@@ -1664,9 +1629,7 @@ void SSADestructionVisitor::visitAssocInsertInst(AssocInsertInst &I) {
 
     auto *return_type = I.getCallInst().getType();
     if (!return_type->isVoidTy()) {
-      auto *collection =
-          builder.CreatePointerCast(llvm_call,
-                                    I.getResultCollection().getType());
+      builder.CreatePointerCast(llvm_call, I.getResultCollection().getType());
 
       // Coalesce the result with the input operand.
       this->coalesce(I.getResultCollection(), I.getBaseCollection());
@@ -1717,9 +1680,7 @@ void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
     auto *return_type = I.getCallInst().getType();
     if (!return_type->isVoidTy()) {
       // TODO: this may need more work.
-      auto *collection =
-          builder.CreatePointerCast(llvm_call,
-                                    I.getResultCollection().getType());
+      builder.CreatePointerCast(llvm_call, I.getResultCollection().getType());
 
       // Coalesce the result with the input operand.
       this->coalesce(I.getResultCollection(), I.getBaseCollection());
@@ -1884,9 +1845,7 @@ void SSADestructionVisitor::visitTypeInst(TypeInst &I) {
         } else if (auto *ptr_as_gep = dyn_cast<llvm::GetElementPtrInst>(ptr)) {
           global_ptr = ptr_as_gep->getPointerOperand();
         } else if (auto *ptr_as_const_gep = dyn_cast<llvm::ConstantExpr>(ptr)) {
-          if (ptr_as_const_gep->isGEPWithNoNotionalOverIndexing()) {
-            global_ptr = ptr_as_const_gep->getOperand(0);
-          }
+          global_ptr = ptr_as_const_gep->getOperand(0);
         }
 
         if (global_ptr == nullptr) {

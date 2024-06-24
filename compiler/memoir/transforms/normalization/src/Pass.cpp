@@ -1,11 +1,18 @@
+// LLVM
 #include "llvm/Pass.h"
+
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
+
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
+
+// MEMOIR
+#include "memoir/passes/Passes.hpp"
+
+#include "memoir/support/Print.hpp"
 
 #include "Normalization.hpp"
 
@@ -15,43 +22,25 @@ static cl::opt<bool> OnlyRuntime("only-runtime",
                                  cl::init(false),
                                  cl::desc("Only target the runtime."));
 
-struct NormalizationPass : public ModulePass {
-  static char ID;
+llvm::PreservedAnalyses NormalizationPass::run(
+    llvm::Module &M,
+    llvm::ModuleAnalysisManager &MAM) {
+  infoln("Running normalization pass\n");
 
-  NormalizationPass() : ModulePass(ID) {}
+  auto normalization = new Normalization(M);
 
-  bool doInitialization(llvm::Module &M) override {
-    return false;
+  if (OnlyRuntime) {
+    infoln("Normalizing MemOIR Runtime\n");
+    normalization->transformRuntime();
+
+    return llvm::PreservedAnalyses::none();
   }
 
-  bool runOnModule(llvm::Module &M) override {
-    errs() << "Running normalization pass\n";
+  normalization->analyze();
 
-    auto normalization = new Normalization(M);
+  normalization->transform();
 
-    if (OnlyRuntime) {
-      errs() << "Normalizing MemOIR Runtime\n";
-      normalization->transformRuntime();
-
-      return true;
-    }
-
-    normalization->analyze();
-
-    normalization->transform();
-
-    return true;
-  }
-
-  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
-    return;
-  }
-};
+  return llvm::PreservedAnalyses::none();
+}
 
 } // namespace llvm::memoir
-
-// Next there is code to register your pass to "opt"
-char llvm::memoir::NormalizationPass::ID = 0;
-static llvm::RegisterPass<llvm::memoir::NormalizationPass> X(
-    "memoir-norm",
-    "Normalizes the MemOIR language and runtime");

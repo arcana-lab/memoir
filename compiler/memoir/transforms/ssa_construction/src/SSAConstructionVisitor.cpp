@@ -114,8 +114,8 @@ SSAConstructionVisitor::SSAConstructionVisitor(
     bool construct_use_phis)
   : DT(DT),
     inserted_phis(inserted_phis),
-    stats(stats),
-    construct_use_phis(construct_use_phis) {
+    construct_use_phis(construct_use_phis),
+    stats(stats) {
   this->reaching_definitions = {};
   for (auto *name : memoir_names) {
     this->set_reaching_definition(name, name);
@@ -200,10 +200,10 @@ void SSAConstructionVisitor::visitMutStructWriteInst(MutStructWriteInst &I) {
   auto *field_index = &I.getFieldIndexOperand();
 
   // Create IndexWriteInst.
-  auto *ssa_write = builder.CreateStructWriteInst(field_type,
-                                                  write_value,
-                                                  struct_value,
-                                                  field_index);
+  builder.CreateStructWriteInst(field_type,
+                                write_value,
+                                struct_value,
+                                field_index);
 
   // Mark old instruction for cleanup.
   this->mark_for_cleanup(I);

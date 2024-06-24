@@ -9,8 +9,6 @@
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/analysis/LivenessAnalysis.hpp"
-
 #include "memoir/lowering/TypeLayout.hpp"
 
 #include "llvm/ADT/MapVector.h"
@@ -60,7 +58,7 @@ public:
                         SSADestructionStats *stats = nullptr,
                         bool enable_collection_lowering = false);
 
-  void setAnalyses(llvm::DominatorTree &DT, LivenessAnalysis &LA);
+  void setAnalyses(llvm::DominatorTree &DT);
 
   // LLVM operations
   void visitInstruction(llvm::Instruction &I);
@@ -123,7 +121,6 @@ protected:
   // Analyses.
   llvm::Module &M;
   llvm::DominatorTree *DT;
-  LivenessAnalysis *LA;
   TypeConverter TC;
 
   // Owned state.
