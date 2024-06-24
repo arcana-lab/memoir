@@ -10,8 +10,6 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
-
 #include "llvm/Analysis/DominanceFrontier.h"
 
 #include "llvm/Support/CommandLine.h"
