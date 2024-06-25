@@ -1,1 +1,1 @@
---memoir-fe --elide=Foo:1 --memoir-type-infer --memoir-ssa-construction
+-passes=memoir-fe,memoir-type-infer,memoir-ssa-construction --elide=Foo:1
