@@ -39,7 +39,7 @@ add_subdirectory(statistics)
 # add_subdirectory(dead_field_elimination)
 # add_subdirectory(field_elision)
 # add_subdirectory(key_folding)
-# add_subdirectory(type_inference)
+add_subdirectory(type_inference)
 # add_subdirectory(dead_element_elimination)
 
 # Lowering passes.

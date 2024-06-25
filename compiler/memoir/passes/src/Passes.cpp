@@ -34,6 +34,8 @@ llvmGetPassPluginInfo() {
                    REGISTER("memoir-impl-linker", llvm::memoir::ImplLinkerPass);
                    REGISTER("memoir-norm", llvm::memoir::NormalizationPass);
                    REGISTER("memoir-stats", llvm::memoir::StatisticsPass);
+                   REGISTER("memoir-type-infer",
+                            llvm::memoir::TypeInferencePass);
 
                    return false;
                  });

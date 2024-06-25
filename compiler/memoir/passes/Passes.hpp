@@ -23,6 +23,7 @@ MODULE_PASS(SSADestructionPass);
 MODULE_PASS(ImplLinkerPass);
 MODULE_PASS(NormalizationPass);
 MODULE_PASS(StatisticsPass);
+MODULE_PASS(TypeInferencePass);
 
 } // namespace llvm::memoir
 

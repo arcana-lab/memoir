@@ -18,14 +18,10 @@ bool TypeInference::run() {
 using inferred_type = tuple<bool, Type *>;
 
 static inferred_type argument_has_type_annotation(llvm::Argument &A) {
-  // Is the argument a collection or an object?
-  auto arg_is_collection_type = Type::value_is_collection_type(A);
-  auto arg_is_struct_type = Type::value_is_struct_type(A);
 
-  // If the argument is not a collection or struct type, it follows LLVM's
-  // typing so it needs no annotation.
-  if (!arg_is_collection_type && !arg_is_struct_type) {
-    return { true, nullptr };
+  // Quickly check that the argument has pointer type.
+  if (not isa<llvm::PointerType>(A.getType())) {
+    return { false, nullptr };
   }
 
   // For each use, see if it is used by an Assert*TypeInst.
@@ -40,17 +36,13 @@ static inferred_type argument_has_type_annotation(llvm::Argument &A) {
 
     // If the argument is a collection type, see if the user is an
     // AssertCollectionTypeInst.
-    if (arg_is_collection_type) {
-      if (auto *assert_inst = into<AssertCollectionTypeInst>(user_as_inst)) {
-        return { true, &assert_inst->getType() };
-      }
+    if (auto *assert_inst = into<AssertCollectionTypeInst>(user_as_inst)) {
+      return { true, &assert_inst->getType() };
     }
     // Otherwise, if the argument is a struct type, see if the user is an
     // AssertStructTypeInst.
-    else if (arg_is_struct_type) {
-      if (auto *assert_inst = into<AssertStructTypeInst>(user_as_inst)) {
-        return { true, &assert_inst->getType() };
-      }
+    else if (auto *assert_inst = into<AssertStructTypeInst>(user_as_inst)) {
+      return { true, &assert_inst->getType() };
     }
   }
 
@@ -125,8 +117,7 @@ static inferred_type function_has_return_type_annotation(llvm::Function &F) {
 
   // If it either doesn't have a return type, or is not a MEMOIR collection or
   // struct, we succeed.
-  if (return_type == nullptr || Type::llvm_type_is_collection_type(*return_type)
-      || Type::llvm_type_is_struct_type(*return_type)) {
+  if (return_type == nullptr || not isa<llvm::PointerType>(return_type)) {
     return { true, nullptr };
   }
 
@@ -154,7 +145,7 @@ bool TypeInference::infer_return_type(llvm::Function &F) {
   }
 
   // Otherwise, we need to infer the type from the return instructions.
-
+  set<llvm::Value *> returned_values = {};
   for (auto &BB : F) {
     // Get the return instruction.
     auto *return_inst = dyn_cast_or_null<llvm::ReturnInst>(BB.getTerminator());
@@ -167,33 +158,43 @@ bool TypeInference::infer_return_type(llvm::Function &F) {
     if (return_value == nullptr) {
       continue;
     }
+  }
+
+  Type *unified_type = nullptr;
+  for (auto *returned : returned_values) {
 
     // See if TypeAnalysis can get the type for us.
-    if (auto *type = TypeAnalysis::analyze(*return_value)) {
-      // It worked! Mark the argument type to be annotated and continue.
-      this->return_types_to_annotate[&F] = type;
-      return true;
+    if (auto *returned_type = TypeAnalysis::analyze(*returned)) {
+      // If the unified type is undefined, set it to the returned type.
+      if (unified_type == nullptr) {
+        unified_type = returned_type;
+      }
+      // Otherwise, if the unified type differs from the returned type, error!
+      else if (unified_type != returned_type) {
+        MEMOIR_UNREACHABLE("TYPE ERROR: Overdefined return type!");
+      }
+      // Otherwise, we are good to keep going.
     }
   }
 
-  // Otherwise, we failed to infer the type!
+  // If we were able to unify the type, mark the return type to annotate.
+  if (unified_type != nullptr) {
+    this->return_types_to_annotate[&F] = unified_type;
+    return true;
+  }
+
+  // Otherwise, we did not infer a memoir type for the return.
   return false;
 }
 
 bool TypeInference::infer(llvm::Function &F) {
   // Infer the type of function arguments.
   for (auto &A : F.args()) {
-    // If we weren't able to infer the argument type, warn the user!
-    if (!infer_argument_type(A)) {
-      // warnln("Unable to type argument ", A, " in function ", F.getName());
-    }
+    infer_argument_type(A);
   }
 
   // Infer the type of function returns.
-  if (!infer_return_type(F)) {
-    // If we weren't able to infer the return type, warn the user!
-    // warnln("Unable to type return in function ", F.getName());
-  }
+  infer_return_type(F);
 
   return true;
 }
@@ -203,6 +204,7 @@ bool TypeInference::infer(llvm::Module &M) {
     // Analyze the function.
     this->infer(F);
   }
+
   return true;
 }
 
@@ -221,6 +223,8 @@ void TypeInference::annotate_argument_type(llvm::Argument &A, Type &type) {
 
   // Create a type annotation for the argument.
   builder.CreateAssertTypeInst(&A, type, "type.infer.");
+
+  return;
 }
 
 void TypeInference::annotate_return_type(llvm::Function &F, Type &type) {
@@ -234,7 +238,9 @@ void TypeInference::annotate_return_type(llvm::Function &F, Type &type) {
   MemOIRBuilder builder(entry_insertion_point);
 
   // Create a type annotation for the argument.
-  auto *type_inst = builder.CreateReturnTypeInst(type, "type.infer.");
+  builder.CreateReturnTypeInst(type, "type.infer.");
+
+  return;
 }
 
 bool TypeInference::annotate(llvm::Module &M) {
