@@ -35,8 +35,8 @@ do
             exit 1
             ;;
         --stats)
-            PREPASSES+=("--memoir-stats")
-            POSTPASSES+=("--memoir-stats")
+            PREPASSES+=("-passes=memoir-stats")
+            POSTPASSES+=("-passes=memoir-stats")
             shift
             ;;
         --memoir-enable-use-phi)
@@ -71,10 +71,10 @@ IR_FILE=$(mktemp --suffix=.bc)
 cp ${INPUT_IR_FILE} ${IR_FILE}
 
 # Run some generally helpful LLVM transformations.
-opt --always-inline -mem2reg -argpromotion -sroa --break-crit-edges ${IR_FILE} -o ${IR_FILE}
+opt -passes=always-inline,mem2reg,argpromotion,sroa,break-crit-edges ${IR_FILE} -o ${IR_FILE}
 
 # Run NOELLE norm so that it is happy.
-noelle-norm ${IR_FILE} -o ${IR_FILE}
+# noelle-norm ${IR_FILE} -o ${IR_FILE}
 
 # ${MEMOIR_HOME}/bin/memoir-prof ${IR_FILE} ${IR_FILE_PROF} ;
 
@@ -82,6 +82,7 @@ noelle-norm ${IR_FILE} -o ${IR_FILE}
 llvm-link ${IR_FILE} $(memoir-config --libdir)/memoir.decl.bc -o ${IR_FILE}
 
 # Run SSA construction and type inference.
-memoir-load ${PREPASSES[@]} --memoir-type-infer --memoir-ssa-construction ${POSTPASSES[@]} ${IR_FILE} -o ${IR_FILE}
+memoir-load ${PREPASSES[@]} -passes=memoir-ssa-construction ${POSTPASSES[@]} ${IR_FILE} -o ${IR_FILE}
+# memoir-load ${PREPASSES[@]} -passes=memoir-type-infer,memoir-ssa-construction ${POSTPASSES[@]} ${IR_FILE} -o ${IR_FILE}
 
 mv ${IR_FILE} ${OUTPUT_IR_FILE}
