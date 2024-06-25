@@ -64,7 +64,6 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 $(C_BITCODES): $(BUILD_DIR)/%.bc : %.c
-	@printf "Building C file\n"
 	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
 
 $(CXX_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
@@ -73,12 +72,8 @@ $(CXX_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
 $(IR_FILE_INPUT): $(C_BITCODES) $(CXX_BITCODES)
 	$(LL) $^ -o $@
 
-$(IR_FILE_NORM): $(IR_FILE_INPUT)
-	$(OPT) --norm $< -o $@
-	$(LL) $@ $(IR_FILE_DECL) -o $@
-
 $(IR_FILE_SSA): $(IR_FILE_INPUT)
-	memoir-norm --stats $< -o $@
+	memoir-norm $< -o $@
 
 $(IR_FILE_OPT): $(IR_FILE_SSA)
 	memoir-load $(OPTFLAGS) $< -o $@
@@ -90,7 +85,7 @@ $(OBJ_FILE): $(IR_FILE)
 	llc -filetype=obj $< -o $@
 
 $(BINARY): $(OBJ_FILE)
-	$(CC) $< -o $@
+	$(CC) -no-pie $< -o $@
 
 .PHONY: all noopt setup compile test optimize baseline clean
 
