@@ -25,19 +25,8 @@ namespace llvm::memoir {
 
 struct ValueRange;
 
-/**
- * Range analysis driver.
- * Will analyze the given function on initilization.
- * Results can be queried with `getValueRange`.
- */
-class RangeAnalysis {
+struct RangeAnalysisResult {
 public:
-  /**
-   * Construct a new intraprocedural range analysis.
-   * Requires abstractions from NOELLE.
-   */
-  RangeAnalysis(llvm::Function &F, arcana::noelle::Noelle &noelle);
-
   /**
    * Queries the value range for the given LLVM Use @use.
    */
@@ -47,6 +36,36 @@ public:
    * Prints the results of the Range Analysis.
    */
   void dump();
+
+  ~RangeAnalysisResult();
+
+protected:
+  // Owned state.
+  set<ValueRange *> ranges;
+
+  // Borrowed state.
+  map<llvm::Use *, ValueRange *> use_to_range;
+};
+
+/**
+ * Range analysis driver.
+ * Will analyze the given function on initilization.
+ * Results can be queried with `getValueRange`.
+ */
+class RangeAnalysisDriver {
+public:
+  /**
+   * Construct a new intraprocedural range analysis.
+   * Requires abstractions from NOELLE.
+   */
+  RangeAnalysisDriver(llvm::Function &F,
+                      arcana::noelle::Noelle &noelle,
+                      RangeAnalysisResult &result);
+
+  /**
+   * Queries the value range for the given LLVM Use @use.
+   */
+  ValueRange &get_value_range(llvm::Use &use);
 
 protected:
   void propagate_range_to_uses(ValueRange &range, const set<llvm::Use *> &uses);
@@ -79,7 +98,7 @@ protected:
   bool analyze(llvm::Function &F, arcana::noelle::Noelle &noelle);
 
 public:
-  ~RangeAnalysis();
+  ~RangeAnalysisDriver();
 };
 
 /**
@@ -119,8 +138,27 @@ protected:
   ValueExpression &_lower;
   ValueExpression &_upper;
 
-  friend class RangeAnalysis;
+  friend class RangeAnalysisDriver;
 };
+
+// Analysis
+llvm::PreservedAnalyses RangeAnalysis::run(llvm::Function &F,
+                                           llvm::FunctionAnalysisManager &FAM) {
+  // Get the module analysis manager proxy.
+  auto &MAM = GET_MODULE_ANALYSIS_MANAGER(FAM);
+
+  // Get NOELLE
+  auto &NOELLE = MAM.getResult<arcana::noelle::Noelle>(F.getParent());
+
+  // Construct a new result.
+  RangeAnalysisResult result;
+
+  // Construct the RangeAnalysisDriver.
+  RangeAnalysisDriver RA(F, NOELLE, result);
+
+  // Return the result.
+  return result;
+}
 
 } // namespace llvm::memoir
 
