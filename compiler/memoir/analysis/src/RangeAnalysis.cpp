@@ -8,18 +8,54 @@
 
 namespace llvm::memoir {
 
-RangeAnalysis::RangeAnalysis(llvm::Function &F, arcana::noelle::Noelle &noelle)
+// Result.
+ValueRange &RangeAnalysisResult::get_value_range(llvm::Use &use) {
+  auto found_range = this->use_to_range.find(&use);
+  if (found_range != this->use_to_range.end()) {
+    auto the_range = found_range->second;
+    MEMOIR_ASSERT((the_range != nullptr), "ValueRange is NULL!");
+    return *the_range;
+  }
+  MEMOIR_UNREACHABLE("LLVM Use provided was not analyzed by the Range Analysis"
+                     " for the function!");
+}
+
+void RangeAnalysisResult::dump() {
+  debugln("RangeAnalysis results:");
+
+  for (auto const *range : this->ranges) {
+    debugln("  Range: ", *range);
+  }
+
+  for (auto const &[use, range] : this->use_to_range) {
+    debugln("  For use of ", *use->get(), " at ", *use->getUser());
+    debugln("    Range = ", *range);
+  }
+}
+
+RangeAnalysisResult::~RangeAnalysisResult() {
+  for (auto *range : this->ranges) {
+    delete range;
+  }
+}
+
+// Analysis.
+RangeAnalysisDriver::RangeAnalysisDriver(llvm::Function &F,
+                                         arcana::noelle::Noelle &noelle,
+                                         RangeAnalysisResult &result)
   : F(F),
-    noelle(noelle) {
+    noelle(noelle),
+    result(result) {
   // Analyze the function.
   auto success = this->analyze(this->F, this->noelle);
   MEMOIR_ASSERT((success == true), "Range analysis failed.");
 }
 
-void RangeAnalysis::propagate_range_to_uses(ValueRange &range,
-                                            const set<llvm::Use *> &uses) {
+void RangeAnalysisDriver::propagate_range_to_uses(
+    ValueRange &range,
+    const set<llvm::Use *> &uses) {
   for (auto *use : uses) {
-    this->use_to_range[use] = &range;
+    this->result.use_to_range[use] = &range;
   }
 }
 
@@ -31,7 +67,7 @@ static ValueExpression &llvm_value_to_expr(llvm::Value &V) {
   }
 }
 
-ValueRange &RangeAnalysis::induction_variable_to_range(
+ValueRange &RangeAnalysisDriver::induction_variable_to_range(
     arcana::noelle::LoopGoverningInductionVariable &LGIV) {
   // Get the induction variable.
   auto &IV = MEMOIR_SANITIZE(
@@ -44,8 +80,8 @@ ValueRange &RangeAnalysis::induction_variable_to_range(
     if (IV.isStepValuePositive()) {
       if (auto *exit_value = LGIV.getExitConditionValue()) {
         // Create and return the range [start_value, exit_condition_value).
-        // TODO: may need to inspect the compare instruction to handle all edge
-        // cases.
+        // TODO: may need to inspect the compare instruction to handle all
+        // edge cases.
         auto *lower_expr = &llvm_value_to_expr(*start_value);
         auto *upper_expr = &llvm_value_to_expr(*exit_value);
         return this->create_value_range(*lower_expr, *upper_expr);
@@ -56,11 +92,11 @@ ValueRange &RangeAnalysis::induction_variable_to_range(
   return this->create_overdefined_range();
 }
 
-ValueRange &RangeAnalysis::induction_variable_to_range(
+ValueRange &RangeAnalysisDriver::induction_variable_to_range(
     arcana::noelle::InductionVariable &IV,
     arcana::noelle::LoopGoverningInductionVariable &LGIV) {
-  // If the induction variable _is_ the loop-governing induction variable, go to
-  // special handling for it.
+  // If the induction variable _is_ the loop-governing induction variable, go
+  // to special handling for it.
   if (&IV == LGIV.getInductionVariable()) {
     return this->induction_variable_to_range(LGIV);
   }
@@ -76,7 +112,8 @@ static void add_index_use(
   index_value_to_uses[index_use.get()].insert(&index_use);
 }
 
-bool RangeAnalysis::analyze(llvm::Function &F, arcana::noelle::Noelle &noelle) {
+bool RangeAnalysisDriver::analyze(llvm::Function &F,
+                                  arcana::noelle::Noelle &noelle) {
   // Collect all index values used by memoir instructions.
   map<llvm::Value *, set<llvm::Use *>> index_value_to_uses = {};
   for (auto &BB : F) {
@@ -116,7 +153,8 @@ bool RangeAnalysis::analyze(llvm::Function &F, arcana::noelle::Noelle &noelle) {
         add_index_use(index_value_to_uses, remove_inst->getBeginIndexAsUse());
         add_index_use(index_value_to_uses, remove_inst->getEndIndexAsUse());
         // } else if (auto *swap_inst = dyn_cast<SwapInst>(memoir_inst)) {
-        //   index_value_to_uses[&I].insert({ &swap_inst->getBeginIndexAsUse(),
+        //   index_value_to_uses[&I].insert({
+        //   &swap_inst->getBeginIndexAsUse(),
         //                                    &swap_inst->getEndIndexAsUse(),
         //                                    &swap_inst->getToBeginIndexAsUse()
         //                                    });
@@ -181,8 +219,8 @@ bool RangeAnalysis::analyze(llvm::Function &F, arcana::noelle::Noelle &noelle) {
           continue;
         }
 
-        // See if the index value is involved in any induction variables of the
-        // loop.
+        // See if the index value is involved in any induction variables of
+        // the loop.
         if (auto *induction_variable =
                 IVM.getInductionVariable(loop_structure, index_inst)) {
           auto &range = this->induction_variable_to_range(
@@ -202,7 +240,7 @@ bool RangeAnalysis::analyze(llvm::Function &F, arcana::noelle::Noelle &noelle) {
         for (auto const &[loop, range] : loop_to_range) {
           // If the loop contains the user:
           if (loop->isIncluded(user_as_inst)) {
-            this->use_to_range[index_use] = range;
+            this->result.use_to_range[index_use] = range;
           }
         }
       }
@@ -212,27 +250,16 @@ bool RangeAnalysis::analyze(llvm::Function &F, arcana::noelle::Noelle &noelle) {
   return true;
 }
 
-ValueRange &RangeAnalysis::get_value_range(llvm::Use &use) {
-  auto found_range = this->use_to_range.find(&use);
-  if (found_range != this->use_to_range.end()) {
-    auto the_range = found_range->second;
-    MEMOIR_ASSERT((the_range != nullptr), "ValueRange is NULL!");
-    return *the_range;
-  }
-  MEMOIR_UNREACHABLE("LLVM Use provided was not analyzed by the Range Analysis"
-                     " for the function!");
-}
-
-ValueRange &RangeAnalysis::create_value_range(ValueExpression &lower,
-                                              ValueExpression &upper) {
+ValueRange &RangeAnalysisDriver::create_value_range(ValueExpression &lower,
+                                                    ValueExpression &upper) {
   auto &range = MEMOIR_SANITIZE(new ValueRange(lower, upper),
                                 "Failed to allocate ValueRange!");
-  this->ranges.insert(&range);
+  this->result.ranges.insert(&range);
 
   return range;
 }
 
-ValueExpression &RangeAnalysis::create_min_expr() {
+ValueExpression &RangeAnalysisDriver::create_min_expr() {
   auto &context = this->F.getContext();
   // TODO: make this get the size_t from a MemOIRContext.
   auto &size_type = MEMOIR_SANITIZE(llvm::IntegerType::get(context, 64),
@@ -245,35 +272,16 @@ ValueExpression &RangeAnalysis::create_min_expr() {
   return zero_expr;
 }
 
-ValueExpression &RangeAnalysis::create_max_expr() {
+ValueExpression &RangeAnalysisDriver::create_max_expr() {
   auto &end_expr =
       MEMOIR_SANITIZE(new EndExpression(), "Failed to create EndExpression!");
 
   return end_expr;
 }
 
-ValueRange &RangeAnalysis::create_overdefined_range() {
+ValueRange &RangeAnalysisDriver::create_overdefined_range() {
   return this->create_value_range(this->create_min_expr(),
                                   this->create_max_expr());
-}
-
-void RangeAnalysis::dump() {
-  debugln("RangeAnalysis results:");
-
-  for (auto const *range : this->ranges) {
-    debugln("  Range: ", *range);
-  }
-
-  for (auto const &[use, range] : this->use_to_range) {
-    debugln("  For use of ", *use->get(), " at ", *use->getUser());
-    debugln("    Range = ", *range);
-  }
-}
-
-RangeAnalysis::~RangeAnalysis() {
-  for (auto *range : this->ranges) {
-    delete range;
-  }
 }
 
 } // namespace llvm::memoir

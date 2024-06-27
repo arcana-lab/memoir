@@ -15,3 +15,5 @@ PASS(Module, KeyFoldingPass, "memoir-kf")
 PASS(Module, ExamplePass, "memoir-example")
 
 // ANALYSIS(<scope>, <class>, <result>, <args>...)
+
+/* ANALYSIS(Function, RangeAnalysis, RangeAnalysisResult) */
