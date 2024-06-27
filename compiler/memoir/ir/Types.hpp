@@ -1,5 +1,5 @@
-#ifndef COMMON_TYPES_H
-#define COMMON_TYPES_H
+#ifndef MEMOIR_IR_TYPES_H
+#define MEMOIR_IR_TYPES_H
 #pragma once
 
 #include <cstdio>
@@ -31,6 +31,7 @@ enum class TypeCode {
   TENSOR,
   ASSOC_ARRAY,
   SEQUENCE,
+  OTHER, // A special code for extensibility
 };
 
 struct IntegerType;
@@ -399,6 +400,24 @@ protected:
 
   friend class TypeAnalysis;
 };
+
+/**
+ * Query the MEMOIR type of an LLVM Value.
+ *
+ * @param V an LLVM Value
+ * @returns the MEMOIR type of V, or NULL if it is has none.
+ */
+Type *type_of(llvm::Value &V);
+
+struct MemOIRInst;
+
+/**
+ * Query the MEMOIR type of an MEMOIR instruction.
+ *
+ * @param I a MEMOIR instruction
+ * @returns the MEMOIR type of V, or NULL if it is has none.
+ */
+Type *type_of(MemOIRInst &I);
 
 } // namespace llvm::memoir
 
