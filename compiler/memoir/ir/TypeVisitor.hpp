@@ -1,17 +1,16 @@
 #ifndef MEMOIR_TYPEVISITOR_H
 #define MEMOIR_TYPEVISITOR_H
-#pragma once
 
 #include "memoir/ir/Types.hpp"
 
 namespace llvm::memoir {
 
-#define CHECK_AND_DELEGATE(CLASS_TO_VISIT)                                     \
+#define CHECK_AND_DELEGATE_TYPE(CLASS_TO_VISIT)                                \
   else if (isa<CLASS_TO_VISIT>(T)) {                                           \
-    DELEGATE(CLASS_TO_VISIT)                                                   \
+    DELEGATE_TYPE(CLASS_TO_VISIT)                                              \
   }
 
-#define DELEGATE(CLASS_TO_VISIT)                                               \
+#define DELEGATE_TYPE(CLASS_TO_VISIT)                                          \
   return static_cast<SubClass *>(this)->visit##CLASS_TO_VISIT(                 \
       static_cast<CLASS_TO_VISIT &>(T));
 
@@ -29,67 +28,67 @@ public:
       // Stub.
     }
 
-    CHECK_AND_DELEGATE(IntegerType)
-    CHECK_AND_DELEGATE(FloatType)
-    CHECK_AND_DELEGATE(DoubleType)
-    CHECK_AND_DELEGATE(PointerType)
-    CHECK_AND_DELEGATE(ReferenceType)
-    CHECK_AND_DELEGATE(StructType)
-    CHECK_AND_DELEGATE(FieldArrayType)
-    CHECK_AND_DELEGATE(StaticTensorType)
-    CHECK_AND_DELEGATE(TensorType)
-    CHECK_AND_DELEGATE(SequenceType)
-    CHECK_AND_DELEGATE(AssocArrayType)
+    CHECK_AND_DELEGATE_TYPE(IntegerType)
+    CHECK_AND_DELEGATE_TYPE(FloatType)
+    CHECK_AND_DELEGATE_TYPE(DoubleType)
+    CHECK_AND_DELEGATE_TYPE(PointerType)
+    CHECK_AND_DELEGATE_TYPE(ReferenceType)
+    CHECK_AND_DELEGATE_TYPE(StructType)
+    CHECK_AND_DELEGATE_TYPE(FieldArrayType)
+    CHECK_AND_DELEGATE_TYPE(StaticTensorType)
+    CHECK_AND_DELEGATE_TYPE(TensorType)
+    CHECK_AND_DELEGATE_TYPE(SequenceType)
+    CHECK_AND_DELEGATE_TYPE(AssocArrayType)
 
     MEMOIR_UNREACHABLE("Could not determine the type of collection!");
   }
 
   RetTy visitIntegerType(IntegerType &T) {
-    DELEGATE(Type);
+    DELEGATE_TYPE(Type);
   };
 
   RetTy visitFloatType(FloatType &T) {
-    DELEGATE(Type);
+    DELEGATE_TYPE(Type);
   };
 
   RetTy visitDoubleType(DoubleType &T) {
-    DELEGATE(Type);
+    DELEGATE_TYPE(Type);
   };
 
   RetTy visitPointerType(PointerType &T) {
-    DELEGATE(Type);
+    DELEGATE_TYPE(Type);
   };
 
   RetTy visitReferenceType(ReferenceType &T) {
-    DELEGATE(Type);
+    DELEGATE_TYPE(Type);
   };
 
   RetTy visitStructType(StructType &T) {
-    DELEGATE(Type);
+    DELEGATE_TYPE(Type);
   };
 
   RetTy visitCollectionType(CollectionType &T) {
-    DELEGATE(Type);
+    DELEGATE_TYPE(Type);
   }
 
   RetTy visitFieldArrayType(FieldArrayType &T) {
-    DELEGATE(CollectionType);
+    DELEGATE_TYPE(CollectionType);
   };
 
   RetTy visitStaticTensorType(StaticTensorType &T) {
-    DELEGATE(CollectionType);
+    DELEGATE_TYPE(CollectionType);
   };
 
   RetTy visitTensorType(TensorType &T) {
-    DELEGATE(CollectionType);
+    DELEGATE_TYPE(CollectionType);
   };
 
   RetTy visitSequenceType(SequenceType &T) {
-    DELEGATE(CollectionType);
+    DELEGATE_TYPE(CollectionType);
   };
 
   RetTy visitAssocArrayType(AssocArrayType &T) {
-    DELEGATE(CollectionType);
+    DELEGATE_TYPE(CollectionType);
   };
 
   // This class is not cloneable nor assignable.
