@@ -1,13 +1,21 @@
 #include "memoir/ir/Types.hpp"
+#include "memoir/ir/Instructions.hpp"
 #include "memoir/support/Assert.hpp"
 
 #include "memoir/analysis/TypeAnalysis.hpp"
 
 namespace llvm::memoir {
 
-/*
- * Static getter methods
- */
+// Helper functions.
+Type *type_of(llvm::Value &V) {
+  return TypeAnalysis::type_of(V);
+}
+
+Type *type_of(MemOIRInst &I) {
+  return TypeAnalysis::type_of(I);
+}
+
+// Static getter methods
 IntegerType &Type::get_u64_type() {
   return IntegerType::get<64, false>();
 }
