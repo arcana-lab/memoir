@@ -82,8 +82,6 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
   infoln("BEGIN SSA construction pass");
   infoln();
 
-  TypeAnalysis::invalidate();
-
   SSAConstructionStats stats;
 
   auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(MAM, M);
@@ -322,7 +320,6 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
 
   infoln();
 
-  TypeAnalysis::invalidate();
   MemOIRInst::invalidate();
 
   return llvm::PreservedAnalyses::none();

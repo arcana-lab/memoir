@@ -16,13 +16,29 @@
                                 llvm::ModuleAnalysisManager &MAM);             \
   }
 
+#define ANALYSIS_PASS(SCOPE, PASS_NAME, RESULT)                                \
+  struct RESULT;                                                               \
+  class PASS_NAME : public llvm::AnalysisInfoMixin<PASS_NAME> {                \
+    friend struct llvm::AnalysisInfoMixin<PASS_NAME>;                          \
+    static llvm::AnalysisKey Key;                                              \
+                                                                               \
+  public:                                                                      \
+    using Result = RESULT;                                                     \
+    Result run(llvm::SCOPE &M, llvm::SCOPE##AnalysisManager &MAM);             \
+  }
+
 namespace llvm::memoir {
 
 MODULE_PASS(SSAConstructionPass);
+
 MODULE_PASS(SSADestructionPass);
+
 MODULE_PASS(ImplLinkerPass);
+
 MODULE_PASS(NormalizationPass);
+
 MODULE_PASS(StatisticsPass);
+
 MODULE_PASS(TypeInferencePass);
 
 } // namespace llvm::memoir
