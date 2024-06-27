@@ -27,16 +27,14 @@ llvmGetPassPluginInfo() {
                  [](llvm::StringRef name,
                     llvm::ModulePassManager &MPM,
                     llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
-                   REGISTER("memoir-ssa-construction",
-                            llvm::memoir::SSAConstructionPass);
-                   REGISTER("memoir-ssa-destruction",
-                            llvm::memoir::SSADestructionPass);
-                   REGISTER("memoir-impl-linker", llvm::memoir::ImplLinkerPass);
-                   REGISTER("memoir-norm", llvm::memoir::NormalizationPass);
-                   REGISTER("memoir-stats", llvm::memoir::StatisticsPass);
-                   REGISTER("memoir-type-infer",
-                            llvm::memoir::TypeInferencePass);
 
+#define PASS(SCOPE, NAME, CLASS, ARGS...)                                      \
+  if (name == NAME) {                                                          \
+    MPM.addPass(CLASS(ARGS));                                                  \
+    return true;                                                               \
+  }
+#include "memoir/passes/Passes.def"
+#undef PASS
                    return false;
                  });
            } };

@@ -1,0 +1,10 @@
+// PASS(<scope>, <name>, <class>, <args>...)
+
+PASS(Module, "memoir-ssa-construction", SSAConstructionPass)
+PASS(Module, "memoir-ssa-destruction", SSADestructionPass)
+PASS(Module, "memoir-impl-linker", ImplLinkerPass)
+PASS(Module, "memoir-norm", NormalizationPass)
+PASS(Module, "memoir-stats", StatisticsPass)
+PASS(Module, "memoir-type-infer", TypeInferencePass)
+
+// ANALYSIS(<scope>, <name>, <class>, <result>, <args>...)
