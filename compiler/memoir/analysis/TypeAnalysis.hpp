@@ -1,18 +1,23 @@
-#ifndef COMMON_TYPEANALYSIS_H
-#define COMMON_TYPEANALYSIS_H
+#ifndef MEMOIR_ANALYSIS_TYPEANALYSIS_H
+#define MEMOIR_ANALYSIS_TYPEANALYSIS_H
 #pragma once
 
 #include <iostream>
 #include <string>
 
+// LLVM
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
+
+// MEMOIR
+#include "memoir/passes/Passes.hpp"
 
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Types.hpp"
 
 #include "memoir/support/InternalDatatypes.hpp"
+
 #include "memoir/utility/FunctionNames.hpp"
 
 /*
@@ -23,6 +28,38 @@
  */
 
 namespace llvm::memoir {
+
+/**
+ * A type variable used for unification.
+ */
+struct TypeVariable : public Type {
+public:
+  using TypeID = uint64_t;
+
+  // Constructor
+  TypeVariable(TypeID id) : Type(TypeCode::OTHER), id(id) {}
+
+  // Equality.
+  bool operator==(Type &T) const {
+    if (auto *tvar = dyn_cast<TypeVariable>(&T)) {
+      return tvar->id == this->id;
+    }
+    return false;
+  }
+
+  // This class will only be used in the context of the base types and
+  // itself, so it is the only one that follows "other".
+  static bool classof(const Type *t) {
+    return (t->getCode() == TypeCode::OTHER);
+  }
+
+  std::string toString(std::string indent = "") const override {
+    return "typevar(" + std::to_string(this->id) + ")";
+  }
+
+protected:
+  TypeID id;
+}; // namespace llvm::memoir
 
 /*
  * Type Analysis
@@ -37,50 +74,37 @@ class TypeAnalysis : public llvm::memoir::InstVisitor<TypeAnalysis, Type *> {
   friend class llvm::InstVisitor<TypeAnalysis, Type *>;
 
 public:
-  /*
-   * Singleton access
+  /**
+   * Analyze a MEMOIR instruction, getting its MEMOIR type.
+   *
+   * @param V LLVM Value to analyze
+   * @returns a pointer to the value's type, or NULL if it failed.
    */
-  static TypeAnalysis &get();
+  static Type *type_of(MemOIRInst &I);
 
-  static Type *analyze(llvm::Value &V);
-
-  static void invalidate();
-
-  /*
-   * Query the Type Summary for the given LLVM Value
+  /**
+   * Analyze an LLVM value, getting its MEMOIR type, if it exists.
+   *
+   * @param V LLVM Value to analyze
+   * @returns a pointer to the value's type, or NULL if it is not a MEMOIR
+   * variable.
    */
-  Type *getType(llvm::Value &value);
-
-  /*
-   * Query the Type for the given LLVM Function
-   */
-  Type *getReturnType(llvm::Function &F);
-
-  // Helper functions
-
-  // This class is not cloneable nor assignable
-  TypeAnalysis(TypeAnalysis &other) = delete;
-  void operator=(const TypeAnalysis &) = delete;
+  static Type *type_of(llvm::Value &V);
 
 protected:
-  // Owned state
+  // Union find data structure for type bindings.
+  TypeVariable &new_type_variable();
+  Type *find(Type *T);
+  Type *unify(Type *T, Type *U);
+  map<TypeVariable *, Type *> type_bindings;
+  TypeVariable::TypeID current_id;
 
-  // Borrowed state
-  map<llvm::Value *, Type *> value_to_type;
-  map<llvm::Instruction *, set<Type *>> edge_types;
-  map<llvm::Instruction *, set<llvm::Value *>> visited_edges;
-  set<llvm::Value *> visited;
+  // Variable bindings.
+  map<llvm::Value *, TypeVariable *> value_bindings;
 
-  // Internal helper functions
-  Type *getType_helper(llvm::Value &V);
-  Type *findExisting(llvm::Value &V);
-  Type *findExisting(MemOIRInst &I);
-  void memoize(llvm::Value &V, Type *T);
-  void memoize(MemOIRInst &I, Type *T);
-  bool beenVisited(llvm::Value &V);
-  bool beenVisited(MemOIRInst &I);
-  void markVisited(llvm::Value &V);
-  void markVisited(MemOIRInst &I);
+  // Analysis functions.
+  Type *analyze(MemOIRInst &I);
+  Type *analyze(llvm::Value &V);
 
   // Visitor functions
   //// Base case
@@ -121,8 +145,7 @@ protected:
   //// Access instructions
   Type *visitReadInst(ReadInst &I);
   Type *visitGetInst(GetInst &I);
-  Type *visitIndexWriteInst(IndexWriteInst &I);
-  Type *visitAssocWriteInst(AssocWriteInst &I);
+  Type *visitWriteInst(WriteInst &I);
   //// SSA operations
   Type *visitUsePHIInst(UsePHIInst &I);
   Type *visitDefPHIInst(DefPHIInst &I);
@@ -133,36 +156,23 @@ protected:
   Type *visitRemoveInst(RemoveInst &I);
   Type *visitSwapInst(SwapInst &I);
   Type *visitCopyInst(CopyInst &I);
-  //// Mut sequence operations
-  Type *visitMutSeqInsertInst(MutSeqInsertInst &I);
-  Type *visitMutSeqRemoveInst(MutSeqRemoveInst &I);
-  Type *visitMutSeqAppendInst(MutSeqAppendInst &I);
-  Type *visitMutSeqSwapInst(MutSeqSwapInst &I);
-  Type *visitMutSeqSwapWithinInst(MutSeqSwapWithinInst &I);
-  Type *visitMutSeqSplitInst(MutSeqSplitInst &I);
-  //// Lowering sequence operations
-  Type *visitViewInst(ViewInst &I);
   //// SSA assoc operations
   Type *visitAssocHasInst(AssocHasInst &I);
   Type *visitAssocKeysInst(AssocKeysInst &I);
   Type *visitAssocRemoveInst(AssocRemoveInst &I);
   Type *visitAssocInsertInst(AssocInsertInst &I);
-  //// Mut assoc operations
-  Type *visitMutAssocInsertInst(MutAssocInsertInst &I);
-  Type *visitMutAssocRemoveInst(MutAssocRemoveInst &I);
-  //// Type checking
-  Type *visitAssertStructTypeInst(AssertStructTypeInst &I);
-  Type *visitAssertCollectionTypeInst(AssertCollectionTypeInst &I);
-  Type *visitReturnTypeInst(ReturnTypeInst &I);
 
-  // Private constructor and logistics
+  // Constructor.
   TypeAnalysis();
 
-  void _invalidate();
+  // Destructor
+  ~TypeAnalysis();
 
-  static TypeAnalysis *TA;
+  // This class is not cloneable nor assignable
+  TypeAnalysis(TypeAnalysis &other) = delete;
+  void operator=(const TypeAnalysis &) = delete;
 };
 
 } // namespace llvm::memoir
 
-#endif // COMMON_TYPES_H
+#endif // MEMOIR_ANALYSIS_TYPES_H
