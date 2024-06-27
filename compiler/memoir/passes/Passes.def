@@ -10,6 +10,7 @@ PASS(Module, TypeInferencePass, "memoir-type-infer")
 PASS(Module, DeadCollectionEliminationPass, "memoir-dce")
 PASS(Module, DeadFieldEliminationPass, "memoir-dfe")
 PASS(Module, FieldElisionPass, "memoir-fe")
+PASS(Module, KeyFoldingPass, "memoir-kf")
 
 PASS(Module, ExamplePass, "memoir-example")
 
