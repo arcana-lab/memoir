@@ -26,7 +26,6 @@
 #include "memoir/ir/Instructions.hpp"
 
 #include "memoir/analysis/LiveRangeAnalysis.hpp"
-#include "memoir/analysis/TypeAnalysis.hpp"
 
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"

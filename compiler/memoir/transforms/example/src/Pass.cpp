@@ -12,8 +12,6 @@
 
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/analysis/TypeAnalysis.hpp"
-
 #include "memoir/support/InternalDatatypes.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"
