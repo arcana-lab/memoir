@@ -13,6 +13,7 @@ Type &AssertStructTypeInst::getType() const {
 }
 
 OPERAND(AssertStructTypeInst, TypeOperand, 0)
+OPERAND(AssertStructTypeInst, Object, 1)
 OPERAND(AssertStructTypeInst, Struct, 1)
 TO_STRING(AssertStructTypeInst)
 
@@ -23,6 +24,7 @@ Type &AssertCollectionTypeInst::getType() const {
 }
 
 OPERAND(AssertCollectionTypeInst, TypeOperand, 0)
+OPERAND(AssertCollectionTypeInst, Object, 1)
 OPERAND(AssertCollectionTypeInst, Collection, 1)
 TO_STRING(AssertCollectionTypeInst)
 
