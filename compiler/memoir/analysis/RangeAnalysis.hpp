@@ -142,16 +142,16 @@ protected:
 };
 
 // Analysis
-llvm::PreservedAnalyses RangeAnalysis::run(llvm::Function &F,
-                                           llvm::FunctionAnalysisManager &FAM) {
+RangeAnalysisResult RangeAnalysis::run(llvm::Function &F,
+                                       llvm::FunctionAnalysisManager &FAM) {
+  // Construct a new result.
+  RangeAnalysisResult result;
+
   // Get the module analysis manager proxy.
   auto &MAM = GET_MODULE_ANALYSIS_MANAGER(FAM);
 
   // Get NOELLE
   auto &NOELLE = MAM.getResult<arcana::noelle::Noelle>(F.getParent());
-
-  // Construct a new result.
-  RangeAnalysisResult result;
 
   // Construct the RangeAnalysisDriver.
   RangeAnalysisDriver RA(F, NOELLE, result);
