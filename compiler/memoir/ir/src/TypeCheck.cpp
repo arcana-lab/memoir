@@ -7,12 +7,12 @@
 namespace llvm::memoir {
 
 // Top-level query.
-Type *TypeAnalysis::type_of(MemOIRInst &I) {
-  return TypeAnalysis::type_of(I.getCallInst());
+Type *TypeChecker::type_of(MemOIRInst &I) {
+  return TypeChecker::type_of(I.getCallInst());
 }
 
-Type *TypeAnalysis::type_of(llvm::Value &V) {
-  TypeAnalysis TA;
+Type *TypeChecker::type_of(llvm::Value &V) {
+  TypeChecker TA;
 
   // Get the type of this value.
   auto *type = TA.analyze(V);
@@ -31,11 +31,11 @@ Type *TypeAnalysis::type_of(llvm::Value &V) {
 }
 
 // Analysis entry.
-Type *TypeAnalysis::analyze(MemOIRInst &I) {
+Type *TypeChecker::analyze(MemOIRInst &I) {
   return this->analyze(I.getCallInst());
 }
 
-Type *TypeAnalysis::analyze(llvm::Value &V) {
+Type *TypeChecker::analyze(llvm::Value &V) {
   // Handle each value case.
   if (auto *inst = dyn_cast<llvm::Instruction>(&V)) {
     return this->visit(*inst);
@@ -47,102 +47,102 @@ Type *TypeAnalysis::analyze(llvm::Value &V) {
 }
 
 // LLVM Argument.
-Type *TypeAnalysis::visitArgument(llvm::Argument &A) {
+Type *TypeChecker::visitArgument(llvm::Argument &A) {
   // TODO: look for type assertions
   return nullptr;
 }
 
 // LLVM Instruction.
-Type *TypeAnalysis::visitInstruction(llvm::Instruction &I) {
+Type *TypeChecker::visitInstruction(llvm::Instruction &I) {
   return nullptr;
 }
 
 // TypeInsts.
-Type *TypeAnalysis::visitUInt64TypeInst(UInt64TypeInst &I) {
+Type *TypeChecker::visitUInt64TypeInst(UInt64TypeInst &I) {
   auto &type = Type::get_u64_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitUInt32TypeInst(UInt32TypeInst &I) {
+Type *TypeChecker::visitUInt32TypeInst(UInt32TypeInst &I) {
   auto &type = Type::get_u32_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitUInt16TypeInst(UInt16TypeInst &I) {
+Type *TypeChecker::visitUInt16TypeInst(UInt16TypeInst &I) {
   auto &type = Type::get_u16_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitUInt8TypeInst(UInt8TypeInst &I) {
+Type *TypeChecker::visitUInt8TypeInst(UInt8TypeInst &I) {
   auto &type = Type::get_u8_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitUInt2TypeInst(UInt2TypeInst &I) {
+Type *TypeChecker::visitUInt2TypeInst(UInt2TypeInst &I) {
   auto &type = Type::get_u2_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitInt64TypeInst(Int64TypeInst &I) {
+Type *TypeChecker::visitInt64TypeInst(Int64TypeInst &I) {
   auto &type = Type::get_i64_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitInt32TypeInst(Int32TypeInst &I) {
+Type *TypeChecker::visitInt32TypeInst(Int32TypeInst &I) {
   auto &type = Type::get_i32_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitInt16TypeInst(Int16TypeInst &I) {
+Type *TypeChecker::visitInt16TypeInst(Int16TypeInst &I) {
   auto &type = Type::get_i16_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitInt8TypeInst(Int8TypeInst &I) {
+Type *TypeChecker::visitInt8TypeInst(Int8TypeInst &I) {
   auto &type = Type::get_i8_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitInt2TypeInst(Int2TypeInst &I) {
+Type *TypeChecker::visitInt2TypeInst(Int2TypeInst &I) {
   auto &type = Type::get_i2_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitBoolTypeInst(BoolTypeInst &I) {
+Type *TypeChecker::visitBoolTypeInst(BoolTypeInst &I) {
   auto &type = Type::get_bool_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitFloatTypeInst(FloatTypeInst &I) {
+Type *TypeChecker::visitFloatTypeInst(FloatTypeInst &I) {
   auto &type = Type::get_f32_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitDoubleTypeInst(DoubleTypeInst &I) {
+Type *TypeChecker::visitDoubleTypeInst(DoubleTypeInst &I) {
   auto &type = Type::get_f64_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitPointerTypeInst(PointerTypeInst &I) {
+Type *TypeChecker::visitPointerTypeInst(PointerTypeInst &I) {
   auto &type = Type::get_ptr_type();
 
   return &type;
 }
 
-Type *TypeAnalysis::visitReferenceTypeInst(ReferenceTypeInst &I) {
+Type *TypeChecker::visitReferenceTypeInst(ReferenceTypeInst &I) {
   auto &referenced_type =
       MEMOIR_SANITIZE(this->analyze(I.getReferencedTypeOperand()),
                       "Could not determine referenced type!");
@@ -152,7 +152,7 @@ Type *TypeAnalysis::visitReferenceTypeInst(ReferenceTypeInst &I) {
   return &type;
 }
 
-Type *TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
+Type *TypeChecker::visitDefineStructTypeInst(DefineStructTypeInst &I) {
   // Get the types of each field.
   vector<Type *> field_types;
   for (unsigned field_idx = 0; field_idx < I.getNumberOfFields(); field_idx++) {
@@ -167,7 +167,7 @@ Type *TypeAnalysis::visitDefineStructTypeInst(DefineStructTypeInst &I) {
   return &type;
 }
 
-Type *TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
+Type *TypeChecker::visitStructTypeInst(StructTypeInst &I) {
   // Get all users of the given name.
   auto &name_value = MEMOIR_SANITIZE(
       I.getNameOperand().stripPointerCasts(),
@@ -205,7 +205,7 @@ Type *TypeAnalysis::visitStructTypeInst(StructTypeInst &I) {
       "Could not find a definition for the given struct type name");
 }
 
-Type *TypeAnalysis::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
+Type *TypeChecker::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
   // Get the length of dimensions.
   auto num_dimensions = I.getNumberOfDimensions();
 
@@ -227,7 +227,7 @@ Type *TypeAnalysis::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
   return &type;
 }
 
-Type *TypeAnalysis::visitTensorTypeInst(TensorTypeInst &I) {
+Type *TypeChecker::visitTensorTypeInst(TensorTypeInst &I) {
   auto &elem_type =
       MEMOIR_SANITIZE(this->analyze(I.getElementOperand()),
                       "Could not determine element of TensorType");
@@ -238,7 +238,7 @@ Type *TypeAnalysis::visitTensorTypeInst(TensorTypeInst &I) {
   return &type;
 }
 
-Type *TypeAnalysis::visitAssocArrayTypeInst(AssocArrayTypeInst &I) {
+Type *TypeChecker::visitAssocArrayTypeInst(AssocArrayTypeInst &I) {
   auto &key_type = MEMOIR_SANITIZE(this->analyze(I.getKeyOperand()),
                                    "Could not determine key of AssocType");
   auto &value_type = MEMOIR_SANITIZE(this->analyze(I.getValueOperand()),
@@ -250,7 +250,7 @@ Type *TypeAnalysis::visitAssocArrayTypeInst(AssocArrayTypeInst &I) {
   return &type;
 }
 
-Type *TypeAnalysis::visitSequenceTypeInst(SequenceTypeInst &I) {
+Type *TypeChecker::visitSequenceTypeInst(SequenceTypeInst &I) {
   auto &elem_type =
       MEMOIR_SANITIZE(this->analyze(I.getElementOperand()),
                       "Could not determine element of SequenceType");
@@ -261,12 +261,12 @@ Type *TypeAnalysis::visitSequenceTypeInst(SequenceTypeInst &I) {
 }
 
 // Allocation instructions.
-Type *TypeAnalysis::visitStructAllocInst(StructAllocInst &I) {
+Type *TypeChecker::visitStructAllocInst(StructAllocInst &I) {
   // Get the struct type.
   return this->analyze(I.getTypeOperand());
 }
 
-Type *TypeAnalysis::visitTensorAllocInst(TensorAllocInst &I) {
+Type *TypeChecker::visitTensorAllocInst(TensorAllocInst &I) {
 
   // Determine the element type.
   auto &element_type =
@@ -279,7 +279,7 @@ Type *TypeAnalysis::visitTensorAllocInst(TensorAllocInst &I) {
   return &type;
 }
 
-Type *TypeAnalysis::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
+Type *TypeChecker::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
   // Get the element types.
   auto &key_type = MEMOIR_SANITIZE(this->analyze(I.getKeyOperand()),
                                    "Could not find key type of AssocAlloc!");
@@ -293,7 +293,7 @@ Type *TypeAnalysis::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
   return &assoc_type;
 }
 
-Type *TypeAnalysis::visitSequenceAllocInst(SequenceAllocInst &I) {
+Type *TypeChecker::visitSequenceAllocInst(SequenceAllocInst &I) {
   // Get the element type.
   auto &elem_type =
       MEMOIR_SANITIZE(this->analyze(I.getElementOperand()),
@@ -306,13 +306,13 @@ Type *TypeAnalysis::visitSequenceAllocInst(SequenceAllocInst &I) {
 }
 
 // Reference Read Instructions.
-Type *TypeAnalysis::visitReadInst(ReadInst &I) {
+Type *TypeChecker::visitReadInst(ReadInst &I) {
   // The result has no memoir type, it's an LLVM value.
   return nullptr;
 }
 
 // Nested Access Instructions.
-Type *TypeAnalysis::visitGetInst(GetInst &I) {
+Type *TypeChecker::visitGetInst(GetInst &I) {
   // Get the type of collection being accessed.
   auto *object_type = this->analyze(I.getObjectOperand());
   auto &collection_type =
@@ -325,60 +325,60 @@ Type *TypeAnalysis::visitGetInst(GetInst &I) {
 }
 
 // Write access instructions.
-Type *TypeAnalysis::visitWriteInst(WriteInst &I) {
+Type *TypeChecker::visitWriteInst(WriteInst &I) {
   return this->analyze(I.getObjectOperand());
 }
 
 // SSA Instructions
-Type *TypeAnalysis::visitUsePHIInst(UsePHIInst &I) {
+Type *TypeChecker::visitUsePHIInst(UsePHIInst &I) {
   return this->analyze(I.getUsedCollection());
 }
 
-Type *TypeAnalysis::visitDefPHIInst(DefPHIInst &I) {
+Type *TypeChecker::visitDefPHIInst(DefPHIInst &I) {
   return this->analyze(I.getDefinedCollection());
 }
 
-Type *TypeAnalysis::visitArgPHIInst(ArgPHIInst &I) {
+Type *TypeChecker::visitArgPHIInst(ArgPHIInst &I) {
   return this->analyze(I.getInputCollection());
 }
 
-Type *TypeAnalysis::visitRetPHIInst(RetPHIInst &I) {
+Type *TypeChecker::visitRetPHIInst(RetPHIInst &I) {
   return this->analyze(I.getInputCollection());
 }
 
 // SSA collection operations.
-Type *TypeAnalysis::visitCopyInst(CopyInst &I) {
+Type *TypeChecker::visitCopyInst(CopyInst &I) {
   return this->analyze(I.getCopiedCollection());
 }
 
-Type *TypeAnalysis::visitInsertInst(InsertInst &I) {
+Type *TypeChecker::visitInsertInst(InsertInst &I) {
   return this->analyze(I.getBaseCollection());
 }
 
-Type *TypeAnalysis::visitRemoveInst(RemoveInst &I) {
+Type *TypeChecker::visitRemoveInst(RemoveInst &I) {
   return this->analyze(I.getBaseCollection());
 }
 
-Type *TypeAnalysis::visitSwapInst(SwapInst &I) {
+Type *TypeChecker::visitSwapInst(SwapInst &I) {
   return this->analyze(I.getFromCollection());
 }
 
 // SSA assoc operations.
-Type *TypeAnalysis::visitAssocInsertInst(AssocInsertInst &I) {
+Type *TypeChecker::visitAssocInsertInst(AssocInsertInst &I) {
   return this->analyze(I.getBaseCollection());
 }
 
-Type *TypeAnalysis::visitAssocRemoveInst(AssocRemoveInst &I) {
+Type *TypeChecker::visitAssocRemoveInst(AssocRemoveInst &I) {
   return this->analyze(I.getBaseCollection());
 }
 
-Type *TypeAnalysis::visitAssocHasInst(AssocHasInst &I) {
+Type *TypeChecker::visitAssocHasInst(AssocHasInst &I) {
   // We _could_ use this opportunity to unify with an abstract assoc, but we
   // won't unless deemed necessary.
   return nullptr;
 }
 
-Type *TypeAnalysis::visitAssocKeysInst(AssocKeysInst &I) {
+Type *TypeChecker::visitAssocKeysInst(AssocKeysInst &I) {
 
   // Get the incoming associative array type.
   auto *input_type = this->analyze(I.getCollection());
@@ -398,7 +398,7 @@ Type *TypeAnalysis::visitAssocKeysInst(AssocKeysInst &I) {
 }
 
 // LLVM Instructions.
-Type *TypeAnalysis::visitExtractValueInst(llvm::ExtractValueInst &I) {
+Type *TypeChecker::visitExtractValueInst(llvm::ExtractValueInst &I) {
   // Get the aggregate type.
   auto &aggregate =
       MEMOIR_SANITIZE(I.getAggregateOperand(),
@@ -410,7 +410,7 @@ Type *TypeAnalysis::visitExtractValueInst(llvm::ExtractValueInst &I) {
   return this->analyze(aggregate);
 }
 
-Type *TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
+Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
   // If we have load instruction, trace back to its global variable and find the
   // original store to it.
   auto *load_ptr = I.getPointerOperand();
@@ -444,7 +444,7 @@ Type *TypeAnalysis::visitLoadInst(llvm::LoadInst &I) {
   return nullptr;
 }
 
-Type *TypeAnalysis::visitPHINode(llvm::PHINode &I) {
+Type *TypeChecker::visitPHINode(llvm::PHINode &I) {
 
   // Check that we have not already visited this PHI.
   auto found = value_bindings.find(&I);
@@ -471,7 +471,7 @@ Type *TypeAnalysis::visitPHINode(llvm::PHINode &I) {
 }
 
 // Union-find
-TypeVariable &TypeAnalysis::new_type_variable() {
+TypeVariable &TypeChecker::new_type_variable() {
   auto *typevar = new TypeVariable(this->current_id++);
 
   this->type_bindings[typevar] = typevar;
@@ -479,7 +479,7 @@ TypeVariable &TypeAnalysis::new_type_variable() {
   return *typevar;
 }
 
-Type *TypeAnalysis::find(Type *t) {
+Type *TypeChecker::find(Type *t) {
   // If t is not a type variable, return it.
   if (not isa_and_nonnull<TypeVariable>(t)) {
     return t;
@@ -513,7 +513,7 @@ Type *TypeAnalysis::find(Type *t) {
   return new_parent;
 }
 
-Type *TypeAnalysis::unify(Type *t, Type *u) {
+Type *TypeChecker::unify(Type *t, Type *u) {
   // Find each type's equivalence class.
   t = this->find(t);
   u = this->find(u);
@@ -545,10 +545,10 @@ Type *TypeAnalysis::unify(Type *t, Type *u) {
 }
 
 // Constructor
-TypeAnalysis::TypeAnalysis() : current_id(0) {}
+TypeChecker::TypeChecker() : current_id(0) {}
 
 // Destructor
-TypeAnalysis::~TypeAnalysis() {
+TypeChecker::~TypeChecker() {
   for (const auto &[typevar, type] : type_bindings) {
     delete typevar;
   }
