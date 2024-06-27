@@ -1425,14 +1425,39 @@ protected:
 };
 
 // Type checking
-struct AssertStructTypeInst : public MemOIRInst {
+struct AssertTypeInst : public MemOIRInst {
 public:
-  Type &getType() const;
-  llvm::Value &getTypeOperand() const;
-  llvm::Use &getTypeOperandAsUse() const;
+  virtual Type &getType() const = 0;
+  virtual llvm::Value &getTypeOperand() const = 0;
+  virtual llvm::Use &getTypeOperandAsUse() const = 0;
+
+  virtual llvm::Value &getObject() const = 0;
+  virtual llvm::Use &getObjectAsUse() const = 0;
+
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_ASSERT_TYPE_INST(ENUM, FUNC, CLASS)                             \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
+        false;
+  }
+
+protected:
+  AssertTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
+
+  friend struct MemOIRInst;
+};
+
+struct AssertStructTypeInst : public AssertTypeInst {
+public:
+  Type &getType() const override;
+  llvm::Value &getTypeOperand() const override;
+  llvm::Use &getTypeOperandAsUse() const override;
 
   llvm::Value &getStruct() const;
   llvm::Use &getStructAsUse() const;
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
     return (I->getKind() == MemOIR_Func::ASSERT_STRUCT_TYPE);
@@ -1441,19 +1466,21 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssertStructTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
+  AssertStructTypeInst(llvm::CallInst &call_inst) : AssertTypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
 
-struct AssertCollectionTypeInst : public MemOIRInst {
+struct AssertCollectionTypeInst : public AssertTypeInst {
 public:
-  Type &getType() const;
-  llvm::Value &getTypeOperand() const;
-  llvm::Use &getTypeOperandAsUse() const;
+  Type &getType() const override;
+  llvm::Value &getTypeOperand() const override;
+  llvm::Use &getTypeOperandAsUse() const override;
 
   llvm::Value &getCollection() const;
   llvm::Use &getCollectionAsUse() const;
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
     return (I->getKind() == MemOIR_Func::ASSERT_COLLECTION_TYPE);
@@ -1462,7 +1489,8 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssertCollectionTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
+  AssertCollectionTypeInst(llvm::CallInst &call_inst)
+    : AssertTypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };

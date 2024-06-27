@@ -295,10 +295,18 @@ HANDLE_INST_(RET_PHI, MEMOIR_FUNC(retPHI), RetPHIInst)
 /* Lowering representations. */
 HANDLE_INST_(VIEW, MEMOIR_FUNC(sequence_view), ViewInst)
 
-/* Type Checking */
-HANDLE_INST_(ASSERT_STRUCT_TYPE, MEMOIR_FUNC(assert_struct_type), AssertStructTypeInst)
-HANDLE_INST_(ASSERT_COLLECTION_TYPE, MEMOIR_FUNC(assert_collection_type), AssertCollectionTypeInst)
+/* Type Assertion */
+#ifndef HANDLE_ASSERT_TYPE_INST
+#define HANDLE_ASSERT_TYPE_INST(ENUM, FUNC, CLASS) HANDLE_INST(ENUM, FUNC, CLASS)
+#endif
+#define HANDLE_ASSERT_TYPE_INST_(ENUM, FUNC, CLASS) HANDLE_ASSERT_TYPE_INST(ENUM, FUNC, CLASS)
+HANDLE_ASSERT_TYPE_INST_(ASSERT_STRUCT_TYPE, MEMOIR_FUNC(assert_struct_type), AssertStructTypeInst)
+HANDLE_ASSERT_TYPE_INST_(ASSERT_COLLECTION_TYPE, MEMOIR_FUNC(assert_collection_type), AssertCollectionTypeInst)
+#undef HANDLE_ASSERT_TYPE_INST
+
+/* Function Signature */
 HANDLE_INST_(SET_RETURN_TYPE, MEMOIR_FUNC(set_return_type), ReturnTypeInst)
+
 HANDLE_INST_(SIZE, MEMOIR_FUNC(size), SizeInst)
 HANDLE_INST_(END, MEMOIR_FUNC(end), EndInst)
 
