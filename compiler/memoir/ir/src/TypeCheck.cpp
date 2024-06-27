@@ -49,6 +49,18 @@ Type *TypeChecker::analyze(llvm::Value &V) {
 // LLVM Argument.
 Type *TypeChecker::visitArgument(llvm::Argument &A) {
   // TODO: look for type assertions
+  for (auto &use : A.uses()) {
+    auto *user = use.getUser();
+    // If the argument is used by an AssertTypeInst, we know its type.
+    if (auto *assert = into<AssertTypeInst>(user)) {
+      return this->analyze(assert->getTypeOperand());
+    }
+
+    // NOTE: this _could_ be extended to be recursive, but I will not add that
+    // complexity until it is needed.
+  }
+
+  // Otherwise, we don't know the type of this argument!
   return nullptr;
 }
 
@@ -322,6 +334,16 @@ Type *TypeChecker::visitGetInst(GetInst &I) {
   // Return the element type.
   auto &element_type = collection_type.getElementType();
   return &element_type;
+}
+
+Type *TypeChecker::visitStructGetInst(StructGetInst &I) {
+  // Get the field array type for this struct.
+  auto &field_array_type = I.getCollectionType();
+
+  // Return the element type.
+  auto &field_type = field_array_type.getElementType();
+
+  return &field_type;
 }
 
 // Write access instructions.
