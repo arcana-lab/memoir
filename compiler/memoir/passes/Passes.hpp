@@ -13,13 +13,13 @@
 
 namespace llvm::memoir {
 
-#define PASS(SCOPE, NAME, CLASS, ARGS...)                                      \
+#define PASS(SCOPE, CLASS, NAME, ARGS...)                                      \
   struct CLASS : public llvm::PassInfoMixin<CLASS> {                           \
     llvm::PreservedAnalyses run(llvm::SCOPE &,                                 \
                                 llvm::SCOPE##AnalysisManager &);               \
   };
 
-#define ANALYSIS(SCOPE, NAME, CLASS, RESULT, ARGS...)                          \
+#define ANALYSIS(SCOPE, CLASS, RESULT, ARGS...)                                \
   struct RESULT;                                                               \
   class PASS_NAME : public llvm::AnalysisInfoMixin<PASS_NAME> {                \
     friend struct llvm::AnalysisInfoMixin<PASS_NAME>;                          \
