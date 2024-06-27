@@ -1,5 +1,5 @@
-#ifndef MEMOIR_ANALYSIS_TYPEANALYSIS_H
-#define MEMOIR_ANALYSIS_TYPEANALYSIS_H
+#ifndef MEMOIR_IR_TYPECHECK_H
+#define MEMOIR_IR_TYPECHECK_H
 #pragma once
 
 #include <iostream>
@@ -69,9 +69,9 @@ protected:
  * This type analysis provides basic information about MemOIR
  *   types defined in the program.
  */
-class TypeAnalysis : public llvm::memoir::InstVisitor<TypeAnalysis, Type *> {
-  friend class llvm::memoir::InstVisitor<TypeAnalysis, Type *>;
-  friend class llvm::InstVisitor<TypeAnalysis, Type *>;
+class TypeChecker : public llvm::memoir::InstVisitor<TypeChecker, Type *> {
+  friend class llvm::memoir::InstVisitor<TypeChecker, Type *>;
+  friend class llvm::InstVisitor<TypeChecker, Type *>;
 
 public:
   /**
@@ -163,14 +163,14 @@ protected:
   Type *visitAssocInsertInst(AssocInsertInst &I);
 
   // Constructor.
-  TypeAnalysis();
+  TypeChecker();
 
   // Destructor
-  ~TypeAnalysis();
+  ~TypeChecker();
 
   // This class is not cloneable nor assignable
-  TypeAnalysis(TypeAnalysis &other) = delete;
-  void operator=(const TypeAnalysis &) = delete;
+  TypeChecker(TypeChecker &other) = delete;
+  void operator=(const TypeChecker &) = delete;
 };
 
 } // namespace llvm::memoir
