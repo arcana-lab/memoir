@@ -9,14 +9,17 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 
-// Macro to declare passes.
-#define MODULE_PASS(PASS_NAME)                                                 \
-  struct PASS_NAME : public llvm::PassInfoMixin<PASS_NAME> {                   \
-    llvm::PreservedAnalyses run(llvm::Module &M,                               \
-                                llvm::ModuleAnalysisManager &MAM);             \
-  }
+#include "llvm/Support/CommandLine.h"
 
-#define ANALYSIS_PASS(SCOPE, PASS_NAME, RESULT)                                \
+namespace llvm::memoir {
+
+#define PASS(SCOPE, NAME, CLASS, ARGS...)                                      \
+  struct CLASS : public llvm::PassInfoMixin<CLASS> {                           \
+    llvm::PreservedAnalyses run(llvm::SCOPE &,                                 \
+                                llvm::SCOPE##AnalysisManager &);               \
+  };
+
+#define ANALYSIS(SCOPE, NAME, CLASS, RESULT, ARGS...)                          \
   struct RESULT;                                                               \
   class PASS_NAME : public llvm::AnalysisInfoMixin<PASS_NAME> {                \
     friend struct llvm::AnalysisInfoMixin<PASS_NAME>;                          \
@@ -25,21 +28,11 @@
   public:                                                                      \
     using Result = RESULT;                                                     \
     Result run(llvm::SCOPE &M, llvm::SCOPE##AnalysisManager &MAM);             \
-  }
+  };
 
-namespace llvm::memoir {
-
-MODULE_PASS(SSAConstructionPass);
-
-MODULE_PASS(SSADestructionPass);
-
-MODULE_PASS(ImplLinkerPass);
-
-MODULE_PASS(NormalizationPass);
-
-MODULE_PASS(StatisticsPass);
-
-MODULE_PASS(TypeInferencePass);
+#include "memoir/passes/Passes.def"
+#undef PASS
+#undef ANALYSIS
 
 } // namespace llvm::memoir
 
