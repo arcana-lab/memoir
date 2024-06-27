@@ -17,3 +17,4 @@ PASS(Module, ExamplePass, "memoir-example")
 // ANALYSIS(<scope>, <class>, <result>, <args>...)
 
 /* ANALYSIS(Function, RangeAnalysis, RangeAnalysisResult) */
+/* ANALYSIS(Module, LiveRangeAnalysis, LiveRangeAnalysisResult) */
