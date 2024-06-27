@@ -6,8 +6,6 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
 
-#include "memoir/analysis/TypeAnalysis.hpp"
-
 #include "memoir/lowering/TypeLayout.hpp"
 
 #include "SSADestruction.hpp"
