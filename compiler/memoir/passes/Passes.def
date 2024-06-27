@@ -1,15 +1,16 @@
-// PASS(<scope>, <name>, <class>, <args>...)
+// PASS(<scope>, <class>, <name>, <args>...)
 
-PASS(Module, "memoir-ssa-construction", SSAConstructionPass)
-PASS(Module, "memoir-ssa-destruction", SSADestructionPass)
-PASS(Module, "memoir-impl-linker", ImplLinkerPass)
-PASS(Module, "memoir-norm", NormalizationPass)
-PASS(Module, "memoir-stats", StatisticsPass)
-PASS(Module, "memoir-type-infer", TypeInferencePass)
-PASS(Module, "memoir-dce", DeadCollectionEliminationPass)
+PASS(Module, SSAConstructionPass, "memoir-ssa-construction")
+PASS(Module, SSADestructionPass, "memoir-ssa-destruction")
+PASS(Module, ImplLinkerPass, "memoir-impl-linker")
+PASS(Module, NormalizationPass, "memoir-norm")
+PASS(Module, StatisticsPass, "memoir-stats")
+PASS(Module, TypeInferencePass, "memoir-type-infer")
 
-PASS(Module, "memoir-dfe", DeadFieldEliminationPass)
+PASS(Module, DeadCollectionEliminationPass, "memoir-dce")
+PASS(Module, DeadFieldEliminationPass, "memoir-dfe")
+PASS(Module, FieldElisionPass, "memoir-fe")
 
-PASS(Module, "memoir-example", ExamplePass)
+PASS(Module, ExamplePass, "memoir-example")
 
-// ANALYSIS(<scope>, <name>, <class>, <result>, <args>...)
+// ANALYSIS(<scope>, <class>, <result>, <args>...)
