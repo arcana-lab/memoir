@@ -1,21 +1,16 @@
-#ifndef MEMOIR_DEADCOLLECTIONELIMINATION_H
-#define MEMOIR_DEADCOLLECTIONELIMINATION_H
-#pragma once
+#ifndef MEMOIR_TRANSFORMS_DEADELEMENTELIMINATION_H
+#define MEMOIR_TRANSFORMS_DEADELEMENTELIMINATION_H
 
 // LLVM
 #include "llvm/IR/Function.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include "llvm/IR/Dominators.h"
 
 #include "llvm/Analysis/CFG.h"
+
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 // NOELLE
 #include "noelle/core/Noelle.hpp"
@@ -255,4 +250,4 @@ protected:
 
 } // namespace llvm::memoir
 
-#endif
+#endif // MEMOIR_TRANSFORMS_DEADELEMENTELIMINATION_H
