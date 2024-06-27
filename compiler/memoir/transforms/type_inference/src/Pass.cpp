@@ -26,8 +26,6 @@ llvm::PreservedAnalyses TypeInferencePass::run(
     llvm::Module &M,
     llvm::ModuleAnalysisManager &MAM) {
 
-  TypeAnalysis::invalidate();
-
   auto type_inference = new TypeInference(M);
 
   auto modified = type_inference->run();

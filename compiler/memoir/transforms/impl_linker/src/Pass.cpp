@@ -56,7 +56,6 @@ llvm::cl::opt<std::string> impl_file_output(
 
 llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
                                             llvm::ModuleAnalysisManager &MAM) {
-  TypeAnalysis::invalidate();
 
   // Get the TypeConverter.
   TypeConverter TC(M.getContext());
