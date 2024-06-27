@@ -83,7 +83,7 @@ public:
   };
 
 protected:
-  TypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  TypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -99,7 +99,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  UInt64TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  UInt64TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -115,7 +115,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  UInt32TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  UInt32TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -131,7 +131,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  UInt16TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  UInt16TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -147,7 +147,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  UInt8TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  UInt8TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -163,7 +163,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  UInt2TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  UInt2TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -179,7 +179,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  Int64TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  Int64TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -195,7 +195,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  Int32TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  Int32TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -211,7 +211,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  Int16TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  Int16TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -227,7 +227,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  Int8TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  Int8TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -243,7 +243,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  Int2TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  Int2TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -259,7 +259,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  BoolTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  BoolTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -275,7 +275,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  FloatTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  FloatTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -291,7 +291,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  DoubleTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  DoubleTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -307,7 +307,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  PointerTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  PointerTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -326,7 +326,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  ReferenceTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  ReferenceTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -353,7 +353,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  DefineStructTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  DefineStructTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -372,7 +372,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  StructTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  StructTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -397,7 +397,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  StaticTensorTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  StaticTensorTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -419,7 +419,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  TensorTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  TensorTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -441,7 +441,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssocArrayTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  AssocArrayTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -461,7 +461,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  SequenceTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {};
+  SequenceTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -481,7 +481,7 @@ public:
   };
 
 protected:
-  AllocInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  AllocInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -503,7 +503,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  StructAllocInst(llvm::CallInst &call_inst) : AllocInst(call_inst) {};
+  StructAllocInst(llvm::CallInst &call_inst) : AllocInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -524,7 +524,7 @@ public:
   Type &getType() const override;
 
 protected:
-  CollectionAllocInst(llvm::CallInst &call_inst) : AllocInst(call_inst) {};
+  CollectionAllocInst(llvm::CallInst &call_inst) : AllocInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -551,8 +551,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  TensorAllocInst(llvm::CallInst &call_inst)
-    : CollectionAllocInst(call_inst) {};
+  TensorAllocInst(llvm::CallInst &call_inst) : CollectionAllocInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -578,7 +577,7 @@ public:
 
 protected:
   AssocArrayAllocInst(llvm::CallInst &call_inst)
-    : CollectionAllocInst(call_inst) {};
+    : CollectionAllocInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -604,7 +603,7 @@ public:
 
 protected:
   SequenceAllocInst(llvm::CallInst &call_inst)
-    : CollectionAllocInst(call_inst) {};
+    : CollectionAllocInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -626,7 +625,7 @@ public:
   };
 
 protected:
-  AccessInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  AccessInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -648,7 +647,7 @@ public:
   };
 
 protected:
-  ReadInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {};
+  ReadInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -672,7 +671,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  StructReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {};
+  StructReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -694,7 +693,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  IndexReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {};
+  IndexReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -715,7 +714,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssocReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {};
+  AssocReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -738,7 +737,7 @@ public:
   };
 
 protected:
-  WriteInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {};
+  WriteInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -762,7 +761,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  StructWriteInst(llvm::CallInst &call_inst) : WriteInst(call_inst) {};
+  StructWriteInst(llvm::CallInst &call_inst) : WriteInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -786,7 +785,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  IndexWriteInst(llvm::CallInst &call_inst) : WriteInst(call_inst) {};
+  IndexWriteInst(llvm::CallInst &call_inst) : WriteInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -809,7 +808,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssocWriteInst(llvm::CallInst &call_inst) : WriteInst(call_inst) {};
+  AssocWriteInst(llvm::CallInst &call_inst) : WriteInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -831,7 +830,7 @@ public:
   };
 
 protected:
-  GetInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {};
+  GetInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -855,7 +854,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  StructGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {};
+  StructGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -877,7 +876,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  IndexGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {};
+  IndexGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -898,7 +897,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssocGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {};
+  AssocGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1012,7 +1011,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  SeqRemoveInst(llvm::CallInst &call_inst) : RemoveInst(call_inst) {};
+  SeqRemoveInst(llvm::CallInst &call_inst) : RemoveInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1079,7 +1078,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  SeqSwapInst(llvm::CallInst &call_inst) : SwapInst(call_inst) {};
+  SeqSwapInst(llvm::CallInst &call_inst) : SwapInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1132,7 +1131,7 @@ struct CopyInst : public MemOIRInst {
   }
 
 protected:
-  CopyInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  CopyInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1152,7 +1151,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  SeqCopyInst(llvm::CallInst &call_inst) : CopyInst(call_inst) {};
+  SeqCopyInst(llvm::CallInst &call_inst) : CopyInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1172,7 +1171,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  SizeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  SizeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1188,7 +1187,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  EndInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  EndInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1209,7 +1208,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssocHasInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {};
+  AssocHasInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1229,7 +1228,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssocInsertInst(llvm::CallInst &call_inst) : InsertInst(call_inst) {};
+  AssocInsertInst(llvm::CallInst &call_inst) : InsertInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1249,7 +1248,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssocRemoveInst(llvm::CallInst &call_inst) : RemoveInst(call_inst) {};
+  AssocRemoveInst(llvm::CallInst &call_inst) : RemoveInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1268,7 +1267,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssocKeysInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  AssocKeysInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1292,7 +1291,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  UsePHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  UsePHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1315,7 +1314,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  DefPHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  DefPHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1336,7 +1335,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  ArgPHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  ArgPHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1357,7 +1356,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  RetPHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  RetPHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1385,7 +1384,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  ViewInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  ViewInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1403,7 +1402,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  DeleteStructInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  DeleteStructInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1420,7 +1419,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  DeleteCollectionInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  DeleteCollectionInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1442,7 +1441,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssertStructTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  AssertStructTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1463,8 +1462,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssertCollectionTypeInst(llvm::CallInst &call_inst)
-    : MemOIRInst(call_inst) {};
+  AssertCollectionTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1482,7 +1480,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  ReturnTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {};
+  ReturnTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
