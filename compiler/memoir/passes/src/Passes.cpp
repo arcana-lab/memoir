@@ -28,7 +28,7 @@ llvmGetPassPluginInfo() {
                     llvm::ModulePassManager &MPM,
                     llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
 
-#define PASS(SCOPE, NAME, CLASS, ARGS...)                                      \
+#define PASS(SCOPE, CLASS, NAME, ARGS...)                                      \
   if (name == NAME) {                                                          \
     MPM.addPass(CLASS(ARGS));                                                  \
     return true;                                                               \
