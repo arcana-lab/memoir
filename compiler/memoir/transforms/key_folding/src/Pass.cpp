@@ -1,21 +1,14 @@
-#include <iostream>
-#include <string>
-
 // LLVM
 #include "llvm/IR/Function.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 // MemOIR
+#include "memoir/passes/Passes.hpp"
+
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
 
@@ -32,33 +25,15 @@ namespace llvm::memoir {
  * Created: August 28, 2023
  */
 
-struct KeyFoldingPass : public ModulePass {
-  static char ID;
+llvm::PreservedAnalyses KeyFoldingPass::run(llvm::Module &M,
+                                            llvm::ModuleAnalysisManager &MAM) {
+  debugln("Running key folding pass");
+  debugln();
 
-  KeyFoldingPass() : ModulePass(ID) {}
+  KeyFolding KF(M);
 
-  bool doInitialization(llvm::Module &M) override {
-    return false;
-  }
-
-  bool runOnModule(llvm::Module &M) override {
-    debugln("Running key folding pass");
-    debugln();
-
-    auto KF = KeyFolding(M);
-
-    return KF.transformed;
-  }
-
-  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
-    return;
-  }
-};
-
-// Next there is code to register your pass to "opt"
-char KeyFoldingPass::ID = 0;
-static llvm::RegisterPass<KeyFoldingPass> X(
-    "memoir-kf",
-    "Folds the key-space of an assoc onto a sequence when possible.");
+  return KF.transformed ? llvm::PreservedAnalyses::none()
+                        : llvm::PreservedAnalyses::all();
+}
 
 } // namespace llvm::memoir
