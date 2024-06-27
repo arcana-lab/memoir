@@ -7,6 +7,9 @@ PASS(Module, "memoir-norm", NormalizationPass)
 PASS(Module, "memoir-stats", StatisticsPass)
 PASS(Module, "memoir-type-infer", TypeInferencePass)
 PASS(Module, "memoir-dce", DeadCollectionEliminationPass)
+
+PASS(Module, "memoir-dfe", DeadFieldEliminationPass)
+
 PASS(Module, "memoir-example", ExamplePass)
 
 // ANALYSIS(<scope>, <name>, <class>, <result>, <args>...)
