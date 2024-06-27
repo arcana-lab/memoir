@@ -8,11 +8,11 @@ namespace llvm::memoir {
 
 // Helper functions.
 Type *type_of(llvm::Value &V) {
-  return TypeAnalysis::type_of(V);
+  return TypeChecker::type_of(V);
 }
 
 Type *type_of(MemOIRInst &I) {
-  return TypeAnalysis::type_of(I);
+  return TypeChecker::type_of(I);
 }
 
 // Static getter methods
