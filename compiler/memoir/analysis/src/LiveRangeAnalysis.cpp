@@ -1,5 +1,3 @@
-#include "memoir/analysis/TypeAnalysis.hpp"
-
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
