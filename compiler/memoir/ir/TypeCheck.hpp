@@ -111,7 +111,6 @@ protected:
   Type *visitInstruction(llvm::Instruction &I);
   //// LLVM instructions
   Type *visitArgument(llvm::Argument &A);
-  Type *visitLLVMCallInst(llvm::CallInst &I);
   Type *visitLoadInst(llvm::LoadInst &I);
   Type *visitPHINode(llvm::PHINode &I);
   Type *visitExtractValueInst(llvm::ExtractValueInst &I);
@@ -145,6 +144,7 @@ protected:
   //// Access instructions
   Type *visitReadInst(ReadInst &I);
   Type *visitGetInst(GetInst &I);
+  Type *visitStructGetInst(StructGetInst &I);
   Type *visitWriteInst(WriteInst &I);
   //// SSA operations
   Type *visitUsePHIInst(UsePHIInst &I);
