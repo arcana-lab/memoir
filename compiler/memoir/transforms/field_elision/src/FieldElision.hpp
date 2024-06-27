@@ -6,19 +6,13 @@
 
 // LLVM
 #include "llvm/IR/Function.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/CallGraph.h"
 
-// NOELLE
-#include "noelle/core/Noelle.hpp"
+#include "llvm/Transforms/Utils/Cloning.h"
 
 // MemOIR
 #include "memoir/ir/Builder.hpp"
@@ -114,18 +108,16 @@ protected:
                                    FieldsToElideMapTy &fields_to_elide,
                                    TypeToStructsMapTy &structs_of_type,
                                    StructTypeSetTy &escaped_types) {
-    // Check if this value is a struct type.
-    if (!Type::value_is_struct_type(V)) {
-      return;
-    }
-
     infoln("Found struct: ", V);
 
     // Get the type of this struct.
     auto *type = type_of(V);
     auto *struct_type = dyn_cast_or_null<StructType>(type);
-    MEMOIR_NULL_CHECK(struct_type,
-                      "Could not determine the StructType of a struct value!");
+
+    // Check if this value is a struct type.
+    if (struct_type == nullptr) {
+      return;
+    }
 
 // TODO: remove this after done with testing!
 #if FIELD_ELISION_TEST
@@ -427,8 +419,6 @@ protected:
 
     set<llvm::Instruction *> instructions_to_delete = {};
 
-    llvm::Type *llvm_collection_type = nullptr;
-
     // Now for the tricky bit.
     // We need to version all functions in the callgraph so that there is a
     // route from the entry function to each function where an access resides.
@@ -517,9 +507,9 @@ protected:
 
       // Add the new argument type.
       auto new_arg_index = param_types.size();
-      for (auto elision_param : elision_parameters) {
-        param_types.push_back(collection_ptr_type);
-      }
+      param_types.insert(param_types.end(),
+                         elision_parameters.size(),
+                         collection_ptr_type);
 
       // Construct the new function type.
       auto *new_function_type =
@@ -545,7 +535,11 @@ protected:
       }
 
       llvm::SmallVector<llvm::ReturnInst *, 8> returns;
-      llvm::CloneFunctionInto(new_function, function, vmap, false, returns);
+      llvm::CloneFunctionInto(new_function,
+                              function,
+                              vmap,
+                              CloneFunctionChangeType::LocalChangesOnly,
+                              returns);
 
       // Collect the elision arguments.
       auto arg_idx = new_arg_index;
@@ -565,7 +559,7 @@ protected:
     MemOIRBuilder builder(entry_insertion_point);
     for (auto const &[struct_type, candidates] : fields_to_elide) {
       auto &struct_ref_type = Type::get_ref_type(*struct_type);
-      auto *struct_ref_type_inst = builder.CreateTypeInst(struct_ref_type);
+      // auto *struct_ref_type_inst = builder.CreateTypeInst(struct_ref_type);
       auto candidate_idx = 0;
       for (auto candidate : candidates) {
         if (candidate.size() == 1) {
@@ -573,8 +567,8 @@ protected:
           auto candidate_field_index = *(candidate.begin());
           auto &candidate_field_type =
               struct_type->getFieldType(candidate_field_index);
-          auto *candidate_type_inst =
-              builder.CreateTypeInst(candidate_field_type);
+          // auto *candidate_type_inst =
+          // builder.CreateTypeInst(candidate_field_type);
 
           // Allocate the associative arrays.
           auto *allocation =
@@ -601,7 +595,6 @@ protected:
       }
 
       // Get the elision arguments for this function.
-      auto &argument_order = function_to_argument_order[&F];
       auto &elision_values = function_to_elision_values[&F];
 
       // TODO
@@ -650,8 +643,7 @@ protected:
         debugln("  clone= ", cloned_function->getName());
 
         // Get the order of arguments that this function needs.
-        auto &called_argument_order =
-            function_to_argument_order[called_function];
+        auto &argument_order = function_to_argument_order[called_function];
 
         // Update the list of arguments.
         // TODO: fix this so it works with var args, this will currently be
@@ -659,7 +651,7 @@ protected:
         MEMOIR_ASSERT(!cloned_function->getFunctionType()->isVarArg(),
                       "Cloning function with var args is unsupported!");
         vector<llvm::Value *> new_arguments(call->arg_begin(), call->arg_end());
-        for (auto const &[struct_type, elision_group] : called_argument_order) {
+        for (auto const &[struct_type, elision_group] : argument_order) {
           auto *elision_value = elision_values[struct_type][elision_group];
           new_arguments.push_back(elision_value);
           debugln("new arg: ", *elision_value);
