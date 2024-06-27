@@ -46,4 +46,4 @@ add_subdirectory(type_inference)
 add_subdirectory(impl_linker)
 
 # Analysis passes.
-# add_subdirectory(example)
+add_subdirectory(example)
