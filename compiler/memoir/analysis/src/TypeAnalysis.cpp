@@ -8,7 +8,7 @@ namespace llvm::memoir {
 
 // Top-level query.
 Type *TypeAnalysis::type_of(MemOIRInst &I) {
-  return type_of(I.getCallInst());
+  return TypeAnalysis::type_of(I.getCallInst());
 }
 
 Type *TypeAnalysis::type_of(llvm::Value &V) {
