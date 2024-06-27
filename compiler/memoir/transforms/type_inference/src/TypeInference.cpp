@@ -62,7 +62,7 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
   // Otherwise, we need to infer the type.
 
   // See if TypeAnalysis can get the type for us.
-  if (auto *type = TypeAnalysis::analyze(A)) {
+  if (auto *type = type_of(A)) {
     // It worked! Mark the argument type to be annotated and continue.
     this->argument_types_to_annotate[&A] = type;
     return true;
@@ -100,7 +100,7 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
       auto &call_operand =
           MEMOIR_SANITIZE(user_as_call->getArgOperand(arg_index),
                           "Operand of call is NULL!");
-      if (auto *call_operand_type = TypeAnalysis::analyze(call_operand)) {
+      if (auto *call_operand_type = type_of(call_operand)) {
         // It worked! Mark the argument type to be annotated and continue;
         this->argument_types_to_annotate[&A] = call_operand_type;
         return true;
@@ -164,7 +164,7 @@ bool TypeInference::infer_return_type(llvm::Function &F) {
   for (auto *returned : returned_values) {
 
     // See if TypeAnalysis can get the type for us.
-    if (auto *returned_type = TypeAnalysis::analyze(*returned)) {
+    if (auto *returned_type = type_of(*returned)) {
       // If the unified type is undefined, set it to the returned type.
       if (unified_type == nullptr) {
         unified_type = returned_type;

@@ -17,7 +17,7 @@ StructType &StructAllocInst::getStructType() const {
 }
 
 Type &StructAllocInst::getType() const {
-  auto type = TypeAnalysis::analyze(this->getTypeOperand());
+  auto type = type_of(this->getTypeOperand());
   MEMOIR_NULL_CHECK(
       type,
       "TypeAnalysis could not determine type for struct allocation");
@@ -42,7 +42,7 @@ CollectionType &TensorAllocInst::getCollectionType() const {
 }
 
 Type &TensorAllocInst::getElementType() const {
-  auto type = TypeAnalysis::get().getType(this->getElementOperand());
+  auto type = type_of(this->getElementOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the element type");
   return *type;
 }
@@ -78,7 +78,7 @@ CollectionType &AssocArrayAllocInst::getCollectionType() const {
 }
 
 Type &AssocArrayAllocInst::getKeyType() const {
-  auto type = TypeAnalysis::get().getType(this->getKeyOperand());
+  auto type = type_of(this->getKeyOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the Key type");
   return *type;
 }
@@ -86,7 +86,7 @@ Type &AssocArrayAllocInst::getKeyType() const {
 OPERAND(AssocArrayAllocInst, KeyOperand, 0)
 
 Type &AssocArrayAllocInst::getValueType() const {
-  auto type = TypeAnalysis::get().getType(this->getValueOperand());
+  auto type = type_of(this->getValueOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the Value type");
   return *type;
 }
@@ -103,7 +103,7 @@ CollectionType &SequenceAllocInst::getCollectionType() const {
 }
 
 Type &SequenceAllocInst::getElementType() const {
-  auto type = TypeAnalysis::get().getType(this->getElementOperand());
+  auto type = type_of(this->getElementOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the element type");
   return *type;
 }

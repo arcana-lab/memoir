@@ -8,7 +8,7 @@ namespace llvm::memoir {
 
 // ReturnTypeInst implementation
 Type &ReturnTypeInst::getType() const {
-  auto type = TypeAnalysis::analyze(this->getTypeOperand());
+  auto type = type_of(this->getTypeOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the return type");
   return *type;
 }

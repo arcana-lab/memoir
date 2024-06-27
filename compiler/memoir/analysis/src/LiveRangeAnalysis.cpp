@@ -58,7 +58,7 @@ LiveRangeConstraintGraph LiveRangeAnalysis::construct() {
     set<llvm::Instruction *> users_to_visit = {};
     for (auto &BB : F) {
       for (auto &I : BB) {
-        if (isa_and_nonnull<SequenceType>(TypeAnalysis::analyze(I))) {
+        if (isa_and_nonnull<SequenceType>(type_of(I))) {
 
           visited.insert(&I);
 

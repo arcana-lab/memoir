@@ -8,7 +8,7 @@ namespace llvm::memoir {
 
 // AccessInst implementation
 CollectionType &AccessInst::getCollectionType() const {
-  auto type = TypeAnalysis::analyze(this->getObjectOperand());
+  auto type = type_of(this->getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine type of collection being read");
 
   auto collection_type = dyn_cast<CollectionType>(type);
@@ -25,7 +25,7 @@ OPERAND(ReadInst, ObjectOperand, 0)
 
 // StructReadInst implementation
 CollectionType &StructReadInst::getCollectionType() const {
-  auto type = TypeAnalysis::analyze(this->getObjectOperand());
+  auto type = type_of(this->getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
 
   auto struct_type = dyn_cast<StructType>(type);
@@ -78,7 +78,7 @@ OPERAND(WriteInst, ObjectOperand, 1)
 
 // StructWriteInst implementation
 CollectionType &StructWriteInst::getCollectionType() const {
-  auto type = TypeAnalysis::analyze(this->getObjectOperand());
+  auto type = type_of(this->getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
 
   auto struct_type = dyn_cast<StructType>(type);
@@ -137,7 +137,7 @@ OPERAND(GetInst, ObjectOperand, 0)
 
 // StructGetInst implementation
 CollectionType &StructGetInst::getCollectionType() const {
-  auto type = TypeAnalysis::analyze(this->getObjectOperand());
+  auto type = type_of(this->getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
 
   auto struct_type = dyn_cast<StructType>(type);

@@ -184,7 +184,7 @@ void SSAConstructionVisitor::visitMutStructWriteInst(MutStructWriteInst &I) {
   MemOIRBuilder builder(I);
 
   // Fetch type information.
-  auto *type = TypeAnalysis::analyze(I.getObjectOperand());
+  auto *type = type_of(I.getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Couldn't determine type of MutStructWriteInst!");
   auto *struct_type = dyn_cast<StructType>(type);
   MEMOIR_NULL_CHECK(struct_type,
@@ -215,7 +215,7 @@ void SSAConstructionVisitor::visitMutIndexWriteInst(MutIndexWriteInst &I) {
   MemOIRBuilder builder(I);
 
   // Fetch type information.
-  auto *type = TypeAnalysis::analyze(I.getObjectOperand());
+  auto *type = type_of(I.getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
   auto *collection_type = dyn_cast<CollectionType>(type);
   MEMOIR_NULL_CHECK(collection_type,
@@ -251,7 +251,7 @@ void SSAConstructionVisitor::visitMutAssocWriteInst(MutAssocWriteInst &I) {
   MemOIRBuilder builder(I);
 
   // Fetch type information.
-  auto *type = TypeAnalysis::analyze(I.getObjectOperand());
+  auto *type = type_of(I.getObjectOperand());
   MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
   auto *collection_type = dyn_cast<CollectionType>(type);
   MEMOIR_NULL_CHECK(collection_type,
@@ -390,7 +390,7 @@ void SSAConstructionVisitor::visitMutSeqInsertInst(MutSeqInsertInst &I) {
   MemOIRBuilder builder(I);
 
   // Fetch type information.
-  auto *type = TypeAnalysis::analyze(I.getCollection());
+  auto *type = type_of(I.getCollection());
   MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
   auto *collection_type = dyn_cast<CollectionType>(type);
   MEMOIR_NULL_CHECK(collection_type,
