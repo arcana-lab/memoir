@@ -1,6 +1,6 @@
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/analysis/TypeAnalysis.hpp"
+#include "memoir/ir/TypeCheck.hpp"
 
 #include "memoir/support/Assert.hpp"
 #include "memoir/utility/InstructionUtils.hpp"
