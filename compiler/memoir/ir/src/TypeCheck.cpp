@@ -477,6 +477,7 @@ Type *TypeChecker::visitPHINode(llvm::PHINode &I) {
 
   // Create a type variable for the PHI node.
   auto &phi_type = this->new_type_variable();
+  this->value_bindings[&I] = &phi_type;
 
   // For each incoming value, visit it, and unify it with the PHI type.
   for (auto &incoming : I.incoming_values()) {
