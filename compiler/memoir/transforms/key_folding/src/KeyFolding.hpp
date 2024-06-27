@@ -3,21 +3,12 @@
 #pragma once
 
 // LLVM
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
-
-#include "llvm/IR/Dominators.h"
 
 #include "llvm/Analysis/CFG.h"
-
-// NOELLE
-#include "noelle/core/Noelle.hpp"
 
 // MemOIR
 #include "memoir/ir/Builder.hpp"
@@ -110,8 +101,6 @@ protected:
       llvm::Module &M,
       llvm::Argument &A) {
     set<llvm::Value *> possible_arguments = {};
-
-    auto *arg_function = A.getParent();
 
     for (auto &F : M) {
       for (auto &BB : F) {
