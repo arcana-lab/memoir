@@ -8,7 +8,8 @@ namespace llvm::memoir {
 
 // AssertStructTypeInst implementation
 Type &AssertStructTypeInst::getType() const {
-  return *(TypeAnalysis::get().getType(this->getTypeOperand()));
+  return MEMOIR_SANITIZE(type_of(this->getTypeOperand()),
+                         "Failed to get type used by AssertStructType!");
 }
 
 OPERAND(AssertStructTypeInst, TypeOperand, 0)
@@ -17,9 +18,8 @@ TO_STRING(AssertStructTypeInst)
 
 // AssertCollectionTypeInst implementation
 Type &AssertCollectionTypeInst::getType() const {
-  auto type = TypeAnalysis::analyze(this->getTypeOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine type to assert");
-  return *type;
+  return MEMOIR_SANITIZE(type_of(this->getTypeOperand()),
+                         "Failed to get type used by AssertCollectionType");
 }
 
 OPERAND(AssertCollectionTypeInst, TypeOperand, 0)

@@ -103,7 +103,7 @@ protected:
     infoln("Found struct: ", V);
 
     // Get the type of this struct.
-    auto *type = TypeAnalysis::analyze(V);
+    auto *type = type_of(V);
     auto *struct_type = dyn_cast_or_null<StructType>(type);
     MEMOIR_NULL_CHECK(struct_type,
                       "Could not determine the StructType of a struct value!");
