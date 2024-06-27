@@ -6,5 +6,6 @@ PASS(Module, "memoir-impl-linker", ImplLinkerPass)
 PASS(Module, "memoir-norm", NormalizationPass)
 PASS(Module, "memoir-stats", StatisticsPass)
 PASS(Module, "memoir-type-infer", TypeInferencePass)
+PASS(Module, "memoir-dce", DeadCollectionEliminationPass)
 
 // ANALYSIS(<scope>, <name>, <class>, <result>, <args>...)

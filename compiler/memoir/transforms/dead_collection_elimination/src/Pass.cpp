@@ -28,16 +28,15 @@ namespace llvm::memoir {
  * Created: February 22, 2023
  */
 
-struct DeadCollectionEliminationPass : public ModulePass {
-  llvm::PreservedAnalyses runOnModule(llvm::Module &M,
-                                      llvm::ModuleAnalysisManager &MAM) {
-    debugln("Running dead collection elimination pass");
-    debugln();
+llvm::PreservedAnalyses DeadCollectionEliminationPass::run(
+    llvm::Module &M,
+    llvm::ModuleAnalysisManager &MAM) {
+  debugln("Running dead collection elimination pass");
+  debugln();
 
-    auto DCE = DeadCollectionElimination(M);
+  DeadCollectionElimination DCE(M);
 
-    return llvm::PreservedAnalyses::none();
-  }
-};
+  return llvm::PreservedAnalyses::none();
+}
 
 } // namespace llvm::memoir
