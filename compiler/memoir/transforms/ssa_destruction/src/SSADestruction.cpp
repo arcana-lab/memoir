@@ -226,10 +226,9 @@ void SSADestructionVisitor::visitStructAllocInst(StructAllocInst &I) {
 
 void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
   if (this->enable_collection_lowering) {
-    auto &collection_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
-                            TypeAnalysis::analyze(I.getDeletedCollection())),
-                        "Couldn't determine type of collection");
+    auto &collection_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<CollectionType>(type_of(I.getDeletedCollection())),
+        "Couldn't determine type of collection");
     if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
       auto &element_type = seq_type->getElementType();
 
@@ -290,10 +289,9 @@ void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
 
 void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
   if (this->enable_collection_lowering) {
-    auto &collection_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
-                            TypeAnalysis::analyze(I.getCollection())),
-                        "Couldn't determine type of collection");
+    auto &collection_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<CollectionType>(type_of(I.getCollection())),
+        "Couldn't determine type of collection");
 
     std::string name;
     if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
@@ -457,10 +455,9 @@ void SSADestructionVisitor::visitIndexReadInst(IndexReadInst &I) {
     // Get a builder.
     MemOIRBuilder builder(I);
 
-    auto &collection_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
-                            TypeAnalysis::analyze(I.getObjectOperand())),
-                        "Couldn't determine type of read collection");
+    auto &collection_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<CollectionType>(type_of(I.getObjectOperand())),
+        "Couldn't determine type of read collection");
 
     auto &element_type = collection_type.getElementType();
 
@@ -535,10 +532,9 @@ void SSADestructionVisitor::visitIndexGetInst(IndexGetInst &I) {
     // Get a builder.
     MemOIRBuilder builder(I);
 
-    auto &collection_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
-                            TypeAnalysis::analyze(I.getObjectOperand())),
-                        "Couldn't determine type of read collection");
+    auto &collection_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<CollectionType>(type_of(I.getObjectOperand())),
+        "Couldn't determine type of read collection");
 
     auto &element_type = collection_type.getElementType();
 
@@ -618,10 +614,9 @@ void SSADestructionVisitor::visitIndexGetInst(IndexGetInst &I) {
 void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
   MemOIRBuilder builder(I);
 
-  auto &collection_type =
-      MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(
-                          TypeAnalysis::analyze(I.getObjectOperand())),
-                      "Couldn't determine type of written collection");
+  auto &collection_type = MEMOIR_SANITIZE(
+      dyn_cast_or_null<CollectionType>(type_of(I.getObjectOperand())),
+      "Couldn't determine type of written collection");
 
   if (this->enable_collection_lowering) {
     if (auto *sequence_type = dyn_cast<SequenceType>(&collection_type)) {
@@ -724,10 +719,9 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
 // Assoc accesses lowering implementation.
 void SSADestructionVisitor::visitAssocReadInst(AssocReadInst &I) {
   if (this->enable_collection_lowering) {
-    auto &assoc_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<AssocArrayType>(
-                            TypeAnalysis::analyze(I.getObjectOperand())),
-                        "Couldn't determine type of read collection");
+    auto &assoc_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<AssocArrayType>(type_of(I.getObjectOperand())),
+        "Couldn't determine type of read collection");
 
     auto &key_type = assoc_type.getKeyType();
     auto &value_type = assoc_type.getValueType();
@@ -768,10 +762,9 @@ void SSADestructionVisitor::visitAssocReadInst(AssocReadInst &I) {
 }
 
 void SSADestructionVisitor::visitAssocWriteInst(AssocWriteInst &I) {
-  auto &assoc_type =
-      MEMOIR_SANITIZE(dyn_cast_or_null<AssocArrayType>(
-                          TypeAnalysis::analyze(I.getObjectOperand())),
-                      "Couldn't determine type of written collection");
+  auto &assoc_type = MEMOIR_SANITIZE(
+      dyn_cast_or_null<AssocArrayType>(type_of(I.getObjectOperand())),
+      "Couldn't determine type of written collection");
 
   auto &key_type = assoc_type.getKeyType();
   auto &value_type = assoc_type.getValueType();
@@ -833,10 +826,9 @@ void SSADestructionVisitor::visitAssocWriteInst(AssocWriteInst &I) {
 
 void SSADestructionVisitor::visitAssocGetInst(AssocGetInst &I) {
   if (this->enable_collection_lowering) {
-    auto &assoc_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<AssocArrayType>(
-                            TypeAnalysis::analyze(I.getObjectOperand())),
-                        "Couldn't determine type of read collection");
+    auto &assoc_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<AssocArrayType>(type_of(I.getObjectOperand())),
+        "Couldn't determine type of read collection");
 
     auto &key_type = assoc_type.getKeyType();
     auto &value_type = assoc_type.getValueType();
@@ -883,10 +875,9 @@ void SSADestructionVisitor::visitAssocGetInst(AssocGetInst &I) {
 
 void SSADestructionVisitor::visitAssocHasInst(AssocHasInst &I) {
   if (this->enable_collection_lowering) {
-    auto &assoc_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<AssocArrayType>(
-                            TypeAnalysis::analyze(I.getObjectOperand())),
-                        "Couldn't determine type of has collection");
+    auto &assoc_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<AssocArrayType>(type_of(I.getObjectOperand())),
+        "Couldn't determine type of has collection");
 
     auto &key_type = assoc_type.getKeyType();
     auto &value_type = assoc_type.getValueType();
@@ -1152,10 +1143,9 @@ void SSADestructionVisitor::visitStructGetInst(StructGetInst &I) {
 
 // Sequence operations lowering implementation.
 void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
-  auto &seq_type =
-      MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
-                          TypeAnalysis::analyze(I.getBaseCollection())),
-                      "Couldn't determine type of written collection");
+  auto &seq_type = MEMOIR_SANITIZE(
+      dyn_cast_or_null<SequenceType>(type_of(I.getBaseCollection())),
+      "Couldn't determine type of written collection");
 
   auto &elem_type = seq_type.getElementType();
 
@@ -1226,10 +1216,9 @@ void SSADestructionVisitor::visitSeqInsertSeqInst(SeqInsertSeqInst &I) {
   MemOIRBuilder builder(I);
 
   if (this->enable_collection_lowering) {
-    auto &seq_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
-                            TypeAnalysis::analyze(I.getBaseCollection())),
-                        "Couldn't determine type of written collection");
+    auto &seq_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<SequenceType>(type_of(I.getBaseCollection())),
+        "Couldn't determine type of written collection");
 
     auto &elem_type = seq_type.getElementType();
 
@@ -1294,10 +1283,9 @@ void SSADestructionVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
   MemOIRBuilder builder(I);
 
   if (this->enable_collection_lowering) {
-    auto &seq_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
-                            TypeAnalysis::analyze(I.getBaseCollection())),
-                        "Couldn't determine type of written collection");
+    auto &seq_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<SequenceType>(type_of(I.getBaseCollection())),
+        "Couldn't determine type of written collection");
 
     auto &elem_type = seq_type.getElementType();
 
@@ -1359,10 +1347,9 @@ void SSADestructionVisitor::visitSeqCopyInst(SeqCopyInst &I) {
 
   // TODO: reintroduce Views for optimizations.
   if (this->enable_collection_lowering) {
-    auto &seq_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
-                            TypeAnalysis::analyze(I.getCopiedCollection())),
-                        "Couldn't determine type of written collection");
+    auto &seq_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<SequenceType>(type_of(I.getCopiedCollection())),
+        "Couldn't determine type of written collection");
 
     auto &elem_type = seq_type.getElementType();
 
@@ -1409,10 +1396,9 @@ void SSADestructionVisitor::visitSeqSwapInst(SeqSwapInst &I) {
   MemOIRBuilder builder(I);
 
   if (this->enable_collection_lowering) {
-    auto &seq_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
-                            TypeAnalysis::analyze(I.getFromCollection())),
-                        "Couldn't determine type of written collection");
+    auto &seq_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<SequenceType>(type_of(I.getFromCollection())),
+        "Couldn't determine type of written collection");
 
     auto &elem_type = seq_type.getElementType();
 
@@ -1521,10 +1507,9 @@ void SSADestructionVisitor::visitSeqSwapWithinInst(SeqSwapWithinInst &I) {
   MemOIRBuilder builder(I);
 
   if (this->enable_collection_lowering) {
-    auto &seq_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<SequenceType>(
-                            TypeAnalysis::analyze(I.getFromCollection())),
-                        "Couldn't determine type of written collection");
+    auto &seq_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<SequenceType>(type_of(I.getFromCollection())),
+        "Couldn't determine type of written collection");
 
     auto &elem_type = seq_type.getElementType();
 
@@ -1596,8 +1581,7 @@ void SSADestructionVisitor::visitSeqSwapWithinInst(SeqSwapWithinInst &I) {
 void SSADestructionVisitor::visitAssocInsertInst(AssocInsertInst &I) {
   if (this->enable_collection_lowering) {
     auto &assoc_type = MEMOIR_SANITIZE(
-        dyn_cast_or_null<AssocArrayType>(
-            TypeAnalysis::analyze(I.getBaseCollection())),
+        dyn_cast_or_null<AssocArrayType>(type_of(I.getBaseCollection())),
         "Couldn't determine type of collection being inserted into.");
 
     auto &key_type = assoc_type.getKeyType();
@@ -1645,10 +1629,9 @@ void SSADestructionVisitor::visitAssocInsertInst(AssocInsertInst &I) {
 
 void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
   if (this->enable_collection_lowering) {
-    auto &assoc_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<AssocArrayType>(
-                            TypeAnalysis::analyze(I.getBaseCollection())),
-                        "Couldn't determine type of written collection");
+    auto &assoc_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<AssocArrayType>(type_of(I.getBaseCollection())),
+        "Couldn't determine type of written collection");
 
     auto &key_type = assoc_type.getKeyType();
     auto &value_type = assoc_type.getValueType();
@@ -1695,10 +1678,9 @@ void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
 
 void SSADestructionVisitor::visitAssocKeysInst(AssocKeysInst &I) {
   if (this->enable_collection_lowering) {
-    auto &assoc_type =
-        MEMOIR_SANITIZE(dyn_cast_or_null<AssocArrayType>(
-                            TypeAnalysis::analyze(I.getCollection())),
-                        "Couldn't determine type assoc collection");
+    auto &assoc_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<AssocArrayType>(type_of(I.getCollection())),
+        "Couldn't determine type assoc collection");
 
     auto &key_type = assoc_type.getKeyType();
     auto &value_type = assoc_type.getValueType();

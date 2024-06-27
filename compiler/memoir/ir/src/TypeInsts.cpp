@@ -20,7 +20,7 @@ namespace llvm::memoir {
  */
 #define GET_TYPE_IMPL(CLASS_NAME)                                              \
   Type &CLASS_NAME::getType() const {                                          \
-    auto type = TypeAnalysis::get().getType(this->getCallInst());              \
+    auto type = type_of(this->getCallInst());                                  \
     MEMOIR_NULL_CHECK(type, "Could not determine type of " #CLASS_NAME);       \
     return *type;                                                              \
   }
@@ -113,7 +113,7 @@ TO_STRING(PointerTypeInst)
 GET_TYPE_IMPL(ReferenceTypeInst)
 
 Type &ReferenceTypeInst::getReferencedType() const {
-  auto type = TypeAnalysis::analyze(this->getReferencedTypeOperand());
+  auto type = type_of(this->getReferencedTypeOperand());
   MEMOIR_NULL_CHECK(
       type,
       "Could not determine the referenced type of ReferenceTypeInst");
@@ -173,7 +173,7 @@ unsigned DefineStructTypeInst::getNumberOfFields() const {
 OPERAND(DefineStructTypeInst, NumberOfFieldsOperand, 1)
 
 Type &DefineStructTypeInst::getFieldType(unsigned field_index) const {
-  auto type = TypeAnalysis::analyze(this->getFieldTypeOperand(field_index));
+  auto type = type_of(this->getFieldTypeOperand(field_index));
   MEMOIR_NULL_CHECK(type,
                     "Could not determine field type of DefineStructTypeInst");
   return *type;
@@ -220,7 +220,7 @@ TO_STRING(StructTypeInst)
 GET_TYPE_IMPL(StaticTensorTypeInst)
 
 Type &StaticTensorTypeInst::getElementType() const {
-  auto type = TypeAnalysis::analyze(this->getElementTypeOperand());
+  auto type = type_of(this->getElementTypeOperand());
   MEMOIR_NULL_CHECK(type,
                     "Could not determine element type of StaticTensorTypeInst");
   return *type;
@@ -273,7 +273,7 @@ TO_STRING(StaticTensorTypeInst)
 GET_TYPE_IMPL(TensorTypeInst)
 
 Type &TensorTypeInst::getElementType() const {
-  auto type = TypeAnalysis::analyze(this->getElementOperand());
+  auto type = type_of(this->getElementOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the element type of TensorType");
   return *type;
 }
@@ -305,7 +305,7 @@ TO_STRING(TensorTypeInst);
 GET_TYPE_IMPL(AssocArrayTypeInst)
 
 Type &AssocArrayTypeInst::getKeyType() const {
-  auto type = TypeAnalysis::analyze(this->getKeyOperand());
+  auto type = type_of(this->getKeyOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine the key type of AssocArrayType");
   return *type;
 }
@@ -313,7 +313,7 @@ Type &AssocArrayTypeInst::getKeyType() const {
 OPERAND(AssocArrayTypeInst, KeyOperand, 0)
 
 Type &AssocArrayTypeInst::getValueType() const {
-  auto type = TypeAnalysis::analyze(this->getValueOperand());
+  auto type = type_of(this->getValueOperand());
   MEMOIR_NULL_CHECK(type,
                     "Could not determine the value type of AssocArrayType");
   return *type;
@@ -329,7 +329,7 @@ TO_STRING(AssocArrayTypeInst)
 GET_TYPE_IMPL(SequenceTypeInst)
 
 Type &SequenceTypeInst::getElementType() const {
-  auto type = TypeAnalysis::analyze(this->getElementOperand());
+  auto type = type_of(this->getElementOperand());
   MEMOIR_NULL_CHECK(type, "Could not determine element type of SequenceType");
   return *type;
 }

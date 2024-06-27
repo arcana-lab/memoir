@@ -124,7 +124,7 @@ protected:
     infoln("Found struct: ", V);
 
     // Get the type of this struct.
-    auto *type = TypeAnalysis::analyze(V);
+    auto *type = type_of(V);
     auto *struct_type = dyn_cast_or_null<StructType>(type);
     MEMOIR_NULL_CHECK(struct_type,
                       "Could not determine the StructType of a struct value!");
@@ -729,7 +729,7 @@ protected:
         auto *object_value = object_use.get();
 
         // Get the struct type.
-        auto *accessed_type = TypeAnalysis::analyze(*object_value);
+        auto *accessed_type = type_of(*object_value);
         auto *accessed_struct_type = cast<StructType>(accessed_type);
 
         // Check if this field index is elided.
