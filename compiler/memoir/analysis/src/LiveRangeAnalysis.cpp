@@ -6,9 +6,10 @@
 
 namespace llvm::memoir {
 
-// Analysis queries.
-ValueRange *LiveRangeAnalysis::lookup_live_range(llvm::Value &V,
-                                                 llvm::CallBase *C) const {
+// Result queries.
+ValueRange *LiveRangeAnalysisResult::lookup_live_range(
+    llvm::Value &V,
+    llvm::CallBase *C) const {
   // Lookup the value.
   auto found_value = this->live_ranges.find(&V);
   if (found_value != this->live_ranges.end()) {
@@ -27,17 +28,17 @@ ValueRange *LiveRangeAnalysis::lookup_live_range(llvm::Value &V,
   return nullptr;
 }
 
-ValueRange *LiveRangeAnalysis::get_live_range(llvm::Value &V) const {
+ValueRange *LiveRangeAnalysisResult::get_live_range(llvm::Value &V) const {
   return this->lookup_live_range(V, nullptr);
 }
 
-ValueRange *LiveRangeAnalysis::get_live_range(llvm::Value &V,
-                                              llvm::CallBase &C) const {
+ValueRange *LiveRangeAnalysisResult::get_live_range(llvm::Value &V,
+                                                    llvm::CallBase &C) const {
   return this->lookup_live_range(V, &C);
 }
 
 // Analysis steps.
-LiveRangeConstraintGraph LiveRangeAnalysis::construct() {
+LiveRangeConstraintGraph LiveRangeAnalysisDriver::construct() {
   LiveRangeConstraintGraph graph;
   // For each function in the program.
   for (auto &F : this->M) {
@@ -45,9 +46,11 @@ LiveRangeConstraintGraph LiveRangeAnalysis::construct() {
       continue;
     }
 
+    // Get the analysis manager for this function.
+    auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(this->MAM, M);
+
     // Run the intraprocedural range analysis for the function.
-    auto &RA = MEMOIR_SANITIZE(new RangeAnalysis(F, noelle),
-                               "Unable to construct range analysis!");
+    auto &RA = FAM.getResult<RangeAnalysis>(F);
     this->intraprocedural_range_analyses[&F] = &RA;
 
     // For each sequence variable in the program, add it to the constraints
@@ -105,7 +108,7 @@ LiveRangeConstraintGraph LiveRangeAnalysis::construct() {
   return graph;
 }
 
-void LiveRangeAnalysis::evaluate(LiveRangeConstraintGraph &graph) {
+void LiveRangeAnalysisDriver::evaluate(LiveRangeConstraintGraph &graph) {
   // Compute the condensation of the constraint graph.
   auto condensation = graph.condense();
 
@@ -207,7 +210,7 @@ void LiveRangeAnalysis::evaluate(LiveRangeConstraintGraph &graph) {
   for (auto *node : graph) {
     auto *range = graph.node_prop(node);
 
-    this->live_ranges[node][nullptr] = range;
+    this->result.live_ranges[node][nullptr] = range;
 
     debugln(*node);
     if (range) {
@@ -221,7 +224,7 @@ void LiveRangeAnalysis::evaluate(LiveRangeConstraintGraph &graph) {
 }
 
 // Analysis driver.
-void LiveRangeAnalysis::run() {
+void LiveRangeAnalysisDriver::run() {
   // Construct the constraints graph.
   auto graph = construct();
 
@@ -230,7 +233,7 @@ void LiveRangeAnalysis::run() {
 }
 
 // Logistics.
-LiveRangeAnalysis::~LiveRangeAnalysis() {
+LiveRangeAnalysisDriver::~LiveRangeAnalysisDriver() {
   for (auto const &[function, range_analysis] :
        intraprocedural_range_analyses) {
     delete range_analysis;
@@ -255,8 +258,8 @@ static ValueExpression &create_max(ValueExpression &expr1,
       &expr2));
 }
 
-ValueRange *LiveRangeAnalysis::disjunctive_merge(ValueRange *range1,
-                                                 ValueRange *range2) {
+ValueRange *LiveRangeAnalysisDriver::disjunctive_merge(ValueRange *range1,
+                                                       ValueRange *range2) {
 
   // If either range is NULL, return the other.
   if (range1 == nullptr) {
@@ -284,8 +287,8 @@ ValueRange *LiveRangeAnalysis::disjunctive_merge(ValueRange *range1,
   return new_range;
 }
 
-ValueRange *LiveRangeAnalysis::conjunctive_merge(ValueRange *range1,
-                                                 ValueRange *range2) {
+ValueRange *LiveRangeAnalysisDriver::conjunctive_merge(ValueRange *range1,
+                                                       ValueRange *range2) {
   // If either range is NULL, return the other.
   if (range1 == nullptr) {
     return range2;

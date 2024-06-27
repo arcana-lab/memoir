@@ -10,6 +10,8 @@
 #include "noelle/core/Noelle.hpp"
 
 // MEMOIR
+#include "memoir/passes/Passes.hpp"
+
 #include "memoir/analysis/RangeAnalysis.hpp"
 
 #include "memoir/support/Graph.hpp"
@@ -17,35 +19,14 @@
 
 namespace llvm::memoir {
 
-struct LiveRangeConstraintGraph;
-
-class LiveRangeAnalysis {
+struct LiveRangeAnalysisResult {
 public:
-  /**
-   * Live-Range analysis driver.
-   * Constructs a live range valuation for MEMOIR sequence variables in an LLVM
-   * module M using analyses from noelle. Can toggle context sensitivity
-   * with context_sensitive, defaults to context insesitive.
-   *
-   * @param M LLVM Module to analyze
-   * @param noelle NOELLE instance
-   * @param context_sensitive Toggle whether the analysis should be context
-   * sensitive or not.
-   */
-  LiveRangeAnalysis(llvm::Module &M,
-                    arcana::noelle::Noelle &noelle,
-                    bool context_sensitive = false)
-    : M(M),
-      noelle(noelle),
-      context_sensitive(context_sensitive) {
-    this->run();
-  }
-
   /**
    * Query the live range for MEMOIR sequence variable V.
    * If V is not a MEMOIR sequence variable, returns NULL!
    *
    * @param V Value to query live range of
+   * @returns the ValueRange corresponding to the value.
    */
   ValueRange *get_live_range(llvm::Value &V) const;
 
@@ -55,15 +36,44 @@ public:
    *
    * @param V Value to query live range of
    * @param C Calling context for context-sensitive results.
+   * @returns the ValueRange corresponding to the value.
    */
   ValueRange *get_live_range(llvm::Value &V, llvm::CallBase &C) const;
 
+protected:
+  ValueRange *lookup_live_range(llvm::Value &V, llvm::CallBase &C) const;
+
+  map<llvm::Value *, map<llvm::CallBase *, ValueRange *>> live_ranges;
+};
+
+struct LiveRangeConstraintGraph;
+
+class LiveRangeAnalysisDriver {
+public:
   /**
-   * Acquire the results of the live range analysis.
+   * Live-Range analysis driver.
+   * Constructs a live range valuation for MEMOIR sequence variables in an LLVM
+   * module M using analyses from noelle. Can toggle context sensitivity
+   * with context_sensitive, defaults to context insesitive.
+   *
+   * @param M LLVM Module to analyze
+   * @param M LLVM Module Analysis Manager
+   * @param noelle NOELLE instance
+   * @param result The result struct to store everything in
+   * @param context_sensitive Toggle whether the analysis should be context
+   * sensitive or not.
    */
-  const map<llvm::Value *, map<llvm::CallBase *, ValueRange *>> &results()
-      const {
-    return this->live_ranges;
+  LiveRangeAnalysisDriver(llvm::Module &M,
+                          llvm::ModuleAnalysisManager &MAM,
+                          arcana::noelle::Noelle &noelle,
+                          LiveRangeAnalysisResult &result,
+                          bool context_sensitive = false)
+    : M(M),
+      MAM(MAM),
+      noelle(noelle),
+      result(result),
+      context_sensitive(context_sensitive) {
+    this->run();
   }
 
   /**
@@ -92,17 +102,17 @@ protected:
   ValueRange *lookup_live_range(llvm::Value &V, llvm::CallBase *C) const;
 
   // Owned state.
-  map<llvm::Function *, RangeAnalysis *> intraprocedural_range_analyses;
+  map<llvm::Function *, RangeAnalysisResult *> intraprocedural_range_analyses;
 
   // Borrowed state.
-  map<llvm::Value *, map<llvm::CallBase *, ValueRange *>> live_ranges;
-
   llvm::Module &M;
+  llvm::ModuleAnalysisManager &MAM;
+  LiveRangeAnalysisDriverResult &result;
   arcana::noelle::Noelle &noelle;
   bool context_sensitive;
 
 public:
-  ~LiveRangeAnalysis();
+  ~LiveRangeAnalysisDriver();
 };
 
 using Constraint = std::function<ValueRange *(ValueRange *)>;
@@ -122,6 +132,22 @@ public:
   void add_index_to_graph(llvm::Value &V, ValueRange &VR);
   void add_seq_to_graph(llvm::Value &V);
 };
+
+LiveRangeAnalysisResult LiveRangeAnalysis::run(
+    llvm::Module &M,
+    llvm::ModuleAnalysisManager &MAM) {
+
+  // Construct a new result.
+  LiveRangeAnalysisResult result;
+
+  // Fetch NOELLE.
+  auto &NOELLE = MAM.getResult<arcana::noelle::Noelle>(M);
+
+  // Construct a LiveRangeAnalysisDriver
+  LiveRangeAnalysisDriver LRA(M, MAM, NOELLE, result);
+
+  return result;
+}
 
 } // namespace llvm::memoir
 
