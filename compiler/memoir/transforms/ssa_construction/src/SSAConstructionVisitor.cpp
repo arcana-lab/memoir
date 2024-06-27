@@ -4,8 +4,6 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
 
-#include "memoir/analysis/TypeAnalysis.hpp"
-
 namespace llvm::memoir {
 
 llvm::Value *SSAConstructionVisitor::update_reaching_definition(

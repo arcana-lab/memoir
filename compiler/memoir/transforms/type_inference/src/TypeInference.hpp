@@ -6,8 +6,6 @@
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/Types.hpp"
 
-#include "memoir/analysis/TypeAnalysis.hpp"
-
 namespace llvm::memoir {
 
 // Inferred type
