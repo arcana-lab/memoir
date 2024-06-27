@@ -5,22 +5,20 @@ get_filename_component(name ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 file(GLOB headers "*.hpp" "*.h" "*.hh" "*.def")
 
 # Install header files.
-install(
-  FILES
+# install(
+  # FILES
   # ${headers}
-  TypeAnalysis.hpp
   
-  DESTINATION
-  ${CMAKE_INSTALL_INCLUDEDIR}/memoir/${name}
-)
+  # DESTINATION
+  # ${CMAKE_INSTALL_INCLUDEDIR}/memoir/${name}
+# )
 
 # Collect all source files.
 file(GLOB_RECURSE sources "src/*.cpp" "src/*.c" "src/*.cc")
 
 # Add the memoir sources to the core build.
-add_memoir_sources(
-  CORE
-  FILES
+# add_memoir_sources(
+  # CORE
+  # FILES
   # ${sources}
-  src/TypeAnalysis.cpp
-  )
+  # )
