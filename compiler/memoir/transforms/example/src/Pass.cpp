@@ -1,15 +1,12 @@
-#include <iostream>
 #include <string>
 
 #include "llvm/IR/Function.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
+#include "memoir/passes/Passes.hpp"
+
+#include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
 #include "memoir/support/InternalDatatypes.hpp"
@@ -23,6 +20,8 @@
  *
  * Author(s): Tommy McMichen
  */
+
+using namespace llvm::memoir;
 
 namespace {
 
@@ -64,45 +63,31 @@ public:
   }
 };
 
-struct ExamplePass : public llvm::ModulePass {
-  static char ID;
+} // namespace
 
-  ExamplePass() : ModulePass(ID) {}
+namespace llvm::memoir {
 
-  bool doInitialization(llvm::Module &M) override {
-    return false;
-  }
+llvm::PreservedAnalyses ExamplePass::run(llvm::Module &M,
+                                         llvm::ModuleAnalysisManager &MAM) {
+  // Initialize our visitor:
+  MyVisitor visitor;
 
-  bool runOnModule(llvm::Module &M) override {
-    // Initialize our visitor:
-    MyVisitor visitor;
-
-    // Analyze the program.
-    for (llvm::Function &F : M) {
-      for (llvm::BasicBlock &BB : F) {
-        for (llvm::Instruction &I : BB) {
-          visitor.visit(I);
-        }
+  // Analyze the program.
+  for (llvm::Function &F : M) {
+    for (llvm::BasicBlock &BB : F) {
+      for (llvm::Instruction &I : BB) {
+        visitor.visit(I);
       }
     }
-
-    // Print the results of our visitor:
-    for (const auto &[type, count] : visitor.instruction_counts) {
-      llvm::memoir::println(type, " -> ", count, "\n");
-    }
-
-    // We did not modify the program, so we return false.
-    return false;
   }
 
-  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
-    return;
+  // Print the results of our visitor:
+  for (const auto &[type, count] : visitor.instruction_counts) {
+    llvm::memoir::println(type, " -> ", count, "\n");
   }
-};
 
-// Next there is code to register your pass to "opt"
-char ExamplePass::ID = 0;
-static llvm::RegisterPass<ExamplePass> X(
-    "memoir-example",
-    "An example pass using the MemOIR analyses");
-} // namespace
+  // We did not modify the program, so all analyses are preserved
+  return llvm::PreservedAnalyses::all();
+}
+
+} // namespace llvm::memoir
