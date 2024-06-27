@@ -2,7 +2,7 @@
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/support/Assert.hpp"
 
-#include "memoir/analysis/TypeAnalysis.hpp"
+#include "memoir/ir/TypeCheck.hpp"
 
 namespace llvm::memoir {
 

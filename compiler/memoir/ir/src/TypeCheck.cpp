@@ -1,4 +1,4 @@
-#include "memoir/analysis/TypeAnalysis.hpp"
+#include "memoir/ir/TypeCheck.hpp"
 
 #include "memoir/utility/Metadata.hpp"
 
