@@ -1,24 +1,16 @@
-#include <iostream>
-#include <string>
-
 // LLVM
 #include "llvm/IR/Function.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
 // MemOIR
+#include "memoir/passes/Passes.hpp"
+
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
 #include "memoir/analysis/LiveRangeAnalysis.hpp"
 
-#include "memoir/support/Assert.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
 
 #include "DeadElementElimination.hpp"
@@ -32,38 +24,19 @@ namespace llvm::memoir {
  * Created: January 4, 2024
  */
 
-struct DeadElementEliminationPass : public ModulePass {
-  static char ID;
+llvm::PreservedAnalyses DeadElementEliminationPass::run(
+    llvm::Module &M,
+    llvm::ModuleAnalysisManager &MAM) {
+  debugln("Running dead element elimination pass");
+  debugln();
 
-  DeadElementEliminationPass() : ModulePass(ID) {}
+  auto &noelle = getAnalysis<arcana::noelle::Noelle>();
 
-  bool doInitialization(llvm::Module &M) override {
-    return false;
-  }
+  LiveRangeAnalysis LRA(M, noelle);
 
-  bool runOnModule(llvm::Module &M) override {
-    debugln("Running dead element elimination pass");
-    debugln();
+  DeadElementElimination DEE(M, LRA);
 
-    auto &noelle = getAnalysis<arcana::noelle::Noelle>();
-
-    LiveRangeAnalysis LRA(M, noelle);
-
-    DeadElementElimination DEE(M, LRA);
-
-    return true;
-  }
-
-  void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
-    AU.addRequired<arcana::noelle::Noelle>();
-    return;
-  }
-};
-
-// Next there is code to register your pass to "opt"
-char DeadElementEliminationPass::ID = 0;
-static llvm::RegisterPass<DeadElementEliminationPass> X(
-    "memoir-dee",
-    "Eliminates dead element updates.");
+  return true;
+}
 
 } // namespace llvm::memoir
