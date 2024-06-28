@@ -9,7 +9,7 @@ namespace memoir::test {
 #define TEST(NAME)                                                             \
   if (memoir::test::tests > 0) {                                               \
     if (memoir::test::test_passing) {                                          \
-      printf("\e[32;1mPASSED!\e[0m\n");                                        \
+      printf("\r                                              \r");            \
       ++memoir::test::passed;                                                  \
     } else {                                                                   \
       ++memoir::test::failed;                                                  \
@@ -32,7 +32,7 @@ static bool test_passing = false;
 
 __attribute__((destructor)) void end() {
   if (memoir::test::test_passing) {
-    printf("\e[32;1mPASSED!\e[0m\n");
+    printf("\r                                              \r");
     ++memoir::test::passed;
   } else {
     ++memoir::test::failed;
@@ -47,7 +47,7 @@ __attribute__((destructor)) void end() {
 __attribute__((optnone)) bool expect(bool test, const char *error) {
   // If the test failed, print the error.
   if (not test) {
-    printf("\e[31;1mFAILED!\e[0m\n  \e[33;1mREASON:\e[0m %s\n", error);
+    printf("\e[31;1mFAILED\e[0m\n  \e[33;1mREASON:\e[0m %s\n", error);
   }
   return test;
 }
