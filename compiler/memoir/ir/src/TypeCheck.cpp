@@ -436,11 +436,11 @@ Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
   // If we have load instruction, trace back to its global variable and find the
   // original store to it.
   auto *load_ptr = I.getPointerOperand();
-  auto *global = dyn_cast<GlobalVariable>(load_ptr);
+  auto *global = dyn_cast<llvm::GlobalVariable>(load_ptr);
   if (!global) {
-    if (auto *load_gep = dyn_cast<GetElementPtrInst>(load_ptr)) {
+    if (auto *load_gep = dyn_cast<llvm::GetElementPtrInst>(load_ptr)) {
       auto *gep_ptr = load_gep->getPointerOperand();
-      global = dyn_cast<GlobalVariable>(gep_ptr);
+      global = dyn_cast<llvm::GlobalVariable>(gep_ptr);
     }
   }
 
@@ -451,7 +451,7 @@ Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
 
   // Find the original store for this global variable.
   for (auto *user : global->users()) {
-    if (auto *store_inst = dyn_cast<StoreInst>(user)) {
+    if (auto *store_inst = dyn_cast<llvm::StoreInst>(user)) {
       auto *store_value = store_inst->getValueOperand();
 
       auto *stored_type = this->analyze(*store_value);
