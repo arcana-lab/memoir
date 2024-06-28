@@ -6,6 +6,29 @@
 
 namespace llvm::memoir {
 
+// Result queries.
+bool LivenessResult::is_live(llvm::Value &V, MemOIRInst &I, bool after) {
+  return this->is_live(V, I.getCallInst(), after);
+}
+
+bool LivenessResult::is_live(llvm::Value &V, llvm::Instruction &I, bool after) {
+  auto &live_set = this->get_live_values(I, after);
+
+  return live_set.find(&V) != live_set.end();
+}
+
+std::set<llvm::Value *> &LivenessResult::get_live_values(MemOIRInst &I,
+                                                         bool after) {
+  return this->get_live_values(I.getCallInst(), after);
+}
+
+std::set<llvm::Value *> &LivenessResult::get_live_values(llvm::Instruction &I,
+                                                         bool after) {
+  MEMOIR_NULL_CHECK(this->DFR, "Data flow result not available!");
+
+  return after ? this->DFR->OUT(&I) : this->DFR->IN(&I);
+}
+
 // Transfer functions.
 void compute_gen(llvm::Instruction *inst,
                  arcana::noelle::DataFlowResult *result) {
@@ -26,8 +49,8 @@ void compute_kill(llvm::Instruction *inst,
   }
 }
 
-void compute_in(std::set<llvm::Value *> &in,
-                llvm::Instruction *inst,
+void compute_in(llvm::Instruction *inst,
+                std::set<llvm::Value *> &in,
                 arcana::noelle::DataFlowResult *result) {
   auto &gen = result->GEN(inst);
   auto &kill = result->KILL(inst);
@@ -43,8 +66,8 @@ void compute_in(std::set<llvm::Value *> &in,
   in.insert(gen.begin(), gen.end());
 }
 
-void compute_out(std::set<llvm::Value *> &out,
-                 llvm::Instruction *successor,
+void compute_out(llvm::Instruction *successor,
+                 std::set<llvm::Value *> &out,
                  arcana::noelle::DataFlowResult *result) {
   if (isa<llvm::PHINode>(successor)
       && successor == &*successor->getParent()->begin()) {
@@ -92,43 +115,21 @@ void compute_out(std::set<llvm::Value *> &out,
 }
 
 // Constructor and analysis invocation.
-LivenessAnalysis::LivenessAnalysis(llvm::Function &F,
-                                   arcana::noelle::DataFlowEngine DFE)
+LivenessDriver::LivenessDriver(llvm::Function &F,
+                               arcana::noelle::DataFlowEngine DFE)
   : F(F),
     DFE(std::move(DFE)) {
   debugln("Start liveness analysis");
-  // this->DFR = this->DFE.applyBackward(&F,
-  //                                     compute_gen,
-  //                                     compute_kill,
-  //                                     compute_in,
-  //                                     compute_out);
-  this->DFR = nullptr; // TODO: update with new NOELLE API.
+
+  // this->result.DFR = this->DFE.applyBackward(&F,
+  //                                            compute_gen,
+  //                                            compute_kill,
+  //                                            compute_in,
+  //                                            compute_out);
+  MEMOIR_UNREACHABLE(
+      "LivenessAnalysis needs to be updated to use new NOELLE DFE.");
+
   debugln("End liveness analysis");
-}
-
-// Analysis queries.
-bool LivenessAnalysis::is_live(llvm::Value &V, MemOIRInst &I, bool after) {
-  return this->is_live(V, I.getCallInst(), after);
-}
-
-bool LivenessAnalysis::is_live(llvm::Value &V,
-                               llvm::Instruction &I,
-                               bool after) {
-  auto &live_set = this->get_live_values(I, after);
-
-  return live_set.find(&V) != live_set.end();
-}
-
-std::set<llvm::Value *> &LivenessAnalysis::get_live_values(MemOIRInst &I,
-                                                           bool after) {
-  return this->get_live_values(I.getCallInst(), after);
-}
-
-std::set<llvm::Value *> &LivenessAnalysis::get_live_values(llvm::Instruction &I,
-                                                           bool after) {
-  MEMOIR_NULL_CHECK(this->DFR, "Data flow result not available!");
-
-  return after ? this->DFR->OUT(&I) : this->DFR->IN(&I);
 }
 
 } // namespace llvm::memoir
