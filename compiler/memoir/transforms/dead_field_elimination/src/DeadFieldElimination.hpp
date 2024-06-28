@@ -57,7 +57,7 @@ protected:
     for (auto *user : V.users()) {
       if (auto *user_as_call = dyn_cast_or_null<llvm::CallBase>(user)) {
         // If the user is a memoir instruction, continue.
-        if (auto *user_as_memoir = MemOIRInst::get(*user_as_call)) {
+        if (auto *user_as_memoir = into<MemOIRInst>(user_as_call)) {
           continue;
         }
 
@@ -83,18 +83,13 @@ protected:
   static inline void analyze_value(llvm::Value &V,
                                    StructToTypeMapTy &structs_of_type,
                                    StructTypeSetTy &escaped_types) {
-    // Check if this value is a struct type.
-    if (!Type::value_is_struct_type(V)) {
-      return;
-    }
-
-    infoln("Found struct: ", V);
-
     // Get the type of this struct.
     auto *type = type_of(V);
     auto *struct_type = dyn_cast_or_null<StructType>(type);
-    MEMOIR_NULL_CHECK(struct_type,
-                      "Could not determine the StructType of a struct value!");
+
+    if (struct_type == nullptr) {
+      return;
+    }
 
     // Check if the struct escapes.
     if (value_escapes(V)) {
@@ -111,6 +106,8 @@ protected:
 
   // Analysis
   LiveFieldMapTy analyze(llvm::Module &M) {
+
+    // A map from struct types considered for dead field elimination.
     LiveFieldMapTy live_fields = {};
 
     // Find all structs.
@@ -142,10 +139,13 @@ protected:
     // For each struct type:
     for (auto const &[struct_type, struct_values] : structs_of_type) {
       auto &index_to_access_map = live_fields[struct_type];
+
       // Inspect the values of its type.
       for (auto *value : struct_values) {
+
         // Get all users of this values.
         for (auto *user : value->users()) {
+
           // Only need to get direct users, we've already gathered each named
           // variable so PHIs will be handled on their own.
           auto *user_as_inst = dyn_cast<llvm::Instruction>(user);
@@ -182,6 +182,17 @@ protected:
       }
     }
 
+    // Remove all struct types that escaped from the map.
+    for (auto it = live_fields.begin(); it != live_fields.end();) {
+      // TODO: if the struct type is in escaped_types, remove it.
+      auto *struct_type = it->first;
+      if (escaped_types.find(struct_type) != escaped_types.end()) {
+        it = live_fields.erase(it);
+      } else {
+        ++it;
+      }
+    }
+
     debugln("Done analyzing");
 
     return live_fields;
@@ -207,7 +218,6 @@ protected:
       vector<llvm::Value *> fields_after_removal; // this is in reverse order.
       fields_after_removal.reserve(num_fields + 2);
       for (int16_t field_idx = num_fields - 1; field_idx >= 0; field_idx--) {
-        // debugln("  inspecting index ", field_idx);
 
         // If the field is alive, we have nothing to do.
         auto found_field = field_index_to_accesses.find(field_idx);
