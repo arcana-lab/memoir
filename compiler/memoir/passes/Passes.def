@@ -18,3 +18,4 @@ PASS(Module, ExamplePass, "memoir-example")
 
 /* ANALYSIS(Function, RangeAnalysis, RangeAnalysisResult) */
 /* ANALYSIS(Module, LiveRangeAnalysis, LiveRangeAnalysisResult) */
+/* ANALYSIS(Function, LivenessAnalysis, LivenessResult) */
