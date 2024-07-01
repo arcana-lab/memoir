@@ -2,7 +2,7 @@
 
 #include "llvm/IR/CFG.h"
 
-#include "memoir/analysis/LivenessAnalysis.hpp"
+#include "memoir/analysis/Liveness.hpp"
 
 namespace llvm::memoir {
 
