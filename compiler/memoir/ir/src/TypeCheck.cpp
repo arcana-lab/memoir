@@ -512,6 +512,41 @@ Type *TypeChecker::visitPHINode(llvm::PHINode &I) {
   return this->find(&phi_type);
 }
 
+Type *TypeChecker::visitLLVMCallInst(llvm::CallInst &I) {
+
+  // Fetch the called function.
+  auto *called_function = I.getCalledFunction();
+  if (called_function == nullptr) {
+    // TODO: this can be made less conservative.
+    return nullptr;
+  }
+
+  // If the returned type is not a ptr, return NULL.
+  if (not isa<llvm::PointerType>(called_function->getReturnType())) {
+    return nullptr;
+  }
+
+  // Check if there is a ReturnTypeInst in the entry basic block.
+  for (auto &I : called_function->getEntryBlock()) {
+    if (auto return_type_inst = into<ReturnTypeInst>(&I)) {
+      return this->analyze(return_type_inst->getTypeOperand());
+    }
+  }
+
+  // Otherwise, try to type the returned values.
+  for (auto &BB : *called_function) {
+    auto *terminator = BB.getTerminator();
+    if (auto *return_inst = dyn_cast_or_null<llvm::ReturnInst>(terminator)) {
+      auto *return_value = return_inst->getReturnValue();
+
+      return this->analyze(*return_value);
+    }
+  }
+
+  // If we've gotten this far and haven't found anythin, return NULL.
+  return nullptr;
+}
+
 // Union-find
 TypeVariable &TypeChecker::new_type_variable() {
   auto *typevar = new TypeVariable(this->current_id++);
