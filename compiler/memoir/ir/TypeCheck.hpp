@@ -114,6 +114,7 @@ protected:
   Type *visitLoadInst(llvm::LoadInst &I);
   Type *visitPHINode(llvm::PHINode &I);
   Type *visitExtractValueInst(llvm::ExtractValueInst &I);
+  Type *visitLLVMCallInst(llvm::CallInst &I);
   //// Type instructions
   Type *visitUInt64TypeInst(UInt64TypeInst &I);
   Type *visitUInt32TypeInst(UInt32TypeInst &I);
