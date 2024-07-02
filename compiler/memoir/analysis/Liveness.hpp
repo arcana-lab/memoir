@@ -46,7 +46,7 @@ public:
    *
    * @returns a reference to the set of live values
    */
-  std::set<llvm::Value *> &get_live_values(MemOIRInst &I, bool after = true);
+  set<llvm::Value *> live_values(MemOIRInst &I, bool after = true);
 
   /**
    * Get the set of live values at a given LLVM instruction.
@@ -57,8 +57,17 @@ public:
    *
    * @returns a reference to the set of live values
    */
-  std::set<llvm::Value *> &get_live_values(llvm::Instruction &I,
-                                           bool after = true);
+  set<llvm::Value *> live_values(llvm::Instruction &I, bool after = true);
+
+  /**
+   * Get the set of live values along a control edge between two basic blocks.
+   *
+   * @param From the LLVM basic block that is the source of the edge
+   * @param To the LLVM basic block that is the desination of the edge
+   *
+   * @returns the set of live values
+   */
+  set<llvm::Value *> live_values(llvm::BasicBlock &From, llvm::BasicBlock &To);
 
   /**
    * Get the underlying NOELLE data flow result.
