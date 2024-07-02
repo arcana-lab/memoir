@@ -1,8 +1,8 @@
 ![memoir logo](memoir_logo.png)
-A case for memory object representation in the LLVM IR
+A case for representing data collections and objects in an SSA form.
 
 ## Dependencies
-The compiler depends on LLVM 9.0.0.
+The compiler depends on LLVM 18, it has been tested for LLVM 18.1.6
 All other dependencies are installed automatically during the build process.
 
 ## Building
@@ -10,7 +10,7 @@ To build our noelle instance and the MEMOIR passes:
 `make`
 
 To build the unit tests:
-`cd tests/unit ; make`
+`make test`
 
 To clean the build:
 `make clean`
