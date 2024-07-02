@@ -1,5 +1,5 @@
 ifndef TESTS
-TESTS := $(filter-out dee_sequence_copy dee_sequence_insert dee_sequence_readwrite,$(patsubst %/, %, $(sort $(wildcard */))))
+TESTS := $(filter-out dead_element_elimination,$(patsubst %/, %, $(sort $(wildcard */))))
 endif
 
 TEST_MAKEFILES=$(patsubst %,%/Makefile,$(TESTS))
