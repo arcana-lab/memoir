@@ -143,6 +143,7 @@ protected:
   Type *visitSequenceAllocInst(SequenceAllocInst &I);
   //// Access instructions
   Type *visitReadInst(ReadInst &I);
+  Type *visitStructReadInst(StructReadInst &I);
   Type *visitGetInst(GetInst &I);
   Type *visitStructGetInst(StructGetInst &I);
   Type *visitWriteInst(WriteInst &I);

@@ -319,8 +319,32 @@ Type *TypeChecker::visitSequenceAllocInst(SequenceAllocInst &I) {
 
 // Reference Read Instructions.
 Type *TypeChecker::visitReadInst(ReadInst &I) {
-  // The result has no memoir type, it's an LLVM value.
+  // Get the collection type being accessed.
+  auto *object_type = this->analyze(I.getObjectOperand());
+  auto &collection_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(object_type),
+                      "ReadInst is accessing non-collection type!");
+
+  // Return the element type, if it is a reference type.
+  auto &element_type = collection_type.getElementType();
+
+  // If the element type is a ReferenceType, unpack and return it.
+  if (auto *ref_type = dyn_cast<ReferenceType>(&element_type)) {
+    return &ref_type->getReferencedType();
+  }
+
+  // Otherwise, return NULL, as its an LLVM type.
   return nullptr;
+}
+
+Type *TypeChecker::visitStructReadInst(StructReadInst &I) {
+  // Get the field array type for this struct.
+  auto &field_array_type = I.getCollectionType();
+
+  // Return the element type.
+  auto &field_type = field_array_type.getElementType();
+
+  return &field_type;
 }
 
 // Nested Access Instructions.
@@ -436,16 +460,11 @@ Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
   // If we have load instruction, trace back to its global variable and find the
   // original store to it.
   auto *load_ptr = I.getPointerOperand();
-  auto *global = dyn_cast<llvm::GlobalVariable>(load_ptr);
-  if (!global) {
-    if (auto *load_gep = dyn_cast<llvm::GetElementPtrInst>(load_ptr)) {
-      auto *gep_ptr = load_gep->getPointerOperand();
-      global = dyn_cast<llvm::GlobalVariable>(gep_ptr);
-    }
-  }
+  auto *global = dyn_cast<llvm::GlobalVariable>(load_ptr->stripPointerCasts());
 
-  // If we still cannot find the GlobalVariable, return NULL.
+  // If the load is not from a GlobalVariable, return NULL.
   if (!global) {
+    println("Not a global: ", *load_ptr);
     return nullptr;
   }
 
