@@ -1,44 +1,51 @@
 #include <iostream>
 
 #include "cmemoir/cmemoir.h"
+#include "cmemoir/test.hpp"
 
 using namespace memoir;
 
-// Second argument is dead.
-auto objTy =
-    memoir_define_struct_type("Foo", memoir_u64_t, memoir_u64_t, memoir_u64_t);
-
-// type escapes, should not be freed.
-auto escaped_type =
-    memoir_define_struct_type("Esc", memoir_u64_t, memoir_u64_t, memoir_u64_t);
-
 int main() {
-  auto myObj = memoir_allocate_struct(objTy);
 
-  memoir_struct_write(u64, 123, myObj, 0);
-  memoir_struct_write(u64, 789, myObj, 2);
+  TEST(dead_field) {
+    // Second argument is dead.
+    auto myObj =
+        memoir_allocate_struct(memoir_define_struct_type("DeadField",
+                                                         memoir_u64_t,
+                                                         memoir_u64_t,
+                                                         memoir_u64_t));
 
-  auto read1 = memoir_struct_read(u64, myObj, 0);
-  auto read3 = memoir_struct_read(u64, myObj, 2);
+    memoir_struct_write(u64, 123, myObj, 0);
+    memoir_struct_write(u64, 789, myObj, 2);
 
-  printf(".1= %lu\n", read1);
-  printf(".3= %lu\n\n", read3);
+    auto read1 = memoir_struct_read(u64, myObj, 0);
+    auto read3 = memoir_struct_read(u64, myObj, 2);
 
-  memoir_struct_write(u64, read1 + read3, myObj, 0);
-  memoir_struct_write(u64, read3 - read1, myObj, 2);
+    memoir_struct_write(u64, read1 + read3, myObj, 0);
+    memoir_struct_write(u64, read3 - read1, myObj, 2);
 
-  read1 = memoir_struct_read(u64, myObj, 0);
-  read3 = memoir_struct_read(u64, myObj, 2);
+    read1 = memoir_struct_read(u64, myObj, 0);
+    read3 = memoir_struct_read(u64, myObj, 2);
 
-  printf(".1= %lu\n", read1);
-  printf(".3= %lu\n\n", read3);
+    EXPECT(read1 == 912, ".0 differs!");
+    EXPECT(read3 == 666, ".2 differs!");
+  }
 
-  auto escapee = memoir_allocate_struct(escaped_type);
-  memoir_struct_write(u64, 123, escapee, 1);
-  memoir_struct_write(u64, 123, escapee, 2);
+  TEST(type_escaped) {
 
-  // Uncomment the following line to test the escape analysis.
-  printf("%p\n", escapee);
+    // type escapes, should not be eliminated.
+    auto escapee =
+        memoir_allocate_struct(memoir_define_struct_type("Escapes",
+                                                         memoir_u64_t,
+                                                         memoir_u64_t,
+                                                         memoir_u64_t));
+    memoir_struct_write(u64, 123, escapee, 1);
+    memoir_struct_write(u64, 123, escapee, 2);
+
+    // The following line to test the escape analysis.
+    fprintf(stderr, "%p", escapee);
+    fprintf(stderr, "\r                               \r");
+  }
 
   return 0;
 }
