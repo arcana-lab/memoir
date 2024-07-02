@@ -494,7 +494,6 @@ Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
 
   // If the load is not from a GlobalVariable, return NULL.
   if (!global) {
-    println("Not a global: ", *load_ptr);
     return nullptr;
   }
 
@@ -504,10 +503,10 @@ Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
       auto *store_value = store_inst->getValueOperand();
 
       auto *stored_type = this->analyze(*store_value);
-      MEMOIR_NULL_CHECK(stored_type,
-                        "Could not determine the type being loaded");
 
-      return stored_type;
+      if (stored_type != nullptr) {
+        return stored_type;
+      }
     }
   }
 
