@@ -27,8 +27,8 @@ OPT=memoir-opt
 LOWER=memoir-lower
 
 LIBS=-lm -lstdc++ $(EXTRA_LIBS)
-CFLAGS=-I$(INCLUDE_DIR) -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(EXTRA_CFLAGS) $(LIBS)
-CXXFLAGS=-I$(INCLUDE_DIR) -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(EXTRA_CXXFLAGS) $(LIBS)
+CFLAGS=-I$(INCLUDE_DIR) -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(EXTRA_CFLAGS) $(LIBS) -Wno-unused-command-line-argument
+CXXFLAGS=-I$(INCLUDE_DIR) -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(EXTRA_CXXFLAGS) $(LIBS) -Wno-unused-command-line-argument
 
 IR_FILE_INPUT=$(BUILD_DIR)/input.bc
 IR_FILE_SSA=$(BUILD_DIR)/ssa.bc
@@ -52,40 +52,40 @@ setup: $(BUILD_DIR)
 compile: $(BUILD_DIR) $(BINARY)
 
 test: compile
-	$(BINARY) 2>&1 | tee $(BUILD_DIR)/test.out
+	@$(BINARY) 2>&1 | tee $(BUILD_DIR)/test.out
 
 optimize: $(IR_FILE_LOWERED)
-	cp $< $(IR_FILE)
+	@cp $< $(IR_FILE)
 
 baseline: $(IR_FILE_INPUT)
-	$(LL) $< $(IR_FILE_RUNTIME) -o $(IR_FILE)
+	@$(LL) $< $(IR_FILE_RUNTIME) -o $(IR_FILE)
 
 $(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
+	@mkdir -p $(BUILD_DIR)
 
 $(C_BITCODES): $(BUILD_DIR)/%.bc : %.c
-	$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
+	@$(CC) $(CFLAGS) -emit-llvm -c $< -o $@
 
 $(CXX_BITCODES): $(BUILD_DIR)/%.bc : %.cpp
-	$(CXX) $(CXXFLAGS) -emit-llvm -c $< -o $@
+	@$(CXX) $(CXXFLAGS) -emit-llvm -c $< -o $@
 
 $(IR_FILE_INPUT): $(C_BITCODES) $(CXX_BITCODES)
-	$(LL) $^ -o $@
+	@$(LL) $^ -o $@
 
 $(IR_FILE_SSA): $(IR_FILE_INPUT)
-	memoir-norm $< -o $@
+	@memoir-norm $< -o $@
 
 $(IR_FILE_OPT): $(IR_FILE_SSA)
-	memoir-load $(OPTFLAGS) $< -o $@
+	@memoir-load $(OPTFLAGS) $< -o $@
 
 $(IR_FILE_LOWERED): $(IR_FILE_OPT)
-	$(LOWER) $< -o $@
+	@$(LOWER) $< -o $@
 
 $(OBJ_FILE): $(IR_FILE)
-	llc -filetype=obj $< -o $@
+	@llc -filetype=obj $< -o $@
 
 $(BINARY): $(OBJ_FILE)
-	$(CC) -no-pie $< -o $@
+	@$(CC) -no-pie $< -o $@
 
 .PHONY: all noopt setup compile test optimize baseline clean
 
