@@ -22,6 +22,69 @@ using namespace memoir;
 
 auto type = memoir_define_struct_type("Foo", memoir_u32_t, memoir_u32_t);
 
+collection_ref qsort(collection_ref seq, size_t start, size_t end) {
+  memoir_assert_collection_type(memoir_sequence_type(memoir_u32_t), seq);
+  memoir_return_type(memoir_sequence_type(memoir_u32_t));
+
+  size_t n = end - start;
+
+  // Perform quicksort
+  if (end <= start || n <= 1) {
+    return seq;
+  }
+
+  // Perform insertion sort for n < 3
+  if (n == 2) {
+    if (memoir_index_read(u32, seq, start)
+        > memoir_index_read(u32, seq, end - 1)) {
+      memoir_seq_swap_within(seq, start, end - 1);
+    }
+    return seq;
+  }
+
+  // Select pivot
+  auto p = n / 2 + start;
+
+  // Move pivot.
+  memoir_seq_swap_within(seq, start, p);
+
+  // Get the pivot value.
+  auto pv = memoir_index_read(u32, seq, start);
+
+  // Construct partitions.
+  auto l = start;
+  auto r = end;
+  while (true) {
+    while (true) {
+      r--;
+      if (memoir_index_read(u32, seq, r) < pv || r <= l) {
+        break;
+      }
+    }
+    while (true) {
+      l++;
+      if (memoir_index_read(u32, seq, l) > pv || l >= r) {
+        break;
+      }
+    }
+    if (l < r) {
+      memoir_seq_swap_within(seq, l, r);
+    } else {
+      break;
+    }
+  }
+
+  // Move the pivot back into place.
+  p = r;
+  memoir_seq_swap_within(seq, start, p);
+
+  // Recurse.
+  seq = qsort(seq, start, r);
+  seq = qsort(seq, r + 1, end);
+
+  return seq;
+}
+
 int main(int argc, char *argv[]) {
   TEST(read_and_write) {
     auto seq = memoir_allocate_sequence(memoir_u64_t, 3);
@@ -218,5 +281,33 @@ int main(int argc, char *argv[]) {
     obj2 = memoir_index_get(struct, seq, 2);
     EXPECT(memoir_struct_read(u32, obj2, 0) == VAL2_0, "[2].0 differs");
     EXPECT(memoir_struct_read(u32, obj2, 1) == VAL2_1, "[2].1 differs");
+  }
+
+  TEST(qsort) {
+    auto seq = memoir_allocate_sequence(memoir_u32_t, 100);
+
+    for (uint32_t i = 0; i < 100; ++i) {
+      memoir_index_write(u32, i, seq, 100 - i);
+    }
+
+    seq = qsort(seq, 0, 100);
+
+    for (uint32_t i = 0; i < 100; ++i) {
+      EXPECT(memoir_index_read(u32, seq, i) == i, "Unsorted!");
+    }
+  }
+
+  TEST(partial_qsort) {
+    auto seq = memoir_allocate_sequence(memoir_u32_t, 100);
+
+    for (uint32_t i = 0; i < 100; ++i) {
+      memoir_index_write(u32, i, seq, 100 - i);
+    }
+
+    seq = qsort(seq, 0, 100);
+
+    for (uint32_t i = 0; i < 10; ++i) {
+      EXPECT(memoir_index_read(u32, seq, i) == i, "Unsorted!");
+    }
   }
 }
