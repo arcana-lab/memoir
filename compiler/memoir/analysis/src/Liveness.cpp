@@ -12,21 +12,66 @@ bool LivenessResult::is_live(llvm::Value &V, MemOIRInst &I, bool after) {
 }
 
 bool LivenessResult::is_live(llvm::Value &V, llvm::Instruction &I, bool after) {
-  auto &live_set = this->get_live_values(I, after);
+  auto &live_set = after ? this->DFR->OUT(&I) : this->DFR->IN(&I);
 
   return live_set.find(&V) != live_set.end();
 }
 
-std::set<llvm::Value *> &LivenessResult::get_live_values(MemOIRInst &I,
-                                                         bool after) {
-  return this->get_live_values(I.getCallInst(), after);
+set<llvm::Value *> LivenessResult::live_values(MemOIRInst &I, bool after) {
+  return this->live_values(I.getCallInst(), after);
 }
 
-std::set<llvm::Value *> &LivenessResult::get_live_values(llvm::Instruction &I,
-                                                         bool after) {
-  MEMOIR_NULL_CHECK(this->DFR, "Data flow result not available!");
+set<llvm::Value *> LivenessResult::live_values(llvm::Instruction &I,
+                                               bool after) {
+  set<llvm::Value *> result;
 
-  return after ? this->DFR->OUT(&I) : this->DFR->IN(&I);
+  auto &live_set = after ? this->DFR->OUT(&I) : this->DFR->IN(&I);
+
+  result.insert(live_set.begin(), live_set.end());
+
+  return result
+}
+
+set<llvm::Value *> LivenessResult::live_values(llvm::BasicBlock &From,
+                                               llvm::BasicBlock &To) {
+  set<llvm::Value *> result;
+
+  // The resulting live set is
+  //     (IN[To.FirstNonPHI] \ PhiDefs[To])
+  //   U PhiUses[To | incoming=From]
+  //   U { v in OUT[From] | v in PhiDefs[To] }
+  //
+  // This means that, for a variable to be in the live set between From and To:
+  //     it must be alive at the beginning of non-PHIs, and not one of the PHIs
+  //     defined in this function.
+  // OR, it must be used by a PHI, where the incoming block is From.
+
+  // Insert IN[To.FirstNonPHI]
+  auto &nonphi_set = this->DFR->IN(To.getFirstNonPHI());
+  result.insert(nonphi_set.begin(), nonphi_set.end());
+
+  // Remove PhiDefs[To]
+  for (auto *phi = To.phis()) {
+    result.remove(phi);
+  }
+
+  // Insert PhiUses[To | incoming=From]
+  for (auto *phi : To.phis()) {
+    auto *incoming = phi->getIncomingValueForBlock(&From);
+    result.insert(incoming);
+  }
+
+  // Insert { v in OUT[From] | v in PhiDefs[To] }
+  auto &from_out_set = this->DFR->OUT(From.getTerminator());
+  for (auto *phi : To.phis()) {
+    // If phi is in OUT[From], insert it into the result.
+    if (from_out_set.count(phi) != 0) {
+      result.insert(phi);
+    }
+  }
+
+  // Return the result.
+  return result
 }
 
 // Transfer functions.
