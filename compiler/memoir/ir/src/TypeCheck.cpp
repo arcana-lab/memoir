@@ -338,13 +338,28 @@ Type *TypeChecker::visitReadInst(ReadInst &I) {
 }
 
 Type *TypeChecker::visitStructReadInst(StructReadInst &I) {
-  // Get the field array type for this struct.
-  auto &field_array_type = I.getCollectionType();
+  // Get the struct type.
+  auto *object_type = this->analyze(I.getObjectOperand());
+  auto &struct_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<StructType>(object_type),
+                      "StructReadInst is accessing a non-collection type!");
 
-  // Return the element type.
-  auto &field_type = field_array_type.getElementType();
+  // Fetch the field information for the access.
+  auto field_index = I.getFieldIndex();
 
-  return &field_type;
+  // Fetch the field type.
+  auto &field_type = struct_type.getFieldType(field_index);
+
+  // If the element type is a ReferenceType or a StructType, return it.
+  if (isa<StructType>(&field_type)) {
+    return &field_type;
+  } else if (auto *ref_type = dyn_cast<ReferenceType>(&field_type)) {
+    auto &referenced_type = ref_type->getReferencedType();
+    return &referenced_type;
+  }
+
+  // Otherwise, it is an LLVM type, return NULL.
+  return nullptr;
 }
 
 // Nested Access Instructions.
@@ -361,13 +376,28 @@ Type *TypeChecker::visitGetInst(GetInst &I) {
 }
 
 Type *TypeChecker::visitStructGetInst(StructGetInst &I) {
-  // Get the field array type for this struct.
-  auto &field_array_type = I.getCollectionType();
+  // Get the struct type.
+  auto *object_type = this->analyze(I.getObjectOperand());
+  auto &struct_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<StructType>(object_type),
+                      "StructGetInst is accessing a non-collection type!");
 
-  // Return the element type.
-  auto &field_type = field_array_type.getElementType();
+  // Fetch the field information for the access.
+  auto field_index = I.getFieldIndex();
 
-  return &field_type;
+  // Fetch the field type.
+  auto &field_type = struct_type.getFieldType(field_index);
+
+  // If the element type is a ReferenceType or a StructType, return it.
+  if (isa<StructType>(&field_type)) {
+    return &field_type;
+  } else if (auto *ref_type = dyn_cast<ReferenceType>(&field_type)) {
+    auto &referenced_type = ref_type->getReferencedType();
+    return &referenced_type;
+  }
+
+  // Otherwise, it is an LLVM type, return NULL.
+  return nullptr;
 }
 
 // Write access instructions.
