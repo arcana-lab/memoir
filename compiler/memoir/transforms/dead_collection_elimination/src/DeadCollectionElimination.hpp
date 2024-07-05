@@ -122,17 +122,6 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitViewInst(ViewInst &I) {
-    set<llvm::Value *> dead_values = {};
-
-    auto &llvm_inst = I.getCallInst();
-    if (llvm_inst.hasNUses(0)) {
-      dead_values.insert(&llvm_inst);
-    }
-
-    return dead_values;
-  }
-
   set<llvm::Value *> visitDefineStructTypeInst(DefineStructTypeInst &I) {
     return {};
   }
