@@ -22,7 +22,7 @@ extern "C" {
 
 #define __RUNTIME_ATTR                                                         \
   __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))       \
-      __attribute__((optnone)) __attribute__((used))
+  __attribute__((optnone)) __attribute__((used))
 #define __ALLOC_ATTR __declspec(allocator)
 #define __IMMUT_ATTR __attribute__((pure))
 
@@ -214,13 +214,6 @@ __RUNTIME_ATTR
 collection_ref MUT_FUNC(sequence_split)(collection_ref collection,
                                         size_t i,
                                         size_t j);
-
-// Lowering operations.
-// Possibly deprecated, don't add any more uses of this.
-__RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(sequence_view)(collection_ref collection,
-                                          size_t i,
-                                          size_t j);
 
 // SSA Assoc operations.
 __IMMUT_ATTR

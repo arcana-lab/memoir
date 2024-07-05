@@ -68,23 +68,6 @@ collection_ref MEMOIR_FUNC(allocate_sequence)(const type_ref element_type,
   return (collection_ref)sequence;
 }
 
-// DEPRECATED
-__RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(sequence_view)(
-    const collection_ref collection_to_view,
-    size_t begin,
-    size_t end) {
-  MEMOIR_ASSERT((collection_to_view != nullptr), "Attempt to view NULL object");
-  if (auto *seq = dynamic_cast<detail::SequenceAlloc *>(
-          (detail::Collection *)collection_to_view)) {
-    return (collection_ref) new detail::SequenceView(seq, begin, end);
-  } else if (auto *seq_view = dynamic_cast<detail::SequenceView *>(
-                 (detail::Collection *)collection_to_view)) {
-    return (collection_ref) new detail::SequenceView(seq_view, begin, end);
-  }
-  MEMOIR_UNREACHABLE("Attempt to view a non-viewable object");
-}
-
 } // extern "C"
 
 } // namespace memoir
