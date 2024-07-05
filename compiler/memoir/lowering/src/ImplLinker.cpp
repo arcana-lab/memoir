@@ -52,6 +52,10 @@ static std::string memoir_to_c_type(Type &T) {
   if (auto *integer_type = dyn_cast<IntegerType>(&T)) {
     std::stringstream ss;
 
+    if (integer_type->getBitWidth() == 1) {
+      return "bool";
+    }
+
     if (!integer_type->isSigned()) {
       ss << "u";
     };
