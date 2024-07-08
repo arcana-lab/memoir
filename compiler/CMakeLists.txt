@@ -18,7 +18,7 @@ include(ExternalProject)
 ExternalProject_Add(
     noelle
     GIT_REPOSITORY  "https://github.com/arcana-lab/noelle.git"
-    GIT_TAG         v18-fix
+    GIT_TAG         v18
     BUILD_COMMAND   ${CMAKE_COMMAND} --build . -j16
     INSTALL_COMMAND ${CMAKE_COMMAND} --install .
     CMAKE_ARGS
