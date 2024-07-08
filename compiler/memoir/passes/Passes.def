@@ -1,4 +1,9 @@
+// ===
 // PASS(<scope>, <class>, <name>, <args>...)
+
+#ifndef PASS
+#  define PASS(SCOPE, CLASS, NAME)
+#endif
 
 PASS(Module, SSAConstructionPass, "memoir-ssa-construction")
 PASS(Module, SSADestructionPass, "memoir-ssa-destruction")
@@ -11,11 +16,34 @@ PASS(Module, DeadCollectionEliminationPass, "memoir-dce")
 PASS(Module, DeadFieldEliminationPass, "memoir-dfe")
 PASS(Module, FieldElisionPass, "memoir-fe")
 PASS(Module, KeyFoldingPass, "memoir-kf")
+PASS(Module, DeadElementEliminationPass, "memoir-dee")
 
 PASS(Module, ExamplePass, "memoir-example")
 
+// ===
 // ANALYSIS(<scope>, <class>, <result>, <args>...)
 
-/* ANALYSIS(Function, RangeAnalysis, RangeAnalysisResult) */
-/* ANALYSIS(Module, LiveRangeAnalysis, LiveRangeAnalysisResult) */
-/* ANALYSIS(Function, LivenessAnalysis, LivenessResult) */
+#ifndef ANALYSIS
+#  define ANALYSIS(SCOPE, CLASS, RESULT)
+#endif
+
+#ifndef MODULE_ANALYSIS
+#  define MODULE_ANALYSIS(CLASS, RESULT) ANALYSIS(Module, CLASS, RESULT)
+#endif
+#define MODULE_ANALYSIS_(CLASS, RESULT) MODULE_ANALYSIS(CLASS, RESULT)
+
+MODULE_ANALYSIS_(RangeAnalysis, RangeAnalysisResult)
+MODULE_ANALYSIS_(LiveRangeAnalysis, LiveRangeAnalysisResult)
+
+#ifndef FUNCTION_ANALYSIS
+#  define FUNCTION_ANALYSIS(CLASS, RESULT) ANALYSIS(Function, CLASS, RESULT)
+#endif
+#define FUNCTION_ANALYSIS_(CLASS, RESULT) FUNCTION_ANALYSIS(CLASS, RESULT)
+
+FUNCTION_ANALYSIS_(LivenessAnalysis, LivenessResult)
+
+// ===
+#undef PASS
+#undef ANALYSIS
+#undef MODULE_ANALYSIS
+#undef FUNCTION_ANALYSIS
