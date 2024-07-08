@@ -30,13 +30,11 @@ llvm::PreservedAnalyses DeadElementEliminationPass::run(
   debugln("Running dead element elimination pass");
   debugln();
 
-  auto &noelle = getAnalysis<arcana::noelle::Noelle>();
+  auto &LRAR = MAM.getResult<LiveRangeAnalysis>(M);
 
-  LiveRangeAnalysis LRA(M, noelle);
+  DeadElementElimination DEE(M, LRAR);
 
-  DeadElementElimination DEE(M, LRA);
-
-  return true;
+  return llvm::PreservedAnalyses::none();
 }
 
 } // namespace llvm::memoir
