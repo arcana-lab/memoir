@@ -44,9 +44,9 @@ public:
    * Performs Dead Element Elimination on the input program @M.
    * Requires the results of Live Range Analysis @LRA.
    */
-  DeadElementElimination(llvm::Module &M, LiveRangeAnalysis &LRA)
+  DeadElementElimination(llvm::Module &M, LiveRangeAnalysisResult &LRAR)
     : M(M),
-      LRA(LRA) {
+      LRAR(LRAR) {
     // Run dead element elimination.
     this->_transformed = this->run();
   }
@@ -61,18 +61,23 @@ public:
 protected:
   // Top-level driver.
   bool run() {
-    // Acquire the results of the live range analyses.
-    const auto &live_ranges = this->LRA.results();
+    // Fetch the live range analysis results.
+    const auto &live_ranges = LRAR.live_ranges();
 
     // For each live range result:
-    for (auto const [collection, context_to_live_range] : live_ranges) {
-      for (auto const [context, live_range] : context_to_live_range) {
+    for (auto const &[collection, context_to_live_range] : live_ranges) {
+      for (auto const &[context, live_range] : context_to_live_range) {
 
         // If the context is defined, create a version of it unless it already
         // exists.
         if (context != nullptr) {
           MEMOIR_UNREACHABLE(
               "Context-sensitive dead-element elimination is unimplemented!");
+        }
+
+        // If the live range is undefined, skip it.
+        if (live_range == nullptr) {
+          continue;
         }
 
         // Get the definition instruction, if it exists.
@@ -245,7 +250,7 @@ protected:
 
   // Borrowed state.
   llvm::Module &M;
-  LiveRangeAnalysis &LRA;
+  LiveRangeAnalysisResult &LRAR;
 };
 
 } // namespace llvm::memoir
