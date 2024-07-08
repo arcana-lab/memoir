@@ -1,4 +1,3 @@
-
 # Install scripts.
 add_subdirectory(scripts)
 
@@ -23,7 +22,7 @@ ExternalProject_Add(
     BUILD_COMMAND   ${CMAKE_COMMAND} --build . -j16
     INSTALL_COMMAND ${CMAKE_COMMAND} --install .
     CMAKE_ARGS
-        -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}/noelle
+        -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
         -DNOELLE_SVF=OFF
         -DNOELLE_SCAF=OFF
 )
@@ -36,8 +35,9 @@ include_directories(
   ${LLVM_INCLUDE_DIRS}
   # memoir dependencies
   ${CMAKE_CURRENT_SOURCE_DIR}
-  # External dependencies (NOELLE)
   ${CMAKE_INSTALL_INCLUDEDIR}
+  # External dependencies (NOELLE)
+  ${CMAKE_INSTALL_INCLUDEDIR}/arcana
   )
 
 link_libraries(${Z3_LIBRARIES})
