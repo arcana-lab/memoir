@@ -350,60 +350,20 @@ bool Type::is_collection_type(Type &type) {
   }
 }
 
-bool Type::llvm_type_is_collection_type(llvm::Type &type) {
-  if (not isa<llvm::PointerType>(&type)) {
-    return false;
-  }
-
-  // TODO: this needs to be fixed!
-  return true;
-}
-
-bool Type::llvm_type_is_struct_type(llvm::Type &type) {
-  if (not isa<llvm::PointerType>(&type)) {
-    return false;
-  }
-
-  // TODO: this needs to be fixed!
-  return true;
-}
-
-// TODO: this needs to be overhauled.
-bool Type::llvm_type_is_type(llvm::Type &type) {
-  if (not dyn_cast<llvm::PointerType>(&type)) {
-    return false;
-  }
-
-  // TODO: this needs to be fixed!
-  return true;
-}
-
-// TODO: this needs to be overhauled.
 bool Type::value_is_collection_type(llvm::Value &value) {
-  if (!isa<llvm::Instruction>(&value) && !isa<llvm::Argument>(&value)) {
+  if (not isa<llvm::Instruction>(&value) && not isa<llvm::Argument>(&value)) {
     return false;
   }
-  auto *type = value.getType();
-  if (!type) {
-    return false;
-  }
-  return llvm_type_is_collection_type(*type);
+
+  return isa_and_nonnull<CollectionType>(type_of(value));
 }
 
 bool Type::value_is_struct_type(llvm::Value &value) {
-  auto *type = value.getType();
-  if (!type) {
+  if (not isa<llvm::Instruction>(&value) && not isa<llvm::Argument>(&value)) {
     return false;
   }
-  return llvm_type_is_struct_type(*type);
-}
 
-bool Type::value_is_type(llvm::Value &value) {
-  auto *type = value.getType();
-  if (!type) {
-    return false;
-  }
-  return llvm_type_is_type(*type);
+  return isa_and_nonnull<StructType>(type_of(value));
 }
 
 /*
