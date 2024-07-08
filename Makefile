@@ -31,16 +31,6 @@ test:
 documentation: all
 	make -C $(BUILD_DIR)/docs documentation -j32 
 
-noelle: .noelle
-
-.noelle: $(NOELLE_DIR)
-	NOELLE_INSTALL_DIR=$(MEMOIR_INSTALL_DIR) NOELLE_SCAF=OFF NOELLE_SVF=OFF NOELLE_AUTOTUNER=OFF make -C $<
-	touch $@
-
-$(NOELLE_DIR):
-	mkdir -p $@
-	git clone --depth 1 --branch v9.14.0 git@github.com:arcana-lab/noelle.git $@
-
 hooks:
 	make -C $(HOOKS_DIR) all
 
