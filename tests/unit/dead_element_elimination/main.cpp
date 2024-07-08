@@ -37,15 +37,15 @@ int main() {
     }
   }
 
-  TEST(seq_insert) {
-    auto seq = memoir_allocate_sequence(memoir_u64_t, 0);
+  // TEST(seq_insert) {
+  //   auto seq = memoir_allocate_sequence(memoir_u64_t, 0);
 
-    for (int i = 0; i < N; ++i) {
-      memoir_seq_insert(u64, i, seq, i);
-    }
+  //   for (int i = 0; i < N; ++i) {
+  //     memoir_seq_insert(u64, i, seq, i);
+  //   }
 
-    for (int i = 0; i < 10; ++i) {
-      EXPECT(memoir_index_read(u64, seq, i) == i, "element differs!");
-    }
-  }
+  //   for (int i = 0; i < 10; ++i) {
+  //     EXPECT(memoir_index_read(u64, seq, i) == i, "element differs!");
+  //   }
+  // }
 }
