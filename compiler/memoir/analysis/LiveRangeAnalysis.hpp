@@ -40,10 +40,21 @@ public:
    */
   ValueRange *get_live_range(llvm::Value &V, llvm::CallBase &C) const;
 
-protected:
-  ValueRange *lookup_live_range(llvm::Value &V, llvm::CallBase &C) const;
+  /**
+   * Get the live ranges analysed in the module.
+   *
+   * @returns a nested mapping from LLVM Values and their CallBase context (or
+   * NULL) to their ValueRange.
+   */
+  const map<llvm::Value *, map<llvm::CallBase *, ValueRange *>> &live_ranges()
+      const;
 
-  map<llvm::Value *, map<llvm::CallBase *, ValueRange *>> live_ranges;
+  friend class LiveRangeAnalysisDriver;
+
+protected:
+  ValueRange *lookup_live_range(llvm::Value &V, llvm::CallBase *C) const;
+
+  map<llvm::Value *, map<llvm::CallBase *, ValueRange *>> _live_ranges;
 };
 
 struct LiveRangeConstraintGraph;
@@ -64,12 +75,12 @@ public:
    * sensitive or not.
    */
   LiveRangeAnalysisDriver(llvm::Module &M,
-                          llvm::ModuleAnalysisManager &MAM,
+                          RangeAnalysisResult &RA,
                           arcana::noelle::Noelle &noelle,
                           LiveRangeAnalysisResult &result,
                           bool context_sensitive = false)
     : M(M),
-      MAM(MAM),
+      RA(RA),
       noelle(noelle),
       result(result),
       context_sensitive(context_sensitive) {
@@ -101,18 +112,15 @@ protected:
   // Query helpers.
   ValueRange *lookup_live_range(llvm::Value &V, llvm::CallBase *C) const;
 
-  // Owned state.
-  map<llvm::Function *, RangeAnalysisResult *> intraprocedural_range_analyses;
-
   // Borrowed state.
   llvm::Module &M;
-  llvm::ModuleAnalysisManager &MAM;
-  LiveRangeAnalysisDriverResult &result;
+  RangeAnalysisResult &RA;
   arcana::noelle::Noelle &noelle;
+  LiveRangeAnalysisResult &result;
   bool context_sensitive;
 
 public:
-  ~LiveRangeAnalysisDriver();
+  ~LiveRangeAnalysisDriver() {}
 };
 
 using Constraint = std::function<ValueRange *(ValueRange *)>;
@@ -126,28 +134,12 @@ public:
                              Constraint constraint);
 
   // Construction.
-  void add_uses_to_graph(RangeAnalysis &RA, llvm::Instruction &I);
+  void add_uses_to_graph(RangeAnalysisResult &RA, llvm::Instruction &I);
   void add_use_to_graph(llvm::Use &U, Constraint constraint);
   void add_index_use_to_graph(llvm::Use &U, llvm::Value &C);
   void add_index_to_graph(llvm::Value &V, ValueRange &VR);
   void add_seq_to_graph(llvm::Value &V);
 };
-
-LiveRangeAnalysisResult LiveRangeAnalysis::run(
-    llvm::Module &M,
-    llvm::ModuleAnalysisManager &MAM) {
-
-  // Construct a new result.
-  LiveRangeAnalysisResult result;
-
-  // Fetch NOELLE.
-  auto &NOELLE = MAM.getResult<arcana::noelle::Noelle>(M);
-
-  // Construct a LiveRangeAnalysisDriver
-  LiveRangeAnalysisDriver LRA(M, MAM, NOELLE, result);
-
-  return result;
-}
 
 } // namespace llvm::memoir
 
