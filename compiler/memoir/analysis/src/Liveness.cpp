@@ -29,7 +29,7 @@ set<llvm::Value *> LivenessResult::live_values(llvm::Instruction &I,
 
   result.insert(live_set.begin(), live_set.end());
 
-  return result
+  return result;
 }
 
 set<llvm::Value *> LivenessResult::live_values(llvm::BasicBlock &From,
@@ -51,27 +51,27 @@ set<llvm::Value *> LivenessResult::live_values(llvm::BasicBlock &From,
   result.insert(nonphi_set.begin(), nonphi_set.end());
 
   // Remove PhiDefs[To]
-  for (auto *phi = To.phis()) {
-    result.remove(phi);
+  for (auto &phi : To.phis()) {
+    result.erase(&phi);
   }
 
   // Insert PhiUses[To | incoming=From]
-  for (auto *phi : To.phis()) {
-    auto *incoming = phi->getIncomingValueForBlock(&From);
+  for (auto &phi : To.phis()) {
+    auto *incoming = phi.getIncomingValueForBlock(&From);
     result.insert(incoming);
   }
 
   // Insert { v in OUT[From] | v in PhiDefs[To] }
   auto &from_out_set = this->DFR->OUT(From.getTerminator());
-  for (auto *phi : To.phis()) {
+  for (auto &phi : To.phis()) {
     // If phi is in OUT[From], insert it into the result.
-    if (from_out_set.count(phi) != 0) {
-      result.insert(phi);
+    if (from_out_set.count(&phi) != 0) {
+      result.insert(&phi);
     }
   }
 
   // Return the result.
-  return result
+  return result;
 }
 
 // Transfer functions.
@@ -161,9 +161,11 @@ void compute_out(llvm::Instruction *successor,
 
 // Constructor and analysis invocation.
 LivenessDriver::LivenessDriver(llvm::Function &F,
-                               arcana::noelle::DataFlowEngine DFE)
+                               arcana::noelle::DataFlowEngine &DFE,
+                               LivenessResult &result)
   : F(F),
-    DFE(std::move(DFE)) {
+    DFE(DFE),
+    result(result) {
   debugln("Start liveness analysis");
 
   // this->result.DFR = this->DFE.applyBackward(&F,
@@ -176,5 +178,22 @@ LivenessDriver::LivenessDriver(llvm::Function &F,
 
   debugln("End liveness analysis");
 }
+
+LivenessResult LivenessAnalysis::run(llvm::Function &F,
+                                     llvm::FunctionAnalysisManager &FAM) {
+  // Construct a new result.
+  LivenessResult result;
+
+  // Get the DataFlowEngine from NOELLE.
+  arcana::noelle::DataFlowEngine DFE;
+
+  // Run the analysis.
+  LivenessDriver driver(F, DFE, result);
+
+  // Return the analysis.
+  return result;
+}
+
+llvm::AnalysisKey LivenessAnalysis::Key;
 
 } // namespace llvm::memoir

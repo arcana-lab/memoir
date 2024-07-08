@@ -1,8 +1,13 @@
+#ifndef MEMOIR_ANALYSIS_LIVENESS_H
+#define MEMOIR_ANALYSIS_LIVENESS_H
+
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
-#include "noelle/core/DataFlow.hpp"
+#include "noelle/core/DataFlowEngine.hpp"
+
+#include "memoir/passes/Passes.hpp"
 
 #include "memoir/support/InternalDatatypes.hpp"
 
@@ -82,34 +87,17 @@ protected:
 
 class LivenessDriver {
 public:
-  LivenessDriver(llvm::Function &F, arcana::noelle::DataFlowEngine DFE);
+  LivenessDriver(llvm::Function &F,
+                 arcana::noelle::DataFlowEngine &DFE,
+                 LivenessResult &result);
 
 protected:
   LivenessResult &result;
 
   llvm::Function &F;
-  arcana::noelle::DataFlowEngine DFE;
+  arcana::noelle::DataFlowEngine &DFE;
 };
 
-LivenessResult LiveAnalysis::run(llvm::Function &F,
-                                 llvm::FunctionAnalysisManager &FAM) {
-  // Construct a new result.
-  LivenessResult result;
-
-  // Get the ModuleAnalysisManager proxy.
-  auto &MAM = GET_MODULE_ANALYSIS_MANAGER(FAM, F);
-
-  // Get NOELLE from the analysis manager.
-  auto &NOELLE = MAM.getResult<arcana::noelle::Noelle>(M);
-
-  // Get the DataFlowEngine from NOELLE.
-  auto &DFE = NOELLE.getDataFlowEngine();
-
-  // Run the analysis.
-  LivenessDriver driver(F, DFE);
-
-  // Return the analysis.
-  return result;
-}
-
 } // namespace llvm::memoir
+
+#endif // MEMOIR_ANALYSIS_LIVENESS_H
