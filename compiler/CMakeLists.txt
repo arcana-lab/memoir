@@ -28,7 +28,7 @@ ExternalProject_Add(
 )
 
 # Compiler options.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -g3 ")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -g3 -Wno-unused-variable -Wno-reorder-ctor ")
 
 include_directories(
   # LLVM
