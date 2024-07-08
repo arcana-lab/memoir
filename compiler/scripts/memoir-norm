@@ -71,7 +71,8 @@ IR_FILE=$(mktemp --suffix=.bc)
 cp ${INPUT_IR_FILE} ${IR_FILE}
 
 # Run some generally helpful LLVM transformations.
-opt -passes=always-inline,mem2reg,argpromotion,sroa,break-crit-edges ${IR_FILE} -o ${IR_FILE}
+# opt -passes=always-inline,break-crit-edges,argpromotion,simplifycfg,mergereturn,loop-simplify,indvars,sroa,mem2reg,sroa ${IR_FILE} -o ${IR_FILE}
+opt -passes=mem2reg,lowerswitch,mergereturn,break-crit-edges,loop-simplify,lcssa,indvars ${IR_FILE} -o ${IR_FILE}
 
 # Run NOELLE norm so that it is happy.
 # noelle-norm ${IR_FILE} -o ${IR_FILE}

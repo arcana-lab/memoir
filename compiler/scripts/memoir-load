@@ -13,4 +13,4 @@ LIB_DIR=${MEMOIR_HOME}/lib
 NOELLE_LOAD=${MEMOIR_HOME}/bin/noelle-load
 
 # ${NOELLE_LOAD} -load ${LIB_DIR}/memoir.so --memoir-cl "$@"
-opt -load-pass-plugin=${MEMOIR_HOME}/lib/memoir.so "$@"
+opt -load-pass-plugin=${MEMOIR_HOME}/lib/Noelle.so -load-pass-plugin=${MEMOIR_HOME}/lib/memoir.so "$@"
