@@ -1,3 +1,5 @@
+#include "noelle/core/NoellePass.hpp"
+
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
@@ -11,8 +13,8 @@ ValueRange *LiveRangeAnalysisResult::lookup_live_range(
     llvm::Value &V,
     llvm::CallBase *C) const {
   // Lookup the value.
-  auto found_value = this->live_ranges.find(&V);
-  if (found_value != this->live_ranges.end()) {
+  auto found_value = this->_live_ranges.find(&V);
+  if (found_value != this->_live_ranges.end()) {
     auto &context_sensitive_ranges = found_value->second;
     auto found_context = context_sensitive_ranges.find(C);
     if (found_context != context_sensitive_ranges.end()) {
@@ -37,21 +39,22 @@ ValueRange *LiveRangeAnalysisResult::get_live_range(llvm::Value &V,
   return this->lookup_live_range(V, &C);
 }
 
+const map<llvm::Value *, map<llvm::CallBase *, ValueRange *>> &
+LiveRangeAnalysisResult::live_ranges() const {
+  return this->_live_ranges;
+}
+
 // Analysis steps.
 LiveRangeConstraintGraph LiveRangeAnalysisDriver::construct() {
+
+  // Construct an empty constraint graph.
   LiveRangeConstraintGraph graph;
+
   // For each function in the program.
   for (auto &F : this->M) {
     if (F.empty()) {
       continue;
     }
-
-    // Get the analysis manager for this function.
-    auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(this->MAM, M);
-
-    // Run the intraprocedural range analysis for the function.
-    auto &RA = FAM.getResult<RangeAnalysis>(F);
-    this->intraprocedural_range_analyses[&F] = &RA;
 
     // For each sequence variable in the program, add it to the constraints
     // graph.
@@ -59,7 +62,8 @@ LiveRangeConstraintGraph LiveRangeAnalysisDriver::construct() {
     set<llvm::Instruction *> users_to_visit = {};
     for (auto &BB : F) {
       for (auto &I : BB) {
-        if (isa_and_nonnull<SequenceType>(type_of(I))) {
+        if (isa_and_nonnull<SequenceType>(type_of(I))
+            || isa_and_nonnull<IndexReadInst>(into<MemOIRInst>(I))) {
 
           visited.insert(&I);
 
@@ -125,7 +129,7 @@ void LiveRangeAnalysisDriver::evaluate(LiveRangeConstraintGraph &graph) {
       debugln(" │ │ ├─╸ ", *in);
     }
     debugln(" │ │ ╹ ");
-    debugln(" │ ├─┬─╸ : ");
+    debugln(" │ ├─┬─╸ components: ");
     for (auto *component : condensation.node_prop(node)) {
       debugln(" │ │ ├─╸ ", *component);
     }
@@ -210,7 +214,7 @@ void LiveRangeAnalysisDriver::evaluate(LiveRangeConstraintGraph &graph) {
   for (auto *node : graph) {
     auto *range = graph.node_prop(node);
 
-    this->result.live_ranges[node][nullptr] = range;
+    this->result._live_ranges[node][nullptr] = range;
 
     debugln(*node);
     if (range) {
@@ -232,16 +236,7 @@ void LiveRangeAnalysisDriver::run() {
   evaluate(graph);
 }
 
-// Logistics.
-LiveRangeAnalysisDriver::~LiveRangeAnalysisDriver() {
-  for (auto const &[function, range_analysis] :
-       intraprocedural_range_analyses) {
-    delete range_analysis;
-  }
-}
-
 // Operators.
-
 static ValueExpression &create_min(ValueExpression &expr1,
                                    ValueExpression &expr2) {
   return *(new SelectExpression(
@@ -314,5 +309,27 @@ ValueRange *LiveRangeAnalysisDriver::conjunctive_merge(ValueRange *range1,
   // Return.
   return new_range;
 }
+
+// Top-level Analysis.
+LiveRangeAnalysisResult LiveRangeAnalysis::run(
+    llvm::Module &M,
+    llvm::ModuleAnalysisManager &MAM) {
+
+  // Construct a new result.
+  LiveRangeAnalysisResult result;
+
+  // Fetch NOELLE.
+  auto &NOELLE = MAM.getResult<arcana::noelle::NoellePass>(M);
+
+  // Fetch RangeAnalysisResult.
+  auto &RA = MAM.getResult<RangeAnalysis>(M);
+
+  // Construct a LiveRangeAnalysisDriver
+  LiveRangeAnalysisDriver LRA(M, RA, NOELLE, result);
+
+  return result;
+}
+
+llvm::AnalysisKey LiveRangeAnalysis::Key;
 
 } // namespace llvm::memoir
