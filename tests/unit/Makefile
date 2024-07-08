@@ -1,5 +1,6 @@
 ifndef TESTS
-TESTS := $(filter-out dead_element_elimination,$(patsubst %/, %, $(sort $(wildcard */))))
+# TESTS := $(filter-out dead_element_elimination,$(patsubst %/, %, $(sort $(wildcard */))))
+TESTS := $(patsubst %/, %, $(sort $(wildcard */)))
 endif
 
 TEST_MAKEFILES=$(patsubst %,%/Makefile,$(TESTS))
