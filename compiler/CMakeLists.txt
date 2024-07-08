@@ -14,6 +14,20 @@ include(AddLLVM)
 
 message(STATUS "LLVM_DIR IS ${LLVM_CMAKE_DIR}.")
 
+# Configure NOELLE
+include(ExternalProject)
+ExternalProject_Add(
+    noelle
+    GIT_REPOSITORY  "https://github.com/arcana-lab/noelle.git"
+    GIT_TAG         v18-fix
+    BUILD_COMMAND   ${CMAKE_COMMAND} --build . -j16
+    INSTALL_COMMAND ${CMAKE_COMMAND} --install .
+    CMAKE_ARGS
+        -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}/noelle
+        -DNOELLE_SVF=OFF
+        -DNOELLE_SCAF=OFF
+)
+
 # Compiler options.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -g3 ")
 
