@@ -52,7 +52,7 @@ bool BasicExpression::isAvailable(llvm::Instruction &IP,
 
   // Otherwise, iterate on the arguments of this expression.
   bool is_available = true;
-  for (auto arg_idx = 0; arg_idx < this->getNumArguments(); arg_idx++) {
+  for (unsigned arg_idx = 0; arg_idx < this->getNumArguments(); arg_idx++) {
     auto *arg_expr = this->getArgument(arg_idx);
     MEMOIR_NULL_CHECK(arg_expr,
                       "BasicExpression has a NULL expression as an argument");

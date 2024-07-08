@@ -99,7 +99,11 @@ llvm::Argument *ValueExpression::handleCallContext(
   // Version the function.
   auto *vmap = new ValueToValueMapTy();
   llvm::SmallVector<llvm::ReturnInst *, 8> returns;
-  llvm::CloneFunctionInto(new_function, called_function, *vmap, false, returns);
+  llvm::CloneFunctionInto(new_function,
+                          called_function,
+                          *vmap,
+                          llvm::CloneFunctionChangeType::LocalChangesOnly,
+                          returns);
 
   // Remap the function.
   ValueMapper mapper(*vmap);
@@ -129,7 +133,7 @@ llvm::Argument *ValueExpression::handleCallContext(
   // Grab the fixed argument list from the old call.
   vector<llvm::Value *> new_arguments = {};
   auto num_fixed_args = old_func_type.getNumParams();
-  for (auto arg_idx = 0; arg_idx < num_fixed_args; arg_idx++) {
+  for (unsigned arg_idx = 0; arg_idx < num_fixed_args; arg_idx++) {
     auto *fixed_arg = call_context.getArgOperand(arg_idx);
     new_arguments.push_back(fixed_arg);
   }

@@ -216,8 +216,8 @@ ValueExpression *ValueNumbering::visitCastInst(llvm::CastInst &I) {
 
 ValueExpression *ValueNumbering::visitICmpInst(llvm::ICmpInst &I) {
   // Get or create the ValueExpression.
-  ValueExpression *expr;
-  if (expr = this->lookup(I)) {
+  ValueExpression *expr = this->lookup(I);
+  if (expr) {
     return expr;
   }
   expr = new ICmpExpression(I);
