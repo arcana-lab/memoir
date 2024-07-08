@@ -1,3 +1,5 @@
+#include "noelle/core/NoellePass.hpp"
+
 #include "memoir/analysis/RangeAnalysis.hpp"
 
 #include "memoir/ir/Instructions.hpp"
@@ -35,19 +37,19 @@ void RangeAnalysisResult::dump() {
 
 RangeAnalysisResult::~RangeAnalysisResult() {
   for (auto *range : this->ranges) {
-    delete range;
+    // delete range;
   }
 }
 
 // Analysis.
-RangeAnalysisDriver::RangeAnalysisDriver(llvm::Function &F,
+RangeAnalysisDriver::RangeAnalysisDriver(llvm::Module &M,
                                          arcana::noelle::Noelle &noelle,
                                          RangeAnalysisResult &result)
-  : F(F),
+  : M(M),
     noelle(noelle),
     result(result) {
   // Analyze the function.
-  auto success = this->analyze(this->F, this->noelle);
+  auto success = this->analyze(this->M, this->noelle);
   MEMOIR_ASSERT((success == true), "Range analysis failed.");
 }
 
@@ -112,136 +114,157 @@ static void add_index_use(
   index_value_to_uses[index_use.get()].insert(&index_use);
 }
 
-bool RangeAnalysisDriver::analyze(llvm::Function &F,
+bool RangeAnalysisDriver::analyze(llvm::Module &M,
                                   arcana::noelle::Noelle &noelle) {
+
   // Collect all index values used by memoir instructions.
   map<llvm::Value *, set<llvm::Use *>> index_value_to_uses = {};
-  for (auto &BB : F) {
-    for (auto &I : BB) {
-      auto *memoir_inst = MemOIRInst::get(I);
-      if (!memoir_inst) {
-        continue;
-      }
-
-      if (auto *read_inst = dyn_cast<IndexReadInst>(memoir_inst)) {
-        for (auto dim_idx = 0; dim_idx < read_inst->getNumberOfDimensions();
-             ++dim_idx) {
-          auto &index_use = read_inst->getIndexOfDimensionAsUse(dim_idx);
-          add_index_use(index_value_to_uses, index_use);
-        }
-      } else if (auto *write_inst = dyn_cast<IndexWriteInst>(memoir_inst)) {
-        for (auto dim_idx = 0; dim_idx < write_inst->getNumberOfDimensions();
-             ++dim_idx) {
-          auto &index_use = write_inst->getIndexOfDimensionAsUse(dim_idx);
-          add_index_use(index_value_to_uses, index_use);
-        }
-      } else if (auto *get_inst = dyn_cast<IndexGetInst>(memoir_inst)) {
-        for (auto dim_idx = 0; dim_idx < get_inst->getNumberOfDimensions();
-             ++dim_idx) {
-          auto &index_use = get_inst->getIndexOfDimensionAsUse(dim_idx);
-          add_index_use(index_value_to_uses, index_use);
-        }
-      } else if (auto *insert_inst = dyn_cast<SeqInsertInst>(memoir_inst)) {
-        add_index_use(index_value_to_uses,
-                      insert_inst->getInsertionPointAsUse());
-
-      } else if (auto *insert_seq_inst =
-                     dyn_cast<SeqInsertSeqInst>(memoir_inst)) {
-        auto &index_value_use = insert_seq_inst->getInsertionPointAsUse();
-        add_index_use(index_value_to_uses, index_value_use);
-      } else if (auto *remove_inst = dyn_cast<SeqRemoveInst>(memoir_inst)) {
-        add_index_use(index_value_to_uses, remove_inst->getBeginIndexAsUse());
-        add_index_use(index_value_to_uses, remove_inst->getEndIndexAsUse());
-        // } else if (auto *swap_inst = dyn_cast<SwapInst>(memoir_inst)) {
-        //   index_value_to_uses[&I].insert({
-        //   &swap_inst->getBeginIndexAsUse(),
-        //                                    &swap_inst->getEndIndexAsUse(),
-        //                                    &swap_inst->getToBeginIndexAsUse()
-        //                                    });
-      } else if (auto *copy_inst = dyn_cast<SeqCopyInst>(memoir_inst)) {
-        add_index_use(index_value_to_uses, copy_inst->getBeginIndexAsUse());
-        add_index_use(index_value_to_uses, copy_inst->getEndIndexAsUse());
-      }
-    }
-  }
-
-  // Get all the loops in the function.
-  auto &loops = MEMOIR_SANITIZE(
-      noelle.getLoopContents(&F),
-      "NOELLE gave us NULL instead of a vector of loop structures!");
-
-  // For each index value, determine the range of its uses:
-  for (const auto &[index_value, index_uses] : index_value_to_uses) {
-
-    // If the value is a constant integer:
-    if (auto *index_const = dyn_cast<llvm::ConstantInt>(index_value)) {
-      auto &const_expr =
-          MEMOIR_SANITIZE(new ConstantExpression(*index_const),
-                          "Failed to create ConstantExpression!");
-      this->propagate_range_to_uses(
-          this->create_value_range(const_expr, const_expr),
-          index_uses);
+  for (auto &F : M) {
+    if (F.empty()) {
       continue;
     }
 
-    // Otherwise, if the value is an argument:
-    else if (auto *index_arg = dyn_cast<llvm::Argument>(index_value)) {
-      auto &arg_expr = MEMOIR_SANITIZE(new ArgumentExpression(*index_arg),
-                                       "Failed to create ArgumentExpression!");
-      this->propagate_range_to_uses(
-          this->create_value_range(arg_expr, arg_expr),
-          index_uses);
-      continue;
-    }
-
-    // Otherwise, if the value is an instruction:
-    else if (auto *index_inst = dyn_cast<llvm::Instruction>(index_value)) {
-      // Create a mapping from loop structures to induction variables that the
-      // index instruction is involved in.
-      map<arcana::noelle::LoopStructure *, ValueRange *> loop_to_range = {};
-      for (auto *loop : loops) {
-        // Get the loop structure.
-        auto &loop_structure =
-            MEMOIR_SANITIZE(loop->getLoopStructure(),
-                            "NOELLE gave us a NULL LoopStructure!");
-
-        // Get the induction variable manager.
-        auto &IVM =
-            MEMOIR_SANITIZE(loop->getInductionVariableManager(),
-                            "NOELLE gave us a NULL InductionVariableManager");
-
-        // Get the loop-governing induction variable, if it exists.
-        auto *loop_governing_induction_variable =
-            IVM.getLoopGoverningInductionVariable(loop_structure);
-
-        // If the loop has no loop-governing induction variable, skip it.
-        if (loop_governing_induction_variable == nullptr) {
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        auto *memoir_inst = into<MemOIRInst>(I);
+        if (!memoir_inst) {
           continue;
         }
 
-        // See if the index value is involved in any induction variables of
-        // the loop.
-        if (auto *induction_variable =
-                IVM.getInductionVariable(loop_structure, index_inst)) {
-          auto &range = this->induction_variable_to_range(
-              *induction_variable,
-              *loop_governing_induction_variable);
-          loop_to_range[&loop_structure] = &range;
+        if (auto *read_inst = dyn_cast<IndexReadInst>(memoir_inst)) {
+          for (unsigned dim_idx = 0;
+               dim_idx < read_inst->getNumberOfDimensions();
+               ++dim_idx) {
+            auto &index_use = read_inst->getIndexOfDimensionAsUse(dim_idx);
+            add_index_use(index_value_to_uses, index_use);
+          }
+        } else if (auto *write_inst = dyn_cast<IndexWriteInst>(memoir_inst)) {
+          for (unsigned dim_idx = 0;
+               dim_idx < write_inst->getNumberOfDimensions();
+               ++dim_idx) {
+            auto &index_use = write_inst->getIndexOfDimensionAsUse(dim_idx);
+            add_index_use(index_value_to_uses, index_use);
+          }
+        } else if (auto *get_inst = dyn_cast<IndexGetInst>(memoir_inst)) {
+          for (unsigned dim_idx = 0;
+               dim_idx < get_inst->getNumberOfDimensions();
+               ++dim_idx) {
+            auto &index_use = get_inst->getIndexOfDimensionAsUse(dim_idx);
+            add_index_use(index_value_to_uses, index_use);
+          }
+        } else if (auto *insert_inst = dyn_cast<SeqInsertInst>(memoir_inst)) {
+          add_index_use(index_value_to_uses,
+                        insert_inst->getInsertionPointAsUse());
+
+        } else if (auto *insert_seq_inst =
+                       dyn_cast<SeqInsertSeqInst>(memoir_inst)) {
+          auto &index_value_use = insert_seq_inst->getInsertionPointAsUse();
+          add_index_use(index_value_to_uses, index_value_use);
+        } else if (auto *remove_inst = dyn_cast<SeqRemoveInst>(memoir_inst)) {
+          add_index_use(index_value_to_uses, remove_inst->getBeginIndexAsUse());
+          add_index_use(index_value_to_uses, remove_inst->getEndIndexAsUse());
+          // } else if (auto *swap_inst = dyn_cast<SwapInst>(memoir_inst)) {
+          //   index_value_to_uses[&I].insert({
+          //   &swap_inst->getBeginIndexAsUse(),
+          //                                    &swap_inst->getEndIndexAsUse(),
+          //                                    &swap_inst->getToBeginIndexAsUse()
+          //                                    });
+        } else if (auto *copy_inst = dyn_cast<SeqCopyInst>(memoir_inst)) {
+          add_index_use(index_value_to_uses, copy_inst->getBeginIndexAsUse());
+          add_index_use(index_value_to_uses, copy_inst->getEndIndexAsUse());
         }
       }
+    }
 
-      // For each use, propagate the value's range:
-      for (auto *index_use : index_uses) {
-        auto *user = index_use->getUser();
-        auto *user_as_inst = dyn_cast_or_null<llvm::Instruction>(user);
+    // Get all the loops in the function.
+    auto &loops = MEMOIR_SANITIZE(
+        noelle.getLoopContents(&F),
+        "NOELLE gave us NULL instead of a vector of loop structures!");
 
-        // If the use occurs in a loop, determine if the index is an induction
-        // variable:
-        for (auto const &[loop, range] : loop_to_range) {
-          // If the loop contains the user:
-          if (loop->isIncluded(user_as_inst)) {
-            this->result.use_to_range[index_use] = range;
+    // For each index value, determine the range of its uses:
+    for (const auto &[index_value, index_uses] : index_value_to_uses) {
+
+      // If the value is a constant integer:
+      if (auto *index_const = dyn_cast<llvm::ConstantInt>(index_value)) {
+        auto &const_expr =
+            MEMOIR_SANITIZE(new ConstantExpression(*index_const),
+                            "Failed to create ConstantExpression!");
+        this->propagate_range_to_uses(
+            this->create_value_range(const_expr, const_expr),
+            index_uses);
+        continue;
+      }
+
+      // Otherwise, if the value is an argument:
+      else if (auto *index_arg = dyn_cast<llvm::Argument>(index_value)) {
+        auto &arg_expr =
+            MEMOIR_SANITIZE(new ArgumentExpression(*index_arg),
+                            "Failed to create ArgumentExpression!");
+        this->propagate_range_to_uses(
+            this->create_value_range(arg_expr, arg_expr),
+            index_uses);
+        continue;
+      }
+
+      // Otherwise, if the value is an instruction:
+      else if (auto *index_inst = dyn_cast<llvm::Instruction>(index_value)) {
+        // Create a mapping from loop structures to induction variables that the
+        // index instruction is involved in.
+        map<arcana::noelle::LoopStructure *, ValueRange *> loop_to_range = {};
+        for (auto *loop : loops) {
+          // Get the loop structure.
+          auto &loop_structure =
+              MEMOIR_SANITIZE(loop->getLoopStructure(),
+                              "NOELLE gave us a NULL LoopStructure!");
+
+          // Get the induction variable manager.
+          auto &IVM =
+              MEMOIR_SANITIZE(loop->getInductionVariableManager(),
+                              "NOELLE gave us a NULL InductionVariableManager");
+
+          // Get the loop-governing induction variable, if it exists.
+          auto *loop_governing_induction_variable =
+              IVM.getLoopGoverningInductionVariable(loop_structure);
+
+          // If the loop has no loop-governing induction variable, skip it.
+          if (loop_governing_induction_variable == nullptr) {
+            continue;
           }
+
+          // See if the index value is involved in any induction variables of
+          // the loop.
+          if (auto *induction_variable =
+                  IVM.getInductionVariable(loop_structure, index_inst)) {
+            auto &range = this->induction_variable_to_range(
+                *induction_variable,
+                *loop_governing_induction_variable);
+            loop_to_range[&loop_structure] = &range;
+          }
+        }
+
+        // For each use, propagate the value's range:
+        for (auto *index_use : index_uses) {
+          auto *user = index_use->getUser();
+          auto *user_as_inst = dyn_cast_or_null<llvm::Instruction>(user);
+
+          // If the use occurs in a loop, determine if the index is an induction
+          // variable:
+          bool found_in_loop = false;
+          for (auto const &[loop, range] : loop_to_range) {
+            // If the loop contains the user:
+            if (loop->isIncluded(user_as_inst)) {
+              this->result.use_to_range[index_use] = range;
+              found_in_loop = true;
+              break;
+            }
+          }
+          if (found_in_loop) {
+            continue;
+          }
+
+          // Otherwise, declare the variable as overdefined.
+          this->result.use_to_range[index_use] =
+              &this->create_overdefined_range();
         }
       }
     }
@@ -260,7 +283,8 @@ ValueRange &RangeAnalysisDriver::create_value_range(ValueExpression &lower,
 }
 
 ValueExpression &RangeAnalysisDriver::create_min_expr() {
-  auto &context = this->F.getContext();
+  auto &context = this->M.getContext();
+
   // TODO: make this get the size_t from a MemOIRContext.
   auto &size_type = MEMOIR_SANITIZE(llvm::IntegerType::get(context, 64),
                                     "Failed to get LLVM 64-bit integer type!");
@@ -283,5 +307,23 @@ ValueRange &RangeAnalysisDriver::create_overdefined_range() {
   return this->create_value_range(this->create_min_expr(),
                                   this->create_max_expr());
 }
+
+// Analysis
+RangeAnalysisResult RangeAnalysis::run(llvm::Module &M,
+                                       llvm::ModuleAnalysisManager &MAM) {
+  // Construct a new result.
+  RangeAnalysisResult result;
+
+  // Get NOELLE
+  auto &NOELLE = MAM.getResult<arcana::noelle::NoellePass>(M);
+
+  // Construct the RangeAnalysisDriver.
+  RangeAnalysisDriver RA(M, NOELLE, result);
+
+  // Return the result.
+  return result;
+}
+
+llvm::AnalysisKey RangeAnalysis::Key;
 
 } // namespace llvm::memoir
