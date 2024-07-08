@@ -11,7 +11,10 @@
 #include "noelle/core/Noelle.hpp"
 
 // MemOIR
+#include "memoir/passes/Passes.hpp"
+
 #include "memoir/analysis/ValueExpression.hpp"
+
 #include "memoir/support/InternalDatatypes.hpp"
 
 /*
@@ -39,6 +42,8 @@ public:
 
   ~RangeAnalysisResult();
 
+  friend class RangeAnalysisDriver;
+
 protected:
   // Owned state.
   set<ValueRange *> ranges;
@@ -58,7 +63,7 @@ public:
    * Construct a new intraprocedural range analysis.
    * Requires abstractions from NOELLE.
    */
-  RangeAnalysisDriver(llvm::Function &F,
+  RangeAnalysisDriver(llvm::Module &M,
                       arcana::noelle::Noelle &noelle,
                       RangeAnalysisResult &result);
 
@@ -86,19 +91,16 @@ protected:
 
   ValueRange &create_overdefined_range();
 
-  // Owned state.
-  set<ValueRange *> ranges;
-  map<llvm::Use *, ValueRange *> use_to_range;
-
   // Borrowed state.
-  llvm::Function &F;
+  llvm::Module &M;
   arcana::noelle::Noelle &noelle;
+  RangeAnalysisResult &result;
 
   // Analysis driver.
-  bool analyze(llvm::Function &F, arcana::noelle::Noelle &noelle);
+  bool analyze(llvm::Module &M, arcana::noelle::Noelle &noelle);
 
 public:
-  ~RangeAnalysisDriver();
+  ~RangeAnalysisDriver() {}
 };
 
 /**
@@ -140,25 +142,6 @@ protected:
 
   friend class RangeAnalysisDriver;
 };
-
-// Analysis
-RangeAnalysisResult RangeAnalysis::run(llvm::Function &F,
-                                       llvm::FunctionAnalysisManager &FAM) {
-  // Construct a new result.
-  RangeAnalysisResult result;
-
-  // Get the module analysis manager proxy.
-  auto &MAM = GET_MODULE_ANALYSIS_MANAGER(FAM);
-
-  // Get NOELLE
-  auto &NOELLE = MAM.getResult<arcana::noelle::Noelle>(F.getParent());
-
-  // Construct the RangeAnalysisDriver.
-  RangeAnalysisDriver RA(F, NOELLE, result);
-
-  // Return the result.
-  return result;
-}
 
 } // namespace llvm::memoir
 
