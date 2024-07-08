@@ -65,6 +65,8 @@ public:
       commutative(commutative),
       is_memoir(is_memoir) {}
 
+  virtual ~ValueExpression() = default;
+
   ExpressionKind getKind() const;
 
   // Equality.
@@ -112,11 +114,11 @@ public:
 
   // State.
   ExpressionKind EK;
-  llvm::Value *value;
   unsigned opcode;
+  llvm::Value *value;
   vector<ValueExpression *> arguments;
-  bool is_memoir;
   bool commutative;
+  bool is_memoir;
 
   // Materialization state.
   llvm::Function *function_version;
