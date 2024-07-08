@@ -21,8 +21,8 @@ namespace llvm::memoir {
 
 #define ANALYSIS(SCOPE, CLASS, RESULT, ARGS...)                                \
   struct RESULT;                                                               \
-  class PASS_NAME : public llvm::AnalysisInfoMixin<PASS_NAME> {                \
-    friend struct llvm::AnalysisInfoMixin<PASS_NAME>;                          \
+  class CLASS : public llvm::AnalysisInfoMixin<CLASS> {                        \
+    friend struct llvm::AnalysisInfoMixin<CLASS>;                              \
     static llvm::AnalysisKey Key;                                              \
                                                                                \
   public:                                                                      \
@@ -42,6 +42,6 @@ namespace llvm::memoir {
 
 // A helper macro to get a ModuleAnalysisManager from a FunctionAnalysisManager
 #define GET_MODULE_ANALYSIS_MANAGER(_FAM, _FUNCTION)                           \
-  _FAM.getResult<ModuleAnalysisManagerFunctionProxy>(_FUNCTION).getManager()
+  _FAM.getResult<ModuleAnalysisManagerFunctionProxy>(_FUNCTION)
 
 #endif // MEMOIR_PASSES_PASSES_H
