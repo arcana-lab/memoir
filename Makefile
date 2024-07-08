@@ -40,9 +40,6 @@ uninstall:
 	rm -rf $(BUILD_DIR)
 
 fulluninstall: uninstall
-	[[ -d compiler/noelle ]] && make -C compiler/noelle uninstall
-	[[ -d compiler/noelle ]] && rm -rf compiler/noelle
-	rm -f .noelle
 
 clean:
 	make -C $(BUILD_DIR) clean -j32
