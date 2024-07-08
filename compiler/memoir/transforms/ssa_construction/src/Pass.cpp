@@ -99,8 +99,8 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     if (no_memoir) {
       for (auto &BB : F) {
         for (auto &I : BB) {
-          if (Type::value_is_collection_type(I) || Type::value_is_struct_type(I)
-              || Type::value_is_type(I)) {
+          if (Type::value_is_collection_type(I)
+              || Type::value_is_struct_type(I)) {
             no_memoir = false;
             break;
           }
@@ -128,13 +128,13 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     // Collect all source-level collection pointers names.
     ordered_set<llvm::Value *> memoir_names = {};
     for (auto &A : F.args()) {
-      if (Type::value_is_collection_type(A)) {
+      if (isa_and_nonnull<CollectionType>(type_of(A))) {
         memoir_names.insert(&A);
       }
     }
     for (auto &BB : F) {
       for (auto &I : BB) {
-        if (Type::value_is_collection_type(I)) {
+        if (isa_and_nonnull<CollectionType>(type_of(I))) {
           memoir_names.insert(&I);
         }
       }
@@ -282,7 +282,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
       for (auto *succ_bb : llvm::successors(bb)) {
         for (auto &phi : succ_bb->phis()) {
           // Ensure that the value is of collection type.
-          if (!Type::value_is_collection_type(phi)) {
+          if (not isa_and_nonnull<CollectionType>(type_of(phi))) {
             continue;
           }
 

@@ -123,7 +123,7 @@ SSAConstructionVisitor::SSAConstructionVisitor(
 void SSAConstructionVisitor::visitInstruction(llvm::Instruction &I) {
   for (auto &operand_use : I.operands()) {
     auto *operand_value = operand_use.get();
-    if (!Type::value_is_collection_type(*operand_value)) {
+    if (not Type::value_is_collection_type(*operand_value)) {
       continue;
     }
 
