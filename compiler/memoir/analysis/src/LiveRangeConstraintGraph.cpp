@@ -72,11 +72,11 @@ void LiveRangeConstraintGraph::add_index_use_to_graph(llvm::Use &index_use,
   return;
 }
 
-void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysis &RA,
+void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
                                                  llvm::Instruction &I) {
 
   // Handle MEMOIR instructions.
-  if (auto *memoir_inst = into<MemOIRInst>(&I)) {
+  if (auto *memoir_inst = into<MemOIRInst>(I)) {
 
     // For indexed operations, construct their indices as nodes in the graph and
     // the proper constraints edge.
