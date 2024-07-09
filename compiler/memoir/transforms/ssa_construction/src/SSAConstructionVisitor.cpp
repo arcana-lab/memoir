@@ -21,6 +21,7 @@ llvm::Value *SSAConstructionVisitor::update_reaching_definition(
 llvm::Value *SSAConstructionVisitor::update_reaching_definition(
     llvm::Value *variable,
     llvm::Instruction *program_point) {
+
   // Search through the chain of definitions for variable until we find the
   // closest definition that dominates the program point. Then update the
   // reaching definition.
@@ -670,6 +671,8 @@ void SSAConstructionVisitor::visitMutAssocInsertInst(MutAssocInsertInst &I) {
 }
 
 void SSAConstructionVisitor::cleanup() {
+  MemOIRInst::invalidate();
+
   for (auto *inst : instructions_to_delete) {
     infoln(*inst);
     inst->eraseFromParent();
