@@ -83,6 +83,8 @@ public:
 
 protected:
   arcana::noelle::DataFlowResult *DFR;
+
+  friend class LivenessDriver;
 };
 
 class LivenessDriver {

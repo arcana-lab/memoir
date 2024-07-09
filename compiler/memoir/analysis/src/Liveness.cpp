@@ -78,10 +78,18 @@ set<llvm::Value *> LivenessResult::live_values(llvm::BasicBlock &From,
 void compute_gen(llvm::Instruction *inst,
                  arcana::noelle::DataFlowResult *result) {
   // GEN = Use(I)
-  for (auto &operand : inst->operands()) {
-    auto *operand_value = operand.get();
-    if (Type::value_is_collection_type(*operand_value)) {
-      result->GEN(inst).insert(operand_value);
+  if (auto *phi = dyn_cast<llvm::PHINode>(inst)) {
+    for (auto &incoming : phi->incoming_values()) {
+      auto *incoming_value = incoming.get();
+      result->GEN(inst).insert(incoming_value);
+    }
+  } else {
+    for (auto &operand : inst->operands()) {
+      auto *operand_value = operand.get();
+      if (isa<llvm::Instruction>(operand_value)
+          or isa<llvm::Argument>(operand_value)) {
+        result->GEN(inst).insert(operand_value);
+      }
     }
   }
 }
@@ -89,9 +97,7 @@ void compute_gen(llvm::Instruction *inst,
 void compute_kill(llvm::Instruction *inst,
                   arcana::noelle::DataFlowResult *result) {
   // KILL = Def(I)
-  if (Type::value_is_collection_type(*inst)) {
-    result->KILL(inst).insert(inst);
-  }
+  result->KILL(inst).insert(inst);
 }
 
 void compute_in(llvm::Instruction *inst,
@@ -100,6 +106,7 @@ void compute_in(llvm::Instruction *inst,
   auto &gen = result->GEN(inst);
   auto &kill = result->KILL(inst);
   auto &out = result->OUT(inst);
+
   // IN = (OUT-KILL) U GEN
   in.insert(out.begin(), out.end());
   for (auto *kill_value : kill) {
@@ -111,32 +118,20 @@ void compute_in(llvm::Instruction *inst,
   in.insert(gen.begin(), gen.end());
 }
 
-void compute_out(llvm::Instruction *successor,
+void compute_out(llvm::Instruction *inst,
+                 llvm::Instruction *successor,
                  std::set<llvm::Value *> &out,
                  arcana::noelle::DataFlowResult *result) {
   if (isa<llvm::PHINode>(successor)
       && successor == &*successor->getParent()->begin()) {
     auto *successor_bb = successor->getParent();
     auto *first_non_phi = successor_bb->getFirstNonPHI();
-    auto &in = result->OUT(first_non_phi);
+    auto &in = result->IN(first_non_phi);
 
     // Find which basic block we are coming from.
     // NOTE: this should be fixed in NOELLE by having an option to use a
     //        BasicBlockEdge as successor.
-    llvm::BasicBlock *incoming_bb = nullptr;
-    for (auto *pred_bb : llvm::predecessors(successor_bb)) {
-      auto *pred_term = pred_bb->getTerminator();
-      // Check if @out == result->OUT(pred_term)
-      if (&out == &result->OUT(pred_term)) {
-        incoming_bb = pred_bb;
-        break;
-      }
-    }
-
-    MEMOIR_NULL_CHECK(
-        incoming_bb,
-        "Couldn't find the out set matching the predecessor. "
-        "Blame NOELLE, then go fix its data flow engine with the aforementioned fix.");
+    auto *incoming_bb = inst->getParent();
 
     // Compute the IN set for this basic block edge.
     std::set<llvm::Value *> path_sensitive_in(in.begin(), in.end());
@@ -152,8 +147,10 @@ void compute_out(llvm::Instruction *successor,
 
     // OUT = U_succ IN
     out.insert(path_sensitive_in.begin(), path_sensitive_in.end());
+
   } else {
-    auto &in = result->OUT(successor);
+    auto &in = result->IN(successor);
+
     // OUT = U_succ IN
     out.insert(in.begin(), in.end());
   }
@@ -166,17 +163,11 @@ LivenessDriver::LivenessDriver(llvm::Function &F,
   : F(F),
     DFE(DFE),
     result(result) {
-  debugln("Start liveness analysis");
-
-  // this->result.DFR = this->DFE.applyBackward(&F,
-  //                                            compute_gen,
-  //                                            compute_kill,
-  //                                            compute_in,
-  //                                            compute_out);
-  MEMOIR_UNREACHABLE(
-      "LivenessAnalysis needs to be updated to use new NOELLE DFE.");
-
-  debugln("End liveness analysis");
+  this->result.DFR = this->DFE.applyBackward(&F,
+                                             compute_gen,
+                                             compute_kill,
+                                             compute_in,
+                                             compute_out);
 }
 
 LivenessResult LivenessAnalysis::run(llvm::Function &F,
