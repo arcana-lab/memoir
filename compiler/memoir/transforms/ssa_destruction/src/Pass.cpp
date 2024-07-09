@@ -20,6 +20,7 @@
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
+#include "memoir/ir/Verifier.hpp"
 
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
@@ -98,6 +99,12 @@ static DomTreeTraversalListTy dfs_postorder_traversal_helper(
 
 PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
                                           llvm::ModuleAnalysisManager &MAM) {
+
+  // Verify the module.
+  if (Verifier::verify(M, MAM)) {
+    MEMOIR_UNREACHABLE("MEMOIR Verifier failed for the Module!");
+  }
+
   infoln("BEGIN SSA Destruction pass");
   infoln();
 
