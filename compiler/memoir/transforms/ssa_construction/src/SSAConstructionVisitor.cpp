@@ -599,17 +599,17 @@ void SSAConstructionVisitor::visitMutSeqSplitInst(MutSeqSplitInst &I) {
 }
 
 void SSAConstructionVisitor::visitAssocHasInst(AssocHasInst &I) {
+  // Split the live range of the collection being accessed.
+  auto *collection_orig = &I.getObjectOperand();
+  auto *collection_value = update_reaching_definition(collection_orig, I);
+
+  // Update the write to operate on the reaching definition.
+  I.getObjectOperandAsUse().set(collection_value);
+
   if (this->construct_use_phis) {
     MemOIRBuilder builder(I, true);
 
-    // Split the live range of the collection being written.
-    auto *collection_orig = &I.getObjectOperand();
-    auto *collection_value = update_reaching_definition(collection_orig, I);
-
-    // Update the write to operate on the reaching definition.
-    I.getObjectOperandAsUse().set(collection_value);
-
-    // Build a DefPHI for the instruction.
+    // Build a UsePHI for the instruction.
     auto *use_phi = builder.CreateUsePHI(collection_value);
     auto *use_phi_value = &use_phi->getUsedCollection();
 
