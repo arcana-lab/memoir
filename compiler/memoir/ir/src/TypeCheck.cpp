@@ -545,7 +545,7 @@ Type *TypeChecker::visitLLVMCallInst(llvm::CallInst &I) {
 
   // Fetch the called function.
   auto *called_function = I.getCalledFunction();
-  if (called_function == nullptr) {
+  if (called_function == nullptr || called_function->empty()) {
     // TODO: this can be made less conservative.
     return nullptr;
   }
