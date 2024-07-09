@@ -19,7 +19,8 @@ source ${MEMOIR_HOME}/bin/memoir-enable
 IN_IR_FILE="$1"
 OUT_IR_FILE="$2"
 
-TMP_IR_FILE="norm.temp.bc"
+TMP_DIR=$(mktemp -d)
+TMP_IR_FILE=${TMP_DIR}/norm.temp.bc
 
 cp ${IN_IR_FILE} ${TMP_IR_FILE}
 
@@ -33,4 +34,4 @@ CMD="${MEMOIR_HOME}/bin/memoir-load -passes=memoir-norm -only-runtime ${TMP_IR_F
 echo "$CMD"
 eval $CMD
 
-rm ${TMP_IR_FILE} ;
+rm -rf ${TMP_DIR}
