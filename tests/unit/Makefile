@@ -5,7 +5,7 @@ endif
 
 TEST_MAKEFILES=$(patsubst %,%/Makefile,$(TESTS))
 
-all: $(TEST_MAKEFILES) $(TESTS)
+all: clean $(TEST_MAKEFILES) $(TESTS)
 
 $(TESTS): %: %/Makefile
 	@printf "\e[1;2mRunning %s tests\e[0m\n" $@
