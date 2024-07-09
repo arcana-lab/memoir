@@ -73,16 +73,18 @@ bool FunctionNames::is_mut_call(llvm::CallInst &call_inst) {
 }
 
 MemOIR_Func FunctionNames::get_memoir_enum(llvm::Function &function) {
-  auto function_name = function.getName().str();
+  auto function_name = function.getName();
+
+  println(function_name);
 
 #define HANDLE_INST(MEMOIR_ENUM, MEMOIR_STR, _)                                \
-  if (function_name == #MEMOIR_STR) {                                          \
+  if (function_name.compare(#MEMOIR_STR) == 0) {                               \
     return MemOIR_Func::MEMOIR_ENUM;                                           \
   }
 #include "memoir/ir/Instructions.def"
 
 #define HANDLE_INST(MUT_ENUM, MUT_STR, _)                                      \
-  if (function_name == #MUT_STR) {                                             \
+  if (function_name.compare(#MUT_STR) == 0) {                                  \
     return MemOIR_Func::MUT_ENUM;                                              \
   }
 #include "memoir/ir/MutOperations.def"
