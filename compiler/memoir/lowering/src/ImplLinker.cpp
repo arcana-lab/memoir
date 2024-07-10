@@ -68,6 +68,8 @@ static std::string memoir_to_c_type(Type &T) {
     return "double";
   } else if (isa<PointerType>(&T)) {
     return "void *";
+  } else if (isa<VoidType>(&T)) {
+    return "void";
   } else if (auto *ref_type = dyn_cast<ReferenceType>(&T)) {
     return memoir_to_c_type(ref_type->getReferencedType()) + " *";
   } else if (auto *struct_type = dyn_cast<StructType>(&T)) {

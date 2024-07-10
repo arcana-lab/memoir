@@ -43,6 +43,7 @@ using namespace llvm::memoir;
  */
 
 #define ASSOC_IMPL "stl_unordered_map"
+#define SET_IMPL "stl_unordered_set"
 #define SEQ_IMPL "stl_vector"
 
 namespace llvm::memoir {
@@ -80,8 +81,11 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
           IL.implement_seq(impl_name, element_layout);
 
         } else if (auto *assoc_alloc = into<AssocAllocInst>(&I)) {
+          // Get the value type of the allocation.
+          auto &value_type = assoc_alloc->getValueType();
+
           // Get the implementation name for this allocation.
-          auto impl_name = ASSOC_IMPL;
+          auto impl_name = isa<VoidType>(&value_type) ? SET_IMPL : ASSOC_IMPL;
 
           // Get the type layout for the key type.
           auto &key_layout = TC.convert(assoc_alloc->getKeyType());
