@@ -348,6 +348,9 @@ bool MEMOIR_FUNC(assert_collection_type)(const type_ref type,
 __RUNTIME_ATTR
 bool MEMOIR_FUNC(set_return_type)(const type_ref type);
 
+__RUNTIME_ATTR
+void MEMOIR_FUNC(property)(const char *property_id, ...);
+
 } // namespace memoir
 
 #endif
