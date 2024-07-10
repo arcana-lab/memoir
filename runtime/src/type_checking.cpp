@@ -49,6 +49,11 @@ bool MEMOIR_FUNC(set_return_type)(const type_ref type) {
   return true;
 }
 
+__RUNTIME_ATTR
+void MEMOIR_FUNC(property)(const char *property_id, ...) {
+  return;
+}
+
 } // extern "C"
 
 } // namespace memoir
