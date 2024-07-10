@@ -13,10 +13,10 @@ build:
 	mkdir -p $(BUILD_DIR)
 	mkdir -p $(MEMOIR_INSTALL_DIR)
 	cmake -DCMAKE_INSTALL_PREFIX=$(MEMOIR_INSTALL_DIR) -DCMAKE_C_COMPILER=`which clang` -DCMAKE_CXX_COMPILER=`which clang++` -S . -B $(BUILD_DIR)
-	make -C $(BUILD_DIR) all -j32
+	make -C $(BUILD_DIR) all -j32 --no-print-directory
 
 install: build
-	make -C $(BUILD_DIR) install -j32
+	make -C $(BUILD_DIR) install -j32 --no-print-directory
 
 postinstall: install
 	$(NORM_RUNTIME) $(RUNTIME_BC) $(DECL_BC)
@@ -32,7 +32,7 @@ documentation: all
 	make -C $(BUILD_DIR)/docs documentation -j32 
 
 hooks:
-	make -C $(HOOKS_DIR) all
+	make -C $(HOOKS_DIR) all --no-print-directory
 
 uninstall:
 	-cat $(BUILD_DIR)/install_manifest.txt | xargs rm -f
