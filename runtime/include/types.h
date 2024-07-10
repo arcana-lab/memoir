@@ -31,6 +31,7 @@ enum TypeCode {
   FloatTy,
   DoubleTy,
   PointerTy,
+  VoidTy,
   ReferenceTy,
   NoneTy
 };
@@ -195,6 +196,17 @@ public:
 
 private:
   PointerType();
+};
+
+struct VoidType : public Type {
+public:
+  static VoidType *get();
+
+  bool equals(Type *other) override;
+  std::string to_string() override;
+
+private:
+  VoidType();
 };
 
 struct ReferenceType : public Type {
