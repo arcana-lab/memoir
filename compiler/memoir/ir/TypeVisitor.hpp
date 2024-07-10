@@ -32,6 +32,7 @@ public:
     CHECK_AND_DELEGATE_TYPE(FloatType)
     CHECK_AND_DELEGATE_TYPE(DoubleType)
     CHECK_AND_DELEGATE_TYPE(PointerType)
+    CHECK_AND_DELEGATE_TYPE(VoidType)
     CHECK_AND_DELEGATE_TYPE(ReferenceType)
     CHECK_AND_DELEGATE_TYPE(StructType)
     CHECK_AND_DELEGATE_TYPE(FieldArrayType)
@@ -56,6 +57,10 @@ public:
   };
 
   RetTy visitPointerType(PointerType &T) {
+    DELEGATE_TYPE(Type);
+  };
+
+  RetTy visitVoidType(VoidType &T) {
     DELEGATE_TYPE(Type);
   };
 
