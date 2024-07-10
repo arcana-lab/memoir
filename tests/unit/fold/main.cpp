@@ -31,6 +31,10 @@ uint32_t sum_assoc(uint32_t accum, uint32_t k, uint32_t v) {
   return accum + k + v;
 }
 
+uint32_t sum_set(uint32_t accum, uint32_t k) {
+  return accum + k;
+}
+
 collection_ref accum_hist_seq(collection_ref accum, size_t i, uint32_t v) {
   auto assoc_t = memoir_assoc_type(memoir_u32_t, memoir_u32_t);
   memoir_assert_collection_type(assoc_t, accum);
@@ -75,6 +79,18 @@ int main() {
     auto sum = memoir_fold(u32, 0, assoc, sum_assoc);
 
     EXPECT(sum == (10 + 1 + 2 + 20 + 3 + 30), "Sum incorrect!");
+  }
+
+  TEST(fold_set) {
+    auto set = memoir_allocate_assoc_array(memoir_u32_t, memoir_u32_t);
+
+    memoir_assoc_insert(set, 10);
+    memoir_assoc_insert(set, 20);
+    memoir_assoc_insert(set, 30);
+
+    auto sum = memoir_fold(u32, 0, set, sum_set);
+
+    EXPECT(sum == (10 + 20 + 30), "Sum incorrect!");
   }
 
   TEST(accum_seq) {
