@@ -1804,6 +1804,15 @@ void SSADestructionVisitor::visitReturnTypeInst(ReturnTypeInst &I) {
   return;
 }
 
+void SSADestructionVisitor::visitPropertyInst(PropertyInst &I) {
+  if (this->enable_collection_lowering) {
+    this->markForCleanup(I);
+  } else {
+    // Do nothing.
+  }
+  return;
+}
+
 void SSADestructionVisitor::visitTypeInst(TypeInst &I) {
   if (this->enable_collection_lowering) {
     // Cleanup the global variable store/load if it exists.
