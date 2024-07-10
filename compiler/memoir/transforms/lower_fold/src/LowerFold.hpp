@@ -137,9 +137,11 @@ public:
     }
 
     // Insert a Get/ReadInst at the beginning of the loop.
-    llvm::Value *element;
+    llvm::Value *element = nullptr;
     auto &element_type = collection_type.getElementType();
-    if (isa<StructType>(&element_type)) {
+    if (isa<VoidType>(&element_type)) {
+      // Do nothing.
+    } else if (isa<StructType>(&element_type)) {
       if (collection_is_assoc) {
         // Read the value from the collection.
         auto &read_value = MEMOIR_SANITIZE(
@@ -184,7 +186,10 @@ public:
     auto *function_type = function.getFunctionType();
 
     // Construct the list of arguments to pass into the function.
-    vector<llvm::Value *> arguments = { &accumulator, key, element };
+    vector<llvm::Value *> arguments = { &accumulator, key };
+    if (element != nullptr) {
+      arguments.push_back(element);
+    }
     for (unsigned closed_idx = 0; closed_idx < I.getNumberOfClosed();
          ++closed_idx) {
 
