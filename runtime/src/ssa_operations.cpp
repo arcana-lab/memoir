@@ -12,7 +12,6 @@
 #include "utils.h"
 
 namespace memoir {
-extern "C" {
 
 // General-purpose renaming operations.
 __IMMUT_ATTR
@@ -55,6 +54,17 @@ __RUNTIME_ATTR
 size_t MEMOIR_FUNC(end)() {
   return -1;
 }
+
+// Fold operation.
+#define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
+  __RUNTIME_ATTR                                                               \
+  C_TYPE MEMOIR_FUNC(fold_##TYPE_NAME)(const collection_ref collection,        \
+                                       C_TYPE accumulator,                     \
+                                       void *, /*C_TYPE (*f)(C_TYPE, ...),*/   \
+                                       ...) {                                  \
+    return accumulator;                                                        \
+  }
+#include "types.def"
 
 // Sequence operations.
 __IMMUT_ATTR
@@ -106,7 +116,7 @@ collection_ref MEMOIR_FUNC(sequence_copy)(const collection_ref collection,
     MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);                       \
     auto *seq = (detail::Sequence *)(collection);                              \
     auto *seq_type = static_cast<SequenceType *>(seq->get_type());             \
-    if (index == (size_t)-1) {                                                 \
+    if (index == (size_t) - 1) {                                               \
       index = seq->size();                                                     \
     }                                                                          \
                                                                                \
@@ -367,5 +377,4 @@ collection_ref MEMOIR_FUNC(assoc_keys)(const collection_ref collection) {
   return (collection_ref)assoc->keys();
 }
 
-} // extern "C"
 } // namespace memoir
