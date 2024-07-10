@@ -312,6 +312,22 @@ protected:
   friend struct MemOIRInst;
 };
 
+struct VoidTypeInst : public TypeInst {
+public:
+  Type &getType() const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::VOID_TYPE);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  VoidTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
+
+  friend struct MemOIRInst;
+};
+
 struct ReferenceTypeInst : public TypeInst {
 public:
   Type &getType() const override;

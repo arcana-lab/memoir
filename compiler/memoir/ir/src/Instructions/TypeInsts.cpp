@@ -108,6 +108,12 @@ GET_TYPE_IMPL(PointerTypeInst)
 TO_STRING(PointerTypeInst)
 
 /*
+ * PointerType implementation
+ */
+GET_TYPE_IMPL(VoidTypeInst)
+TO_STRING(VoidTypeInst)
+
+/*
  * ReferenceType implementation
  */
 GET_TYPE_IMPL(ReferenceTypeInst)

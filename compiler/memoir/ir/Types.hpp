@@ -24,6 +24,7 @@ enum class TypeCode {
   FLOAT,
   DOUBLE,
   POINTER,
+  VOID,
   REFERENCE,
   STRUCT,
   FIELD_ARRAY,
@@ -38,6 +39,7 @@ struct IntegerType;
 struct FloatType;
 struct DoubleType;
 struct PointerType;
+struct VoidType;
 struct ReferenceType;
 struct StructType;
 struct FieldArrayType;
@@ -64,6 +66,7 @@ public:
   static FloatType &get_f32_type();
   static DoubleType &get_f64_type();
   static PointerType &get_ptr_type();
+  static VoidType &get_void_type();
   static ReferenceType &get_ref_type(Type &referenced_type);
   static StructType &define_struct_type(DefineStructTypeInst &definition,
                                         std::string name,
@@ -104,8 +107,6 @@ protected:
   TypeCode code;
 
   Type(TypeCode code);
-
-  friend class TypeAnalysis;
 };
 
 struct IntegerType : public Type {
@@ -132,8 +133,6 @@ protected:
   bool is_signed;
 
   IntegerType(unsigned bitwidth, bool is_signed);
-
-  friend class TypeAnalysis;
 };
 
 struct FloatType : public Type {
@@ -149,8 +148,6 @@ public:
 
 protected:
   FloatType();
-
-  friend class TypeAnalysis;
 };
 
 struct DoubleType : public Type {
@@ -166,8 +163,6 @@ public:
 
 protected:
   DoubleType();
-
-  friend class TypeAnalysis;
 };
 
 struct PointerType : public Type {
@@ -183,8 +178,21 @@ public:
 
 protected:
   PointerType();
+};
 
-  friend class TypeAnalysis;
+struct VoidType : public Type {
+public:
+  static VoidType &get();
+
+  static bool classof(const Type *T) {
+    return (T->getCode() == TypeCode::VOID);
+  }
+
+  std::string toString(std::string indent = "") const override;
+  opt<std::string> get_code() const override;
+
+protected:
+  VoidType();
 };
 
 struct ReferenceType : public Type {
@@ -206,8 +214,6 @@ protected:
   static map<Type *, ReferenceType *> *reference_types;
 
   ReferenceType(Type &referenced_type);
-
-  friend class TypeAnalysis;
 };
 
 struct StructType : public Type {
@@ -243,8 +249,6 @@ protected:
   StructType(DefineStructTypeInst &definition,
              std::string name,
              vector<Type *> field_types);
-
-  friend class TypeAnalysis;
 };
 
 struct CollectionType : public Type {
@@ -268,8 +272,6 @@ public:
 
 protected:
   CollectionType(TypeCode code);
-
-  friend class TypeAnalysis;
 };
 
 struct FieldArrayType : public CollectionType {
@@ -322,8 +324,6 @@ protected:
                    vector<size_t> length_of_dimensions);
 
   static ordered_multimap<Type *, StaticTensorType *> *static_tensor_types;
-
-  friend class TypeAnalysis;
 };
 
 struct TensorType : public CollectionType {
@@ -346,8 +346,6 @@ protected:
   TensorType(Type &element_type, unsigned number_of_dimensions);
 
   static map<Type *, map<unsigned, TensorType *>> *tensor_types;
-
-  friend class TypeAnalysis;
 };
 
 struct AssocArrayType : public CollectionType {
@@ -371,8 +369,6 @@ protected:
   static map<Type *, map<Type *, AssocArrayType *>> *assoc_array_types;
 
   AssocArrayType(Type &key_type, Type &value_type);
-
-  friend class TypeAnalysis;
 };
 
 struct SequenceType : public CollectionType {
@@ -393,8 +389,6 @@ protected:
   static map<Type *, SequenceType *> *sequence_types;
 
   SequenceType(Type &element_type);
-
-  friend class TypeAnalysis;
 };
 
 /**
