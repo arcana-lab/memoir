@@ -1,3 +1,8 @@
+// LLVM
+#include "llvm/Transforms/Scalar/IndVarSimplify.h"
+#include "llvm/Transforms/Utils/LCSSA.h"
+#include "llvm/Transforms/Utils/LoopSimplify.h"
+
 // MEMOIR
 #include "memoir/passes/Passes.hpp"
 
@@ -32,6 +37,14 @@ llvmGetPassPluginInfo() {
                  [](llvm::StringRef name,
                     llvm::ModulePassManager &MPM,
                     llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
+                   // LowerFold require some addition simplification to be run
+                   // after it so it doesn't break other passes in the pipeline.
+                   if (name == "memoir-lower-fold") {
+                     MPM.addPass(LowerFoldPass());
+                     MPM.addPass(adapt(llvm::LoopSimplifyPass()));
+                     MPM.addPass(adapt(llvm::LCSSAPass()));
+                     return true;
+                   }
 
 #define PASS(SCOPE, CLASS, NAME)                                               \
   if (name == NAME) {                                                          \
