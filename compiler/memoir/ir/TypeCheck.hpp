@@ -130,6 +130,7 @@ protected:
   Type *visitFloatTypeInst(FloatTypeInst &I);
   Type *visitDoubleTypeInst(DoubleTypeInst &I);
   Type *visitPointerTypeInst(PointerTypeInst &I);
+  Type *visitVoidTypeInst(VoidTypeInst &I);
   Type *visitReferenceTypeInst(ReferenceTypeInst &I);
   Type *visitDefineStructTypeInst(DefineStructTypeInst &I);
   Type *visitStructTypeInst(StructTypeInst &I);
