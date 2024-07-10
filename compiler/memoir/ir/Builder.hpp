@@ -238,6 +238,64 @@ public:
   }
 
   // Access Instructions
+
+  //// Read Instructions
+  StructReadInst *CreateStructReadInst(Type &element_type,
+                                       llvm::Value *llvm_collection,
+                                       llvm::Value *llvm_field_index,
+                                       const Twine &name = "") {
+    return this->create<StructReadInst>(getStructReadEnumForType(element_type),
+                                        { llvm_collection, llvm_field_index },
+                                        name);
+  }
+
+  IndexReadInst *CreateIndexReadInst(Type &element_type,
+                                     llvm::Value *llvm_collection,
+                                     llvm::Value *llvm_index,
+                                     const Twine &name = "") {
+    return this->create<IndexReadInst>(getIndexReadEnumForType(element_type),
+                                       { llvm_collection, llvm_index },
+                                       name);
+  }
+
+  AssocReadInst *CreateAssocReadInst(Type &element_type,
+                                     llvm::Value *llvm_collection,
+                                     llvm::Value *llvm_key,
+                                     const Twine &name = "") {
+    return this->create<AssocReadInst>(getAssocReadEnumForType(element_type),
+                                       { llvm_collection, llvm_key },
+                                       name);
+  }
+
+  //// Get Instructions
+  StructGetInst *CreateStructGetInst(Type &element_type,
+                                     llvm::Value *llvm_collection,
+                                     llvm::Value *llvm_field_index,
+                                     const Twine &name = "") {
+    return this->create<StructGetInst>(getStructGetEnumForType(element_type),
+                                       { llvm_collection, llvm_field_index },
+                                       name);
+  }
+
+  IndexGetInst *CreateIndexGetInst(Type &element_type,
+                                   llvm::Value *llvm_collection,
+                                   llvm::Value *llvm_index,
+                                   const Twine &name = "") {
+    return this->create<IndexGetInst>(getIndexGetEnumForType(element_type),
+                                      { llvm_collection, llvm_index },
+                                      name);
+  }
+
+  AssocGetInst *CreateAssocGetInst(Type &element_type,
+                                   llvm::Value *llvm_collection,
+                                   llvm::Value *llvm_key,
+                                   const Twine &name = "") {
+    return this->create<AssocGetInst>(getAssocGetEnumForType(element_type),
+                                      { llvm_collection, llvm_key },
+                                      name);
+  }
+
+  //// Write Instructions.
   StructWriteInst *CreateStructWriteInst(Type &element_type,
                                          llvm::Value *llvm_value_to_write,
                                          llvm::Value *llvm_collection,
@@ -322,6 +380,13 @@ public:
         MemOIR_Func::ASSOC_REMOVE,
         llvm::ArrayRef({ collection, key_value }),
         name);
+  }
+
+  AssocKeysInst *CreateAssocKeysInst(llvm::Value *collection,
+                                     const Twine &name = "") {
+    return this->create<AssocKeysInst>(MemOIR_Func::ASSOC_KEYS,
+                                       llvm::ArrayRef({ collection }),
+                                       name);
   }
 
   //// Mutable assoc operations.
