@@ -112,6 +112,7 @@ public:
   void visitAssertCollectionTypeInst(AssertCollectionTypeInst &I);
   void visitAssertStructTypeInst(AssertStructTypeInst &I);
   void visitReturnTypeInst(ReturnTypeInst &I);
+  void visitPropertyInst(PropertyInst &I);
 
   void do_coalesce(llvm::Value &V);
 
