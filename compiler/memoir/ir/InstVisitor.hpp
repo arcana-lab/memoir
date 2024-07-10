@@ -177,6 +177,12 @@ public:
   RetTy visit##CLASS(CLASS &I) {                                               \
     DELEGATE_INST(SwapInst);                                                   \
   };
+
+  // Fold instruction hierarchy.
+  RetTy visitFoldInst(FoldInst &I) {
+    DELEGATE_INST(MemOIRInst);
+  };
+#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS) /* No handling */
 #include "memoir/ir/Instructions.def"
 
   // Mut instruction hierarchy.
