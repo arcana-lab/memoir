@@ -39,6 +39,9 @@ namespace memoir {
 #define memoir_assoc_array_type(key_type, value_type)                          \
   MEMOIR_FUNC(assoc_array_type)(key_type, value_type)
 
+#define memoir_assoc_type(key_type, value_type)                                \
+  MEMOIR_FUNC(assoc_array_type)(key_type, value_type)
+
 #define memoir_sequence_type(element_type)                                     \
   MEMOIR_FUNC(sequence_type)(element_type)
 
@@ -75,6 +78,9 @@ namespace memoir {
   MEMOIR_FUNC(allocate_sequence)(element_type, (uint64_t)initial_size)
 
 #define memoir_allocate_assoc_array(key_type, value_type)                      \
+  MEMOIR_FUNC(allocate_assoc_array)(key_type, value_type)
+
+#define memoir_allocate_assoc(key_type, value_type)                            \
   MEMOIR_FUNC(allocate_assoc_array)(key_type, value_type)
 
 #define memoir_delete_struct(strct) MEMOIR_FUNC(delete_struct)(strct)
