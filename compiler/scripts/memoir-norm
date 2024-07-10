@@ -34,6 +34,10 @@ do
             flags
             exit 1
             ;;
+        --infer-types)
+            INFER_TYPES="y"
+            shift
+            ;;
         --stats)
             PREPASSES+=("-passes=memoir-stats")
             POSTPASSES+=("-passes=memoir-stats")
@@ -55,13 +59,15 @@ do
     esac
 done
 
-if [ -z ${INPUT_IR_FILE} ] ; then
+if [ -z ${INPUT_IR_FILE} ]
+then
     echo "No input IR file specified."
     usage
     exit 1
 fi
 
-if [ -z ${OUTPUT_IR_FILE} ] ; then
+if [ -z ${OUTPUT_IR_FILE} ]
+then
     echo "No output IR file specified."
     usage
     exit 1
@@ -82,8 +88,13 @@ opt -passes='mem2reg,function(lowerswitch),mergereturn,break-crit-edges,loop-sim
 # Link in the IR declarations.
 llvm-link ${IR_FILE} $(memoir-config --libdir)/memoir.decl.bc -o ${IR_FILE}
 
+# Run type inference if requested.
+if [ ! -z ${INFER_TYPES} ]
+then
+    memoir-load -passes=memoir-type-infer ${IR_FILE} -o ${IR_FILE}
+fi
+
 # Run SSA construction and type inference.
 memoir-load ${PREPASSES[@]} -passes=memoir-ssa-construction ${POSTPASSES[@]} ${IR_FILE} -o ${IR_FILE}
-# memoir-load ${PREPASSES[@]} -passes=memoir-type-infer,memoir-ssa-construction ${POSTPASSES[@]} ${IR_FILE} -o ${IR_FILE}
 
 mv ${IR_FILE} ${OUTPUT_IR_FILE}
