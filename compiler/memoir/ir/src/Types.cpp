@@ -93,6 +93,15 @@ PointerType &PointerType::get() {
   return the_type;
 }
 
+VoidType &Type::get_void_type() {
+  return VoidType::get();
+}
+
+VoidType &VoidType::get() {
+  static VoidType the_type;
+  return the_type;
+}
+
 ReferenceType &Type::get_ref_type(Type &referenced_type) {
   return ReferenceType::get(referenced_type);
 }
@@ -492,6 +501,25 @@ std::string PointerType::toString(std::string indent) const {
 
 opt<std::string> PointerType::get_code() const {
   return "ptr";
+}
+
+/*
+ * VoidType implementation
+ */
+VoidType::VoidType() : Type(TypeCode::VOID) {
+  // Do nothing.
+}
+
+std::string VoidType::toString(std::string indent) const {
+  std::string str;
+
+  str = "(type: void)";
+
+  return str;
+}
+
+opt<std::string> VoidType::get_code() const {
+  return "void";
 }
 
 /*
