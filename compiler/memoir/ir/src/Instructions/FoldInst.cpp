@@ -7,9 +7,9 @@ namespace llvm::memoir {
 // FoldInst implementation.
 RESULTANT(FoldInst, Result)
 
-OPERAND(FoldInst, Collection, 0)
+OPERAND(FoldInst, Initial, 0)
 
-OPERAND(FoldInst, Initial, 1)
+OPERAND(FoldInst, Collection, 1)
 
 llvm::Function &FoldInst::getFunction() const {
   auto &F =
