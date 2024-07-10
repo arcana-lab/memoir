@@ -16,9 +16,7 @@ public:
   Property(const PropertyInst &inst) : inst(&inst) {}
 
   // Accessors.
-  const PropertyInst &getPropertyInst() const {
-    return *this->inst;
-  }
+  const PropertyInst &getPropertyInst() const;
 
   // Copy constructor.
   Property(Property &) = default;
