@@ -127,10 +127,11 @@ size_t MEMOIR_FUNC(end)();
 
 #define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
   __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(fold_##TYPE_NAME)(const collection_ref collection,        \
-                                       C_TYPE accumulator,                     \
-                                       void *, /*C_TYPE (*f)(C_TYPE, ...),*/   \
-                                       ...);
+  C_TYPE MEMOIR_FUNC(fold_##TYPE_NAME)(                                        \
+      C_TYPE initial_value,                                                    \
+      const collection_ref collection,                                         \
+      void *fold_function, /*C_TYPE (*f)(C_TYPE, ...),*/                       \
+      ...);
 #include "types.def"
 
 // Immutable sequence operations.
