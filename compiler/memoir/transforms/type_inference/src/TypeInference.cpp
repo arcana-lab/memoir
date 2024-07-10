@@ -61,7 +61,7 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
 
   // Otherwise, we need to infer the type.
 
-  // See if TypeAnalysis can get the type for us.
+  // See if the type checker can get the type for us.
   if (auto *type = type_of(A)) {
     // It worked! Mark the argument type to be annotated and continue.
     this->argument_types_to_annotate[&A] = type;
@@ -70,10 +70,95 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
 
   // Guess it's time to break out our own analysis.
 
-  // First, let's check the callers.
-  auto &F = MEMOIR_SANITIZE(
-      A.getParent(),
-      "Trying to infer type of argument that has no parent function!");
+  // First, check to see if the function is in a fold instruction, if so, we can
+  // use type information there.
+  auto &F = MEMOIR_SANITIZE(A.getParent(), "Argument has NULL parent!");
+  for (auto &use : F.uses()) {
+    auto *user = use.getUser();
+    if (auto *inst = dyn_cast<llvm::Instruction>(user)) {
+      if (auto *fold = into<FoldInst>(inst)) {
+
+        // If we are not the function operand, continue.
+        if (&fold->getFunction() != &F) {
+          continue;
+        }
+
+        // Determine the type of the value based on the operand(s) to the fold.
+        Type *type = nullptr;
+        bool found_type = false;
+
+        // If we are the accumulator argument, return the initial value's type.
+        if (A.getArgNo() == 0) {
+
+          // Otherwise, get the type of the initial accumulator value.
+          type = type_of(fold->getInitial());
+          found_type = true;
+        }
+
+        // If we are the key argument, fetch the collection type and get our
+        // type.
+        else if (A.getArgNo() == 1) {
+          auto &collection_type = MEMOIR_SANITIZE(
+              dyn_cast_or_null<CollectionType>(type_of(fold->getCollection())),
+              "Fold over non-collection type!");
+
+          // If the collection is an assoc type, get the key type.
+          if (auto *assoc_type = dyn_cast<AssocArrayType>(&collection_type)) {
+            auto &key_type = assoc_type->getKeyType();
+
+            type = &key_type;
+            found_type = true;
+          }
+          // Otherwise, it's an index type, and therefore an LLVM type.
+          else {
+            type = nullptr;
+            found_type = true;
+          }
+        }
+
+        // If we are the value argument, fetch the collection type and get our
+        // type.
+        else if (A.getArgNo() == 2) {
+          auto &collection_type = MEMOIR_SANITIZE(
+              dyn_cast_or_null<CollectionType>(type_of(fold->getCollection())),
+              "Fold over non-collection type!");
+
+          // Get the element type.
+          auto &element_type = collection_type.getElementType();
+
+          type = &element_type;
+          found_type = true;
+        }
+
+        // Otherwise, get the closure argument that we match with.
+        else if (A.getArgNo() >= 3) {
+
+          // Get the closed value.
+          auto &closed_value = fold->getClosed(A.getArgNo() - 3);
+
+          // Get the type of the closed value.
+          type = type_of(closed_value);
+          found_type = true;
+        }
+
+        // If we found a type:
+        if (found_type) {
+
+          // If it's a collection or struct type, mark it for annotation.
+          if (isa_and_nonnull<CollectionType>(type)
+              || isa_and_nonnull<StructType>(type)) {
+            this->argument_types_to_annotate[&A] = type;
+            return true;
+          }
+
+          // Otherwise, we succeed, but return NULL because it is an LLVM type.
+          return true;
+        }
+      }
+    }
+  }
+
+  // Second, let's check the callers.
   bool found_type = false;
   for (auto &use : F.uses()) {
     // If we found the type, continue.
@@ -85,12 +170,21 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
     auto *user = use.getUser();
     auto *user_as_inst = dyn_cast_or_null<llvm::Instruction>(user);
 
+    // If the user is a memoir instruction, skip it.
+    if (into<MemOIRInst>(user_as_inst)) {
+      continue;
+    }
+
     // If the user is a call instruction, recurse on it's parent function.
     if (auto *user_as_call = dyn_cast_or_null<llvm::CallBase>(user_as_inst)) {
       // Recurse on the caller function.
       if (auto *caller_bb = user_as_call->getParent()) {
         if (auto *caller_function = caller_bb->getParent()) {
-          this->infer(*caller_function);
+
+          // Only recurse if we are looking at a different function.
+          if (caller_function != &F) {
+            this->infer(*caller_function);
+          }
         }
       }
 
@@ -181,6 +275,33 @@ bool TypeInference::infer_return_type(llvm::Function &F) {
   if (unified_type != nullptr) {
     this->return_types_to_annotate[&F] = unified_type;
     return true;
+  }
+
+  // Check to see if the function is in a fold instruction, if so, we can use
+  // type information there.
+  for (auto &use : F.uses()) {
+    auto *user = use.getUser();
+    if (auto *inst = dyn_cast<llvm::Instruction>(user)) {
+      if (auto *fold = into<FoldInst>(inst)) {
+        // If we are not the function operand, continue.
+        if (&fold->getFunction() != &F) {
+          continue;
+        }
+
+        // Otherwise, get the type of the initial accumulator value.
+        auto *accumulator_type = type_of(fold->getInitial());
+
+        // If the accumulator type is a collection or struct type, return it.
+        if (isa<CollectionType>(accumulator_type)
+            || isa<StructType>(accumulator_type)) {
+          this->return_types_to_annotate[&F] = accumulator_type;
+          return true;
+        }
+
+        // Otherwise, we succeeded, but the return type is an LLVM type.
+        return true;
+      }
+    }
   }
 
   // Otherwise, we did not infer a memoir type for the return.
