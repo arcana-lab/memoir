@@ -76,6 +76,19 @@ bool check_live_set(
   return true;
 }
 
+bool check_basic_block_edge(
+    LivenessResult &LR,
+    const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
+    llvm::BasicBlock &from,
+    llvm::BasicBlock &to) {
+
+  // Get the set of live values along this basic block edge.
+  const auto &live_set = LR.live_values(from, to);
+
+  // If we have gotten this far, we have succeeded!
+  return check_live_set(partition, live_set);
+}
+
 bool check_instruction(
     LivenessResult &LR,
     const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
@@ -88,17 +101,38 @@ bool check_instruction(
   return check_live_set(partition, live_set);
 }
 
-bool check_basic_block_edge(
-    LivenessResult &LR,
-    const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
-    llvm::BasicBlock &from,
-    llvm::BasicBlock &to) {
+bool check_call(const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
+                llvm::CallBase &call) {
+  // Check that, no two collection operands are the same.
 
-  // Get the set of live values along this basic block edge.
-  const auto &live_set = LR.live_values(from, to);
+  // We will store the set of collection arguments we have already found in
+  // collection_arguments.
+  set<llvm::Value *> collection_arguments = {};
 
-  // If we have gotten this far, we have succeeded!
-  return check_live_set(partition, live_set);
+  // For each argument of the call.
+  for (auto &argument : call.data_ops()) {
+
+    // Get the argument value.
+    auto *argument_value = argument.get();
+    if (argument_value == nullptr) {
+      continue;
+    }
+
+    // If the value is a collection type, make sure it's not in the set of
+    // collection arguments already.
+    if (isa_and_nonnull<CollectionType>(type_of(*argument_value))) {
+
+      // If it is, the call instruction is broken.
+      if (collection_arguments.count(argument_value) > 0) {
+        println("Collection duplicated!");
+        println("  ", *argument_value);
+        println("  at call site ", call);
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 bool verify_linearity(llvm::Function &F, LivenessResult &LR) {
@@ -197,7 +231,10 @@ bool verify_linearity(llvm::Function &F, LivenessResult &LR) {
     for (auto *succ : llvm::successors(&BB)) {
       auto &Succ = MEMOIR_SANITIZE(succ, "Successor of BasicBlock is NULL!");
       if (not check_basic_block_edge(LR, partition, BB, Succ)) {
-        println("  at edge from ", BB.getName(), " to ", Succ.getName());
+        println("  at edge from ",
+                BB.getNameOrAsOperand(),
+                " to ",
+                Succ.getNameOrAsOperand());
         return false;
       }
     }
@@ -212,6 +249,14 @@ bool verify_linearity(llvm::Function &F, LivenessResult &LR) {
       if (not check_instruction(LR, partition, I)) {
         println("  at instruction ", I);
         return false;
+      }
+
+      // If the instruction is a call, check that it doesn't duplicate the
+      // collection.
+      if (auto *call = dyn_cast<llvm::CallBase>(&I)) {
+        if (not check_call(partition, *call)) {
+          return false;
+        }
       }
     }
   }
