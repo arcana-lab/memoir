@@ -44,6 +44,7 @@ add_subdirectory(dead_element_elimination)
 
 # Lowering passes.
 add_subdirectory(impl_linker)
+add_subdirectory(lower_fold)
 
 # Analysis passes.
 add_subdirectory(example)

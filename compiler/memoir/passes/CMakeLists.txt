@@ -18,7 +18,6 @@ file(GLOB_RECURSE sources "src/*.cpp" "src/*.c" "src/*.cc")
 
 # Add the memoir sources to the core build.
 add_memoir_sources(
-  CORE
   FILES
   ${sources}
   )
