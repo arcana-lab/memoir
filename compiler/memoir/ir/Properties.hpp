@@ -7,7 +7,7 @@ namespace llvm::memoir {
 
 // Implementations of user-defined properties go here.
 
-// Properties _must_ implement the following:
+// NOTE: a Property _must_ implement the following:
 //   static bool class_of(const Property &);
 
 } // namespace llvm::memoir
