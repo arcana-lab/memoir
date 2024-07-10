@@ -10,6 +10,7 @@ add_subdirectory(stl_unordered_map)
 # add_subdirectory(stl_map)
 # add_subdirectory(deepsjeng_ttable)
 add_subdirectory(stl_vector)
+add_subdirectory(stl_unordered_set)
 
 # Configure LLVM
 # find_package(LLVM 9 REQUIRED CONFIG)
