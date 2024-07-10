@@ -11,6 +11,7 @@ PASS(Module, ImplLinkerPass, "memoir-impl-linker")
 PASS(Module, NormalizationPass, "memoir-norm")
 PASS(Module, StatisticsPass, "memoir-stats")
 PASS(Module, TypeInferencePass, "memoir-type-infer")
+PASS(Module, LowerFoldPass, "memoir-lower-fold-only")
 
 PASS(Module, DeadCollectionEliminationPass, "memoir-dce")
 PASS(Module, DeadFieldEliminationPass, "memoir-dfe")
