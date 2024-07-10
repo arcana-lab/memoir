@@ -85,6 +85,11 @@ type_ref MEMOIR_FUNC(sequence_type)(const type_ref element_type) {
   }
 #include "types.def"
 
+__RUNTIME_ATTR
+type_ref MEMOIR_FUNC(void_type)() {
+  return VoidType::get();
+}
+
 // Derived types.
 __RUNTIME_ATTR
 type_ref MEMOIR_FUNC(ref_type)(const type_ref referenced_type) {

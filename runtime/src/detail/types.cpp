@@ -408,6 +408,21 @@ bool PointerType::equals(Type *other) {
   return (this->getCode() == other->getCode());
 }
 
+// Void Type
+VoidType *VoidType::get() {
+  static VoidType void_type;
+
+  return &void_type;
+}
+
+VoidType::VoidType() : Type(TypeCode::VoidTy) {
+  // Do nothing.
+}
+
+bool VoidType::equals(Type *other) {
+  return (this->getCode() == other->getCode());
+}
+
 /*
  * Reference Type
  */
