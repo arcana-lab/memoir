@@ -154,6 +154,10 @@ Type *TypeChecker::visitPointerTypeInst(PointerTypeInst &I) {
   return &type;
 }
 
+Type *TypeChecker::visitVoidTypeInst(VoidTypeInst &I) {
+  return &VoidType::get();
+}
+
 Type *TypeChecker::visitReferenceTypeInst(ReferenceTypeInst &I) {
   auto &referenced_type =
       MEMOIR_SANITIZE(this->analyze(I.getReferencedTypeOperand()),
