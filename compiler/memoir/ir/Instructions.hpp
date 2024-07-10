@@ -1520,6 +1520,33 @@ protected:
   friend struct MemOIRInst;
 };
 
+struct Property;
+
+struct PropertyInst : public MemOIRInst {
+public:
+  Property getProperty() const;
+
+  std::string getPropertyID() const;
+  llvm::Value &getPropertyIDOperand() const;
+  llvm::Use &getPropertyIDOperandAsUse() const;
+
+  unsigned getNumberOfArguments() const;
+
+  llvm::Value &getArgument(unsigned index) const;
+  llvm::Use &getArgumentAsUse(unsigned index) const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::PROPERTY);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  PropertyInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
+
+  friend struct MemOIRInst;
+};
+
 } // namespace llvm::memoir
 
 #endif
