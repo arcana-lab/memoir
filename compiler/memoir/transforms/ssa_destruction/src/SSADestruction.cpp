@@ -11,6 +11,7 @@
 #include "SSADestruction.hpp"
 
 #define ASSOC_IMPL "stl_unordered_map"
+#define SET_IMPL "stl_unordered_set"
 #define SEQ_IMPL "stl_vector"
 
 namespace llvm::memoir {
@@ -71,7 +72,7 @@ void SSADestructionVisitor::visitSequenceAllocInst(SequenceAllocInst &I) {
       auto *struct_type = llvm::StructType::create(M.getContext(), struct_name);
       MEMOIR_NULL_CHECK(
           struct_type,
-          "Could not find or create the LLVM StructType for " ASSOC_IMPL "!");
+          "Could not find or create the LLVM StructType for " SEQ_IMPL "!");
 
       // Create a stack location.
       auto *llvm_alloca = builder.CreateAlloca(struct_type);
@@ -108,7 +109,8 @@ void SSADestructionVisitor::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
 
     auto key_code = key_type.get_code();
     auto value_code = value_type.get_code();
-    auto impl_prefix = *key_code + "_" + *value_code + "_" ASSOC_IMPL;
+    auto impl_type = isa<VoidType>(&value_type) ? SET_IMPL : ASSOC_IMPL;
+    auto impl_prefix = *key_code + "_" + *value_code + "_" + impl_type;
     auto operation = escaped ? "allocate" : "initialize";
     auto name = impl_prefix + "__" + operation;
 
@@ -144,7 +146,7 @@ void SSADestructionVisitor::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
       auto *struct_type = llvm::StructType::create(M.getContext(), struct_name);
       MEMOIR_NULL_CHECK(
           struct_type,
-          "Could not find or create the LLVM StructType for " ASSOC_IMPL "!");
+          "Could not find or create the LLVM StructType for Assoc!");
 
       // Create a stack location.
       auto *llvm_alloca = builder.CreateAlloca(struct_type);
@@ -257,8 +259,9 @@ void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
 
       auto key_code = key_type.get_code();
       auto value_code = value_type.get_code();
+      auto impl_type = isa<VoidType>(&value_type) ? SET_IMPL : ASSOC_IMPL;
       auto assoc_free_name =
-          *key_code + "_" + *value_code + "_" ASSOC_IMPL "__free";
+          *key_code + "_" + *value_code + "_" + impl_type + "__free";
 
       auto *function = this->M.getFunction(assoc_free_name);
       auto function_callee = FunctionCallee(function);
@@ -303,7 +306,8 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
 
       auto key_code = key_type.get_code();
       auto value_code = value_type.get_code();
-      name = *key_code + "_" + *value_code + "_" ASSOC_IMPL "__size";
+      auto impl_type = isa<VoidType>(&value_type) ? SET_IMPL : ASSOC_IMPL;
+      name = *key_code + "_" + *value_code + "_" + impl_type + "__size";
     }
 
     auto *function = this->M.getFunction(name);
@@ -882,7 +886,8 @@ void SSADestructionVisitor::visitAssocHasInst(AssocHasInst &I) {
 
     auto key_code = key_type.get_code();
     auto value_code = value_type.get_code();
-    auto name = *key_code + "_" + *value_code + "_" ASSOC_IMPL "__has";
+    auto impl_type = isa<VoidType>(&value_type) ? SET_IMPL : ASSOC_IMPL;
+    auto name = *key_code + "_" + *value_code + "_" + impl_type + "__has";
 
     auto *function = this->M.getFunction(name);
     auto function_callee = FunctionCallee(function);
@@ -1587,7 +1592,8 @@ void SSADestructionVisitor::visitAssocInsertInst(AssocInsertInst &I) {
 
     auto key_code = key_type.get_code();
     auto value_code = value_type.get_code();
-    auto name = *key_code + "_" + *value_code + "_" ASSOC_IMPL "__insert";
+    auto impl_type = isa<VoidType>(&value_type) ? SET_IMPL : ASSOC_IMPL;
+    auto name = *key_code + "_" + *value_code + "_" + impl_type + "__insert";
 
     auto *function = this->M.getFunction(name);
     auto function_callee = FunctionCallee(function);
@@ -1636,7 +1642,8 @@ void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
 
     auto key_code = key_type.get_code();
     auto value_code = value_type.get_code();
-    auto name = *key_code + "_" + *value_code + "_" ASSOC_IMPL "__remove";
+    auto impl_type = isa<VoidType>(&value_type) ? SET_IMPL : ASSOC_IMPL;
+    auto name = *key_code + "_" + *value_code + "_" + impl_type + "__remove";
 
     auto *function = this->M.getFunction(name);
     auto function_callee = FunctionCallee(function);
@@ -1685,7 +1692,8 @@ void SSADestructionVisitor::visitAssocKeysInst(AssocKeysInst &I) {
 
     auto key_code = key_type.get_code();
     auto value_code = value_type.get_code();
-    auto name = *key_code + "_" + *value_code + "_" ASSOC_IMPL "__keys";
+    auto impl_type = isa<VoidType>(&value_type) ? SET_IMPL : ASSOC_IMPL;
+    auto name = *key_code + "_" + *value_code + "_" + impl_type + "__keys";
 
     auto *function = this->M.getFunction(name);
     auto function_callee = FunctionCallee(function);
