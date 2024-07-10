@@ -64,6 +64,7 @@ namespace memoir {
 #define memoir_f32_t MEMOIR_FUNC(f32_type)()
 #define memoir_f64_t MEMOIR_FUNC(f64_type)()
 #define memoir_ptr_t MEMOIR_FUNC(ptr_type)()
+#define memoir_void_t MEMOIR_FUNC(void_type)()
 
 /*
  * Allocation
