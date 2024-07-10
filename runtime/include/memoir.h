@@ -77,6 +77,9 @@ type_ref MEMOIR_FUNC(ref_type)(const type_ref referenced_type);
   __RUNTIME_ATTR                                                               \
   type_ref MEMOIR_FUNC(TYPE_NAME##_type)();
 
+__RUNTIME_ATTR
+type_ref MEMOIR_FUNC(void_type)();
+
 // Object construction
 __IMMUT_ATTR
 __ALLOC_ATTR
