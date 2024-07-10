@@ -21,8 +21,8 @@ namespace memoir {
 extern "C" {
 
 #define __RUNTIME_ATTR                                                         \
-  __declspec(noalias) __attribute__((nothrow)) __attribute__((noinline))       \
-  __attribute__((optnone)) __attribute__((used))
+  extern "C" __declspec(noalias) __attribute__((nothrow))                      \
+  __attribute__((noinline)) __attribute__((optnone)) __attribute__((used))
 #define __ALLOC_ATTR __declspec(allocator)
 #define __IMMUT_ATTR __attribute__((pure))
 
@@ -34,6 +34,7 @@ typedef struct {
   collection_ref first;
   collection_ref second;
 } collection_pair;
+}
 
 #define MEMOIR_FUNC(name) memoir__##name
 #define MUT_FUNC(name) mut__##name
@@ -123,6 +124,14 @@ size_t MEMOIR_FUNC(size)(const collection_ref collection);
 __IMMUT_ATTR
 __RUNTIME_ATTR
 size_t MEMOIR_FUNC(end)();
+
+#define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
+  __RUNTIME_ATTR                                                               \
+  C_TYPE MEMOIR_FUNC(fold_##TYPE_NAME)(const collection_ref collection,        \
+                                       C_TYPE accumulator,                     \
+                                       void *, /*C_TYPE (*f)(C_TYPE, ...),*/   \
+                                       ...);
+#include "types.def"
 
 // Immutable sequence operations.
 __IMMUT_ATTR
@@ -338,7 +347,6 @@ bool MEMOIR_FUNC(assert_collection_type)(const type_ref type,
 __RUNTIME_ATTR
 bool MEMOIR_FUNC(set_return_type)(const type_ref type);
 
-} // extern "C"
 } // namespace memoir
 
 #endif
