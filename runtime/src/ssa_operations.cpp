@@ -65,7 +65,7 @@ size_t MEMOIR_FUNC(end)() {
     MEMOIR_ASSERT(                                                             \
         false,                                                                 \
         "Fold is unimplemented in the library! Please use the compiler");      \
-    return accumulator;                                                        \
+    return initial_value;                                                      \
   }
 #include "types.def"
 
