@@ -1272,6 +1272,41 @@ protected:
   friend struct MemOIRInst;
 };
 
+// Fold operations.
+struct FoldInst : public MemOIRInst {
+public:
+  llvm::Value &getResult() const;
+
+  llvm::Value &getCollection() const;
+  llvm::Use &getCollectionAsUse() const;
+
+  llvm::Value &getInitial() const;
+  llvm::Use &getInitialAsUse() const;
+
+  llvm::Function &getFunction() const;
+  llvm::Value &getFunctionOperand() const;
+  llvm::Use &getFunctionOperandAsUse() const;
+
+  unsigned getNumberOfClosed() const;
+  llvm::Value &getClosed(unsigned index) const;
+  llvm::Use &getClosedAsUse(unsigned index) const;
+
+  std::string toString(std::string indent = "") const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS)                                    \
+  (I->getKind() == MemOIR_Func::ENUM) ||
+#include "memoir/ir/Instructions.def"
+        false;
+  };
+
+protected:
+  FoldInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
+
+  friend struct MemOIRInst;
+};
+
 // SSA/readonce operations.
 struct UsePHIInst : public MemOIRInst {
 public:
