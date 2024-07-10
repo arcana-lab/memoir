@@ -89,6 +89,9 @@ namespace memoir {
 
 #define memoir_end() MEMOIR_FUNC(end)()
 
+#define memoir_fold(_ty, _collection, _accum, _f, _closed...)                  \
+  MEMOIR_FUNC(fold_##_ty)(_collection, _accum, (void *)_f, ##_closed)
+
 // Immutable sequence operations.
 #define memoir_sequence_slice(object, left, right)                             \
   MEMOIR_FUNC(sequence_copy)(object, (size_t)left, (size_t)right)
