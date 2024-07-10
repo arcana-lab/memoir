@@ -208,6 +208,19 @@ protected:
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
 
+  TypeLayout &visitVoidType(VoidType &T) {
+    CHECK_MEMOIZED(T);
+
+    // Get the LLVM type.
+    auto &llvm_type = MEMOIR_SANITIZE(llvm::Type::getVoidTy(this->C),
+                                      "Could not get the LLVM void type");
+
+    // Create the type layout.
+    auto *type_layout = new TypeLayout(T, llvm_type);
+
+    MEMOIZE_AND_RETURN(T, *type_layout);
+  }
+
   TypeLayout &visitReferenceType(ReferenceType &T) {
     CHECK_MEMOIZED(T);
 
