@@ -31,7 +31,7 @@ int main() {
       memoir_index_write(u32, 1, seq, i);
     }
 
-    auto sum = memoir_fold(u32, seq, 0, sum_seq);
+    auto sum = memoir_fold(u32, 0, seq, sum_seq);
 
     EXPECT(sum == 100, "Sum incorrect!");
   }
@@ -46,7 +46,7 @@ int main() {
     memoir_assoc_insert(assoc, 30);
     memoir_assoc_write(u32, 3, assoc, 30);
 
-    auto sum = memoir_fold(u32, assoc, 0, sum_assoc);
+    auto sum = memoir_fold(u32, 0, assoc, sum_assoc);
 
     EXPECT(sum == (10 + 1 + 2 + 20 + 3 + 30), "Sum incorrect!");
   }
@@ -60,7 +60,7 @@ int main() {
 
     const uint32_t x = 10;
 
-    auto sum = memoir_fold(u32, seq, 0, sum_seq_times, x);
+    auto sum = memoir_fold(u32, 0, seq, sum_seq_times, x);
 
     EXPECT(sum == 1000, "Sum incorrect!");
   }
@@ -75,7 +75,7 @@ int main() {
     uint32_t x;
     x = 1;
 
-    auto sum = memoir_fold(u32, seq, 0, sum_seq_times_mut, &x);
+    auto sum = memoir_fold(u32, 0, seq, sum_seq_times_mut, &x);
 
     printf("%u", x);
 
