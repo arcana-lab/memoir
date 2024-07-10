@@ -33,6 +33,20 @@ int main() {
     EXPECT(not memoir_assoc_has(map, INVALID_KEY), "INVALID_KEY present!");
   }
 
+  TEST(assoc_set) {
+
+    auto map = memoir_allocate_assoc_array(memoir_u32_t, memoir_void_t);
+
+    memoir_assoc_insert(map, KEY0);
+    memoir_assoc_insert(map, KEY1);
+    memoir_assoc_insert(map, KEY2);
+
+    EXPECT(memoir_assoc_has(map, KEY0), "KEY0 differs!");
+    EXPECT(memoir_assoc_has(map, KEY1), "KEY1 differs!");
+    EXPECT(memoir_assoc_has(map, KEY2), "KEY2 differs!");
+    EXPECT(not memoir_assoc_has(map, INVALID_KEY), "INVALID_KEY present!");
+  }
+
   TEST(assoc_remove) {
 
     auto map = memoir_allocate_assoc_array(memoir_u32_t, memoir_u32_t);
