@@ -1277,11 +1277,11 @@ struct FoldInst : public MemOIRInst {
 public:
   llvm::Value &getResult() const;
 
-  llvm::Value &getCollection() const;
-  llvm::Use &getCollectionAsUse() const;
-
   llvm::Value &getInitial() const;
   llvm::Use &getInitialAsUse() const;
+
+  llvm::Value &getCollection() const;
+  llvm::Use &getCollectionAsUse() const;
 
   llvm::Function &getFunction() const;
   llvm::Value &getFunctionOperand() const;
