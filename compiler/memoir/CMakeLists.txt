@@ -8,20 +8,10 @@ add_llvm_library(
   opt
 )
 
-add_llvm_library(
-  memoir_core
-  
-  MODULE
-  /dev/null
-
-  PLUGIN_TOOL
-  opt
-)
-
 function(add_memoir_sources)
   cmake_parse_arguments(
     SRC     # prefix
-    "CORE"  # booleans
+    ""  # booleans
     ""      # single-value
     "FILES" # multi-value
     ${ARGN} # arguments
@@ -31,14 +21,6 @@ function(add_memoir_sources)
     file(GLOB_RECURSE SRC_FILES "*.cpp" "*.c" "*.cc")
   endif()
 
-  if(${SRC_CORE})
-    target_sources(
-      memoir_core
-      PUBLIC
-      ${SRC_FILES}
-      )
-  endif()
-  
   target_sources(
     memoir
     PUBLIC
@@ -46,25 +28,12 @@ function(add_memoir_sources)
     )
 endfunction()
 
-
-# Install the include files.
 add_subdirectory(ir)
 add_subdirectory(support)
 add_subdirectory(utility)
 add_subdirectory(analysis)
 add_subdirectory(lowering)
 add_subdirectory(passes)
-
-install(
-  TARGETS memoir_core
-  LIBRARY
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  )
-
-# set_property(GLOBAL PROPERTY MEMOIR_SOURCES "${memoir_sources}")
-
-# Add all include directories
-# get_property(memoir_sources GLOBAL PROPERTY MEMOIR_SOURCES)
 add_subdirectory(transforms)
 
 install(
