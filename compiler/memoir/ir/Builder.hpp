@@ -599,6 +599,14 @@ public:
     return this->create<DefPHIInst>(MemOIR_Func::DEF_PHI, { collection }, name);
   }
 
+  RetPHIInst *CreateRetPHI(llvm::Value *collection,
+                           llvm::Value *callee,
+                           const Twine &name = "") {
+    return this->create<RetPHIInst>(MemOIR_Func::RET_PHI,
+                                    { collection, callee },
+                                    name);
+  }
+
   // Type annotations.
   MemOIRInst *CreateAssertTypeInst(llvm::Value *object,
                                    Type &type,
