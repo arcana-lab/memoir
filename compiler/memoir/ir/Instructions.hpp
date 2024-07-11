@@ -1398,6 +1398,14 @@ public:
   llvm::Value &getInputCollection() const;
   llvm::Use &getInputCollectionAsUse() const;
 
+  /**
+   * @return the function called, or NULL if it was an indirect function
+   * invocation.
+   */
+  llvm::Function *getCalledFunction() const;
+  llvm::Value &getCalledOperand() const;
+  llvm::Use &getCalledOperandAsUse() const;
+
   // TODO: add methods for decoding the metadata.
 
   static bool classof(const MemOIRInst *I) {

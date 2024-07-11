@@ -70,6 +70,12 @@ TO_STRING(ArgPHIInst)
 // RetPHIInst implementation
 RESULTANT(RetPHIInst, ResultCollection)
 OPERAND(RetPHIInst, InputCollection, 0)
+
+llvm::Function *RetPHIInst::getCalledFunction() const {
+  return dyn_cast<llvm::Function>(&this->getCalledOperand());
+}
+
+OPERAND(RetPHIInst, CalledOperand, 1)
 // TODO: implement metadata for storing the incoming collections.
 TO_STRING(RetPHIInst)
 
