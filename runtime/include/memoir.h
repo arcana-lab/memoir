@@ -339,7 +339,8 @@ collection_ref MEMOIR_FUNC(argPHI)(const collection_ref collection);
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(retPHI)(const collection_ref collection);
+collection_ref MEMOIR_FUNC(retPHI)(const collection_ref collection,
+                                   void *function);
 
 // Type checking and function signatures.
 __RUNTIME_ATTR
