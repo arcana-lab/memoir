@@ -29,7 +29,6 @@
 
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
-#include "memoir/utility/Pass.hpp"
 
 #include "SSAConstructionVisitor.hpp"
 
