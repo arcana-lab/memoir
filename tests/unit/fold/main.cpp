@@ -27,6 +27,22 @@ uint32_t sum_seq_times_mut(uint32_t accum, size_t i, uint32_t v, uint32_t *x) {
   return accum + v * ((*x)++);
 }
 
+uint32_t sum_seq_mut_set(uint32_t accum,
+                         size_t i,
+                         uint32_t v,
+                         collection_ref seen) {
+  memoir_assert_collection_type(memoir_assoc_type(memoir_u32_t, memoir_void_t),
+                                seen);
+
+  if (memoir_assoc_has(seen, v)) {
+    return accum;
+  } else {
+    memoir_assoc_insert(seen, v);
+  }
+
+  return accum + v;
+}
+
 uint32_t sum_assoc(uint32_t accum, uint32_t k, uint32_t v) {
   return accum + k + v;
 }
@@ -82,7 +98,7 @@ int main() {
   }
 
   TEST(fold_set) {
-    auto set = memoir_allocate_assoc_array(memoir_u32_t, memoir_u32_t);
+    auto set = memoir_allocate_assoc_array(memoir_u32_t, memoir_void_t);
 
     memoir_assoc_insert(set, 10);
     memoir_assoc_insert(set, 20);
@@ -155,9 +171,21 @@ int main() {
 
     auto sum = memoir_fold(u32, 0, seq, sum_seq_times_mut, &x);
 
-    printf("%u", x);
-
     EXPECT(sum == (1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10), "Sum incorrect!");
     EXPECT(x == 11, "x incorrect!");
+  }
+
+  TEST(close_mut_collection) {
+    auto seq = memoir_allocate_sequence(memoir_u32_t, 10);
+
+    for (size_t i = 0; i < 10; ++i) {
+      memoir_index_write(u32, i % 5, seq, i);
+    }
+
+    auto set = memoir_allocate_assoc(memoir_u32_t, memoir_void_t);
+
+    auto sum = memoir_fold(u32, 0, seq, sum_seq_mut_set, set);
+
+    EXPECT(sum == (0 + 1 + 2 + 3 + 4), "Sum incorrect!");
   }
 }
