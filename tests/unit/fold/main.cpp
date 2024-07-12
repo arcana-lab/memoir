@@ -67,6 +67,16 @@ collection_ref accum_hist_seq(collection_ref accum, size_t i, uint32_t v) {
   return accum;
 }
 
+collection_ref push_each(collection_ref accum, size_t i, uint32_t v) {
+  auto seq_t = memoir_sequence_type(memoir_u32_t);
+  memoir_assert_collection_type(seq_t, accum);
+  memoir_return_type(seq_t);
+
+  memoir_seq_insert(u32, v, accum, memoir_end());
+
+  return accum;
+}
+
 int main() {
 
   TEST(fold_seq) {
@@ -189,5 +199,24 @@ int main() {
 
     EXPECT(sum == (0 + 1 + 2 + 3 + 4 + 5), "Sum incorrect!");
     EXPECT(memoir_size(set) == 6, "Size incorrect!");
+  }
+
+  TEST(rfold_seq) {
+
+    auto seq = memoir_allocate_sequence(memoir_u32_t, 10);
+
+    for (size_t i = 0; i < 10; ++i) {
+      memoir_index_write(u32, 9 - i, seq, i);
+    }
+
+    auto rev = memoir_rfold(collection_ref,
+                            memoir_allocate_sequence(memoir_u32_t, 0),
+                            seq,
+                            push_each);
+
+    EXPECT(memoir_size(rev) == 10, "wrong size!");
+    for (size_t i = 0; i < 10; ++i) {
+      EXPECT(memoir_index_read(u32, rev, i) == i, "differs!");
+    }
   }
 }
