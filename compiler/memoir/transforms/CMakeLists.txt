@@ -27,6 +27,7 @@ function(add_memoir_transform name)
 endfunction()
 
 # Core.
+add_subdirectory(utilities)
 add_subdirectory(normalization)
 add_subdirectory(ssa_construction)
 add_subdirectory(ssa_destruction)
