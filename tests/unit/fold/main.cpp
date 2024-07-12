@@ -178,14 +178,16 @@ int main() {
   TEST(close_mut_collection) {
     auto seq = memoir_allocate_sequence(memoir_u32_t, 10);
 
-    for (size_t i = 0; i < 10; ++i) {
+    for (size_t i = 0; i < 9; ++i) {
       memoir_index_write(u32, i % 5, seq, i);
     }
+    memoir_index_write(u32, 5, seq, 9);
 
     auto set = memoir_allocate_assoc(memoir_u32_t, memoir_void_t);
 
     auto sum = memoir_fold(u32, 0, seq, sum_seq_mut_set, set);
 
-    EXPECT(sum == (0 + 1 + 2 + 3 + 4), "Sum incorrect!");
+    EXPECT(sum == (0 + 1 + 2 + 3 + 4 + 5), "Sum incorrect!");
+    EXPECT(memoir_size(set) == 6, "Size incorrect!");
   }
 }
