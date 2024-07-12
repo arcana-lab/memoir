@@ -1,0 +1,5 @@
+/* METADATA(ENUM, STR) */
+
+METADATA(MD_LIVE_OUT, "memoir.live-out", LiveOutMetadata)
+
+#undef METADATA
