@@ -33,7 +33,8 @@ std::string get_metadata_tag(MetadataKind kind) {
     auto &context = F.getContext();                                            \
     auto tag = get_metadata_tag(MetadataKind::ENUM);                           \
     auto *metadata =                                                           \
-        llvm::MDTuple::get(context, llvm::ArrayRef<llvm::Metadata *>({}));     \
+        llvm::MDTuple::getDistinct(context,                                    \
+                                   llvm::ArrayRef<llvm::Metadata *>({}));      \
     F.setMetadata(tag, metadata);                                              \
     return CLASS(*metadata);                                                   \
   }                                                                            \
@@ -62,7 +63,8 @@ std::string get_metadata_tag(MetadataKind kind) {
     auto &context = I.getContext();                                            \
     auto tag = get_metadata_tag(MetadataKind::ENUM);                           \
     auto *metadata =                                                           \
-        llvm::MDTuple::get(context, llvm::ArrayRef<llvm::Metadata *>({}));     \
+        llvm::MDTuple::getDistinct(context,                                    \
+                                   llvm::ArrayRef<llvm::Metadata *>({}));      \
     I.setMetadata(tag, metadata);                                              \
     return CLASS(*metadata);                                                   \
   }                                                                            \
