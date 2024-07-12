@@ -2,6 +2,7 @@
 #define COMMON_METADATA_H
 #pragma once
 
+#include <optional>
 #include <string>
 
 #include "llvm/IR/Function.h"
@@ -12,101 +13,83 @@
 
 #include "memoir/support/InternalDatatypes.hpp"
 
-namespace llvm {
-namespace memoir {
+namespace llvm::memoir {
 
-/*
- * Metadata types
- *
- * If you update this, make sure you
- * update the metadataToString map
- */
-enum class MetadataType {
-  MD_INTERNAL,
-  MD_USE_PHI,
-  MD_DEF_PHI,
+enum class MetadataKind {
+#define METADATA(ENUM, STR, CLASS) ENUM,
+#include "memoir/utility/Metadata.def"
+  MD_NONE,
 };
 
-class MetadataManager {
+// Base class to extend for custom metadata.
+struct Metadata {
 public:
-  /*
-   * Metadata management
+  // Static helper methods.
+  template <typename T>
+  static std::optional<T> get(llvm::Function &F);
+
+  template <typename T>
+  static T get_or_add(llvm::Function &F);
+
+  template <typename T>
+  static bool remove(llvm::Function &F);
+
+  template <typename T>
+  static std::optional<T> get(llvm::Instruction &I);
+
+  template <typename T>
+  static T get_or_add(llvm::Instruction &I);
+
+  template <typename T>
+  static bool remove(llvm::Instruction &I);
+
+  // Constructor.
+  Metadata(llvm::MDTuple &md) : md(&md) {}
+
+  /**
+   * @return the LLVM MDTuple wrapped by this object.
    */
-  static void setMetadata(llvm::Function &F, MetadataType MT);
-  static void setMetadata(llvm::Function &F,
-                          MetadataType MT,
-                          llvm::Value *value);
-  static bool hasMetadata(llvm::Function &F, MetadataType MT);
-  static llvm::Value *getMetadata(Function &F, MetadataType MT);
+  llvm::MDTuple &getMetadata() const;
 
-  static void setMetadata(llvm::Instruction &I, MetadataType MT);
-  static void setMetadata(llvm::Instruction &I,
-                          MetadataType MT,
-                          llvm::Value *value);
-  static bool hasMetadata(llvm::Instruction &I, MetadataType MT);
-  static llvm::Value *getMetadata(llvm::Instruction &I, MetadataType MT);
-
-  static void insertMetadata(llvm::Function &F,
-                             MetadataType MT,
-                             std::string str);
-
-  static void removeMetadata(llvm::Function &F,
-                             MetadataType MT,
-                             std::string str);
-
-  static void insertMetadata(llvm::Instruction &I,
-                             MetadataType MT,
-                             std::string str);
-
-  static void removeMetadata(llvm::Instruction &I,
-                             MetadataType MT,
-                             std::string str);
-
-  /*
-   * Singleton access
-   */
-  static MetadataManager &getManager() {
-    static MetadataManager manager;
-
-    return manager;
-  }
-
-  MetadataManager(const MetadataManager &) = delete;
-  void operator=(const MetadataManager &) = delete;
-
-private:
-  void setMetadata(llvm::Function &F, std::string str);
-  void setMetadata(llvm::Function &F, std::string str, llvm::Value *value);
-  bool hasMetadata(llvm::Function &F, std::string str);
-  llvm::Value *getMetadata(llvm::Function &F, std::string str);
-
-  void setMetadata(llvm::Instruction &I, std::string str);
-  void setMetadata(llvm::Instruction &I, std::string str, llvm::Value *value);
-  bool hasMetadata(llvm::Instruction &I, std::string str);
-  llvm::Value *getMetadata(llvm::Instruction &I, std::string str);
-
-  void insertMetadata(llvm::Function &F, std::string kind, std::string str);
-
-  void removeMetadata(llvm::Function &F, std::string kind, std::string str);
-
-  void insertMetadata(llvm::Instruction &I, std::string kind, std::string str);
-
-  void removeMetadata(llvm::Instruction &I, std::string kind, std::string str);
-
-  map<MetadataType, std::string> MDtoString;
-
-  /*
-   * Singleton
-   */
-  MetadataManager()
-    : MDtoString{
-        { MetadataType::MD_INTERNAL, "memoir.internal" },
-        { MetadataType::MD_USE_PHI, "memoir.use-phi" },
-        { MetadataType::MD_DEF_PHI, "memoir.def-phi" },
-      } {}
+protected:
+  llvm::MDTuple *md;
 };
 
-} // namespace memoir
-} // namespace llvm
+struct LiveOutMetadata : public Metadata {
+public:
+  // Constructor.
+  LiveOutMetadata(llvm::MDTuple &md) : Metadata(md) {}
+
+  /**
+   * @return the number of live out values.
+   */
+  unsigned getNumLiveOuts() const;
+
+  /**
+   * @return the LLVM Value corresponding to the argument passed into the
+   * function.
+   */
+  llvm::Value &getArgument(unsigned i) const;
+  llvm::Metadata &getArgumentMD(unsigned i) const;
+  const llvm::MDOperand &getArgumentMDOperand(unsigned i) const;
+
+  /**
+   * @param i get the i'th live out.
+   * @return the live out LLVM Value of the function.
+   */
+  llvm::Value &getLiveOut(unsigned i) const;
+  llvm::Metadata &getLiveOutMD(unsigned i) const;
+  const llvm::MDOperand &getLiveOutMDOperand(unsigned i) const;
+
+  /**
+   * Add an Argument-LiveOut pair to the metadata.
+   *
+   * @param argument the argument that has a live-out.
+   * @param live_out the live-out value.
+   */
+  void addLiveOut(llvm::Value &argument, llvm::Value &live_out) const;
+};
+
+} // namespace llvm::memoir
 
 #endif
