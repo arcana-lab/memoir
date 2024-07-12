@@ -21,8 +21,6 @@ ExternalProject_Add(
     GIT_TAG         v18
     LOG_CONFIGURE ON
     LOG_INSTALL ON
-    LOG_BUILD ON
-    LOG_OUTPUT_ON_FAILURE ON
     BUILD_COMMAND   ${CMAKE_COMMAND} --build . -j16
     INSTALL_COMMAND ${CMAKE_COMMAND} --install .
     CMAKE_ARGS
