@@ -360,7 +360,11 @@ bool Type::is_collection_type(Type &type) {
 }
 
 bool Type::value_is_collection_type(llvm::Value &value) {
-  if (not isa<llvm::Instruction>(&value) && not isa<llvm::Argument>(&value)) {
+  if (not isa<llvm::PointerType>(value.getType())) {
+    return false;
+  }
+
+  if (not isa<llvm::Instruction>(&value) and not isa<llvm::Argument>(&value)) {
     return false;
   }
 
@@ -368,7 +372,11 @@ bool Type::value_is_collection_type(llvm::Value &value) {
 }
 
 bool Type::value_is_struct_type(llvm::Value &value) {
-  if (not isa<llvm::Instruction>(&value) && not isa<llvm::Argument>(&value)) {
+  if (not isa<llvm::PointerType>(value.getType())) {
+    return false;
+  }
+
+  if (not isa<llvm::Instruction>(&value) and not isa<llvm::Argument>(&value)) {
     return false;
   }
 
