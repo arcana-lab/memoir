@@ -281,8 +281,9 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
       debugln(*bb);
       for (auto *succ_bb : llvm::successors(bb)) {
         for (auto &phi : succ_bb->phis()) {
+
           // Ensure that the value is of collection type.
-          if (not isa_and_nonnull<CollectionType>(type_of(phi))) {
+          if (not Type::value_is_collection_type(phi)) {
             continue;
           }
 
