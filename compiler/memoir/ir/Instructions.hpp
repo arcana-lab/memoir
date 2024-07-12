@@ -1293,6 +1293,8 @@ struct FoldInst : public MemOIRInst {
 public:
   llvm::Value &getResult() const;
 
+  bool isReverse() const;
+
   llvm::Value &getInitial() const;
   llvm::Use &getInitialAsUse() const;
 
@@ -1311,7 +1313,7 @@ public:
 
   static bool classof(const MemOIRInst *I) {
     return
-#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS)                                    \
+#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS, REVERSE)                           \
   (I->getKind() == MemOIR_Func::ENUM) ||
 #include "memoir/ir/Instructions.def"
         false;
