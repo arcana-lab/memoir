@@ -34,11 +34,14 @@ public:
   // LLVM operations
   void visitInstruction(llvm::Instruction &I);
   void visitPHINode(llvm::PHINode &I);
+  void visitLLVMCallInst(llvm::CallInst &I);
+  void visitReturnInst(llvm::ReturnInst &I);
   // SSA operations
   void visitUsePHIInst(UsePHIInst &I);
   void visitDefPHIInst(DefPHIInst &I);
   void visitArgPHIInst(ArgPHIInst &I);
   void visitRetPHIInst(RetPHIInst &I);
+  void visitFoldInst(FoldInst &I);
   // Access operations
   void visitMutStructWriteInst(MutStructWriteInst &I);
   void visitMutIndexWriteInst(MutIndexWriteInst &I);

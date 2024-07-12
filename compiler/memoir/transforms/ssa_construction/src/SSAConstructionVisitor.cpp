@@ -4,6 +4,8 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
 
+#include "memoir/utility/Metadata.hpp"
+
 namespace llvm::memoir {
 
 llvm::Value *SSAConstructionVisitor::update_reaching_definition(
@@ -155,6 +157,132 @@ void SSAConstructionVisitor::visitPHINode(llvm::PHINode &I) {
     }
   } else {
     this->set_reaching_definition(&I, &I);
+  }
+
+  return;
+}
+
+void SSAConstructionVisitor::visitLLVMCallInst(llvm::CallInst &I) {
+  for (auto &arg_use : I.data_ops()) {
+    auto *arg_value = arg_use.get();
+    if (not Type::value_is_collection_type(*arg_value)) {
+      continue;
+    }
+
+    // Update the use to use the current reaching definition.
+    auto *reaching = update_reaching_definition(arg_value, I);
+    arg_use.set(reaching);
+
+    // Build a RetPHI for the call.
+    MemOIRBuilder builder(&I, true);
+    auto *ret_phi = builder.CreateRetPHI(reaching, I.getCalledOperand());
+    auto *ret_phi_value = &ret_phi->getResultCollection();
+
+    // Update the reaching definitions.
+    this->set_reaching_definition(arg_value, ret_phi_value);
+    this->set_reaching_definition(ret_phi_value, reaching);
+  }
+
+  // Create a new reaching definition for the returned value, if it's a MEMOIR
+  // collection.
+  if (Type::value_is_collection_type(I)) {
+    this->set_reaching_definition(&I, &I);
+  }
+
+  return;
+}
+
+void SSAConstructionVisitor::visitReturnInst(llvm::ReturnInst &I) {
+
+  // If the returned value is a collection:
+  auto *return_value = I.getReturnValue();
+  if (return_value != nullptr
+      and Type::value_is_collection_type(*return_value)) {
+
+    // Update the reaching definition of the return value.
+    auto *return_reaching = update_reaching_definition(return_value, I);
+    I.setOperand(0, return_reaching);
+  }
+
+  // Fetch the parent function.
+  auto *function = I.getFunction();
+
+  // If it is NULL, skip the instruction.
+  if (function == nullptr) {
+    return;
+  }
+
+  // For each collection argument passed into the function, record its current
+  // reaching definition.
+  for (auto &A : function->args()) {
+
+    // Skip non-collection arguments.
+    if (not Type::value_is_collection_type(A)) {
+      continue;
+    }
+
+    // Get the reaching definition.
+    auto *reaching = update_reaching_definition(&A, I);
+
+    // If the reaching definition is the returned value, skip it.
+    if (I.getReturnValue() == reaching) {
+      continue;
+    }
+
+    // Get the definining instruction of the live out.
+    auto *live_out_def = dyn_cast<llvm::Instruction>(reaching);
+    if (not live_out_def) {
+      continue;
+    }
+
+    // Attach a LiveOutMetadata to the live-out instruction.
+    auto live_out_metadata =
+        Metadata::get_or_add<LiveOutMetadata>(*live_out_def);
+    live_out_metadata.setArgNo(A.getArgNo());
+  }
+
+  return;
+}
+
+void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
+
+  // Update the reaching definition for the collection operand.
+  auto &collection_use = I.getCollectionAsUse();
+  auto *reaching_collection =
+      update_reaching_definition(collection_use.get(), I);
+  collection_use.set(reaching_collection);
+
+  // For each of the closed collections:
+  for (unsigned closed_idx = 0; closed_idx < I.getNumberOfClosed();
+       ++closed_idx) {
+    auto &closed_use = I.getClosedAsUse(closed_idx);
+    auto *closed = closed_use.get();
+
+    // If the closed value is not a collection type, skip it.
+    if (not Type::value_is_collection_type(*closed)) {
+      continue;
+    }
+
+    // Update the use to use the current reaching definition.
+    auto *reaching = update_reaching_definition(closed, I);
+    closed_use.set(reaching);
+
+    // Insert a RetPHI for the fold operation.
+    MemOIRBuilder builder(I, true);
+    auto *function = I.getCallInst().getCalledFunction();
+    auto *ret_phi = builder.CreateRetPHI(reaching, function);
+    auto *ret_phi_value = &ret_phi->getResultCollection();
+
+    // Update the reaching definitions.
+    this->set_reaching_definition(closed, ret_phi_value);
+    this->set_reaching_definition(ret_phi_value, reaching);
+  }
+
+  // Create a new reaching definition for the returned value, if it's a MEMOIR
+  // collection.
+  auto &result = I.getResult();
+  if (Type::value_is_collection_type(result)) {
+    this->set_reaching_definition(&result, &result);
   }
 
   return;
