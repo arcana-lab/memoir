@@ -1,6 +1,7 @@
 // LLVM
 #include "llvm/IR/Verifier.h"
 #include "llvm/IR/CFG.h"
+#include "llvm/IR/Value.h"
 
 // MEMOIR
 #include "memoir/passes/Passes.hpp"
@@ -231,10 +232,10 @@ bool verify_linearity(llvm::Function &F, LivenessResult &LR) {
     for (auto *succ : llvm::successors(&BB)) {
       auto &Succ = MEMOIR_SANITIZE(succ, "Successor of BasicBlock is NULL!");
       if (not check_basic_block_edge(LR, partition, BB, Succ)) {
-        println("  at edge from ",
-                BB.getNameOrAsOperand(),
-                " to ",
-                Succ.getNameOrAsOperand());
+        println("  at edge from ");
+        BB.printAsOperand(llvm::errs(), false);
+        println(" to ");
+        Succ.printAsOperand(llvm::errs(), false);
         return false;
       }
     }
