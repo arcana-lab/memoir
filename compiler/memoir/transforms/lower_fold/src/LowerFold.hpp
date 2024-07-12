@@ -9,11 +9,11 @@
 #include "llvm/IR/Module.h"
 
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/Cloning.h"
 
 // MEMOIR
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/Instructions.hpp"
+#include "memoir/transforms/utilities/Inlining.hpp"
 
 #include "memoir/support/InternalDatatypes.hpp"
 
@@ -258,11 +258,17 @@ public:
 
       // See if it has a RetPHI for the original fold.
       RetPHIInst *found_ret_phi = nullptr;
-      for (auto *closed_user : closed.users()) {
+      for (auto &closed_use : closed.uses()) {
+        auto *closed_user = closed_use.getUser();
+
         if (auto *closed_user_as_inst =
                 dyn_cast_or_null<llvm::Instruction>(closed_user)) {
+
+          // If the user is a RetPHI:
           if (auto *ret_phi = into<RetPHIInst>(closed_user_as_inst)) {
-            if (&ret_phi->getFunction()
+
+            // Ensure that the RetPHI is for FoldInst.
+            if (ret_phi->getCalledFunction()
                 == I.getCallInst().getCalledFunction()) {
               if (not found_ret_phi) {
                 found_ret_phi = ret_phi;
@@ -270,6 +276,8 @@ public:
                 MEMOIR_UNREACHABLE("Cannot disambiguate between two RetPHIs!"
                                    "Need to add a dominance check here.");
               }
+            } else {
+              println("wrong function!");
             }
           }
         }
@@ -287,10 +295,17 @@ public:
       auto *closed_phi =
           builder.CreatePHI(closed.getType(), 2, "fold.closed.phi.");
 
+      // Update the use of the closed variabled to be the new PHI.
+      call.setOperand(closed_idx + 3, closed_phi);
+
       //   Insert a RetPHI after the call.
       builder.SetInsertPoint(call.getNextNode());
       auto *closed_ret_phi =
           builder.CreateRetPHI(closed_phi, &function, "fold.closed.");
+
+      // Replace uses of the original RetPHI with the new RetPHI.
+      found_ret_phi->getCallInst().replaceAllUsesWith(
+          &closed_ret_phi->getCallInst());
 
       //   Wire up the PHI with the original value and the RetPHI.
       for (auto *pred : llvm::predecessors(loop_header)) {
@@ -301,8 +316,8 @@ public:
         }
       }
 
-      // Replace uses of the original RetPHI with the new PHI.
-      found_ret_phi->getCallInst().replaceAllUsesWith(closed_phi);
+      // Delete the old RetPHI.
+      found_ret_phi->getCallInst().eraseFromParent();
     }
 
     // For each predecessor of the loop header:
@@ -319,19 +334,19 @@ public:
     }
 
     // Now, try to inline the fold function.
-    // llvm::InlineFunctionInfo IFI;
-    // auto inline_result = llvm::InlineFunction(call, IFI);
+    llvm::InlineFunctionInfo IFI;
+    auto inline_result = llvm::memoir::InlineFunction(call, IFI);
 
     // If we inlined the fold function, we need patch up any RetPHI
     // instructions.
-    // if (inline_result.isSuccess()) {
-    // TODO
-    // }
+    if (inline_result.isSuccess()) {
+      // TODO
+    }
     // If inlining failed, send a warning and continue.
-    // else {
-    // warnln("Inlining fold function failed.\n  Reason: ",
-    // inline_result.getFailureReason());
-    // }
+    else {
+      warnln("Inlining fold function failed.\n  Reason: ",
+             inline_result.getFailureReason());
+    }
 
     return true;
   }
