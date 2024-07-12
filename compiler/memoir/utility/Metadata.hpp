@@ -61,33 +61,21 @@ public:
   LiveOutMetadata(llvm::MDTuple &md) : Metadata(md) {}
 
   /**
-   * @return the number of live out values.
-   */
-  unsigned getNumLiveOuts() const;
-
-  /**
-   * @return the LLVM Value corresponding to the argument passed into the
-   * function.
-   */
-  llvm::Value &getArgument(unsigned i) const;
-  llvm::Metadata &getArgumentMD(unsigned i) const;
-  const llvm::MDOperand &getArgumentMDOperand(unsigned i) const;
-
-  /**
-   * @param i get the i'th live out.
-   * @return the live out LLVM Value of the function.
-   */
-  llvm::Value &getLiveOut(unsigned i) const;
-  llvm::Metadata &getLiveOutMD(unsigned i) const;
-  const llvm::MDOperand &getLiveOutMDOperand(unsigned i) const;
-
-  /**
-   * Add an Argument-LiveOut pair to the metadata.
+   * Get the corresponding argument number that is a live-out for.
+   * NOTE: this assumes a single ReturnInst for each LLVM Function.
    *
-   * @param argument the argument that has a live-out.
-   * @param live_out the live-out value.
+   * @return the argument number
    */
-  void addLiveOut(llvm::Value &argument, llvm::Value &live_out) const;
+  unsigned getArgNo() const;
+  llvm::Metadata &getArgNoMD() const;
+  const llvm::MDOperand &getArgNoMDOperand() const;
+
+  /**
+   * Set the argument number.
+   *
+   * @param argument_number the argument number
+   */
+  void setArgNo(unsigned argument_number);
 };
 
 } // namespace llvm::memoir
