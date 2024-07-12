@@ -120,8 +120,18 @@ public:
     // Update the builder's insertion point to the start of the loop.
     builder.SetInsertPoint(loop_insertion_point);
 
+    // If this is a reverse fold, subtract the size of the iterable collection
+    // from the index.
+    auto *iterable_index = index;
+    if (I.isReverse()) {
+      iterable_index = builder.CreateSub(collection_size, index);
+      iterable_index = builder.CreateSub(
+          iterable_index,
+          llvm::ConstantInt::get(collection_size->getType(), 1));
+    }
+
     // If the collection is associative, read the key for this iteration.
-    llvm::Value *key = index;
+    llvm::Value *key = iterable_index;
     if (collection_is_assoc) {
       // Fetch the key type.
       auto *assoc_type = cast<AssocArrayType>(&collection_type);
@@ -129,7 +139,7 @@ public:
 
       // Read the key from the keys sequence.
       auto &read_key = MEMOIR_SANITIZE(
-          builder.CreateIndexReadInst(key_type, iterable, index),
+          builder.CreateIndexReadInst(key_type, iterable, iterable_index),
           "Failed to create IndexReadInst for AssocKeys!");
 
       // Save the key for later.
