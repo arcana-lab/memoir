@@ -7,6 +7,17 @@ namespace llvm::memoir {
 // FoldInst implementation.
 RESULTANT(FoldInst, Result)
 
+bool FoldInst::isReverse() const {
+  switch (this->getKind()) {
+#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS, REVERSE)                           \
+  case MemOIR_Func::ENUM:                                                      \
+    return REVERSE;
+#include "memoir/ir/Instructions.def"
+    default:
+      MEMOIR_UNREACHABLE("Unknown FoldInst enum.");
+  }
+}
+
 OPERAND(FoldInst, Initial, 0)
 
 OPERAND(FoldInst, Collection, 1)
