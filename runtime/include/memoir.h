@@ -134,6 +134,12 @@ size_t MEMOIR_FUNC(end)();
       C_TYPE initial_value,                                                    \
       const collection_ref collection,                                         \
       void *fold_function, /*C_TYPE (*f)(C_TYPE, ...),*/                       \
+      ...);                                                                    \
+  __RUNTIME_ATTR                                                               \
+  C_TYPE MEMOIR_FUNC(rfold_##TYPE_NAME)(                                       \
+      C_TYPE initial_value,                                                    \
+      const collection_ref collection,                                         \
+      void *fold_function, /*C_TYPE (*f)(C_TYPE, ...),*/                       \
       ...);
 #include "types.def"
 
