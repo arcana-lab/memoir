@@ -323,6 +323,7 @@ Type *TypeChecker::visitSequenceAllocInst(SequenceAllocInst &I) {
 
 // Reference Read Instructions.
 Type *TypeChecker::visitReadInst(ReadInst &I) {
+
   // Get the collection type being accessed.
   auto *object_type = this->analyze(I.getObjectOperand());
   auto &collection_type =
@@ -643,14 +644,18 @@ Type *TypeChecker::unify(Type *t, Type *u) {
     return t;
   }
 
-  if (auto *tvar = dyn_cast<TypeVariable>(t)) {
-    this->type_bindings[tvar] = u;
-    return u;
+  if (t != nullptr) {
+    if (auto *tvar = dyn_cast<TypeVariable>(t)) {
+      this->type_bindings[tvar] = u;
+      return u;
+    }
   }
 
-  if (auto *uvar = dyn_cast<TypeVariable>(u)) {
-    this->type_bindings[uvar] = t;
-    return t;
+  if (u != nullptr) {
+    if (auto *uvar = dyn_cast<TypeVariable>(u)) {
+      this->type_bindings[uvar] = t;
+      return t;
+    }
   }
 
   // If neither t nor u is a type variable, and they are not equal, we have a
