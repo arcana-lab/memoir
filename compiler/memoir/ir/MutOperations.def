@@ -81,31 +81,36 @@ HANDLE_ASSOC_WRITE_INST_(MUT_ASSOC_WRITE_PTR, MUT_FUNC(assoc_write_ptr), MutAsso
 HANDLE_ASSOC_WRITE_INST_(MUT_ASSOC_WRITE_STRUCT_REF, MUT_FUNC(assoc_write_struct_ref), MutAssocWriteInst)
 HANDLE_ASSOC_WRITE_INST_(MUT_ASSOC_WRITE_COLLECTION_REF, MUT_FUNC(assoc_write_collection_ref), MutAssocWriteInst)
 
+
+
+/* Sequence insert operations */
+HANDLE_INST_(MUT_SEQ_INSERT, MUT_FUNC(sequence_insert), MutSeqInsertInst)
+HANDLE_INST_(MUT_SEQ_INSERT_SEQ, MUT_FUNC(sequence_insert_sequence), MutSeqInsertSeqInst)
+
 /* Sequence insert element operations */
 #ifndef HANDLE_SEQ_INSERT_INST
 #define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS) HANDLE_INST_(ENUM, FUNC, CLASS)
 #endif
 #define HANDLE_SEQ_INSERT_INST_(ENUM, FUNC, CLASS) HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS)
 
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_UINT64, MUT_FUNC(sequence_insert_u64), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_UINT32, MUT_FUNC(sequence_insert_u32), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_UINT16, MUT_FUNC(sequence_insert_u16), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_UINT8, MUT_FUNC(sequence_insert_u8), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_UINT2, MUT_FUNC(sequence_insert_u2), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_INT64, MUT_FUNC(sequence_insert_i64), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_INT32, MUT_FUNC(sequence_insert_i32), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_INT16, MUT_FUNC(sequence_insert_i16), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_INT8, MUT_FUNC(sequence_insert_i8), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_INT2, MUT_FUNC(sequence_insert_i2), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_BOOL, MUT_FUNC(sequence_insert_boolean), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_DOUBLE, MUT_FUNC(sequence_insert_f64), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_FLOAT, MUT_FUNC(sequence_insert_f32), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_PTR, MUT_FUNC(sequence_insert_ptr), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_STRUCT_REF, MUT_FUNC(sequence_insert_struct_ref), MutSeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_COLLECTION_REF, MUT_FUNC(sequence_insert_collection_ref), MutSeqInsertInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_UINT64, MUT_FUNC(sequence_insert_u64), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_UINT32, MUT_FUNC(sequence_insert_u32), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_UINT16, MUT_FUNC(sequence_insert_u16), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_UINT8, MUT_FUNC(sequence_insert_u8), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_UINT2, MUT_FUNC(sequence_insert_u2), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_INT64, MUT_FUNC(sequence_insert_i64), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_INT32, MUT_FUNC(sequence_insert_i32), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_INT16, MUT_FUNC(sequence_insert_i16), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_INT8, MUT_FUNC(sequence_insert_i8), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_INT2, MUT_FUNC(sequence_insert_i2), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_BOOL, MUT_FUNC(sequence_insert_boolean), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_DOUBLE, MUT_FUNC(sequence_insert_f64), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_FLOAT, MUT_FUNC(sequence_insert_f32), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_PTR, MUT_FUNC(sequence_insert_ptr), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_STRUCT_REF, MUT_FUNC(sequence_insert_struct_ref), MutSeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(MUT_SEQ_INSERT_COLLECTION_REF, MUT_FUNC(sequence_insert_collection_ref), MutSeqInsertValueInst)
 
 /* Sequence operations. */
-HANDLE_INST_(MUT_SEQ_INSERT, MUT_FUNC(sequence_insert), MutSeqInsertSeqInst)
 HANDLE_INST_(MUT_SEQ_REMOVE, MUT_FUNC(sequence_remove), MutSeqRemoveInst)
 HANDLE_INST_(MUT_SEQ_APPEND, MUT_FUNC(sequence_append), MutSeqAppendInst)
 HANDLE_INST_(MUT_SEQ_SWAP, MUT_FUNC(sequence_swap), MutSeqSwapInst)

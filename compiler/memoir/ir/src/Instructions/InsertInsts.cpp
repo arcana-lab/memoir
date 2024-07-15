@@ -6,10 +6,15 @@ namespace llvm::memoir {
 RESULTANT(InsertInst, ResultCollection)
 
 // SeqInsertInst implementation.
-OPERAND(SeqInsertInst, ValueInserted, 0)
-OPERAND(SeqInsertInst, BaseCollection, 1)
-OPERAND(SeqInsertInst, InsertionPoint, 2)
+OPERAND(SeqInsertInst, BaseCollection, 0)
+OPERAND(SeqInsertInst, InsertionPoint, 1)
 TO_STRING(SeqInsertInst)
+
+// SeqInsertValueInst implementation.
+OPERAND(SeqInsertValueInst, ValueInserted, 0)
+OPERAND(SeqInsertValueInst, BaseCollection, 1)
+OPERAND(SeqInsertValueInst, InsertionPoint, 2)
+TO_STRING(SeqInsertValueInst)
 
 // SeqInsertSeqInst implementation.
 OPERAND(SeqInsertSeqInst, InsertedCollection, 0)

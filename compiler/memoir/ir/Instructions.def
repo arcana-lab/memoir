@@ -230,8 +230,11 @@ HANDLE_INST_(DELETE_COLLECTION, MEMOIR_FUNC(delete_collection), DeleteCollection
 #endif
 #define HANDLE_INSERT_INST_(ENUM, FUNC, CLASS) HANDLE_INSERT_INST(ENUM, FUNC, CLASS)
 
+/* Sequence insert element operation. */
+HANDLE_INSERT_INST_(SEQ_INSERT, MEMOIR_FUNC(sequence_insert), SeqInsertInst)
+
 /* Sequence insert range operation. */
-HANDLE_INSERT_INST_(SEQ_INSERT, MEMOIR_FUNC(sequence_insert), SeqInsertSeqInst)
+HANDLE_INSERT_INST_(SEQ_INSERT_SEQ, MEMOIR_FUNC(sequence_insert_sequence), SeqInsertSeqInst)
 
 /* Assoc insert operation. */
 HANDLE_INSERT_INST_(ASSOC_INSERT, MEMOIR_FUNC(assoc_insert), AssocInsertInst)
@@ -241,22 +244,22 @@ HANDLE_INSERT_INST_(ASSOC_INSERT, MEMOIR_FUNC(assoc_insert), AssocInsertInst)
 #define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS) HANDLE_INSERT_INST_(ENUM, FUNC, CLASS)
 #endif
 #define HANDLE_SEQ_INSERT_INST_(ENUM, FUNC, CLASS) HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_UINT64, MEMOIR_FUNC(sequence_insert_u64), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_UINT32, MEMOIR_FUNC(sequence_insert_u32), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_UINT16, MEMOIR_FUNC(sequence_insert_u16), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_UINT8, MEMOIR_FUNC(sequence_insert_u8), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_UINT2, MEMOIR_FUNC(sequence_insert_u2), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_INT64, MEMOIR_FUNC(sequence_insert_i64), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_INT32, MEMOIR_FUNC(sequence_insert_i32), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_INT16, MEMOIR_FUNC(sequence_insert_i16), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_INT8, MEMOIR_FUNC(sequence_insert_i8), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_INT2, MEMOIR_FUNC(sequence_insert_i2), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_BOOL, MEMOIR_FUNC(sequence_insert_boolean), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_DOUBLE, MEMOIR_FUNC(sequence_insert_f64), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_FLOAT, MEMOIR_FUNC(sequence_insert_f32), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_PTR, MEMOIR_FUNC(sequence_insert_ptr), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_STRUCT_REF, MEMOIR_FUNC(sequence_insert_struct_ref), SeqInsertInst)
-HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_COLLECTION_REF, MEMOIR_FUNC(sequence_insert_collection_ref), SeqInsertInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_UINT64, MEMOIR_FUNC(sequence_insert_u64), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_UINT32, MEMOIR_FUNC(sequence_insert_u32), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_UINT16, MEMOIR_FUNC(sequence_insert_u16), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_UINT8, MEMOIR_FUNC(sequence_insert_u8), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_UINT2, MEMOIR_FUNC(sequence_insert_u2), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_INT64, MEMOIR_FUNC(sequence_insert_i64), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_INT32, MEMOIR_FUNC(sequence_insert_i32), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_INT16, MEMOIR_FUNC(sequence_insert_i16), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_INT8, MEMOIR_FUNC(sequence_insert_i8), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_INT2, MEMOIR_FUNC(sequence_insert_i2), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_BOOL, MEMOIR_FUNC(sequence_insert_boolean), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_DOUBLE, MEMOIR_FUNC(sequence_insert_f64), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_FLOAT, MEMOIR_FUNC(sequence_insert_f32), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_PTR, MEMOIR_FUNC(sequence_insert_ptr), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_STRUCT_REF, MEMOIR_FUNC(sequence_insert_struct_ref), SeqInsertValueInst)
+HANDLE_SEQ_INSERT_INST_(SEQ_INSERT_COLLECTION_REF, MEMOIR_FUNC(sequence_insert_collection_ref), SeqInsertValueInst)
 
 /* Remove operations. */
 #ifndef HANDLE_REMOVE_INST

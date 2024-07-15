@@ -146,7 +146,7 @@ public:
   RetTy visit##CLASS(CLASS &I) {                                               \
     DELEGATE_INST(InsertInst);                                                 \
   };
-  RetTy visitSeqInsertInst(SeqInsertInst &I) {
+  RetTy visitSeqInsertValueInst(SeqInsertValueInst &I) {
     DELEGATE_INST(InsertInst);
   };
 #define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS) /* No handling. */
@@ -210,7 +210,7 @@ public:
 #define HANDLE_WRITE_INST(ENUM, FUNC, CLASS) /* No handling. */
 
   // MutSeqInsertInst hierarchy.
-  RetTy visitMutSeqInsertInst(MutSeqInsertInst &I) {
+  RetTy visitMutSeqInsertValueInst(MutSeqInsertValueInst &I) {
     DELEGATE_INST(MutInst);
   };
 #define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS) /* No handling. */
