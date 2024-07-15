@@ -52,6 +52,7 @@ public:
   void visitAssocGetInst(AssocGetInst &I);
   // MUT Sequence operations
   void visitMutSeqInsertInst(MutSeqInsertInst &I);
+  void visitMutSeqInsertValueInst(MutSeqInsertValueInst &I);
   void visitMutSeqInsertSeqInst(MutSeqInsertSeqInst &I);
   void visitMutSeqRemoveInst(MutSeqRemoveInst &I);
   void visitMutSeqAppendInst(MutSeqAppendInst &I);
