@@ -88,6 +88,7 @@ public:
 
   // Sequence operations
   void visitSeqInsertInst(SeqInsertInst &I);
+  void visitSeqInsertValueInst(SeqInsertValueInst &I);
   void visitSeqInsertSeqInst(SeqInsertSeqInst &I);
   void visitSeqRemoveInst(SeqRemoveInst &I);
   void visitSeqCopyInst(SeqCopyInst &I);
