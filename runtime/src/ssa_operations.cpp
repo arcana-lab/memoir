@@ -150,7 +150,32 @@ collection_ref MEMOIR_FUNC(sequence_copy)(const collection_ref collection,
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(sequence_insert)(
+collection_ref MEMOIR_FUNC(sequence_insert)(const collection_ref collection,
+                                            size_t index) {
+  /* Insert an element into a sequence. */
+  MEMOIR_ACCESS_CHECK(collection);
+  MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);
+  auto *seq = (detail::Sequence *)(collection);
+  auto *seq_type = static_cast<SequenceType *>(seq->get_type());
+  if (index == (size_t)-1) {
+    index = seq->size();
+  }
+
+  std::vector<uint64_t> new_container;
+  new_container.resize(seq->size() + 1);
+  std::copy(seq->cbegin(), seq->cbegin() + index, new_container.begin());
+  std::copy(seq->cbegin() + index,
+            seq->cend(),
+            new_container.begin() + index + 1);
+
+  return (collection_ref) new detail::SequenceAlloc(seq_type,
+                                                    std::move(new_container));
+}
+
+__IMMUT_ATTR
+__ALLOC_ATTR
+__RUNTIME_ATTR
+collection_ref MEMOIR_FUNC(sequence_insert_sequence)(
     const collection_ref collection_to_insert,
     const collection_ref collection,
     size_t index) {
@@ -179,6 +204,7 @@ collection_ref MEMOIR_FUNC(sequence_insert)(
   return (collection_ref) new detail::SequenceAlloc(seq_type,
                                                     std::move(new_container));
 }
+
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR

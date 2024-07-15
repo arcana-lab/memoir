@@ -29,9 +29,21 @@ extern "C" {
 #include "types.def"
 
 __RUNTIME_ATTR
-void MUT_FUNC(sequence_insert)(collection_ref collection_to_insert,
-                               collection_ref collection,
+void MUT_FUNC(sequence_insert)(collection_ref collection,
                                size_t insertion_point) {
+  MEMOIR_ACCESS_CHECK(collection);
+  MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);
+  auto *seq = (detail::Sequence *)(collection);
+  MEMOIR_UNREACHABLE(
+      "Library implementation of sequence_insert is unimplemented."
+      "Please use the compiler.");
+  // seq->insert(insertion_point, seq_to_insert);
+}
+
+__RUNTIME_ATTR
+void MUT_FUNC(sequence_insert_sequence)(collection_ref collection_to_insert,
+                                        collection_ref collection,
+                                        size_t insertion_point) {
   MEMOIR_ACCESS_CHECK(collection);
   MEMOIR_ACCESS_CHECK(collection_to_insert);
   MEMOIR_TYPE_CHECK(collection, TypeCode::SequenceTy);

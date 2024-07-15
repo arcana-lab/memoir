@@ -150,6 +150,11 @@ __RUNTIME_ATTR
 collection_ref MEMOIR_FUNC(sequence_copy)(collection_ref collection,
                                           size_t begin_index,
                                           size_t end_index);
+__IMMUT_ATTR
+__ALLOC_ATTR
+__RUNTIME_ATTR
+collection_ref MEMOIR_FUNC(sequence_insert)(const collection_ref collection,
+                                            size_t insertion_index);
 
 #define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
   __IMMUT_ATTR                                                                 \
@@ -164,7 +169,7 @@ collection_ref MEMOIR_FUNC(sequence_copy)(collection_ref collection,
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(sequence_insert)(
+collection_ref MEMOIR_FUNC(sequence_insert_sequence)(
     const collection_ref collection_to_insert,
     const collection_ref collection,
     size_t insertion_index);
@@ -194,6 +199,9 @@ collection_ref MEMOIR_FUNC(sequence_swap_within)(
     size_t from_end,
     size_t to_begin);
 
+__RUNTIME_ATTR
+void MUT_FUNC(sequence_insert)(collection_ref collection, size_t index);
+
 // Mutable sequence operations.
 #define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
   __RUNTIME_ATTR                                                               \
@@ -203,9 +211,10 @@ collection_ref MEMOIR_FUNC(sequence_swap_within)(
 #include "types.def"
 
 __RUNTIME_ATTR
-void MUT_FUNC(sequence_insert)(const collection_ref collection_to_insert,
-                               collection_ref collection,
-                               size_t insertion_index);
+void MUT_FUNC(sequence_insert_sequence)(
+    const collection_ref collection_to_insert,
+    collection_ref collection,
+    size_t insertion_index);
 
 __RUNTIME_ATTR
 void MUT_FUNC(sequence_remove)(collection_ref collection,
