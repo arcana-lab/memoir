@@ -522,6 +522,35 @@ void SSAConstructionVisitor::visitMutSeqInsertInst(MutSeqInsertInst &I) {
   auto *collection_type = dyn_cast<CollectionType>(type);
   MEMOIR_NULL_CHECK(collection_type,
                     "seq_insert not operating on a collection type");
+
+  // Fetch operand information.
+  auto *collection_orig = &I.getCollection();
+  auto *collection_value = update_reaching_definition(collection_orig, I);
+  auto *index_value = &I.getInsertionPoint();
+
+  // Create SeqInsertInst.
+  auto *ssa_insert = builder.CreateSeqInsertInst(collection_value, index_value);
+
+  // Update reaching definitions.
+  this->set_reaching_definition(collection_orig, ssa_insert);
+  this->set_reaching_definition(ssa_insert, collection_value);
+
+  // Mark old instruction for cleanup.
+  this->mark_for_cleanup(I);
+
+  return;
+}
+
+void SSAConstructionVisitor::visitMutSeqInsertValueInst(
+    MutSeqInsertValueInst &I) {
+  MemOIRBuilder builder(I);
+
+  // Fetch type information.
+  auto *type = type_of(I.getCollection());
+  MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
+  auto *collection_type = dyn_cast<CollectionType>(type);
+  MEMOIR_NULL_CHECK(collection_type,
+                    "seq_insert not operating on a collection type");
   auto &element_type = collection_type->getElementType();
 
   // Fetch operand information.
@@ -530,11 +559,11 @@ void SSAConstructionVisitor::visitMutSeqInsertInst(MutSeqInsertInst &I) {
   auto *write_value = &I.getValueInserted();
   auto *index_value = &I.getInsertionPoint();
 
-  // Create SeqInsertInst.
-  auto *ssa_insert = builder.CreateSeqInsertInst(element_type,
-                                                 write_value,
-                                                 collection_value,
-                                                 index_value);
+  // Create SeqInsertValueInst.
+  auto *ssa_insert = builder.CreateSeqInsertValueInst(element_type,
+                                                      write_value,
+                                                      collection_value,
+                                                      index_value);
 
   // Update reaching definitions.
   this->set_reaching_definition(collection_orig, ssa_insert);
