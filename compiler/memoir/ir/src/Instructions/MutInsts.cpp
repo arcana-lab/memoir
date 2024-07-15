@@ -45,10 +45,15 @@ OPERAND(MutAssocWriteInst, KeyOperand, 2)
 TO_STRING(MutAssocWriteInst)
 
 // MutSeqInsertInst implementation
-OPERAND(MutSeqInsertInst, ValueInserted, 0)
-OPERAND(MutSeqInsertInst, Collection, 1)
-OPERAND(MutSeqInsertInst, InsertionPoint, 2)
+OPERAND(MutSeqInsertInst, Collection, 0)
+OPERAND(MutSeqInsertInst, InsertionPoint, 1)
 TO_STRING(MutSeqInsertInst)
+
+// MutSeqInsertValueInst implementation
+OPERAND(MutSeqInsertValueInst, ValueInserted, 0)
+OPERAND(MutSeqInsertValueInst, Collection, 1)
+OPERAND(MutSeqInsertValueInst, InsertionPoint, 2)
+TO_STRING(MutSeqInsertValueInst)
 
 // MutSeqInsertSeqInst implementation
 OPERAND(MutSeqInsertSeqInst, InsertedCollection, 0)

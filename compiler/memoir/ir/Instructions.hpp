@@ -946,6 +946,26 @@ public:
   llvm::Value &getBaseCollection() const override;
   llvm::Use &getBaseCollectionAsUse() const override;
 
+  llvm::Value &getInsertionPoint() const override;
+  llvm::Use &getInsertionPointAsUse() const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::SEQ_INSERT);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  SeqInsertInst(llvm::CallInst &call_inst) : InsertInst(call_inst) {}
+
+  friend struct MemOIRInst;
+};
+
+struct SeqInsertValueInst : public InsertInst {
+public:
+  llvm::Value &getBaseCollection() const override;
+  llvm::Use &getBaseCollectionAsUse() const override;
+
   llvm::Value &getValueInserted() const;
   llvm::Use &getValueInsertedAsUse() const;
 
@@ -963,7 +983,7 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  SeqInsertInst(llvm::CallInst &call_inst) : InsertInst(call_inst) {}
+  SeqInsertValueInst(llvm::CallInst &call_inst) : InsertInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -980,7 +1000,7 @@ public:
   llvm::Use &getInsertionPointAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::SEQ_INSERT);
+    return (I->getKind() == MemOIR_Func::SEQ_INSERT_SEQ);
   };
 
   std::string toString(std::string indent = "") const override;

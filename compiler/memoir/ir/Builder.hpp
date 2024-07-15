@@ -439,12 +439,20 @@ public:
                                        name);
   }
 
-  SeqInsertInst *CreateSeqInsertInst(Type &element_type,
-                                     llvm::Value *llvm_value_to_write,
-                                     llvm::Value *llvm_collection,
+  SeqInsertInst *CreateSeqInsertInst(llvm::Value *llvm_collection,
                                      llvm::Value *llvm_index,
                                      const Twine &name = "") {
-    return this->create<SeqInsertInst>(
+    return this->create<SeqInsertInst>(MemOIR_Func::SEQ_INSERT,
+                                       { llvm_collection, llvm_index },
+                                       name);
+  }
+
+  SeqInsertValueInst *CreateSeqInsertValueInst(Type &element_type,
+                                               llvm::Value *llvm_value_to_write,
+                                               llvm::Value *llvm_collection,
+                                               llvm::Value *llvm_index,
+                                               const Twine &name = "") {
+    return this->create<SeqInsertValueInst>(
         getSeqInsertEnumForType(element_type),
         { llvm_value_to_write, llvm_collection, llvm_index },
         name);
@@ -455,7 +463,7 @@ public:
                                            llvm::Value *insertion_point,
                                            const Twine &name = "") {
     return this->create<SeqInsertSeqInst>(
-        MemOIR_Func::SEQ_INSERT,
+        MemOIR_Func::SEQ_INSERT_SEQ,
         { collection_to_insert, collection, insertion_point },
         name);
   }
@@ -555,12 +563,21 @@ public:
                                           name);
   }
 
-  MutSeqInsertInst *CreateMutSeqInsertInst(Type &element_type,
-                                           llvm::Value *llvm_value_to_write,
-                                           llvm::Value *llvm_collection,
+  MutSeqInsertInst *CreateMutSeqInsertInst(llvm::Value *llvm_collection,
                                            llvm::Value *llvm_index,
                                            const Twine &name = "") {
-    return this->create<MutSeqInsertInst>(
+    return this->create<MutSeqInsertInst>(MemOIR_Func::MUT_SEQ_INSERT,
+                                          { llvm_collection, llvm_index },
+                                          name);
+  }
+
+  MutSeqInsertValueInst *CreateMutSeqInsertValueInst(
+      Type &element_type,
+      llvm::Value *llvm_value_to_write,
+      llvm::Value *llvm_collection,
+      llvm::Value *llvm_index,
+      const Twine &name = "") {
+    return this->create<MutSeqInsertValueInst>(
         getMutSeqInsertEnumForType(element_type),
         { llvm_value_to_write, llvm_collection, llvm_index },
         name);
@@ -572,7 +589,7 @@ public:
       llvm::Value *insertion_point,
       const Twine &name = "") {
     return this->create<MutSeqInsertSeqInst>(
-        MemOIR_Func::MUT_SEQ_INSERT,
+        MemOIR_Func::MUT_SEQ_INSERT_SEQ,
         { collection_to_insert, collection, insertion_point },
         name);
   }
