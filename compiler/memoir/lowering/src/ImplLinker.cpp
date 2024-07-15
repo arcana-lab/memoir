@@ -121,14 +121,25 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
       auto elem_code = *elem_type.get_code();
       auto c_type = memoir_to_c_type(elem_type);
 
-      fprintln(os,
-               "INSTANTIATE_",
-               impl_name,
-               "(",
-               elem_code,
-               ", ",
-               c_type,
-               ")");
+      if (c_type == "bool") {
+        fprintln(os,
+                 "INSTANTIATE_NO_REF_",
+                 impl_name,
+                 "(",
+                 elem_code,
+                 ", ",
+                 c_type,
+                 ")");
+      } else {
+        fprintln(os,
+                 "INSTANTIATE_",
+                 impl_name,
+                 "(",
+                 elem_code,
+                 ", ",
+                 c_type,
+                 ")");
+      }
     }
   }
 
