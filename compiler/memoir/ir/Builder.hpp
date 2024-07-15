@@ -747,6 +747,8 @@ protected:
             return MemOIR_Func::ENUM_PREFIX##_UINT16;                          \
           case 8:                                                              \
             return MemOIR_Func::ENUM_PREFIX##_UINT8;                           \
+          case 1:                                                              \
+            return MemOIR_Func::ENUM_PREFIX##_BOOL;                            \
           default:                                                             \
             MEMOIR_UNREACHABLE(                                                \
                 "Attempt to create unknown unsigned integer type!");           \
