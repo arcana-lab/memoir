@@ -1173,6 +1173,69 @@ void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
                                        function_type->getParamType(1));
 
     auto *value_param_type = function_type->getParamType(2);
+    auto *insertion_value = llvm::UndefValue::get(value_param_type);
+
+    auto *llvm_call =
+        builder.CreateCall(function_callee,
+                           llvm::ArrayRef<llvm::Value *>(
+                               { seq, insertion_point, insertion_value }));
+    MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for SeqInsertInst");
+
+    auto *return_type = I.getResultCollection().getType();
+    if (!return_type->isVoidTy()) {
+      auto *collection = builder.CreatePointerCast(llvm_call, return_type);
+
+      // Coalesce the result with the input operand.
+      this->coalesce(I, *collection);
+    }
+
+    // Mark the old instruction for cleanup.
+    this->markForCleanup(I);
+  } else {
+    // Get operands.
+    auto &collection = I.getBaseCollection();
+    auto &index = I.getInsertionPoint();
+
+    // Construct the MutWriteInst.
+    builder.CreateMutSeqInsertInst(&collection, &index);
+
+    // Coalesce the original collection with the operand.
+    this->coalesce(I, collection);
+
+    // Cleanup the old instruction.
+    this->markForCleanup(I);
+  }
+  return;
+}
+
+void SSADestructionVisitor::visitSeqInsertValueInst(SeqInsertValueInst &I) {
+  auto &seq_type = MEMOIR_SANITIZE(
+      dyn_cast_or_null<SequenceType>(type_of(I.getBaseCollection())),
+      "Couldn't determine type of written collection");
+
+  auto &elem_type = seq_type.getElementType();
+
+  MemOIRBuilder builder(I);
+
+  if (this->enable_collection_lowering) {
+    auto elem_code = elem_type.get_code();
+    auto name = *elem_code + "_" SEQ_IMPL "__insert_element";
+
+    auto *function = this->M.getFunction(name);
+    auto function_callee = FunctionCallee(function);
+    if (function == nullptr) {
+      warnln("Couldn't find function for ", name);
+      return;
+    }
+
+    auto *function_type = function_callee.getFunctionType();
+    auto *seq = builder.CreatePointerCast(&I.getBaseCollection(),
+                                          function_type->getParamType(0));
+    auto *insertion_point =
+        builder.CreateBitOrPointerCast(&I.getInsertionPoint(),
+                                       function_type->getParamType(1));
+
+    auto *value_param_type = function_type->getParamType(2);
     auto *insertion_value =
         (isa<llvm::IntegerType>(value_param_type))
             ? builder.CreateZExtOrTrunc(&I.getValueInserted(), value_param_type)
@@ -1182,7 +1245,8 @@ void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
     auto *llvm_call = builder.CreateCall(
         function_callee,
         llvm::ArrayRef({ seq, insertion_point, insertion_value }));
-    MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for SeqInsertInst");
+    MEMOIR_NULL_CHECK(llvm_call,
+                      "Could not create the call for SeqInsertValueInst");
 
     auto *return_type = I.getResultCollection().getType();
     if (!return_type->isVoidTy()) {
@@ -1201,10 +1265,10 @@ void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
     auto &index = I.getInsertionPoint();
 
     // Construct the MutWriteInst.
-    builder.CreateMutSeqInsertInst(elem_type,
-                                   &value_inserted,
-                                   &collection,
-                                   &index);
+    builder.CreateMutSeqInsertValueInst(elem_type,
+                                        &value_inserted,
+                                        &collection,
+                                        &index);
 
     // Coalesce the original collection with the operand.
     this->coalesce(I, collection);
@@ -1228,7 +1292,7 @@ void SSADestructionVisitor::visitSeqInsertSeqInst(SeqInsertSeqInst &I) {
     auto elem_code = elem_type.get_code();
     // TODO: check if we are inserting a copy/view, if we are, remove the copy
     // and use *__insert_range
-    auto name = *elem_code + "_" SEQ_IMPL "__insert";
+    auto name = *elem_code + "_" SEQ_IMPL "__insert_range";
 
     auto *function = this->M.getFunction(name);
     auto function_callee = FunctionCallee(function);
