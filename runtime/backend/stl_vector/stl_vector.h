@@ -84,7 +84,7 @@ extern "C" {
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert(             \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_range(       \
       T##_stl_vector_p vec,                                                    \
       size_t start,                                                            \
       T##_stl_vector_p vec2) {                                                 \
@@ -92,17 +92,6 @@ extern "C" {
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_range(       \
-      T##_stl_vector_p vec,                                                    \
-      size_t start,                                                            \
-      T##_stl_vector_p vec2,                                                   \
-      size_t from,                                                             \
-      size_t to) {                                                             \
-    vec->insert(vec->begin() + start,                                          \
-                vec2->begin() + from,                                          \
-                vec2->begin() + to);                                           \
-    return vec;                                                                \
-  }                                                                            \
   cname alwaysinline used void T##_stl_vector__swap(T##_stl_vector_p vec,      \
                                                     size_t from,               \
                                                     size_t to,                 \
@@ -181,7 +170,7 @@ extern "C" {
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert(             \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_range(       \
       T##_stl_vector_p vec,                                                    \
       size_t start,                                                            \
       T##_stl_vector_p vec2) {                                                 \
@@ -189,17 +178,6 @@ extern "C" {
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_range(       \
-      T##_stl_vector_p vec,                                                    \
-      size_t start,                                                            \
-      T##_stl_vector_p vec2,                                                   \
-      size_t from,                                                             \
-      size_t to) {                                                             \
-    vec->insert(vec->begin() + start,                                          \
-                vec2->begin() + from,                                          \
-                vec2->begin() + to);                                           \
-    return vec;                                                                \
-  }                                                                            \
   cname alwaysinline used void T##_stl_vector__swap(T##_stl_vector_p vec,      \
                                                     size_t from,               \
                                                     size_t to,                 \
