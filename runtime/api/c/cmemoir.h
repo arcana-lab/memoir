@@ -113,11 +113,14 @@ namespace memoir {
   MEMOIR_FUNC(sequence_copy)(object, (size_t)left, (size_t)right)
 
 // Mutable sequence operations.
+#define memoir_seq_insert_elem(object, index)                                  \
+  MUT_FUNC(sequence_insert)(object, index)
+
 #define memoir_seq_insert(ty, value, object, index)                            \
   MUT_FUNC(sequence_insert_##ty)(value, object, index)
 
 #define memoir_seq_insert_range(object_to_insert, object, index)               \
-  MUT_FUNC(sequence_insert)(object_to_insert, object, index)
+  MUT_FUNC(sequence_insert_sequence)(object_to_insert, object, index)
 
 #define memoir_seq_remove(object, index)                                       \
   MUT_FUNC(sequence_remove)(object, index, index + 1)
