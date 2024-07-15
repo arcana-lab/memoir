@@ -19,6 +19,8 @@ using namespace memoir;
 #define VAL1_1 20
 #define VAL2_0 3
 #define VAL2_1 30
+#define VAL3_0 4
+#define VAL3_1 40
 
 auto type = memoir_define_struct_type("Foo", memoir_u32_t, memoir_u32_t);
 
@@ -321,5 +323,39 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < 10; ++i) {
       EXPECT(memoir_index_read(boolean, seq, i) == ((i % 2) == 0), "differs");
     }
+  }
+
+  TEST(insert_struct) {
+
+    auto seq = memoir_allocate_sequence(type, 3);
+
+    auto obj0 = memoir_index_get(struct, seq, 0);
+    memoir_struct_write(u32, VAL0_0, obj0, 0);
+    memoir_struct_write(u32, VAL0_1, obj0, 1);
+    auto obj1 = memoir_index_get(struct, seq, 1);
+    memoir_struct_write(u32, VAL1_0, obj1, 0);
+    memoir_struct_write(u32, VAL1_1, obj1, 1);
+    auto obj2 = memoir_index_get(struct, seq, 2);
+    memoir_struct_write(u32, VAL2_0, obj2, 0);
+    memoir_struct_write(u32, VAL2_1, obj2, 1);
+
+    memoir_seq_insert_elem(seq, 0);
+
+    obj0 = memoir_index_get(struct, seq, 0);
+    memoir_struct_write(u32, VAL3_0, obj0, 0);
+    memoir_struct_write(u32, VAL3_1, obj0, 1);
+
+    auto r0 = memoir_index_get(struct, seq, 0);
+    EXPECT(memoir_struct_read(u32, r0, 0) == VAL3_0, "[0].0 differs");
+    EXPECT(memoir_struct_read(u32, r0, 1) == VAL3_1, "[0].1 differs");
+    auto r1 = memoir_index_get(struct, seq, 1);
+    EXPECT(memoir_struct_read(u32, r1, 0) == VAL0_0, "[1].0 differs");
+    EXPECT(memoir_struct_read(u32, r1, 1) == VAL0_1, "[1].1 differs");
+    auto r2 = memoir_index_get(struct, seq, 2);
+    EXPECT(memoir_struct_read(u32, r2, 0) == VAL1_0, "[2].0 differs");
+    EXPECT(memoir_struct_read(u32, r2, 1) == VAL1_1, "[2].1 differs");
+    auto r3 = memoir_index_get(struct, seq, 3);
+    EXPECT(memoir_struct_read(u32, r3, 0) == VAL2_0, "[2].0 differs");
+    EXPECT(memoir_struct_read(u32, r3, 1) == VAL2_1, "[2].1 differs");
   }
 }
