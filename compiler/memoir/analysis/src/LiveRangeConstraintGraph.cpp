@@ -140,6 +140,15 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
             MEMOIR_UNREACHABLE("Insert constraint unimplemented!");
           });
 
+    } else if (auto *insert_value_inst =
+                   dyn_cast<SeqInsertValueInst>(memoir_inst)) {
+      // Add edge for collection used.
+      this->add_use_to_graph(
+          insert_inst->getBaseCollectionAsUse(),
+          [](ValueRange *in) -> ValueRange * {
+            MEMOIR_UNREACHABLE("Insert constraint unimplemented!");
+          });
+
     } else if (auto *insert_seq_inst =
                    dyn_cast<SeqInsertSeqInst>(memoir_inst)) {
       // Add edge for collections used.
