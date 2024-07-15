@@ -310,4 +310,16 @@ int main(int argc, char *argv[]) {
       EXPECT(memoir_index_read(u32, seq, i) == i, "Unsorted!");
     }
   }
+
+  TEST(boolean) {
+    auto seq = memoir_allocate_sequence(memoir_bool_t, 10);
+
+    for (size_t i = 0; i < 10; ++i) {
+      memoir_index_write(boolean, (i % 2) == 0, seq, i);
+    }
+
+    for (size_t i = 0; i < 10; ++i) {
+      EXPECT(memoir_index_read(boolean, seq, i) == ((i % 2) == 0), "differs");
+    }
+  }
 }
