@@ -130,6 +130,16 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
                  ", ",
                  c_type,
                  ")");
+      } else if (isa<StructType>(&elem_type)
+                 || isa<CollectionType>(&elem_type)) {
+        fprintln(os,
+                 "INSTANTIATE_NESTED_",
+                 impl_name,
+                 "(",
+                 elem_code,
+                 ", ",
+                 c_type,
+                 ")");
       } else {
         fprintln(os,
                  "INSTANTIATE_",
