@@ -413,6 +413,66 @@ static llvm::Value &contextualize_end(EndInst &end_inst,
   return size_inst->getCallInst();
 }
 
+static llvm::Value &contextualize_end(EndInst &end_inst,
+                                      llvm::Use &use,
+                                      IndexReadInst &inst) {
+  MemOIRBuilder builder(inst);
+
+  auto &size_inst =
+      MEMOIR_SANITIZE(builder.CreateSizeInst(&inst.getObjectOperand()),
+                      "Could not contextualize EndInst for IndexReadInst!");
+
+  auto &size_value = size_inst.getCallInst();
+
+  auto *size_minus_one =
+      builder.CreateSub(&size_value,
+                        llvm::ConstantInt::get(size_value.getType(), 1));
+
+  use.set(size_minus_one);
+
+  return *size_minus_one;
+}
+
+static llvm::Value &contextualize_end(EndInst &end_inst,
+                                      llvm::Use &use,
+                                      IndexWriteInst &inst) {
+  MemOIRBuilder builder(inst);
+
+  auto &size_inst =
+      MEMOIR_SANITIZE(builder.CreateSizeInst(&inst.getObjectOperand()),
+                      "Could not contextualize EndInst for IndexWriteInst!");
+
+  auto &size_value = size_inst.getCallInst();
+
+  auto *size_minus_one =
+      builder.CreateSub(&size_value,
+                        llvm::ConstantInt::get(size_value.getType(), 1));
+
+  use.set(size_minus_one);
+
+  return *size_minus_one;
+}
+
+static llvm::Value &contextualize_end(EndInst &end_inst,
+                                      llvm::Use &use,
+                                      IndexGetInst &inst) {
+  MemOIRBuilder builder(inst);
+
+  auto &size_inst =
+      MEMOIR_SANITIZE(builder.CreateSizeInst(&inst.getObjectOperand()),
+                      "Could not contextualize EndInst for IndexGetInst!");
+
+  auto &size_value = size_inst.getCallInst();
+
+  auto *size_minus_one =
+      builder.CreateSub(&size_value,
+                        llvm::ConstantInt::get(size_value.getType(), 1));
+
+  use.set(size_minus_one);
+
+  return *size_minus_one;
+}
+
 void SSADestructionVisitor::visitEndInst(EndInst &I) {
   // Contextualize EndInst for each of its users.
   for (auto &use : I.getCallInst().uses()) {
@@ -434,6 +494,12 @@ void SSADestructionVisitor::visitEndInst(EndInst &I) {
       contextualize_end(I, use, *swap_inst);
     } else if (auto *swap_within_inst = into<SeqSwapWithinInst>(user_as_inst)) {
       contextualize_end(I, use, *swap_within_inst);
+    } else if (auto *read_inst = into<IndexReadInst>(user_as_inst)) {
+      contextualize_end(I, use, *read_inst);
+    } else if (auto *write_inst = into<IndexWriteInst>(user_as_inst)) {
+      contextualize_end(I, use, *write_inst);
+    } else if (auto *get_inst = into<IndexGetInst>(user_as_inst)) {
+      contextualize_end(I, use, *get_inst);
     } else if (auto *phi_node = dyn_cast<llvm::PHINode>(user_as_inst)) {
       MEMOIR_UNREACHABLE(
           "Contextualizing EndInst at a PHINode is not yet supported!");
@@ -1156,7 +1222,7 @@ void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
 
   if (this->enable_collection_lowering) {
     auto elem_code = elem_type.get_code();
-    auto name = *elem_code + "_" SEQ_IMPL "__insert_element";
+    auto name = *elem_code + "_" SEQ_IMPL "__insert";
 
     auto *function = this->M.getFunction(name);
     auto function_callee = FunctionCallee(function);
@@ -1172,13 +1238,9 @@ void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
         builder.CreateBitOrPointerCast(&I.getInsertionPoint(),
                                        function_type->getParamType(1));
 
-    auto *value_param_type = function_type->getParamType(2);
-    auto *insertion_value = llvm::UndefValue::get(value_param_type);
-
-    auto *llvm_call =
-        builder.CreateCall(function_callee,
-                           llvm::ArrayRef<llvm::Value *>(
-                               { seq, insertion_point, insertion_value }));
+    auto *llvm_call = builder.CreateCall(
+        function_callee,
+        llvm::ArrayRef<llvm::Value *>({ seq, insertion_point }));
     MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for SeqInsertInst");
 
     auto *return_type = I.getResultCollection().getType();
