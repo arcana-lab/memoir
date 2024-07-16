@@ -219,4 +219,12 @@ int main() {
       EXPECT(memoir_index_read(u32, rev, i) == i, "differs!");
     }
   }
+
+  TEST(empty) {
+    auto seq = memoir_allocate_sequence(memoir_u32_t, 0);
+
+    auto sum = memoir_fold(u32, 0, seq, sum_seq);
+
+    EXPECT(sum == 0, "differs!");
+  }
 }
