@@ -127,13 +127,13 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     // Collect all source-level collection pointers names.
     ordered_set<llvm::Value *> memoir_names = {};
     for (auto &A : F.args()) {
-      if (isa_and_nonnull<CollectionType>(type_of(A))) {
+      if (Type::value_is_collection_type(A)) {
         memoir_names.insert(&A);
       }
     }
     for (auto &BB : F) {
       for (auto &I : BB) {
-        if (isa_and_nonnull<CollectionType>(type_of(I))) {
+        if (Type::value_is_collection_type(I)) {
           memoir_names.insert(&I);
         }
       }
@@ -157,14 +157,16 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
       }
 
       // Gather the set of basic blocks containing mutators and PHI nodes.
-      for (auto *def : name->users()) {
+      for (auto &use : name->uses()) {
+        auto *def = use.getUser();
         if (auto *def_as_inst = dyn_cast<llvm::Instruction>(def)) {
           auto *memoir_inst = MemOIRInst::get(*def_as_inst);
           if (!memoir_inst) {
             continue;
           }
-          // Add check if this is a mutator
-          if (!isa<MutInst>(memoir_inst) && !isa<AccessInst>(memoir_inst)) {
+          // Skip non-mutators.
+          if (!isa<MutInst>(memoir_inst) && !isa<AccessInst>(memoir_inst)
+              && !isa<FoldInst>(memoir_inst)) {
             continue;
           }
           // Only enable read instructions if UsePHIs are enabled.
@@ -172,6 +174,14 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
               && (isa<ReadInst>(memoir_inst) || isa<GetInst>(memoir_inst))) {
             continue;
           }
+          // If the value is closed on by the FoldInst, it will be redefined by
+          // a RetPHI.
+          if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
+            if (use.getOperandNo() < 3) {
+              continue;
+            }
+          }
+
           if (auto *append_inst = dyn_cast<MutSeqAppendInst>(memoir_inst)) {
             if (name != &append_inst->getCollection()) {
               continue;
