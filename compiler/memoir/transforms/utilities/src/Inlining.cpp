@@ -147,6 +147,7 @@ llvm::InlineResult InlineFunction(llvm::CallBase &CB,
             "LiveOutMetadata has invalid/stale argument number.");
       }
       auto *argument = arguments_to_patch[arg_number];
+      arguments_to_patch.erase(arg_number);
 
       // Record the patch.
       if (patches.count(argument) > 0) {
@@ -159,6 +160,12 @@ llvm::InlineResult InlineFunction(llvm::CallBase &CB,
       // Remove the old metadata.
       Metadata::remove<LiveOutMetadata>(I);
     }
+  }
+
+  // For any argument to patch that didn't have a LiveOut, we will patch it with
+  // itself for completeness.
+  for (const auto &[arg_number, arg] : arguments_to_patch) {
+    patches[arg] = arg;
   }
 
   // Find all relevant RetPHIs.
