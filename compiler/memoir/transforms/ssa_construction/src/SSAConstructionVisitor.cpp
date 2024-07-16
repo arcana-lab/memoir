@@ -144,11 +144,13 @@ void SSAConstructionVisitor::visitInstruction(llvm::Instruction &I) {
 void SSAConstructionVisitor::visitPHINode(llvm::PHINode &I) {
   auto found_inserted_phi = this->inserted_phis.find(&I);
   if (found_inserted_phi != this->inserted_phis.end()) {
+    // If this was a PHI inserted by us, update the named variable's reaching
+    // definition.
     auto *named_variable = found_inserted_phi->second;
     auto *reaching_definition =
         this->update_reaching_definition(named_variable, I);
 
-    // Update the reaching definition for the named variable.
+    // Set the reaching definition for the named variable.
     this->set_reaching_definition(named_variable, &I);
     if (reaching_definition == &I) {
       this->set_reaching_definition(&I, reaching_definition);
