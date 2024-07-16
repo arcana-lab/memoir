@@ -74,22 +74,35 @@ public:
         &builder.CreateSizeInst(&collection, "fold.size.")->getCallInst();
 
     // Create a compare instruction to check if the collection is empty.
-    auto *collection_nonempty = builder.CreateICmpEQ(collection_size,
+    auto *collection_nonempty = builder.CreateICmpNE(collection_size,
                                                      builder.getInt64(0),
                                                      "fold.nonempty.");
 
     // Split the header after the fold, creating an if-else based on the
     // comparison. The block will be inserted in the else side of the branch.
-    auto *else_block =
-        llvm::SplitBlockAndInsertIfElse(/* Cond = */ collection_nonempty,
+    auto *then_terminator =
+        llvm::SplitBlockAndInsertIfThen(/* Cond = */ collection_nonempty,
                                         /* SplitBefore = */ &I.getCallInst(),
                                         /* Unreachable = */ false);
+
+    // Insert a PHI before the FoldInst for the accumulator.
+    builder.SetInsertPoint(&I.getCallInst());
+    auto &continuation_phi =
+        MEMOIR_SANITIZE(builder.CreatePHI(I.getCallInst().getType(), 2),
+                        "Failed to create PHINode");
+
+    // Update the incoming value from the non-then branch.
+    auto *nonempty_block = collection_size->getParent();
+    continuation_phi.addIncoming(&I.getInitial(), nonempty_block);
+
+    // Replace all uses of the fold instruction result with the call result.
+    I.getCallInst().replaceAllUsesWith(&continuation_phi);
 
     // If the collection is associative, create an AssocKeysInst.
     auto *iterable = &collection;
     if (collection_is_assoc) {
       // Make sure the builder's insertion point is correct.
-      builder.SetInsertPoint(&I.getCallInst());
+      builder.SetInsertPoint(then_terminator);
 
       // Create the AssocKeysInst
       auto &keys = MEMOIR_SANITIZE(builder.CreateAssocKeysInst(&collection),
@@ -103,7 +116,7 @@ public:
     // to collection_size.
     auto [loop_insertion_point, index] =
         llvm::SplitBlockAndInsertSimpleForLoop(collection_size,
-                                               &I.getCallInst());
+                                               then_terminator);
 
     // Update the builder's insertion point to the index PHI.
     auto &index_phi =
@@ -202,7 +215,6 @@ public:
     }
     for (unsigned closed_idx = 0; closed_idx < I.getNumberOfClosed();
          ++closed_idx) {
-
       // Get the closed variable.
       auto &closed = I.getClosed(closed_idx);
 
@@ -215,8 +227,12 @@ public:
         builder.CreateCall(function_type, &function, arguments, "fold.accum."),
         "Failed to create call to the FoldInst function!");
 
-    // Replace all uses of the fold instruction result with the call result.
-    I.getCallInst().replaceAllUsesWith(&call);
+    // Wire the returned accumulator to its output PHI.
+    for (auto *pred : llvm::predecessors(continuation_phi.getParent())) {
+      if (pred != nonempty_block) {
+        continuation_phi.addIncoming(&call, pred);
+      }
+    }
 
     // Split the call into its own basic block.
     auto *loop_body = call.getParent();
@@ -258,7 +274,6 @@ public:
     // For each closed argument:
     for (unsigned closed_idx = 0; closed_idx < I.getNumberOfClosed();
          ++closed_idx) {
-
       auto &closed = I.getClosed(closed_idx);
 
       // Check that it is a collection.
@@ -300,24 +315,20 @@ public:
 
       // If it does, we need to patch its DEF-USE chain.
 
-      //   Add a PHI for it in the loop.
+      //  - Add a PHI for it in the loop.
       builder.SetInsertPoint(&accumulator);
       auto *closed_phi =
           builder.CreatePHI(closed.getType(), 2, "fold.closed.phi.");
 
-      // Update the use of the closed variabled to be the new PHI.
+      //  -- Update the use of the closed variabled to be the new PHI.
       call.setOperand(closed_idx + 3, closed_phi);
 
-      //   Insert a RetPHI after the call.
+      //  -- Insert a RetPHI after the call.
       builder.SetInsertPoint(call.getNextNode());
       auto *closed_ret_phi =
           builder.CreateRetPHI(closed_phi, &function, "fold.closed.");
 
-      // Replace uses of the original RetPHI with the new RetPHI.
-      found_ret_phi->getCallInst().replaceAllUsesWith(
-          &closed_ret_phi->getCallInst());
-
-      //   Wire up the PHI with the original value and the RetPHI.
+      //  -- Wire up the PHI with the original value and the RetPHI.
       for (auto *pred : llvm::predecessors(loop_header)) {
         if (pred == loop_preheader) {
           closed_phi->addIncoming(&closed, loop_preheader);
@@ -326,7 +337,28 @@ public:
         }
       }
 
-      // Delete the old RetPHI.
+      //  - Add a PHI for it in the loop's continuation.
+      builder.SetInsertPoint(&continuation_phi);
+      auto *closed_continuation_phi =
+          builder.CreatePHI(closed.getType(),
+                            2,
+                            "fold.continuation.closed.phi.");
+
+      //  -- Wire up the continuation PHI with the original value and RetPHI.
+      for (auto *pred :
+           llvm::predecessors(closed_continuation_phi->getParent())) {
+        if (pred == nonempty_block) {
+          closed_continuation_phi->addIncoming(&closed, nonempty_block);
+        } else {
+          closed_continuation_phi->addIncoming(&closed_ret_phi->getCallInst(),
+                                               pred);
+        }
+      }
+
+      //  -- Replace uses of the original RetPHI with the continuation PHI.
+      found_ret_phi->getCallInst().replaceAllUsesWith(closed_continuation_phi);
+
+      //  -- Delete the old RetPHI.
       found_ret_phi->getCallInst().eraseFromParent();
     }
 
@@ -347,13 +379,8 @@ public:
     llvm::InlineFunctionInfo IFI;
     auto inline_result = llvm::memoir::InlineFunction(call, IFI);
 
-    // If we inlined the fold function, we need patch up any RetPHI
-    // instructions.
-    if (inline_result.isSuccess()) {
-      // TODO
-    }
     // If inlining failed, send a warning and continue.
-    else {
+    if (not inline_result.isSuccess()) {
       warnln("Inlining fold function failed.\n  Reason: ",
              inline_result.getFailureReason());
     }
