@@ -177,7 +177,13 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
           // If the value is closed on by the FoldInst, it will be redefined by
           // a RetPHI.
           if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
-            if (use.getOperandNo() < 3) {
+            // If the fold has no closure, skip it.
+            auto num_closed = fold->getNumberOfClosed();
+            if (num_closed == 0) {
+              continue;
+            }
+            // If the fold use is out of the closed argument range, skip it.
+            if (fold->getClosedAsUse(0).getOperandNo() > use.getOperandNo()) {
               continue;
             }
           }
