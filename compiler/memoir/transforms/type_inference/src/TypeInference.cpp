@@ -95,12 +95,13 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
           found_type = true;
         }
 
-        // If we are the key argument, fetch the collection type and get our
-        // type.
-        else if (A.getArgNo() == 1) {
-          auto &collection_type = MEMOIR_SANITIZE(
-              dyn_cast_or_null<CollectionType>(type_of(fold->getCollection())),
-              "Fold over non-collection type!");
+        // Fetch the collection type.
+        auto &collection_type = MEMOIR_SANITIZE(
+            dyn_cast_or_null<CollectionType>(type_of(fold->getCollection())),
+            "Fold over non-collection type!");
+
+        // If we are the key argument, we are the key type.
+        if (A.getArgNo() == 1) {
 
           // If the collection is an assoc type, get the key type.
           if (auto *assoc_type = dyn_cast<AssocArrayType>(&collection_type)) {
@@ -116,9 +117,12 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
           }
         }
 
-        // If we are the value argument, fetch the collection type and get our
-        // type.
-        else if (A.getArgNo() == 2) {
+        // Get the element type.
+        auto &element_type = collection_type.getElementType();
+
+        // If the element type is non-void, and we are the value argument, we
+        // are the element type.
+        if (not isa<VoidType>(&element_type) and A.getArgNo() == 2) {
           auto &collection_type = MEMOIR_SANITIZE(
               dyn_cast_or_null<CollectionType>(type_of(fold->getCollection())),
               "Fold over non-collection type!");
@@ -131,10 +135,15 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
         }
 
         // Otherwise, get the closure argument that we match with.
-        else if (A.getArgNo() >= 3) {
+        auto num_closed = fold->getNumberOfClosed();
+        if (num_closed > 0) {
+
+          // Get the first closed operand index.
+          auto first_closed_argument = isa<VoidType>(&element_type) ? 2 : 3;
 
           // Get the closed value.
-          auto &closed_value = fold->getClosed(A.getArgNo() - 3);
+          auto &closed_value =
+              fold->getClosed(A.getArgNo() - first_closed_argument);
 
           // Get the type of the closed value.
           type = type_of(closed_value);
