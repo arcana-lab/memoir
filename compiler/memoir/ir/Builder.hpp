@@ -50,6 +50,8 @@ public:
       return this->CreateDoubleTypeInst(name);
     } else if (isa<PointerType>(&type)) {
       return this->CreatePointerTypeInst(name);
+    } else if (isa<VoidType>(&type)) {
+      return this->CreateVoidTypeInst(name);
     } else if (auto *integer_type = dyn_cast<IntegerType>(&type)) {
       if (!integer_type->isSigned()) {
         switch (integer_type->getBitWidth()) {
