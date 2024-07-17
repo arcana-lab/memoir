@@ -38,7 +38,6 @@ public:
   }
 
   static bool lower_fold(FoldInst &I) {
-
     // Split the instruction out of its basic block, such that:
     auto *header = I.getParent();
 
@@ -321,7 +320,8 @@ public:
           builder.CreatePHI(closed.getType(), 2, "fold.closed.phi.");
 
       //  -- Update the use of the closed variabled to be the new PHI.
-      call.setOperand(closed_idx + 3, closed_phi);
+      auto closed_offset = isa<VoidType>(&element_type) ? 2 : 3;
+      call.setOperand(closed_idx + closed_offset, closed_phi);
 
       //  -- Insert a RetPHI after the call.
       builder.SetInsertPoint(call.getNextNode());
@@ -374,6 +374,8 @@ public:
         accumulator.addIncoming(&call, pred);
       }
     }
+
+    return true;
 
     // Now, try to inline the fold function.
     llvm::InlineFunctionInfo IFI;
