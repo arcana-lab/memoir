@@ -90,6 +90,10 @@ std::string PointerType::to_string() {
   return "(Type: pointer)";
 }
 
+std::string VoidType::to_string() {
+  return "(Type: void)";
+}
+
 std::string ReferenceType::to_string() {
   return "(Type: (ref " + this->referenced_type->to_string() + ")";
 }
