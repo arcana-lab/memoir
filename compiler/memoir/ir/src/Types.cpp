@@ -607,7 +607,7 @@ std::string StructType::toString(std::string indent) const {
 }
 
 opt<std::string> StructType::get_code() const {
-  return "struct";
+  return this->getName();
 }
 
 /*
