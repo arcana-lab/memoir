@@ -326,9 +326,13 @@ Type *TypeChecker::visitReadInst(ReadInst &I) {
 
   // Get the collection type being accessed.
   auto *object_type = this->analyze(I.getObjectOperand());
-  auto &collection_type =
-      MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(object_type),
-                      "ReadInst is accessing non-collection type!");
+
+  // If we couldn't find the object type, return NULL.
+  if (object_type == nullptr) {
+    return nullptr;
+  }
+
+  auto &collection_type = *dyn_cast<CollectionType>(object_type);
 
   // Return the element type, if it is a reference type.
   auto &element_type = collection_type.getElementType();
@@ -371,9 +375,12 @@ Type *TypeChecker::visitStructReadInst(StructReadInst &I) {
 Type *TypeChecker::visitGetInst(GetInst &I) {
   // Get the type of collection being accessed.
   auto *object_type = this->analyze(I.getObjectOperand());
-  auto &collection_type =
-      MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(object_type),
-                      "GetInst accessing non-collection type!");
+
+  if (object_type == nullptr) {
+    return nullptr;
+  }
+
+  auto &collection_type = *(dyn_cast<CollectionType>(object_type));
 
   // Return the element type.
   auto &element_type = collection_type.getElementType();
