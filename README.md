@@ -2,7 +2,7 @@
 A case for representing data collections and objects in an SSA form.
 
 ## Dependencies
-The compiler depends on LLVM 18, it has been tested for LLVM 18.1.6
+The compiler depends on LLVM 18, it has been tested for LLVM 18.1.8
 All other dependencies are installed automatically during the build process.
 
 ## Building

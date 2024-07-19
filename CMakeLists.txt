@@ -4,7 +4,7 @@ project(MEMOIR C CXX ASM)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 
-set(LLVM_VERSION 18.1.6)
+set(LLVM_VERSION 18.1.8)
 set(CLANG_ID "Clang")
 
 message("Compiling MEMOIR for LLVM version ${LLVM_VERSION}")
