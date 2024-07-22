@@ -349,8 +349,13 @@ Type *TypeChecker::visitReadInst(ReadInst &I) {
 Type *TypeChecker::visitStructReadInst(StructReadInst &I) {
   // Get the struct type.
   auto *object_type = this->analyze(I.getObjectOperand());
+
+  if (object_type == nullptr) {
+    return nullptr;
+  }
+
   auto &struct_type =
-      MEMOIR_SANITIZE(dyn_cast_or_null<StructType>(object_type),
+      MEMOIR_SANITIZE(dyn_cast<StructType>(object_type),
                       "StructReadInst is accessing a non-collection type!");
 
   // Fetch the field information for the access.
@@ -373,6 +378,7 @@ Type *TypeChecker::visitStructReadInst(StructReadInst &I) {
 
 // Nested Access Instructions.
 Type *TypeChecker::visitGetInst(GetInst &I) {
+
   // Get the type of collection being accessed.
   auto *object_type = this->analyze(I.getObjectOperand());
 
@@ -390,8 +396,13 @@ Type *TypeChecker::visitGetInst(GetInst &I) {
 Type *TypeChecker::visitStructGetInst(StructGetInst &I) {
   // Get the struct type.
   auto *object_type = this->analyze(I.getObjectOperand());
+
+  if (object_type == nullptr) {
+    return nullptr;
+  }
+
   auto &struct_type =
-      MEMOIR_SANITIZE(dyn_cast_or_null<StructType>(object_type),
+      MEMOIR_SANITIZE(dyn_cast<StructType>(object_type),
                       "StructGetInst is accessing a non-collection type!");
 
   // Fetch the field information for the access.
