@@ -87,7 +87,15 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
         Type *type = nullptr;
         bool found_type = false;
 
-        // If we are the accumulator argument, return the initial value's type.
+        // Fetch the collection type.
+        auto &collection_type = MEMOIR_SANITIZE(
+            dyn_cast_or_null<CollectionType>(type_of(fold->getCollection())),
+            "Fold over non-collection type!");
+
+        // Get the element type.
+        auto &element_type = collection_type.getElementType();
+
+        // If we are the accumulator argument, we are the initial value's type.
         if (A.getArgNo() == 0) {
 
           // Otherwise, get the type of the initial accumulator value.
@@ -95,13 +103,8 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
           found_type = true;
         }
 
-        // Fetch the collection type.
-        auto &collection_type = MEMOIR_SANITIZE(
-            dyn_cast_or_null<CollectionType>(type_of(fold->getCollection())),
-            "Fold over non-collection type!");
-
         // If we are the key argument, we are the key type.
-        if (A.getArgNo() == 1) {
+        else if (A.getArgNo() == 1) {
 
           // If the collection is an assoc type, get the key type.
           if (auto *assoc_type = dyn_cast<AssocArrayType>(&collection_type)) {
@@ -117,28 +120,17 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
           }
         }
 
-        // Get the element type.
-        auto &element_type = collection_type.getElementType();
-
         // If the element type is non-void, and we are the value argument, we
         // are the element type.
-        if (not isa<VoidType>(&element_type) and A.getArgNo() == 2) {
-          auto &collection_type = MEMOIR_SANITIZE(
-              dyn_cast_or_null<CollectionType>(type_of(fold->getCollection())),
-              "Fold over non-collection type!");
-
-          // Get the element type.
-          auto &element_type = collection_type.getElementType();
-
+        else if (not isa<VoidType>(&element_type) and A.getArgNo() == 2) {
           type = &element_type;
           found_type = true;
         }
 
         // Otherwise, get the closure argument that we match with.
-        auto num_closed = fold->getNumberOfClosed();
-        if (num_closed > 0) {
+        else if (fold->getNumberOfClosed() > 0) {
 
-          // Get the first closed operand index.
+          // Get the first closed argument index.
           auto first_closed_argument = isa<VoidType>(&element_type) ? 2 : 3;
 
           // Get the closed value.
@@ -168,13 +160,7 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
   }
 
   // Second, let's check the callers.
-  bool found_type = false;
   for (auto &use : F.uses()) {
-    // If we found the type, continue.
-    if (found_type) {
-      continue;
-    }
-
     // Get the user information.
     auto *user = use.getUser();
     auto *user_as_inst = dyn_cast_or_null<llvm::Instruction>(user);
@@ -192,12 +178,13 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
 
           // Only recurse if we are looking at a different function.
           if (caller_function != &F) {
+            // TODO: replace this with type unification.
             this->infer(*caller_function);
           }
         }
       }
 
-      // Then, see if we can type of the operand being passed into the call
+      // Then, see if we can type the operand being passed into the call
       // for this argument.
       auto arg_index = A.getArgNo();
       auto &call_operand =
