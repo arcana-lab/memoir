@@ -155,6 +155,10 @@ PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
   // auto dfs_postorder = dfs_postorder_traversal(DT);
   infoln("Performing the coalescence");
   for (auto &F : M) {
+    if (F.empty()) {
+      continue;
+    }
+
     for (auto &BB : F) {
       // Reverse iterate on instructions in the basic block.
       for (auto it = BB.begin(); it != BB.end(); ++it) {
