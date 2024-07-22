@@ -56,7 +56,7 @@ class SSADestructionVisitor
 public:
   SSADestructionVisitor(llvm::Module &M,
                         SSADestructionStats *stats = nullptr,
-                        bool enable_collection_lowering = false);
+                        bool enable_collection_lowering = true);
 
   void setAnalyses(llvm::DominatorTree &DT);
 
@@ -134,7 +134,7 @@ protected:
   map<llvm::Value *, llvm::Value *> replaced_values;
   map<llvm::Value *, llvm::Value *> def_phi_replacements;
   map<llvm::Value *, llvm::Value *> ret_phi_replacements;
-  set<llvm::Instruction *> instructions_to_delete;
+  ordered_set<llvm::Instruction *> instructions_to_delete;
 
   llvm::Value *find_replacement(llvm::Value *value);
 

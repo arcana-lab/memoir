@@ -585,7 +585,6 @@ void SSADestructionVisitor::visitIndexReadInst(IndexReadInst &I) {
 
       // Replace old read value with the new one.
       this->coalesce(I, *load);
-      // I.getCallInst().replaceAllUsesWith(load);
 
       // Cleanup the old instruction.
       this->markForCleanup(I);
@@ -1960,6 +1959,9 @@ void SSADestructionVisitor::visitTypeInst(TypeInst &I) {
 
       // If the user is a store to a global variable, mark it for cleanup.
       if (auto *user_as_store = dyn_cast<llvm::StoreInst>(user_as_inst)) {
+        // Mark the store for cleanup.
+        this->markForCleanup(*user_as_inst);
+
         // Get the global variable referenced being stored to.
         llvm::Value *global_ptr = nullptr;
         auto *ptr = user_as_store->getPointerOperand();
@@ -1991,7 +1993,9 @@ void SSADestructionVisitor::visitTypeInst(TypeInst &I) {
       }
     }
 
+    // Mark the variable for cleanup.
     this->markForCleanup(I);
+
   } else {
   }
   return;
@@ -1999,8 +2003,19 @@ void SSADestructionVisitor::visitTypeInst(TypeInst &I) {
 
 // Logistics implementation.
 void SSADestructionVisitor::cleanup() {
-  for (auto *inst : instructions_to_delete) {
+  for (auto *inst : this->instructions_to_delete) {
     infoln(*inst);
+
+    if (not inst->hasNUses(0)) {
+      for (auto *user : inst->users()) {
+        if (auto *user_as_inst = dyn_cast_or_null<llvm::Instruction>(user)) {
+          this->instructions_to_delete.insert(user_as_inst);
+        }
+      }
+    }
+
+    inst->replaceAllUsesWith(nullptr);
+
     inst->eraseFromParent();
   }
 }
@@ -2039,15 +2054,6 @@ void SSADestructionVisitor::do_coalesce(llvm::Value &V) {
   infoln("  ", *replacement);
 
   V.replaceAllUsesWith(replacement);
-
-  // Update the types of users.
-  // for (auto *user : V.users()) {
-  //   if (auto *user_as_phi = dyn_cast<llvm::PHINode>(user)) {
-  //     if (user_as_phi->getType() != V.getType()) {
-  //       user_as_phi->mutateType(V.getType());
-  //     }
-  //   }
-  // }
 
   this->replaced_values[&V] = replacement;
 }
