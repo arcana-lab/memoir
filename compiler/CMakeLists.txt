@@ -13,6 +13,9 @@ include(AddLLVM)
 
 message(STATUS "LLVM_DIR IS ${LLVM_CMAKE_DIR}.")
 
+# Compiler options.
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -g3 -Wno-unused-variable -Wno-reorder-ctor ")
+
 # Configure NOELLE
 include(ExternalProject)
 ExternalProject_Add(
@@ -29,9 +32,6 @@ ExternalProject_Add(
         -DNOELLE_SCAF=OFF
 )
 
-# Compiler options.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -g3 -Wno-unused-variable -Wno-reorder-ctor ")
-
 include_directories(
   # LLVM
   ${LLVM_INCLUDE_DIRS}
@@ -42,8 +42,5 @@ include_directories(
   ${CMAKE_INSTALL_INCLUDEDIR}/arcana
   )
 
-link_libraries(${Z3_LIBRARIES})
-
 # Build the compiler.
 add_subdirectory(memoir)
-
