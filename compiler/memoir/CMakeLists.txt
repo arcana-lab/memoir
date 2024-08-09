@@ -8,6 +8,10 @@ add_llvm_library(
   opt
 )
 
+add_dependencies(memoir
+  noelle
+)
+
 function(add_memoir_sources)
   cmake_parse_arguments(
     SRC     # prefix
