@@ -1,4 +1,5 @@
 #include <iostream>
+#include <string>
 
 #include "internal.h"
 #include "objects.h"
