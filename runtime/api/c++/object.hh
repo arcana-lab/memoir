@@ -257,7 +257,8 @@ const type_ref memoir_type<bool> = MEMOIR_FUNC(boolean_type)();
       MEMOIR_apply_delim(TO_FIELD_INIT_PREPEND, SEMICOLON_DELIM, FIELDS);      \
     }                                                                          \
     /* Instantiate field members. */                                           \
-    constexpr static fameta::counter<__COUNTER__, 0, 1> field_index;           \
+    constexpr static fameta::counter<fameta::context<__COUNTER__>, 0, 1>       \
+        field_index;                                                           \
     MEMOIR_apply_delim(TO_MEMOIR_PREPEND, SEMICOLON_DELIM, FIELDS);            \
                                                                                \
     static memoir::Type *const _type;                                          \
