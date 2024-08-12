@@ -1,16 +1,25 @@
 #include <cmemoir/test.hpp>
 
+#include <memoir++/assoc.hh>
 #include <memoir++/sequence.hh>
 
 using namespace memoir;
 
 AUTO_STRUCT(foo, FIELD(int, x), FIELD(int, y));
 
-void increment(Ref<Seq<int>> seq_ref) {
+void increment_seq(Ref<Seq<int>> seq_ref) {
   Seq<int> seq(seq_ref);
 
   for (auto i = 0; i < seq.size(); ++i) {
     seq[i] = seq[i] + 1;
+  }
+}
+
+void increment_assoc(Ref<Assoc<int, float>> map_ref) {
+  Assoc<int, float> map(map_ref);
+
+  for (auto i = 0; i < map.size(); ++i) {
+    map[i] = map[i] + 1.0;
   }
 }
 
@@ -30,7 +39,7 @@ int main() {
 
   size_t n = 10;
 
-  TEST(init_write_read) {
+  TEST(seq_init_write_read) {
     Seq<int> seq(n);
 
     for (auto i = 0; i < n; ++i) {
@@ -46,7 +55,7 @@ int main() {
     EXPECT(sum == (0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9), "incorrect sum");
   }
 
-  TEST(for_loop) {
+  TEST(seq_for_loop) {
 
     Seq<int> seq(n);
 
@@ -62,7 +71,7 @@ int main() {
     EXPECT(sum == (0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9), "incorrect sum");
   }
 
-  TEST(call) {
+  TEST(seq_call) {
 
     Seq<int> seq(n);
 
@@ -70,7 +79,7 @@ int main() {
       seq[i] = i;
     }
 
-    increment(&seq);
+    increment_seq(&seq);
 
     int sum = 0;
     for (auto v : seq) {
@@ -80,7 +89,7 @@ int main() {
     EXPECT(sum == (1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10), "incorrect sum");
   }
 
-  TEST(call_recursive) {
+  TEST(seq_call_recursive) {
 
     Seq<int> seq(n);
 
@@ -98,7 +107,7 @@ int main() {
     EXPECT(sum == (1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10), "incorrect sum");
   }
 
-  TEST(nested_object) {
+  TEST(seq_nested_object) {
     Seq<foo> seq(n);
 
     for (auto i = 0; i < n; ++i) {
@@ -116,6 +125,42 @@ int main() {
     EXPECT(sum_x == (0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9), "incorrect sum_x");
     EXPECT(sum_y == (2 * (0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9)),
            "incorrect sum_y");
+  }
+
+  TEST(assoc_init_write_read) {
+    Assoc<int, float> map;
+
+    for (auto i = 0; i < n; ++i) {
+      map[i] = float(i) + 0.5;
+    }
+
+    float sum = 0.0;
+    for (auto i = 0; i < n; ++i) {
+      sum += map[i];
+      EXPECT(map[i] == (float(i) + 0.5), "map[i] differs");
+    }
+
+    EXPECT(sum == (0.5 + 1.5 + 2.5 + 3.5 + 4.5 + 5.5 + 6.5 + 7.5 + 8.5 + 9.5),
+           "incorrect sum");
+  }
+
+  TEST(assoc_call) {
+    Assoc<int, float> map;
+
+    for (auto i = 0; i < n; ++i) {
+      map[i] = float(i) + 0.5;
+    }
+
+    increment_assoc(&map);
+
+    float sum = 0.0;
+    for (auto i = 0; i < n; ++i) {
+      sum += map[i];
+      EXPECT(map[i] == (float(i) + 1.5), "map[i] differs");
+    }
+
+    EXPECT(sum == (1.5 + 2.5 + 3.5 + 4.5 + 5.5 + 6.5 + 7.5 + 8.5 + 9.5 + 10.5),
+           "incorrect sum");
   }
 
   return 0;
