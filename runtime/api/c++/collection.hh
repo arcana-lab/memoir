@@ -19,7 +19,7 @@ public:
   always_inline collection(memoir::Collection *storage) : _storage(storage) {}
 
 protected:
-  memoir::Collection *const _storage;
+ collection_ref _storage;
 };
 
 } // namespace memoir
