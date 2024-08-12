@@ -35,6 +35,7 @@ PASS(Module, ExamplePass, "memoir-example")
 
 MODULE_ANALYSIS_(RangeAnalysis, RangeAnalysisResult)
 MODULE_ANALYSIS_(LiveRangeAnalysis, LiveRangeAnalysisResult)
+MODULE_ANALYSIS_(DefUseChainAnalysis, DefUseChainResult)
 
 #ifndef FUNCTION_ANALYSIS
 #  define FUNCTION_ANALYSIS(CLASS, RESULT) ANALYSIS(Function, CLASS, RESULT)

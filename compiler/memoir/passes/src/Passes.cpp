@@ -6,6 +6,7 @@
 // MEMOIR
 #include "memoir/passes/Passes.hpp"
 
+#include "memoir/analysis/DefUseChain.hpp"
 #include "memoir/analysis/LiveRangeAnalysis.hpp"
 #include "memoir/analysis/Liveness.hpp"
 #include "memoir/analysis/RangeAnalysis.hpp"
