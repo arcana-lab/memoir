@@ -4,6 +4,8 @@
 
 using namespace memoir;
 
+AUTO_STRUCT(foo, FIELD(int, x), FIELD(int, y));
+
 void increment(Ref<Seq<int>> seq_ref) {
   Seq<int> seq(seq_ref);
 
@@ -26,9 +28,9 @@ void recurse(Ref<Seq<int>> seq_ref, size_t i) {
 
 int main() {
 
-  TEST(init_write_read) {
-    size_t n = 10;
+  size_t n = 10;
 
+  TEST(init_write_read) {
     Seq<int> seq(n);
 
     for (auto i = 0; i < n; ++i) {
@@ -45,7 +47,6 @@ int main() {
   }
 
   TEST(for_loop) {
-    size_t n = 10;
 
     Seq<int> seq(n);
 
@@ -62,7 +63,6 @@ int main() {
   }
 
   TEST(call) {
-    size_t n = 10;
 
     Seq<int> seq(n);
 
@@ -81,7 +81,6 @@ int main() {
   }
 
   TEST(call_recursive) {
-    size_t n = 10;
 
     Seq<int> seq(n);
 
@@ -97,6 +96,26 @@ int main() {
     }
 
     EXPECT(sum == (1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10), "incorrect sum");
+  }
+
+  TEST(nested_object) {
+    Seq<foo> seq(n);
+
+    for (auto i = 0; i < n; ++i) {
+      seq[i].x = i;
+      seq[i].y = 2 * i;
+    }
+
+    int sum_x = 0;
+    int sum_y = 0;
+    for (auto i = 0; i < n; ++i) {
+      sum_x += seq[i].x;
+      sum_y += seq[i].y;
+    }
+
+    EXPECT(sum_x == (0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9), "incorrect sum_x");
+    EXPECT(sum_y == (2 * (0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9)),
+           "incorrect sum_y");
   }
 
   return 0;
