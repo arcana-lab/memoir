@@ -7,7 +7,7 @@ set(HEADER_FILES
   # Base collections
   collection.hh
   sequence.hh
-  # assoc.hh
+  assoc.hh
 
   # Sequential collections
   
