@@ -103,7 +103,7 @@ public:
   Collection(Type *type);
 };
 
-struct Tensor : public Collection {
+struct Tensor : public detail::Collection {
 public:
   // Owned state
   std::vector<uint64_t> tensor;
@@ -300,9 +300,24 @@ std::vector<uint64_t> init_elements(Type *type, size_t num = 1);
 
 } // namespace detail
 
-struct Object : private detail::Object {};
-struct Struct : private detail::Struct {};
-struct Collection : private detail::Collection {};
+struct Struct {
+  Struct(detail::Struct *storage) : _storage(storage) {}
+
+  operator detail::Struct *() const {
+    return this->_storage;
+  }
+
+  detail::Struct *_storage;
+};
+struct Collection {
+  Collection(detail::Collection *storage) : _storage(storage) {}
+
+  operator detail::Collection *() const {
+    return this->_storage;
+  }
+
+  detail::Collection *_storage;
+};
 
 } // namespace memoir
 
