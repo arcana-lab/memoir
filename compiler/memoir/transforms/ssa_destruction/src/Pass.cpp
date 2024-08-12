@@ -43,10 +43,6 @@ using namespace llvm::memoir;
 
 namespace llvm::memoir {
 
-static llvm::cl::opt<bool> DisableCollectionLowering(
-    "disable-collection-lowering",
-    llvm::cl::desc("Enable collection lowering"));
-
 using DomTreeNode = llvm::DomTreeNodeBase<llvm::BasicBlock>;
 using DomTreeTraversalListTy = list<llvm::BasicBlock *>;
 static DomTreeTraversalListTy dfs_preorder_traversal_helper(DomTreeNode *root) {
@@ -111,7 +107,7 @@ PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
   SSADestructionStats stats;
 
   // Initialize the reaching definitions.
-  SSADestructionVisitor SSADV(M, &stats, !DisableCollectionLowering);
+  SSADestructionVisitor SSADV(M, &stats);
 
   // Get the function analysis manager.
   auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(MAM, M);
