@@ -361,12 +361,9 @@ public:
 
   // Copy-constructor.
   always_inline Seq(const Seq &x)
-    : Seq(MEMOIR_FUNC(copy)(x._storage, 0, x.size())) {}
+    : Seq(MEMOIR_FUNC(sequence_copy)(x._storage, 0, x.size())) {}
 
-  // Move-constructor.
-  always_inline Seq(Seq &&x) : collection(x._storage) {}
-
-  always_inline collection_ref operator&() const {
+  always_inline Ref<Seq<T>> operator&() const {
     return this->_storage;
   }
 
