@@ -78,6 +78,28 @@ public:
   void setArgNo(unsigned argument_number);
 };
 
+struct SelectionMetadata : public Metadata {
+public:
+  // Constructor.
+  SelectionMetadata(llvm::MDTuple &md) : Metadata(md) {}
+
+  /**
+   * Get the identifier for the selection.
+   *
+   * @return the selection identifier as a string
+   */
+  std::string getImplementation() const;
+  llvm::Metadata &getImplementationMD() const;
+  const llvm::MDOperand &getImplementationMDOperand() const;
+
+  /**
+   * Set the selected implementation.
+   *
+   * @param ID the selection identifier
+   */
+  void setImplementation(std::string id);
+};
+
 } // namespace llvm::memoir
 
 #endif

@@ -1,5 +1,6 @@
 /* METADATA(ENUM, STR) */
 
 METADATA(MD_LIVE_OUT, "memoir.live-out", LiveOutMetadata)
+METADATA(MD_SELECTION, "memoir.selection", SelectionMetadata)
 
 #undef METADATA
