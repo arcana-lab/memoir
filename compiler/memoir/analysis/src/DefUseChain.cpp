@@ -104,7 +104,7 @@ static void collect_uses(UnionFind<llvm::Value *> &chains,
         chains.merge(&V, &resultant);
         collect_uses(chains, visited, resultant);
       } else if (auto *copy = dyn_cast<CopyInst>(memoir_inst)) {
-        auto &resultant = copy->getCopied();
+        auto &resultant = copy->getCopy();
         chains.merge(&V, &resultant);
         collect_uses(chains, visited, resultant);
       }
