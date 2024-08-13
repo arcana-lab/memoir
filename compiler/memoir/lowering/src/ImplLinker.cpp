@@ -2,7 +2,83 @@
 
 #include "memoir/lowering/ImplLinker.hpp"
 
+#include "memoir/utility/Metadata.hpp"
+
+// Default implementations
+#define ASSOC_IMPL "stl_unordered_map"
+#define SET_IMPL "stl_unordered_set"
+#define SEQ_IMPL "stl_vector"
+
 namespace llvm::memoir {
+
+std::string ImplLinker::get_implementation_name(llvm::Instruction &I,
+                                                CollectionType &type) {
+  if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {
+    // Unpack the assoc type.
+    auto &key_type = assoc_type->getKeyType();
+    auto &value_type = assoc_type->getValueType();
+
+    // Check for selection metadata.
+    auto selection = Metadata::get<SelectionMetadata>(I);
+
+    // Get the implementation ID.
+    auto implementation = selection.has_value() ? selection->getImplementation()
+                          : isa<VoidType>(&value_type) ? SET_IMPL
+                                                       : ASSOC_IMPL;
+
+    return implementation;
+
+  } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
+    // Unpack the sequence type.
+    auto &element_type = seq_type->getElementType();
+
+    // Check for selection metadata.
+    auto selection = Metadata::get<SelectionMetadata>(I);
+
+    // Get the implementation name.
+    auto implementation =
+        selection.has_value() ? selection->getImplementation() : SEQ_IMPL;
+
+    return implementation;
+
+  } else {
+    MEMOIR_UNREACHABLE("Unknown CollectionType");
+  }
+}
+
+std::string ImplLinker::get_implementation_prefix(llvm::Instruction &I,
+                                                  CollectionType &type) {
+
+  // Get the implementation name.
+  auto implementation = ImplLinker::get_implementation_name(I, type);
+
+  if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {
+    // Unpack the assoc type.
+    auto &key_type = assoc_type->getKeyType();
+    auto &value_type = assoc_type->getValueType();
+
+    auto key_code = key_type.get_code();
+    auto value_code = value_type.get_code();
+
+    // Construct the function prefix.
+    auto prefix = *key_code + "_" + *value_code + "_" + implementation;
+
+    return prefix;
+
+  } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
+    // Unpack the sequence type.
+    auto &element_type = seq_type->getElementType();
+    auto element_code = element_type.get_code();
+
+    // Construct the function prefix.
+    auto prefix = *element_code + "_" + implementation;
+
+    return prefix;
+
+  } else {
+    MEMOIR_UNREACHABLE("Unhandled collection type.");
+  }
+}
 
 void ImplLinker::implement_type(TypeLayout &type_layout) {
   // Unpack the type layout.
@@ -39,7 +115,8 @@ void ImplLinker::implement_assoc(std::string impl_name,
   // For the time being, we will need to instantiate the stl_vector for the key
   // type to handle keys. Properly handling the keys iterator as a collection
   // all its own is future work.
-  if (impl_name == "stl_unordered_map") {
+  if (impl_name == "stl_unordered_map" || impl_name == "stl_map"
+      || impl_name == "stl_unordered_set") {
     this->implement_seq("stl_vector", key_type_layout);
   }
 

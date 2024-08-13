@@ -28,6 +28,7 @@
 #include "memoir/support/Timer.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"
+#include "memoir/utility/Metadata.hpp"
 
 #include "memoir/lowering/ImplLinker.hpp"
 #include "memoir/lowering/TypeLayout.hpp"
@@ -41,10 +42,6 @@ using namespace llvm::memoir;
  * Author(s): Tommy McMichen
  * Created: February 19, 2024
  */
-
-#define ASSOC_IMPL "stl_unordered_map"
-#define SET_IMPL "stl_unordered_set"
-#define SEQ_IMPL "stl_vector"
 
 namespace llvm::memoir {
 
@@ -71,8 +68,11 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
     for (auto &BB : F) {
       for (auto &I : BB) {
         if (auto *seq_alloc = into<SequenceAllocInst>(&I)) {
+
           // Get the implementation name for this allocation.
-          auto impl_name = SEQ_IMPL;
+          auto impl_name = ImplLinker::get_implementation_name(
+              I,
+              seq_alloc->getCollectionType());
 
           // Get the type layout for the element type.
           auto &element_layout = TC.convert(seq_alloc->getElementType());
@@ -81,11 +81,11 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
           IL.implement_seq(impl_name, element_layout);
 
         } else if (auto *assoc_alloc = into<AssocAllocInst>(&I)) {
-          // Get the value type of the allocation.
-          auto &value_type = assoc_alloc->getValueType();
 
           // Get the implementation name for this allocation.
-          auto impl_name = isa<VoidType>(&value_type) ? SET_IMPL : ASSOC_IMPL;
+          auto impl_name = ImplLinker::get_implementation_name(
+              I,
+              assoc_alloc->getCollectionType());
 
           // Get the type layout for the key type.
           auto &key_layout = TC.convert(assoc_alloc->getKeyType());

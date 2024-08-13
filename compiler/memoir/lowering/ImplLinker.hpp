@@ -21,6 +21,26 @@ public:
   ImplLinker(llvm::Module &M) : M(M) {}
   ~ImplLinker() {}
 
+  /**
+   * Get the name of the implementation for the given instruction.
+   *
+   * @param I the llvm::Instruction
+   * @param type the MEMOIR type of I
+   * @returns the implementation name as a string
+   */
+  static std::string get_implementation_name(llvm::Instruction &I,
+                                             CollectionType &type);
+
+  /**
+   * Get the implementation's function prefix for the given instruction.
+   *
+   * @param I the llvm::Instruction
+   * @param type the MEMOIR type of I
+   * @returns the implementation's function prefix as a string
+   */
+  static std::string get_implementation_prefix(llvm::Instruction &I,
+                                               CollectionType &type);
+
   void implement_seq(std::string impl_name, TypeLayout &element_type_layout);
 
   void implement_assoc(std::string impl_name,
