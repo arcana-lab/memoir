@@ -103,6 +103,10 @@ static void collect_uses(UnionFind<llvm::Value *> &chains,
         auto &resultant = swap->getCallInst();
         chains.merge(&V, &resultant);
         collect_uses(chains, visited, resultant);
+      } else if (auto *copy = dyn_cast<CopyInst>(memoir_inst)) {
+        auto &resultant = copy->getCopied();
+        chains.merge(&V, &resultant);
+        collect_uses(chains, visited, resultant);
       }
 
       // If the instruction is a fold, and the use is the initial value, link
