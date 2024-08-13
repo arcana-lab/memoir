@@ -1,6 +1,3 @@
-# Install scripts.
-add_subdirectory(scripts)
-
 # Configure LLVM 
 find_package(LLVM ${LLVM_VERSION} REQUIRED CONFIG)
 

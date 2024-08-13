@@ -32,6 +32,8 @@ function(add_memoir_sources)
     )
 endfunction()
 
+add_subdirectory(scripts)
+
 add_subdirectory(ir)
 add_subdirectory(support)
 add_subdirectory(utility)
