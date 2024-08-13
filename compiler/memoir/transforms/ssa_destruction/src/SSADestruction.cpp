@@ -7,6 +7,7 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
 
+#include "memoir/lowering/ImplLinker.hpp"
 #include "memoir/lowering/TypeLayout.hpp"
 
 #include "SSADestruction.hpp"
@@ -31,46 +32,6 @@ void SSADestructionVisitor::setAnalyses(llvm::DominatorTree &DT) {
   return;
 }
 
-std::string get_implementation_prefix(MemOIRInst &I, SequenceType &type) {
-  // Unpack the sequence type.
-  auto &element_type = type.getElementType();
-  auto element_code = element_type.get_code();
-
-  // Check for selection metadata.
-  auto selection = Metadata::get<SelectionMetadata>(I.getCallInst());
-
-  // Get the implementation ID.
-  auto implementation =
-      selection.has_value() ? selection->getImplementation() : SEQ_IMPL;
-
-  // Construct the function prefix.
-  auto prefix = *element_code + "_" + implementation;
-
-  return prefix;
-}
-
-std::string get_implementation_prefix(MemOIRInst &I, AssocArrayType &type) {
-  // Unpack the assoc type.
-  auto &key_type = type.getKeyType();
-  auto &value_type = type.getValueType();
-
-  auto key_code = key_type.get_code();
-  auto value_code = value_type.get_code();
-
-  // Check for selection metadata.
-  auto selection = Metadata::get<SelectionMetadata>(I.getCallInst());
-
-  // Get the implementation ID.
-  auto implementation = selection.has_value() ? selection->getImplementation()
-                        : isa<VoidType>(&value_type) ? SET_IMPL
-                                                     : ASSOC_IMPL;
-
-  // Construct the function prefix.
-  auto prefix = *key_code + "_" + *value_code + "_" + implementation;
-
-  return prefix;
-}
-
 void SSADestructionVisitor::visitInstruction(llvm::Instruction &I) {
   return;
 }
@@ -82,7 +43,8 @@ void SSADestructionVisitor::visitSequenceAllocInst(SequenceAllocInst &I) {
 
   auto &collection_type = I.getCollectionType();
   auto &seq_type = *(cast<SequenceType>(&collection_type));
-  auto impl_prefix = get_implementation_prefix(I, seq_type);
+  auto impl_prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
 
   auto &element_type = I.getElementType();
 
@@ -141,7 +103,8 @@ void SSADestructionVisitor::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
   auto &assoc_type = *(cast<AssocArrayType>(&I.getCollectionType()));
   auto &value_type = I.getValueType();
 
-  auto impl_prefix = get_implementation_prefix(I, assoc_type);
+  auto impl_prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
 
   auto operation = escaped ? "allocate" : "initialize";
   auto name = impl_prefix + "__" + operation;
@@ -259,7 +222,8 @@ void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
       dyn_cast_or_null<CollectionType>(type_of(I.getDeletedCollection())),
       "Couldn't determine type of collection");
   if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
-    auto prefix = get_implementation_prefix(I, *seq_type);
+    auto prefix =
+        ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
 
     auto vector_free_name = prefix + "__free";
 
@@ -282,7 +246,8 @@ void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
 
     this->markForCleanup(I);
   } else if (auto *assoc_type = dyn_cast<AssocArrayType>(&collection_type)) {
-    auto prefix = get_implementation_prefix(I, *assoc_type);
+    auto prefix =
+        ImplLinker::get_implementation_prefix(I.getCallInst(), *assoc_type);
 
     auto assoc_free_name = prefix + "__free";
 
@@ -317,11 +282,13 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
 
   std::string name;
   if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
-    auto prefix = get_implementation_prefix(I, *seq_type);
+    auto prefix =
+        ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
 
     name = prefix + "__size";
   } else if (auto *assoc_type = dyn_cast<AssocArrayType>(&collection_type)) {
-    auto prefix = get_implementation_prefix(I, *assoc_type);
+    auto prefix =
+        ImplLinker::get_implementation_prefix(I.getCallInst(), *assoc_type);
 
     name = prefix + "__size";
   }
@@ -543,7 +510,8 @@ void SSADestructionVisitor::visitIndexReadInst(IndexReadInst &I) {
   auto &element_type = collection_type.getElementType();
 
   if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
-    auto prefix = get_implementation_prefix(I, *seq_type);
+    auto prefix =
+        ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
     auto vector_read_name = prefix + "__read";
 
     auto *function = this->M.getFunction(vector_read_name);
@@ -618,7 +586,8 @@ void SSADestructionVisitor::visitIndexGetInst(IndexGetInst &I) {
   auto &element_type = collection_type.getElementType();
 
   if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
-    auto prefix = get_implementation_prefix(I, *seq_type);
+    auto prefix =
+        ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
     auto vector_read_name = prefix + "__get";
 
     auto *function = this->M.getFunction(vector_read_name);
@@ -697,7 +666,8 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
       "Couldn't determine type of written collection");
 
   if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
-    auto prefix = get_implementation_prefix(I, *seq_type);
+    auto prefix =
+        ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
     auto vector_write_name = prefix + "__write";
 
     auto *function = this->M.getFunction(vector_write_name);
@@ -775,7 +745,8 @@ void SSADestructionVisitor::visitAssocReadInst(AssocReadInst &I) {
       dyn_cast_or_null<AssocArrayType>(type_of(I.getObjectOperand())),
       "Couldn't determine type of read collection");
 
-  auto prefix = get_implementation_prefix(I, assoc_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
   auto name = prefix + "__read";
 
   auto *function = this->M.getFunction(name);
@@ -814,7 +785,8 @@ void SSADestructionVisitor::visitAssocWriteInst(AssocWriteInst &I) {
 
   MemOIRBuilder builder(I);
 
-  auto prefix = get_implementation_prefix(I, assoc_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
   auto name = prefix + "__write";
 
   auto *function = this->M.getFunction(name);
@@ -850,7 +822,8 @@ void SSADestructionVisitor::visitAssocGetInst(AssocGetInst &I) {
       dyn_cast_or_null<AssocArrayType>(type_of(I.getObjectOperand())),
       "Couldn't determine type of read collection");
 
-  auto prefix = get_implementation_prefix(I, assoc_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
   auto name = prefix + "__get";
 
   auto *function = this->M.getFunction(name);
@@ -893,7 +866,8 @@ void SSADestructionVisitor::visitAssocHasInst(AssocHasInst &I) {
       dyn_cast_or_null<AssocArrayType>(type_of(I.getObjectOperand())),
       "Couldn't determine type of has collection");
 
-  auto prefix = get_implementation_prefix(I, assoc_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
   auto name = prefix + "__has";
 
   auto *function = this->M.getFunction(name);
@@ -1143,7 +1117,8 @@ void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
       dyn_cast_or_null<SequenceType>(type_of(I.getBaseCollection())),
       "Couldn't determine type of written collection");
 
-  auto prefix = get_implementation_prefix(I, seq_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
   auto name = prefix + "__insert";
 
   MemOIRBuilder builder(I);
@@ -1186,7 +1161,8 @@ void SSADestructionVisitor::visitSeqInsertValueInst(SeqInsertValueInst &I) {
       dyn_cast_or_null<SequenceType>(type_of(I.getBaseCollection())),
       "Couldn't determine type of written collection");
 
-  auto prefix = get_implementation_prefix(I, seq_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
 
   MemOIRBuilder builder(I);
 
@@ -1240,7 +1216,8 @@ void SSADestructionVisitor::visitSeqInsertSeqInst(SeqInsertSeqInst &I) {
       dyn_cast_or_null<SequenceType>(type_of(I.getBaseCollection())),
       "Couldn't determine type of written collection");
 
-  auto prefix = get_implementation_prefix(I, seq_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
 
   // TODO: check if we are inserting a copy/view, if we are, remove the copy
   // and use *__insert_range
@@ -1288,7 +1265,8 @@ void SSADestructionVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
       dyn_cast_or_null<SequenceType>(type_of(I.getBaseCollection())),
       "Couldn't determine type of written collection");
 
-  auto prefix = get_implementation_prefix(I, seq_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
 
   // TODO: check if we statically know that this is a single element. If it
   // is, we make this a *__remove
@@ -1334,7 +1312,8 @@ void SSADestructionVisitor::visitSeqCopyInst(SeqCopyInst &I) {
       dyn_cast_or_null<SequenceType>(type_of(I.getCopiedCollection())),
       "Couldn't determine type of written collection");
 
-  auto prefix = get_implementation_prefix(I, seq_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
 
   auto name = prefix + "__copy";
 
@@ -1377,7 +1356,8 @@ void SSADestructionVisitor::visitSeqSwapInst(SeqSwapInst &I) {
       dyn_cast_or_null<SequenceType>(type_of(I.getFromCollection())),
       "Couldn't determine type of written collection");
 
-  auto prefix = get_implementation_prefix(I, seq_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
 
   auto name = prefix + "__swap";
 
@@ -1449,7 +1429,8 @@ void SSADestructionVisitor::visitSeqSwapWithinInst(SeqSwapWithinInst &I) {
       dyn_cast_or_null<SequenceType>(type_of(I.getFromCollection())),
       "Couldn't determine type of written collection");
 
-  auto prefix = get_implementation_prefix(I, seq_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
 
   auto name = prefix + "__swap";
 
@@ -1500,7 +1481,8 @@ void SSADestructionVisitor::visitAssocInsertInst(AssocInsertInst &I) {
       dyn_cast_or_null<AssocArrayType>(type_of(I.getBaseCollection())),
       "Couldn't determine type of collection being inserted into.");
 
-  auto prefix = get_implementation_prefix(I, assoc_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
   auto name = prefix + "__insert";
 
   auto *function = this->M.getFunction(name);
@@ -1541,7 +1523,8 @@ void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
       dyn_cast_or_null<AssocArrayType>(type_of(I.getBaseCollection())),
       "Couldn't determine type of written collection");
 
-  auto prefix = get_implementation_prefix(I, assoc_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
 
   auto name = prefix + "__remove";
 
@@ -1585,7 +1568,8 @@ void SSADestructionVisitor::visitAssocKeysInst(AssocKeysInst &I) {
       dyn_cast_or_null<AssocArrayType>(type_of(I.getCollection())),
       "Couldn't determine type assoc collection");
 
-  auto prefix = get_implementation_prefix(I, assoc_type);
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
 
   auto name = prefix + "__keys";
 
