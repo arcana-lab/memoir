@@ -1075,7 +1075,7 @@ struct SwapInst : public MemOIRInst {
   virtual llvm::Value &getToBeginIndex() const = 0;
   virtual llvm::Use &getToBeginIndexAsUse() const = 0;
 
-  static bool classof(MemOIRInst *I) {
+  static bool classof(const MemOIRInst *I) {
     return
 #define HANDLE_SWAP_INST(ENUM, FUNC, CLASS)                                    \
   (I->getKind() == MemOIR_Func::ENUM) ||
@@ -1324,6 +1324,15 @@ public:
   llvm::Function &getFunction() const;
   llvm::Value &getFunctionOperand() const;
   llvm::Use &getFunctionOperandAsUse() const;
+
+  /**
+   * Get the corresponding argument in the fold function for the given closed
+   * use.
+   *
+   * @param use the use of the closed value
+   * @returns the corresponding argument
+   */
+  llvm::Argument &getClosedArgument(llvm::Use &use) const;
 
   unsigned getNumberOfClosed() const;
   llvm::Value &getClosed(unsigned index) const;

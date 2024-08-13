@@ -34,6 +34,25 @@ llvm::Function &FoldInst::getFunction() const {
 
 OPERAND(FoldInst, FunctionOperand, 2)
 
+llvm::Argument &FoldInst::getClosedArgument(llvm::Use &U) const {
+  // Get the collection type.
+  auto &collection_type = MEMOIR_SANITIZE(
+      dyn_cast_or_null<CollectionType>(type_of(this->getCollection())),
+      "FoldInst over a non-collection");
+
+  // If the element type is void, the first closed argument is at operand 2,
+  // otherwise operand 3.
+  auto first_closed =
+      (isa<VoidType>(&collection_type.getElementType())) ? 2 : 3;
+
+  auto arg_no = U.getOperandNo() - 3 + first_closed;
+
+  auto &arg = MEMOIR_SANITIZE(this->getFunction().getArg(arg_no),
+                              "Out-of-range argument number");
+
+  return arg;
+}
+
 unsigned FoldInst::getNumberOfClosed() const {
   return (this->getCallInst().arg_size() - 3);
 }
