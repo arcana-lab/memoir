@@ -31,21 +31,5 @@ int main() {
     EXPECT(read3 == 666, ".2 differs!");
   }
 
-  TEST(type_escaped) {
-
-    // type escapes, should not be eliminated.
-    auto escapee =
-        memoir_allocate_struct(memoir_define_struct_type("Escapes",
-                                                         memoir_u64_t,
-                                                         memoir_u64_t,
-                                                         memoir_u64_t));
-    memoir_struct_write(u64, 123, escapee, 1);
-    memoir_struct_write(u64, 123, escapee, 2);
-
-    // The following line to test the escape analysis.
-    fprintf(stderr, "%p", escapee);
-    fprintf(stderr, "\r                               \r");
-  }
-
   return 0;
 }

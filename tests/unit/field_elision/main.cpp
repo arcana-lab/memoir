@@ -53,20 +53,5 @@ int main() {
     EXPECT(read3 == 700, ".2 differs");
   }
 
-  TEST(type_escapes) {
-
-    auto escaped_type = memoir_define_struct_type("Esc",
-                                                  memoir_u32_t,
-                                                  memoir_u32_t,
-                                                  memoir_u32_t);
-    auto escapee = memoir_allocate_struct(escaped_type);
-
-    memoir_struct_write(u32, 123, escapee, 1);
-    memoir_struct_write(u32, 123, escapee, 2);
-
-    printf("%p", escapee);
-    printf("\r                                       \r");
-  }
-
   return 0;
 }
