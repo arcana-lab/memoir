@@ -4,13 +4,15 @@
 
 #include <map>
 
+#include <backend/stl_vector.h>
+
 #define cname extern "C"
 #define alwaysinline __attribute__((always_inline)) inline
 #define used __attribute__((used))
 
 extern "C" {
 
-#define INSTANTIATE_STL_MAP(K, C_KEY, V, C_VALUE)                              \
+#define INSTANTIATE_stl_map(K, C_KEY, V, C_VALUE)                              \
   typedef std::map<C_KEY, C_VALUE> K##_##V##_stl_map_t;                        \
   typedef K##_##V##_stl_map_t *K##_##V##_stl_map_p;                            \
                                                                                \
@@ -31,11 +33,31 @@ extern "C" {
     return table->count(key) != 0;                                             \
   }                                                                            \
                                                                                \
-  /* Get key-value pair */                                                     \
   cname alwaysinline used C_VALUE *K##_##V##_stl_map__get(                     \
       K##_##V##_stl_map_p table,                                               \
       C_KEY key) {                                                             \
     return (C_VALUE *)(&((*table)[key]));                                      \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used C_VALUE K##_##V##_stl_map__read(                     \
+      K##_##V##_stl_map_p table,                                               \
+      C_KEY key) {                                                             \
+    return (*table)[key];                                                      \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used K##_##V##_stl_map_p K##_##V##_stl_map__write(        \
+      K##_##V##_stl_map_p table,                                               \
+      C_KEY key,                                                               \
+      C_VALUE value) {                                                         \
+    (*table)[key] = value;                                                     \
+    return table;                                                              \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used K##_##V##_stl_map_p K##_##V##_stl_map__insert(       \
+      K##_##V##_stl_map_p table,                                               \
+      C_KEY key) {                                                             \
+    (*table)[key];                                                             \
+    return table;                                                              \
   }                                                                            \
                                                                                \
   cname alwaysinline used K##_##V##_stl_map_p K##_##V##_stl_map__remove(       \
@@ -48,6 +70,15 @@ extern "C" {
   cname alwaysinline used size_t K##_##V##_stl_map__size(                      \
       K##_##V##_stl_map_p table) {                                             \
     return table->size();                                                      \
+  }                                                                            \
+  cname alwaysinline used K##_stl_vector_p K##_##V##_stl_map__keys(            \
+      K##_##V##_stl_map_p table) {                                             \
+    auto *keys = K##_stl_vector__allocate(table->size());                      \
+    size_t i = 0;                                                              \
+    for (const auto &[key, _] : *table) {                                      \
+      (*keys)[i++] = key;                                                      \
+    }                                                                          \
+    return keys;                                                               \
   }
 
 } // extern "C"
