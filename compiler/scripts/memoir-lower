@@ -56,20 +56,22 @@ if [ -z ${OUTPUT_IR_FILE} ] ; then
     exit 1
 fi
 
+TEMP_DIR=$(mktemp --directory)
+IMPL_CPP_FILE=${TEMP_DIR}/impl.cpp
+IMPL_IR_FILE=${TEMP_DIR}/impl.bc
+IR_FILE=${TEMP_DIR}/lowering.bc
+
 # Run the ImplLinker.
-TEMP_FILE=$(mktemp --suffix=".cpp")
-memoir-load ${INPUT_IR_FILE} -passes=memoir-impl-linker --impl-out-file ${TEMP_FILE} -o /dev/null
+memoir-load ${INPUT_IR_FILE} -passes=memoir-impl-linker --impl-out-file ${IMPL_CPP_FILE} -o ${IR_FILE}
 
 # Compile the collection implementations to bitcode.
-TEMP_BC=$(mktemp --suffix=".bc")
-clang++ ${TEMP_FILE} -O3 -c -emit-llvm -I$(memoir-config --includedir) -std=c++17 -o ${TEMP_BC}
-rm ${TEMP_FILE}
+clang++ ${IMPL_CPP_FILE} -O3 -c -emit-llvm -I$(memoir-config --includedir) -std=c++17 -o ${IMPL_IR_FILE}
 
 # Link the bitcode.
-llvm-link ${INPUT_IR_FILE} ${TEMP_BC} -o ${OUTPUT_IR_FILE}
+llvm-link ${IR_FILE} ${IMPL_IR_FILE} -o ${IR_FILE}
 
 # Peform SSA destruction.
-memoir-load -passes=memoir-ssa-destruction ${OUTPUT_IR_FILE} -o ${OUTPUT_IR_FILE}
+memoir-load -passes=memoir-ssa-destruction ${IR_FILE} -o ${OUTPUT_IR_FILE}
 
 # Cleanup.
-rm ${TEMP_BC}
+rm -rf ${TEMP_DIR}
