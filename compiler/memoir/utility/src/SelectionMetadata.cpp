@@ -4,6 +4,7 @@
 #include "memoir/utility/MetadataUtils.hpp"
 
 #include "memoir/support/Casting.hpp"
+#include "memoir/support/Print.hpp"
 
 namespace llvm::memoir {
 
@@ -32,7 +33,9 @@ void SelectionMetadata::setImplementation(std::string id) {
 
   // Create a constant for the argument number.
   auto *selection_constant =
-      llvm::ConstantDataArray::getString(context, llvm::StringRef(id));
+      llvm::ConstantDataArray::getString(context,
+                                         id,
+                                         /* AddNull = */ false);
 
   // Create a metadata wrapper.
   auto *selection_metadata = llvm::ConstantAsMetadata::get(selection_constant);
