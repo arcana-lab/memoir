@@ -4,11 +4,12 @@
 #include "llvm/Transforms/Utils/LoopSimplify.h"
 
 // Folio
+#include "folio/passes/Pass.hpp"
 #include "folio/passes/Passes.hpp"
 
 #include "folio/analysis/ConstraintInference.hpp"
 
-using namespace llvm::memoir;
+using namespace folio;
 
 // Helper function to adapt function pass to a module pass.
 template <typename T>
@@ -27,7 +28,7 @@ static auto adapt(T &&fp) {
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
 llvmGetPassPluginInfo() {
   return { LLVM_PLUGIN_API_VERSION,
-           "memoir",
+           "folio",
            LLVM_VERSION_STRING,
            [](llvm::PassBuilder &PB) {
              // Register transforation passes.
@@ -35,15 +36,8 @@ llvmGetPassPluginInfo() {
                  [](llvm::StringRef name,
                     llvm::ModulePassManager &MPM,
                     llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
-                   // LowerFold require some addition simplification to be run
-                   // after it so it doesn't break other passes in the pipeline.
-                   if (name == "folio-analyze") {
-                     return true;
-                   }
-
-                   if (name == "folio-transform") {
-                     // TODO: run the folio passes that embed selections in the
-                     // program.
+                   if (name == "folio") {
+                     MPM.addPass(folio::FolioPass());
                      return true;
                    }
 
@@ -60,7 +54,7 @@ llvmGetPassPluginInfo() {
              // Register function analyses.
              PB.registerAnalysisRegistrationCallback(
                  [](llvm::FunctionAnalysisManager &FAM) {
-                   // None
+                   // None.
                  });
            } };
 }
