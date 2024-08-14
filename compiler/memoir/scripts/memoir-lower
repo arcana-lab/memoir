@@ -61,8 +61,13 @@ IMPL_CPP_FILE=${TEMP_DIR}/impl.cpp
 IMPL_IR_FILE=${TEMP_DIR}/impl.bc
 IR_FILE=${TEMP_DIR}/lowering.bc
 
+cp ${INPUT_IR_FILE} ${IR_FILE}
+
+# Run Folio.
+folio ${IR_FILE} -o ${IR_FILE}
+
 # Run the ImplLinker.
-memoir-load ${INPUT_IR_FILE} -passes=memoir-impl-linker --impl-out-file ${IMPL_CPP_FILE} -o ${IR_FILE}
+memoir-load ${IR_FILE} -passes=memoir-impl-linker --impl-out-file ${IMPL_CPP_FILE} -o ${IR_FILE}
 
 # Compile the collection implementations to bitcode.
 clang++ ${IMPL_CPP_FILE} -O3 -c -emit-llvm -I$(memoir-config --includedir) -std=c++17 -o ${IMPL_IR_FILE}
