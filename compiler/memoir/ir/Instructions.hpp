@@ -1354,6 +1354,22 @@ protected:
   friend struct MemOIRInst;
 };
 
+struct ReverseFoldInst : public FoldInst {
+public:
+  static bool classof(const MemOIRInst *I) {
+    return
+#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS, REVERSE)                           \
+  (REVERSE && (I->getKind() == MemOIR_Func::ENUM)) ||
+#include "memoir/ir/Instructions.def"
+        false;
+  };
+
+protected:
+  ReverseFoldInst(llvm::CallInst &call_inst) : FoldInst(call_inst) {}
+
+  friend struct MemOIRInst;
+};
+
 // SSA/readonce operations.
 struct UsePHIInst : public MemOIRInst {
 public:
