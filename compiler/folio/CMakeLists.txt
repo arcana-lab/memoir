@@ -33,7 +33,7 @@ function(add_folio_sources)
     )
 endfunction()
 
-# add_subdirectory(scripts)
+add_subdirectory(scripts)
 
 add_subdirectory(analysis)
 add_subdirectory(transforms)
