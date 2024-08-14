@@ -40,9 +40,9 @@ void ConstraintInferenceDriver::init() {
           if (isa_and_nonnull<SequenceType>(type)
               or isa_and_nonnull<AssocArrayType>(type)) {
 
-            this->constraints.add(I, OperationConstraint<ReadInst>());
+            this->constraints.add(I, OperationConstraint<WriteInst>());
             if (is_hot) {
-              this->constraints.add(I, FastOperationConstraint<ReadInst>());
+              this->constraints.add(I, FastOperationConstraint<WriteInst>());
             }
           }
         } else if (into<InsertInst>(&I)) {
@@ -60,10 +60,14 @@ void ConstraintInferenceDriver::init() {
           if (is_hot) {
             this->constraints.add(I, FastOperationConstraint<SwapInst>());
           }
-        } else if (into<AssocHasInst>(&I)) {
-          this->constraints.add(I, OperationConstraint<AssocHasInst>());
+        } else if (auto *has = into<AssocHasInst>(&I)) {
+          auto &collection = has->getObjectOperand();
+
+          this->constraints.add(collection,
+                                OperationConstraint<AssocHasInst>());
           if (is_hot) {
-            this->constraints.add(I, FastOperationConstraint<AssocHasInst>());
+            this->constraints.add(collection,
+                                  FastOperationConstraint<AssocHasInst>());
           }
         } else if (auto *fold = into<FoldInst>(&I)) {
           auto &collection = fold->getCollection();
