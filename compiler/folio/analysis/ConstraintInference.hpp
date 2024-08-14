@@ -29,7 +29,28 @@ using ConstraintSet = typename llvm::memoir::ordered_set<Constraint>;
 
 struct Constraints {
 public:
-  const ConstraintSet &get(llvm::Value &V) const;
+  using iterator =
+      typename llvm::memoir::map<llvm::Value *, ConstraintSet>::iterator;
+  using const_iterator =
+      typename llvm::memoir::map<llvm::Value *, ConstraintSet>::const_iterator;
+
+  // const ConstraintSet &get(llvm::Value &V) const;
+
+  iterator begin() {
+    return this->value_to_constraints.begin();
+  }
+
+  iterator end() {
+    return this->value_to_constraints.end();
+  }
+
+  const_iterator cbegin() const {
+    return this->value_to_constraints.cbegin();
+  }
+
+  const_iterator cend() const {
+    return this->value_to_constraints.cend();
+  }
 
 protected:
   llvm::memoir::map<llvm::Value *, ConstraintSet> value_to_constraints;
