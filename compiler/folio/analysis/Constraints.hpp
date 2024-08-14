@@ -24,6 +24,9 @@ public:
     return this->kind < other.kind;
   }
 
+  std::string name() const;
+  bool is_soft() const;
+
 protected:
   ConstraintKind kind;
 };
@@ -33,9 +36,6 @@ template <typename Inst,
                            bool> = true>
 struct OperationConstraint : public Constraint {
 
-  static std::string name();
-  static bool is_soft();
-
   OperationConstraint();
 };
 
@@ -44,16 +44,10 @@ template <typename Inst,
                            bool> = true>
 struct FastOperationConstraint : public Constraint {
 
-  static std::string name();
-  static bool is_soft();
-
   FastOperationConstraint();
 };
 
 struct PointerStableConstraint : public Constraint {
-
-  static std::string name();
-  static bool is_soft();
 
   PointerStableConstraint();
 };
