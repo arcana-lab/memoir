@@ -13,8 +13,23 @@ message(STATUS "LLVM_DIR IS ${LLVM_CMAKE_DIR}.")
 # Compiler options.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -g3 -Wno-unused-variable -Wno-reorder-ctor ")
 
-# Configure NOELLE
 include(ExternalProject)
+
+# Configure clingo
+ExternalProject_Add(
+  clingo
+  GIT_REPOSITORY "https://github.com/potassco/clingo"
+  GIT_TAG v5.7.1
+  LOG_CONFIGURE ON
+  LOG_INSTALL ON
+  BUILD_COMMAND ${CMAKE_COMMAND} --build . -j16
+  INSTALL_COMMAND ${CMAKE_COMMAND} --install .
+  CMAKE_ARGS
+      -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
+      -DCMAKE_BUILD_TYPE=Release
+)
+
+# Configure NOELLE
 ExternalProject_Add(
     noelle
     GIT_REPOSITORY  "https://github.com/arcana-lab/noelle.git"
