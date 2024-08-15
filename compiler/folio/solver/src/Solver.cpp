@@ -24,20 +24,18 @@ bool print_model(clingo_model_t const *model) {
   char *str = NULL;
   size_t str_n = 0;
 
-  // determine the number of (shown) symbols in the model
-  if (!clingo_model_symbols_size(model, clingo_show_type_shown, &atoms_n)) {
+  // Determine the number of (shown) symbols in the model
+  if (not clingo_model_symbols_size(model, clingo_show_type_shown, &atoms_n)) {
     goto error;
   }
 
-  // allocate required memory to hold all the symbols
-  if (!(atoms = (clingo_symbol_t *)malloc(sizeof(*atoms) * atoms_n))) {
-    clingo_set_error(clingo_error_bad_alloc,
-                     "could not allocate memory for atoms");
-    goto error;
+  // Allocate required memory to hold all the symbols
+  if (not(atoms = (clingo_symbol_t *)malloc(sizeof(*atoms) * atoms_n))) {
+    MEMOIR_UNREACHABLE("Could not allocate memory for atoms");
   }
 
-  // retrieve the symbols in the model
-  if (!clingo_model_symbols(model, clingo_show_type_shown, atoms, atoms_n)) {
+  // Retrieve the symbols in the model
+  if (not clingo_model_symbols(model, clingo_show_type_shown, atoms, atoms_n)) {
     goto error;
   }
 
@@ -47,15 +45,15 @@ bool print_model(clingo_model_t const *model) {
     size_t n;
     char *str_new;
 
-    // determine size of the string representation of the next symbol in the
+    // Determine size of the string representation of the next symbol in the
     // model
-    if (!clingo_symbol_to_string_size(*it, &n)) {
+    if (not clingo_symbol_to_string_size(*it, &n)) {
       goto error;
     }
 
     if (str_n < n) {
-      // allocate required memory to hold the symbol's string
-      if (!(str_new = (char *)realloc(str, sizeof(*str) * n))) {
+      // Allocate required memory to hold the symbol's string
+      if (not(str_new = (char *)realloc(str, sizeof(*str) * n))) {
         clingo_set_error(clingo_error_bad_alloc,
                          "could not allocate memory for symbol's string");
         goto error;
@@ -65,8 +63,8 @@ bool print_model(clingo_model_t const *model) {
       str_n = n;
     }
 
-    // retrieve the symbol's string
-    if (!clingo_symbol_to_string(*it, str, n)) {
+    // Retrieve the symbol's string
+    if (not clingo_symbol_to_string(*it, str, n)) {
       goto error;
     }
 
@@ -89,6 +87,7 @@ out:
 
   return ret;
 }
+
 } // namespace detail
 
 uint32_t Solver::get_id(llvm::Value &V) {
