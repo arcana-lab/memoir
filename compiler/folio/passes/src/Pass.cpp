@@ -1,3 +1,4 @@
+#include "memoir/support/Casting.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
 
@@ -32,20 +33,72 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
   // Fetch the ConstraintInference results.
   auto &constraints = MAM.getResult<ConstraintInference>(M);
 
-  // Print the constraint results.
+  // Bookkeeping.
   uint32_t current_id = 0;
   map<llvm::Value *, uint32_t> value_ids;
-  for (const auto &[value, constraint_set] : constraints) {
 
-    println(*value);
-    print("  :- ");
-    auto id = detail::get_id(value_ids, current_id, *value);
-
-    for (const auto constraint : constraint_set) {
-      print(constraint.name(), "(", std::to_string(id), "). ");
+  // Collect all of the selectable variables.
+  set<llvm::Value *> selectable = {};
+  for (auto &F : M) {
+    if (F.empty()) {
+      continue;
     }
-    println();
+
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        auto *memoir_inst = into<MemOIRInst>(&I);
+        if (not memoir_inst) {
+          continue;
+        }
+
+        // For the time being, we will only consider explicit allocations as
+        // selectable.
+        if (auto *seq = dyn_cast<SequenceAllocInst>(memoir_inst)) {
+          auto id = detail::get_id(value_ids, current_id, I);
+
+          println(I);
+          print("  :- ");
+
+          print("seq(", id, ").");
+
+          // Print the constraints.
+          for (auto constraint : constraints[I]) {
+            print(" ", constraint.name(), "(", std::to_string(id), ").");
+          }
+          println();
+
+          selectable.insert(&I);
+        } else if (auto *assoc = dyn_cast<AssocAllocInst>(memoir_inst)) {
+          auto id = detail::get_id(value_ids, current_id, I);
+
+          println(I);
+          print("  :- ");
+          print("assoc(", id, ").");
+
+          // Print the constraints.
+          for (auto constraint : constraints[I]) {
+            print(" ", constraint.name(), "(", std::to_string(id), ").");
+          }
+          println();
+
+          selectable.insert(&I);
+        }
+      }
+    }
   }
+
+  // Print the constraint results.
+  // for (const auto &[value, constraint_set] : constraints) {
+
+  //   println(*value);
+  //   print("  :- ");
+  //   auto id = detail::get_id(value_ids, current_id, *value);
+
+  //   for (const auto constraint : constraint_set) {
+  //     print(constraint.name(), "(", std::to_string(id), "). ");
+  //   }
+  //   println();
+  // }
 
   // All done.
   return llvm::PreservedAnalyses::none();
