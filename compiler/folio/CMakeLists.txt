@@ -11,7 +11,10 @@ add_llvm_library(
 add_dependencies(folio
   memoir
   noelle
+  clingo
 )
+
+target_link_libraries(folio PRIVATE libclingo libclasp libgringo libpotassco libreify)
 
 function(add_folio_sources)
   cmake_parse_arguments(
@@ -37,6 +40,7 @@ add_subdirectory(scripts)
 
 add_subdirectory(analysis)
 add_subdirectory(transforms)
+add_subdirectory(solver)
 add_subdirectory(passes)
 
 install(
