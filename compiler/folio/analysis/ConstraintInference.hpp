@@ -33,6 +33,8 @@ public:
       typename llvm::memoir::map<llvm::Value *, ConstraintSet>::iterator;
   using const_iterator =
       typename llvm::memoir::map<llvm::Value *, ConstraintSet>::const_iterator;
+  using reference =
+      typename llvm::memoir::map<llvm::Value *, ConstraintSet>::mapped_type &;
 
   // const ConstraintSet &get(llvm::Value &V) const;
 
@@ -50,6 +52,10 @@ public:
 
   const_iterator cend() const {
     return this->value_to_constraints.cend();
+  }
+
+  reference operator[](llvm::Value &V) {
+    return this->value_to_constraints[&V];
   }
 
 protected:
