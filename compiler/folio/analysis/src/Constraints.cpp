@@ -12,8 +12,6 @@ std::string Constraint::name() const {
   case ConstraintKind::CONSTRAINT_##NAME:                                      \
     return #NAME;
 #include "folio/analysis/Constraints.def"
-    default:
-      MEMOIR_UNREACHABLE("Unknown constraint!");
   }
 }
 
