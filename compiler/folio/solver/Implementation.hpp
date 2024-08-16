@@ -32,8 +32,19 @@ public:
     return this->_name;
   }
 
+  /**
+   * Query the set of constraints that are _not_ met by this implementation.
+   */
   const llvm::memoir::ordered_set<Constraint> &constraints() const {
     return this->_constraints;
+  }
+
+  bool operator==(Implementation other) const {
+    return (this->_kind == other.kind()) && (this->_name == other.name());
+  }
+
+  bool operator<(Implementation other) const {
+    return (this->_name < other.name());
   }
 
 protected:
@@ -70,7 +81,7 @@ public:
   }
 };
 
-using Implementations = typename llvm::memoir::list<Implementation>;
+using Implementations = typename llvm::memoir::map<std::string, Implementation>;
 
 } // namespace folio
 
