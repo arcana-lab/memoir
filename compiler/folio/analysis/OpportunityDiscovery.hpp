@@ -3,7 +3,7 @@
 
 #include "memoir/support/InternalDatatypes.hpp"
 
-#include "folio/analysis/Opportunities.hpp"
+#include "folio/opportunities/Opportunity.hpp"
 
 namespace folio {
 
