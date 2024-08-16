@@ -5,7 +5,6 @@
 
 // Folio
 #include "folio/passes/Pass.hpp"
-#include "folio/passes/Passes.hpp"
 
 #include "folio/analysis/ConstraintInference.hpp"
 
