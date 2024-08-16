@@ -41,7 +41,7 @@ add_subdirectory(scripts)
 add_subdirectory(analysis)
 add_subdirectory(transforms)
 add_subdirectory(solver)
-add_subdirectory(passes)
+add_subdirectory(pass)
 
 install(
   TARGETS folio
