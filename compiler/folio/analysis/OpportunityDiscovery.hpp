@@ -5,10 +5,6 @@
 
 #include "folio/opportunities/Opportunity.hpp"
 
-namespace folio {
-
-using Opportunities = typename llvm::memoir::list<Opportunity>;
-
-}
+namespace folio {}
 
 #endif // FOLIO_OPPORTUNITYDISCOVERY_H

@@ -1,0 +1,37 @@
+#ifndef FOLIO_ANALYSIS_H
+#define FOLIO_ANALYSIS_H
+
+#include "folio/opportunities/Opportunities.hpp"
+
+namespace folio {
+
+// Declare the Analysis for each opportunity
+#define OPPORTUNITY(NAME)                                                      \
+  class NAME##Analysis : public llvm::AnalysisInfoMixin<NAME##Analysis> {      \
+    friend struct llvm::AnalysisInfoMixin<NAME##Analysis>;                     \
+                                                                               \
+    static llvm::AnalysisKey Key;                                              \
+                                                                               \
+  public:                                                                      \
+    using Result = typename folio::Opportunities;                              \
+                                                                               \
+    Result run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM);             \
+  };
+#include "folio/opportunities/Opportunities.def"
+
+// Declare the top-level OpportunityAnalysis.
+class OpportunityAnalysis
+  : public llvm::AnalysisInfoMixin<OpportunityAnalysis> {
+  friend struct llvm::AnalysisInfoMixin<OpportunityAnalysis>;
+
+  static llvm::AnalysisKey Key;
+
+public:
+  using Result = typename folio::Opportunities;
+
+  Result run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM);
+};
+
+} // namespace folio
+
+#endif // FOLIO_ANALYSIS_H
