@@ -43,7 +43,7 @@ public:
     Result run(llvm::SCOPE &M, llvm::SCOPE##AnalysisManager &MAM);             \
   };
 
-#include "memoir/passes/Passes.def"
+#include "memoir/pass/Passes.def"
 #undef PASS
 #undef ANALYSIS
 

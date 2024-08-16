@@ -12,7 +12,7 @@
 #include "folio/solver/Implementation.hpp"
 #include "folio/solver/Solver.hpp"
 
-#include "folio/passes/Pass.hpp"
+#include "folio/pass/Pass.hpp"
 
 using namespace llvm::memoir;
 

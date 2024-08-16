@@ -4,7 +4,7 @@
 #include "llvm/Transforms/Utils/LoopSimplify.h"
 
 // Folio
-#include "folio/passes/Pass.hpp"
+#include "folio/pass/Pass.hpp"
 
 #include "folio/analysis/ConstraintInference.hpp"
 
