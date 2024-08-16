@@ -3,6 +3,12 @@
 
 #include "folio/opportunities/Opportunities.hpp"
 
+#include "llvm/Pass.h"
+
+#include "llvm/IR/PassManager.h"
+
+#include "llvm/Support/CommandLine.h"
+
 namespace folio {
 
 // Declare the Analysis for each opportunity
