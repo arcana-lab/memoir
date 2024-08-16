@@ -1,10 +1,6 @@
 #ifndef FOLIO_OPPORTUNITY_H
 #define FOLIO_OPPORTUNITY_H
 
-#include "llvm/Pass.h"
-
-#include "llvm/IR/PassManager.h"
-
 #include "memoir/support/InternalDatatypes.hpp"
 
 namespace folio {
