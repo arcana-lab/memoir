@@ -1,6 +1,9 @@
 #ifndef FOLIO_SOLVER_H
 #define FOLIO_SOLVER_H
 
+// Clingo
+#include <clingo.h>
+
 // MEMOIR
 #include "memoir/support/InternalDatatypes.hpp"
 
@@ -14,16 +17,24 @@ namespace folio {
 
 struct Candidate {
 public:
+  /**
+   * Instantiate a new, empty candidate.
+   */
   Candidate() : _selections{}, _opportunities{} {}
 
   /**
-   * Get the candidate selection for the given value.
+   * Get the mapping from llvm values to their selected implementations.
    */
-  const Implementation &get(llvm::Value &V) const;
+  const llvm::memoir::map<llvm::Value *, const Implementation *> selections()
+      const {
+    return this->_selections;
+  }
 
 protected:
-  llvm::memoir::map<llvm::Value *, Implementation *> _selections;
+  llvm::memoir::map<llvm::Value *, const Implementation *> _selections;
   llvm::memoir::set<Opportunity *> _opportunities;
+
+  friend class Solver;
 };
 
 using Candidates = typename llvm::memoir::list<Candidate>;
@@ -62,6 +73,9 @@ protected:
   // Helper functions.
   std::string formulate();
   uint32_t get_id(llvm::Value &V);
+
+  void parse_model(clingo_model_t const *model);
+  void parse_solution(clingo_solve_handle_t *handle);
 
   // Results.
   Candidates _candidates;
