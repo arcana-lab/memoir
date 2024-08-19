@@ -1325,18 +1325,37 @@ public:
   llvm::Value &getFunctionOperand() const;
   llvm::Use &getFunctionOperandAsUse() const;
 
+  unsigned getNumberOfClosed() const;
+  llvm::Value &getClosed(unsigned index) const;
+  llvm::Use &getClosedAsUse(unsigned index) const;
+
   /**
-   * Get the corresponding argument in the fold function for the given closed
-   * use.
+   * Get the argument corresponding to the accumulator value.
+   */
+  llvm::Argument &getAccumulatorArgument() const;
+
+  /**
+   * Get the argument corresponding to the index value.
+   */
+  llvm::Argument &getIndexArgument() const;
+
+  /**
+   * Get the argument corresponding to the element value, if it exists.
+   * NOTE: if the collection being folded over has void element type, this will
+   * not exist.
+   *
+   * @returns the argument, or NULL if it does not exist.
+   */
+  llvm::Argument *getElementArgument() const;
+
+  /**
+   * Get the corresponding argument in the fold function for the given
+   * closed use.
    *
    * @param use the use of the closed value
    * @returns the corresponding argument
    */
   llvm::Argument &getClosedArgument(llvm::Use &use) const;
-
-  unsigned getNumberOfClosed() const;
-  llvm::Value &getClosed(unsigned index) const;
-  llvm::Use &getClosedAsUse(unsigned index) const;
 
   std::string toString(std::string indent = "") const override;
 

@@ -34,6 +34,41 @@ llvm::Function &FoldInst::getFunction() const {
 
 OPERAND(FoldInst, FunctionOperand, 2)
 
+unsigned FoldInst::getNumberOfClosed() const {
+  return (this->getCallInst().arg_size() - 3);
+}
+
+VAR_OPERAND(FoldInst, Closed, 3)
+
+llvm::Argument &FoldInst::getAccumulatorArgument() const {
+  return MEMOIR_SANITIZE(this->getFunction().getArg(0),
+                         "Malformed fold function!");
+}
+
+llvm::Argument &FoldInst::getIndexArgument() const {
+  return MEMOIR_SANITIZE(this->getFunction().getArg(1),
+                         "Malformed fold function!");
+}
+
+llvm::Argument *FoldInst::getElementArgument() const {
+
+  // Get the collection type.
+  auto &collection_type = MEMOIR_SANITIZE(
+      dyn_cast_or_null<CollectionType>(type_of(this->getCollection())),
+      "FoldInst over a non-collection");
+
+  // If the element type is void, the first closed argument is at operand 2,
+  // otherwise operand 3.
+  if (isa<VoidType>(&collection_type.getElementType())) {
+    return nullptr;
+  }
+
+  auto &arg = MEMOIR_SANITIZE(this->getFunction().getArg(2),
+                              "Malformed fold function!");
+
+  return &arg;
+}
+
 llvm::Argument &FoldInst::getClosedArgument(llvm::Use &U) const {
   // Get the collection type.
   auto &collection_type = MEMOIR_SANITIZE(
@@ -52,12 +87,6 @@ llvm::Argument &FoldInst::getClosedArgument(llvm::Use &U) const {
 
   return arg;
 }
-
-unsigned FoldInst::getNumberOfClosed() const {
-  return (this->getCallInst().arg_size() - 3);
-}
-
-VAR_OPERAND(FoldInst, Closed, 3)
 
 TO_STRING(FoldInst)
 
