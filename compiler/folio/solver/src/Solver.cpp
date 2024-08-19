@@ -146,8 +146,26 @@ std::string Solver::formulate() {
              "type(f64). type(f32). type(boolean). type(void)."
              "type(seq). type(assoc).\n";
 
+  // A collection must be typed.
+  formula += "typed(C) :- collection(C), assoc(C), "
+             "keytype(C, KT), type(KT), "
+             "valtype(C, VT), type(VT).\n";
+  formula += "typed(C) :- collection(C), seq(C), "
+             "valtype(C, VT), type(VT).\n";
+  formula += ":- collection(C), not typed(C).";
+
+  // A collection cannot be both a seq and an assoc.
+  formula += ":- seq(C), assoc(C).\n";
+
+  // A collection must have a selection.
+  formula += "selected(C) :- collection(C), select(C, I), impl(I).\n";
+  formula += ":- collection(C), not selected(C).\n";
+
   // Formulate all of the available selections.
   for (auto &[impl_name, impl] : this->_implementations) {
+    // Register that the implementation exists.
+    formula += "impl(" + impl.name() + ").\n";
+
     // Formulate the head atom.
     auto impl_rule = "select(C, " + impl.name() + ") :- ";
 
@@ -218,8 +236,8 @@ std::string Solver::formulate() {
 
       // Formulate the collection declaration.
       formula += "collection(" + id_str + "). ";
-      formula += "seq(" + id_str + "). ";
-      formula += "valtype(" + id_str + ", " + val_str + "). ";
+      formula += "{seq(" + id_str + ")}. ";
+      formula += "{valtype(" + id_str + ", " + val_str + ")}. ";
 
     } else if (auto *assoc_type = dyn_cast<AssocArrayType>(type)) {
 
@@ -241,9 +259,9 @@ std::string Solver::formulate() {
 
       // Formulate the collection declaration.
       formula += "collection(" + id_str + "). ";
-      formula += "assoc(" + id_str + "). ";
-      formula += "keytype(" + id_str + ", " + key_str + "). ";
-      formula += "valtype(" + id_str + ", " + val_str + "). ";
+      formula += "{assoc(" + id_str + ")}. ";
+      formula += "{keytype(" + id_str + ", " + key_str + ")}. ";
+      formula += "{valtype(" + id_str + ", " + val_str + ")}. ";
     }
 
     // Formulate the value's constraints.
