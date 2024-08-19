@@ -7,7 +7,8 @@ namespace folio {
 
 struct ProxyOpportunity : public Opportunity {
 public:
-  std::string formulate() const override;
+  std::pair<std::string, std::string> formulate(
+      FormulaEnvironment &env) const override;
 
   bool exploit() override;
 

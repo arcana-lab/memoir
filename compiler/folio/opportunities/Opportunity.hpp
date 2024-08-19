@@ -3,6 +3,8 @@
 
 #include "memoir/support/InternalDatatypes.hpp"
 
+#include "folio/solver/FormulaEnvironment.hpp"
+
 namespace folio {
 
 /**
@@ -20,14 +22,17 @@ public:
    */
   template <typename O,
             std::enable_if_t<std::is_base_of_v<Opportunity, O>, bool> = true>
-  static std::string formulate();
+  static std::string formulate(FormulaEnvironment &env);
 
   /**
    * Formulate this opportunity instance as a logic program.
+   * This function returns two values, the head of the rule indicating that this
+   * opportunity will be used and the rules and facts to add to the formula.
    *
-   * @return the formula as a string
+   * @return a pair, containing the head of the opportunity and the formula
    */
-  virtual std::string formulate() const = 0;
+  virtual std::pair<std::string, std::string> formulate(
+      FormulaEnvironment &env) const = 0;
 
   /**
    * Transform the program to exploit this opportunity.
