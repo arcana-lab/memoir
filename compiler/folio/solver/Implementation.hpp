@@ -12,6 +12,7 @@ namespace folio {
 enum ImplementationKind {
   IMPLEMENTATION_SEQ,
   IMPLEMENTATION_ASSOC,
+  IMPLEMENTATION_SET,
 };
 
 struct Implementation {
@@ -78,6 +79,20 @@ public:
 
   static bool classof(const Implementation *other) {
     return other->kind() == ImplementationKind::IMPLEMENTATION_ASSOC;
+  }
+};
+
+struct SetImplementation : public Implementation {
+public:
+  SetImplementation(std::string name,
+                    std::initializer_list<Constraint> &&constraints)
+    : Implementation(
+          ImplementationKind::IMPLEMENTATION_SET,
+          name,
+          std::forward<std::initializer_list<Constraint>>(constraints)) {}
+
+  static bool classof(const Implementation *other) {
+    return other->kind() == ImplementationKind::IMPLEMENTATION_SET;
   }
 };
 

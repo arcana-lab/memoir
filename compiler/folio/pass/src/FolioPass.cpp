@@ -94,6 +94,7 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
     { "stl_unordered_map",
       AssocImplementation("stl_unordered_map", { PointerStableConstraint() }) },
     { "stl_map", AssocImplementation("stl_map", {}) },
+    { "stl_unordered_set", SetImplementation("stl_unordered_set", {}) },
   };
 
   // Pass the analysis results to the solver.

@@ -39,6 +39,10 @@ protected:
 
 using Candidates = typename llvm::memoir::list<Candidate>;
 
+/**
+ * The Solver formulates the constraints, opportunities, implementations as an
+ * Answer Set Programming problem and produces a list of candidates selections.
+ */
 class Solver {
 public:
   /**
@@ -61,14 +65,6 @@ public:
    */
   const Candidates &candidates() const;
 
-  /**
-   * Lookup the LLVM value for the given LLVM value.
-   *
-   * @param id the identifier.
-   * @returns the corresponding LLVM Value
-   */
-  llvm::Value &lookup(uint32_t id) const;
-
 protected:
   // Helper functions.
   std::string formulate();
@@ -80,16 +76,14 @@ protected:
   // Results.
   Candidates _candidates;
 
+  // Owned state.
+  FormulaEnvironment _env;
+
   // Borrowed state.
   const llvm::memoir::set<llvm::Value *> &_selectable;
   Constraints &_constraints;
   const Opportunities &_opportunities;
   const Implementations &_implementations;
-
-  // Value identifiers.
-  llvm::memoir::map<llvm::Value *, uint32_t> _value_ids;
-  llvm::memoir::map<uint32_t, llvm::Value *> _id_values;
-  uint32_t _current_id;
 };
 
 } // namespace folio

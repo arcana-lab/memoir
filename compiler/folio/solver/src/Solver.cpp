@@ -16,96 +16,6 @@ using namespace llvm::memoir;
 
 namespace folio {
 
-namespace detail {
-/*
-bool print_model(clingo_model_t const *model) {
-bool ret = true;
-clingo_symbol_t *atoms = NULL;
-size_t atoms_n;
-clingo_symbol_t const *it, *ie;
-char *str = NULL;
-size_t str_n = 0;
-
-// Determine the number of (shown) symbols in the model
-if (not clingo_model_symbols_size(model, clingo_show_type_shown, &atoms_n)) {
-  goto error;
-}
-
-// Allocate required memory to hold all the symbols
-if (not(atoms = (clingo_symbol_t *)malloc(sizeof(*atoms) * atoms_n))) {
-  MEMOIR_UNREACHABLE("Could not allocate memory for atoms");
-}
-
-// Retrieve the symbols in the model
-if (not clingo_model_symbols(model, clingo_show_type_shown, atoms, atoms_n)) {
-  goto error;
-}
-
-printf("Model:");
-
-for (it = atoms, ie = atoms + atoms_n; it != ie; ++it) {
-  size_t n;
-  char *str_new;
-
-  // Determine size of the string representation of the next symbol in the
-  // model
-  if (not clingo_symbol_to_string_size(*it, &n)) {
-    goto error;
-  }
-
-  if (str_n < n) {
-    // Allocate required memory to hold the symbol's string
-    if (not(str_new = (char *)realloc(str, sizeof(*str) * n))) {
-      clingo_set_error(clingo_error_bad_alloc,
-                       "could not allocate memory for symbol's string");
-      goto error;
-    }
-
-    str = str_new;
-    str_n = n;
-  }
-
-  // Retrieve the symbol's string
-  if (not clingo_symbol_to_string(*it, str, n)) {
-    goto error;
-  }
-
-  printf(" %s", str);
-}
-
-printf("\n");
-goto out;
-
-error:
-ret = false;
-
-out:
-if (atoms) {
-  free(atoms);
-}
-if (str) {
-  free(str);
-}
-
-return ret;
-}
-*/
-} // namespace detail
-
-uint32_t Solver::get_id(llvm::Value &V) {
-  auto found = this->_value_ids.find(&V);
-  if (found != this->_value_ids.end()) {
-    return found->second;
-  }
-
-  // If we couldn't find an ID, create one.
-  auto id = this->_current_id++;
-  this->_value_ids[&V] = id;
-  this->_id_values[id] = &V;
-
-  return id;
-}
-
 void Solver::parse_model(clingo_model_t const *model) {
   bool ret = true;
   clingo_symbol_t *atoms = NULL;
@@ -137,7 +47,7 @@ void Solver::parse_model(clingo_model_t const *model) {
   auto &candidate = this->_candidates.back();
 
   // For each atom in the solution, parse it and populate the candidate.
-  const std::regex selection_regex("select\\(([:digit:]+),([_[:alnum:]]+)\\)");
+  const std::regex opportunity_regex("use([_[:alnum:]]+)");
   std::smatch regex_match;
 
   for (it = atoms, ie = atoms + atoms_n; it != ie; ++it) {
@@ -166,7 +76,7 @@ void Solver::parse_model(clingo_model_t const *model) {
         warnln("Failed to get value id's string");
         break;
       }
-      auto &value = this->lookup(uint32_t(value_id));
+      auto &value = this->_env.lookup(uint32_t(value_id));
 
       // Fetch the selected implementation.
       const char *selected_str;
@@ -179,6 +89,16 @@ void Solver::parse_model(clingo_model_t const *model) {
 
       // Add the selection to the candidate.
       candidate._selections[&value] = selected;
+
+    } else if (name.substr(0, 3) == "use") {
+      // Fetch the opportunity being used.
+      auto opportunity_str = name.substr(3);
+
+      // Fetch the opportunity ID.
+      int opportunity_id;
+      if (not clingo_symbol_number(arguments[0], &opportunity_id)) {
+        warnln("Failed to get opportunity ID.");
+      }
 
     } else {
       warnln("Unknown atom, ", name, ", skipping");
@@ -223,7 +143,7 @@ std::string Solver::formulate() {
   // First, formulate all primitive types.
   formula += "type(u64). type(u32). type(u16). type(u8)."
              "type(i64). type(i32). type(i16). type(i8)."
-             "type(f64). type(f32). type(boolean)."
+             "type(f64). type(f32). type(boolean). type(void)."
              "type(seq). type(assoc).\n";
 
   // Formulate all of the available selections.
@@ -233,11 +153,13 @@ std::string Solver::formulate() {
 
     // Formulate the type requirements.
     if (isa<SeqImplementation>(&impl)) {
-      impl_rule += "collection(C, seq, index, T), type(T)";
+      impl_rule += "collection(C), seq(C)";
     } else if (isa<AssocImplementation>(&impl)) {
-      impl_rule += "collection(C, assoc, KT, VT), type(KT), type(VT)";
+      impl_rule += "collection(C), assoc(C), not valtype(C, void)";
+    } else if (isa<SetImplementation>(&impl)) {
+      impl_rule += "collection(C), assoc(C), valtype(C, void)";
     } else {
-      impl_rule += "collection(C, CT, KT, VT), type(CT), type(KT), type(VT)";
+      impl_rule += "collection(C)";
     }
 
     // Formulate the set of constraints.
@@ -277,7 +199,7 @@ std::string Solver::formulate() {
     }
 
     // Get the values identifier.
-    auto id = this->get_id(*decl);
+    auto id = this->_env.get_id(*decl);
     auto id_str = std::to_string(id);
 
     // Formulate the variable's declaration and type information.
@@ -295,7 +217,9 @@ std::string Solver::formulate() {
       }
 
       // Formulate the collection declaration.
-      formula += "collection(" + id_str + ", seq, index, " + val_str + "). ";
+      formula += "collection(" + id_str + "). ";
+      formula += "seq(" + id_str + "). ";
+      formula += "valtype(" + id_str + ", " + val_str + "). ";
 
     } else if (auto *assoc_type = dyn_cast<AssocArrayType>(type)) {
 
@@ -316,8 +240,10 @@ std::string Solver::formulate() {
       }
 
       // Formulate the collection declaration.
-      formula += "collection(" + id_str + ", assoc, " + key_str + ", " + val_str
-                 + "). ";
+      formula += "collection(" + id_str + "). ";
+      formula += "assoc(" + id_str + "). ";
+      formula += "keytype(" + id_str + ", " + key_str + "). ";
+      formula += "valtype(" + id_str + ", " + val_str + "). ";
     }
 
     // Formulate the value's constraints.
@@ -352,8 +278,7 @@ Solver::Solver(const llvm::memoir::set<llvm::Value *> &selectable,
   : _selectable{ selectable },
     _constraints{ constraints },
     _opportunities{ opportunities },
-    _implementations{ implementations },
-    _current_id{ 0 } {
+    _implementations{ implementations } {
 
   // Formulate the ASP problem.
   std::string formula = this->formulate();
@@ -417,15 +342,6 @@ Solver::Solver(const llvm::memoir::set<llvm::Value *> &selectable,
 
 const Candidates &Solver::candidates() const {
   return this->_candidates;
-}
-
-llvm::Value &Solver::lookup(uint32_t id) const {
-  auto found = this->_id_values.find(id);
-  if (found == this->_id_values.end()) {
-    MEMOIR_UNREACHABLE("Invalid ID");
-  }
-
-  return *(found->second);
 }
 
 // =========================
