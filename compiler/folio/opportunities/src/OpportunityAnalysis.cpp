@@ -22,9 +22,9 @@ Opportunities OpportunityAnalysis::run(llvm::Module &M,
     blacklist.insert(opportunity);
   }
 
-#define OPPORTUNITY(NAME)                                                      \
-  if (blacklist.count(#NAME) == 0) {                                           \
-    auto _opportunities = MAM.getResult<NAME##Analysis>(M);                    \
+#define OPPORTUNITY(CLASS)                                                     \
+  if (blacklist.count(#CLASS) == 0) {                                          \
+    auto _opportunities = MAM.getResult<CLASS##Analysis>(M);                   \
     result.insert(result.end(), _opportunities.begin(), _opportunities.end()); \
   }
 #include "folio/opportunities/Opportunities.def"

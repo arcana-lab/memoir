@@ -12,9 +12,9 @@
 namespace folio {
 
 // Declare the Analysis for each opportunity
-#define OPPORTUNITY(NAME)                                                      \
-  class NAME##Analysis : public llvm::AnalysisInfoMixin<NAME##Analysis> {      \
-    friend struct llvm::AnalysisInfoMixin<NAME##Analysis>;                     \
+#define OPPORTUNITY(CLASS)                                                     \
+  class CLASS##Analysis : public llvm::AnalysisInfoMixin<CLASS##Analysis> {    \
+    friend struct llvm::AnalysisInfoMixin<CLASS##Analysis>;                    \
                                                                                \
     static llvm::AnalysisKey Key;                                              \
                                                                                \
