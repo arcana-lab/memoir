@@ -51,6 +51,7 @@ struct PointerStableConstraint : public Constraint {
 
   PointerStableConstraint();
 };
+
 } // namespace folio
 
 #endif // FOLIO_CONSTRAINTS_H
