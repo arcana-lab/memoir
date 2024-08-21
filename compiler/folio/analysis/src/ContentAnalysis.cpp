@@ -313,9 +313,6 @@ Content &ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
   // Handle FoldInst.
   if (auto *fold = into<FoldInst>(call)) {
 
-    // For a fold function, get the corresponding live-out content,
-    // and substitute the collection context.
-
     // Determine the argument number.
     bool found_arg = false;
     unsigned arg_number = -1;
@@ -336,7 +333,50 @@ Content &ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     // Get the corresponding argument.
     auto &closed_argument = fold->getClosedArgument(operand_use);
 
-    // TODO
+    // Get the corresponding live-out content.
+    llvm::Value *live_out = nullptr;
+    for (auto &inst : llvm::instructions(fold->getFunction())) {
+      auto metadata = Metadata::get<LiveOutMetadata>(inst);
+      if (not metadata.has_value()) {
+        continue;
+      }
+
+      if (metadata->getArgNo() == arg_number) {
+        live_out = &inst;
+        break;
+      }
+    }
+
+    // If we did not find a live out, then the contents are the same
+    // as the input.
+    if (not live_out) {
+      return this->analyze(closed_argument);
+    }
+
+    // Otherwise, get the content of the live out.
+    auto &live_out_content = this->analyze(*live_out);
+
+    // Fetch the content of the initial value.
+    auto &input_content = this->analyze(I.getInputCollection());
+
+    // Fetch the content of the collection being folded over.
+    auto &collection_content = this->analyze(fold->getCollection());
+
+    // Substitute the function arguments with the operands.
+    auto *content =
+        &live_out_content.substitute(closed_argument, input_content)
+             .substitute(fold->getIndexArgument(),
+                         Content::create<KeysContent>(collection_content));
+
+    // If the element is non-void, fetch its content.
+    if (auto *elem_arg = fold->getElementArgument()) {
+      content = &content->substitute(
+          *elem_arg,
+          Content::create<ElementsContent>(collection_content));
+    }
+
+    // Construct the union'd content of the initial and accumulated.
+    return Content::create<UnionContent>(input_content, *content);
   }
 
   // Handle direct calls.
