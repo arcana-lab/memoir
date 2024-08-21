@@ -5,6 +5,7 @@
 #include "memoir/support/Print.hpp"
 
 #include "folio/analysis/ConstraintInference.hpp"
+#include "folio/analysis/ContentAnalysis.hpp"
 #include "folio/analysis/OpportunityDiscovery.hpp"
 
 #include "folio/transforms/SelectionMonomorphization.hpp"
@@ -81,6 +82,9 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
       }
     }
   }
+
+  // TESTING: Run ContentAnalysis.
+  auto contents = MAM.getResult<ContentAnalysis>(M);
 
   // Fetch the OpportunityDiscovery results.
   // auto &opportunities = MAM.getResult<OpportunityDiscovery>(M);

@@ -7,6 +7,7 @@
 #include "folio/pass/Pass.hpp"
 
 #include "folio/analysis/ConstraintInference.hpp"
+#include "folio/analysis/ContentAnalysis.hpp"
 
 using namespace folio;
 
@@ -48,6 +49,7 @@ llvmGetPassPluginInfo() {
                  [](llvm::ModuleAnalysisManager &MAM) {
                    MAM.registerPass(
                        [&] { return folio::ConstraintInference(); });
+                   MAM.registerPass([&] { return folio::ContentAnalysis(); });
                  });
 
              // Register function analyses.
