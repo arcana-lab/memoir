@@ -301,10 +301,10 @@ Solver::Solver(const llvm::memoir::set<llvm::Value *> &selectable,
   // Formulate the ASP problem.
   std::string formula = this->formulate();
 
-  println();
-  println("Formula:");
-  println(formula);
-  println();
+  debugln();
+  debugln("Formula:");
+  debugln(formula);
+  debugln();
 
   //// Solve the ASP problem.
   clingo_control_t *ctl = NULL;
@@ -312,7 +312,7 @@ Solver::Solver(const llvm::memoir::set<llvm::Value *> &selectable,
 
   //// Create a control object.
   const char *args[] = { "-n", "0" };
-  if (not clingo_control_new(args, 2, nullptr, nullptr, 20, &ctl)) {
+  if (not clingo_control_new(args, 2, nullptr, nullptr, 0, &ctl)) {
     MEMOIR_UNREACHABLE("Failed to create a clingo control.");
   }
 
