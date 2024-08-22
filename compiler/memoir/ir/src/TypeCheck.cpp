@@ -324,6 +324,8 @@ Type *TypeChecker::visitSequenceAllocInst(SequenceAllocInst &I) {
 // Reference Read Instructions.
 Type *TypeChecker::visitReadInst(ReadInst &I) {
 
+  println(I);
+
   // Get the collection type being accessed.
   auto *object_type = this->analyze(I.getObjectOperand());
 
@@ -335,10 +337,22 @@ Type *TypeChecker::visitReadInst(ReadInst &I) {
   auto &collection_type = *dyn_cast<CollectionType>(object_type);
 
   // Return the element type, if it is a reference type.
-  auto &element_type = collection_type.getElementType();
+  auto *element_type = &collection_type.getElementType();
+
+  // Handle sub-indices, if we have them.
+  auto num_subindices = I.getNumberOfSubIndices();
+  if (num_subindices > 0) {
+    for (auto sub_dim = 0; sub_dim < num_subindices; ++sub_dim) {
+      if (auto *struct_type = dyn_cast<StructType>(element_type)) {
+        element_type = &struct_type->getFieldType(I.getSubIndex(sub_dim));
+      } else {
+        MEMOIR_UNREACHABLE("Unhandled sub-index access.");
+      }
+    }
+  }
 
   // If the element type is a ReferenceType, unpack and return it.
-  if (auto *ref_type = dyn_cast<ReferenceType>(&element_type)) {
+  if (auto *ref_type = dyn_cast<ReferenceType>(element_type)) {
     return &ref_type->getReferencedType();
   }
 
