@@ -318,21 +318,25 @@ void SSAConstructionVisitor::visitMutStructWriteInst(MutStructWriteInst &I) {
   auto *struct_type = dyn_cast<StructType>(type);
   MEMOIR_NULL_CHECK(struct_type,
                     "MutStructWriteInst not operating on a struct type");
-  auto &field_type = struct_type->getFieldType(I.getFieldIndex());
+  auto *field_type = &struct_type->getFieldType(I.getFieldIndex());
+
+  // If this is a sub-index access, fetch the type.
+  for (auto i = 0; i < I.getNumberOfSubIndices(); ++i) {
+    if (auto *struct_field_type = dyn_cast<StructType>(field_type)) {
+      auto sub_index = I.getSubIndex(i);
+      field_type = &struct_field_type->getFieldType(sub_index);
+    }
+  }
 
   // Split the live range of the collection being written.
   // NOTE: this is only necessary when we are using Field Arrays explicitly.
 
-  // Fetch operand information.
-  auto *struct_value = &I.getObjectOperand();
-  auto *write_value = &I.getValueWritten();
-  auto *field_index = &I.getFieldIndexOperand();
-
   // Create IndexWriteInst.
-  builder.CreateStructWriteInst(field_type,
-                                write_value,
-                                struct_value,
-                                field_index);
+  builder.CreateStructWriteInst(*field_type,
+                                &I.getValueWritten(),
+                                &I.getObjectOperand(),
+                                &I.getFieldIndexOperand(),
+                                I.getSubIndices());
 
   // Mark old instruction for cleanup.
   this->mark_for_cleanup(I);
@@ -349,22 +353,26 @@ void SSAConstructionVisitor::visitMutIndexWriteInst(MutIndexWriteInst &I) {
   auto *collection_type = dyn_cast<CollectionType>(type);
   MEMOIR_NULL_CHECK(collection_type,
                     "seq_insert not operating on a collection type");
-  auto &element_type = collection_type->getElementType();
+  auto *element_type = &collection_type->getElementType();
+
+  // If this is a sub-index access, fetch the type.
+  for (auto i = 0; i < I.getNumberOfSubIndices(); ++i) {
+    if (auto *struct_elem_type = dyn_cast<StructType>(element_type)) {
+      auto sub_index = I.getSubIndex(i);
+      element_type = &struct_elem_type->getFieldType(sub_index);
+    }
+  }
 
   // Split the live range of the collection being written.
   auto *collection_orig = &I.getObjectOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
 
-  // Fetch operand information.
-  auto *write_value = &I.getValueWritten();
-  // TODO: update me to handle multi-dimensional access when we resupport them.
-  auto *index_value = &I.getIndexOfDimension(0);
-
   // Create IndexWriteInst.
-  auto *ssa_write = builder.CreateIndexWriteInst(element_type,
-                                                 write_value,
+  auto *ssa_write = builder.CreateIndexWriteInst(*element_type,
+                                                 &I.getValueWritten(),
                                                  collection_value,
-                                                 index_value);
+                                                 &I.getIndex(),
+                                                 I.getSubIndices());
 
   // Update the reaching definitions.
   this->set_reaching_definition(collection_orig, ssa_write);
@@ -385,21 +393,25 @@ void SSAConstructionVisitor::visitMutAssocWriteInst(MutAssocWriteInst &I) {
   auto *collection_type = dyn_cast<CollectionType>(type);
   MEMOIR_NULL_CHECK(collection_type,
                     "seq_insert not operating on a collection type");
-  auto &element_type = collection_type->getElementType();
+  auto *element_type = &collection_type->getElementType();
+
+  // If this is a sub-index access, fetch the type.
+  for (auto i = 0; i < I.getNumberOfSubIndices(); ++i) {
+    if (auto *struct_elem_type = dyn_cast<StructType>(element_type)) {
+      auto sub_index = I.getSubIndex(i);
+      element_type = &struct_elem_type->getFieldType(sub_index);
+    }
+  }
 
   // Split the live range of the collection being written.
   auto *collection_orig = &I.getObjectOperand();
   auto *collection_value = update_reaching_definition(collection_orig, I);
 
-  // Fetch operand information.
-  auto *write_value = &I.getValueWritten();
-  auto *key_value = &I.getKeyOperand();
-
   // Create AssocWriteInst.
-  auto *def_phi_value = builder.CreateAssocWriteInst(element_type,
-                                                     write_value,
+  auto *def_phi_value = builder.CreateAssocWriteInst(*element_type,
+                                                     &I.getValueWritten(),
                                                      collection_value,
-                                                     key_value);
+                                                     &I.getKeyOperand());
 
   // Update the reaching definitions.
   this->set_reaching_definition(collection_orig, def_phi_value);
