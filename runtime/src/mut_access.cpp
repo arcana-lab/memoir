@@ -22,7 +22,8 @@ extern "C" {
   __RUNTIME_ATTR                                                               \
   void MUT_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                        \
                                           struct_ref struct_to_access,         \
-                                          unsigned field_index) {              \
+                                          unsigned field_index,                \
+                                          ...) {                               \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: Add field type check. */                                          \
     ((detail::Struct *)struct_to_access)                                       \
@@ -64,7 +65,8 @@ extern "C" {
   __RUNTIME_ATTR                                                               \
   void MUT_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                        \
                                           struct_ref struct_to_access,         \
-                                          unsigned field_index) {              \
+                                          unsigned field_index,                \
+                                          ...) {                               \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check */                                           \
     ((detail::Struct *)struct_to_access)                                       \
@@ -102,7 +104,8 @@ extern "C" {
   __RUNTIME_ATTR                                                               \
   void MUT_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                        \
                                           struct_ref struct_to_access,         \
-                                          unsigned field_index) {              \
+                                          unsigned field_index,                \
+                                          ...) {                               \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check. */                                          \
     ((detail::Struct *)struct_to_access)                                       \

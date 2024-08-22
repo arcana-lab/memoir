@@ -26,17 +26,19 @@ extern "C" {
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(                                 \
       const struct_ref struct_to_access,                                       \
-      unsigned field_index) {                                                  \
+      unsigned field_index,                                                    \
+      ...) {                                                                   \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check. */                                          \
-    return (C_TYPE)(                                                           \
-        ((detail::Struct *)struct_to_access)->get_field(field_index));         \
+    return (                                                                   \
+        C_TYPE)(((detail::Struct *)struct_to_access)->get_field(field_index)); \
   }                                                                            \
                                                                                \
   __RUNTIME_ATTR                                                               \
   void MEMOIR_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                     \
                                              struct_ref struct_to_access,      \
-                                             unsigned field_index) {           \
+                                             unsigned field_index,             \
+                                             ...) {                            \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: Add field type check. */                                          \
     ((detail::Struct *)struct_to_access)                                       \
@@ -124,7 +126,8 @@ extern "C" {
   __IMMUT_ATTR                                                                 \
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(struct_ref struct_to_access,     \
-                                              unsigned field_index) {          \
+                                              unsigned field_index,            \
+                                              ...) {                           \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check */                                           \
     return (C_TYPE)((detail::Struct *)struct_to_access)                        \
@@ -134,7 +137,8 @@ extern "C" {
   __RUNTIME_ATTR                                                               \
   void MEMOIR_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                     \
                                              struct_ref struct_to_access,      \
-                                             unsigned field_index) {           \
+                                             unsigned field_index,             \
+                                             ...) {                            \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check */                                           \
     ((detail::Struct *)struct_to_access)                                       \
@@ -211,7 +215,8 @@ extern "C" {
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(                                 \
       const struct_ref struct_to_access,                                       \
-      unsigned field_index) {                                                  \
+      unsigned field_index,                                                    \
+      ...) {                                                                   \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check. */                                          \
     return (C_TYPE)((detail::Struct *)struct_to_access)                        \
@@ -221,7 +226,8 @@ extern "C" {
   __RUNTIME_ATTR                                                               \
   void MEMOIR_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                     \
                                              struct_ref struct_to_access,      \
-                                             unsigned field_index) {           \
+                                             unsigned field_index,             \
+                                             ...) {                            \
     MEMOIR_ACCESS_CHECK(struct_to_access);                                     \
     /* TODO: add field type check. */                                          \
     ((detail::Struct *)struct_to_access)                                       \

@@ -277,7 +277,8 @@ void MUT_FUNC(assoc_remove)(collection_ref collection, ...);
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(struct_read_##TYPE_NAME)(                                 \
       const struct_ref struct_to_access,                                       \
-      unsigned field_index);                                                   \
+      unsigned field_index,                                                    \
+      ...);                                                                    \
   __IMMUT_ATTR                                                                 \
   __RUNTIME_ATTR                                                               \
   C_TYPE MEMOIR_FUNC(                                                          \
@@ -289,7 +290,8 @@ void MUT_FUNC(assoc_remove)(collection_ref collection, ...);
   __RUNTIME_ATTR                                                               \
   void MEMOIR_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                     \
                                              struct_ref struct_to_access,      \
-                                             unsigned field_index);            \
+                                             unsigned field_index,             \
+                                             ...);                             \
   __IMMUT_ATTR                                                                 \
   __ALLOC_ATTR                                                                 \
   __RUNTIME_ATTR                                                               \
@@ -308,7 +310,8 @@ void MUT_FUNC(assoc_remove)(collection_ref collection, ...);
   __RUNTIME_ATTR                                                               \
   void MUT_FUNC(struct_write_##TYPE_NAME)(C_TYPE value,                        \
                                           Struct * struct_to_access,           \
-                                          unsigned field_index);               \
+                                          unsigned field_index,                \
+                                          ...);                                \
   __RUNTIME_ATTR                                                               \
   void MUT_FUNC(index_write_##TYPE_NAME)(C_TYPE value,                         \
                                          collection_ref collection_to_access,  \
