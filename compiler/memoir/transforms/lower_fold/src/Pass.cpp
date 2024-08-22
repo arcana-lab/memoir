@@ -15,6 +15,8 @@ llvm::PreservedAnalyses LowerFoldPass::run(llvm::Module &M,
 
   LowerFold LF(M);
 
+  MemOIRInst::invalidate();
+
   return llvm::PreservedAnalyses::none();
 }
 

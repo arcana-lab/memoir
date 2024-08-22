@@ -132,26 +132,17 @@ bool RangeAnalysisDriver::analyze(llvm::Module &M,
         }
 
         if (auto *read_inst = dyn_cast<IndexReadInst>(memoir_inst)) {
-          for (unsigned dim_idx = 0;
-               dim_idx < read_inst->getNumberOfDimensions();
-               ++dim_idx) {
-            auto &index_use = read_inst->getIndexOfDimensionAsUse(dim_idx);
-            add_index_use(index_value_to_uses, index_use);
-          }
+          auto &index_use = read_inst->getIndexAsUse();
+          add_index_use(index_value_to_uses, index_use);
+
         } else if (auto *write_inst = dyn_cast<IndexWriteInst>(memoir_inst)) {
-          for (unsigned dim_idx = 0;
-               dim_idx < write_inst->getNumberOfDimensions();
-               ++dim_idx) {
-            auto &index_use = write_inst->getIndexOfDimensionAsUse(dim_idx);
-            add_index_use(index_value_to_uses, index_use);
-          }
+          auto &index_use = write_inst->getIndexAsUse();
+          add_index_use(index_value_to_uses, index_use);
+
         } else if (auto *get_inst = dyn_cast<IndexGetInst>(memoir_inst)) {
-          for (unsigned dim_idx = 0;
-               dim_idx < get_inst->getNumberOfDimensions();
-               ++dim_idx) {
-            auto &index_use = get_inst->getIndexOfDimensionAsUse(dim_idx);
-            add_index_use(index_value_to_uses, index_use);
-          }
+          auto &index_use = get_inst->getIndexAsUse();
+          add_index_use(index_value_to_uses, index_use);
+
         } else if (auto *insert_inst = dyn_cast<SeqInsertInst>(memoir_inst)) {
           add_index_use(index_value_to_uses,
                         insert_inst->getInsertionPointAsUse());
@@ -160,6 +151,7 @@ bool RangeAnalysisDriver::analyze(llvm::Module &M,
                        dyn_cast<SeqInsertSeqInst>(memoir_inst)) {
           auto &index_value_use = insert_seq_inst->getInsertionPointAsUse();
           add_index_use(index_value_to_uses, index_value_use);
+
         } else if (auto *remove_inst = dyn_cast<SeqRemoveInst>(memoir_inst)) {
           add_index_use(index_value_to_uses, remove_inst->getBeginIndexAsUse());
           add_index_use(index_value_to_uses, remove_inst->getEndIndexAsUse());
@@ -271,7 +263,7 @@ bool RangeAnalysisDriver::analyze(llvm::Module &M,
   }
 
   return true;
-}
+} // namespace llvm::memoir
 
 ValueRange &RangeAnalysisDriver::create_value_range(ValueExpression &lower,
                                                     ValueExpression &upper) {

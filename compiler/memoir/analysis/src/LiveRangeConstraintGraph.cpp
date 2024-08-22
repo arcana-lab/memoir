@@ -81,14 +81,9 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
     // For indexed operations, construct their indices as nodes in the graph and
     // the proper constraints edge.
     if (auto *read_inst = dyn_cast<IndexReadInst>(memoir_inst)) {
-      if (read_inst->getNumberOfDimensions() > 1) {
-        warnln(
-            "Live range analysis of multi-dimensional collections is unsupported!");
-        return;
-      }
 
       // Get the index use.
-      auto &index_use = read_inst->getIndexOfDimensionAsUse(0);
+      auto &index_use = read_inst->getIndexAsUse();
 
       // Fetch the index range.
       auto &index_range = RA.get_value_range(index_use);
@@ -112,14 +107,9 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
                              propagate_range);
 
     } else if (auto *get_inst = dyn_cast<IndexGetInst>(memoir_inst)) {
-      if (get_inst->getNumberOfDimensions() > 1) {
-        warnln(
-            "Live range analysis of multi-dimensional collections is unsupported!");
-        return;
-      }
 
       // Get the index use.
-      auto &index_use = get_inst->getIndexOfDimensionAsUse(0);
+      auto &index_use = get_inst->getIndexAsUse();
 
       // Fetch the index range.
       auto &index_range = RA.get_value_range(index_use);

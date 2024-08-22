@@ -322,7 +322,7 @@ protected:
           if (auto *key_as_index_get = dyn_cast<IndexGetInst>(key_as_memoir)) {
             // Fetch information from the IndexGetInst.
             auto &sequence_accessed = key_as_index_get->getObjectOperand();
-            auto &index_accessed = key_as_index_get->getIndexOfDimension(0);
+            auto &index_accessed = key_as_index_get->getIndex();
 
             // Record the sequence variable that was accessed along with the
             // key-to-index mapping.

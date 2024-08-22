@@ -133,7 +133,7 @@ protected:
           if (auto *write_inst = into<IndexWriteInst>(inst)) {
 
             // Fetch the index of the write instruction.
-            auto &index = write_inst->getIndexOfDimension(0);
+            auto &index = write_inst->getIndex();
 
             // We will first construct the conditional check on the index.
             MemOIRBuilder builder(inst);
