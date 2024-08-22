@@ -244,30 +244,46 @@ public:
   // Access Instructions
 
   //// Read Instructions
-  StructReadInst *CreateStructReadInst(Type &element_type,
-                                       llvm::Value *llvm_collection,
-                                       llvm::Value *llvm_field_index,
-                                       const Twine &name = "") {
+  StructReadInst *CreateStructReadInst(
+      Type &element_type,
+      llvm::Value *llvm_collection,
+      llvm::Value *llvm_field_index,
+      const vector<llvm::Value *> &sub_indices = {},
+      const Twine &name = "") {
+    vector<llvm::Value *> args = { llvm_collection, llvm_field_index };
+    args.insert(args.end(), sub_indices.begin(), sub_indices.end());
+
     return this->create<StructReadInst>(getStructReadEnumForType(element_type),
-                                        { llvm_collection, llvm_field_index },
+                                        args,
                                         name);
   }
 
-  IndexReadInst *CreateIndexReadInst(Type &element_type,
-                                     llvm::Value *llvm_collection,
-                                     llvm::Value *llvm_index,
-                                     const Twine &name = "") {
+  IndexReadInst *CreateIndexReadInst(
+      Type &element_type,
+      llvm::Value *llvm_collection,
+      llvm::Value *llvm_index,
+      const vector<llvm::Value *> &sub_indices = {},
+      const Twine &name = "") {
+    vector<llvm::Value *> args = { llvm_collection, llvm_index };
+    args.insert(args.end(), sub_indices.begin(), sub_indices.end());
+
     return this->create<IndexReadInst>(getIndexReadEnumForType(element_type),
-                                       { llvm_collection, llvm_index },
+                                       args,
                                        name);
   }
 
-  AssocReadInst *CreateAssocReadInst(Type &element_type,
-                                     llvm::Value *llvm_collection,
-                                     llvm::Value *llvm_key,
-                                     const Twine &name = "") {
+  AssocReadInst *CreateAssocReadInst(
+      Type &element_type,
+      llvm::Value *llvm_collection,
+      llvm::Value *llvm_key,
+      const vector<llvm::Value *> &sub_indices = {},
+      const Twine &name = "") {
+
+    vector<llvm::Value *> args = { llvm_collection, llvm_key };
+    args.insert(args.end(), sub_indices.begin(), sub_indices.end());
+
     return this->create<AssocReadInst>(getAssocReadEnumForType(element_type),
-                                       { llvm_collection, llvm_key },
+                                       args,
                                        name);
   }
 
@@ -300,58 +316,93 @@ public:
   }
 
   //// Write Instructions.
-  StructWriteInst *CreateStructWriteInst(Type &element_type,
-                                         llvm::Value *llvm_value_to_write,
-                                         llvm::Value *llvm_collection,
-                                         llvm::Value *llvm_field_index,
-                                         const Twine &name = "") {
+  StructWriteInst *CreateStructWriteInst(
+      Type &element_type,
+      llvm::Value *llvm_value_to_write,
+      llvm::Value *llvm_collection,
+      llvm::Value *llvm_field_index,
+      const vector<llvm::Value *> &sub_indices = {},
+      const Twine &name = "") {
+    vector<llvm::Value *> args = { llvm_value_to_write,
+                                   llvm_collection,
+                                   llvm_field_index };
+    args.insert(args.end(), sub_indices.cbegin(), sub_indices.cend());
+
     return this->create<StructWriteInst>(
         getStructWriteEnumForType(element_type),
-        { llvm_value_to_write, llvm_collection, llvm_field_index },
+        args,
         name);
   }
 
-  IndexWriteInst *CreateIndexWriteInst(Type &element_type,
-                                       llvm::Value *llvm_value_to_write,
-                                       llvm::Value *llvm_collection,
-                                       llvm::Value *llvm_index,
-                                       const Twine &name = "") {
-    return this->create<IndexWriteInst>(
-        getIndexWriteEnumForType(element_type),
-        { llvm_value_to_write, llvm_collection, llvm_index },
-        name);
+  IndexWriteInst *CreateIndexWriteInst(
+      Type &element_type,
+      llvm::Value *llvm_value_to_write,
+      llvm::Value *llvm_collection,
+      llvm::Value *llvm_index,
+      const vector<llvm::Value *> &sub_indices = {},
+      const Twine &name = "") {
+    vector<llvm::Value *> args = { llvm_value_to_write,
+                                   llvm_collection,
+                                   llvm_index };
+    args.insert(args.end(), sub_indices.begin(), sub_indices.end());
+
+    return this->create<IndexWriteInst>(getIndexWriteEnumForType(element_type),
+                                        args,
+                                        name);
   }
 
-  MutIndexWriteInst *CreateMutIndexWriteInst(Type &element_type,
-                                             llvm::Value *llvm_value_to_write,
-                                             llvm::Value *llvm_collection,
-                                             llvm::Value *llvm_index,
-                                             const Twine &name = "") {
+  MutIndexWriteInst *CreateMutIndexWriteInst(
+      Type &element_type,
+      llvm::Value *llvm_value_to_write,
+      llvm::Value *llvm_collection,
+      llvm::Value *llvm_index,
+      const vector<llvm::Value *> &sub_indices = {},
+      const Twine &name = "") {
+    vector<llvm::Value *> args = { llvm_value_to_write,
+                                   llvm_collection,
+                                   llvm_index };
+    args.insert(args.end(), sub_indices.begin(), sub_indices.end());
+
     return this->create<MutIndexWriteInst>(
         getMutIndexWriteEnumForType(element_type),
-        { llvm_value_to_write, llvm_collection, llvm_index },
+        args,
         name);
   }
 
-  AssocWriteInst *CreateAssocWriteInst(Type &element_type,
-                                       llvm::Value *llvm_value_to_write,
-                                       llvm::Value *llvm_collection,
-                                       llvm::Value *llvm_assoc,
-                                       const Twine &name = "") {
-    return this->create<AssocWriteInst>(
-        getAssocWriteEnumForType(element_type),
-        { llvm_value_to_write, llvm_collection, llvm_assoc },
-        name);
+  AssocWriteInst *CreateAssocWriteInst(
+      Type &element_type,
+      llvm::Value *llvm_value_to_write,
+      llvm::Value *llvm_collection,
+      llvm::Value *llvm_assoc,
+      const vector<llvm::Value *> &sub_indices = {},
+      const Twine &name = "") {
+
+    vector<llvm::Value *> args = { llvm_value_to_write,
+                                   llvm_collection,
+                                   llvm_assoc };
+    args.insert(args.end(), sub_indices.begin(), sub_indices.end());
+
+    return this->create<AssocWriteInst>(getAssocWriteEnumForType(element_type),
+                                        args,
+                                        name);
   }
 
-  MutAssocWriteInst *CreateMutAssocWriteInst(Type &element_type,
-                                             llvm::Value *llvm_value_to_write,
-                                             llvm::Value *llvm_collection,
-                                             llvm::Value *llvm_assoc,
-                                             const Twine &name = "") {
+  MutAssocWriteInst *CreateMutAssocWriteInst(
+      Type &element_type,
+      llvm::Value *llvm_value_to_write,
+      llvm::Value *llvm_collection,
+      llvm::Value *llvm_assoc,
+      const vector<llvm::Value *> &sub_indices = {},
+      const Twine &name = "") {
+
+    vector<llvm::Value *> args = { llvm_value_to_write,
+                                   llvm_collection,
+                                   llvm_assoc };
+    args.insert(args.end(), sub_indices.begin(), sub_indices.end());
+
     return this->create<MutAssocWriteInst>(
         getMutAssocWriteEnumForType(element_type),
-        { llvm_value_to_write, llvm_collection, llvm_assoc },
+        args,
         name);
   }
 

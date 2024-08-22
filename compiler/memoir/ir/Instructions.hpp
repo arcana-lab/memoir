@@ -654,6 +654,14 @@ public:
   llvm::Value &getObjectOperand() const override;
   llvm::Use &getObjectOperandAsUse() const override;
 
+  // Sub-element access.
+  unsigned getNumberOfSubIndices() const;
+  vector<llvm::Value *> getSubIndices() const;
+
+  unsigned getSubIndex(unsigned sub_idx) const;
+  llvm::Value &getSubIndexOperand(unsigned sub_idx) const;
+  llvm::Use &getSubIndexOperandAsUse(unsigned sub_idx) const;
+
   static bool classof(const MemOIRInst *I) {
     return
 #define HANDLE_READ_INST(ENUM, FUNC, CLASS)                                    \
@@ -694,9 +702,8 @@ protected:
 
 struct IndexReadInst : public ReadInst {
 public:
-  unsigned getNumberOfDimensions() const;
-  llvm::Value &getIndexOfDimension(unsigned dim_idx) const;
-  llvm::Use &getIndexOfDimensionAsUse(unsigned dim_idx) const;
+  llvm::Value &getIndex() const;
+  llvm::Use &getIndexAsUse() const;
 
   static bool classof(const MemOIRInst *I) {
     return
@@ -744,6 +751,13 @@ public:
   llvm::Value &getObjectOperand() const override;
   llvm::Use &getObjectOperandAsUse() const override;
 
+  unsigned getNumberOfSubIndices() const;
+  vector<llvm::Value *> getSubIndices() const;
+
+  unsigned getSubIndex(unsigned sub_idx) const;
+  llvm::Value &getSubIndexOperand(unsigned sub_idx) const;
+  llvm::Use &getSubIndexOperandAsUse(unsigned sub_idx) const;
+
   static bool classof(const MemOIRInst *I) {
     return
 #define HANDLE_WRITE_INST(ENUM, FUNC, CLASS)                                   \
@@ -786,9 +800,8 @@ struct IndexWriteInst : public WriteInst {
 public:
   llvm::Value &getCollection() const;
 
-  unsigned getNumberOfDimensions() const;
-  llvm::Value &getIndexOfDimension(unsigned dim_idx) const;
-  llvm::Use &getIndexOfDimensionAsUse(unsigned dim_idx) const;
+  llvm::Value &getIndex() const;
+  llvm::Use &getIndexAsUse() const;
 
   static bool classof(const MemOIRInst *I) {
     return
@@ -877,9 +890,8 @@ protected:
 
 struct IndexGetInst : public GetInst {
 public:
-  unsigned getNumberOfDimensions() const;
-  llvm::Value &getIndexOfDimension(unsigned dim_idx) const;
-  llvm::Use &getIndexOfDimensionAsUse(unsigned dim_idx) const;
+  llvm::Value &getIndex() const;
+  llvm::Use &getIndexAsUse() const;
 
   static bool classof(const MemOIRInst *I) {
     return

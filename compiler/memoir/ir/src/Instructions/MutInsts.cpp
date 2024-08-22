@@ -12,6 +12,37 @@ namespace llvm::memoir {
 OPERAND(MutWriteInst, ValueWritten, 0)
 OPERAND(MutWriteInst, ObjectOperand, 1)
 
+unsigned MutWriteInst::getNumberOfSubIndices() const {
+  return (this->getCallInst().arg_size() - 3);
+}
+
+vector<llvm::Value *> MutWriteInst::getSubIndices() const {
+  auto &call = this->getCallInst();
+
+  vector<llvm::Value *> sub_indices(std::next(call.arg_begin(), 3),
+                                    call.arg_end());
+
+  return sub_indices;
+}
+
+unsigned MutWriteInst::getSubIndex(unsigned sub_idx) const {
+  auto &sub_index_as_value = this->getSubIndexOperand(sub_idx);
+  auto sub_index_as_constant = dyn_cast<llvm::ConstantInt>(&sub_index_as_value);
+  MEMOIR_NULL_CHECK(sub_index_as_constant,
+                    "Attempt to access a struct with non-constant field index");
+
+  auto sub_index = sub_index_as_constant->getZExtValue();
+
+  MEMOIR_ASSERT(
+      (sub_index < 256),
+      "Attempt to access a struct with more than 255 fields"
+      "This is unsupported due to the maximum number of arguments allowed in LLVM CallInsts");
+
+  return (unsigned)sub_index;
+}
+
+VAR_OPERAND(MutWriteInst, SubIndexOperand, 3)
+
 // MutStructWriteInst implementation
 unsigned MutStructWriteInst::getFieldIndex() const {
   auto &field_index_as_value = this->getFieldIndexOperand();
@@ -33,11 +64,7 @@ OPERAND(MutStructWriteInst, FieldIndexOperand, 2)
 TO_STRING(MutStructWriteInst)
 
 // MutIndexWriteInst implementation
-unsigned MutIndexWriteInst::getNumberOfDimensions() const {
-  return (this->getCallInst().arg_size() - 2);
-}
-
-VAR_OPERAND(MutIndexWriteInst, IndexOfDimension, 2)
+OPERAND(MutIndexWriteInst, Index, 2)
 TO_STRING(MutIndexWriteInst)
 
 // MutAssocWriteInst implementation

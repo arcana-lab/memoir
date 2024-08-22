@@ -23,6 +23,38 @@ CollectionType &AccessInst::getCollectionType() const {
 RESULTANT(ReadInst, ValueRead)
 OPERAND(ReadInst, ObjectOperand, 0)
 
+unsigned ReadInst::getNumberOfSubIndices() const {
+  return (this->getCallInst().arg_size() - 2);
+}
+
+vector<llvm::Value *> ReadInst::getSubIndices() const {
+  auto &call = this->getCallInst();
+
+  vector<llvm::Value *> sub_indices(std::next(call.arg_begin(), 2),
+                                    call.arg_end());
+
+  return sub_indices;
+}
+
+unsigned ReadInst::getSubIndex(unsigned sub_dim) const {
+  auto &sub_index_as_value = this->getSubIndexOperand(sub_dim);
+  auto sub_index_as_constant = dyn_cast<llvm::ConstantInt>(&sub_index_as_value);
+  MEMOIR_NULL_CHECK(
+      sub_index_as_constant,
+      "Attempt to access a struct element with non-constant field index");
+
+  auto sub_index = sub_index_as_constant->getZExtValue();
+
+  MEMOIR_ASSERT(
+      (sub_index < 256),
+      "Attempt to access a struct element with more than 255 fields"
+      "This is unsupported due to the maximum number of arguments allowed in LLVM CallInsts");
+
+  return (unsigned)sub_index;
+}
+
+VAR_OPERAND(ReadInst, SubIndexOperand, 2)
+
 // StructReadInst implementation
 CollectionType &StructReadInst::getCollectionType() const {
   auto type = type_of(this->getObjectOperand());
@@ -59,10 +91,7 @@ OPERAND(StructReadInst, FieldIndexOperand, 1)
 TO_STRING(StructReadInst)
 
 // IndexReadInst implementation
-unsigned IndexReadInst::getNumberOfDimensions() const {
-  return (this->getCallInst().arg_size() - 1);
-}
-VAR_OPERAND(IndexReadInst, IndexOfDimension, 1)
+OPERAND(IndexReadInst, Index, 1)
 
 TO_STRING(IndexReadInst)
 
@@ -75,6 +104,38 @@ TO_STRING(AssocReadInst)
 OPERAND(WriteInst, ValueWritten, 0)
 
 OPERAND(WriteInst, ObjectOperand, 1)
+
+unsigned WriteInst::getNumberOfSubIndices() const {
+  return (this->getCallInst().arg_size() - 3);
+}
+
+vector<llvm::Value *> WriteInst::getSubIndices() const {
+  auto &call = this->getCallInst();
+
+  vector<llvm::Value *> sub_indices(std::next(call.arg_begin(), 3),
+                                    call.arg_end());
+
+  return sub_indices;
+}
+
+unsigned WriteInst::getSubIndex(unsigned sub_dim) const {
+  auto &sub_index_as_value = this->getSubIndexOperand(sub_dim);
+  auto sub_index_as_constant = dyn_cast<llvm::ConstantInt>(&sub_index_as_value);
+  MEMOIR_NULL_CHECK(
+      sub_index_as_constant,
+      "Attempt to access a struct element with non-constant field index");
+
+  auto sub_index = sub_index_as_constant->getZExtValue();
+
+  MEMOIR_ASSERT(
+      (sub_index < 256),
+      "Attempt to access a struct element with more than 255 fields"
+      "This is unsupported due to the maximum number of arguments allowed in LLVM CallInsts");
+
+  return (unsigned)sub_index;
+}
+
+VAR_OPERAND(WriteInst, SubIndexOperand, 3)
 
 // StructWriteInst implementation
 CollectionType &StructWriteInst::getCollectionType() const {
@@ -115,11 +176,7 @@ TO_STRING(StructWriteInst)
 // IndexWriteInst implementation
 RESULTANT(IndexWriteInst, Collection)
 
-unsigned IndexWriteInst::getNumberOfDimensions() const {
-  return (this->getCallInst().arg_size() - 2);
-}
-
-VAR_OPERAND(IndexWriteInst, IndexOfDimension, 2)
+OPERAND(IndexWriteInst, Index, 2)
 
 TO_STRING(IndexWriteInst)
 
@@ -172,12 +229,7 @@ OPERAND(StructGetInst, FieldIndexOperand, 1)
 TO_STRING(StructGetInst)
 
 // IndexGetInst implementation
-unsigned IndexGetInst::getNumberOfDimensions() const {
-  return (this->getCallInst().arg_size() - 1);
-}
-
-VAR_OPERAND(IndexGetInst, IndexOfDimension, 1)
-
+OPERAND(IndexGetInst, Index, 1)
 TO_STRING(IndexGetInst)
 
 // AssocGetInst implementation
