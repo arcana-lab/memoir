@@ -873,7 +873,6 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
                         "Could not create the call for vector write");
 
     } else {
-      println(seq_type->getElementType());
       auto &struct_type =
           MEMOIR_SANITIZE(dyn_cast<StructType>(&seq_type->getElementType()),
                           "Sub-index write to non-struct element");
