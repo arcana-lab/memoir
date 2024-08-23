@@ -27,6 +27,7 @@ std::string Opportunity::formulate<ProxyOpportunity>(FormulaEnvironment &env) {
 
 std::pair<std::string, std::string> ProxyOpportunity::formulate(
     FormulaEnvironment &env) const {
+
   std::string formula = "";
 
   std::string head = "";
