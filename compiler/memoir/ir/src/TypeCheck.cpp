@@ -324,8 +324,6 @@ Type *TypeChecker::visitSequenceAllocInst(SequenceAllocInst &I) {
 // Reference Read Instructions.
 Type *TypeChecker::visitReadInst(ReadInst &I) {
 
-  println(I);
-
   // Get the collection type being accessed.
   auto *object_type = this->analyze(I.getObjectOperand());
 
