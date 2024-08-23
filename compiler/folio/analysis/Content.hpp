@@ -137,6 +137,10 @@ struct CollectionContent : public Content {
     return content->kind() == ContentKind::CONTENT_COLLECTION;
   }
 
+  llvm::Value &collection() {
+    return this->_collection;
+  }
+
 protected:
   llvm::Value &_collection;
 };
@@ -173,6 +177,10 @@ struct StructContent : public Content {
     return content->kind() == ContentKind::CONTENT_STRUCT;
   }
 
+  llvm::Value &value() {
+    return this->_value;
+  }
+
 protected:
   llvm::Value &_value;
 };
@@ -207,6 +215,10 @@ struct ScalarContent : public Content {
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_SCALAR;
+  }
+
+  llvm::Value &value() {
+    return this->_value;
   }
 
 protected:
@@ -246,6 +258,10 @@ struct KeysContent : public Content {
     return content->kind() == ContentKind::CONTENT_KEYS;
   }
 
+  Content &collection() {
+    return this->_collection;
+  }
+
 protected:
   Content &_collection;
 };
@@ -281,6 +297,10 @@ struct ElementsContent : public Content {
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_ELEMENTS;
+  }
+
+  Content &collection() {
+    return this->_collection;
   }
 
 protected:
@@ -321,6 +341,14 @@ struct FieldContent : public Content {
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_FIELD;
+  }
+
+  Content &parent() {
+    return this->_parent;
+  }
+
+  unsigned field_index() {
+    return this->_field_index;
   }
 
 protected:
@@ -384,6 +412,22 @@ public:
     return content->kind() == ContentKind::CONTENT_CONDITIONAL;
   }
 
+  Content &content() {
+    return this->_content;
+  }
+
+  llvm::CmpInst::Predicate predicate() {
+    return this->_predicate;
+  }
+
+  Content &lhs() {
+    return this->_lhs;
+  }
+
+  Content &rhs() {
+    return this->_rhs;
+  }
+
 protected:
   Content &_content;
 
@@ -428,6 +472,14 @@ struct IndexedContent : public Content {
     return content->kind() == ContentKind::CONTENT_INDEXED;
   }
 
+  Content &index() {
+    return this->_index;
+  }
+
+  Content &element() {
+    return this->_element;
+  }
+
 protected:
   Content &_index;
   Content &_element;
@@ -452,7 +504,7 @@ public:
                              this->_elements.end(),
                              _elements.at(0)->to_string(),
                              [](std::string a, Content *c) {
-                               return a + ", ", c->to_string();
+                               return a + ", " + c->to_string();
                              })
            + " ]";
   }
@@ -504,6 +556,14 @@ public:
     return content->kind() == ContentKind::CONTENT_TUPLE;
   }
 
+  llvm::memoir::vector<Content *> &elements() {
+    return this->_elements;
+  }
+
+  Content &element(size_t index) {
+    return *(this->_elements[index]);
+  }
+
 protected:
   llvm::memoir::vector<Content *> _elements = {};
 };
@@ -519,7 +579,8 @@ public:
       _rhs(rhs) {}
 
   std::string to_string() const override {
-    return this->_lhs.to_string() + " ∪ " + this->_rhs.to_string();
+    return "( " + this->_lhs.to_string() + " ∪ " + this->_rhs.to_string()
+           + " )";
   }
 
   bool operator==(Content &other) const override {
@@ -542,6 +603,14 @@ public:
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_UNION;
+  }
+
+  Content &lhs() {
+    return this->_lhs;
+  }
+
+  Content &rhs() {
+    return this->_rhs;
   }
 
 protected:
