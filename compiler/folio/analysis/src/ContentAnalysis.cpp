@@ -17,6 +17,8 @@ using namespace llvm::memoir;
 
 namespace folio {
 
+// =========================================================================
+// Initialization
 namespace detail {
 
 Content &conservative(llvm::Value &V) {
@@ -30,6 +32,10 @@ Content &conservative(llvm::Value &V) {
   }
 
   return Content::create<ScalarContent>(V);
+}
+
+Content &conservative(MemOIRInst &I) {
+  return detail::conservative(I.getCallInst());
 }
 
 } // namespace detail
@@ -87,8 +93,6 @@ Content &ContentAnalysisDriver::analyze(MemOIRInst &I) {
 }
 
 Content &ContentAnalysisDriver::visitArgument(llvm::Argument &A) {
-  auto *type = type_of(A);
-
   return detail::conservative(A);
 }
 
@@ -123,6 +127,60 @@ Content &ContentAnalysisDriver::visitAssocArrayAllocInst(
   return empty;
 }
 
+Content &ContentAnalysisDriver::visitSeqInsertInst(SeqInsertInst &I) {
+  // If the element type is a struct, create a TupleContent with empty fields.
+  auto *type = type_of(I.getResultCollection());
+  auto &collection_type =
+      MEMOIR_SANITIZE(dyn_cast<CollectionType>(type),
+                      "SeqInsertInst on non-collection type");
+  auto *struct_type = dyn_cast<StructType>(&collection_type.getElementType());
+  if (not struct_type) {
+    return detail::conservative(I.getCallInst());
+  }
+
+  vector<Content *> fields(struct_type->getNumFields(),
+                           &Content::create<EmptyContent>());
+
+  auto &tuple_content = Content::create<TupleContent>(fields);
+
+  auto &base_content = this->analyze(I.getBaseCollection());
+
+  return Content::create<UnionContent>(tuple_content, base_content);
+}
+
+Content &ContentAnalysisDriver::visitIndexWriteInst(IndexWriteInst &I) {
+
+  // If the element type is a struct, create a TupleContent with fields.
+  auto &collection_type = I.getCollectionType();
+  auto &element_type = collection_type.getElementType();
+  auto *struct_type = dyn_cast<StructType>(&element_type);
+  if (not struct_type) {
+    return detail::conservative(I.getCallInst());
+  }
+
+  // Create a TupleContent and union it with the input.
+  vector<Content *> fields(struct_type->getNumFields(),
+                           &Content::create<EmptyContent>());
+
+  // Update the relevant field.
+  auto &field_content = this->analyze(I.getValueWritten());
+
+  fields[I.getSubIndex(0)] = &field_content;
+
+  // Create the TupleContent.
+  auto &tuple_content = Content::create<TupleContent>(fields);
+
+  // Fetch the content of the input collection.
+  auto &base_content = this->analyze(I.getObjectOperand());
+
+  // Return a union of the tuple content and the base content, we will simplify
+  // this later.
+  // TODO: we may want to add some notion of precedence to the union operator,
+  // otherwise we will have overly conservative, or incorrect results from
+  // simplification.
+  return Content::create<UnionContent>(tuple_content, base_content);
+}
+
 Content &ContentAnalysisDriver::visitSeqInsertValueInst(SeqInsertValueInst &I) {
 
   // Create the content for the inserted value.
@@ -155,9 +213,36 @@ Content &ContentAnalysisDriver::visitAssocWriteInst(AssocWriteInst &I) {
   return union_content;
 }
 
+Content &ContentAnalysisDriver::visitAssocInsertInst(AssocInsertInst &I) {
+
+  auto *struct_type = dyn_cast<StructType>(type_of(I));
+  if (not struct_type) {
+    return detail::conservative(I);
+  }
+
+  // If the element type is a struct, create a TupleContent with empty fields.
+  vector<Content *> fields(struct_type->getNumFields(),
+                           &Content::create<EmptyContent>());
+  auto &tuple_content = Content::create<TupleContent>(fields);
+
+  // Create the content for the insertion index.
+  auto &index_content = this->analyze(I.getInsertionPoint());
+
+  // Wrap the index and element in an IndexedContent.
+  auto &indexed_content =
+      Content::create<IndexedContent>(index_content, tuple_content);
+
+  // Union with the collection content being inserted into.
+  auto &base_content = this->analyze(I.getBaseCollection());
+  auto &union_content =
+      Content::create<UnionContent>(indexed_content, base_content);
+
+  return union_content;
+}
+
 Content &ContentAnalysisDriver::visitStructReadInst(StructReadInst &I) {
   // Get the struct content.
-  auto &struct_content = this->analyze(I);
+  auto &struct_content = this->analyze(I.getObjectOperand());
 
   // Get the field index;
   auto field_index = I.getFieldIndex();
@@ -469,42 +554,177 @@ void ContentAnalysisDriver::initialize() {
 
   return;
 }
+// =========================================================================
 
+// =========================================================================
+// Simplification
 namespace detail {
 
-Content &contextualize_scalar(llvm::Value &V) {
-  // TODO
-  return Content::create<ScalarContent>(V);
+Content &simplify(llvm::Value &V, Content &C);
+
+Content &simplify_conditional(llvm::Value &V, ConditionalContent &C) {
+  // Recurse.
+  auto &content = simplify(V, C.content());
+
+  // If recursion simplified the inner content, update ourselves.
+  if (&content != &C.content()) {
+    return Content::create<ConditionalContent>(content,
+                                               C.predicate(),
+                                               C.lhs(),
+                                               C.rhs());
+  }
+
+  return C;
+}
+
+Content &simplify_union(llvm::Value &V, UnionContent &C) {
+
+  println("simplify ", C.to_string());
+
+  // Unpack the union.
+  auto &lhs = simplify(V, C.lhs());
+  auto &rhs = simplify(V, C.rhs());
+
+  println("  simplified lhs ", lhs.to_string());
+  println("  simplified rhs ", rhs.to_string());
+  println();
+
+  // C U empty = C
+  if (isa<EmptyContent>(&rhs)) {
+    return lhs;
+  }
+
+  // empty U C = C
+  if (isa<EmptyContent>(&lhs)) {
+    return rhs;
+  }
+
+  // Fixed-point simplification
+  // V :- C U V = V
+  if (auto *rhs_collection = dyn_cast<CollectionContent>(&rhs)) {
+    if (&rhs_collection->collection() == &V) {
+      return lhs;
+    }
+  }
+
+  // [ ..., x, ... ] U [ ..., empty, ... ] = [ ..., x, ... ]
+  auto *lhs_tuple = dyn_cast<TupleContent>(&lhs);
+  auto *rhs_tuple = dyn_cast<TupleContent>(&rhs);
+  if (lhs_tuple and rhs_tuple) {
+    // For each element, merge empty contents.
+    auto &lhs_elements = lhs_tuple->elements();
+    auto &rhs_elements = rhs_tuple->elements();
+
+    MEMOIR_ASSERT(lhs_elements.size() == rhs_elements.size(),
+                  "TupleContents being union'd are not same size.");
+
+    auto size = lhs_elements.size();
+
+    llvm::memoir::vector<Content *> new_elements = {};
+    new_elements.reserve(size);
+    for (size_t i = 0; i < size; ++i) {
+      auto &lhs_elem = simplify(V, lhs_tuple->element(i));
+      auto &rhs_elem = simplify(V, rhs_tuple->element(i));
+
+      // TODO: simplify lhs_elem and rhs_elem
+
+      if (isa<EmptyContent>(&lhs_elem)) {
+        new_elements.push_back(&rhs_elem);
+      } else if (isa<EmptyContent>(&rhs_elem)) {
+        new_elements.push_back(&lhs_elem);
+      } else if (lhs_elem == rhs_elem) {
+        new_elements.push_back(&lhs_elem);
+      } else {
+        // If there is a collision, we cannot simplify to a single tuple.
+        return C;
+      }
+    }
+
+    // Construct a new tuple.
+    auto &new_tuple = Content::create<TupleContent>(new_elements);
+
+    return new_tuple;
+  }
+
+  // (x | c1) U (empty | c2) = (x | c1)
+  auto *lhs_cond = dyn_cast<ConditionalContent>(&lhs);
+  auto *rhs_cond = dyn_cast<ConditionalContent>(&rhs);
+  if (lhs_cond and rhs_cond) {
+    auto &lhs_content = lhs_cond->content();
+    auto &rhs_content = rhs_cond->content();
+
+    if (isa<EmptyContent>(&lhs_content)) {
+      return *rhs_cond;
+    }
+
+    if (isa<EmptyContent>(&rhs_content)) {
+      return *lhs_cond;
+    }
+  }
+
+  // If nothing happened, then see if we can reassociate the union and go again.
+  if (auto *rhs_union = dyn_cast<UnionContent>(&rhs)) {
+    auto &rhs_lhs = rhs_union->lhs();
+    auto &rhs_rhs = rhs_union->rhs();
+    auto &new_union = simplify(V, Content::create<UnionContent>(lhs, rhs_lhs));
+
+    return simplify(V, Content::create<UnionContent>(new_union, rhs_rhs));
+  }
+
+  // If we weren't able to reassociate, create a new union content if any
+  // sub-simplifications happened.
+  if (&lhs != &C.lhs() or &rhs != &C.rhs()) {
+    return simplify(V, Content::create<UnionContent>(lhs, rhs));
+  }
+
+  return C;
+}
+
+// TODO
+Content &simplify(llvm::Value &V, Content &C) {
+  // Dispatch to the appropriate content.
+  // NOTE: this could be replaced with a ContentVisitor, but I don't want to
+  // implement one unless we actually have need for it elsewhere.
+  if (auto *union_content = dyn_cast<UnionContent>(&C)) {
+    return simplify_union(V, *union_content);
+  } else if (auto *cond_content = dyn_cast<ConditionalContent>(&C)) {
+    return simplify_conditional(V, *cond_content);
+  }
+
+  return C;
 }
 
 } // namespace detail
 
-void ContentAnalysisDriver::contextualize() {
-  // Improve the quality of each existing content based on the use context.
-  for (auto &[value, contents] : this->result) {
+void ContentAnalysisDriver::simplify() {
+  // For each content mapping, simplify it.
+  for (auto &[value, content] : this->result) {
+    // Simplify the content for the given value mapping.
+    auto &simplified = detail::simplify(*value, *content);
 
-    if (auto *memoir_inst = into<MemOIRInst>(value)) {
-      if (auto *ret_phi = dyn_cast<RetPHIInst>(memoir_inst)) {
-      }
-    }
+    // Update the content mapping.
+    content = &simplified;
   }
 
   // Print the initial contents.
   println();
   println("================================");
-  println("Contextualize contents:");
+  println("Simplified contents:");
   for (const auto &[value, contents] : this->result) {
+    // Only print the result of fold instructions.
+    if (not into<FoldInst>(value)) {
+      continue;
+    }
+
     println(value_name(*value), " contains ", contents->to_string());
   }
   println("================================");
   println();
 
+  // All done.
   return;
 }
-
-void ContentAnalysisDriver::simplify() {
-  return;
-}
+// =========================================================================
 
 ContentAnalysisDriver::ContentAnalysisDriver(Contents &result, llvm::Module &M)
   : result(result),
@@ -512,9 +732,6 @@ ContentAnalysisDriver::ContentAnalysisDriver(Contents &result, llvm::Module &M)
 
   // Gather the initial contents with a per-instruction analysis.
   this->initialize();
-
-  // Contextualize the contents based on their position in the program.
-  this->contextualize();
 
   // Simplify the results to be in a canonical form.
   this->simplify();

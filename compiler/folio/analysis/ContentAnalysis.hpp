@@ -1,5 +1,7 @@
 #include "llvm/Pass.h"
 
+#include "llvm/IR/PassManager.h"
+
 #include "memoir/ir/InstVisitor.hpp"
 
 #include "memoir/support/InternalDatatypes.hpp"
@@ -16,11 +18,12 @@ struct ContentAnalysisDriver
   friend class llvm::InstVisitor<ContentAnalysisDriver, Content &>;
 
 public:
+  // Constructor.
   ContentAnalysisDriver(Contents &result, llvm::Module &M);
 
 protected:
+  // Driver methods.
   void initialize();
-  void contextualize();
   void simplify();
 
   // Helper methods.
@@ -34,7 +37,10 @@ protected:
   Content &visitInstruction(llvm::Instruction &I);
   Content &visitSequenceAllocInst(llvm::memoir::SequenceAllocInst &I);
   Content &visitAssocArrayAllocInst(llvm::memoir::AssocArrayAllocInst &I);
+  Content &visitSeqInsertInst(llvm::memoir::SeqInsertInst &I);
   Content &visitSeqInsertValueInst(llvm::memoir::SeqInsertValueInst &I);
+  Content &visitIndexWriteInst(llvm::memoir::IndexWriteInst &I);
+  Content &visitAssocInsertInst(llvm::memoir::AssocInsertInst &I);
   Content &visitAssocWriteInst(llvm::memoir::AssocWriteInst &I);
   Content &visitStructReadInst(llvm::memoir::StructReadInst &I);
   Content &visitFoldInst(llvm::memoir::FoldInst &I);
