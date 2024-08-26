@@ -81,6 +81,8 @@ collection_ref zip(collection_ref accum, size_t i, uint32_t v) {
 
 auto data_t = memoir_define_struct_type("data_t", memoir_u32_t);
 
+auto node_t = memoir_define_struct_type("node_t", memoir_u32_t, memoir_u32_t);
+
 int main() {
 
   TEST(accum_seq) {
@@ -192,5 +194,29 @@ int main() {
       EXPECT(memoir_index_read(u32, accum, i, 0) == 1, "differs!");
       EXPECT(memoir_index_read(u32, accum, i, 1) == 2, "differs!");
     }
+  }
+
+  TEST(while_loop) {
+    auto seq = memoir_allocate_sequence(memoir_u32_t, 100);
+
+    // Initialize a ring.
+    for (size_t i = 0; i < 100; ++i) {
+      memoir_index_write(u32, (i + 1) % 100, seq, i);
+    }
+
+    // Iterate over the sequence using a while loop, stopping when we've hit the
+    // root again.
+    auto hist = memoir_allocate_assoc_array(memoir_u32_t, memoir_u32_t);
+    uint32_t i = 0;
+    do {
+      if (not memoir_assoc_has(hist, i)) {
+        memoir_assoc_insert(hist, i);
+        memoir_assoc_write(u32, 1, hist, i);
+      } else {
+        memoir_assoc_write(u32, memoir_assoc_read(u32, hist, i), hist, i);
+      }
+
+      i = memoir_index_read(u32, seq, i);
+    } while (i != 0);
   }
 }
