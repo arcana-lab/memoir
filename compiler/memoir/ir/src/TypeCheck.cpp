@@ -323,16 +323,17 @@ Type *TypeChecker::visitSequenceAllocInst(SequenceAllocInst &I) {
 
 // Reference Read Instructions.
 Type *TypeChecker::visitReadInst(ReadInst &I) {
-
   // Get the collection type being accessed.
   auto *object_type = this->analyze(I.getObjectOperand());
 
   // If we couldn't find the object type, return NULL.
-  if (object_type == nullptr) {
+  if (object_type == nullptr or isa<TypeVariable>(object_type)) {
     return nullptr;
   }
 
-  auto &collection_type = *dyn_cast<CollectionType>(object_type);
+  auto &collection_type =
+      MEMOIR_SANITIZE(dyn_cast<CollectionType>(object_type),
+                      "ReadInst with non-collection type'd operand");
 
   // Return the element type, if it is a reference type.
   auto *element_type = &collection_type.getElementType();
@@ -362,7 +363,7 @@ Type *TypeChecker::visitStructReadInst(StructReadInst &I) {
   // Get the struct type.
   auto *object_type = this->analyze(I.getObjectOperand());
 
-  if (object_type == nullptr) {
+  if (object_type == nullptr or isa<TypeVariable>(object_type)) {
     return nullptr;
   }
 
@@ -394,7 +395,7 @@ Type *TypeChecker::visitGetInst(GetInst &I) {
   // Get the type of collection being accessed.
   auto *object_type = this->analyze(I.getObjectOperand());
 
-  if (object_type == nullptr) {
+  if (object_type == nullptr or isa<TypeVariable>(object_type)) {
     return nullptr;
   }
 
@@ -409,8 +410,8 @@ Type *TypeChecker::visitStructGetInst(StructGetInst &I) {
   // Get the struct type.
   auto *object_type = this->analyze(I.getObjectOperand());
 
-  if (object_type == nullptr) {
-    return nullptr;
+  if (object_type == nullptr or isa<TypeVariable>(object_type)) {
+    return object_type;
   }
 
   auto &struct_type =
