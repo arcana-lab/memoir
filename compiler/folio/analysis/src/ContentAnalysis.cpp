@@ -21,6 +21,8 @@ namespace folio {
 // Initialization
 namespace detail {
 
+using namespace llvm::memoir;
+
 Content &conservative(llvm::Value &V) {
   auto *type = type_of(V);
 
@@ -154,31 +156,28 @@ Content &ContentAnalysisDriver::visitIndexWriteInst(IndexWriteInst &I) {
   auto &collection_type = I.getCollectionType();
   auto &element_type = collection_type.getElementType();
   auto *struct_type = dyn_cast<StructType>(&element_type);
-  if (not struct_type) {
-    return detail::conservative(I.getCallInst());
-  }
-
-  // Create a TupleContent and union it with the input.
-  vector<Content *> fields(struct_type->getNumFields(),
-                           &Content::create<EmptyContent>());
-
-  // Update the relevant field.
-  auto &field_content = this->analyze(I.getValueWritten());
-
-  fields[I.getSubIndex(0)] = &field_content;
-
-  // Create the TupleContent.
-  auto &tuple_content = Content::create<TupleContent>(fields);
 
   // Fetch the content of the input collection.
   auto &base_content = this->analyze(I.getObjectOperand());
 
-  // Return a union of the tuple content and the base content, we will simplify
-  // this later.
-  // TODO: we may want to add some notion of precedence to the union operator,
-  // otherwise we will have overly conservative, or incorrect results from
-  // simplification.
-  return Content::create<UnionContent>(tuple_content, base_content);
+  // Analyze the value being written.
+  auto *element_content = &this->analyze(I.getValueWritten());
+
+  // Handle subindices.
+  for (auto sub_dim = 0; sub_dim < I.getNumberOfSubIndices(); ++sub_dim) {
+
+    // Create a TupleContent and union it with the input.
+    vector<Content *> fields(struct_type->getNumFields(),
+                             &Content::create<EmptyContent>());
+
+    // Update the relevant field.
+    fields[I.getSubIndex(sub_dim)] = element_content;
+
+    // Create the TupleContent.
+    element_content = &Content::create<TupleContent>(fields);
+  }
+
+  return Content::create<UnionContent>(*element_content, base_content);
 }
 
 Content &ContentAnalysisDriver::visitSeqInsertValueInst(SeqInsertValueInst &I) {
@@ -240,6 +239,41 @@ Content &ContentAnalysisDriver::visitAssocInsertInst(AssocInsertInst &I) {
   return union_content;
 }
 
+namespace detail {
+Content &handle_collection_read(ReadInst &I, Content &collection_content) {
+  // Construct an ElemContent.
+  auto &elem_content = Content::create<ElementContent>(collection_content);
+
+  // Wrap the element content in FieldContent(s) if necessary.
+  Content *content = &elem_content;
+  for (auto sub_dim = 0; sub_dim < I.getNumberOfSubIndices(); ++sub_dim) {
+    // Get the sub index.
+    auto sub_index = I.getSubIndex(sub_dim);
+
+    // Wrap the current content in a FieldContent.
+    content = &Content::create<FieldContent>(*content, sub_index);
+  }
+
+  return *content;
+}
+} // namespace detail
+
+Content &ContentAnalysisDriver::visitIndexReadInst(IndexReadInst &I) {
+  // Analyze the collection.
+  auto &collection_content = this->analyze(I.getObjectOperand());
+
+  // Construct the resultant content.
+  return detail::handle_collection_read(I, collection_content);
+}
+
+Content &ContentAnalysisDriver::visitAssocReadInst(AssocReadInst &I) {
+  // Analyze the collection.
+  auto &collection_content = this->analyze(I.getObjectOperand());
+
+  // Construct the resultant content.
+  return detail::handle_collection_read(I, collection_content);
+}
+
 Content &ContentAnalysisDriver::visitStructReadInst(StructReadInst &I) {
   // Get the struct content.
   auto &struct_content = this->analyze(I.getObjectOperand());
@@ -252,6 +286,14 @@ Content &ContentAnalysisDriver::visitStructReadInst(StructReadInst &I) {
       Content::create<FieldContent>(struct_content, field_index);
 
   return field_content;
+}
+
+Content &ContentAnalysisDriver::visitAssocKeysInst(AssocKeysInst &I) {
+  // Analyze the collection.
+  auto &collection = this->analyze(I.getCollection());
+
+  // Construct the KeyContent
+  return Content::create<KeysContent>(collection);
 }
 
 Content &ContentAnalysisDriver::visitFoldInst(FoldInst &I) {
@@ -322,7 +364,23 @@ Content &ContentAnalysisDriver::visitPHINode(llvm::PHINode &I) {
 
   // If the PHI is not a GAMMA, return a conservative content.
   if (not branch) {
-    return detail::conservative(I);
+
+    vector<Content *> incoming_contents = {};
+    incoming_contents.reserve(I.getNumIncomingValues());
+
+    for (auto i = 0; i < I.getNumIncomingValues(); ++i) {
+      auto *incoming_value = I.getIncomingValue(i);
+      incoming_contents.push_back(&this->analyze(*incoming_value));
+    }
+    auto *content = std::accumulate(
+        std::next(incoming_contents.rbegin()),
+        incoming_contents.rend(),
+        incoming_contents.back(),
+        [](Content *accum, Content *incoming) {
+          return &Content::create<UnionContent>(*incoming, *accum);
+        });
+
+    return *content;
   }
 
   // Create the content for the TRUE branch.
@@ -421,7 +479,7 @@ Content &ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     // Get the corresponding live-out content.
     llvm::Value *live_out = nullptr;
     for (auto &inst : llvm::instructions(fold->getFunction())) {
-      auto metadata = Metadata::get<LiveOutMetadata>(inst);
+      auto metadata = llvm::memoir::Metadata::get<LiveOutMetadata>(inst);
       if (not metadata.has_value()) {
         continue;
       }
@@ -483,7 +541,7 @@ Content &ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     // For a direct call, get the corresponding live-out content.
     llvm::Value *live_out = nullptr;
     for (auto &inst : llvm::instructions(*called_function)) {
-      auto metadata = Metadata::get<LiveOutMetadata>(inst);
+      auto metadata = llvm::memoir::Metadata::get<LiveOutMetadata>(inst);
       if (not metadata.has_value()) {
         continue;
       }
@@ -572,6 +630,17 @@ Content &simplify_conditional(llvm::Value &V, ConditionalContent &C) {
                                                C.predicate(),
                                                C.lhs(),
                                                C.rhs());
+  }
+
+  return C;
+}
+
+Content &simplify_indexed(llvm::Value &V, IndexedContent &C) {
+  auto &index = simplify(V, C.index());
+  auto &element = simplify(V, C.element());
+
+  if (&index != &C.index() or &element != &C.element()) {
+    return Content::create<IndexedContent>(index, element);
   }
 
   return C;
@@ -712,8 +781,8 @@ void ContentAnalysisDriver::simplify() {
   println("Simplified contents:");
   for (const auto &[value, contents] : this->result) {
     // Only print the result of fold instructions.
-    if (not into<FoldInst>(value)) {
-      continue;
+    if (not into<FoldInst>(value) and not into<RetPHIInst>(value)) {
+      // continue;
     }
 
     println(value_name(*value), " contains ", contents->to_string());
@@ -737,13 +806,16 @@ ContentAnalysisDriver::ContentAnalysisDriver(Contents &result, llvm::Module &M)
   this->simplify();
 }
 
+namespace detail {}
+
 Contents ContentAnalysis::run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM) {
-
   Contents result;
 
+  // Construct and run content analysis.
   ContentAnalysisDriver(result, M);
 
+  // Return the analyzed contents.
   return result;
 }
 

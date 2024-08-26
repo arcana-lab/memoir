@@ -14,7 +14,9 @@ enum ContentKind {
   CONTENT_COLLECTION,
   CONTENT_STRUCT,
   CONTENT_SCALAR,
+  CONTENT_KEY,
   CONTENT_KEYS,
+  CONTENT_ELEMENT,
   CONTENT_ELEMENTS,
   CONTENT_FIELD,
   CONTENT_CONDITIONAL,
@@ -226,6 +228,47 @@ protected:
 };
 
 /**
+ * Represents a key of a given collection.
+ */
+struct KeyContent : public Content {
+  KeyContent(Content &collection)
+    : Content(ContentKind::CONTENT_KEY),
+      _collection(collection) {}
+
+  std::string to_string() const override {
+    return "key(" + this->_collection.to_string() + ")";
+  }
+
+  bool operator==(Content &other) const override {
+    auto *other_key = llvm::memoir::dyn_cast<KeyContent>(&other);
+    if (not other_key) {
+      return false;
+    }
+
+    return this->_collection == other_key->_collection;
+  }
+
+  Content &substitute(llvm::Value &from, Content &to) override {
+    auto &subst = this->_collection.substitute(from, to);
+    if (&subst == &this->_collection) {
+      return *this;
+    }
+    return Content::create<KeyContent>(subst);
+  }
+
+  static bool classof(const Content *content) {
+    return content->kind() == ContentKind::CONTENT_KEY;
+  }
+
+  Content &collection() {
+    return this->_collection;
+  }
+
+protected:
+  Content &_collection;
+};
+
+/**
  * Represents the keys of a given collection.
  */
 struct KeysContent : public Content {
@@ -256,6 +299,47 @@ struct KeysContent : public Content {
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_KEYS;
+  }
+
+  Content &collection() {
+    return this->_collection;
+  }
+
+protected:
+  Content &_collection;
+};
+
+/**
+ * Represents an element of a given collection.
+ */
+struct ElementContent : public Content {
+  ElementContent(Content &collection)
+    : Content(ContentKind::CONTENT_ELEMENT),
+      _collection(collection) {}
+
+  std::string to_string() const override {
+    return "elem(" + this->_collection.to_string() + ")";
+  }
+
+  bool operator==(Content &other) const override {
+    auto *other_element = llvm::memoir::dyn_cast<ElementContent>(&other);
+    if (not other_element) {
+      return false;
+    }
+
+    return this->_collection == other_element->_collection;
+  }
+
+  Content &substitute(llvm::Value &from, Content &to) override {
+    auto &subst = this->_collection.substitute(from, to);
+    if (&subst == &this->_collection) {
+      return *this;
+    }
+    return Content::create<ElementContent>(subst);
+  }
+
+  static bool classof(const Content *content) {
+    return content->kind() == ContentKind::CONTENT_ELEMENT;
   }
 
   Content &collection() {

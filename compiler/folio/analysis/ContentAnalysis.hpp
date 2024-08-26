@@ -33,19 +33,30 @@ protected:
   // Visitor methods.
   Content &analyze(llvm::Value &V);
   Content &analyze(llvm::memoir::MemOIRInst &I);
+
   Content &visitArgument(llvm::Argument &I);
   Content &visitInstruction(llvm::Instruction &I);
+
   Content &visitSequenceAllocInst(llvm::memoir::SequenceAllocInst &I);
   Content &visitAssocArrayAllocInst(llvm::memoir::AssocArrayAllocInst &I);
+
   Content &visitSeqInsertInst(llvm::memoir::SeqInsertInst &I);
   Content &visitSeqInsertValueInst(llvm::memoir::SeqInsertValueInst &I);
   Content &visitIndexWriteInst(llvm::memoir::IndexWriteInst &I);
+
   Content &visitAssocInsertInst(llvm::memoir::AssocInsertInst &I);
   Content &visitAssocWriteInst(llvm::memoir::AssocWriteInst &I);
+
+  Content &visitIndexReadInst(llvm::memoir::IndexReadInst &I);
+  Content &visitAssocReadInst(llvm::memoir::AssocReadInst &I);
   Content &visitStructReadInst(llvm::memoir::StructReadInst &I);
+
+  Content &visitAssocKeysInst(llvm::memoir::AssocKeysInst &I);
+
   Content &visitFoldInst(llvm::memoir::FoldInst &I);
   Content &visitRetPHIInst(llvm::memoir::RetPHIInst &I);
   Content &visitUsePHIInst(llvm::memoir::UsePHIInst &I);
+
   Content &visitPHINode(llvm::PHINode &I);
 
   // Owned state.
