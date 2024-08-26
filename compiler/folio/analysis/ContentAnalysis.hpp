@@ -6,16 +6,17 @@
 
 #include "memoir/support/InternalDatatypes.hpp"
 
-#include "folio/analysis/ContentSummary.hpp"
+#include "folio/analysis/Content.hpp"
 
 namespace folio {
 
-using Contents = typename llvm::memoir::map<llvm::Value *, Content *>;
+using ContentSummary = typename std::pair<Content *, Content *>;
+using Contents = typename llvm::memoir::map<llvm::Value *, ContentSummary>;
 
 struct ContentAnalysisDriver
-  : llvm::memoir::InstVisitor<ContentAnalysisDriver, Content &> {
-  friend class llvm::memoir::InstVisitor<ContentAnalysisDriver, Content &>;
-  friend class llvm::InstVisitor<ContentAnalysisDriver, Content &>;
+  : llvm::memoir::InstVisitor<ContentAnalysisDriver, ContentSummary> {
+  friend class llvm::memoir::InstVisitor<ContentAnalysisDriver, ContentSummary>;
+  friend class llvm::InstVisitor<ContentAnalysisDriver, ContentSummary>;
 
 public:
   // Constructor.
@@ -27,37 +28,37 @@ protected:
   void simplify();
 
   // Helper methods.
-  void summarize(llvm::Value &value, Content &content);
-  void summarize(llvm::memoir::MemOIRInst &value, Content &content);
+  void summarize(llvm::Value &value, ContentSummary content);
+  void summarize(llvm::memoir::MemOIRInst &value, ContentSummary content);
 
   // Visitor methods.
-  Content &analyze(llvm::Value &V);
-  Content &analyze(llvm::memoir::MemOIRInst &I);
+  ContentSummary analyze(llvm::Value &V);
+  ContentSummary analyze(llvm::memoir::MemOIRInst &I);
 
-  Content &visitArgument(llvm::Argument &I);
-  Content &visitInstruction(llvm::Instruction &I);
+  ContentSummary visitArgument(llvm::Argument &I);
+  ContentSummary visitInstruction(llvm::Instruction &I);
 
-  Content &visitSequenceAllocInst(llvm::memoir::SequenceAllocInst &I);
-  Content &visitAssocArrayAllocInst(llvm::memoir::AssocArrayAllocInst &I);
+  ContentSummary visitSequenceAllocInst(llvm::memoir::SequenceAllocInst &I);
+  ContentSummary visitAssocArrayAllocInst(llvm::memoir::AssocArrayAllocInst &I);
 
-  Content &visitSeqInsertInst(llvm::memoir::SeqInsertInst &I);
-  Content &visitSeqInsertValueInst(llvm::memoir::SeqInsertValueInst &I);
-  Content &visitIndexWriteInst(llvm::memoir::IndexWriteInst &I);
+  ContentSummary visitSeqInsertInst(llvm::memoir::SeqInsertInst &I);
+  ContentSummary visitSeqInsertValueInst(llvm::memoir::SeqInsertValueInst &I);
+  ContentSummary visitIndexWriteInst(llvm::memoir::IndexWriteInst &I);
 
-  Content &visitAssocInsertInst(llvm::memoir::AssocInsertInst &I);
-  Content &visitAssocWriteInst(llvm::memoir::AssocWriteInst &I);
+  ContentSummary visitAssocInsertInst(llvm::memoir::AssocInsertInst &I);
+  ContentSummary visitAssocWriteInst(llvm::memoir::AssocWriteInst &I);
 
-  Content &visitIndexReadInst(llvm::memoir::IndexReadInst &I);
-  Content &visitAssocReadInst(llvm::memoir::AssocReadInst &I);
-  Content &visitStructReadInst(llvm::memoir::StructReadInst &I);
+  ContentSummary visitIndexReadInst(llvm::memoir::IndexReadInst &I);
+  ContentSummary visitAssocReadInst(llvm::memoir::AssocReadInst &I);
+  ContentSummary visitStructReadInst(llvm::memoir::StructReadInst &I);
 
-  Content &visitAssocKeysInst(llvm::memoir::AssocKeysInst &I);
+  ContentSummary visitAssocKeysInst(llvm::memoir::AssocKeysInst &I);
 
-  Content &visitFoldInst(llvm::memoir::FoldInst &I);
-  Content &visitRetPHIInst(llvm::memoir::RetPHIInst &I);
-  Content &visitUsePHIInst(llvm::memoir::UsePHIInst &I);
+  ContentSummary visitFoldInst(llvm::memoir::FoldInst &I);
+  ContentSummary visitRetPHIInst(llvm::memoir::RetPHIInst &I);
+  ContentSummary visitUsePHIInst(llvm::memoir::UsePHIInst &I);
 
-  Content &visitPHINode(llvm::PHINode &I);
+  ContentSummary visitPHINode(llvm::PHINode &I);
 
   // Owned state.
   llvm::memoir::set<llvm::Value *> visited;
