@@ -48,7 +48,7 @@ struct Content {
     return not(*this == other);
   }
 
-  virtual Content &substitute(llvm::Value &from, Content &to) = 0;
+  virtual Content &substitute(Content &from, Content &to) = 0;
 
   virtual ~Content() {}
 
@@ -75,7 +75,7 @@ struct UnderdefinedContent : public Content {
     return llvm::memoir::isa<UnderdefinedContent>(&other);
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
+  Content &substitute(Content &from, Content &to) override {
     return *this;
   }
 
@@ -98,53 +98,13 @@ struct EmptyContent : public Content {
     return llvm::memoir::isa<EmptyContent>(&other);
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
+  Content &substitute(Content &from, Content &to) override {
     return *this;
   }
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_EMPTY;
   }
-};
-
-/**
- * Represents an SSA collection.
- */
-struct CollectionContent : public Content {
-  CollectionContent(llvm::Value &collection)
-    : Content(ContentKind::CONTENT_COLLECTION),
-      _collection(collection) {}
-
-  std::string to_string() const override {
-    return "collection(" + llvm::memoir::value_name(this->_collection) + ")";
-  }
-
-  bool operator==(Content &other) const override {
-    auto *other_collection = llvm::memoir::dyn_cast<CollectionContent>(&other);
-    if (not other_collection) {
-      return false;
-    }
-
-    return &this->_collection == &other_collection->_collection;
-  }
-
-  Content &substitute(llvm::Value &from, Content &to) override {
-    if (&from == &this->_collection) {
-      return to;
-    }
-    return *this;
-  }
-
-  static bool classof(const Content *content) {
-    return content->kind() == ContentKind::CONTENT_COLLECTION;
-  }
-
-  llvm::Value &collection() {
-    return this->_collection;
-  }
-
-protected:
-  llvm::Value &_collection;
 };
 
 /**
@@ -168,8 +128,12 @@ struct StructContent : public Content {
     return &this->_value == &other_struct->_value;
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
-    if (&from == &this->_value) {
+  bool operator==(llvm::Value &V) const {
+    return &this->_value == &V;
+  }
+
+  Content &substitute(Content &from, Content &to) override {
+    if (from == *this) {
       return to;
     }
     return *this;
@@ -208,8 +172,12 @@ struct ScalarContent : public Content {
     return &this->_value == &other_scalar->_value;
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
-    if (&from == &this->_value) {
+  bool operator==(llvm::Value &V) const {
+    return &this->_value == &V;
+  }
+
+  Content &substitute(Content &from, Content &to) override {
+    if (from == *this) {
       return to;
     }
     return *this;
@@ -248,7 +216,7 @@ struct KeyContent : public Content {
     return this->_collection == other_key->_collection;
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
+  Content &substitute(Content &from, Content &to) override {
     auto &subst = this->_collection.substitute(from, to);
     if (&subst == &this->_collection) {
       return *this;
@@ -272,12 +240,12 @@ protected:
  * Represents the keys of a given collection.
  */
 struct KeysContent : public Content {
-  KeysContent(Content &collection)
+  KeysContent(llvm::Value &collection)
     : Content(ContentKind::CONTENT_KEYS),
       _collection(collection) {}
 
   std::string to_string() const override {
-    return "keys(" + this->_collection.to_string() + ")";
+    return "keys(" + llvm::memoir::value_name(this->_collection) + ")";
   }
 
   bool operator==(Content &other) const override {
@@ -286,27 +254,26 @@ struct KeysContent : public Content {
       return false;
     }
 
-    return this->_collection == other_keys->_collection;
+    return &this->_collection == &other_keys->_collection;
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
-    auto &subst = this->_collection.substitute(from, to);
-    if (&subst == &this->_collection) {
-      return *this;
+  Content &substitute(Content &from, Content &to) override {
+    if (from == *this) {
+      return to;
     }
-    return Content::create<KeysContent>(subst);
+    return *this;
   }
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_KEYS;
   }
 
-  Content &collection() {
+  llvm::Value &collection() {
     return this->_collection;
   }
 
 protected:
-  Content &_collection;
+  llvm::Value &_collection;
 };
 
 /**
@@ -330,7 +297,7 @@ struct ElementContent : public Content {
     return this->_collection == other_element->_collection;
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
+  Content &substitute(Content &from, Content &to) override {
     auto &subst = this->_collection.substitute(from, to);
     if (&subst == &this->_collection) {
       return *this;
@@ -354,12 +321,12 @@ protected:
  * Represents the elements of a given collection.
  */
 struct ElementsContent : public Content {
-  ElementsContent(Content &collection)
+  ElementsContent(llvm::Value &collection)
     : Content(ContentKind::CONTENT_ELEMENTS),
       _collection(collection) {}
 
   std::string to_string() const override {
-    return "elems(" + this->_collection.to_string() + ")";
+    return "elems(" + llvm::memoir::value_name(this->_collection) + ")";
   }
 
   bool operator==(Content &other) const override {
@@ -368,27 +335,26 @@ struct ElementsContent : public Content {
       return false;
     }
 
-    return this->_collection == other_elements->_collection;
+    return &this->_collection == &other_elements->_collection;
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
-    auto &subst = this->_collection.substitute(from, to);
-    if (&subst == &this->_collection) {
-      return *this;
+  Content &substitute(Content &from, Content &to) override {
+    if (from == *this) {
+      return to;
     }
-    return Content::create<ElementsContent>(subst);
+    return *this;
   }
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_ELEMENTS;
   }
 
-  Content &collection() {
+  llvm::Value &collection() {
     return this->_collection;
   }
 
 protected:
-  Content &_collection;
+  llvm::Value &_collection;
 };
 
 /**
@@ -415,7 +381,7 @@ struct FieldContent : public Content {
            and (this->_parent == other_field->_parent);
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
+  Content &substitute(Content &from, Content &to) override {
     auto &subst_parent = this->_parent.substitute(from, to);
     if (&subst_parent == &this->_parent) {
       return *this;
@@ -473,7 +439,7 @@ public:
            and (this->_content == other_cond->_content);
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
+  Content &substitute(Content &from, Content &to) override {
     auto &subst_content = this->_content.substitute(from, to);
     auto &subst_lhs = this->_lhs.substitute(from, to);
     auto &subst_rhs = this->_rhs.substitute(from, to);
@@ -543,7 +509,7 @@ struct IndexedContent : public Content {
            and (this->_element == other_indexed->_element);
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
+  Content &substitute(Content &from, Content &to) override {
     auto &subst_index = this->_index.substitute(from, to);
     auto &subst_element = this->_element.substitute(from, to);
     if (&subst_index == &this->_index and &subst_element == &this->_element) {
@@ -614,7 +580,7 @@ public:
     return true;
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
+  Content &substitute(Content &from, Content &to) override {
 
     bool modified = false;
 
@@ -676,12 +642,14 @@ public:
            and (this->_rhs == other_union->_rhs);
   }
 
-  Content &substitute(llvm::Value &from, Content &to) override {
+  Content &substitute(Content &from, Content &to) override {
     auto &subst_lhs = this->_lhs.substitute(from, to);
     auto &subst_rhs = this->_rhs.substitute(from, to);
+
     if (&subst_lhs == &this->_lhs and &subst_rhs == &this->_rhs) {
       return *this;
     }
+
     return Content::create<UnionContent>(subst_lhs, subst_rhs);
   }
 

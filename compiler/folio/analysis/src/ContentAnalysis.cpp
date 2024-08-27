@@ -21,25 +21,23 @@ namespace folio {
 // Initialization
 namespace detail {
 
-using namespace llvm::memoir;
-
-Content &conservative(llvm::Value &V) {
+ContentSummary conservative(llvm::Value &V) {
   auto *type = type_of(V);
 
   if (isa_and_nonnull<SequenceType>(type)
       or isa_and_nonnull<AssocArrayType>(type)) {
-    auto &content = Content::create<CollectionContent>(V);
-    return content;
+    return { &Content::create<KeysContent>(V),
+             &Content::create<ElementsContent>(V) };
   } else if (isa_and_nonnull<StructType>(type)) {
-    auto &content = Content::create<StructContent>(V);
-    return content;
+    return { &Content::create<UnderdefinedContent>(),
+             &Content::create<StructContent>(V) };
   } else {
-    auto &content = Content::create<ScalarContent>(V);
-    return content;
+    return { &Content::create<UnderdefinedContent>(),
+             &Content::create<ScalarContent>(V) };
   }
 }
 
-Content &conservative(MemOIRInst &I) {
+ContentSummary conservative(MemOIRInst &I) {
   return detail::conservative(I.getCallInst());
 }
 
@@ -65,7 +63,7 @@ ContentSummary ContentAnalysisDriver::analyze(llvm::Value &V) {
   // Check if we have already visited this value.
   if (visited.count(&V) > 0) {
     // Already visited, return the conservative result.
-    return { &detail::conservative(V), &detail::conservative(V) };
+    return detail::conservative(V);
   } else {
     visited.insert(&V);
   }
@@ -92,18 +90,18 @@ ContentSummary ContentAnalysisDriver::analyze(MemOIRInst &I) {
 }
 
 ContentSummary ContentAnalysisDriver::visitArgument(llvm::Argument &A) {
-  return { &detail::conservative(A), &detail::conservative(A) };
+  return detail::conservative(A);
 }
 
 ContentSummary ContentAnalysisDriver::visitInstruction(llvm::Instruction &I) {
-  return { &detail::conservative(I), &detail::conservative(I) };
+  return detail::conservative(I);
 }
 
 ContentSummary ContentAnalysisDriver::visitSequenceAllocInst(
     SequenceAllocInst &I) {
   auto &empty = Content::create<EmptyContent>();
 
-  return { &detail::conservative(I), &empty };
+  return { &Content::create<KeysContent>(I.getCallInst()), &empty };
 }
 
 ContentSummary ContentAnalysisDriver::visitAssocArrayAllocInst(
@@ -150,13 +148,12 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertInst(SeqInsertInst &I) {
 ContentSummary ContentAnalysisDriver::visitIndexWriteInst(IndexWriteInst &I) {
 
   // Fetch the content of the input collection.
-  auto [base_domain, base_range] = this->analyze(I.getObjectOperand());
+  auto &collection = I.getObjectOperand();
+  auto &domain = Content::create<KeysContent>(collection);
+  auto &base_range = Content::create<ElementsContent>(collection);
 
   // Analyze the index being written.
   auto [_index_domain, index_range] = this->analyze(I.getIndex());
-
-  // Create the domain.
-  auto &domain = Content::create<UnionContent>(*index_range, *base_domain);
 
   // Analyze the value being written.
   auto [_value_domain, value_range] = this->analyze(I.getValueWritten());
@@ -187,7 +184,7 @@ ContentSummary ContentAnalysisDriver::visitIndexWriteInst(IndexWriteInst &I) {
     auto *element_type = &struct_type.getFieldType(field_index);
   }
 
-  auto &range = Content::create<UnionContent>(*element_content, *base_range);
+  auto &range = Content::create<UnionContent>(*element_content, base_range);
 
   return { &domain, &range };
 }
@@ -196,7 +193,10 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertValueInst(
     SeqInsertValueInst &I) {
 
   // Fetch the base collection info.
-  auto [base_domain, base_range] = this->analyze(I.getBaseCollection());
+  // auto [base_domain, base_range] = this->analyze(I.getBaseCollection());
+  auto &base = I.getBaseCollection();
+  auto &base_domain = Content::create<KeysContent>(base);
+  auto &base_range = Content::create<ElementsContent>(base);
 
   // Fetch the insertion point info.
   auto [_index_domain, index_range] = this->analyze(I.getInsertionPoint());
@@ -205,10 +205,10 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertValueInst(
   auto [_value_domain, value_range] = this->analyze(I.getValueInserted());
 
   // Construct the new domain.
-  auto &domain = Content::create<UnionContent>(*base_domain, *index_range);
+  auto &domain = Content::create<UnionContent>(*index_range, base_range);
 
   // Construct the new range.
-  auto &range = Content::create<UnionContent>(*base_range, *value_range);
+  auto &range = Content::create<UnionContent>(*value_range, base_domain);
 
   return { &domain, &range };
 }
@@ -216,27 +216,30 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertValueInst(
 ContentSummary ContentAnalysisDriver::visitAssocWriteInst(AssocWriteInst &I) {
 
   // Fetch the base collection info.
-  auto [base_domain, base_range] = this->analyze(I.getObjectOperand());
+  // auto [base_domain, base_range] = this->analyze(I.getObjectOperand());
+  auto &base = I.getObjectOperand();
+  auto &base_domain = Content::create<KeysContent>(base);
+  auto &base_range = Content::create<ElementsContent>(base);
 
   // Fetch the inserted value's range.
   auto [_, value_range] = this->analyze(I.getValueWritten());
 
-  // Construct the new domain.
-  auto &domain = *base_domain;
-
   // Construct the new range.
-  auto &range = Content::create<UnionContent>(*value_range, *base_range);
+  auto &range = Content::create<UnionContent>(*value_range, base_range);
 
-  return { &domain, &range };
+  return { &base_domain, &range };
 }
 
 ContentSummary ContentAnalysisDriver::visitAssocInsertInst(AssocInsertInst &I) {
 
   // Fetch the base collection info.
-  auto [base_domain, base_range] = this->analyze(I.getBaseCollection());
+  // auto [base_domain, base_range] = this->analyze(I.getBaseCollection());
+  auto &base = I.getBaseCollection();
+  auto &base_domain = Content::create<KeysContent>(base);
+  auto &base_range = Content::create<ElementsContent>(base);
 
   // Fetch the insertion point.
-  auto [_index_domain, index_range] = this->analyze(I.getInsertionPoint());
+  auto [_, index_range] = this->analyze(I.getInsertionPoint());
 
   // Construct the empty contents.
   auto &collection_type =
@@ -253,9 +256,9 @@ ContentSummary ContentAnalysisDriver::visitAssocInsertInst(AssocInsertInst &I) {
     empty_content = &Content::create<TupleContent>(fields);
   }
 
-  auto &domain = Content::create<UnionContent>(*index_range, *base_domain);
+  auto &domain = Content::create<UnionContent>(*index_range, base_domain);
 
-  auto &range = Content::create<UnionContent>(*empty_content, *base_range);
+  auto &range = Content::create<UnionContent>(*empty_content, base_range);
 
   return { &domain, &range };
 }
@@ -280,19 +283,17 @@ ContentSummary handle_collection_read(ReadInst &I, Content &collection_range) {
 } // namespace detail
 
 ContentSummary ContentAnalysisDriver::visitIndexReadInst(IndexReadInst &I) {
-  // Analyze the collection.
-  auto [_, range] = this->analyze(I.getObjectOperand());
-
   // Construct the resultant content.
-  return detail::handle_collection_read(I, *range);
+  return detail::handle_collection_read(
+      I,
+      Content::create<ElementsContent>(I.getObjectOperand()));
 }
 
 ContentSummary ContentAnalysisDriver::visitAssocReadInst(AssocReadInst &I) {
-  // Analyze the collection.
-  auto [_, range] = this->analyze(I.getObjectOperand());
-
   // Construct the resultant content.
-  return detail::handle_collection_read(I, *range);
+  return detail::handle_collection_read(
+      I,
+      Content::create<ElementsContent>(I.getObjectOperand()));
 }
 
 ContentSummary ContentAnalysisDriver::visitStructReadInst(StructReadInst &I) {
@@ -310,12 +311,64 @@ ContentSummary ContentAnalysisDriver::visitStructReadInst(StructReadInst &I) {
 }
 
 ContentSummary ContentAnalysisDriver::visitAssocKeysInst(AssocKeysInst &I) {
-  // Analyze the collection.
-  auto [domain, _] = this->analyze(I.getCollection());
-
   // Construct the KeyContent
-  return { &detail::conservative(I), &Content::create<KeysContent>(*domain) };
+  return { &Content::create<KeysContent>(I.getCallInst()),
+           &Content::create<KeysContent>(I.getCollection()) };
 }
+
+namespace detail {
+ContentSummary contextualize_fold(FoldInst &I, ContentSummary input) {
+  // Unpack the input.
+  auto [input_domain, input_range] = input;
+
+  // Fetch the content of the input collection.
+  auto [folded_domain, folded_range] = detail::conservative(I.getCollection());
+
+  // Fetch the content of the initial value.
+  auto [init_domain, init_range] = detail::conservative(I.getInitial());
+
+  auto [accum_arg_domain, accum_arg_range] =
+      detail::conservative(I.getAccumulatorArgument());
+
+  auto &index_arg = Content::create<ScalarContent>(I.getIndexArgument());
+
+  // Substitute the function arguments with the operands.
+  auto *domain = &input_domain->substitute(*accum_arg_domain, *init_domain)
+                      .substitute(*accum_arg_range, *init_range)
+                      .substitute(index_arg, *folded_domain);
+  auto *range = &input_range->substitute(*accum_arg_domain, *init_domain)
+                     .substitute(*accum_arg_range, *init_range)
+                     .substitute(index_arg, *folded_domain);
+
+  // If the element is non-void, fetch its content.
+  if (auto *elem_arg = I.getElementArgument()) {
+    auto &elem = Content::create<ScalarContent>(*elem_arg);
+    domain = &domain->substitute(elem, *folded_range);
+    range = &range->substitute(elem, *folded_range);
+  }
+
+  // Substitute each of the closed arguments.
+  for (unsigned closed_idx = 0; closed_idx < I.getNumberOfClosed();
+       ++closed_idx) {
+    auto &closed_use = I.getClosedAsUse(closed_idx);
+    auto &closed = *closed_use.get();
+    auto &closed_arg = I.getClosedArgument(closed_use);
+
+    auto [closed_arg_domain, closed_arg_range] =
+        detail::conservative(closed_arg);
+
+    auto [closed_domain, closed_range] = detail::conservative(closed);
+
+    domain = &domain->substitute(*closed_arg_domain, *closed_domain)
+                  .substitute(*closed_arg_range, *closed_range);
+    range = &range->substitute(*closed_arg_domain, *closed_domain)
+                 .substitute(*closed_arg_range, *closed_range);
+  }
+
+  return { domain, range };
+}
+
+} // namespace detail
 
 ContentSummary ContentAnalysisDriver::visitFoldInst(FoldInst &I) {
   // Get the content of the returned accumulator.
@@ -339,40 +392,8 @@ ContentSummary ContentAnalysisDriver::visitFoldInst(FoldInst &I) {
     MEMOIR_UNREACHABLE("Could not find return in fold function!");
   }
 
-  // Fetch the content of the returned value.
-  auto [returned_domain, returned_range] = this->analyze(*returned);
-
-  // Fetch the content of the input collection.
-  auto [collection_domain, collection_range] = this->analyze(I.getCollection());
-
-  // Fetch the content of the initial value.
-  auto [init_domain, init_range] = this->analyze(I.getInitial());
-
-  // Substitute the function arguments with the operands.
-  auto *accum_domain =
-      &returned_domain->substitute(I.getAccumulatorArgument(), *init_domain)
-           .substitute(I.getIndexArgument(),
-                       Content::create<KeysContent>(*collection_domain));
-  auto *accum_range =
-      &returned_range->substitute(I.getAccumulatorArgument(), *init_domain)
-           .substitute(I.getIndexArgument(),
-                       Content::create<KeysContent>(*collection_domain));
-
-  // If the element is non-void, fetch its content.
-  if (auto *elem_arg = I.getElementArgument()) {
-    accum_domain = &accum_domain->substitute(
-        *elem_arg,
-        Content::create<ElementsContent>(*collection_range));
-    accum_range = &accum_range->substitute(
-        *elem_arg,
-        Content::create<ElementsContent>(*collection_range));
-  }
-
-  // Construct the union'd content of the initial and accumulated.
-  auto &domain = Content::create<UnionContent>(*accum_domain, *init_domain);
-  auto &range = Content::create<UnionContent>(*accum_range, *init_range);
-
-  return { &domain, &range };
+  // Contextualize the returned value.
+  return detail::contextualize_fold(I, this->analyze(*returned));
 }
 
 ContentSummary ContentAnalysisDriver::visitUsePHIInst(UsePHIInst &I) {
@@ -381,10 +402,12 @@ ContentSummary ContentAnalysisDriver::visitUsePHIInst(UsePHIInst &I) {
 }
 
 ContentSummary ContentAnalysisDriver::visitPHINode(llvm::PHINode &I) {
-  // If this PHI is a copy, propagate the single input.
-  if (I.getNumIncomingValues() == 1) {
-    auto *incoming_value = I.getIncomingValue(0);
-    return this->analyze(*incoming_value);
+
+  // If the PHI is a scalar value, just return a ScalarContent.
+  auto *type = type_of(I);
+  if (not isa_and_nonnull<CollectionType>(type)) {
+    // return { &Content::create<UnderdefinedContent>(),
+    // &detail::conservative(I) };
   }
 
   // If this PHI is a GAMMA, create a union of two ConditionalContents.
@@ -451,11 +474,17 @@ ContentSummary ContentAnalysisDriver::visitPHINode(llvm::PHINode &I) {
   }
 
   // Otherwise, return a conservative content.
+  set<llvm::Value *> incoming_values = {};
   vector<ContentSummary> incoming_contents = {};
   incoming_contents.reserve(I.getNumIncomingValues());
 
   for (auto i = 0; i < I.getNumIncomingValues(); ++i) {
     auto *incoming_value = I.getIncomingValue(i);
+    if (incoming_values.count(incoming_value) > 0) {
+      continue;
+    }
+
+    incoming_values.insert(incoming_value);
     incoming_contents.push_back(this->analyze(*incoming_value));
   }
   auto content = std::accumulate(
@@ -543,35 +572,7 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     }
 
     // Otherwise, get the content of the live out.
-    auto [live_out_domain, live_out_range] = this->analyze(*live_out);
-
-    // Fetch the content of the initial value.
-    auto [input_domain, input_range] = this->analyze(I.getInputCollection());
-
-    // Fetch the content of the collection being folded over.
-    auto [folded_domain, folded_range] = this->analyze(fold->getCollection());
-
-    // Substitute the function arguments with the operands.
-    auto *domain =
-        &live_out_domain->substitute(closed_argument, *input_domain)
-             .substitute(fold->getIndexArgument(),
-                         Content::create<KeysContent>(*folded_domain));
-    auto *range = &live_out_range->substitute(closed_argument, *input_range)
-                       .substitute(fold->getIndexArgument(),
-                                   Content::create<KeysContent>(*folded_range));
-
-    // If the element is non-void, fetch its content.
-    if (auto *elem_arg = fold->getElementArgument()) {
-      domain =
-          &domain->substitute(*elem_arg,
-                              Content::create<ElementsContent>(*folded_range));
-      range =
-          &range->substitute(*elem_arg,
-                             Content::create<ElementsContent>(*folded_range));
-    }
-
-    return { &Content::create<UnionContent>(*domain, *input_domain),
-             &Content::create<UnionContent>(*range, *input_range) };
+    return detail::contextualize_fold(*fold, this->analyze(*live_out));
   }
 
   // Handle direct calls.
@@ -617,19 +618,21 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     auto &operand = MEMOIR_SANITIZE(call->getArgOperand(arg_number),
                                     "Argument operand for CallBase is NULL");
     auto [operand_domain, operand_range] = this->analyze(operand);
+
     auto &argument = MEMOIR_SANITIZE(called_function->getArg(arg_number),
                                      "Argument is NULL");
-    auto &subst_domain = live_out_domain->substitute(argument, *operand_domain);
-    auto &subst_range = live_out_range->substitute(argument, *operand_range);
+    auto [arg_domain, arg_range] = detail::conservative(argument);
+
+    auto &subst_domain =
+        live_out_domain->substitute(*arg_domain, *operand_domain);
+    auto &subst_range = live_out_range->substitute(*arg_range, *operand_range);
 
     return { &subst_domain, &subst_range };
   }
 
   // For an indirect call, we will conservatively say that we know
   // nothing.
-  auto &content = detail::conservative(I.getCallInst());
-
-  return { &content, &content };
+  return detail::conservative(I.getCallInst());
 }
 
 void ContentAnalysisDriver::initialize() {
@@ -678,13 +681,55 @@ void ContentAnalysisDriver::initialize() {
 
 // =========================================================================
 // Simplification
-namespace detail {
 
-Content &simplify(llvm::Value &V, Content &C);
+Content *ContentAnalysisDriver::lookup_domain(llvm::Value &V) {
+  // TODO: testing
+  return NULL;
+  // Lookup the content.
+  auto found = this->result.find(&V);
+  if (found == this->result.end()) {
+    return nullptr;
+  }
 
-Content &simplify_conditional(llvm::Value &V, ConditionalContent &C) {
+  auto [domain, _] = found->second;
+
+  // The result must be in a simplified form.
+  if (isa<UnionContent>(domain)) {
+    return nullptr;
+  }
+
+  return domain;
+}
+
+Content *ContentAnalysisDriver::lookup_range(llvm::Value &V) {
+  // TODO: testing
+  return NULL;
+  // Lookup the content.
+  auto found = this->result.find(&V);
+  if (found == this->result.end()) {
+    return nullptr;
+  }
+
+  auto [_, range] = found->second;
+
+  // The result must be in a simplified form.
+  if (isa<UnionContent>(range)) {
+    return nullptr;
+  }
+
+  return range;
+}
+
+Content &ContentAnalysisDriver::simplifyConditionalContent(
+    ConditionalContent &C,
+    llvm::Value *V) {
   // Recurse.
-  auto &content = simplify(V, C.content());
+  auto &content = this->simplify(C.content(), V);
+
+  // empty | c == empty
+  if (isa<EmptyContent>(&content)) {
+    return content;
+  }
 
   // If recursion simplified the inner content, update ourselves.
   if (&content != &C.content()) {
@@ -697,28 +742,42 @@ Content &simplify_conditional(llvm::Value &V, ConditionalContent &C) {
   return C;
 }
 
-Content &simplify_indexed(llvm::Value &V, IndexedContent &C) {
-  auto &index = simplify(V, C.index());
-  auto &element = simplify(V, C.element());
+Content &ContentAnalysisDriver::simplifyKeysContent(KeysContent &C,
+                                                    llvm::Value *V) {
 
-  if (&index != &C.index() or &element != &C.element()) {
-    return Content::create<IndexedContent>(index, element);
+  // V :- Keys(V) == empty
+  if (V and &C.collection() == V) {
+    return Content::create<EmptyContent>();
+  }
+
+  if (auto *lookup = this->lookup_domain(C.collection())) {
+    return *lookup;
   }
 
   return C;
 }
 
-Content &simplify_union(llvm::Value &V, UnionContent &C) {
+Content &ContentAnalysisDriver::simplifyElementsContent(ElementsContent &C,
+                                                        llvm::Value *V) {
 
-  println("simplify ", C.to_string());
+  // V :- Elements(V) == empty
+  if (V and &C.collection() == V) {
+    return Content::create<EmptyContent>();
+  }
+
+  if (auto *lookup = this->lookup_range(C.collection())) {
+    return *lookup;
+  }
+
+  return C;
+}
+
+Content &ContentAnalysisDriver::simplifyUnionContent(UnionContent &C,
+                                                     llvm::Value *V) {
 
   // Unpack the union.
-  auto &lhs = simplify(V, C.lhs());
-  auto &rhs = simplify(V, C.rhs());
-
-  println("  simplified lhs ", lhs.to_string());
-  println("  simplified rhs ", rhs.to_string());
-  println();
+  auto &lhs = this->simplify(C.lhs(), V);
+  auto &rhs = this->simplify(C.rhs(), V);
 
   // C U empty = C
   if (isa<EmptyContent>(&rhs)) {
@@ -730,12 +789,9 @@ Content &simplify_union(llvm::Value &V, UnionContent &C) {
     return rhs;
   }
 
-  // Fixed-point simplification
-  // V :- C U V = V
-  if (auto *rhs_collection = dyn_cast<CollectionContent>(&rhs)) {
-    if (&rhs_collection->collection() == &V) {
-      return lhs;
-    }
+  // C U C = C
+  if (lhs == rhs) {
+    return lhs;
   }
 
   // [ ..., x, ... ] U [ ..., empty, ... ] = [ ..., x, ... ]
@@ -754,8 +810,8 @@ Content &simplify_union(llvm::Value &V, UnionContent &C) {
     llvm::memoir::vector<Content *> new_elements = {};
     new_elements.reserve(size);
     for (size_t i = 0; i < size; ++i) {
-      auto &lhs_elem = simplify(V, lhs_tuple->element(i));
-      auto &rhs_elem = simplify(V, rhs_tuple->element(i));
+      auto &lhs_elem = this->simplify(lhs_tuple->element(i), V);
+      auto &rhs_elem = this->simplify(rhs_tuple->element(i), V);
 
       // TODO: simplify lhs_elem and rhs_elem
 
@@ -797,47 +853,69 @@ Content &simplify_union(llvm::Value &V, UnionContent &C) {
   if (auto *rhs_union = dyn_cast<UnionContent>(&rhs)) {
     auto &rhs_lhs = rhs_union->lhs();
     auto &rhs_rhs = rhs_union->rhs();
-    auto &new_union = simplify(V, Content::create<UnionContent>(lhs, rhs_lhs));
+    auto &new_union =
+        this->simplify(Content::create<UnionContent>(lhs, rhs_lhs), V);
 
-    return simplify(V, Content::create<UnionContent>(new_union, rhs_rhs));
+    return this->simplify(Content::create<UnionContent>(new_union, rhs_rhs), V);
   }
 
   // If we weren't able to reassociate, create a new union content if any
   // sub-simplifications happened.
   if (&lhs != &C.lhs() or &rhs != &C.rhs()) {
-    return simplify(V, Content::create<UnionContent>(lhs, rhs));
+    return this->simplify(Content::create<UnionContent>(lhs, rhs), V);
   }
 
   return C;
 }
 
-// TODO
-Content &simplify(llvm::Value &V, Content &C) {
+Content &ContentAnalysisDriver::simplify(Content &C, llvm::Value *V) {
   // Dispatch to the appropriate content.
   // NOTE: this could be replaced with a ContentVisitor, but I don't want to
   // implement one unless we actually have need for it elsewhere.
   if (auto *union_content = dyn_cast<UnionContent>(&C)) {
-    return simplify_union(V, *union_content);
+    return this->simplifyUnionContent(*union_content, V);
   } else if (auto *cond_content = dyn_cast<ConditionalContent>(&C)) {
-    return simplify_conditional(V, *cond_content);
+    return this->simplifyConditionalContent(*cond_content, V);
+  } else if (auto *elements_content = dyn_cast<ElementsContent>(&C)) {
+    return this->simplifyElementsContent(*elements_content, V);
+  } else if (auto *keys_content = dyn_cast<KeysContent>(&C)) {
+    return this->simplifyKeysContent(*keys_content, V);
   }
 
   return C;
 }
 
-} // namespace detail
-
 void ContentAnalysisDriver::simplify() {
-  // For each content mapping, simplify it.
-  for (auto &[value, content] : this->result) {
-    // Simplify the content for the given value mapping.
-    const auto [domain, range] = content;
-    auto &simplified_domain = detail::simplify(*value, *domain);
-    auto &simplified_range = detail::simplify(*value, *range);
 
-    // Update the content mapping.
-    content.first = &simplified_domain;
-    content.second = &simplified_range;
+  int timeout = 10;
+  for (int i = 0; i < timeout; ++i) {
+
+    bool changed = false;
+
+    // For each content mapping, simplify it.
+    for (auto &[value, content] : this->result) {
+
+      // Simplify the content for the given value mapping.
+      const auto [domain, range] = content;
+
+      auto &simplified_domain = this->simplify(*domain, value);
+      if (simplified_domain != *domain) {
+        changed = true;
+      }
+
+      auto &simplified_range = this->simplify(*range, value);
+      if (simplified_range != *range) {
+        changed = true;
+      }
+
+      // Update the content mapping.
+      content.first = &simplified_domain;
+      content.second = &simplified_range;
+    }
+
+    if (not changed) {
+      break;
+    }
   }
 
   // Print the initial contents.
@@ -845,6 +923,10 @@ void ContentAnalysisDriver::simplify() {
   println("================================");
   println("Simplified contents:");
   for (const auto &[value, contents] : this->result) {
+    if (not into<RetPHIInst>(value) and not into<FoldInst>(value)) {
+      continue;
+    }
+
     println("domain(",
             value_name(*value),
             ") contains ",

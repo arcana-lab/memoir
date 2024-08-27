@@ -60,6 +60,16 @@ protected:
 
   ContentSummary visitPHINode(llvm::PHINode &I);
 
+  // Simplification
+  Content *lookup_domain(llvm::Value &V);
+  Content *lookup_range(llvm::Value &V);
+  Content &simplify(Content &C, llvm::Value *value = nullptr);
+  Content &simplifyUnionContent(UnionContent &C, llvm::Value *value);
+  Content &simplifyConditionalContent(ConditionalContent &C,
+                                      llvm::Value *value);
+  Content &simplifyElementsContent(ElementsContent &C, llvm::Value *value);
+  Content &simplifyKeysContent(KeysContent &C, llvm::Value *value);
+
   // Owned state.
   llvm::memoir::set<llvm::Value *> visited;
 
