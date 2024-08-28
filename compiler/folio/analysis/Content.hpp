@@ -1,6 +1,8 @@
 #include <numeric>
 #include <string>
 
+#include "llvm/Support/raw_ostream.h"
+
 #include "memoir/ir/Types.hpp"
 
 #include "memoir/support/InternalDatatypes.hpp"
@@ -40,6 +42,15 @@ struct Content {
   Content(ContentKind kind) : _kind(kind) {}
 
   virtual std::string to_string() const = 0;
+
+  friend std::ostream &operator<<(std::ostream &os, const Content &C) {
+    return os << C.to_string();
+  }
+
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                       const Content &C) {
+    return os << C.to_string();
+  }
 
   virtual bool operator==(Content &other) const = 0;
 
