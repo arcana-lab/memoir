@@ -54,6 +54,9 @@ protected:
 
   ContentSummary visitAssocKeysInst(llvm::memoir::AssocKeysInst &I);
 
+  ContentSummary contextualize_fold(
+      llvm::memoir::FoldInst &I,
+      std::optional<ContentSummary> input = std::nullopt);
   ContentSummary visitFoldInst(llvm::memoir::FoldInst &I);
   ContentSummary visitRetPHIInst(llvm::memoir::RetPHIInst &I);
   ContentSummary visitUsePHIInst(llvm::memoir::UsePHIInst &I);
@@ -63,6 +66,7 @@ protected:
   // Simplification
   Content *lookup_domain(llvm::Value &V);
   Content *lookup_range(llvm::Value &V);
+
   Content &simplify(Content &C, llvm::Value *value = nullptr);
   Content &simplifyUnionContent(UnionContent &C, llvm::Value *value);
   Content &simplifyConditionalContent(ConditionalContent &C,
@@ -72,6 +76,7 @@ protected:
 
   // Owned state.
   llvm::memoir::set<llvm::Value *> visited;
+  bool recurse;
 
   // Borrowed state.
   Contents &result;
