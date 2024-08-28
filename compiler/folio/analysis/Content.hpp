@@ -20,7 +20,6 @@ enum ContentKind {
   CONTENT_ELEMENTS,
   CONTENT_FIELD,
   CONTENT_CONDITIONAL,
-  CONTENT_INDEXED,
   CONTENT_TUPLE,
   CONTENT_UNION,
 };
@@ -484,55 +483,6 @@ protected:
   llvm::CmpInst::Predicate _predicate;
   Content &_lhs;
   Content &_rhs;
-};
-
-/**
- * Represents a content with index guarantees.
- */
-struct IndexedContent : public Content {
-  IndexedContent(Content &index, Content &element)
-    : Content(ContentKind::CONTENT_INDEXED),
-      _index(index),
-      _element(element) {}
-
-  std::string to_string() const override {
-    return "[" + this->_index.to_string() + "] = " + this->_element.to_string();
-  }
-
-  bool operator==(Content &other) const override {
-    auto *other_indexed = llvm::memoir::dyn_cast<IndexedContent>(&other);
-    if (not other_indexed) {
-      return false;
-    }
-
-    return (this->_index == other_indexed->_index)
-           and (this->_element == other_indexed->_element);
-  }
-
-  Content &substitute(Content &from, Content &to) override {
-    auto &subst_index = this->_index.substitute(from, to);
-    auto &subst_element = this->_element.substitute(from, to);
-    if (&subst_index == &this->_index and &subst_element == &this->_element) {
-      return *this;
-    }
-    return Content::create<IndexedContent>(subst_index, subst_element);
-  }
-
-  static bool classof(const Content *content) {
-    return content->kind() == ContentKind::CONTENT_INDEXED;
-  }
-
-  Content &index() {
-    return this->_index;
-  }
-
-  Content &element() {
-    return this->_element;
-  }
-
-protected:
-  Content &_index;
-  Content &_element;
 };
 
 /**
