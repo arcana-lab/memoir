@@ -466,6 +466,13 @@ static llvm::Value &contextualize_end(EndInst &end_inst,
   MEMOIR_NULL_CHECK(size_inst,
                     "Could not contextualize EndInst for InsertInst!");
 
+  // Propagate the selection metadata.
+  auto selection = Metadata::get<SelectionMetadata>(insert_inst);
+  if (selection.has_value()) {
+    auto metadata = Metadata::get_or_add<SelectionMetadata>(*size_inst);
+    metadata.setImplementation(selection->getImplementation());
+  }
+
   use.set(&size_inst->getCallInst());
 
   return size_inst->getCallInst();
@@ -480,6 +487,13 @@ static llvm::Value &contextualize_end(EndInst &end_inst,
   MEMOIR_NULL_CHECK(size_inst,
                     "Could not contextualize EndInst for RemoveInst!");
 
+  // Propagate the selection metadata.
+  auto selection = Metadata::get<SelectionMetadata>(remove_inst);
+  if (selection.has_value()) {
+    auto metadata = Metadata::get_or_add<SelectionMetadata>(*size_inst);
+    metadata.setImplementation(selection->getImplementation());
+  }
+
   use.set(&size_inst->getCallInst());
 
   return size_inst->getCallInst();
@@ -492,6 +506,13 @@ static llvm::Value &contextualize_end(EndInst &end_inst,
 
   auto *size_inst = builder.CreateSizeInst(&copy_inst.getCopiedCollection());
   MEMOIR_NULL_CHECK(size_inst, "Could not contextualize EndInst for CopyInst!");
+
+  // Propagate the selection metadata.
+  auto selection = Metadata::get<SelectionMetadata>(copy_inst);
+  if (selection.has_value()) {
+    auto metadata = Metadata::get_or_add<SelectionMetadata>(*size_inst);
+    metadata.setImplementation(selection->getImplementation());
+  }
 
   use.set(&size_inst->getCallInst());
 
@@ -514,6 +535,13 @@ static llvm::Value &contextualize_end(EndInst &end_inst,
   auto *size_inst = builder.CreateSizeInst(&collection);
   MEMOIR_NULL_CHECK(size_inst, "Could not contextualize EndInst for CopyInst!");
 
+  // Propagate the selection metadata.
+  auto selection = Metadata::get<SelectionMetadata>(swap_inst);
+  if (selection.has_value()) {
+    auto metadata = Metadata::get_or_add<SelectionMetadata>(*size_inst);
+    metadata.setImplementation(selection->getImplementation());
+  }
+
   use.set(&size_inst->getCallInst());
 
   return size_inst->getCallInst();
@@ -528,6 +556,13 @@ static llvm::Value &contextualize_end(EndInst &end_inst,
       builder.CreateSizeInst(&swap_within_inst.getFromCollection());
   MEMOIR_NULL_CHECK(size_inst,
                     "Could not contextualize EndInst for SeqSwapWithinInst!");
+
+  // Propagate the selection metadata.
+  auto selection = Metadata::get<SelectionMetadata>(swap_within_inst);
+  if (selection.has_value()) {
+    auto metadata = Metadata::get_or_add<SelectionMetadata>(*size_inst);
+    metadata.setImplementation(selection->getImplementation());
+  }
 
   use.set(&size_inst->getCallInst());
 
@@ -544,6 +579,13 @@ static llvm::Value &contextualize_end(EndInst &end_inst,
                       "Could not contextualize EndInst for IndexReadInst!");
 
   auto &size_value = size_inst.getCallInst();
+
+  // Propagate the selection metadata.
+  auto selection = Metadata::get<SelectionMetadata>(inst);
+  if (selection.has_value()) {
+    auto metadata = Metadata::get_or_add<SelectionMetadata>(size_value);
+    metadata.setImplementation(selection->getImplementation());
+  }
 
   auto *size_minus_one =
       builder.CreateSub(&size_value,
@@ -565,6 +607,13 @@ static llvm::Value &contextualize_end(EndInst &end_inst,
 
   auto &size_value = size_inst.getCallInst();
 
+  // Propagate the selection metadata.
+  auto selection = Metadata::get<SelectionMetadata>(inst);
+  if (selection.has_value()) {
+    auto metadata = Metadata::get_or_add<SelectionMetadata>(size_value);
+    metadata.setImplementation(selection->getImplementation());
+  }
+
   auto *size_minus_one =
       builder.CreateSub(&size_value,
                         llvm::ConstantInt::get(size_value.getType(), 1));
@@ -584,6 +633,13 @@ static llvm::Value &contextualize_end(EndInst &end_inst,
                       "Could not contextualize EndInst for IndexGetInst!");
 
   auto &size_value = size_inst.getCallInst();
+
+  // Propagate the selection metadata.
+  auto selection = Metadata::get<SelectionMetadata>(inst);
+  if (selection.has_value()) {
+    auto metadata = Metadata::get_or_add<SelectionMetadata>(size_value);
+    metadata.setImplementation(selection->getImplementation());
+  }
 
   auto *size_minus_one =
       builder.CreateSub(&size_value,
