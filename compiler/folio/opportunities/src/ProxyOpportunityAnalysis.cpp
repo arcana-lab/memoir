@@ -4,7 +4,8 @@
 
 namespace folio {
 
-Opportunities run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
+Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
+                                            llvm::ModuleAnalysisManager &MAM) {
 
   // The set of opportunities discovered by this analysis.
   // NOTE: opportunities must be allocated
