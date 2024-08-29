@@ -12,7 +12,14 @@ public:
 
   bool exploit() override;
 
+  ProxyOpportunity(llvm::Value &proxy,
+                   llvm::Value &proxied,
+                   llvm::memoir::set<llvm::Use *> uses_to_update);
+
 protected:
+  llvm::Value &proxy;
+  llvm::Value &proxied;
+  llvm::memoir::set<llvm::Use *> uses_to_update;
 };
 
 } // namespace folio
