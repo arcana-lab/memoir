@@ -1,3 +1,6 @@
+#ifndef FOLIO_ANALYSIS_CONTENT_H
+#define FOLIO_ANALYSIS_CONTENT_H
+
 #include <numeric>
 #include <string>
 
@@ -5,6 +8,7 @@
 
 #include "memoir/ir/Types.hpp"
 
+#include "memoir/support/Casting.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
 
@@ -13,11 +17,11 @@ namespace folio {
 enum ContentKind {
   CONTENT_UNDERDEFINED,
   CONTENT_EMPTY,
-  CONTENT_COLLECTION,
   CONTENT_STRUCT,
   CONTENT_SCALAR,
   CONTENT_KEY,
   CONTENT_KEYS,
+  CONTENT_RANGE,
   CONTENT_ELEMENT,
   CONTENT_ELEMENTS,
   CONTENT_FIELD,
@@ -276,6 +280,46 @@ struct KeysContent : public Content {
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_KEYS;
+  }
+
+  llvm::Value &collection() {
+    return this->_collection;
+  }
+
+protected:
+  llvm::Value &_collection;
+};
+
+/**
+ * Represents a contiguous range with size equal to the given collection.
+ */
+struct RangeContent : public Content {
+  RangeContent(llvm::Value &collection)
+    : Content(ContentKind::CONTENT_RANGE),
+      _collection(collection) {}
+
+  std::string to_string() const override {
+    return "range(" + llvm::memoir::value_name(this->_collection) + ")";
+  }
+
+  bool operator==(Content &other) const override {
+    auto *other_range = llvm::memoir::dyn_cast<RangeContent>(&other);
+    if (not other_range) {
+      return false;
+    }
+
+    return &this->_collection == &other_range->_collection;
+  }
+
+  Content &substitute(Content &from, Content &to) override {
+    if (from == *this) {
+      return to;
+    }
+    return *this;
+  }
+
+  static bool classof(const Content *content) {
+    return content->kind() == ContentKind::CONTENT_RANGE;
   }
 
   llvm::Value &collection() {
@@ -631,4 +675,9 @@ protected:
   Content &_rhs;
 };
 
+using ContentSummary = typename std::pair<Content *, Content *>;
+using Contents = typename llvm::memoir::map<llvm::Value *, ContentSummary>;
+
 } // namespace folio
+
+#endif // FOLIO_ANALYSIS_CONTENT_H
