@@ -11,6 +11,8 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "memoir/ir/Instructions.hpp"
+
 #include "memoir/support/InternalDatatypes.hpp"
 
 namespace llvm::memoir {
@@ -42,6 +44,15 @@ public:
 
   template <typename T>
   static bool remove(llvm::Instruction &I);
+
+  template <typename T>
+  static std::optional<T> get(MemOIRInst &I);
+
+  template <typename T>
+  static T get_or_add(MemOIRInst &I);
+
+  template <typename T>
+  static bool remove(MemOIRInst &I);
 
   // Constructor.
   Metadata(llvm::MDTuple &md) : md(&md) {}
