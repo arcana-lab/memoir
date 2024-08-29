@@ -213,10 +213,39 @@ int main() {
         memoir_assoc_insert(hist, i);
         memoir_assoc_write(u32, 1, hist, i);
       } else {
-        memoir_assoc_write(u32, memoir_assoc_read(u32, hist, i), hist, i);
+        memoir_assoc_write(u32, 1 + memoir_assoc_read(u32, hist, i), hist, i);
       }
 
       i = memoir_index_read(u32, seq, i);
     } while (i != 0);
+  }
+
+  TEST(while_loop2) {
+    // Initialize a ring.
+    auto ring = memoir_allocate_assoc_array(memoir_u32_t, memoir_u32_t);
+    for (uint32_t i = 0; i < 100; ++i) {
+      memoir_assoc_insert(ring, i);
+      memoir_assoc_write(u32, (i + 1) % 100, ring, i);
+    }
+
+    // Iterate over the sequence using a while loop, stopping when we've hit the
+    // root again.
+    auto hist = memoir_allocate_assoc_array(memoir_u32_t, memoir_u32_t);
+    uint32_t i = memoir_assoc_read(u32, ring, 0);
+    while (i != 0) {
+      if (not memoir_assoc_has(hist, i)) {
+        memoir_assoc_insert(hist, i);
+        memoir_assoc_write(u32, 1, hist, i);
+      } else {
+        memoir_assoc_write(u32, 1 + memoir_assoc_read(u32, hist, i), hist, i);
+      }
+
+      i = memoir_assoc_read(u32, ring, i);
+    }
+
+    EXPECT(not memoir_assoc_has(hist, 0), "shouldn't have visitied 0");
+    for (auto i = 1; i < 100; ++i) {
+      EXPECT(memoir_assoc_read(u32, hist, i) == 1, "!= 1");
+    }
   }
 }
