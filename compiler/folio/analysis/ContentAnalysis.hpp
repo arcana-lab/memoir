@@ -10,9 +10,6 @@
 
 namespace folio {
 
-using ContentSummary = typename std::pair<Content *, Content *>;
-using Contents = typename llvm::memoir::map<llvm::Value *, ContentSummary>;
-
 struct ContentAnalysisDriver
   : llvm::memoir::InstVisitor<ContentAnalysisDriver, ContentSummary> {
   friend class llvm::memoir::InstVisitor<ContentAnalysisDriver, ContentSummary>;
@@ -54,25 +51,13 @@ protected:
 
   ContentSummary visitAssocKeysInst(llvm::memoir::AssocKeysInst &I);
 
-  ContentSummary contextualize_fold(
-      llvm::memoir::FoldInst &I,
-      std::optional<ContentSummary> input = std::nullopt);
+  ContentSummary contextualize_fold(llvm::memoir::FoldInst &I,
+                                    ContentSummary summary);
   ContentSummary visitFoldInst(llvm::memoir::FoldInst &I);
   ContentSummary visitRetPHIInst(llvm::memoir::RetPHIInst &I);
   ContentSummary visitUsePHIInst(llvm::memoir::UsePHIInst &I);
 
   ContentSummary visitPHINode(llvm::PHINode &I);
-
-  // Simplification
-  Content *lookup_domain(llvm::Value &V);
-  Content *lookup_range(llvm::Value &V);
-
-  Content &simplify(Content &C, llvm::Value *value = nullptr);
-  Content &simplifyUnionContent(UnionContent &C, llvm::Value *value);
-  Content &simplifyConditionalContent(ConditionalContent &C,
-                                      llvm::Value *value);
-  Content &simplifyElementsContent(ElementsContent &C, llvm::Value *value);
-  Content &simplifyKeysContent(KeysContent &C, llvm::Value *value);
 
   // Owned state.
   llvm::memoir::set<llvm::Value *> visited;
