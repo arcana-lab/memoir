@@ -32,4 +32,6 @@ Opportunities OpportunityAnalysis::run(llvm::Module &M,
   return result;
 }
 
+llvm::AnalysisKey OpportunityAnalysis::Key;
+
 } // namespace folio
