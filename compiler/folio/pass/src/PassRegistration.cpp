@@ -9,6 +9,8 @@
 #include "folio/analysis/ConstraintInference.hpp"
 #include "folio/analysis/ContentAnalysis.hpp"
 
+#include "folio/opportunities/Analysis.hpp"
+
 using namespace folio;
 
 // Helper function to adapt function pass to a module pass.
@@ -27,35 +29,40 @@ static auto adapt(T &&fp) {
 // Register the passes and pipelines with the new pass manager
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
 llvmGetPassPluginInfo() {
-  return { LLVM_PLUGIN_API_VERSION,
-           "folio",
-           LLVM_VERSION_STRING,
-           [](llvm::PassBuilder &PB) {
-             // Register transforation passes.
-             PB.registerPipelineParsingCallback(
-                 [](llvm::StringRef name,
-                    llvm::ModulePassManager &MPM,
-                    llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
-                   if (name == "folio") {
-                     MPM.addPass(folio::FolioPass());
-                     return true;
-                   }
+  return {
+    LLVM_PLUGIN_API_VERSION,
+    "folio",
+    LLVM_VERSION_STRING,
+    [](llvm::PassBuilder &PB) {
+      // Register transforation passes.
+      PB.registerPipelineParsingCallback(
+          [](llvm::StringRef name,
+             llvm::ModulePassManager &MPM,
+             llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
+            if (name == "folio") {
+              MPM.addPass(folio::FolioPass());
+              return true;
+            }
 
-                   return false;
-                 });
+            return false;
+          });
 
-             // Register module analyses.
-             PB.registerAnalysisRegistrationCallback(
-                 [](llvm::ModuleAnalysisManager &MAM) {
-                   MAM.registerPass(
-                       [&] { return folio::ConstraintInference(); });
-                   MAM.registerPass([&] { return folio::ContentAnalysis(); });
-                 });
+      // Register module analyses.
+      PB.registerAnalysisRegistrationCallback(
+          [](llvm::ModuleAnalysisManager &MAM) {
+            MAM.registerPass([&] { return folio::ConstraintInference(); });
+            MAM.registerPass([&] { return folio::ContentAnalysis(); });
+            MAM.registerPass([&] { return folio::OpportunityAnalysis(); });
+#define OPPORTUNITY(CLASS)                                                     \
+  MAM.registerPass([&] { return folio::CLASS##Analysis(); });
+#include "folio/opportunities/Opportunities.def"
+          });
 
-             // Register function analyses.
-             PB.registerAnalysisRegistrationCallback(
-                 [](llvm::FunctionAnalysisManager &FAM) {
-                   // None.
-                 });
-           } };
+      // Register function analyses.
+      PB.registerAnalysisRegistrationCallback(
+          [](llvm::FunctionAnalysisManager &FAM) {
+            // None.
+          });
+    }
+  };
 }
