@@ -411,7 +411,8 @@ void SSAConstructionVisitor::visitMutAssocWriteInst(MutAssocWriteInst &I) {
   auto *def_phi_value = builder.CreateAssocWriteInst(*element_type,
                                                      &I.getValueWritten(),
                                                      collection_value,
-                                                     &I.getKeyOperand());
+                                                     &I.getKeyOperand(),
+                                                     I.getSubIndices());
 
   // Update the reaching definitions.
   this->set_reaching_definition(collection_orig, def_phi_value);
