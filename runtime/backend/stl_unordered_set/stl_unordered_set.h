@@ -16,6 +16,14 @@ extern "C" {
   typedef std::unordered_set<C_KEY> K##_##V##_stl_unordered_set_t;             \
   typedef K##_##V##_stl_unordered_set_t *K##_##V##_stl_unordered_set_p;        \
                                                                                \
+  typedef struct K##_##V##_stl_unordered_set_iter {                            \
+    C_KEY _key;                                                                \
+    K##_##V##_stl_unordered_set_t::iterator _it;                               \
+    K##_##V##_stl_unordered_set_t::iterator _ie;                               \
+  } K##_##V##_stl_unordered_set_iter_t;                                        \
+  typedef K##_##V##_stl_unordered_set_iter_t                                   \
+      *K##_##V##_stl_unordered_set_iter_p;                                     \
+                                                                               \
   cname alwaysinline used                                                      \
       K##_##V##_stl_unordered_set_p K##_##V##_stl_unordered_set__allocate(     \
           void) {                                                              \
@@ -62,6 +70,21 @@ extern "C" {
       (*keys)[i++] = key;                                                      \
     }                                                                          \
     return keys;                                                               \
+  }                                                                            \
+  cname alwaysinline used void K##_##V##_stl_unordered_set__begin(             \
+      K##_##V##_stl_unordered_set_iter_p iter,                                 \
+      K##_##V##_stl_unordered_set_p vec) {                                     \
+    iter->_it = vec->begin();                                                  \
+    iter->_ie = vec->end();                                                    \
+  }                                                                            \
+  cname alwaysinline used bool K##_##V##_stl_unordered_set__next(              \
+      K##_##V##_stl_unordered_set_iter_p iter) {                               \
+    if (iter->_it == iter->_ie) {                                              \
+      return false;                                                            \
+    }                                                                          \
+    iter->_key = *iter->_it;                                                   \
+    ++iter->_it;                                                               \
+    return true;                                                               \
   }
 
 } // extern "C"

@@ -16,6 +16,24 @@ extern "C" {
   typedef std::unordered_map<C_KEY, C_VALUE> K##_##V##_stl_unordered_map_t;    \
   typedef K##_##V##_stl_unordered_map_t *K##_##V##_stl_unordered_map_p;        \
                                                                                \
+  typedef struct K##_##V##_stl_unordered_map_iter {                            \
+    C_KEY _key;                                                                \
+    C_VALUE _val;                                                              \
+    K##_##V##_stl_unordered_map_t::iterator _it;                               \
+    K##_##V##_stl_unordered_map_t::iterator _ie;                               \
+  } K##_##V##_stl_unordered_map_iter_t;                                        \
+  typedef K##_##V##_stl_unordered_map_iter_t                                   \
+      *K##_##V##_stl_unordered_map_iter_p;                                     \
+                                                                               \
+  typedef struct K##_##V##_stl_unordered_map_riter {                           \
+    C_KEY _key;                                                                \
+    C_VALUE _val;                                                              \
+    K##_##V##_stl_unordered_map_t::reverse_iterator _it;                       \
+    K##_##V##_stl_unordered_map_t::reverse_iterator _ie;                       \
+  } K##_##V##_stl_unordered_map_riter_t;                                       \
+  typedef K##_##V##_stl_unordered_map_riter_t                                  \
+      *K##_##V##_stl_unordered_map_riter_p;                                    \
+                                                                               \
   cname alwaysinline used                                                      \
       K##_##V##_stl_unordered_map_p K##_##V##_stl_unordered_map__allocate(     \
           void) {                                                              \
@@ -83,6 +101,40 @@ extern "C" {
       (*keys)[i++] = key;                                                      \
     }                                                                          \
     return keys;                                                               \
+  }                                                                            \
+  cname alwaysinline used void K##_##V##_stl_unordered_map__begin(             \
+      K##_##V##_stl_unordered_map_iter_p iter,                                 \
+      K##_##V##_stl_unordered_map_p vec) {                                     \
+    iter->_it = vec->begin();                                                  \
+    iter->_ie = vec->end();                                                    \
+  }                                                                            \
+  cname alwaysinline used bool K##_##V##_stl_unordered_map__next(              \
+      K##_##V##_stl_unordered_map_iter_p iter) {                               \
+    if (iter->_it == iter->_ie) {                                              \
+      return false;                                                            \
+    }                                                                          \
+    auto [_key, _val] = *iter->_it;                                            \
+    iter->_key = _key;                                                         \
+    iter->_val = _val;                                                         \
+    ++iter->_it;                                                               \
+    return true;                                                               \
+  }                                                                            \
+  cname alwaysinline used void K##_##V##_stl_unordered_map__rbegin(            \
+      K##_##V##_stl_unordered_map_riter_p iter,                                \
+      K##_##V##_stl_unordered_map_p vec) {                                     \
+    iter->_it = vec->rbegin();                                                 \
+    iter->_ie = vec->rend();                                                   \
+  }                                                                            \
+  cname alwaysinline used bool K##_##V##_stl_unordered_map__rnext(             \
+      K##_##V##_stl_unordered_map_iter_p iter) {                               \
+    if (iter->_it == iter->_ie) {                                              \
+      return false;                                                            \
+    }                                                                          \
+    auto [_key, _val] = *iter->_it;                                            \
+    iter->_key = _key;                                                         \
+    iter->_val = _val;                                                         \
+    ++iter->_it;                                                               \
+    return true;                                                               \
   }
 
 } // extern "C"

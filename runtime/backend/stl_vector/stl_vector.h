@@ -1,10 +1,17 @@
-// Simple hash table implemented in C.
 #include <cstdint>
 #include <cstdio>
 
 #include <type_traits>
 
 #include <vector>
+
+#include <functional>
+
+#ifndef MEMOIR_BACKEND_CAT
+#  define MEMOIR_BACKEND_CAT_(A, B) A##B
+#  define MEMOIR_BACKEND_CAT(A, B) MEMOIR_BACKEND_CAT_(A, B)
+#  define KEY_(_TYPE) MEMOIR_BACKEND_CAT(USING_KEY_, _TYPE)
+#endif
 
 #define cname extern "C"
 #define alwaysinline __attribute__((always_inline)) inline
@@ -14,11 +21,25 @@
 #define B 60
 #define RESERVE_SIZE K + B + 1
 
-extern "C" {
-
 #define INSTANTIATE_stl_vector(T, C_TYPE)                                      \
   typedef std::vector<C_TYPE> T##_stl_vector_t;                                \
   typedef T##_stl_vector_t *T##_stl_vector_p;                                  \
+                                                                               \
+  typedef struct T##_stl_vector_iter {                                         \
+    size_t _idx;                                                               \
+    C_TYPE _val;                                                               \
+    std::vector<C_TYPE>::iterator _it;                                         \
+    std::vector<C_TYPE>::iterator _ie;                                         \
+  } T##_stl_vector_iter_t;                                                     \
+  typedef T##_stl_vector_iter_t *T##_stl_vector_iter_p;                        \
+                                                                               \
+  typedef struct T##_stl_vector_riter {                                        \
+    size_t _idx;                                                               \
+    C_TYPE _val;                                                               \
+    std::vector<C_TYPE>::reverse_iterator _it;                                 \
+    std::vector<C_TYPE>::reverse_iterator _ie;                                 \
+  } T##_stl_vector_riter_t;                                                    \
+  typedef T##_stl_vector_riter_t *T##_stl_vector_riter_p;                      \
                                                                                \
   cname alwaysinline used T##_stl_vector_p T##_stl_vector__allocate(           \
       size_t num) {                                                            \
@@ -112,11 +133,61 @@ extern "C" {
                                                                                \
   cname alwaysinline used size_t T##_stl_vector__size(T##_stl_vector_p vec) {  \
     return vec->size();                                                        \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used void T##_stl_vector__begin(                          \
+      T##_stl_vector_iter_p iter,                                              \
+      T##_stl_vector_p vec) {                                                  \
+    iter->_it = vec->begin();                                                  \
+    iter->_ie = vec->end();                                                    \
+    iter->_idx = 0;                                                            \
+  }                                                                            \
+  cname alwaysinline used bool T##_stl_vector__next(                           \
+      T##_stl_vector_iter_p iter) {                                            \
+    if (iter->_it == iter->_ie) {                                              \
+      return false;                                                            \
+    }                                                                          \
+    ++iter->_idx;                                                              \
+    iter->_val = *iter->_it;                                                   \
+    ++iter->_it;                                                               \
+    return true;                                                               \
+  }                                                                            \
+  cname alwaysinline used void T##_stl_vector__rbegin(                         \
+      T##_stl_vector_riter_p iter,                                             \
+      T##_stl_vector_p vec) {                                                  \
+    iter->_it = vec->rbegin();                                                 \
+    iter->_ie = vec->rend();                                                   \
+    iter->_idx = vec->size() - 1;                                              \
+  }                                                                            \
+  cname alwaysinline used bool T##_stl_vector__rnext(                          \
+      T##_stl_vector_iter_p iter) {                                            \
+    if (iter->_it == iter->_ie) {                                              \
+      return false;                                                            \
+    }                                                                          \
+    --iter->_idx;                                                              \
+    iter->_val = *iter->_it;                                                   \
+    ++iter->_it;                                                               \
+    return true;                                                               \
   }
 
 #define INSTANTIATE_NO_REF_stl_vector(T, C_TYPE)                               \
   typedef std::vector<C_TYPE> T##_stl_vector_t;                                \
   typedef T##_stl_vector_t *T##_stl_vector_p;                                  \
+  typedef struct T##_stl_vector_iter {                                         \
+    size_t _idx;                                                               \
+    C_TYPE _val;                                                               \
+    std::vector<C_TYPE>::iterator _it;                                         \
+    std::vector<C_TYPE>::iterator _ie;                                         \
+  } T##_stl_vector_iter_t;                                                     \
+  typedef T##_stl_vector_iter_t *T##_stl_vector_iter_p;                        \
+                                                                               \
+  typedef struct T##_stl_vector_riter {                                        \
+    size_t _idx;                                                               \
+    C_TYPE _val;                                                               \
+    std::vector<C_TYPE>::reverse_iterator _it;                                 \
+    std::vector<C_TYPE>::reverse_iterator _ie;                                 \
+  } T##_stl_vector_riter_t;                                                    \
+  typedef T##_stl_vector_riter_t *T##_stl_vector_riter_p;                      \
                                                                                \
   cname alwaysinline used T##_stl_vector_p T##_stl_vector__allocate(           \
       size_t num) {                                                            \
@@ -206,11 +277,62 @@ extern "C" {
                                                                                \
   cname alwaysinline used size_t T##_stl_vector__size(T##_stl_vector_p vec) {  \
     return vec->size();                                                        \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used void T##_stl_vector__begin(                          \
+      T##_stl_vector_iter_p iter,                                              \
+      T##_stl_vector_p vec) {                                                  \
+    iter->_it = vec->begin();                                                  \
+    iter->_ie = vec->end();                                                    \
+    iter->_idx = -1;                                                           \
+  }                                                                            \
+  cname alwaysinline used bool T##_stl_vector__next(                           \
+      T##_stl_vector_iter_p iter) {                                            \
+    if (iter->_it == iter->_ie) {                                              \
+      return false;                                                            \
+    }                                                                          \
+    iter->_val = *iter->_it;                                                   \
+    ++iter->_it;                                                               \
+    ++iter->_idx;                                                              \
+    return true;                                                               \
+  }                                                                            \
+  cname alwaysinline used void T##_stl_vector__rbegin(                         \
+      T##_stl_vector_riter_p iter,                                             \
+      T##_stl_vector_p vec) {                                                  \
+    iter->_it = vec->rbegin();                                                 \
+    iter->_ie = vec->rend();                                                   \
+    iter->_idx = vec->size();                                                  \
+  }                                                                            \
+  cname alwaysinline used bool T##_stl_vector__rnext(                          \
+      T##_stl_vector_iter_p iter) {                                            \
+    if (iter->_it == iter->_ie) {                                              \
+      return false;                                                            \
+    }                                                                          \
+    --iter->_idx;                                                              \
+    iter->_val = *iter->_it;                                                   \
+    ++iter->_it;                                                               \
+    return true;                                                               \
   }
 
 #define INSTANTIATE_NESTED_stl_vector(T, C_TYPE)                               \
   typedef std::vector<C_TYPE> T##_stl_vector_t;                                \
   typedef T##_stl_vector_t *T##_stl_vector_p;                                  \
+                                                                               \
+  typedef struct T##_stl_vector_iter {                                         \
+    size_t _idx;                                                               \
+    C_TYPE _val;                                                               \
+    std::vector<C_TYPE>::iterator _it;                                         \
+    std::vector<C_TYPE>::iterator _ie;                                         \
+  } T##_stl_vector_iter_t;                                                     \
+  typedef T##_stl_vector_iter_t *T##_stl_vector_iter_p;                        \
+                                                                               \
+  typedef struct T##_stl_vector_riter {                                        \
+    size_t _idx;                                                               \
+    C_TYPE _val;                                                               \
+    std::vector<C_TYPE>::reverse_iterator _it;                                 \
+    std::vector<C_TYPE>::reverse_iterator _ie;                                 \
+  } T##_stl_vector_riter_t;                                                    \
+  typedef T##_stl_vector_riter_t *T##_stl_vector_riter_p;                      \
                                                                                \
   cname alwaysinline used T##_stl_vector_p T##_stl_vector__allocate(           \
       size_t num) {                                                            \
@@ -305,6 +427,39 @@ extern "C" {
                                                                                \
   cname alwaysinline used size_t T##_stl_vector__size(T##_stl_vector_p vec) {  \
     return vec->size();                                                        \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used void T##_stl_vector__begin(                          \
+      T##_stl_vector_iter_p iter,                                              \
+      T##_stl_vector_p vec) {                                                  \
+    iter->_it = vec->begin();                                                  \
+    iter->_ie = vec->end();                                                    \
+    iter->_idx = -1;                                                           \
+  }                                                                            \
+  cname alwaysinline used bool T##_stl_vector__next(                           \
+      T##_stl_vector_iter_p iter) {                                            \
+    if (iter->_it == iter->_ie) {                                              \
+      return false;                                                            \
+    }                                                                          \
+    ++iter->_idx;                                                              \
+    iter->_val = *iter->_it;                                                   \
+    ++iter->_it;                                                               \
+    return true;                                                               \
+  }                                                                            \
+  cname alwaysinline used void T##_stl_vector__rbegin(                         \
+      T##_stl_vector_riter_p iter,                                             \
+      T##_stl_vector_p vec) {                                                  \
+    iter->_it = vec->rbegin();                                                 \
+    iter->_ie = vec->rend();                                                   \
+    iter->_idx = vec->size();                                                  \
+  }                                                                            \
+  cname alwaysinline used bool T##_stl_vector__rnext(                          \
+      T##_stl_vector_iter_p iter) {                                            \
+    if (iter->_it == iter->_ie) {                                              \
+      return false;                                                            \
+    }                                                                          \
+    --iter->_idx;                                                              \
+    iter->_val = *iter->_it;                                                   \
+    ++iter->_it;                                                               \
+    return true;                                                               \
   }
-
-} // extern "C"
