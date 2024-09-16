@@ -84,6 +84,127 @@ bool propagate(ordered_multimap<llvm::Value *, std::string> &selections,
   return changed;
 }
 
+void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
+               vector<llvm::Value *> &worklist,
+               llvm::Module &M,
+               llvm::Value &from,
+               llvm::Use &use) {
+  // Unpack the use.
+  auto *user = use.getUser();
+  auto operand_no = use.getOperandNo();
+
+  // Ensure that the user is not NULL.
+  if (not user) {
+    return;
+  }
+
+  // Handle each use case in turn.
+  if (auto *memoir_inst = into<MemOIRInst>(user)) {
+
+    if (auto *insert_seq = dyn_cast<SeqInsertSeqInst>(memoir_inst)) {
+
+      // If the use is the base collection, propagate.
+      if (insert_seq->getBaseCollectionAsUse().getOperandNo() == operand_no) {
+        if (detail::propagate(selections, from, *user)) {
+          worklist.push_back(user);
+        }
+      }
+
+    } else if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
+
+      if (fold->getCollectionAsUse().getOperandNo() == operand_no) {
+        // If the use is the collection being folded over.
+
+        // Propagate to the instruction, don't recurse.
+        detail::propagate(selections, from, fold->getResult());
+
+      } else if (fold->getInitialAsUse().getOperandNo() == operand_no) {
+        // If the use is the initial value:
+
+        // Propagate to uses of the resultant.
+        auto &result = fold->getResult();
+        for (auto &result_use : result.uses()) {
+          detail::propagate(selections, worklist, M, from, result_use);
+        }
+
+        // Propagate to the corresponding argument.
+        auto &argument = fold->getAccumulatorArgument();
+        if (detail::propagate(selections, from, argument)) {
+          worklist.push_back(&argument);
+        }
+
+      } else {
+        // Otherwise, the collection is closed on, propagate to the
+        // corresponding argument, but don't recurse.
+        auto &argument = fold->getClosedArgument(use);
+        detail::propagate(selections, from, argument);
+      }
+
+    } else if (isa<WriteInst>(memoir_inst) or isa<InsertInst>(memoir_inst)
+               or isa<RemoveInst>(memoir_inst) or isa<SwapInst>(memoir_inst)
+               or isa<UsePHIInst>(memoir_inst) or isa<DefPHIInst>(memoir_inst)
+               or isa<RetPHIInst>(memoir_inst) or isa<CopyInst>(memoir_inst)) {
+      // If the memoir operation is a partial redefinition of the input
+      // collection, propagate.
+      if (detail::propagate(selections, from, *user)) {
+        worklist.push_back(user);
+      }
+
+    } else if (isa<AccessInst>(memoir_inst) or isa<AssocHasInst>(memoir_inst)
+               or isa<AssocKeysInst>(memoir_inst)
+               or isa<DeleteCollectionInst>(memoir_inst)
+               or isa<SizeInst>(memoir_inst)) {
+      // If the memoir operation is an access to the input collection,
+      // propagate, but don't recurse.
+      detail::propagate(selections, from, *user);
+    }
+
+  } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+    // Propagate to the PHI.
+    if (detail::propagate(selections, from, *phi)) {
+      worklist.push_back(phi);
+    }
+
+  } else if (auto *extract = dyn_cast<llvm::ExtractValueInst>(user)) {
+    // Propagate to the extracted value.
+    if (detail::propagate(selections, from, *extract)) {
+      worklist.push_back(extract);
+    }
+
+  } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
+    // Propagate to _all_ possible callee arguments.
+
+    // If this is a direct call, propagate to it.
+    if (auto *called_function = call->getCalledFunction()) {
+      auto &argument = MEMOIR_SANITIZE(called_function->getArg(operand_no),
+                                       "Argument out of range.");
+      if (detail::propagate(selections, from, argument)) {
+        worklist.push_back(&argument);
+      }
+    }
+
+    // Otherwise, find all possible callees and propagate to them.
+    else {
+      auto *function_type = call->getFunctionType();
+
+      // For each function that shares this function type.
+      for (auto &F : M) {
+        if (F.empty()) {
+          continue;
+        }
+
+        if (F.getFunctionType() == function_type) {
+          auto &argument =
+              MEMOIR_SANITIZE(F.getArg(operand_no), "Argument out of range.");
+          if (detail::propagate(selections, from, argument)) {
+            worklist.push_back(&argument);
+          }
+        }
+      }
+    }
+  }
+}
+
 void propagate_declarations(
     ordered_multimap<llvm::Value *, std::string> &selections,
     llvm::Module &M) {
@@ -108,111 +229,7 @@ void propagate_declarations(
 
     // For each use of the current value:
     for (auto &use : current->uses()) {
-
-      // Unpack the use.
-      auto *user = use.getUser();
-      auto operand_no = use.getOperandNo();
-
-      // Ensure that the user is not NULL.
-      if (not user) {
-        continue;
-      }
-
-      // Handle each use case in turn.
-      if (auto *memoir_inst = into<MemOIRInst>(user)) {
-
-        if (auto *insert_seq = dyn_cast<SeqInsertSeqInst>(memoir_inst)) {
-
-          // If the use is the base collection, propagate.
-          if (insert_seq->getBaseCollectionAsUse().getOperandNo()
-              == operand_no) {
-            if (detail::propagate(selections, *current, *user)) {
-              worklist.push_back(user);
-            }
-          }
-
-        } else if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
-
-          if (fold->getInitialAsUse().getOperandNo() == operand_no) {
-            // If the use is the initial value, propagate to the resultant.
-            if (detail::propagate(selections, *current, fold->getResult())) {
-              worklist.push_back(user);
-            }
-
-          } else {
-            // Otherwise, the collection is closed on, propagate to the
-            // corresponding argument.
-            auto &argument = fold->getClosedArgument(use);
-            if (detail::propagate(selections, *current, argument)) {
-              worklist.push_back(user);
-            }
-          }
-
-        } else if (isa<WriteInst>(memoir_inst) or isa<InsertInst>(memoir_inst)
-                   or isa<RemoveInst>(memoir_inst) or isa<SwapInst>(memoir_inst)
-                   or isa<UsePHIInst>(memoir_inst)
-                   or isa<DefPHIInst>(memoir_inst)
-                   or isa<RetPHIInst>(memoir_inst)
-                   or isa<CopyInst>(memoir_inst)) {
-          // If the memoir operation is a partial redefinition of the input
-          // collection, propagate.
-          if (detail::propagate(selections, *current, *user)) {
-            worklist.push_back(user);
-          }
-
-        } else if (isa<AccessInst>(memoir_inst)
-                   or isa<AssocKeysInst>(memoir_inst)
-                   or isa<DeleteCollectionInst>(memoir_inst)
-                   or isa<SizeInst>(memoir_inst)) {
-          // If the memoir operation is an access to the input collection,
-          // propagate, but don't recurse.
-          detail::propagate(selections, *current, *user);
-        }
-
-      } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-        // Propagate to the PHI.
-        if (detail::propagate(selections, *current, *phi)) {
-          worklist.push_back(phi);
-        }
-
-      } else if (auto *extract = dyn_cast<llvm::ExtractValueInst>(user)) {
-        // Propagate to the extracted value.
-        if (detail::propagate(selections, *current, *extract)) {
-          worklist.push_back(extract);
-        }
-
-      } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
-        // Propagate to _all_ possible callee arguments.
-
-        // If this is a direct call, propagate to it.
-        if (auto *called_function = call->getCalledFunction()) {
-          auto &argument = MEMOIR_SANITIZE(called_function->getArg(operand_no),
-                                           "Argument out of range.");
-          if (detail::propagate(selections, *current, argument)) {
-            worklist.push_back(&argument);
-          }
-        }
-
-        // Otherwise, find all possible callees and propagate to them.
-        else {
-          auto *function_type = call->getFunctionType();
-
-          // For each function that shares this function type.
-          for (auto &F : M) {
-            if (F.empty()) {
-              continue;
-            }
-
-            if (F.getFunctionType() == function_type) {
-              auto &argument = MEMOIR_SANITIZE(F.getArg(operand_no),
-                                               "Argument out of range.");
-              if (detail::propagate(selections, *current, argument)) {
-                worklist.push_back(&argument);
-              }
-            }
-          }
-        }
-      }
+      detail::propagate(selections, worklist, M, *current, use);
     }
   }
 
