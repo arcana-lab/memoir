@@ -76,7 +76,7 @@ clang++ ${IMPL_CPP_FILE} -O3 -c -emit-llvm -I$(memoir-config --includedir) -std=
 llvm-link ${IR_FILE} ${IMPL_IR_FILE} -o ${IR_FILE}
 
 # Peform SSA destruction.
-memoir-load -passes=memoir-lower-fold,memoir-ssa-destruction ${IR_FILE} -o ${OUTPUT_IR_FILE}
+memoir-load -passes=memoir-ssa-destruction ${IR_FILE} -o ${OUTPUT_IR_FILE}
 
 # Cleanup.
 rm -rf ${TEMP_DIR}

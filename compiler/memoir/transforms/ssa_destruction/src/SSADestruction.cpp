@@ -10,6 +10,8 @@
 #include "memoir/lowering/ImplLinker.hpp"
 #include "memoir/lowering/TypeLayout.hpp"
 
+#include "memoir/lowering/LowerFold.hpp"
+
 #include "SSADestruction.hpp"
 
 #define ASSOC_IMPL "stl_unordered_map"
@@ -425,18 +427,9 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
       dyn_cast_or_null<CollectionType>(type_of(I.getCollection())),
       "Couldn't determine type of collection");
 
-  std::string name;
-  if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
-    auto prefix =
-        ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
-
-    name = prefix + "__size";
-  } else if (auto *assoc_type = dyn_cast<AssocArrayType>(&collection_type)) {
-    auto prefix =
-        ImplLinker::get_implementation_prefix(I.getCallInst(), *assoc_type);
-
-    name = prefix + "__size";
-  }
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), collection_type);
+  std::string name = prefix + "__size";
 
   auto function_callee = detail::get_function_callee(this->M, name);
 
@@ -1812,6 +1805,12 @@ void SSADestructionVisitor::visitArgPHIInst(ArgPHIInst &I) {
 
 void SSADestructionVisitor::visitRetPHIInst(RetPHIInst &I) {
 
+  // If the called instruction is a fold, skip the ret phi!
+  auto *function = I.getCalledFunction();
+  if (function and FunctionNames::is_memoir_call(*function)) {
+    return;
+  }
+
   auto &input_collection = I.getInputCollection();
   auto &collection = I.getResultCollection();
 
@@ -1822,6 +1821,44 @@ void SSADestructionVisitor::visitRetPHIInst(RetPHIInst &I) {
     this->coalesce(collection, input_collection);
   }
 
+  this->markForCleanup(I);
+
+  return;
+}
+
+// Fold instruction.
+void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
+
+  // Fetch the iterator functions.
+  auto &collection_type = MEMOIR_SANITIZE(
+      dyn_cast_or_null<CollectionType>(type_of(I.getCollection())),
+      "Couldn't determine collection type");
+
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), collection_type);
+
+  auto begin_name = prefix + (I.isReverse() ? "__rbegin" : "__begin");
+  auto next_name = prefix + (I.isReverse() ? "__rnext" : "__next");
+
+  // Get the functions to call.
+  auto begin_function_callee = detail::get_function_callee(this->M, begin_name);
+  auto next_function_callee = detail::get_function_callee(this->M, next_name);
+
+  // Unpack the functions.
+  auto *begin_func = cast<llvm::Function>(begin_function_callee.getCallee());
+  auto *next_func = cast<llvm::Function>(next_function_callee.getCallee());
+
+  // Fetch the iterator and element types.
+  auto iter_struct_name = "struct." + prefix + "_iter";
+
+  auto &iter_type = MEMOIR_SANITIZE(
+      llvm::StructType::getTypeByName(M.getContext(), iter_struct_name),
+      "Could not find or create the LLVM StructType for iterator");
+
+  // Invoke the LowerFold utility.
+  lower_fold(I, begin_func, next_func, &iter_type);
+
+  // TODO: Do we need to coalesce here?
   this->markForCleanup(I);
 
   return;
