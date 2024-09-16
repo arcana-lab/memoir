@@ -508,8 +508,6 @@ bool lower_fold(FoldInst &I,
     found_ret_phi->getCallInst().eraseFromParent();
   }
 
-  println(*I.getCallInst().getFunction());
-
   return true;
 
   // Now, try to inline the fold function.
