@@ -105,6 +105,70 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
           // Implement the struct.
           IL.implement_type(struct_layout);
         }
+
+        // Also handle instructions that don't have selections.
+        else {
+          // Check that the instruction doesnt already have a selection
+          // metadata.
+          if (Metadata::get<SelectionMetadata>(I)) {
+            continue;
+          }
+
+          // Only handle memoir instructions.
+          auto *inst = into<MemOIRInst>(&I);
+          if (not inst) {
+            continue;
+          }
+
+#define SET_IMPL "stl_unordered_set"
+#define SEQ_IMPL "stl_vector"
+#define ASSOC_IMPL "stl_unordered_map"
+
+          // Get the type of the collection being operated on.
+          Type *type = nullptr;
+          if (auto *access = dyn_cast<AccessInst>(inst)) {
+            type = type_of(access->getObjectOperand());
+          } else if (auto *insert = dyn_cast<InsertInst>(inst)) {
+            type = type_of(insert->getBaseCollection());
+          } else if (auto *remove = dyn_cast<RemoveInst>(inst)) {
+            type = type_of(remove->getBaseCollection());
+          } else if (auto *fold = dyn_cast<FoldInst>(inst)) {
+            type = type_of(fold->getCollection());
+          } else if (auto *copy = dyn_cast<CopyInst>(inst)) {
+            type = type_of(copy->getCopiedCollection());
+          } else if (auto *swap = dyn_cast<SwapInst>(inst)) {
+            type = type_of(swap->getFromCollection());
+          } else if (auto *size = dyn_cast<SizeInst>(inst)) {
+            type = type_of(size->getCollection());
+          } else if (auto *keys = dyn_cast<AssocKeysInst>(inst)) {
+            type = type_of(keys->getCollection());
+          }
+
+          // If we couldn't determine a type, skip it.
+          if (not type) {
+            continue;
+          }
+
+          // Link the default implementation.
+          if (auto *seq_type = dyn_cast<SequenceType>(type)) {
+            // Get the type layout for the element type.
+            auto &element_layout = TC.convert(seq_type->getElementType());
+
+            // Implement the sequence.
+            IL.implement_seq(SEQ_IMPL, element_layout);
+
+          } else if (auto *assoc_type = dyn_cast<AssocArrayType>(type)) {
+            // Get the type layout for the key and value types.
+            auto &key_layout = TC.convert(assoc_type->getKeyType());
+            auto &val_layout = TC.convert(assoc_type->getValueType());
+
+            if (isa<VoidType>(assoc_type)) {
+              IL.implement_assoc(SET_IMPL, key_layout, val_layout);
+            } else {
+              IL.implement_assoc(ASSOC_IMPL, key_layout, val_layout);
+            }
+          }
+        }
       }
     }
   }
