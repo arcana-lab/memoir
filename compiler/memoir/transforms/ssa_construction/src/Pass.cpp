@@ -2,13 +2,14 @@
 #include <string>
 
 // LLVM
-#include "llvm/IR/PassManager.h"
-
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/PassManager.h"
+
+#include "llvm/Transforms/Utils/Cloning.h"
 
 #include "llvm/Analysis/DominanceFrontier.h"
 
@@ -327,6 +328,39 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
 
     infoln("END: ", F.getName());
     infoln("=========================");
+  }
+
+  // Finally, we will create unique functions for each fold instruction.
+  for (auto &F : M) {
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+
+        // For each fold.
+        auto *fold = into<FoldInst>(&I);
+        if (not fold) {
+          continue;
+        }
+
+        // Create a unique copy of the called function, if necessary.
+        auto &function = fold->getFunction();
+
+        // If the function is internal and this is the only user, we don't need
+        // to create a copy of it.
+        if (function.hasInternalLinkage() and function.hasOneUse()) {
+          continue;
+        }
+
+        // Clone the function.
+        llvm::ValueToValueMapTy vmap;
+        llvm::ClonedCodeInfo clone_info;
+        auto &clone =
+            MEMOIR_SANITIZE(llvm::CloneFunction(&function, vmap, &clone_info),
+                            "Failed to clone function for FoldInst");
+
+        // Set the function for the fold.
+        fold->getFunctionOperandAsUse().set(&clone);
+      }
+    }
   }
 
   infoln("=========================");
