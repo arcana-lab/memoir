@@ -28,4 +28,8 @@ uint32_t FormulaEnvironment::get_id(llvm::Value &V) {
   return id;
 }
 
+llvm::Module &FormulaEnvironment::module() const {
+  return this->M;
+}
+
 } // namespace folio

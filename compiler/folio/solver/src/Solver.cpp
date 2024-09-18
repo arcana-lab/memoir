@@ -10,6 +10,7 @@
 #include "memoir/support/Print.hpp"
 
 // Folio
+#include "folio/opportunities/Opportunities.hpp"
 #include "folio/solver/Solver.hpp"
 
 using namespace llvm::memoir;
@@ -90,15 +91,16 @@ void Solver::parse_model(clingo_model_t const *model) {
       // Add the selection to the candidate.
       candidate._selections[&value] = selected;
 
-    } else if (name.substr(0, 3) == "use") {
-      // Fetch the opportunity being used.
-      auto opportunity_str = name.substr(3);
-
+    } else if (name == "exploit") {
       // Fetch the opportunity ID.
       int opportunity_id;
       if (not clingo_symbol_number(arguments[0], &opportunity_id)) {
-        warnln("Failed to get opportunity ID.");
+        warnln("Failed to get opportunity id's string");
+        break;
       }
+      auto *opportunity = this->_opportunities.at(opportunity_id);
+
+      candidate._opportunities.insert(opportunity);
 
     } else {
       warnln("Unknown atom, ", name, ", skipping");
@@ -200,11 +202,6 @@ std::string Solver::formulate() {
     formula += impl_rule;
   }
 
-  // Formulate the constraint that all collections have a selection.
-  // auto all_selected = "collection(C) :- ";
-  // for (auto impl : this->_implementations) {
-  // }
-
   // Formulate all of the selectable collections and their constraints.
   set<Type *> derived_types = {};
   for (auto *decl : this->_selectable) {
@@ -278,25 +275,53 @@ std::string Solver::formulate() {
   }
 
   // Formulate all of the opportunities.
-  // TODO
+#define OPPORTUNITY(CLASS)                                                     \
+  formula += Opportunity::formulate<CLASS>(this->_env) + "\n";
+#include "folio/opportunities/Opportunities.def"
+
+  uint64_t opportunity_id = 0;
+  for (auto *opportunity : this->_opportunities) {
+    // Formulate the opportunity.
+    auto [opportunity_head, opportunity_formula] =
+        opportunity->formulate(this->_env);
+
+    // Append the formula.
+    formula += opportunity_formula;
+
+    // Wrap the head of the opportunity in an option.
+    auto exploit = "exploit(" + std::to_string(opportunity_id) + ")";
+    formula += exploit + " :- " + opportunity_head + ".\n";
+
+    auto ignore = "ignore(" + std::to_string(opportunity_id) + ")";
+    formula += ignore + " :- not " + opportunity_head + ".";
+
+    formula += ":- " + exploit + ", " + ignore + ".\n";
+
+    ++opportunity_id;
+  }
 
   // Specify that selections should be emitted.
-  formula += "#show select/2.";
+  formula += "#show select/2. #show exploit/1.";
 
   // Specify that opportunities and their negations should be emitted.
   // TODO
 
+  println("FORMULA");
+  println(formula);
+
   return formula;
 }
 
-Solver::Solver(const llvm::memoir::set<llvm::Value *> &selectable,
+Solver::Solver(llvm::Module &M,
+               const llvm::memoir::set<llvm::Value *> &selectable,
                Constraints &constraints,
                const Opportunities &opportunities,
                const Implementations &implementations)
   : _selectable{ selectable },
     _constraints{ constraints },
     _opportunities{ opportunities },
-    _implementations{ implementations } {
+    _implementations{ implementations },
+    _env{ M } {
 
   // Formulate the ASP problem.
   std::string formula = this->formulate();

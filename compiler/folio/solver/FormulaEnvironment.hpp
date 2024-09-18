@@ -27,7 +27,12 @@ public:
    */
   uint32_t get_id(llvm::Value &V);
 
+  llvm::Module &module() const;
+
+  FormulaEnvironment(llvm::Module &M) : M(M) {}
+
 protected:
+  llvm::Module &M;
   llvm::memoir::map<llvm::Value *, uint32_t> _value_ids = {};
   llvm::memoir::map<uint32_t, llvm::Value *> _id_values = {};
   uint32_t _current_id = 0;

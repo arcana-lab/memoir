@@ -30,6 +30,13 @@ public:
     return this->_selections;
   }
 
+  /**
+   * Get the set of opportunities exploited by this candidate.
+   */
+  const llvm::memoir::set<Opportunity *> opportunities() const {
+    return this->_opportunities;
+  }
+
 protected:
   llvm::memoir::map<llvm::Value *, const Implementation *> _selections;
   llvm::memoir::set<Opportunity *> _opportunities;
@@ -53,7 +60,8 @@ public:
    * @param opportunities the opportunities that can be exploited
    * @param implementations the set of available implementations
    */
-  Solver(const llvm::memoir::set<llvm::Value *> &selectable,
+  Solver(llvm::Module &M,
+         const llvm::memoir::set<llvm::Value *> &selectable,
          Constraints &constraints,
          const Opportunities &opportunities,
          const Implementations &implementations);
