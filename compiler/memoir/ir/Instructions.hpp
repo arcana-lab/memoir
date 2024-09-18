@@ -1369,6 +1369,13 @@ public:
    */
   llvm::Argument &getClosedArgument(llvm::Use &use) const;
 
+  /**
+   * Fetch the operand use that will be passed to the given argument.
+   * @param arg the argument
+   * @returns the operand use corresponding to the argument
+   */
+  llvm::Use &getOperandForArgument(llvm::Argument &arg) const;
+
   std::string toString(std::string indent = "") const override;
 
   static bool classof(const MemOIRInst *I) {

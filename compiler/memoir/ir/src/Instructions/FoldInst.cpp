@@ -88,6 +88,40 @@ llvm::Argument &FoldInst::getClosedArgument(llvm::Use &U) const {
   return arg;
 }
 
+llvm::Use &FoldInst::getOperandForArgument(llvm::Argument &A) const {
+  // Get the collection type.
+  auto &collection_type = MEMOIR_SANITIZE(
+      dyn_cast_or_null<CollectionType>(type_of(this->getCollection())),
+      "FoldInst over a non-collection");
+  auto &element_type = collection_type.getElementType();
+
+  // If the element type is void, the first closed argument
+  // is at operand 2, otherwise operand 3.
+  auto first_closed =
+      (isa<VoidType>(&collection_type.getElementType())) ? 2 : 3;
+
+  // Get the argument number.
+  auto arg_no = A.getArgNo();
+
+  switch (arg_no) {
+    case 0:
+      return this->getInitialAsUse();
+    case 1:
+      return this->getCollectionAsUse();
+    case 2:
+      if (not isa<VoidType>(&element_type)) {
+        return this->getCollectionAsUse();
+      }
+    default:
+      break;
+  }
+
+  // Calculate the corresponding operand number.
+  auto closed_no = arg_no - first_closed;
+
+  return this->getClosedAsUse(closed_no);
+}
+
 TO_STRING(FoldInst)
 
 } // namespace llvm::memoir
