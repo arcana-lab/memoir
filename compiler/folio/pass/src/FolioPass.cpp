@@ -92,18 +92,33 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
       SeqImplementation("stl_vector", { PointerStableConstraint() }) },
     // { "stl_list", SeqImplementation("stl_list", {}) },
     { "stl_unordered_map",
-      AssocImplementation("stl_unordered_map", { PointerStableConstraint() }) },
+      AssocImplementation("stl_unordered_map",
+                          { OperationConstraint<ReverseFoldInst>() }) },
     { "stl_map", AssocImplementation("stl_map", {}) },
-    { "stl_unordered_set", SetImplementation("stl_unordered_set", {}) },
+    { "stl_unordered_set",
+      SetImplementation("stl_unordered_set",
+                        { OperationConstraint<ReverseFoldInst>() }) },
   };
 
   // Pass the analysis results to the solver.
-  Solver solver(selectable, constraints, opportunities, implementations);
+  Solver solver(M, selectable, constraints, opportunities, implementations);
 
   // If there are no candidates, we're all done.
   if (solver.candidates().empty()) {
-    println("Empty candidate");
+    infoln("No candidates generated.");
     return llvm::PreservedAnalyses::all();
+  }
+
+  // DEBUG: print the list of candidates.
+  auto candidate_index = 0;
+  for (auto &candidate : solver.candidates()) {
+    debugln("Candidate ", std::to_string(candidate_index++));
+    for (const auto &[def, selection] : candidate.selections()) {
+      debugln("  ", value_name(*def), " : ", selection->name());
+    }
+    auto num_exploited = candidate.opportunities().size();
+    debugln("  ", std::to_string(num_exploited), " opportunities exploited.");
+    debugln();
   }
 
   // Select a candidate.
