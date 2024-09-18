@@ -2,6 +2,8 @@
 
 #include "llvm/IR/PassManager.h"
 
+#include "llvm/Analysis/LoopInfo.h"
+
 #include "memoir/ir/InstVisitor.hpp"
 
 #include "memoir/support/InternalDatatypes.hpp"
@@ -17,7 +19,9 @@ struct ContentAnalysisDriver
 
 public:
   // Constructor.
-  ContentAnalysisDriver(Contents &result, llvm::Module &M);
+  ContentAnalysisDriver(Contents &result,
+                        llvm::Module &M,
+                        std::function<llvm::Loop *(llvm::PHINode &)>);
 
 protected:
   // Driver methods.
@@ -62,6 +66,7 @@ protected:
   // Owned state.
   llvm::memoir::set<llvm::Value *> visited;
   bool recurse;
+  std::function<llvm::Loop *(llvm::PHINode &)> get_loop_for;
 
   // Borrowed state.
   Contents &result;

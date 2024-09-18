@@ -7,6 +7,7 @@
 #include "memoir/ir/TypeCheck.hpp"
 
 #include "memoir/support/Casting.hpp"
+#include "memoir/support/PassUtils.hpp"
 #include "memoir/support/Print.hpp"
 
 #include "memoir/utility/Metadata.hpp"
@@ -96,6 +97,38 @@ ContentSummary ContentAnalysisDriver::analyze(MemOIRInst &I) {
 }
 
 ContentSummary ContentAnalysisDriver::visitArgument(llvm::Argument &A) {
+  // Check if the parent function is the body of a FoldInst.
+  auto &function = MEMOIR_SANITIZE(A.getParent(), "Argument has no parent");
+  if (auto *use = function.getSingleUndroppableUse()) {
+    auto *user = use->getUser();
+    if (auto *fold = into<FoldInst>(user)) {
+      // Contextualize the argument for the fold.
+      auto &operand_use = fold->getOperandForArgument(A);
+      auto &operand = MEMOIR_SANITIZE(operand_use.get(), "Operand is NULL.");
+
+      // Get the content summary of the operand.
+      auto [operand_domain, operand_range] = detail::conservative(operand);
+
+      // If the operand is the collection being folded over, construct the
+      // keys/domain for it.
+      if (operand_use.getOperandNo()
+          == fold->getCollectionAsUse().getOperandNo()) {
+
+        auto &empty = Content::create<EmptyContent>();
+
+        // If this is the second argument, it is the key.
+        if (A.getArgNo() == 1) {
+          return { &empty, operand_domain };
+        } else {
+          return { &empty, operand_range };
+        }
+      }
+
+      // Otherwise, it is the accumulator or the closed argument.
+      return { operand_domain, operand_range };
+    }
+  }
+
   return detail::conservative(A);
 }
 
@@ -437,8 +470,8 @@ ContentSummary ContentAnalysisDriver::visitPHINode(llvm::PHINode &I) {
 
   // If this PHI is a GAMMA, create a union of two ConditionalContents.
   llvm::BasicBlock *if_block, *else_block;
-  auto *branch = llvm::GetIfCondition(I.getParent(), if_block, else_block);
-  if (branch) {
+  if (auto *branch =
+          llvm::GetIfCondition(I.getParent(), if_block, else_block)) {
 
     // Create the content for the TRUE branch.
     auto *true_value = I.getIncomingValueForBlock(if_block);
@@ -494,6 +527,31 @@ ContentSummary ContentAnalysisDriver::visitPHINode(llvm::PHINode &I) {
     // Construct the UnionContent.
     auto &domain = Content::create<UnionContent>(if_domain, else_domain);
     auto &range = Content::create<UnionContent>(if_range, else_range);
+
+    return { &domain, &range };
+  }
+
+  // See if the PHI is a MU.
+  if (auto *loop = this->get_loop_for(I)) {
+
+    // Fetch the incoming and back edges of the loop.
+    llvm::BasicBlock *incoming, *backedge;
+    loop->getIncomingAndBackEdge(incoming, backedge);
+
+    // Get the initial and recurrent value of the MU.
+    auto *initial = I.getIncomingValueForBlock(incoming);
+    auto *recurrent = I.getIncomingValueForBlock(backedge);
+
+    // Analyze the incoming values.
+    auto [phi_domain, phi_range] = detail::conservative(I);
+    auto [initial_domain, initial_range] = this->analyze(*initial);
+    auto [recur_domain, recur_range] = this->analyze(*recurrent);
+
+    // Substitute any uses of the PHI with the initial contents.
+    auto &domain = recur_domain->substitute(*phi_domain, *initial_domain)
+                       .substitute(*phi_range, *initial_range);
+    auto &range = recur_range->substitute(*phi_domain, *initial_domain)
+                      .substitute(*phi_range, *initial_range);
 
     return { &domain, &range };
   }
@@ -772,7 +830,8 @@ void ContentAnalysisDriver::simplify() {
     }
   }
 
-  // Print the initial contents.
+// Print the initial contents.
+#if 0
   println();
   println("================================");
   println("Simplified contents:");
@@ -812,16 +871,21 @@ void ContentAnalysisDriver::simplify() {
   }
   println("================================");
   println();
+#endif
 
   // All done.
   return;
 }
 // =========================================================================
 
-ContentAnalysisDriver::ContentAnalysisDriver(Contents &result, llvm::Module &M)
+ContentAnalysisDriver::ContentAnalysisDriver(
+    Contents &result,
+    llvm::Module &M,
+    std::function<llvm::Loop *(llvm::PHINode &)> get_loop_for)
   : result(result),
     M(M),
-    recurse(false) {
+    recurse(false),
+    get_loop_for(get_loop_for) {
 
   // Gather the initial contents with a per-instruction analysis.
   this->initialize();
@@ -830,14 +894,34 @@ ContentAnalysisDriver::ContentAnalysisDriver(Contents &result, llvm::Module &M)
   this->simplify();
 }
 
-namespace detail {}
-
 Contents ContentAnalysis::run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM) {
   Contents result;
 
+  // Create a closure to access the loop for the given PHI.
+  auto get_loop_for = [&](llvm::PHINode &I) -> llvm::Loop * {
+    if (auto *parent = I.getParent()) {
+      if (auto *function = parent->getParent()) {
+        // Fetch the loop info.
+        auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(MAM, M);
+        auto &loop_info = FAM.getResult<llvm::LoopAnalysis>(*function);
+
+        // Fetch the loop, if it exists.
+        if (auto *loop = loop_info.getLoopFor(parent)) {
+
+          // If the loop's header is the PHI's parent, we found the loop!
+          if (loop->getHeader() == parent) {
+            return loop;
+          }
+        }
+      }
+    }
+
+    return nullptr;
+  };
+
   // Construct and run content analysis.
-  ContentAnalysisDriver(result, M);
+  ContentAnalysisDriver(result, M, get_loop_for);
 
   // Return the analyzed contents.
   return result;
