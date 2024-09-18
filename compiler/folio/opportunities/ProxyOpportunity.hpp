@@ -3,23 +3,21 @@
 
 #include "folio/opportunities/Opportunity.hpp"
 
+#include "folio/transforms/Proxy.hpp"
+
 namespace folio {
 
 struct ProxyOpportunity : public Opportunity {
 public:
   std::pair<std::string, std::string> formulate(
-      FormulaEnvironment &env) const override;
+      FormulaEnvironment &env) override;
 
   bool exploit() override;
 
-  ProxyOpportunity(llvm::Value &proxy,
-                   llvm::Value &proxied,
-                   llvm::memoir::set<llvm::Use *> uses_to_update);
+  ProxyOpportunity(Proxy &proxy) : proxy(proxy) {}
 
 protected:
-  llvm::Value &proxy;
-  llvm::Value &proxied;
-  llvm::memoir::set<llvm::Use *> uses_to_update;
+  Proxy &proxy;
 };
 
 } // namespace folio

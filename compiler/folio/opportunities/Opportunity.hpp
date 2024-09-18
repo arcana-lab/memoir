@@ -32,7 +32,7 @@ public:
    * @return a pair, containing the head of the opportunity and the formula
    */
   virtual std::pair<std::string, std::string> formulate(
-      FormulaEnvironment &env) const = 0;
+      FormulaEnvironment &env) = 0;
 
   /**
    * Transform the program to exploit this opportunity.

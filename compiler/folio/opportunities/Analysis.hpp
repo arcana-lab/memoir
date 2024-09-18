@@ -1,13 +1,17 @@
 #ifndef FOLIO_ANALYSIS_H
 #define FOLIO_ANALYSIS_H
 
-#include "folio/opportunities/Opportunities.hpp"
-
+// LLVM
 #include "llvm/Pass.h"
 
 #include "llvm/IR/PassManager.h"
 
 #include "llvm/Support/CommandLine.h"
+
+// Folio
+#include "folio/opportunities/Opportunities.hpp"
+
+#include "folio/transforms/ProxyManager.hpp"
 
 namespace folio {
 
