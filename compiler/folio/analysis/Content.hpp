@@ -8,6 +8,7 @@
 
 #include "memoir/ir/Types.hpp"
 
+#include "memoir/support/Assert.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
@@ -70,6 +71,8 @@ struct Content {
     return _kind;
   }
 
+  virtual llvm::memoir::Type *type() = 0;
+
 protected:
   ContentKind _kind;
 };
@@ -93,6 +96,10 @@ struct UnderdefinedContent : public Content {
     return *this;
   }
 
+  llvm::memoir::Type *type() override {
+    return nullptr;
+  }
+
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_UNDERDEFINED;
   }
@@ -114,6 +121,10 @@ struct EmptyContent : public Content {
 
   Content &substitute(Content &from, Content &to) override {
     return *this;
+  }
+
+  llvm::memoir::Type *type() override {
+    return nullptr;
   }
 
   static bool classof(const Content *content) {
@@ -161,6 +172,10 @@ struct StructContent : public Content {
     return this->_value;
   }
 
+  llvm::memoir::Type *type() override {
+    return llvm::memoir::type_of(this->_value);
+  }
+
 protected:
   llvm::Value &_value;
 };
@@ -205,6 +220,10 @@ struct ScalarContent : public Content {
     return this->_value;
   }
 
+  llvm::memoir::Type *type() override {
+    return llvm::memoir::type_of(this->_value);
+  }
+
 protected:
   llvm::Value &_value;
 };
@@ -246,6 +265,10 @@ struct KeyContent : public Content {
     return this->_collection;
   }
 
+  llvm::memoir::Type *type() override {
+    return this->collection().type();
+  }
+
 protected:
   Content &_collection;
 };
@@ -259,7 +282,8 @@ struct KeysContent : public Content {
       _collection(collection) {}
 
   std::string to_string() const override {
-    return "keys(" + llvm::memoir::value_name(this->_collection) + ")";
+    return "keys(" + llvm::memoir::value_name(this->_collection) + ":"
+           + std::to_string(uint64_t(&this->_collection)) + ")";
   }
 
   bool operator==(Content &other) const override {
@@ -284,6 +308,25 @@ struct KeysContent : public Content {
 
   llvm::Value &collection() {
     return this->_collection;
+  }
+
+  llvm::memoir::Type *type() override {
+    auto *type = llvm::memoir::type_of(this->collection());
+    if (auto *assoc_type =
+            llvm::memoir::dyn_cast<llvm::memoir::AssocArrayType>(type)) {
+      return &assoc_type->getKeyType();
+    }
+
+    auto &collection = this->collection();
+    const llvm::DataLayout *data_layout = nullptr;
+    if (auto *inst = llvm::memoir::dyn_cast<llvm::Instruction>(&collection)) {
+      data_layout = &inst->getModule()->getDataLayout();
+    } else if (auto *arg =
+                   llvm::memoir::dyn_cast<llvm::Argument>(&collection)) {
+      data_layout = &arg->getParent()->getParent()->getDataLayout();
+    }
+
+    return &llvm::memoir::Type::get_size_type(*data_layout);
   }
 
 protected:
@@ -324,6 +367,19 @@ struct RangeContent : public Content {
 
   llvm::Value &collection() {
     return this->_collection;
+  }
+
+  llvm::memoir::Type *type() override {
+    auto &collection = this->collection();
+
+    const llvm::DataLayout *data_layout = nullptr;
+    if (auto *inst = llvm::memoir::dyn_cast<llvm::Instruction>(&collection)) {
+      data_layout = &inst->getModule()->getDataLayout();
+    } else if (auto *arg = llvm::memoir::dyn_cast<llvm::Argument>(inst)) {
+      data_layout = &arg->getParent()->getParent()->getDataLayout();
+    }
+
+    return &llvm::memoir::Type::get_size_type(*data_layout);
   }
 
 protected:
@@ -367,6 +423,10 @@ struct ElementContent : public Content {
     return this->_collection;
   }
 
+  llvm::memoir::Type *type() override {
+    return this->collection().type();
+  }
+
 protected:
   Content &_collection;
 };
@@ -405,6 +465,14 @@ struct ElementsContent : public Content {
 
   llvm::Value &collection() {
     return this->_collection;
+  }
+
+  llvm::memoir::Type *type() override {
+    auto *type = llvm::memoir::type_of(this->collection());
+    auto *collection_type =
+        llvm::memoir::cast<llvm::memoir::CollectionType>(type);
+    auto &element_type = collection_type->getElementType();
+    return &element_type;
   }
 
 protected:
@@ -453,6 +521,12 @@ struct FieldContent : public Content {
 
   unsigned field_index() {
     return this->_field_index;
+  }
+
+  llvm::memoir::Type *type() override {
+    auto *parent_type =
+        llvm::memoir::cast<llvm::memoir::StructType>(this->parent().type());
+    return &parent_type->getFieldType(this->field_index());
   }
 
 protected:
@@ -530,6 +604,10 @@ public:
 
   Content &rhs() {
     return this->_rhs;
+  }
+
+  llvm::memoir::Type *type() override {
+    return this->content().type();
   }
 
 protected:
@@ -619,6 +697,10 @@ public:
     return *(this->_elements[index]);
   }
 
+  llvm::memoir::Type *type() override {
+    MEMOIR_UNREACHABLE("Type of TupleContent is unimplemented!");
+  }
+
 protected:
   llvm::memoir::vector<Content *> _elements = {};
 };
@@ -668,6 +750,20 @@ public:
 
   Content &rhs() {
     return this->_rhs;
+  }
+
+  llvm::memoir::Type *type() override {
+    auto *lhs_type = this->lhs().type();
+    auto *rhs_type = this->rhs().type();
+    if (not lhs_type) {
+      return rhs_type;
+    } else if (not rhs_type) {
+      return lhs_type;
+    } else if (lhs_type == rhs_type) {
+      return lhs_type;
+    } else {
+      MEMOIR_UNREACHABLE("Cannot unify type of UnionContent!");
+    }
   }
 
 protected:
