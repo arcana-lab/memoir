@@ -60,6 +60,12 @@ IntegerType &Type::get_bool_type() {
   return IntegerType::get<1, false>();
 }
 
+IntegerType &Type::get_size_type(const llvm::DataLayout &DL) {
+  auto bitwidth = DL.getPointerSize(0);
+  static IntegerType size_type(bitwidth, false);
+  return size_type;
+}
+
 template <unsigned BW, bool S>
 IntegerType &IntegerType::get() {
   static IntegerType the_type(BW, S);
