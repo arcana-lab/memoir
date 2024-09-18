@@ -87,7 +87,83 @@ Content &ContentSimplification::visitElementsContent(ElementsContent &C) {
   return C;
 }
 
+namespace detail {
+Content &dedup(UnionContent &C, vector<Content *> &seen) {
+
+  auto *lhs = &C.lhs();
+  auto *rhs = &C.rhs();
+
+  if (auto *lhs_union = dyn_cast<UnionContent>(lhs)) {
+    // Recurse on nested unions.
+    lhs = &dedup(*lhs_union, seen);
+  } else {
+    // Check if this is a duplicate.
+    bool duplicate = false;
+    for (auto *other : seen) {
+      if (*lhs == *other) {
+        duplicate = true;
+      }
+    }
+
+    // If we found a duplicate, remove it.
+    if (duplicate) {
+      lhs = nullptr;
+    } else {
+      // Mark lhs as seen.
+      seen.push_back(lhs);
+    }
+  }
+
+  if (auto *rhs_union = dyn_cast<UnionContent>(rhs)) {
+    // Recurse on nested unions.
+    rhs = &dedup(*rhs_union, seen);
+  } else {
+    // Check if this is a duplicate.
+    bool duplicate = false;
+    for (auto *other : seen) {
+      if (*rhs == *other) {
+        duplicate = true;
+      }
+    }
+
+    // If we found a duplicate, remove it.
+    if (duplicate) {
+      rhs = nullptr;
+    } else {
+      // Mark rhs as seen.
+      seen.push_back(rhs);
+    }
+  }
+
+  // If nothing changed, return the original.
+  if (lhs == &C.lhs() and rhs == &C.rhs()) {
+    return C;
+  }
+
+  // Otherwise, construct the new content.
+  if (lhs == nullptr) {
+    if (rhs == nullptr) {
+      return Content::create<EmptyContent>();
+    } else {
+      return *rhs;
+    }
+  } else {
+    if (rhs == nullptr) {
+      return *lhs;
+    }
+  }
+  return Content::create<UnionContent>(*lhs, *rhs);
+}
+} // namespace detail
+
 Content &ContentSimplification::visitUnionContent(UnionContent &C) {
+
+  // Deduplicate.
+  vector<Content *> seen = {};
+  auto &union_content = detail::dedup(C, seen);
+  if (&union_content != &C) {
+    return union_content;
+  }
 
   // Unpack the union.
   auto &lhs = this->visit(C.lhs());
@@ -165,7 +241,7 @@ Content &ContentSimplification::visitUnionContent(UnionContent &C) {
 
   // If nothing happened, then see if we can reassociate the union and go
   // again.
-  if (auto *rhs_union = dyn_cast<UnionContent>(&rhs)) {
+  if (auto *rhs_union = dyn_cast<UnionContent>(&lhs)) {
     auto &rhs_lhs = rhs_union->lhs();
     auto &rhs_rhs = rhs_union->rhs();
     auto &new_union = this->visit(Content::create<UnionContent>(lhs, rhs_lhs));

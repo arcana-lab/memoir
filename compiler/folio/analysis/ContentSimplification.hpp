@@ -14,9 +14,11 @@ public:
 
   Content &simplify(Content &C);
 
-  // Simplification
-
 protected:
+  // Borrowed State.
+  Contents &contents;
+
+  // Helper methods.
   Content *lookup_domain(llvm::Value &V);
   Content *lookup_range(llvm::Value &V);
 
@@ -25,8 +27,6 @@ protected:
   Content &visitConditionalContent(ConditionalContent &C);
   Content &visitElementsContent(ElementsContent &C);
   Content &visitKeysContent(KeysContent &C);
-
-  Contents &contents;
 };
 
 } // namespace folio
