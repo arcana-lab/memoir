@@ -11,6 +11,9 @@
 
 #include "llvm/Support/CommandLine.h"
 
+// MEMOIR
+#include "memoir/support/PassUtils.hpp"
+
 namespace llvm::memoir {
 
 #define PASS(SCOPE, CLASS, NAME, ARGS...)                                      \
@@ -35,13 +38,5 @@ namespace llvm::memoir {
 #undef ANALYSIS
 
 } // namespace llvm::memoir
-
-// A helper macro to get a FunctionAnalysisManager from a ModuleAnalysisManager
-#define GET_FUNCTION_ANALYSIS_MANAGER(_MAM, _MODULE)                           \
-  _MAM.getResult<FunctionAnalysisManagerModuleProxy>(_MODULE).getManager()
-
-// A helper macro to get a ModuleAnalysisManager from a FunctionAnalysisManager
-#define GET_MODULE_ANALYSIS_MANAGER(_FAM, _FUNCTION)                           \
-  _FAM.getResult<ModuleAnalysisManagerFunctionProxy>(_FUNCTION)
 
 #endif // MEMOIR_PASSES_PASSES_H
