@@ -113,11 +113,11 @@ using multimap = std::unordered_multimap<T, U>;
 template <typename T, typename U>
 using ordered_multimap = std::multimap<T, U>;
 
-template <typename T, typename U>
+template <typename T, typename TT, typename U, typename UU>
 inline typename std::multimap<T, U>::iterator insert_unique(
     std::multimap<T, U> &mmap,
-    const T &key,
-    const U &value) {
+    const TT &key,
+    const UU &value) {
   auto range = mmap.equal_range(key);
   for (auto it = range.first; it != range.second; ++it) {
     if (it->second == value) {
@@ -127,11 +127,11 @@ inline typename std::multimap<T, U>::iterator insert_unique(
   return mmap.insert(std::make_pair(key, value));
 }
 
-template <typename T, typename U>
+template <typename T, typename TT, typename U, typename UU>
 inline typename std::unordered_multimap<T, U>::iterator insert_unique(
     std::unordered_multimap<T, U> &mmap,
-    const T &key,
-    const U &value) {
+    const TT &key,
+    const UU &value) {
   auto range = mmap.equal_range(key);
   for (auto it = range.first; it != range.second; ++it) {
     if (it->second == value) {
