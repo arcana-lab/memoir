@@ -61,7 +61,7 @@ IntegerType &Type::get_bool_type() {
 }
 
 IntegerType &Type::get_size_type(const llvm::DataLayout &DL) {
-  auto bitwidth = DL.getPointerSize(0);
+  auto bitwidth = 8 * DL.getPointerSize(0);
   static IntegerType size_type(bitwidth, false);
   return size_type;
 }
@@ -165,6 +165,7 @@ StructType &StructType::get(std::string name) {
     return *(found_type->second);
   }
 
+  warnln("No struct definition with name ", name);
   MEMOIR_UNREACHABLE("Could not find a StructType of the given name");
 }
 
@@ -798,6 +799,62 @@ std::string SequenceType::toString(std::string indent) const {
   str += indent + ")";
 
   return str;
+}
+
+Type &Type::from_code(std::string code) {
+
+  if (code[0] == 'u') {
+    auto bitwidth = std::atoi(&code.c_str()[1]);
+    switch (bitwidth) {
+      case 64:
+        return Type::get_u64_type();
+      case 32:
+        return Type::get_u32_type();
+      case 16:
+        return Type::get_u16_type();
+      case 8:
+        return Type::get_u8_type();
+      case 2:
+        return Type::get_u2_type();
+    }
+  } else if (code[0] == 'i') {
+    auto bitwidth = std::atoi(&code.c_str()[1]);
+    switch (bitwidth) {
+      case 64:
+        return Type::get_i64_type();
+      case 32:
+        return Type::get_i32_type();
+      case 16:
+        return Type::get_i16_type();
+      case 8:
+        return Type::get_i8_type();
+    }
+  }
+
+  if (code == "f64") {
+    return DoubleType::get();
+  } else if (code == "f32") {
+    return FloatType::get();
+  } else if (code == "ptr") {
+    return PointerType::get();
+  } else if (code == "boolean") {
+    return Type::get_bool_type();
+  }
+
+  // Handle reference types.
+  std::string suffix = "_ref";
+  if (code.length() > suffix.length()
+      and std::equal(suffix.rbegin(), suffix.rend(), code.rbegin())) {
+    std::string referenced_code(code, 0, code.length() - suffix.length());
+    return ReferenceType::get(Type::from_code(referenced_code));
+  }
+
+  // Handle user-defined types.
+  return StructType::get(code);
+
+  // TODO: Handle collection types.
+
+  MEMOIR_UNREACHABLE("Unknown type code");
 }
 
 } // namespace llvm::memoir

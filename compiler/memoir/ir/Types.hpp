@@ -83,6 +83,8 @@ public:
   static AssocArrayType &get_assoc_array_type(Type &key_type, Type &value_type);
   static SequenceType &get_sequence_type(Type &element_type);
 
+  static Type &from_code(std::string code);
+
   static bool is_primitive_type(Type &type);
   static bool is_reference_type(Type &type);
   static bool is_struct_type(Type &type);
@@ -373,6 +375,7 @@ protected:
 
   AssocArrayType(Type &key_type, Type &value_type);
 };
+using AssocType = struct AssocArrayType;
 
 struct SequenceType : public CollectionType {
 public:
