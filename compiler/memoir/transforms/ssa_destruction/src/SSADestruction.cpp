@@ -1850,15 +1850,47 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
 
   // Fetch the iterator and element types.
   auto iter_struct_name = "struct." + prefix + "_iter";
+  auto *iter_type =
+      llvm::StructType::getTypeByName(M.getContext(), iter_struct_name);
+  if (not iter_type) {
+    // If we could not find the iterator type by name, get the next function and
+    // find any typed GEPs.
+    auto *iter_arg = begin_func->getArg(0);
+    for (auto &use : iter_arg->uses()) {
+      auto *user = use.getUser();
+      if (auto *gep = dyn_cast<llvm::GetElementPtrInst>(user)) {
+        if (gep->getPointerOperand() == iter_arg) {
+          if (auto *src_type =
+                  dyn_cast<llvm::StructType>(gep->getSourceElementType())) {
+            if (iter_type == nullptr) {
+              iter_type = src_type;
+            } else if (iter_type != src_type) {
+              iter_type = nullptr;
+              break;
+            }
+          }
+        }
+      }
+    }
 
-  auto &iter_type = MEMOIR_SANITIZE(
-      llvm::StructType::getTypeByName(M.getContext(), iter_struct_name),
-      "Could not find or create the LLVM StructType for iterator");
+    // Ensure that we found a type.
+    MEMOIR_NULL_CHECK(iter_type, "Could not infer a type for the iterator!");
+  }
 
   // Invoke the LowerFold utility.
-  lower_fold(I, begin_func, next_func, &iter_type);
+  lower_fold(
+      I,
+      begin_func,
+      next_func,
+      iter_type,
+      [&](llvm::Value &orig, llvm::Value &replacement) {
+        this->coalesce(orig, replacement);
+      },
+      [&](llvm::Instruction &I) { this->markForCleanup(I); });
 
-  // TODO: Do we need to coalesce here?
+  // If the result of the fold is a collection, we need to patch it with the
+  // original operand.
+
   this->markForCleanup(I);
 
   return;

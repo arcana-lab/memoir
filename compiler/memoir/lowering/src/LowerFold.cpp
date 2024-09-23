@@ -362,7 +362,9 @@ static HeaderInfo lower_fold_header(
 bool lower_fold(FoldInst &I,
                 llvm::Function *begin_func,
                 llvm::Function *next_func,
-                llvm::Type *iter_type) {
+                llvm::Type *iter_type,
+                std::function<void(llvm::Value &, llvm::Value &)> coalesce,
+                std::function<void(llvm::Instruction &)> cleanup) {
 
   bool destructing_ssa = (begin_func and next_func and iter_type);
 
@@ -430,7 +432,7 @@ bool lower_fold(FoldInst &I,
   }
 
   // Replace all uses of the fold instruction result with the call result.
-  I.getCallInst().replaceAllUsesWith(&accumulator);
+  coalesce(I.getCallInst(), accumulator);
 
   // For each closed argument:
   for (unsigned closed_idx = 0; closed_idx < I.getNumberOfClosed();
@@ -463,7 +465,7 @@ bool lower_fold(FoldInst &I,
                                  "Need to add a dominance check here.");
             }
           } else {
-            println("wrong function!");
+            debugln("wrong function!");
           }
         }
       }
@@ -471,41 +473,49 @@ bool lower_fold(FoldInst &I,
 
     // If we could not find a RetPHI for the closed argument, then continue.
     if (not found_ret_phi) {
+      warnln("Failed to find ret phi for closed operand");
       continue;
     }
 
     // If it does, we need to patch its DEF-USE chain.
+    llvm::Value *closed_result;
+    if (not destructing_ssa) {
+      //  - Add a PHI for it in the loop.
+      builder.SetInsertPoint(&accumulator);
+      auto *closed_phi =
+          builder.CreatePHI(closed.getType(), 2, "fold.closed.phi.");
 
-    //  - Add a PHI for it in the loop.
-    builder.SetInsertPoint(&accumulator);
-    auto *closed_phi =
-        builder.CreatePHI(closed.getType(), 2, "fold.closed.phi.");
+      //  -- Update the use of the closed variabled to be the new PHI.
+      auto &element_type = collection_type.getElementType();
+      auto closed_offset = isa<VoidType>(&element_type) ? 2 : 3;
+      call.setOperand(closed_idx + closed_offset, closed_phi);
 
-    //  -- Update the use of the closed variabled to be the new PHI.
-    auto &element_type = collection_type.getElementType();
-    auto closed_offset = isa<VoidType>(&element_type) ? 2 : 3;
-    call.setOperand(closed_idx + closed_offset, closed_phi);
-
-    //  -- Insert a RetPHI after the call.
-    if (not next_func) {
+      //  -- Insert a RetPHI after the call.
       builder.SetInsertPoint(call.getNextNode());
       auto *closed_ret_phi =
           builder.CreateRetPHI(closed_phi, &function, "fold.closed.");
-    }
 
-    //  -- Wire up the PHI with the original value and the RetPHI.
-    for (auto *pred : llvm::predecessors(&loop_header)) {
-      auto *incoming = &closed;
-      // (pred == &loop_exit) ? &closed_ret_phi->getCallInst() : &closed;
+      //  -- Wire up the PHI with the original value and the RetPHI.
+      for (auto *pred : llvm::predecessors(closed_phi->getParent())) {
+        auto *incoming = (pred == &loop_preheader)
+                             ? &closed
+                             : &closed_ret_phi->getCallInst();
 
-      closed_phi->addIncoming(incoming, pred);
+        closed_phi->addIncoming(incoming, pred);
+      }
+
+      closed_result = closed_phi;
+
+    } else {
+      closed_result = &found_ret_phi->getInputCollection();
     }
 
     //  -- Replace uses of the original RetPHI with the continuation PHI.
-    found_ret_phi->getCallInst().replaceAllUsesWith(closed_phi);
+    auto &ret_phi_inst = found_ret_phi->getCallInst();
+    coalesce(ret_phi_inst, *closed_result);
 
     //  -- Delete the old RetPHI.
-    found_ret_phi->getCallInst().eraseFromParent();
+    cleanup(ret_phi_inst);
   }
 
   return true;
