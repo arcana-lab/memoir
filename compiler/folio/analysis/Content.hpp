@@ -282,8 +282,7 @@ struct KeysContent : public Content {
       _collection(collection) {}
 
   std::string to_string() const override {
-    return "keys(" + llvm::memoir::value_name(this->_collection) + ":"
-           + std::to_string(uint64_t(&this->_collection)) + ")";
+    return "keys(" + llvm::memoir::value_name(this->_collection) + ")";
   }
 
   bool operator==(Content &other) const override {
