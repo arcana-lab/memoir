@@ -839,6 +839,8 @@ Type &Type::from_code(std::string code) {
     return PointerType::get();
   } else if (code == "boolean") {
     return Type::get_bool_type();
+  } else if (code == "void") {
+    return Type::get_void_type();
   }
 
   // Handle reference types.
