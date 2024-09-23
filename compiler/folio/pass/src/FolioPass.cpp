@@ -21,11 +21,16 @@ namespace folio {
 
 namespace detail {
 
-void transform(llvm::Module &M, const Candidate &candidate) {
+void transform(llvm::Module &M,
+               llvm::ModuleAnalysisManager &MAM,
+               Candidate &candidate) {
 
   // First, annotate the selections while the LLVM Values are valid.
-  for (const auto &[value, impl] : candidate.selections()) {
-    println(*value, " --> ", impl->name());
+  for (const auto &[value, selection] : candidate.selections()) {
+    // Unpack the selection.
+    auto &impl = selection->implementation();
+
+    println(*value, " --> ", impl.name());
 
     // Get the value as an instruction.
     auto *inst = dyn_cast<llvm::Instruction>(value);
@@ -38,11 +43,22 @@ void transform(llvm::Module &M, const Candidate &candidate) {
     auto metadata = Metadata::get_or_add<SelectionMetadata>(*inst);
 
     // Set the implementation to that selected.
-    metadata.setImplementation(impl->name());
+    metadata.setImplementation(impl.name());
   }
 
+  // Closure to fetch the Selection for a given value.
+  auto get_selection = [&](llvm::Value &V) -> Selection & {
+    auto &selections = candidate.selections();
+    auto found = selections.find(&V);
+    MEMOIR_ASSERT(found != selections.end(),
+                  "Could not find selection for given value!");
+    return MEMOIR_SANITIZE(found->second, "Selection is NULL!");
+  };
+
   // Then, transform the program to exploit all opportunities.
-  // TODO
+  for (auto *opportunity : candidate.opportunities()) {
+    opportunity->exploit(get_selection, MAM);
+  }
 
   // Finally, perform selection monomorphization.
   SelectionMonomorphization monomorph(M);
@@ -113,8 +129,10 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
   auto candidate_index = 0;
   for (auto &candidate : solver.candidates()) {
     debugln("Candidate ", std::to_string(candidate_index++));
-    for (const auto &[def, selection] : candidate.selections()) {
-      debugln("  ", value_name(*def), " : ", selection->name());
+    for (auto [def, selection] : candidate.selections()) {
+      debugln("  ", value_name(*def));
+      debugln(selection->type());
+      debugln("  implementation=", selection->implementation().name());
     }
     auto num_exploited = candidate.opportunities().size();
     debugln("  ", std::to_string(num_exploited), " opportunities exploited.");
@@ -125,7 +143,7 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
   auto &selected_candidate = solver.candidates().front();
 
   // Transform the program to utilize the selected candidate.
-  detail::transform(M, selected_candidate);
+  detail::transform(M, MAM, selected_candidate);
 
   // All done.
   return llvm::PreservedAnalyses::none();
