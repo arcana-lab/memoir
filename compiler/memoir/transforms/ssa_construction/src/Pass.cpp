@@ -171,9 +171,11 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
             continue;
           }
           // Only enable read instructions if UsePHIs are enabled.
-          if (!construct_use_phis
-              && (isa<ReadInst>(memoir_inst) || isa<GetInst>(memoir_inst))) {
-            continue;
+          if (isa<ReadInst>(memoir_inst) or isa<GetInst>(memoir_inst)
+              or isa<AssocHasInst>(memoir_inst)) {
+            if (not construct_use_phis) {
+              continue;
+            }
           }
           // If the value is closed on by the FoldInst, it will be redefined by
           // a RetPHI.
@@ -346,7 +348,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
 
         // If the function is internal and this is the only user, we don't need
         // to create a copy of it.
-        if (function.hasInternalLinkage() and function.hasOneUse()) {
+        if (function.hasOneUse() /* and function.hasInternalLinkage() */) {
           continue;
         }
 
