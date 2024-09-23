@@ -11,7 +11,7 @@ include(AddLLVM)
 message(STATUS "LLVM_DIR IS ${LLVM_CMAKE_DIR}.")
 
 # Compiler options.
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -fPIC -g3 -Wno-unused-variable -Wno-reorder-ctor ")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -fPIC -g3 -Wno-unused-variable -Wno-reorder-ctor ")
 
 include(ExternalProject)
 
