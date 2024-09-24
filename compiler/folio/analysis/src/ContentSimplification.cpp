@@ -8,6 +8,27 @@ Content &ContentSimplification::simplify(Content &C) {
   return this->visit(C);
 }
 
+namespace detail {
+
+bool is_simple(Content &C) {
+  if (isa<TupleContent>(&C) or isa<EmptyContent>(&C) or isa<KeysContent>(&C)
+      or isa<FieldContent>(&C) or isa<ElementsContent>(&C)) {
+    return true;
+  } else if (auto *key = dyn_cast<KeyContent>(&C)) {
+    return is_simple(key->collection());
+  } else if (auto *elem = dyn_cast<ElementContent>(&C)) {
+    return is_simple(elem->collection());
+  } else if (auto *cond = dyn_cast<ConditionalContent>(&C)) {
+    return is_simple(cond->content());
+  } else if (auto *union_content = dyn_cast<UnionContent>(&C)) {
+    return is_simple(union_content->lhs()) and is_simple(union_content->rhs());
+  }
+
+  return false;
+}
+
+} // namespace detail
+
 // Helper functions to lookup contents in the environment.
 Content *ContentSimplification::lookup_domain(llvm::Value &V) {
   // Lookup the content.
@@ -19,8 +40,7 @@ Content *ContentSimplification::lookup_domain(llvm::Value &V) {
   auto [domain, _] = found->second;
 
   // The result must be in a simplified form.
-  if (isa<TupleContent>(domain) or isa<EmptyContent>(domain)
-      or isa<KeysContent>(domain)) {
+  if (detail::is_simple(*domain)) {
     return domain;
   }
 
@@ -98,19 +118,14 @@ Content &dedup(UnionContent &C, vector<Content *> &seen) {
     lhs = &dedup(*lhs_union, seen);
   } else {
     // Check if this is a duplicate.
-    bool duplicate = false;
-    for (auto *other : seen) {
-      if (*lhs == *other) {
-        duplicate = true;
-      }
-    }
+    auto found = std::find_if(seen.begin(), seen.end(), [&](Content *other) {
+      return *other == *lhs;
+    });
 
-    // If we found a duplicate, remove it.
-    if (duplicate) {
-      lhs = nullptr;
-    } else {
-      // Mark lhs as seen.
+    if (found == seen.end()) {
       seen.push_back(lhs);
+    } else {
+      lhs = nullptr;
     }
   }
 
@@ -119,19 +134,14 @@ Content &dedup(UnionContent &C, vector<Content *> &seen) {
     rhs = &dedup(*rhs_union, seen);
   } else {
     // Check if this is a duplicate.
-    bool duplicate = false;
-    for (auto *other : seen) {
-      if (*rhs == *other) {
-        duplicate = true;
-      }
-    }
+    auto found = std::find_if(seen.begin(), seen.end(), [&](Content *other) {
+      return *other == *rhs;
+    });
 
-    // If we found a duplicate, remove it.
-    if (duplicate) {
-      rhs = nullptr;
-    } else {
-      // Mark rhs as seen.
+    if (found == seen.end()) {
       seen.push_back(rhs);
+    } else {
+      rhs = nullptr;
     }
   }
 
@@ -252,7 +262,7 @@ Content &ContentSimplification::visitUnionContent(UnionContent &C) {
   // If we weren't able to reassociate, create a new union content if any
   // sub-simplifications happened.
   if (&lhs != &C.lhs() or &rhs != &C.rhs()) {
-    return this->visit(Content::create<UnionContent>(lhs, rhs));
+    return Content::create<UnionContent>(lhs, rhs);
   }
 
   return C;

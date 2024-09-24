@@ -54,18 +54,32 @@ void ContentAnalysisDriver::summarize(MemOIRInst &I, ContentSummary summary) {
   this->summarize(I.getCallInst(), summary);
 }
 
+bool ContentAnalysisDriver::is_in_scope(llvm::Value &V) {
+  auto *current_function = this->current->getFunction();
+
+  if (auto *inst = dyn_cast<llvm::Instruction>(&V)) {
+    return current_function == inst->getFunction();
+  } else if (auto *arg = dyn_cast<llvm::Argument>(&V)) {
+    return current_function == arg->getParent();
+  }
+
+  // No other values are scoped.
+  return true;
+}
+
 ContentSummary ContentAnalysisDriver::analyze(llvm::Value &V) {
 
-  // Check if we have already analyzed this value.
-  if (not this->recurse) {
-    auto found = this->result.find(&V);
-    if (found != this->result.end()) {
-      return found->second;
-    }
+  // Check if this value is in scope.
+  auto in_scope = this->is_in_scope(V);
+
+  // If the value is in scope, and we are not in recursive mode, return the
+  // conservative contents.
+  if (in_scope and this->recurse) {
+    return detail::conservative(V);
   }
 
   // Check if we have already visited this value.
-  if (visited.count(&V) > 0) {
+  if (isa<llvm::PHINode>(&V) and visited.count(&V) > 0) {
     // Already visited, return the conservative result.
     return detail::conservative(V);
   } else {
@@ -73,23 +87,20 @@ ContentSummary ContentAnalysisDriver::analyze(llvm::Value &V) {
   }
 
   // If we haven't, dispatch to the appropriate handler.
+  ContentSummary content;
   if (auto *arg = dyn_cast<llvm::Argument>(&V)) {
-    auto content = this->visitArgument(*arg);
-    if (not this->recurse) {
-      this->summarize(V, content);
-    }
-    return content;
+    content = this->visitArgument(*arg);
+
+    this->summarize(*arg, content);
+
   } else if (auto *inst = dyn_cast<llvm::Instruction>(&V)) {
-    auto content = this->visit(*inst);
-    if (not this->recurse) {
-      this->summarize(V, content);
-    }
-    return content;
+    content = this->visit(*inst);
+
+  } else {
+    return detail::conservative(V);
   }
 
-  // If the value isn't handled by any of our handlers, output a conservative
-  // result.
-  return detail::conservative(V);
+  return content;
 }
 
 ContentSummary ContentAnalysisDriver::analyze(MemOIRInst &I) {
@@ -106,27 +117,58 @@ ContentSummary ContentAnalysisDriver::visitArgument(llvm::Argument &A) {
       auto &operand_use = fold->getOperandForArgument(A);
       auto &operand = MEMOIR_SANITIZE(operand_use.get(), "Operand is NULL.");
 
-      // Get the content summary of the operand.
-      auto [operand_domain, operand_range] = detail::conservative(operand);
-
       // If the operand is the collection being folded over, construct the
       // keys/domain for it.
       if (operand_use.getOperandNo()
           == fold->getCollectionAsUse().getOperandNo()) {
 
+        auto [operand_domain, operand_range] = detail::conservative(operand);
         auto &empty = Content::create<EmptyContent>();
 
         // If this is the second argument, it is the key.
-        if (A.getArgNo() == 1) {
+        if (&fold->getIndexArgument() == &A) {
           return { &empty, operand_domain };
-        } else {
+        } else if (fold->getElementArgument() == &A) {
           return { &empty, operand_range };
         }
-      }
+      } else {
+        // Otherwise, it is the accumulator or a closed argument.
 
-      // Otherwise, it is the accumulator or the closed argument.
-      return { operand_domain, operand_range };
+        // Return the content summary of the operand.
+        return this->is_in_scope(operand) ? detail::conservative(operand)
+                                          : this->analyze(operand);
+      }
     }
+  }
+
+  // Handle functions with a single call site.
+  llvm::CallBase *single_call = nullptr;
+  for (auto &use : function.uses()) {
+    auto *user = use.getUser();
+    if (into<RetPHIInst>(user)) {
+      // Ignore RetPHI uses.
+      continue;
+    } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
+      if (single_call) {
+        single_call = nullptr;
+        break;
+      } else {
+        single_call = call;
+        continue;
+      }
+    } else {
+      single_call = nullptr;
+      break;
+    }
+  }
+  if (single_call) {
+    // Contextualize the argument for the singular caller.
+    auto &operand_use = single_call->getArgOperandUse(A.getArgNo());
+    auto &operand = MEMOIR_SANITIZE(operand_use.get(), "Operand is NULL.");
+
+    // Get the content summary of the operand.
+    return this->is_in_scope(operand) ? detail::conservative(operand)
+                                      : this->analyze(operand);
   }
 
   return detail::conservative(A);
@@ -233,8 +275,8 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertValueInst(
 
   // Fetch the base collection info.
   auto &base = I.getBaseCollection();
-  auto [base_domain, base_range] =
-      this->recurse ? this->analyze(base) : detail::conservative(base);
+  auto [base_domain, base_range] = this->analyze(base);
+  // this->recurse ? this->analyze(base) : detail::conservative(base);
 
   // Fetch the insertion point info.
   auto [_index_domain, index_range] = this->analyze(I.getInsertionPoint());
@@ -256,8 +298,8 @@ ContentSummary ContentAnalysisDriver::visitAssocWriteInst(AssocWriteInst &I) {
   // Fetch the base collection info.
   // auto [base_domain, base_range] = this->analyze(I.getObjectOperand());
   auto &base = I.getObjectOperand();
-  auto [base_domain, base_range] =
-      this->recurse ? this->analyze(base) : detail::conservative(base);
+  auto [base_domain, base_range] = this->analyze(base);
+  // this->recurse ? this->analyze(base) : detail::conservative(base);
 
   // Fetch the inserted value's range.
   auto [_, value_range] = this->analyze(I.getValueWritten());
@@ -587,6 +629,52 @@ ContentSummary ContentAnalysisDriver::visitPHINode(llvm::PHINode &I) {
   return content;
 }
 
+namespace detail {
+bool value_is_local(llvm::Value &V, llvm::Function &F) {
+  if (auto *arg = dyn_cast<llvm::Argument>(&V)) {
+    return &F == arg->getParent();
+  } else if (auto *inst = dyn_cast<llvm::Instruction>(&V)) {
+    return &F == inst->getParent()->getParent();
+  }
+
+  return false;
+}
+
+bool contents_are_local(Content &C, llvm::Function &F) {
+  if (auto *keys = dyn_cast<KeysContent>(&C)) {
+    return value_is_local(keys->collection(), F);
+  } else if (auto *elems = dyn_cast<ElementsContent>(&C)) {
+    return value_is_local(elems->collection(), F);
+  } else if (auto *key = dyn_cast<KeyContent>(&C)) {
+    return contents_are_local(key->collection(), F);
+  } else if (auto *elem = dyn_cast<ElementContent>(&C)) {
+    return contents_are_local(elem->collection(), F);
+  } else if (auto *scalar = dyn_cast<ScalarContent>(&C)) {
+    return value_is_local(scalar->value(), F);
+  } else if (auto *field = dyn_cast<FieldContent>(&C)) {
+    return contents_are_local(field->parent(), F);
+  } else if (auto *cond = dyn_cast<ConditionalContent>(&C)) {
+    return contents_are_local(cond->lhs(), F)
+           and contents_are_local(cond->rhs(), F)
+           and contents_are_local(cond->content(), F);
+  } else if (auto *tuple = dyn_cast<TupleContent>(&C)) {
+    auto &elements = tuple->elements();
+    return std::accumulate(elements.begin(),
+                           elements.end(),
+                           true,
+                           [&F](bool is_local, Content *child) -> bool {
+                             return is_local and contents_are_local(*child, F);
+                           });
+  } else if (auto *union_ = dyn_cast<UnionContent>(&C)) {
+    return contents_are_local(union_->lhs(), F)
+           and contents_are_local(union_->rhs(), F);
+  }
+
+  return false;
+}
+
+} // namespace detail
+
 ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
 
   // Find the corresponding call.
@@ -651,8 +739,7 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     // If we did not find a live out, then the contents are the same
     // as the input.
     if (not live_out) {
-      return this->recurse ? this->analyze(I.getInputCollection())
-                           : detail::conservative(I.getInputCollection());
+      return this->analyze(I.getInputCollection());
     }
 
     // Analyze the live out
@@ -662,8 +749,7 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     this->recurse = was_recurse;
 
     // Otherwise, get the content of the live out.
-    auto [domain, range] =
-        this->contextualize_fold(*fold, this->analyze(*live_out));
+    auto [domain, range] = this->contextualize_fold(*fold, live_out_summary);
 
     // Substitute into the new scope.
     auto [old_var_domain, old_var_range] = detail::conservative(*live_out);
@@ -706,8 +792,7 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     // If we did not find a live out, then the contents are the same
     // as the input.
     if (not live_out) {
-      return (this->recurse) ? this->analyze(I.getInputCollection())
-                             : detail::conservative(I.getInputCollection());
+      return this->analyze(I.getInputCollection());
     }
 
     // Analyze the live out.
@@ -736,14 +821,28 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     }
 
     // Rename the variable in this scope.
-    auto [old_var_domain, old_var_range] = detail::conservative(*live_out);
     auto [new_var_domain, new_var_range] = detail::conservative(I);
-    live_out_domain =
-        &live_out_domain->substitute(*old_var_domain, *new_var_domain)
-             .substitute(*old_var_range, *new_var_range);
-    live_out_range =
-        &live_out_range->substitute(*old_var_domain, *new_var_domain)
-             .substitute(*old_var_range, *new_var_range);
+    auto [old_var_domain, old_var_range] = detail::conservative(*live_out);
+
+    // If there are out-of-scope values in the resulting contents, we will
+    // just return the conservative tautology.
+    auto &parent_function = MEMOIR_SANITIZE(I.getCallInst().getFunction(),
+                                            "RetPHI has no parent function");
+    if (not detail::contents_are_local(*live_out_domain, parent_function)) {
+      live_out_domain = new_var_domain;
+    } else {
+      live_out_domain =
+          &live_out_domain->substitute(*old_var_domain, *new_var_domain)
+               .substitute(*old_var_range, *new_var_range);
+    }
+
+    if (not detail::contents_are_local(*live_out_range, parent_function)) {
+      live_out_range = new_var_range;
+    } else {
+      live_out_range =
+          &live_out_range->substitute(*old_var_domain, *new_var_domain)
+               .substitute(*old_var_range, *new_var_range);
+    }
 
     return { live_out_domain, live_out_range };
   }
@@ -771,30 +870,31 @@ void ContentAnalysisDriver::initialize() {
           continue;
         }
 
+        this->current = &I;
         this->visited.clear();
-        this->analyze(I);
+        this->summarize(I, this->analyze(I));
       }
     }
   }
 
   // Print the initial contents.
-  println();
-  println("================================");
-  println("Initial contents:");
+  debugln();
+  debugln("================================");
+  debugln("Initial contents:");
   for (const auto &[value, contents] : this->result) {
-    println(*value);
-    println("domain(",
+    debugln(*value);
+    debugln("domain(",
             value_name(*value),
             ") contains ",
             contents.first->to_string());
-    println("range(",
+    debugln("range(",
             value_name(*value),
             ") contains ",
             contents.second->to_string());
-    println();
+    debugln();
   }
-  println("================================");
-  println();
+  debugln("================================");
+  debugln();
 
   return;
 }
@@ -816,13 +916,9 @@ void ContentAnalysisDriver::simplify() {
       // Simplify the content for the given value mapping.
       const auto [domain, range] = content;
 
-      auto &simplified_domain = simplifier.simplify(
-          domain->substitute(Content::create<KeysContent>(*value),
-                             Content::create<EmptyContent>()));
+      auto &simplified_domain = simplifier.simplify(*domain);
 
-      auto &simplified_range = simplifier.simplify(
-          range->substitute(Content::create<ElementsContent>(*value),
-                            Content::create<EmptyContent>()));
+      auto &simplified_range = simplifier.simplify(*range);
 
       // Update the content mapping.
       content.first = &simplified_domain;
@@ -830,18 +926,17 @@ void ContentAnalysisDriver::simplify() {
     }
   }
 
-// Print the initial contents.
-#if 0
-  println();
-  println("================================");
-  println("Simplified contents:");
+  // Print the initial contents.
+  debugln();
+  debugln("================================");
+  debugln("Simplified contents:");
   for (auto &F : M) {
 
     if (F.empty()) {
       continue;
     }
 
-    println("=== BEGIN ", F.getName(), "===");
+    auto first = true;
     for (const auto &[value, contents] : this->result) {
 
       if (auto *inst = dyn_cast<llvm::Instruction>(value)) {
@@ -858,20 +953,26 @@ void ContentAnalysisDriver::simplify() {
         continue;
       }
 
-      println("domain(",
+      if (first) {
+        debugln("=== BEGIN ", F.getName(), "===");
+        first = false;
+      }
+
+      debugln("domain(",
               value_name(*value),
               ") contains ",
               contents.first->to_string());
-      println("range(",
+      debugln("range(",
               value_name(*value),
               ") contains ",
               contents.second->to_string());
     }
-    println("===   END ", F.getName(), "===");
+    if (not first) {
+      debugln("===   END ", F.getName(), "===");
+    }
   }
-  println("================================");
-  println();
-#endif
+  debugln("================================");
+  debugln();
 
   // All done.
   return;

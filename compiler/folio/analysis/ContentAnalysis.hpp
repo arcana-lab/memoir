@@ -32,6 +32,8 @@ protected:
   void summarize(llvm::Value &value, ContentSummary content);
   void summarize(llvm::memoir::MemOIRInst &value, ContentSummary content);
 
+  bool is_in_scope(llvm::Value &V);
+
   // Visitor methods.
   ContentSummary analyze(llvm::Value &V);
   ContentSummary analyze(llvm::memoir::MemOIRInst &I);
@@ -71,6 +73,7 @@ protected:
   // Borrowed state.
   Contents &result;
   llvm::Module &M;
+  llvm::Instruction *current;
 };
 
 class ContentAnalysis : public llvm::AnalysisInfoMixin<ContentAnalysis> {
