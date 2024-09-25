@@ -5,21 +5,40 @@
 #  define PASS(SCOPE, CLASS, NAME)
 #endif
 
-PASS(Module, SSAConstructionPass, "memoir-ssa-construction")
-PASS(Module, SSADestructionPass, "memoir-ssa-destruction")
-PASS(Module, ImplLinkerPass, "memoir-impl-linker")
-PASS(Module, NormalizationPass, "memoir-norm")
-PASS(Module, StatisticsPass, "memoir-stats")
-PASS(Module, TypeInferencePass, "memoir-type-infer")
-PASS(Module, LowerFoldPass, "memoir-lower-fold-only")
+// ===
+// MODULE_PASS(<class>, <name>, <args>...)
 
-PASS(Module, DeadCollectionEliminationPass, "memoir-dce")
-PASS(Module, DeadFieldEliminationPass, "memoir-dfe")
-PASS(Module, FieldElisionPass, "memoir-fe")
-PASS(Module, KeyFoldingPass, "memoir-kf")
-PASS(Module, DeadElementEliminationPass, "memoir-dee")
+#ifndef MODULE_PASS
+#  define MODULE_PASS(CLASS, RESULT) PASS(Module, CLASS, RESULT)
+#endif
+#define MODULE_PASS_(CLASS, RESULT) MODULE_PASS(CLASS, RESULT)
 
-PASS(Module, ExamplePass, "memoir-example")
+MODULE_PASS_(SSAConstructionPass, "memoir-ssa-construction")
+
+MODULE_PASS_(SSADestructionPass, "memoir-ssa-destruction")
+MODULE_PASS_(ImplLinkerPass, "memoir-impl-linker")
+MODULE_PASS_(NormalizationPass, "memoir-norm")
+MODULE_PASS_(StatisticsPass, "memoir-stats")
+MODULE_PASS_(TypeInferencePass, "memoir-type-infer")
+MODULE_PASS_(LowerFoldPass, "memoir-lower-fold-only")
+
+MODULE_PASS_(DeadCollectionEliminationPass, "memoir-dce")
+MODULE_PASS_(DeadFieldEliminationPass, "memoir-dfe")
+MODULE_PASS_(FieldElisionPass, "memoir-fe")
+MODULE_PASS_(KeyFoldingPass, "memoir-kf")
+MODULE_PASS_(DeadElementEliminationPass, "memoir-dee")
+
+MODULE_PASS_(ExamplePass, "memoir-example")
+
+// ===
+// FUNCTION_PASS(<class>, <name>, <args>...)
+
+#ifndef FUNCTION_PASS
+#  define FUNCTION_PASS(CLASS, RESULT) PASS(Function, CLASS, RESULT)
+#endif
+#define FUNCTION_PASS_(CLASS, RESULT) FUNCTION_PASS(CLASS, RESULT)
+
+FUNCTION_PASS_(LiveOutInsertionPass, "memoir-live-out-insertion")
 
 // ===
 // ANALYSIS(<scope>, <class>, <result>, <args>...)
@@ -46,6 +65,8 @@ FUNCTION_ANALYSIS_(LivenessAnalysis, LivenessResult)
 
 // ===
 #undef PASS
+#undef MODULE_PASS
+#undef FUNCTION_PASS
 #undef ANALYSIS
 #undef MODULE_ANALYSIS
 #undef FUNCTION_ANALYSIS

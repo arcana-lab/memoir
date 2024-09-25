@@ -33,7 +33,7 @@ llvmGetPassPluginInfo() {
            "memoir",
            LLVM_VERSION_STRING,
            [](llvm::PassBuilder &PB) {
-             // Register transforation passes.
+             // Register module transformation passes.
              PB.registerPipelineParsingCallback(
                  [](llvm::StringRef name,
                     llvm::ModulePassManager &MPM,
@@ -47,9 +47,23 @@ llvmGetPassPluginInfo() {
                      return true;
                    }
 
-#define PASS(SCOPE, CLASS, NAME)                                               \
+#define MODULE_PASS(CLASS, NAME)                                               \
   if (name == NAME) {                                                          \
     MPM.addPass(CLASS());                                                      \
+    return true;                                                               \
+  }
+#include "memoir/passes/Passes.def"
+                   return false;
+                 });
+
+             // Register module transformation passes.
+             PB.registerPipelineParsingCallback(
+                 [](llvm::StringRef name,
+                    llvm::FunctionPassManager &FPM,
+                    llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
+#define FUNCTION_PASS(CLASS, NAME)                                             \
+  if (name == NAME) {                                                          \
+    FPM.addPass(CLASS());                                                      \
     return true;                                                               \
   }
 #include "memoir/passes/Passes.def"

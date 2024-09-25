@@ -95,6 +95,6 @@ then
 fi
 
 # Run SSA construction and type inference.
-memoir-load ${PREPASSES[@]} -passes=memoir-ssa-construction ${POSTPASSES[@]} ${IR_FILE} -o ${IR_FILE}
+memoir-load ${PREPASSES[@]} -passes='memoir-ssa-construction,function(simplifycfg),function(lcssa),function(memoir-live-out-insertion)' ${POSTPASSES[@]} ${IR_FILE} -o ${IR_FILE}
 
 mv ${IR_FILE} ${OUTPUT_IR_FILE}

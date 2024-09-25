@@ -4,6 +4,7 @@
 // LLVM
 #include "llvm/Pass.h"
 
+#include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 
 #include "llvm/Passes/PassBuilder.h"
@@ -30,7 +31,7 @@ namespace llvm::memoir {
                                                                                \
   public:                                                                      \
     using Result = RESULT;                                                     \
-    Result run(llvm::SCOPE &M, llvm::SCOPE##AnalysisManager &MAM);             \
+    Result run(llvm::SCOPE &, llvm::SCOPE##AnalysisManager &);                 \
   };
 
 #include "memoir/passes/Passes.def"
