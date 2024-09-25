@@ -17,17 +17,15 @@
 #include "llvm/Support/raw_ostream.h"
 
 // MemOIR
-#include "memoir/passes/Passes.hpp"
-
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
-
+#include "memoir/passes/Passes.hpp"
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
 #include "memoir/support/Timer.hpp"
-
+#include "memoir/utility/CFGUtils.hpp"
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
 
@@ -48,30 +46,6 @@ namespace llvm::memoir {
 llvm::cl::opt<bool> construct_use_phis(
     "memoir-enable-use-phis",
     llvm::cl::desc("Enable construction of Use PHIs."));
-
-using DomTreeNode = llvm::DomTreeNodeBase<llvm::BasicBlock>;
-using DomTreeTraversalListTy = list<llvm::BasicBlock *>;
-static DomTreeTraversalListTy dfs_preorder_traversal_helper(DomTreeNode *root) {
-  MEMOIR_NULL_CHECK(root, "Root of dfs preorder traversal is NULL!");
-
-  DomTreeTraversalListTy traversal = { root->getBlock() };
-
-  for (auto *child : root->children()) {
-    auto child_traversal = dfs_preorder_traversal_helper(child);
-    traversal.insert(traversal.end(),
-                     child_traversal.begin(),
-                     child_traversal.end());
-  }
-
-  return traversal;
-}
-
-static DomTreeTraversalListTy dfs_preorder_traversal(llvm::DominatorTree &DT) {
-  auto *root_node = DT.getRootNode();
-  MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found, blame LLVM");
-
-  return dfs_preorder_traversal_helper(root_node);
-}
 
 llvm::PreservedAnalyses SSAConstructionPass::run(
     llvm::Module &M,
