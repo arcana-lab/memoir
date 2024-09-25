@@ -435,7 +435,7 @@ bool IntegerType::isSigned() const {
 
 std::string IntegerType::toString(std::string indent) const {
   std::string str;
-  str = "(type: ";
+
   if (this->getBitWidth() == 1) {
     str += "bool";
   } else {
@@ -446,7 +446,6 @@ std::string IntegerType::toString(std::string indent) const {
     }
     str += std::to_string(this->getBitWidth());
   }
-  str += ")";
 
   return str;
 }
@@ -471,7 +470,7 @@ FloatType::FloatType() : Type(TypeCode::FLOAT) {
 std::string FloatType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: f32)";
+  str = "f32";
 
   return str;
 }
@@ -490,7 +489,7 @@ DoubleType::DoubleType() : Type(TypeCode::DOUBLE) {
 std::string DoubleType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: f64)";
+  str = "f64";
 
   return str;
 }
@@ -509,7 +508,7 @@ PointerType::PointerType() : Type(TypeCode::POINTER) {
 std::string PointerType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: ptr)";
+  str = "ptr";
 
   return str;
 }
@@ -528,7 +527,7 @@ VoidType::VoidType() : Type(TypeCode::VOID) {
 std::string VoidType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: void)";
+  str = "void";
 
   return str;
 }
@@ -553,8 +552,7 @@ Type &ReferenceType::getReferencedType() const {
 std::string ReferenceType::toString(std::string indent) const {
   std::string str;
 
-  str =
-      "(type: ref " + this->getReferencedType().toString("            ") + ")";
+  str = "(ref " + this->getReferencedType().toString("     ") + ")";
 
   return str;
 }
@@ -603,12 +601,17 @@ Type &StructType::getFieldType(unsigned field_index) const {
 std::string StructType::toString(std::string indent) const {
   std::string str = "";
 
-  str += "(type: struct\n";
+  str += "(";
+  bool first = true;
   for (auto field_type : this->field_types) {
-    auto field_str = field_type->toString(indent + "  ");
-    str += indent + "  " + field_str + "\n";
+    if (not first) {
+      str += " ";
+    } else {
+      first = false;
+    }
+    str += field_type->toString(indent + " ");
   }
-  str += indent + ")";
+  str += ")";
 
   return str;
 }
@@ -697,16 +700,11 @@ size_t StaticTensorType::getLengthOfDimension(unsigned dimension_index) const {
 std::string StaticTensorType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: static tensor\n";
-  str += indent + "  element type: \n";
-  str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
-  str += indent + "  # of dimensions: "
-         + std::to_string(this->getNumberOfDimensions()) + "\n";
+  str = "(static-tensor " + this->element_type.toString(indent);
   for (size_t dim = 0; dim < this->length_of_dimensions.size(); dim++) {
-    str += indent + "  dimension " + std::to_string(dim) + ": "
-           + std::to_string(this->length_of_dimensions.at(dim)) + "\n";
+    str += " " + std::to_string(this->length_of_dimensions.at(dim));
   }
-  str += indent + ")";
+  str += ")";
 
   return str;
 }
@@ -732,12 +730,8 @@ unsigned TensorType::getNumberOfDimensions() const {
 std::string TensorType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: tensor\n";
-  str += indent + "  element type: \n";
-  str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
-  str += indent + "  # of dimensions: "
-         + std::to_string(this->getNumberOfDimensions()) + "\n";
-  str += indent + ")";
+  str = "(tensor " + this->element_type.toString(indent);
+  str += "(#dim " + std::to_string(this->getNumberOfDimensions()) + "))";
 
   return str;
 }
@@ -767,12 +761,8 @@ Type &AssocArrayType::getElementType() const {
 std::string AssocArrayType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: associative array\n";
-  str += indent + "  key type: \n";
-  str += indent + "    " + this->key_type.toString(indent + "    ") + "\n";
-  str += indent + "  value type: \n";
-  str += indent + "    " + this->value_type.toString(indent + "    ") + "\n";
-  str += indent + ")";
+  str = "(assoc " + this->key_type.toString(indent) + " "
+        + this->value_type.toString(indent) + ")";
 
   return str;
 }
@@ -793,10 +783,7 @@ Type &SequenceType::getElementType() const {
 std::string SequenceType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: sequence\n";
-  str += indent + "  element type: \n";
-  str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
-  str += indent + ")";
+  str = "(sequence " + this->element_type.toString(indent) + ")";
 
   return str;
 }
