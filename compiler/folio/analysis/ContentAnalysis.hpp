@@ -34,9 +34,13 @@ protected:
 
   bool is_in_scope(llvm::Value &V);
 
+  std::pair<llvm::memoir::set<llvm::Value *>, bool> set_recurse();
+  void restore_recurse(std::pair<llvm::memoir::set<llvm::Value *>, bool> old);
+
   // Visitor methods.
-  ContentSummary analyze(llvm::Value &V);
-  ContentSummary analyze(llvm::memoir::MemOIRInst &I);
+  ContentSummary analyze(llvm::Value &V, bool force_recurse = false);
+  ContentSummary analyze(llvm::memoir::MemOIRInst &I,
+                         bool force_recurse = false);
 
   ContentSummary visitArgument(llvm::Argument &I);
   ContentSummary visitInstruction(llvm::Instruction &I);
@@ -60,6 +64,10 @@ protected:
   ContentSummary contextualize_fold(llvm::memoir::FoldInst &I,
                                     ContentSummary summary);
   ContentSummary visitFoldInst(llvm::memoir::FoldInst &I);
+
+  ContentSummary contextualize_call(llvm::CallBase &I,
+                                    llvm::Function &F,
+                                    ContentSummary summary);
   ContentSummary visitRetPHIInst(llvm::memoir::RetPHIInst &I);
   ContentSummary visitUsePHIInst(llvm::memoir::UsePHIInst &I);
 
@@ -67,6 +75,7 @@ protected:
 
   // Owned state.
   llvm::memoir::set<llvm::Value *> visited;
+  llvm::memoir::map<llvm::Value *, ContentSummary> temporaries;
   bool recurse;
   std::function<llvm::Loop *(llvm::PHINode &)> get_loop_for;
 

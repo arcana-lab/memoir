@@ -1,3 +1,5 @@
+#include <tuple>
+
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include "llvm/IR/Constants.h"
@@ -67,24 +69,47 @@ bool ContentAnalysisDriver::is_in_scope(llvm::Value &V) {
   return true;
 }
 
-ContentSummary ContentAnalysisDriver::analyze(llvm::Value &V) {
+std::pair<set<llvm::Value *>, bool> ContentAnalysisDriver::set_recurse() {
+  std::pair<set<llvm::Value *>, bool> old = { this->visited, this->recurse };
+
+  // this->visited.clear();
+  this->recurse = true;
+
+  return old;
+}
+void ContentAnalysisDriver::restore_recurse(
+    std::pair<set<llvm::Value *>, bool> old) {
+  // this->visited = old.first;
+  this->recurse = old.second;
+}
+
+ContentSummary ContentAnalysisDriver::analyze(llvm::Value &V,
+                                              bool force_recurse) {
 
   // Check if this value is in scope.
   auto in_scope = this->is_in_scope(V);
 
   // If the value is in scope, and we are not in recursive mode, return the
   // conservative contents.
-  if (in_scope and this->recurse) {
-    return detail::conservative(V);
+  if (not force_recurse) {
+    if (this->current != &V and in_scope and not this->recurse) {
+      return detail::conservative(V);
+    }
   }
 
   // Check if we have already visited this value.
   if (isa<llvm::PHINode>(&V) and visited.count(&V) > 0) {
-    // Already visited, return the conservative result.
-    return detail::conservative(V);
-  } else {
-    visited.insert(&V);
+    // Already visited, if we have a temporary summary, return it.
+    auto found_temp = this->temporaries.find(&V);
+    if (found_temp == this->temporaries.end()) {
+      return detail::conservative(V);
+    } else {
+      return found_temp->second;
+    }
   }
+
+  // Mark the value as visited.
+  visited.insert(&V);
 
   // If we haven't, dispatch to the appropriate handler.
   ContentSummary content;
@@ -97,14 +122,18 @@ ContentSummary ContentAnalysisDriver::analyze(llvm::Value &V) {
     content = this->visit(*inst);
 
   } else {
-    return detail::conservative(V);
+    content = detail::conservative(V);
   }
+
+  // Save the result as a temporary.
+  this->temporaries[&V] = content;
 
   return content;
 }
 
-ContentSummary ContentAnalysisDriver::analyze(MemOIRInst &I) {
-  return this->analyze(I.getCallInst());
+ContentSummary ContentAnalysisDriver::analyze(MemOIRInst &I,
+                                              bool force_recurse) {
+  return this->analyze(I.getCallInst(), force_recurse);
 }
 
 ContentSummary ContentAnalysisDriver::visitArgument(llvm::Argument &A) {
@@ -198,7 +227,7 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertInst(SeqInsertInst &I) {
   auto [base_domain, base_range] = this->analyze(I.getBaseCollection());
 
   // Analyze the insertion point.
-  auto [_, value_range] = this->analyze(I.getInsertionPoint());
+  auto [_, value_range] = this->analyze(I.getInsertionPoint(), true);
 
   // Create the domain union.
   auto &domain = Content::create<UnionContent>(*value_range, *base_domain);
@@ -230,14 +259,13 @@ ContentSummary ContentAnalysisDriver::visitIndexWriteInst(IndexWriteInst &I) {
 
   // Fetch the content of the input collection.
   auto &collection = I.getObjectOperand();
-  auto [domain, base_range] = this->recurse ? this->analyze(collection)
-                                            : detail::conservative(collection);
+  auto [domain, base_range] = this->analyze(collection);
 
   // Analyze the index being written.
-  auto [_index_domain, index_range] = this->analyze(I.getIndex());
+  auto [_index_domain, index_range] = this->analyze(I.getIndex(), true);
 
   // Analyze the value being written.
-  auto [_value_domain, value_range] = this->analyze(I.getValueWritten());
+  auto [_value_domain, value_range] = this->analyze(I.getValueWritten(), true);
 
   // Get the type information.
   auto &collection_type = I.getCollectionType();
@@ -276,13 +304,13 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertValueInst(
   // Fetch the base collection info.
   auto &base = I.getBaseCollection();
   auto [base_domain, base_range] = this->analyze(base);
-  // this->recurse ? this->analyze(base) : detail::conservative(base);
 
   // Fetch the insertion point info.
-  auto [_index_domain, index_range] = this->analyze(I.getInsertionPoint());
+  auto [_index_domain, index_range] =
+      this->analyze(I.getInsertionPoint(), true);
 
   // Fetch the inserted value's range.
-  auto [_value_domain, value_range] = this->analyze(I.getValueInserted());
+  auto [_value_domain, value_range] = this->analyze(I.getValueInserted(), true);
 
   // Construct the new domain.
   auto &domain = Content::create<UnionContent>(*index_range, *base_range);
@@ -296,13 +324,11 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertValueInst(
 ContentSummary ContentAnalysisDriver::visitAssocWriteInst(AssocWriteInst &I) {
 
   // Fetch the base collection info.
-  // auto [base_domain, base_range] = this->analyze(I.getObjectOperand());
   auto &base = I.getObjectOperand();
   auto [base_domain, base_range] = this->analyze(base);
-  // this->recurse ? this->analyze(base) : detail::conservative(base);
 
   // Fetch the inserted value's range.
-  auto [_, value_range] = this->analyze(I.getValueWritten());
+  auto [_, value_range] = this->analyze(I.getValueWritten(), true);
 
   // Construct the new range.
   auto &range = Content::create<UnionContent>(*value_range, *base_range);
@@ -315,11 +341,10 @@ ContentSummary ContentAnalysisDriver::visitAssocInsertInst(AssocInsertInst &I) {
   // Fetch the base collection info.
   // auto [base_domain, base_range] = this->analyze(I.getBaseCollection());
   auto &base = I.getBaseCollection();
-  auto [base_domain, base_range] =
-      this->recurse ? this->analyze(base) : detail::conservative(base);
+  auto [base_domain, base_range] = this->analyze(base);
 
   // Fetch the insertion point.
-  auto [_, index_range] = this->analyze(I.getInsertionPoint());
+  auto [_, index_range] = this->analyze(I.getInsertionPoint(), true);
 
   // Construct the empty contents.
   auto &collection_type =
@@ -364,17 +389,13 @@ ContentSummary handle_collection_read(ReadInst &I, Content &collection_range) {
 
 ContentSummary ContentAnalysisDriver::visitIndexReadInst(IndexReadInst &I) {
   // Construct the resultant content.
-  auto [_, elements] = this->recurse
-                           ? this->analyze(I.getObjectOperand())
-                           : detail::conservative(I.getObjectOperand());
+  auto [_, elements] = this->analyze(I.getObjectOperand());
   return detail::handle_collection_read(I, *elements);
 }
 
 ContentSummary ContentAnalysisDriver::visitAssocReadInst(AssocReadInst &I) {
   // Construct the resultant content.
-  auto [_, elements] = this->recurse
-                           ? this->analyze(I.getObjectOperand())
-                           : detail::conservative(I.getObjectOperand());
+  auto [_, elements] = this->analyze(I.getObjectOperand());
   return detail::handle_collection_read(I, *elements);
 }
 
@@ -394,8 +415,7 @@ ContentSummary ContentAnalysisDriver::visitStructReadInst(StructReadInst &I) {
 
 ContentSummary ContentAnalysisDriver::visitAssocKeysInst(AssocKeysInst &I) {
   // Construct the KeyContent
-  auto [domain, _] = this->recurse ? this->analyze(I.getCollection())
-                                   : detail::conservative(I.getCollection());
+  auto [domain, _] = this->analyze(I.getCollection());
   return { &Content::create<RangeContent>(I.getCallInst()), domain };
 }
 
@@ -403,14 +423,10 @@ ContentSummary ContentAnalysisDriver::contextualize_fold(FoldInst &I,
                                                          ContentSummary input) {
 
   // Fetch the content of the input collection.
-  auto [folded_domain, folded_range] =
-      this->recurse ? this->analyze(I.getCollection())
-                    : detail::conservative(I.getCollection());
+  auto [folded_domain, folded_range] = this->analyze(I.getCollection());
 
   // Fetch the content of the initial value.
-  auto [init_domain, init_range] = this->recurse
-                                       ? this->analyze(I.getInitial())
-                                       : detail::conservative(I.getInitial());
+  auto [init_domain, init_range] = this->analyze(I.getInitial());
 
   // Fetch the content of the accumulator argument.
   auto [accum_arg_domain, accum_arg_range] =
@@ -447,8 +463,7 @@ ContentSummary ContentAnalysisDriver::contextualize_fold(FoldInst &I,
     auto [closed_arg_domain, closed_arg_range] =
         detail::conservative(closed_arg);
 
-    auto [closed_domain, closed_range] =
-        this->recurse ? this->analyze(closed) : detail::conservative(closed);
+    auto [closed_domain, closed_range] = this->analyze(closed);
 
     domain = &domain->substitute(*closed_arg_domain, *closed_domain)
                   .substitute(*closed_arg_range, *closed_range);
@@ -483,10 +498,10 @@ ContentSummary ContentAnalysisDriver::visitFoldInst(FoldInst &I) {
   }
 
   // Fetch the content of the returned collection.
-  auto was_recurse = this->recurse;
-  this->recurse = true;
+
+  auto was = this->set_recurse();
   auto returned_summary = this->analyze(*returned);
-  this->recurse = was_recurse;
+  this->restore_recurse(was);
 
   // Contextualize the returned value.
   auto [domain, range] = this->contextualize_fold(I, returned_summary);
@@ -607,10 +622,13 @@ ContentSummary ContentAnalysisDriver::visitPHINode(llvm::PHINode &I) {
     auto *incoming_value = I.getIncomingValue(i);
     if (incoming_values.count(incoming_value) > 0) {
       continue;
+    } else {
+      incoming_values.insert(incoming_value);
     }
 
-    incoming_values.insert(incoming_value);
+    auto was = this->set_recurse();
     incoming_contents.push_back(this->analyze(*incoming_value));
+    this->restore_recurse(was);
   }
   auto content = std::accumulate(
       std::next(incoming_contents.rbegin()),
@@ -674,6 +692,105 @@ bool contents_are_local(Content &C, llvm::Function &F) {
 }
 
 } // namespace detail
+
+ContentSummary ContentAnalysisDriver::contextualize_call(
+    llvm::CallBase &call,
+    llvm::Function &function,
+    ContentSummary content) {
+
+  // Unpack the content.
+  auto [domain, range] = content;
+
+  // Collect all live out variables.
+  map<llvm::Argument *, llvm::Value *> live_outs = {};
+  for (auto &BB : function) {
+    for (auto &I : BB) {
+      auto live_out_metadata = Metadata::get<LiveOutMetadata>(I);
+      if (not live_out_metadata) {
+        continue;
+      }
+
+      auto arg_no = live_out_metadata->getArgNo();
+      auto *argument = function.getArg(arg_no);
+
+      live_outs[argument] = &I;
+    }
+  }
+
+  // For each live-out, find a the corresponding RET-PHI.
+  map<llvm::Argument *, llvm::Value *> ret_phis = {};
+  llvm::BasicBlock::iterator it(call.getNextNode());
+  for (auto *inst = call.getNextNode(); inst != nullptr;
+       inst = inst->getNextNode()) {
+
+    if (auto *ret_phi = into<RetPHIInst>(inst)) {
+      // Determine which argument this ret phi corresponds to.
+      auto &input = ret_phi->getInputCollection();
+      bool found = false;
+      unsigned operand_no = 0;
+      for (auto &operand_use : call.args()) {
+        if (operand_use.get() == &input) {
+          operand_no = operand_use.getOperandNo();
+          found = true;
+          break;
+        }
+      }
+      MEMOIR_ASSERT(found, "Could not find corresponding operand");
+
+      auto *argument = function.getArg(operand_no);
+      ret_phis[argument] = inst;
+
+    } else if (auto *call = dyn_cast<llvm::CallBase>(inst)) {
+      break;
+    }
+  }
+
+  // For each argument of the function, contextualize it.
+  for (auto &argument : function.args()) {
+    // Fetch the conservative argument content.
+    auto [arg_domain, arg_range] = detail::conservative(argument);
+
+    // Analyze the incoming argument operand.
+    auto &operand = MEMOIR_SANITIZE(call.getArgOperand(argument.getArgNo()),
+                                    "Argument operand for CallBase is NULL");
+
+    auto was = this->set_recurse();
+    auto [operand_domain, operand_range] = this->analyze(operand);
+    this->restore_recurse(was);
+
+    // Substitute the operand for the argument.
+    domain = &domain->substitute(*arg_domain, *operand_domain)
+                  .substitute(*arg_range, *operand_range);
+    range = &domain->substitute(*arg_range, *operand_domain)
+                 .substitute(*arg_range, *operand_range);
+
+    // If there is a live out, substitute it with the RET-PHI.
+    auto found_live_out = live_outs.find(&argument);
+    if (found_live_out != live_outs.end()) {
+      auto *live_out = found_live_out->second;
+
+      auto found_ret_phi = ret_phis.find(&argument);
+      if (found_ret_phi != ret_phis.end()) {
+        auto *ret_phi = found_ret_phi->second;
+
+        auto [live_out_domain, live_out_range] =
+            detail::conservative(*live_out);
+        auto [ret_phi_domain, ret_phi_range] = detail::conservative(*ret_phi);
+
+        // Substitute.
+        domain = &domain->substitute(*live_out_domain, *ret_phi_domain)
+                      .substitute(*live_out_range, *ret_phi_range);
+        range = &domain->substitute(*live_out_range, *ret_phi_domain)
+                     .substitute(*live_out_range, *ret_phi_range);
+
+      } else {
+        warnln("Found live out without a ret phi!");
+      }
+    }
+  }
+
+  return { domain, range };
+}
 
 ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
 
@@ -743,10 +860,9 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     }
 
     // Analyze the live out
-    auto was_recurse = this->recurse;
-    this->recurse = true;
+    auto was = this->set_recurse();
     auto live_out_summary = this->analyze(*live_out);
-    this->recurse = was_recurse;
+    this->restore_recurse(was);
 
     // Otherwise, get the content of the live out.
     auto [domain, range] = this->contextualize_fold(*fold, live_out_summary);
@@ -792,56 +908,37 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     // If we did not find a live out, then the contents are the same
     // as the input.
     if (not live_out) {
+      debugln("No live out: ", I);
+      debugln("Argument #: ", arg_number);
       return this->analyze(I.getInputCollection());
     }
 
     // Analyze the live out.
-    auto was_recurse = this->recurse;
-    this->recurse = true;
-    auto [live_out_domain, live_out_range] = this->analyze(*live_out);
-    this->recurse = was_recurse;
+    auto was = this->set_recurse();
+    auto live_out_summary = this->analyze(*live_out);
+    this->restore_recurse(was);
 
-    // Substitute each of the arguments for their corresponding operand.
-    for (auto &argument : called_function->args()) {
-      // Fetch the conservative argument content.
-      auto [arg_domain, arg_range] = detail::conservative(argument);
-
-      // Analyze the incoming argument operand.
-      auto &operand = MEMOIR_SANITIZE(call->getArgOperand(argument.getArgNo()),
-                                      "Argument operand for CallBase is NULL");
-      bool was_recurse = this->recurse;
-      this->recurse = true;
-      auto [operand_domain, operand_range] = this->analyze(operand);
-      this->recurse = was_recurse;
-
-      // Substitute the operand for the argument.
-      live_out_domain =
-          &live_out_domain->substitute(*arg_domain, *operand_domain)
-               .substitute(*arg_range, *operand_range);
-    }
-
-    // Rename the variable in this scope.
-    auto [new_var_domain, new_var_range] = detail::conservative(I);
-    auto [old_var_domain, old_var_range] = detail::conservative(*live_out);
+    // Contextualize the contents in the context of the call.
+    auto [live_out_domain, live_out_range] =
+        this->contextualize_call(*call, *called_function, live_out_summary);
 
     // If there are out-of-scope values in the resulting contents, we will
     // just return the conservative tautology.
     auto &parent_function = MEMOIR_SANITIZE(I.getCallInst().getFunction(),
                                             "RetPHI has no parent function");
-    if (not detail::contents_are_local(*live_out_domain, parent_function)) {
+    if (false
+        and not detail::contents_are_local(*live_out_domain, parent_function)) {
+      println("Content is not local!");
+      println("  ", *live_out_domain);
+
+      auto [new_var_domain, _] = detail::conservative(I);
       live_out_domain = new_var_domain;
-    } else {
-      live_out_domain =
-          &live_out_domain->substitute(*old_var_domain, *new_var_domain)
-               .substitute(*old_var_range, *new_var_range);
     }
 
-    if (not detail::contents_are_local(*live_out_range, parent_function)) {
+    if (false
+        and not detail::contents_are_local(*live_out_range, parent_function)) {
+      auto [_, new_var_range] = detail::conservative(I);
       live_out_range = new_var_range;
-    } else {
-      live_out_range =
-          &live_out_range->substitute(*old_var_domain, *new_var_domain)
-               .substitute(*old_var_range, *new_var_range);
     }
 
     return { live_out_domain, live_out_range };
@@ -854,12 +951,14 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
 
 void ContentAnalysisDriver::initialize() {
 
-  // Iterate over the CFG.
-  vector<llvm::BasicBlock *> worklist;
-
   // First, create the initial summaries based solely on the local instruction
   // information.
   for (auto &F : this->M) {
+    for (auto &A : F.args()) {
+      this->visited.clear();
+      this->summarize(A, this->visitArgument(A));
+    }
+
     for (auto &BB : F) {
       for (auto &I : BB) {
 
@@ -877,7 +976,8 @@ void ContentAnalysisDriver::initialize() {
     }
   }
 
-  // Print the initial contents.
+// Print the initial contents.
+#if 0
   debugln();
   debugln("================================");
   debugln("Initial contents:");
@@ -895,6 +995,7 @@ void ContentAnalysisDriver::initialize() {
   }
   debugln("================================");
   debugln();
+#endif
 
   return;
 }
@@ -914,15 +1015,45 @@ void ContentAnalysisDriver::simplify() {
     for (auto &[value, content] : this->result) {
 
       // Simplify the content for the given value mapping.
-      const auto [domain, range] = content;
+      auto &[domain, range] = content;
 
-      auto &simplified_domain = simplifier.simplify(*domain);
+      domain = &simplifier.simplify(*domain);
 
-      auto &simplified_range = simplifier.simplify(*range);
+      range = &simplifier.simplify(*range);
 
-      // Update the content mapping.
-      content.first = &simplified_domain;
-      content.second = &simplified_range;
+      // If the value is a ret-phi, contextualize it.
+      if (auto *ret_phi = into<RetPHIInst>(*value)) {
+        if (auto *function = ret_phi->getCalledFunction()) {
+
+          if (not FunctionNames::is_memoir_call(*function)) {
+
+            // Find the call.
+            llvm::CallBase *corresponding_call = nullptr;
+            llvm::Instruction *current_inst = &ret_phi->getCallInst();
+            while ((current_inst = current_inst->getPrevNode())) {
+              if (auto *ret_phi = into<RetPHIInst>(current_inst)) {
+                continue;
+              }
+
+              if (auto *call = dyn_cast<llvm::CallBase>(current_inst)) {
+                if (call->getCalledFunction() == function) {
+                  corresponding_call = call;
+                  break;
+                } else {
+                  break;
+                }
+              }
+            }
+
+            if (corresponding_call) {
+              std::tie(domain, range) =
+                  this->contextualize_call(*corresponding_call,
+                                           *function,
+                                           std::make_pair(domain, range));
+            }
+          }
+        }
+      }
     }
   }
 

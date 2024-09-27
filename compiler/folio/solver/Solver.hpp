@@ -25,20 +25,19 @@ public:
   /**
    * Get the mapping from llvm values to their selected implementations.
    */
-  const llvm::memoir::map<llvm::Value *, const Implementation *> selections()
-      const {
+  llvm::memoir::map<llvm::Value *, Selection *> &selections() {
     return this->_selections;
   }
 
   /**
    * Get the set of opportunities exploited by this candidate.
    */
-  const llvm::memoir::set<Opportunity *> opportunities() const {
+  llvm::memoir::set<Opportunity *> &opportunities() {
     return this->_opportunities;
   }
 
 protected:
-  llvm::memoir::map<llvm::Value *, const Implementation *> _selections;
+  llvm::memoir::map<llvm::Value *, Selection *> _selections;
   llvm::memoir::set<Opportunity *> _opportunities;
 
   friend class Solver;
@@ -63,15 +62,15 @@ public:
   Solver(llvm::Module &M,
          const llvm::memoir::set<llvm::Value *> &selectable,
          Constraints &constraints,
-         const Opportunities &opportunities,
-         const Implementations &implementations);
+         Opportunities &opportunities,
+         Implementations &implementations);
 
   /**
    * Get a reference to the generated candidates.
    *
    * @returns the generated candidates
    */
-  const Candidates &candidates() const;
+  Candidates &candidates();
 
 protected:
   // Helper functions.
@@ -90,8 +89,8 @@ protected:
   // Borrowed state.
   const llvm::memoir::set<llvm::Value *> &_selectable;
   Constraints &_constraints;
-  const Opportunities &_opportunities;
-  const Implementations &_implementations;
+  Opportunities &_opportunities;
+  Implementations &_implementations;
 };
 
 } // namespace folio

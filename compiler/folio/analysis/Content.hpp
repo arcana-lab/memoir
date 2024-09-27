@@ -549,9 +549,9 @@ public:
       _rhs(rhs) {}
 
   std::string to_string() const override {
-    return "(" + this->_content.to_string() + " | " + this->_lhs.to_string()
+    return "[" + this->_content.to_string() + " | " + this->_lhs.to_string()
            + " " + llvm::CmpInst::getPredicateName(this->_predicate).str() + " "
-           + this->_rhs.to_string() + ")";
+           + this->_rhs.to_string() + "]";
   }
 
   bool operator==(Content &other) const override {
