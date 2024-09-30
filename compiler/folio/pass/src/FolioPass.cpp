@@ -126,6 +126,7 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
   }
 
   // DEBUG: print the list of candidates.
+#if 0
   auto candidate_index = 0;
   for (auto &candidate : solver.candidates()) {
     debugln("Candidate ", std::to_string(candidate_index++));
@@ -138,12 +139,30 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
     debugln("  ", std::to_string(num_exploited), " opportunities exploited.");
     debugln();
   }
+#endif
 
   // Select a candidate.
-  auto &selected_candidate = solver.candidates().front();
+  Candidate *selected_candidate = nullptr;
+  for (auto &candidate : solver.candidates()) {
+
+    if (not selected_candidate) {
+      selected_candidate = &candidate;
+      continue;
+    }
+
+    auto current_opportunities = selected_candidate->opportunities().size();
+    auto num_opportunities = candidate.opportunities().size();
+
+    if (current_opportunities == 0) {
+      selected_candidate = &candidate;
+    } else if (num_opportunities > 0
+               and num_opportunities < current_opportunities) {
+      selected_candidate = &candidate;
+    }
+  }
 
   // Transform the program to utilize the selected candidate.
-  detail::transform(M, MAM, selected_candidate);
+  detail::transform(M, MAM, *selected_candidate);
 
   // All done.
   return llvm::PreservedAnalyses::none();
