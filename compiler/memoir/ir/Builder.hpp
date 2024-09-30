@@ -246,16 +246,29 @@ public:
   //// Read Instructions
   StructReadInst *CreateStructReadInst(
       Type &element_type,
-      llvm::Value *llvm_collection,
+      llvm::Value *llvm_struct,
       llvm::Value *llvm_field_index,
       const vector<llvm::Value *> &sub_indices = {},
       const Twine &name = "") {
-    vector<llvm::Value *> args = { llvm_collection, llvm_field_index };
+    vector<llvm::Value *> args = { llvm_struct, llvm_field_index };
     args.insert(args.end(), sub_indices.begin(), sub_indices.end());
 
     return this->create<StructReadInst>(getStructReadEnumForType(element_type),
                                         args,
                                         name);
+  }
+
+  StructReadInst *CreateStructReadInst(
+      Type &element_type,
+      llvm::Value *llvm_struct,
+      unsigned field_index,
+      const vector<llvm::Value *> &sub_indices = {},
+      const Twine &name = "") {
+    return this->CreateStructReadInst(element_type,
+                                      llvm_struct,
+                                      this->getInt32(field_index),
+                                      sub_indices,
+                                      name);
   }
 
   IndexReadInst *CreateIndexReadInst(
@@ -442,6 +455,14 @@ public:
     return this->create<AssocKeysInst>(MemOIR_Func::ASSOC_KEYS,
                                        llvm::ArrayRef({ collection }),
                                        name);
+  }
+
+  AssocHasInst *CreateAssocHasInst(llvm::Value *collection,
+                                   llvm::Value *key_value,
+                                   const Twine &name = "") {
+    return this->create<AssocHasInst>(MemOIR_Func::ASSOC_HAS,
+                                      { collection, key_value },
+                                      name);
   }
 
   //// Mutable assoc operations.
@@ -662,6 +683,26 @@ public:
     return this->create<EndInst>(MemOIR_Func::END, {}, name);
   }
 
+  //// Fold operation
+  FoldInst *CreateFoldInst(Type &type,
+                           llvm::Value *initial,
+                           llvm::Value *collection,
+                           llvm::Function *body,
+                           llvm::ArrayRef<llvm::Value *> closed = {},
+                           const Twine &name = "") {
+    // Fetch the function type.
+    auto *func_type = body->getFunctionType();
+
+    // Create the argument list.
+    vector<llvm::Value *> args = { initial, collection, body };
+    args.insert(args.end(), closed.begin(), closed.end());
+
+    // Construct the call.
+    return this->create<FoldInst>(getFoldEnumForType(type),
+                                  llvm::ArrayRef<llvm::Value *>(args),
+                                  name);
+  }
+
   //// SSA renaming operations.
   UsePHIInst *CreateUsePHI(llvm::Value *collection, const Twine &name = "") {
     return this->create<UsePHIInst>(MemOIR_Func::USE_PHI, { collection }, name);
@@ -859,6 +900,9 @@ protected:
   ENUM_FOR_PRIMITIVE_TYPE(MUT_ASSOC_WRITE, MutAssocWrite)
   ENUM_FOR_PRIMITIVE_TYPE(MUT_STRUCT_WRITE, MutStructWrite)
   ENUM_FOR_PRIMITIVE_TYPE(MUT_SEQ_INSERT, MutSeqInsert)
+  ENUM_FOR_PRIMITIVE_TYPE(FOLD, FoldInst)
+  ENUM_FOR_PRIMITIVE_TYPE(RFOLD, ReverseFoldInst)
+#undef ENUM_FOR_PRIMITIVE_TYPE
 
 #define ENUM_FOR_NESTED_TYPE(ENUM_PREFIX, NAME)                                \
   MemOIR_Func get##NAME##EnumForType(Type &type) {                             \
@@ -873,6 +917,64 @@ protected:
   ENUM_FOR_NESTED_TYPE(INDEX_GET, IndexGet)
   ENUM_FOR_NESTED_TYPE(ASSOC_GET, AssocGet)
   ENUM_FOR_NESTED_TYPE(STRUCT_GET, StructGet)
+#undef ENUM_FOR_NESTED_TYPE
+
+#define ENUM_FOR_TYPE(ENUM_PREFIX, NAME)                                       \
+  MemOIR_Func get##NAME##EnumForType(Type &type) {                             \
+    if (isa<FloatType>(&type)) {                                               \
+      return MemOIR_Func::ENUM_PREFIX##_FLOAT;                                 \
+    } else if (isa<DoubleType>(&type)) {                                       \
+      return MemOIR_Func::ENUM_PREFIX##_DOUBLE;                                \
+    } else if (isa<PointerType>(&type)) {                                      \
+      return MemOIR_Func::ENUM_PREFIX##_PTR;                                   \
+    } else if (isa<ReferenceType>(&type)) {                                    \
+      return MemOIR_Func::ENUM_PREFIX##_STRUCT_REF;                            \
+    } else if (isa<StructType>(&type)) {                                       \
+      return MemOIR_Func::ENUM_PREFIX##_STRUCT_REF;                            \
+    } else if (isa<CollectionType>(&type)) {                                   \
+      return MemOIR_Func::ENUM_PREFIX##_COLLECTION_REF;                        \
+    } else if (auto *integer_type = dyn_cast<IntegerType>(&type)) {            \
+      if (!integer_type->isSigned()) {                                         \
+        switch (integer_type->getBitWidth()) {                                 \
+          case 64:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_UINT64;                          \
+          case 32:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_UINT32;                          \
+          case 16:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_UINT16;                          \
+          case 8:                                                              \
+            return MemOIR_Func::ENUM_PREFIX##_UINT8;                           \
+          case 1:                                                              \
+            return MemOIR_Func::ENUM_PREFIX##_BOOL;                            \
+          default:                                                             \
+            MEMOIR_UNREACHABLE(                                                \
+                "Attempt to create unknown unsigned integer type!");           \
+        }                                                                      \
+      } else {                                                                 \
+        switch (integer_type->getBitWidth()) {                                 \
+          case 64:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_INT64;                           \
+          case 32:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_INT32;                           \
+          case 16:                                                             \
+            return MemOIR_Func::ENUM_PREFIX##_INT16;                           \
+          case 8:                                                              \
+            return MemOIR_Func::ENUM_PREFIX##_INT8;                            \
+          case 2:                                                              \
+            return MemOIR_Func::ENUM_PREFIX##_INT2;                            \
+          case 1:                                                              \
+            return MemOIR_Func::ENUM_PREFIX##_BOOL;                            \
+          default:                                                             \
+            MEMOIR_UNREACHABLE(                                                \
+                "Attempt to create unknown signed integer type!");             \
+        }                                                                      \
+      }                                                                        \
+    }                                                                          \
+    MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");      \
+  }
+
+  ENUM_FOR_TYPE(FOLD, Fold)
+  ENUM_FOR_TYPE(RFOLD, ReverseFold)
 
 }; // namespace llvm::memoir
 
