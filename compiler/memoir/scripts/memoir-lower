@@ -32,6 +32,10 @@ do
             flags
             exit 1
             ;;
+        --disable-folio)
+            DISABLE_FOLIO="y"
+            shift
+            ;;
         *)
             if [ -n "${INPUT_IR_FILE}" ] ; then
                 echo "Too many positional arguments passed!"
@@ -64,7 +68,10 @@ IR_FILE=${TEMP_DIR}/lowering.bc
 cp ${INPUT_IR_FILE} ${IR_FILE}
 
 # Run Folio.
-folio ${IR_FILE} -o ${IR_FILE}
+if [ -z ${DISABLE_FOLIO} ]
+then
+    folio ${IR_FILE} -o ${IR_FILE}
+fi
 
 # Run the ImplLinker.
 memoir-load ${IR_FILE} -passes=memoir-impl-linker --impl-out-file ${IMPL_CPP_FILE} -o ${IR_FILE}
