@@ -19,6 +19,7 @@ add_subdirectory(utilities)
 add_subdirectory(normalization)
 add_subdirectory(ssa_construction)
 add_subdirectory(ssa_destruction)
+add_subdirectory(live_out_insertion)
 
 # Utility passes.
 add_subdirectory(statistics)
