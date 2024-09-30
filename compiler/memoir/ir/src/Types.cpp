@@ -415,6 +415,11 @@ TypeCode Type::getCode() const {
   return this->code;
 }
 
+// Type implementation
+llvm::Type *Type::get_llvm_type(llvm::LLVMContext &C) const {
+  return nullptr;
+}
+
 /*
  * IntegerType implementation
  */
@@ -460,6 +465,10 @@ opt<std::string> IntegerType::get_code() const {
   return str;
 }
 
+llvm::Type *IntegerType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::Type::getIntNTy(C, this->getBitWidth());
+}
+
 /*
  * FloatType implementation
  */
@@ -477,6 +486,10 @@ std::string FloatType::toString(std::string indent) const {
 
 opt<std::string> FloatType::get_code() const {
   return "f32";
+}
+
+llvm::Type *FloatType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::Type::getFloatTy(C);
 }
 
 /*
@@ -498,6 +511,10 @@ opt<std::string> DoubleType::get_code() const {
   return "f64";
 }
 
+llvm::Type *DoubleType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::Type::getDoubleTy(C);
+}
+
 /*
  * PointerType implementation
  */
@@ -517,6 +534,10 @@ opt<std::string> PointerType::get_code() const {
   return "ptr";
 }
 
+llvm::Type *PointerType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::PointerType::get(C, 0);
+}
+
 /*
  * VoidType implementation
  */
@@ -534,6 +555,10 @@ std::string VoidType::toString(std::string indent) const {
 
 opt<std::string> VoidType::get_code() const {
   return "void";
+}
+
+llvm::Type *VoidType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::Type::getVoidTy(C);
 }
 
 /*
@@ -563,6 +588,10 @@ opt<std::string> ReferenceType::get_code() const {
     return {};
   }
   return *ref_code + "_ref";
+}
+
+llvm::Type *ReferenceType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::PointerType::get(C, 0);
 }
 
 /*
@@ -620,6 +649,10 @@ opt<std::string> StructType::get_code() const {
   return this->getName();
 }
 
+llvm::Type *StructType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::PointerType::get(C, 0);
+}
+
 /*
  * Abstract CollectionType implementation
  */
@@ -629,6 +662,10 @@ CollectionType::CollectionType(TypeCode code) : Type(code) {
 
 opt<std::string> CollectionType::get_code() const {
   return "collection";
+}
+
+llvm::Type *CollectionType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::PointerType::get(C, 0);
 }
 
 /*
@@ -789,7 +826,6 @@ std::string SequenceType::toString(std::string indent) const {
 }
 
 Type &Type::from_code(std::string code) {
-
   if (code[0] == 'u') {
     auto bitwidth = std::atoi(&code.c_str()[1]);
     switch (bitwidth) {

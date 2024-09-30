@@ -95,7 +95,7 @@ public:
   TypeCode getCode() const;
 
   // TODO: implement conversion to LLVM type
-  // virtual llvm::Type *getLLVMType() const;
+  virtual llvm::Type *get_llvm_type(llvm::LLVMContext &C) const;
 
   virtual std::string toString(std::string indent = "") const = 0;
   virtual opt<std::string> get_code() const;
@@ -131,6 +131,8 @@ public:
   std::string toString(std::string indent = "") const override;
   opt<std::string> get_code() const override;
 
+  llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
+
 protected:
   unsigned bitwidth;
   bool is_signed;
@@ -151,6 +153,8 @@ public:
   std::string toString(std::string indent = "") const override;
   opt<std::string> get_code() const override;
 
+  llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
+
 protected:
   FloatType();
 };
@@ -165,6 +169,8 @@ public:
 
   std::string toString(std::string indent = "") const override;
   opt<std::string> get_code() const override;
+
+  llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
 protected:
   DoubleType();
@@ -181,6 +187,8 @@ public:
   std::string toString(std::string indent = "") const override;
   opt<std::string> get_code() const override;
 
+  llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
+
 protected:
   PointerType();
 };
@@ -195,6 +203,8 @@ public:
 
   std::string toString(std::string indent = "") const override;
   opt<std::string> get_code() const override;
+
+  llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
 protected:
   VoidType();
@@ -212,6 +222,8 @@ public:
 
   std::string toString(std::string indent = "") const override;
   opt<std::string> get_code() const override;
+
+  llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
 protected:
   Type &referenced_type;
@@ -234,6 +246,8 @@ public:
   std::string getName() const;
   unsigned getNumFields() const;
   Type &getFieldType(unsigned field_index) const;
+
+  llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
   // RTTI.
   static bool classof(const Type *T) {
@@ -274,6 +288,8 @@ public:
   }
 
   opt<std::string> get_code() const override;
+
+  llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
 protected:
   CollectionType(TypeCode code);
