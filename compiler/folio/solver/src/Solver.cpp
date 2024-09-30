@@ -51,6 +51,10 @@ void Solver::parse_model(clingo_model_t const *model) {
   const std::regex opportunity_regex("use([_[:alnum:]]+)");
   std::smatch regex_match;
 
+  map<uint32_t, std::string> selected = {};
+  map<uint32_t, std::string> collection_types = {};
+  map<uint32_t, std::string> key_types = {};
+  map<uint32_t, std::string> element_types = {};
   for (it = atoms, ie = atoms + atoms_n; it != ie; ++it) {
 
     // Get the name of the symbol.
@@ -70,26 +74,47 @@ void Solver::parse_model(clingo_model_t const *model) {
     }
 
     // Parse the atom.
-    if (name == "select") {
+    if (name == "select" or name == "keytype" or name == "valtype") {
       // Fetch the value.
       int value_id;
       if (not clingo_symbol_number(arguments[0], &value_id)) {
         warnln("Failed to get value id's string");
         break;
       }
-      auto &value = this->_env.lookup(uint32_t(value_id));
 
       // Fetch the selected implementation.
-      const char *selected_str;
-      if (not clingo_symbol_name(arguments[1], &selected_str)) {
-        warnln("Failed to get selected implementation's string");
+      const char *str;
+      if (not clingo_symbol_name(arguments[1], &str)) {
+        warnln("Failed to get selected string");
         break;
       }
-      std::string selected_name(selected_str);
-      auto *selected = &this->_implementations.at(selected_name);
+      std::string arg(str);
 
-      // Add the selection to the candidate.
-      candidate._selections[&value] = selected;
+      // Save the selection.
+      if (name == "select") {
+        selected[value_id] = arg;
+      } else if (name == "keytype") {
+        if (arg.substr(0, 4) == "ty__") {
+          arg = arg.substr(4);
+        }
+        key_types[value_id] = arg;
+      } else if (name == "valtype") {
+        if (arg.substr(0, 4) == "ty__") {
+          arg = arg.substr(4);
+        }
+        element_types[value_id] = arg;
+      }
+
+    } else if (name == "seq" or name == "assoc") {
+      // Fetch the value.
+      int value_id;
+      if (not clingo_symbol_number(arguments[0], &value_id)) {
+        warnln("Failed to get value id's string");
+        break;
+      }
+
+      // Save the selection.
+      collection_types[value_id] = name;
 
     } else if (name == "exploit") {
       // Fetch the opportunity ID.
@@ -101,9 +126,41 @@ void Solver::parse_model(clingo_model_t const *model) {
       auto *opportunity = this->_opportunities.at(opportunity_id);
 
       candidate._opportunities.insert(opportunity);
-
     } else {
       warnln("Unknown atom, ", name, ", skipping");
+    }
+  }
+
+  for (auto [id, impl] : selected) {
+    // Lookup the value for this ID.
+    auto &value = this->_env.lookup(id);
+
+    // Fetch the selected implementation.
+    auto &selected = this->_implementations.at(impl);
+
+    // Get the type of the variable.
+    auto type_name = collection_types.at(id);
+    if (type_name == "seq") {
+      // Fetch the element type.
+      auto elem_name = element_types.at(id);
+      auto &elem_type = Type::from_code(elem_name);
+
+      // Add the selection to the candidate.
+      candidate._selections[&value] =
+          new Selection(selected, SequenceType::get(elem_type));
+
+    } else if (type_name == "assoc") {
+      // Fetch the key type.
+      auto key_name = key_types.at(id);
+      auto &key_type = Type::from_code(key_name);
+
+      // Fetch the value type.
+      auto val_name = element_types.at(id);
+      auto &val_type = Type::from_code(val_name);
+
+      // Add the selection to the candidate.
+      candidate._selections[&value] =
+          new Selection(selected, AssocType::get(key_type, val_type));
     }
   }
 
@@ -149,12 +206,14 @@ std::string Solver::formulate() {
              "type(seq). type(assoc).\n";
 
   // A collection must be typed.
-  formula += "typed(C) :- collection(C), assoc(C), "
-             "keytype(C, KT), type(KT), "
-             "valtype(C, VT), type(VT).\n";
-  formula += "typed(C) :- collection(C), seq(C), "
-             "valtype(C, VT), type(VT).\n";
-  formula += ":- collection(C), not typed(C).";
+  formula += "typed(C) :-"
+             " collection(C), assoc(C),"
+             " keytype(C, KT), type(KT),"
+             " valtype(C, VT), type(VT).\n";
+  formula += "typed(C) :-"
+             " collection(C), seq(C),"
+             " valtype(C, VT), type(VT).\n";
+  formula += ":- collection(C), not typed(C).\n";
 
   // A collection cannot be both a seq and an assoc.
   formula += ":- seq(C), assoc(C).\n";
@@ -228,7 +287,7 @@ std::string Solver::formulate() {
       // can formulate it later.
       if (isa<ReferenceType>(&val_type) or isa<StructType>(&val_type)) {
         derived_types.insert(&val_type);
-        val_str = "t_" + val_str;
+        val_str = "ty__" + val_str;
       }
 
       // Formulate the collection declaration.
@@ -243,7 +302,7 @@ std::string Solver::formulate() {
       auto key_str = key_type.get_code().value_or("INVALID_TYPE_ERROR");
       if (isa<ReferenceType>(&key_type) or isa<StructType>(&key_type)) {
         derived_types.insert(&key_type);
-        key_str = "t_" + key_str;
+        key_str = "ty__" + key_str;
       }
 
       // Unpack the value type.
@@ -251,7 +310,7 @@ std::string Solver::formulate() {
       auto val_str = val_type.get_code().value_or("INVALID_TYPE_ERROR");
       if (isa<ReferenceType>(&val_type) or isa<StructType>(&val_type)) {
         derived_types.insert(&val_type);
-        val_str = "t_" + val_str;
+        val_str = "ty__" + val_str;
       }
 
       // Formulate the collection declaration.
@@ -270,7 +329,7 @@ std::string Solver::formulate() {
 
   // Formulate all required derived and user-defined types.
   for (auto *type : derived_types) {
-    auto type_str = "t_" + type->get_code().value_or("INVALID_TYPE_ERROR");
+    auto type_str = "ty__" + type->get_code().value_or("INVALID_TYPE_ERROR");
     formula += "type(" + type_str + ").\n";
   }
 
@@ -293,7 +352,7 @@ std::string Solver::formulate() {
     formula += exploit + " :- " + opportunity_head + ".\n";
 
     auto ignore = "ignore(" + std::to_string(opportunity_id) + ")";
-    formula += ignore + " :- not " + opportunity_head + ".";
+    formula += ignore + " :- not " + opportunity_head + ".\n";
 
     formula += ":- " + exploit + ", " + ignore + ".\n";
 
@@ -301,13 +360,16 @@ std::string Solver::formulate() {
   }
 
   // Specify that selections should be emitted.
-  formula += "#show select/2. #show exploit/1.";
+  formula += "#show select/2. "
+             "#show seq/1. "
+             "#show assoc/1. "
+             "#show keytype/2. "
+             "#show valtype/2. "
+             "#show exploit/1. "
+             "\n";
 
   // Specify that opportunities and their negations should be emitted.
   // TODO
-
-  println("FORMULA");
-  println(formula);
 
   return formula;
 }
@@ -315,8 +377,8 @@ std::string Solver::formulate() {
 Solver::Solver(llvm::Module &M,
                const llvm::memoir::set<llvm::Value *> &selectable,
                Constraints &constraints,
-               const Opportunities &opportunities,
-               const Implementations &implementations)
+               Opportunities &opportunities,
+               Implementations &implementations)
   : _selectable{ selectable },
     _constraints{ constraints },
     _opportunities{ opportunities },
@@ -383,7 +445,7 @@ Solver::Solver(llvm::Module &M,
 // =========================
 // Query operations.
 
-const Candidates &Solver::candidates() const {
+Candidates &Solver::candidates() {
   return this->_candidates;
 }
 
