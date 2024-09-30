@@ -112,13 +112,13 @@ void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
 
     } else if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
 
-      if (fold->getCollectionAsUse().getOperandNo() == operand_no) {
+      if (&fold->getCollectionAsUse() == &use) {
         // If the use is the collection being folded over.
 
         // Propagate to the instruction, don't recurse.
         detail::propagate(selections, from, fold->getResult());
 
-      } else if (fold->getInitialAsUse().getOperandNo() == operand_no) {
+      } else if (&fold->getInitialAsUse() == &use) {
         // If the use is the initial value:
 
         // Propagate to uses of the resultant.
@@ -137,7 +137,9 @@ void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
         // Otherwise, the collection is closed on, propagate to the
         // corresponding argument, but don't recurse.
         auto &argument = fold->getClosedArgument(use);
-        detail::propagate(selections, from, argument);
+        if (detail::propagate(selections, from, argument)) {
+          worklist.push_back(&argument);
+        }
       }
 
     } else if (isa<WriteInst>(memoir_inst) or isa<InsertInst>(memoir_inst)
