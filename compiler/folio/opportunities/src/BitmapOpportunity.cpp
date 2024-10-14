@@ -40,9 +40,16 @@ std::pair<std::string, std::string> BitmapOpportunity::formulate(
   return { head, formula };
 }
 
-bool BitmapOpportunity::exploit() {
+bool BitmapOpportunity::exploit(
+    std::function<Selection &(llvm::Value &)> get_selection,
+    llvm::ModuleAnalysisManager &MAM) {
 
   bool modified = false;
+
+  println("Exploiting BitmapOpportunity");
+  println("  allocation: ", this->allocation);
+  println("  uses proxy: ", (this->uses_proxy ? "YES" : "FALSE"));
+  println();
 
   return modified;
 }

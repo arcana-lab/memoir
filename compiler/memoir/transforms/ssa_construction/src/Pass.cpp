@@ -47,6 +47,87 @@ llvm::cl::opt<bool> construct_use_phis(
     "memoir-enable-use-phis",
     llvm::cl::desc("Enable construction of Use PHIs."));
 
+namespace detail {
+
+bool use_is_mutating(llvm::Use &U);
+
+bool value_is_mutated(llvm::Value &V) {
+  for (auto &use : V.uses()) {
+    if (use_is_mutating(use)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool use_is_mutating(llvm::Use &use) {
+  auto *name = use.get();
+  auto *def = use.getUser();
+  if (auto *def_as_inst = dyn_cast<llvm::Instruction>(def)) {
+    auto *memoir_inst = MemOIRInst::get(*def_as_inst);
+    if (!memoir_inst) {
+      return false;
+    }
+    // Skip non-mutators.
+    if (!isa<MutInst>(memoir_inst) && !isa<AccessInst>(memoir_inst)
+        && !isa<FoldInst>(memoir_inst) && !isa<InsertInst>(memoir_inst)
+        && !isa<RemoveInst>(memoir_inst)) {
+      return false;
+    }
+    // Only enable read instructions if UsePHIs are enabled.
+    if (isa<ReadInst>(memoir_inst) or isa<GetInst>(memoir_inst)
+        or isa<AssocHasInst>(memoir_inst)) {
+      if (not construct_use_phis) {
+        return false;
+      }
+    }
+    // If the value is closed on by the FoldInst, it will be redefined by
+    // a RetPHI.
+    if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
+      // If the fold has no closure, skip it.
+      auto num_closed = fold->getNumberOfClosed();
+      if (num_closed == 0) {
+        return false;
+      }
+      // If the fold use is out of the closed argument range, skip it.
+      if (fold->getClosedAsUse(0).getOperandNo() > use.getOperandNo()) {
+        return false;
+      }
+      // If there are no mutators for the corresponding argument in the
+      // fold body, skip it.
+      if (not detail::value_is_mutated(fold->getClosedArgument(use))) {
+        return false;
+      }
+    }
+
+    if (auto *append_inst = dyn_cast<MutSeqAppendInst>(memoir_inst)) {
+      if (name != &append_inst->getCollection()) {
+        return false;
+      }
+    }
+
+    // If we made it this far, then the use is mutating.
+    return true;
+  }
+
+  // Non-instruction uses are fake!
+  return false;
+}
+
+bool is_bad_if_else(llvm::BasicBlock &BB) {
+  auto *branch = dyn_cast<llvm::BranchInst>(BB.getTerminator());
+  if (not branch) {
+    return false;
+  }
+
+  // IN PROGRESS
+
+  return false;
+}
+
+} // namespace detail
+
 llvm::PreservedAnalyses SSAConstructionPass::run(
     llvm::Module &M,
     llvm::ModuleAnalysisManager &MAM) {
@@ -55,6 +136,12 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
   infoln();
 
   SSAConstructionStats stats;
+
+  // Do a quick structured control flow normalization.
+  for (auto &F : M) {
+    for (auto &BB : F) {
+    }
+  }
 
   auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(MAM, M);
 
@@ -133,43 +220,11 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
 
       // Gather the set of basic blocks containing mutators and PHI nodes.
       for (auto &use : name->uses()) {
-        auto *def = use.getUser();
-        if (auto *def_as_inst = dyn_cast<llvm::Instruction>(def)) {
-          auto *memoir_inst = MemOIRInst::get(*def_as_inst);
-          if (!memoir_inst) {
-            continue;
-          }
-          // Skip non-mutators.
-          if (!isa<MutInst>(memoir_inst) && !isa<AccessInst>(memoir_inst)
-              && !isa<FoldInst>(memoir_inst)) {
-            continue;
-          }
-          // Only enable read instructions if UsePHIs are enabled.
-          if (isa<ReadInst>(memoir_inst) or isa<GetInst>(memoir_inst)
-              or isa<AssocHasInst>(memoir_inst)) {
-            if (not construct_use_phis) {
-              continue;
-            }
-          }
-          // If the value is closed on by the FoldInst, it will be redefined by
-          // a RetPHI.
-          if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
-            // If the fold has no closure, skip it.
-            auto num_closed = fold->getNumberOfClosed();
-            if (num_closed == 0) {
-              continue;
-            }
-            // If the fold use is out of the closed argument range, skip it.
-            if (fold->getClosedAsUse(0).getOperandNo() > use.getOperandNo()) {
-              continue;
-            }
-          }
+        if (not detail::use_is_mutating(use)) {
+          continue;
+        }
 
-          if (auto *append_inst = dyn_cast<MutSeqAppendInst>(memoir_inst)) {
-            if (name != &append_inst->getCollection()) {
-              continue;
-            }
-          }
+        if (auto *def_as_inst = dyn_cast<llvm::Instruction>(use.getUser())) {
           if (auto *def_bb = def_as_inst->getParent()) {
             debugln("inserting def parent for ", *def_as_inst);
             def_parents.insert(def_bb);
@@ -347,6 +402,6 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
   MemOIRInst::invalidate();
 
   return llvm::PreservedAnalyses::none();
-}
+} // namespace detail
 
 } // namespace llvm::memoir

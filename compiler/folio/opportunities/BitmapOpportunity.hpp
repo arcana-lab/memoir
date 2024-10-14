@@ -19,7 +19,8 @@ public:
   std::pair<std::string, std::string> formulate(
       FormulaEnvironment &env) override;
 
-  bool exploit() override;
+  bool exploit(std::function<Selection &(llvm::Value &)> get_selection,
+               llvm::ModuleAnalysisManager &MAM) override;
 
 protected:
   llvm::memoir::AssocAllocInst &allocation;

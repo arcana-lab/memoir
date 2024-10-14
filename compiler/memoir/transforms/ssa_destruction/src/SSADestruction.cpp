@@ -14,10 +14,6 @@
 
 #include "SSADestruction.hpp"
 
-#define ASSOC_IMPL "stl_unordered_map"
-#define SET_IMPL "stl_unordered_set"
-#define SEQ_IMPL "stl_vector"
-
 namespace llvm::memoir {
 
 namespace detail {
@@ -691,6 +687,8 @@ void SSADestructionVisitor::visitEndInst(EndInst &I) {
 void SSADestructionVisitor::visitIndexReadInst(IndexReadInst &I) {
   // Get a builder.
   MemOIRBuilder builder(I);
+
+  println(I);
 
   auto &collection_type = MEMOIR_SANITIZE(
       dyn_cast_or_null<CollectionType>(type_of(I.getObjectOperand())),

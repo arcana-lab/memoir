@@ -110,10 +110,14 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
     { "stl_unordered_map",
       AssocImplementation("stl_unordered_map",
                           { OperationConstraint<ReverseFoldInst>() }) },
-    { "stl_map", AssocImplementation("stl_map", {}) },
+    // { "stl_map", AssocImplementation("stl_map", {}) },
+    { "bitmap", AssocImplementation("bitmap", {}, /* selectable? */ false) },
     { "stl_unordered_set",
       SetImplementation("stl_unordered_set",
                         { OperationConstraint<ReverseFoldInst>() }) },
+    // { "bitset", SetImplementation("bitset", {}, /* selectable? */ false) },
+    { "boost_dynamic_bitset",
+      SetImplementation("boost_dynamic_bitset", {}, /* selectable? */ false) },
   };
 
   // Pass the analysis results to the solver.

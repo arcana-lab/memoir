@@ -121,6 +121,7 @@ inline std::string value_name(llvm::Value &V) {
   std::string str;
   llvm::raw_string_ostream os(str);
   V.printAsOperand(os, /* print type = */ false);
+  os << ":" << uint64_t(&V);
 
   return str;
 }

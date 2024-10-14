@@ -254,6 +254,14 @@ void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
       update_reaching_definition(collection_use.get(), I);
   collection_use.set(reaching_collection);
 
+  // Update the reaching definitions for the initial value, if it is a
+  // collection.
+  auto &initial = I.getInitial();
+  if (Type::value_is_collection_type(initial)) {
+    auto *reaching = update_reaching_definition(&initial, I);
+    I.getInitialAsUse().set(reaching);
+  }
+
   // For each of the closed collections:
   for (unsigned closed_idx = 0; closed_idx < I.getNumberOfClosed();
        ++closed_idx) {
@@ -268,6 +276,8 @@ void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
     // Update the use to use the current reaching definition.
     auto *reaching = update_reaching_definition(closed, I);
     closed_use.set(reaching);
+
+    // Inspec the called function, and see if there are any live-out values.
 
     // Insert a RetPHI for the fold operation.
     MemOIRBuilder builder(I, true);

@@ -12,6 +12,7 @@
 #include "folio/analysis/ContentAnalysis.hpp"
 #include "folio/analysis/ContentSimplification.hpp"
 
+/*
 using namespace llvm::memoir;
 
 namespace folio {
@@ -493,3 +494,4 @@ llvm::AnalysisKey BitmapOpportunityAnalysis::Key;
 // =============================================================================
 
 } // namespace folio
+*/

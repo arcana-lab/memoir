@@ -52,7 +52,7 @@ extern "C" {
   cname alwaysinline used C_VALUE K##_##V##_stl_unordered_map__read(           \
       K##_##V##_stl_unordered_map_p table,                                     \
       C_KEY key) {                                                             \
-    return (*table)[key];                                                      \
+    return (*table).at(key);                                                   \
   }                                                                            \
                                                                                \
   cname alwaysinline used                                                      \
@@ -68,7 +68,7 @@ extern "C" {
       K##_##V##_stl_unordered_map_p K##_##V##_stl_unordered_map__insert(       \
           K##_##V##_stl_unordered_map_p table,                                 \
           C_KEY key) {                                                         \
-    (*table)[key];                                                             \
+    (*table)[key] = C_VALUE();                                                 \
     return table;                                                              \
   }                                                                            \
                                                                                \

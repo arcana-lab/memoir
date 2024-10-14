@@ -52,6 +52,11 @@ struct PointerStableConstraint : public Constraint {
   PointerStableConstraint();
 };
 
+struct ContiguousKeysConstraint : public Constraint {
+
+  ContiguousKeysConstraint();
+};
+
 } // namespace folio
 
 #endif // FOLIO_CONSTRAINTS_H

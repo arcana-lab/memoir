@@ -130,6 +130,7 @@ llvm::PreservedAnalyses LiveOutInsertionPass::run(
 
   // For each argument, find the reaching definition at the single return.
   for (auto *arg : arguments) {
+
     // Gather the reaching definitions.
     auto reaching = detail::gather_reaching_definitions(*arg);
 

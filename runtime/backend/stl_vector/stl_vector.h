@@ -17,9 +17,7 @@
 #define alwaysinline __attribute__((always_inline)) inline
 #define used __attribute__((used))
 
-#define K 4000
-#define B 60
-#define RESERVE_SIZE K + B + 1
+#define RESERVE_SIZE 4061
 
 #define INSTANTIATE_stl_vector(T, C_TYPE)                                      \
   typedef std::vector<C_TYPE> T##_stl_vector_t;                                \
@@ -331,6 +329,7 @@
     C_TYPE _val;                                                               \
     std::vector<C_TYPE>::reverse_iterator _it;                                 \
     std::vector<C_TYPE>::reverse_iterator _ie;                                 \
+    char _padding;                                                             \
   } T##_stl_vector_riter_t;                                                    \
   typedef T##_stl_vector_riter_t *T##_stl_vector_riter_p;                      \
                                                                                \

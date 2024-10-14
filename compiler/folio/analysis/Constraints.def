@@ -7,6 +7,7 @@
 #define CONSTRAINT_(NAME, CLASS, IS_SOFT) CONSTRAINT(NAME, CLASS, IS_SOFT)
 
 CONSTRAINT_(ptrstable, PointerStableConstraint, false)
+CONSTRAINT_(contiguous, ContiguousKeysConstraint, false)
 
 // =================================
 // OP_CONSTRAINT(NAME, CLASS, INST, SOFT?)
@@ -24,6 +25,7 @@ OP_CONSTRAINT_(opinsert, OperationConstraint, InsertInst, false)
 OP_CONSTRAINT_(opremove, OperationConstraint, RemoveInst, false)
 OP_CONSTRAINT_(opswap, OperationConstraint, SwapInst, false)
 OP_CONSTRAINT_(ophas, OperationConstraint, AssocHasInst, false)
+OP_CONSTRAINT_(opsize, OperationConstraint, SizeInst, false)
 OP_CONSTRAINT_(opfold, OperationConstraint, FoldInst, false)
 OP_CONSTRAINT_(oprfold, OperationConstraint, ReverseFoldInst, false)
 
@@ -43,6 +45,7 @@ FASTOP_CONSTRAINT_(fastinsert, FastOperationConstraint, InsertInst, true)
 FASTOP_CONSTRAINT_(fastremove, FastOperationConstraint, RemoveInst, true)
 FASTOP_CONSTRAINT_(fastswap, FastOperationConstraint, SwapInst, true)
 FASTOP_CONSTRAINT_(fasthas, FastOperationConstraint, AssocHasInst, true)
+FASTOP_CONSTRAINT_(fastsize, FastOperationConstraint, SizeInst, true)
 FASTOP_CONSTRAINT_(fastfold, FastOperationConstraint, FoldInst, true)
 FASTOP_CONSTRAINT_(fastrfold, FastOperationConstraint, ReverseFoldInst, true)
 

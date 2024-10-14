@@ -13,6 +13,7 @@ namespace llvm::memoir {
 
 std::string ImplLinker::get_implementation_name(llvm::Instruction &I,
                                                 CollectionType &type) {
+
   if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {
     // Unpack the assoc type.
     auto &key_type = assoc_type->getKeyType();

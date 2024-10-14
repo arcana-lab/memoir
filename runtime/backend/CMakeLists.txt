@@ -11,6 +11,9 @@ add_subdirectory(stl_map)
 # add_subdirectory(deepsjeng_ttable)
 add_subdirectory(stl_vector)
 add_subdirectory(stl_unordered_set)
+add_subdirectory(bitmap)
+add_subdirectory(bitset)
+add_subdirectory(boost_dynamic_bitset)
 
 # Configure LLVM
 # find_package(LLVM 9 REQUIRED CONFIG)

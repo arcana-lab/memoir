@@ -95,6 +95,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
 
           // Implement the assoc.
           IL.implement_assoc(impl_name, key_layout, value_layout);
+
         } else if (auto *define_type = into<DefineStructTypeInst>(&I)) {
           // Get the struct type.
           auto &struct_type = define_type->getType();
@@ -162,7 +163,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
             auto &key_layout = TC.convert(assoc_type->getKeyType());
             auto &val_layout = TC.convert(assoc_type->getValueType());
 
-            if (isa<VoidType>(assoc_type)) {
+            if (isa<VoidType>(assoc_type->getValueType())) {
               IL.implement_assoc(SET_IMPL, key_layout, val_layout);
             } else {
               IL.implement_assoc(ASSOC_IMPL, key_layout, val_layout);

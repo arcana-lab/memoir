@@ -35,6 +35,7 @@ add_subdirectory(dead_element_elimination)
 # Lowering passes.
 add_subdirectory(impl_linker)
 add_subdirectory(lower_fold)
+add_subdirectory(temp_arg_reification)
 
 # Analysis passes.
 add_subdirectory(example)
