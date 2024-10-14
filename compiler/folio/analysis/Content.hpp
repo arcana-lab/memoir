@@ -92,9 +92,7 @@ struct UnderdefinedContent : public Content {
     return llvm::memoir::isa<UnderdefinedContent>(&other);
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    return *this;
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   llvm::memoir::Type *type() override {
     return nullptr;
@@ -119,9 +117,7 @@ struct EmptyContent : public Content {
     return llvm::memoir::isa<EmptyContent>(&other);
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    return *this;
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   llvm::memoir::Type *type() override {
     return nullptr;
@@ -157,12 +153,7 @@ struct StructContent : public Content {
     return &this->_value == &V;
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    if (from == *this) {
-      return to;
-    }
-    return *this;
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_STRUCT;
@@ -205,12 +196,7 @@ struct ScalarContent : public Content {
     return &this->_value == &V;
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    if (from == *this) {
-      return to;
-    }
-    return *this;
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_SCALAR;
@@ -249,13 +235,7 @@ struct KeyContent : public Content {
     return this->_collection == other_key->_collection;
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    auto &subst = this->_collection.substitute(from, to);
-    if (&subst == &this->_collection) {
-      return *this;
-    }
-    return Content::create<KeyContent>(subst);
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_KEY;
@@ -294,12 +274,7 @@ struct KeysContent : public Content {
     return &this->_collection == &other_keys->_collection;
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    if (from == *this) {
-      return to;
-    }
-    return *this;
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_KEYS;
@@ -353,12 +328,7 @@ struct RangeContent : public Content {
     return &this->_collection == &other_range->_collection;
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    if (from == *this) {
-      return to;
-    }
-    return *this;
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_RANGE;
@@ -406,13 +376,7 @@ struct ElementContent : public Content {
     return this->_collection == other_element->_collection;
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    auto &subst = this->_collection.substitute(from, to);
-    if (&subst == &this->_collection) {
-      return *this;
-    }
-    return Content::create<ElementContent>(subst);
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_ELEMENT;
@@ -451,12 +415,7 @@ struct ElementsContent : public Content {
     return &this->_collection == &other_elements->_collection;
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    if (from == *this) {
-      return to;
-    }
-    return *this;
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_ELEMENTS;
@@ -502,13 +461,7 @@ struct FieldContent : public Content {
            and (this->_parent == other_field->_parent);
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    auto &subst_parent = this->_parent.substitute(from, to);
-    if (&subst_parent == &this->_parent) {
-      return *this;
-    }
-    return Content::create<FieldContent>(subst_parent, this->_field_index);
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_FIELD;
@@ -566,19 +519,7 @@ public:
            and (this->_content == other_cond->_content);
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    auto &subst_content = this->_content.substitute(from, to);
-    auto &subst_lhs = this->_lhs.substitute(from, to);
-    auto &subst_rhs = this->_rhs.substitute(from, to);
-    if (&subst_content == &this->_content and &subst_lhs == &this->_lhs
-        and &subst_rhs == &this->_rhs) {
-      return *this;
-    }
-    return Content::create<ConditionalContent>(subst_content,
-                                               this->_predicate,
-                                               subst_lhs,
-                                               subst_rhs);
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   bool same_conditional(const ConditionalContent &other) const {
     return (this->_predicate == other._predicate) and (this->_lhs == other._lhs)
@@ -662,27 +603,7 @@ public:
     return true;
   }
 
-  Content &substitute(Content &from, Content &to) override {
-
-    bool modified = false;
-
-    llvm::memoir::vector<Content *> subst_elements = {};
-    subst_elements.reserve(this->_elements.size());
-
-    for (auto *elem : this->_elements) {
-      auto &subst_elem = elem->substitute(from, to);
-      if (&subst_elem != elem) {
-        modified = true;
-      }
-      subst_elements.push_back(&subst_elem);
-    }
-
-    if (modified) {
-      return Content::create<TupleContent>(subst_elements);
-    } else {
-      return *this;
-    }
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_TUPLE;
@@ -730,16 +651,7 @@ public:
                and (this->_rhs == other_union->_lhs));
   }
 
-  Content &substitute(Content &from, Content &to) override {
-    auto &subst_lhs = this->_lhs.substitute(from, to);
-    auto &subst_rhs = this->_rhs.substitute(from, to);
-
-    if (&subst_lhs == &this->_lhs and &subst_rhs == &this->_rhs) {
-      return *this;
-    }
-
-    return Content::create<UnionContent>(subst_lhs, subst_rhs);
-  }
+  Content &substitute(Content &from, Content &to) override;
 
   static bool classof(const Content *content) {
     return content->kind() == ContentKind::CONTENT_UNION;
