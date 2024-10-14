@@ -698,7 +698,29 @@ public:
     args.insert(args.end(), closed.begin(), closed.end());
 
     // Construct the call.
-    return this->create<FoldInst>(getFoldEnumForType(type),
+    return this->CreateFoldInst(getFoldEnumForType(type),
+                                initial,
+                                collection,
+                                body,
+                                closed,
+                                name);
+  }
+
+  FoldInst *CreateFoldInst(MemOIR_Func fold_enum,
+                           llvm::Value *initial,
+                           llvm::Value *collection,
+                           llvm::Function *body,
+                           llvm::ArrayRef<llvm::Value *> closed = {},
+                           const Twine &name = "") {
+    // Fetch the function type.
+    auto *func_type = body->getFunctionType();
+
+    // Create the argument list.
+    vector<llvm::Value *> args = { initial, collection, body };
+    args.insert(args.end(), closed.begin(), closed.end());
+
+    // Construct the call.
+    return this->create<FoldInst>(fold_enum,
                                   llvm::ArrayRef<llvm::Value *>(args),
                                   name);
   }
