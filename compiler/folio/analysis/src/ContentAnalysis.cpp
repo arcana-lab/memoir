@@ -257,15 +257,22 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertInst(SeqInsertInst &I) {
 
 ContentSummary ContentAnalysisDriver::visitIndexWriteInst(IndexWriteInst &I) {
 
-  // Fetch the content of the input collection.
-  auto &collection = I.getObjectOperand();
-  auto [domain, base_range] = this->analyze(collection);
+  // Analyze the value being written.
+  auto [_value_domain, value_range] = this->analyze(I.getValueWritten(), true);
+
+  // If the value written is a non-constant scalar, we will just give up.
+  if (auto *scalar = dyn_cast<ScalarContent>(value_range)) {
+    if (not isa<llvm::Constant>(&scalar->value())) {
+      return detail::conservative(I.getObjectOperand());
+    }
+  }
 
   // Analyze the index being written.
   auto [_index_domain, index_range] = this->analyze(I.getIndex(), true);
 
-  // Analyze the value being written.
-  auto [_value_domain, value_range] = this->analyze(I.getValueWritten(), true);
+  // Fetch the content of the input collection.
+  auto &collection = I.getObjectOperand();
+  auto [domain, base_range] = this->analyze(collection);
 
   // Get the type information.
   auto &collection_type = I.getCollectionType();
