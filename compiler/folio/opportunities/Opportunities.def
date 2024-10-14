@@ -1,6 +1,5 @@
 // OPPORTUNITY(CLASS)
 
 OPPORTUNITY(ProxyOpportunity)
-// OPPORTUNITY(BitmapOpportunity)
 
 #undef OPPORTUNITY

@@ -3,7 +3,6 @@
 
 #include "folio/opportunities/Opportunity.hpp"
 
-#include "folio/opportunities/BitmapOpportunity.hpp"
 #include "folio/opportunities/ProxyOpportunity.hpp"
 
 #endif // FOLIO_OPPORTUNITIES_H
