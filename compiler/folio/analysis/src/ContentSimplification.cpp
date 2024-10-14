@@ -8,26 +8,31 @@ Content &ContentSimplification::simplify(Content &C) {
   return this->visit(C);
 }
 
-namespace detail {
-
-bool is_simple(Content &C) {
-  if (isa<TupleContent>(&C) or isa<EmptyContent>(&C) or isa<KeysContent>(&C)
-      or isa<FieldContent>(&C) or isa<ElementsContent>(&C)) {
+bool ContentSimplification::is_simple(Content &C) {
+  if (isa<EmptyContent>(&C) or isa<KeysContent>(&C)
+      or isa<ElementsContent>(&C)) {
     return true;
+  } else if (auto *tuple = dyn_cast<TupleContent>(&C)) {
+    bool simple = true;
+    for (auto *elem : tuple->elements()) {
+      simple &= ContentSimplification::is_simple(*elem);
+    }
+    return simple;
   } else if (auto *key = dyn_cast<KeyContent>(&C)) {
-    return is_simple(key->collection());
+    return ContentSimplification::is_simple(key->collection());
   } else if (auto *elem = dyn_cast<ElementContent>(&C)) {
-    return is_simple(elem->collection());
+    return ContentSimplification::is_simple(elem->collection());
   } else if (auto *cond = dyn_cast<ConditionalContent>(&C)) {
-    return is_simple(cond->content());
+    return ContentSimplification::is_simple(cond->content());
+  } else if (auto *field = dyn_cast<FieldContent>(&C)) {
+    return ContentSimplification::is_simple(field->parent());
   } else if (auto *union_content = dyn_cast<UnionContent>(&C)) {
-    return is_simple(union_content->lhs()) and is_simple(union_content->rhs());
+    return ContentSimplification::is_simple(union_content->lhs())
+           and ContentSimplification::is_simple(union_content->rhs());
   }
 
   return false;
 }
-
-} // namespace detail
 
 // Helper functions to lookup contents in the environment.
 Content *ContentSimplification::lookup_domain(llvm::Value &V) {
@@ -40,7 +45,7 @@ Content *ContentSimplification::lookup_domain(llvm::Value &V) {
   auto [domain, _] = found->second;
 
   // The result must be in a simplified form.
-  if (detail::is_simple(*domain)) {
+  if (ContentSimplification::is_simple(*domain)) {
     return domain;
   }
 
@@ -57,8 +62,7 @@ Content *ContentSimplification::lookup_range(llvm::Value &V) {
   auto [_, range] = found->second;
 
   // The result must be in a simplified form.
-  if (isa<TupleContent>(range) or isa<EmptyContent>(range)
-      or isa<ElementsContent>(range)) {
+  if (ContentSimplification::is_simple(*range)) {
     return range;
   }
 
@@ -89,10 +93,43 @@ Content &ContentSimplification::visitConditionalContent(ConditionalContent &C) {
   return C;
 }
 
+Content &ContentSimplification::visitFieldContent(FieldContent &C) {
+  // Recurse.
+  auto &content = this->visit(C.parent());
+
+  if (&content != &C.parent()) {
+    return Content::create<FieldContent>(content, C.field_index());
+  }
+
+  return C;
+}
+
+Content &ContentSimplification::visitKeyContent(KeyContent &C) {
+  // Recurse.
+  auto &content = this->visit(C.collection());
+
+  if (&content != &C.collection()) {
+    return Content::create<KeyContent>(content);
+  }
+
+  return C;
+}
+
 Content &ContentSimplification::visitKeysContent(KeysContent &C) {
 
   if (auto *lookup = this->lookup_domain(C.collection())) {
     return *lookup;
+  }
+
+  return C;
+}
+
+Content &ContentSimplification::visitElementContent(ElementContent &C) {
+  // Recurse.
+  auto &content = this->visit(C.collection());
+
+  if (&content != &C.collection()) {
+    return Content::create<ElementContent>(content);
   }
 
   return C;

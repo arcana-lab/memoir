@@ -14,6 +14,8 @@ public:
 
   Content &simplify(Content &C);
 
+  static bool is_simple(Content &C);
+
 protected:
   // Borrowed State.
   Contents &contents;
@@ -24,8 +26,11 @@ protected:
 
   Content &visitContent(Content &C);
   Content &visitUnionContent(UnionContent &C);
+  Content &visitFieldContent(FieldContent &C);
   Content &visitConditionalContent(ConditionalContent &C);
+  Content &visitElementContent(ElementContent &C);
   Content &visitElementsContent(ElementsContent &C);
+  Content &visitKeyContent(KeyContent &C);
   Content &visitKeysContent(KeysContent &C);
 };
 
