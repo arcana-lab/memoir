@@ -227,38 +227,31 @@ std::string Solver::formulate() {
     // Register that the implementation exists.
     formula += "impl(" + impl.name() + ").\n";
 
-    // Formulate the head atom.
-    auto impl_rule = "select(C, " + impl.name() + ") :- ";
+    if (impl.selectable()) {
 
-    // Formulate the type requirements.
-    if (isa<SeqImplementation>(&impl)) {
-      impl_rule += "collection(C), seq(C)";
-    } else if (isa<AssocImplementation>(&impl)) {
-      impl_rule += "collection(C), assoc(C), not valtype(C, void)";
-    } else if (isa<SetImplementation>(&impl)) {
-      impl_rule += "collection(C), assoc(C), valtype(C, void)";
-    } else {
-      impl_rule += "collection(C)";
-    }
+      // Formulate the head atom.
+      auto impl_rule = "{select(C, " + impl.name() + ")} :- ";
 
-    // Formulate the set of constraints.
-    for (auto constraint : impl.constraints()) {
-      impl_rule += ", not " + constraint.name() + "(C)";
-    }
-
-    // Formulate the constraint that a collection may have only _one_ selection.
-    for (auto &[other_name, other_impl] : this->_implementations) {
-      // Skip itself.
-      if (impl == other_impl) {
-        continue;
+      // Formulate the type requirements.
+      if (isa<SeqImplementation>(&impl)) {
+        impl_rule += "collection(C), seq(C)";
+      } else if (isa<AssocImplementation>(&impl)) {
+        impl_rule += "collection(C), assoc(C), not valtype(C, void)";
+      } else if (isa<SetImplementation>(&impl)) {
+        impl_rule += "collection(C), assoc(C), valtype(C, void)";
+      } else {
+        impl_rule += "collection(C)";
       }
 
-      impl_rule += ", not select(C, " + other_name + ")";
+      // Formulate the set of constraints.
+      for (auto constraint : impl.constraints()) {
+        impl_rule += ", not " + constraint.name() + "(C)";
+      }
+
+      impl_rule += ".\n";
+
+      formula += impl_rule;
     }
-
-    impl_rule += ".\n";
-
-    formula += impl_rule;
   }
 
   // Formulate all of the selectable collections and their constraints.
@@ -276,6 +269,8 @@ std::string Solver::formulate() {
     auto id = this->_env.get_id(*decl);
     auto id_str = std::to_string(id);
 
+    formula += "collection(" + id_str + "). ";
+
     // Formulate the variable's declaration and type information.
     // TODO: extend this to include the key and element type.
     if (auto *seq_type = dyn_cast<SequenceType>(type)) {
@@ -291,7 +286,6 @@ std::string Solver::formulate() {
       }
 
       // Formulate the collection declaration.
-      formula += "collection(" + id_str + "). ";
       formula += "{seq(" + id_str + ")}. ";
       formula += "{valtype(" + id_str + ", " + val_str + ")}. ";
 
@@ -314,7 +308,6 @@ std::string Solver::formulate() {
       }
 
       // Formulate the collection declaration.
-      formula += "collection(" + id_str + "). ";
       formula += "{assoc(" + id_str + ")}. ";
       formula += "{keytype(" + id_str + ", " + key_str + ")}. ";
       formula += "{valtype(" + id_str + ", " + val_str + ")}. ";
@@ -326,6 +319,9 @@ std::string Solver::formulate() {
     }
     formula += "\n";
   }
+
+  // Each collection can have only a single selection.
+  formula += ":- select(C, A), select(C, B), A != B. ";
 
   // Formulate all required derived and user-defined types.
   for (auto *type : derived_types) {
