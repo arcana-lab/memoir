@@ -1,4 +1,4 @@
-#include "memoir/support/CFGUtils.hpp"
+#include "memoir/utility/CFGUtils.hpp"
 #include "memoir/support/Assert.hpp"
 
 namespace llvm::memoir {
