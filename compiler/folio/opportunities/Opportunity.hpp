@@ -1,9 +1,12 @@
 #ifndef FOLIO_OPPORTUNITY_H
 #define FOLIO_OPPORTUNITY_H
 
+#include "llvm/IR/PassManager.h"
+
 #include "memoir/support/InternalDatatypes.hpp"
 
 #include "folio/solver/FormulaEnvironment.hpp"
+#include "folio/solver/Selection.hpp"
 
 namespace folio {
 
@@ -37,9 +40,11 @@ public:
   /**
    * Transform the program to exploit this opportunity.
    *
+   * @param selection the lowering target.
    * @return true if the program was modified, false otherwise.
    */
-  virtual bool exploit() = 0;
+  virtual bool exploit(std::function<Selection &(llvm::Value &)> get_selection,
+                       llvm::ModuleAnalysisManager &MAM) = 0;
 
   virtual ~Opportunity() = 0;
 };

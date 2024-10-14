@@ -40,12 +40,6 @@ Opportunities OpportunityAnalysis::run(llvm::Module &M,
   }
 #include "folio/opportunities/Opportunities.def"
 
-  // Add all proxies discovered/required as opportunities.
-  for (auto *proxy : ProxyManager::proxies()) {
-    // Wrap the Proxy in a ProxyOpportunity.
-    result.push_back(new ProxyOpportunity(*proxy));
-  }
-
   return result;
 }
 
