@@ -76,6 +76,8 @@ include_directories(
   ${CMAKE_INSTALL_INCLUDEDIR}
   # External dependencies (NOELLE)
   ${CMAKE_INSTALL_INCLUDEDIR}/arcana
+  # External dependencies (clingo)
+  ${CMAKE_CURRENT_BINARY_DIR}/clingo-prefix/src/clingo/libclingo
   )
 
 # Build the compiler.
