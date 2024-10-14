@@ -724,8 +724,10 @@ public:
     if (not other_union) {
       return false;
     }
-    return (this->_lhs == other_union->_lhs)
-           and (this->_rhs == other_union->_rhs);
+    return ((this->_lhs == other_union->_lhs)
+            and (this->_rhs == other_union->_rhs))
+           or ((this->_lhs == other_union->_rhs)
+               and (this->_rhs == other_union->_lhs));
   }
 
   Content &substitute(Content &from, Content &to) override {
