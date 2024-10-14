@@ -2,5 +2,6 @@
 
 METADATA(MD_LIVE_OUT, "memoir.live-out", LiveOutMetadata)
 METADATA(MD_SELECTION, "memoir.selection", SelectionMetadata)
+METADATA(MD_TEMP_ARGUMENT, "memoir.temp-argument", TempArgumentMetadata)
 
 #undef METADATA

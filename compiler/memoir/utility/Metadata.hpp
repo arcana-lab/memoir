@@ -111,6 +111,12 @@ public:
   void setImplementation(std::string id);
 };
 
+struct TempArgumentMetadata : public Metadata {
+public:
+  // Constructor.
+  TempArgumentMetadata(llvm::MDTuple &md) : Metadata(md) {}
+};
+
 } // namespace llvm::memoir
 
 #endif
