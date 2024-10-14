@@ -17,7 +17,7 @@
 #define alwaysinline __attribute__((always_inline)) inline
 #define used __attribute__((used))
 
-#define RESERVE_SIZE 4061
+#define RESERVE_SIZE 4000 + 60 + 1
 
 #define INSTANTIATE_stl_vector(T, C_TYPE)                                      \
   typedef std::vector<C_TYPE> T##_stl_vector_t;                                \
