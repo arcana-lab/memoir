@@ -21,7 +21,7 @@ public:
   // Constructor.
   ContentAnalysisDriver(Contents &result,
                         llvm::Module &M,
-                        std::function<llvm::Loop *(llvm::PHINode &)>);
+                        std::function<llvm::Loop *(llvm::Instruction &)>);
 
 protected:
   // Driver methods.
@@ -77,7 +77,7 @@ protected:
   llvm::memoir::set<llvm::Value *> visited;
   llvm::memoir::map<llvm::Value *, ContentSummary> temporaries;
   bool recurse;
-  std::function<llvm::Loop *(llvm::PHINode &)> get_loop_for;
+  std::function<llvm::Loop *(llvm::Instruction &)> get_loop_for;
 
   // Borrowed state.
   Contents &result;

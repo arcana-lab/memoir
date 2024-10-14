@@ -390,12 +390,22 @@ ContentSummary handle_collection_read(ReadInst &I, Content &collection_range) {
 ContentSummary ContentAnalysisDriver::visitIndexReadInst(IndexReadInst &I) {
   // Construct the resultant content.
   auto [_, elements] = this->analyze(I.getObjectOperand());
+
+  if (not ContentSimplification::is_simple(*elements)) {
+    std::tie(_, elements) = detail::conservative(I.getObjectOperand());
+  }
+
   return detail::handle_collection_read(I, *elements);
 }
 
 ContentSummary ContentAnalysisDriver::visitAssocReadInst(AssocReadInst &I) {
   // Construct the resultant content.
   auto [_, elements] = this->analyze(I.getObjectOperand());
+
+  if (not ContentSimplification::is_simple(*elements)) {
+    std::tie(_, elements) = detail::conservative(I.getObjectOperand());
+  }
+
   return detail::handle_collection_read(I, *elements);
 }
 
@@ -602,15 +612,41 @@ ContentSummary ContentAnalysisDriver::visitPHINode(llvm::PHINode &I) {
     // Analyze the incoming values.
     auto [phi_domain, phi_range] = detail::conservative(I);
     auto [initial_domain, initial_range] = this->analyze(*initial);
+    auto [recur_var_domain, recur_var_range] = detail::conservative(*recurrent);
     auto [recur_domain, recur_range] = this->analyze(*recurrent);
 
     // Substitute any uses of the PHI with the initial contents.
     auto &domain = recur_domain->substitute(*phi_domain, *initial_domain)
-                       .substitute(*phi_range, *initial_range);
+                       .substitute(*phi_range, *initial_range)
+                       .substitute(*recur_var_domain, *initial_domain)
+                       .substitute(*recur_var_range, *initial_range);
     auto &range = recur_range->substitute(*phi_domain, *initial_domain)
-                      .substitute(*phi_range, *initial_range);
+                      .substitute(*phi_range, *initial_range)
+                      .substitute(*recur_var_domain, *initial_domain)
+                      .substitute(*recur_var_range, *initial_range);
 
     return { &domain, &range };
+  }
+
+  // See if the PHI is an ETA.
+  if (false and I.getNumIncomingValues() == 1) {
+    auto *incoming_block = I.getIncomingBlock(0);
+    auto &incoming_terminator =
+        MEMOIR_SANITIZE(incoming_block->getTerminator(),
+                        "No terminator in incoming block!");
+
+    // Check if the single incoming edge is a loop exit.
+    if (auto *incoming_loop = this->get_loop_for(incoming_terminator)) {
+
+      // If the incoming block is the loop exit block, then this is an ETA.
+      // NOTE: For now we assume that all loops have a single exit block.
+      if (incoming_loop->isLoopExiting(incoming_block)) {
+        // Don't recurse on the incoming values.
+        // TODO: This should be changed to recurse and perform the replacements
+        // as specified in the paper.
+        return detail::conservative(I);
+      }
+    }
   }
 
   // Otherwise, return a conservative content.
@@ -630,6 +666,7 @@ ContentSummary ContentAnalysisDriver::visitPHINode(llvm::PHINode &I) {
     incoming_contents.push_back(this->analyze(*incoming_value));
     this->restore_recurse(was);
   }
+
   auto content = std::accumulate(
       std::next(incoming_contents.rbegin()),
       incoming_contents.rend(),
@@ -782,9 +819,6 @@ ContentSummary ContentAnalysisDriver::contextualize_call(
                       .substitute(*live_out_range, *ret_phi_range);
         range = &domain->substitute(*live_out_range, *ret_phi_domain)
                      .substitute(*live_out_range, *ret_phi_range);
-
-      } else {
-        warnln("Found live out without a ret phi!");
       }
     }
   }
@@ -954,7 +988,22 @@ void ContentAnalysisDriver::initialize() {
   // First, create the initial summaries based solely on the local instruction
   // information.
   for (auto &F : this->M) {
+
+    if (F.empty()) {
+      continue;
+    }
+
+    // Check if this function is the body of a fold.
+    llvm::Instruction *fold_context = nullptr;
+    if (auto *single_use = F.getSingleUndroppableUse()) {
+      if (auto *fold_user = into<FoldInst>(single_use->getUser())) {
+        fold_context = &fold_user->getCallInst();
+      }
+    }
+
     for (auto &A : F.args()) {
+      this->current =
+          fold_context ? fold_context : F.getEntryBlock().getFirstNonPHI();
       this->visited.clear();
       this->summarize(A, this->visitArgument(A));
     }
@@ -969,7 +1018,7 @@ void ContentAnalysisDriver::initialize() {
           continue;
         }
 
-        this->current = &I;
+        this->current = fold_context ? fold_context : &I;
         this->visited.clear();
         this->summarize(I, this->analyze(I));
       }
@@ -1022,38 +1071,38 @@ void ContentAnalysisDriver::simplify() {
       range = &simplifier.simplify(*range);
 
       // If the value is a ret-phi, contextualize it.
-      if (auto *ret_phi = into<RetPHIInst>(*value)) {
-        if (auto *function = ret_phi->getCalledFunction()) {
+      // if (auto *ret_phi = into<RetPHIInst>(*value)) {
+      //   if (auto *function = ret_phi->getCalledFunction()) {
 
-          if (not FunctionNames::is_memoir_call(*function)) {
+      //     if (not FunctionNames::is_memoir_call(*function)) {
 
-            // Find the call.
-            llvm::CallBase *corresponding_call = nullptr;
-            llvm::Instruction *current_inst = &ret_phi->getCallInst();
-            while ((current_inst = current_inst->getPrevNode())) {
-              if (auto *ret_phi = into<RetPHIInst>(current_inst)) {
-                continue;
-              }
+      //       // Find the call.
+      //       llvm::CallBase *corresponding_call = nullptr;
+      //       llvm::Instruction *current_inst = &ret_phi->getCallInst();
+      //       while ((current_inst = current_inst->getPrevNode())) {
+      //         if (auto *ret_phi = into<RetPHIInst>(current_inst)) {
+      //           continue;
+      //         }
 
-              if (auto *call = dyn_cast<llvm::CallBase>(current_inst)) {
-                if (call->getCalledFunction() == function) {
-                  corresponding_call = call;
-                  break;
-                } else {
-                  break;
-                }
-              }
-            }
+      //         if (auto *call = dyn_cast<llvm::CallBase>(current_inst)) {
+      //           if (call->getCalledFunction() == function) {
+      //             corresponding_call = call;
+      //             break;
+      //           } else {
+      //             break;
+      //           }
+      //         }
+      //       }
 
-            if (corresponding_call) {
-              std::tie(domain, range) =
-                  this->contextualize_call(*corresponding_call,
-                                           *function,
-                                           std::make_pair(domain, range));
-            }
-          }
-        }
-      }
+      //       if (corresponding_call) {
+      //         std::tie(domain, range) =
+      //             this->contextualize_call(*corresponding_call,
+      //                                      *function,
+      //                                      std::make_pair(domain, range));
+      //       }
+      //     }
+      //   }
+      // }
     }
   }
 
@@ -1113,7 +1162,7 @@ void ContentAnalysisDriver::simplify() {
 ContentAnalysisDriver::ContentAnalysisDriver(
     Contents &result,
     llvm::Module &M,
-    std::function<llvm::Loop *(llvm::PHINode &)> get_loop_for)
+    std::function<llvm::Loop *(llvm::Instruction &)> get_loop_for)
   : result(result),
     M(M),
     recurse(false),
@@ -1131,7 +1180,7 @@ Contents ContentAnalysis::run(llvm::Module &M,
   Contents result;
 
   // Create a closure to access the loop for the given PHI.
-  auto get_loop_for = [&](llvm::PHINode &I) -> llvm::Loop * {
+  auto get_loop_for = [&](llvm::Instruction &I) -> llvm::Loop * {
     if (auto *parent = I.getParent()) {
       if (auto *function = parent->getParent()) {
         // Fetch the loop info.
