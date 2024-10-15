@@ -118,6 +118,12 @@ public:
     MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");
   }
 
+  TypeInst *CreateSizeTypeInst(const Twine &name = "") {
+    auto &data_layout = this->M->getDataLayout();
+    auto &size_type = Type::get_size_type(data_layout);
+    return this->CreateTypeInst(size_type, name);
+  }
+
   /*
    * Primitive Type Instructions
    */
