@@ -8,6 +8,7 @@
 #include "folio/analysis/ContentAnalysis.hpp"
 #include "folio/opportunities/Analysis.hpp"
 
+#include "folio/transforms/LambdaLifting.hpp"
 #include "folio/transforms/SelectionMonomorphization.hpp"
 
 #include "folio/solver/Implementation.hpp"
@@ -70,6 +71,10 @@ void transform(llvm::Module &M,
 
 llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
                                        llvm::ModuleAnalysisManager &MAM) {
+
+  // First, we will normalize the code such that memoir functions are called at
+  // most once.
+  LambdaLifting lifter(M);
 
   // Fetch the ConstraintInference results.
   auto &constraints = MAM.getResult<ConstraintInference>(M);
