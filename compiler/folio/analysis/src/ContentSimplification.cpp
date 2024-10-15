@@ -17,6 +17,10 @@ bool ContentSimplification::is_simple(Content &C) {
   if (isa<EmptyContent>(&C) or isa<KeysContent>(&C)
       or isa<ElementsContent>(&C)) {
     return true;
+  } else if (auto *scalar = dyn_cast<ScalarContent>(&C)) {
+    if (isa<llvm::Constant>(&scalar->value())) {
+      return true;
+    }
   } else if (auto *tuple = dyn_cast<TupleContent>(&C)) {
     bool simple = true;
     for (auto *elem : tuple->elements()) {
