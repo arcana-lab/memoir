@@ -173,7 +173,7 @@ void construct_field_write(llvm::Instruction &I,
   // Cast the value written to match the gep type if it's a non-integer type.
   if (not isa<llvm::IntegerType>(llvm_field_type)) {
     value_written =
-        builder.CreateBitOrPointerCast(value_written, llvm_field_type);
+        builder.CreateTruncOrBitCast(value_written, llvm_field_type);
   }
 
   // Construct the load.
@@ -711,8 +711,8 @@ void SSADestructionVisitor::visitIndexReadInst(IndexReadInst &I) {
           builder.CreatePointerCast(&I.getObjectOperand(),
                                     function_type->getParamType(0));
       auto *vector_index =
-          builder.CreateZExtOrBitCast(&I.getIndex(),
-                                      function_type->getParamType(1));
+          builder.CreateZExtOrTrunc(&I.getIndex(),
+                                    function_type->getParamType(1));
 
       auto *llvm_call =
           builder.CreateCall(function_callee,
@@ -744,8 +744,8 @@ void SSADestructionVisitor::visitIndexReadInst(IndexReadInst &I) {
           builder.CreatePointerCast(&I.getObjectOperand(),
                                     function_type->getParamType(0));
       auto *vector_index =
-          builder.CreateZExtOrBitCast(&I.getIndex(),
-                                      function_type->getParamType(1));
+          builder.CreateZExtOrTrunc(&I.getIndex(),
+                                    function_type->getParamType(1));
 
       auto *llvm_call =
           builder.CreateCall(function_callee,
@@ -828,8 +828,8 @@ void SSADestructionVisitor::visitIndexGetInst(IndexGetInst &I) {
         builder.CreatePointerCast(&I.getObjectOperand(),
                                   function_type->getParamType(0));
     auto *vector_index =
-        builder.CreateZExtOrBitCast(&I.getIndex(),
-                                    function_type->getParamType(1));
+        builder.CreateZExtOrTrunc(&I.getIndex(),
+                                  function_type->getParamType(1));
 
     auto *llvm_call =
         builder.CreateCall(function_callee,
@@ -903,15 +903,14 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
           builder.CreatePointerCast(&I.getObjectOperand(),
                                     function_type->getParamType(0));
       auto *vector_index =
-          builder.CreateZExtOrBitCast(&I.getIndex(),
-                                      function_type->getParamType(1));
+          builder.CreateZExtOrTrunc(&I.getIndex(),
+                                    function_type->getParamType(1));
 
       auto *write_type = function_type->getParamType(2);
       auto *write_value =
           (isa<llvm::IntegerType>(write_type))
               ? &I.getValueWritten()
-              : builder.CreateBitOrPointerCast(&I.getValueWritten(),
-                                               write_type);
+              : builder.CreateTruncOrBitCast(&I.getValueWritten(), write_type);
 
       auto *llvm_call = builder.CreateCall(
           function_callee,
@@ -936,8 +935,8 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
           builder.CreatePointerCast(&I.getObjectOperand(),
                                     function_type->getParamType(0));
       auto *vector_index =
-          builder.CreateZExtOrBitCast(&I.getIndex(),
-                                      function_type->getParamType(1));
+          builder.CreateZExtOrTrunc(&I.getIndex(),
+                                    function_type->getParamType(1));
 
       auto *llvm_call =
           builder.CreateCall(function_callee,
@@ -1021,8 +1020,8 @@ void SSADestructionVisitor::visitAssocReadInst(AssocReadInst &I) {
         builder.CreatePointerCast(&I.getObjectOperand(),
                                   function_type->getParamType(0));
     auto *assoc_key =
-        builder.CreateBitOrPointerCast(&I.getKeyOperand(),
-                                       function_type->getParamType(1));
+        builder.CreateTruncOrBitCast(&I.getKeyOperand(),
+                                     function_type->getParamType(1));
 
     auto *llvm_call =
         builder.CreateCall(function_callee,
@@ -1048,8 +1047,8 @@ void SSADestructionVisitor::visitAssocReadInst(AssocReadInst &I) {
         builder.CreatePointerCast(&I.getObjectOperand(),
                                   function_type->getParamType(0));
     auto *assoc_key =
-        builder.CreateBitOrPointerCast(&I.getKeyOperand(),
-                                       function_type->getParamType(1));
+        builder.CreateTruncOrBitCast(&I.getKeyOperand(),
+                                     function_type->getParamType(1));
 
     auto *object =
         builder.CreateCall(function_callee,
@@ -1094,8 +1093,8 @@ void SSADestructionVisitor::visitAssocWriteInst(AssocWriteInst &I) {
         builder.CreatePointerCast(&I.getObjectOperand(),
                                   function_type->getParamType(0));
     auto *assoc_index =
-        builder.CreateBitOrPointerCast(&I.getKeyOperand(),
-                                       function_type->getParamType(1));
+        builder.CreateTruncOrBitCast(&I.getKeyOperand(),
+                                     function_type->getParamType(1));
     auto *write_value = &I.getValueWritten();
 
     auto *llvm_call = builder.CreateCall(
@@ -1119,8 +1118,8 @@ void SSADestructionVisitor::visitAssocWriteInst(AssocWriteInst &I) {
         builder.CreatePointerCast(&I.getObjectOperand(),
                                   function_type->getParamType(0));
     auto *assoc_key =
-        builder.CreateBitOrPointerCast(&I.getKeyOperand(),
-                                       function_type->getParamType(1));
+        builder.CreateTruncOrBitCast(&I.getKeyOperand(),
+                                     function_type->getParamType(1));
 
     auto *llvm_call =
         builder.CreateCall(function_callee,
@@ -1160,8 +1159,8 @@ void SSADestructionVisitor::visitAssocGetInst(AssocGetInst &I) {
   auto *assoc_value = builder.CreatePointerCast(&I.getObjectOperand(),
                                                 function_type->getParamType(0));
   auto *assoc_key =
-      builder.CreateBitOrPointerCast(&I.getKeyOperand(),
-                                     function_type->getParamType(1));
+      builder.CreateTruncOrBitCast(&I.getKeyOperand(),
+                                   function_type->getParamType(1));
 
   auto *llvm_call =
       builder.CreateCall(function_callee,
@@ -1199,8 +1198,8 @@ void SSADestructionVisitor::visitAssocHasInst(AssocHasInst &I) {
   auto *assoc_value = builder.CreatePointerCast(&I.getObjectOperand(),
                                                 function_type->getParamType(0));
   auto *assoc_key =
-      builder.CreateBitOrPointerCast(&I.getKeyOperand(),
-                                     function_type->getParamType(1));
+      builder.CreateTruncOrBitCast(&I.getKeyOperand(),
+                                   function_type->getParamType(1));
 
   auto *llvm_call =
       builder.CreateCall(function_callee,
@@ -1338,8 +1337,8 @@ void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
   auto *seq = builder.CreatePointerCast(&I.getBaseCollection(),
                                         function_type->getParamType(0));
   auto *insertion_point =
-      builder.CreateBitOrPointerCast(&I.getInsertionPoint(),
-                                     function_type->getParamType(1));
+      builder.CreateTruncOrBitCast(&I.getInsertionPoint(),
+                                   function_type->getParamType(1));
 
   auto *llvm_call = builder.CreateCall(
       function_callee,
@@ -1378,15 +1377,15 @@ void SSADestructionVisitor::visitSeqInsertValueInst(SeqInsertValueInst &I) {
   auto *seq = builder.CreatePointerCast(&I.getBaseCollection(),
                                         function_type->getParamType(0));
   auto *insertion_point =
-      builder.CreateBitOrPointerCast(&I.getInsertionPoint(),
-                                     function_type->getParamType(1));
+      builder.CreateTruncOrBitCast(&I.getInsertionPoint(),
+                                   function_type->getParamType(1));
 
   auto *value_param_type = function_type->getParamType(2);
   auto *insertion_value =
       (isa<llvm::IntegerType>(value_param_type))
           ? builder.CreateZExtOrTrunc(&I.getValueInserted(), value_param_type)
-          : builder.CreateBitOrPointerCast(&I.getValueInserted(),
-                                           value_param_type);
+          : builder.CreateTruncOrBitCast(&I.getValueInserted(),
+                                         value_param_type);
 
   auto *llvm_call = builder.CreateCall(
       function_callee,
@@ -1428,11 +1427,11 @@ void SSADestructionVisitor::visitSeqInsertSeqInst(SeqInsertSeqInst &I) {
   auto *seq = builder.CreatePointerCast(&I.getBaseCollection(),
                                         function_type->getParamType(0));
   auto *insertion_point =
-      builder.CreateBitOrPointerCast(&I.getInsertionPoint(),
-                                     function_type->getParamType(1));
+      builder.CreateTruncOrBitCast(&I.getInsertionPoint(),
+                                   function_type->getParamType(1));
   auto *seq_to_insert =
-      builder.CreateBitOrPointerCast(&I.getInsertedCollection(),
-                                     function_type->getParamType(2));
+      builder.CreateTruncOrBitCast(&I.getInsertedCollection(),
+                                   function_type->getParamType(2));
 
   auto *llvm_call = builder.CreateCall(
       function_callee,
@@ -1471,10 +1470,10 @@ void SSADestructionVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
   auto *function_type = function_callee.getFunctionType();
   auto *seq = builder.CreatePointerCast(&I.getBaseCollection(),
                                         function_type->getParamType(0));
-  auto *begin = builder.CreateBitOrPointerCast(&I.getBeginIndex(),
-                                               function_type->getParamType(1));
-  auto *end = builder.CreateBitOrPointerCast(&I.getEndIndex(),
-                                             function_type->getParamType(2));
+  auto *begin = builder.CreateTruncOrBitCast(&I.getBeginIndex(),
+                                             function_type->getParamType(1));
+  auto *end = builder.CreateTruncOrBitCast(&I.getEndIndex(),
+                                           function_type->getParamType(2));
 
   auto *llvm_call =
       builder.CreateCall(function_callee, llvm::ArrayRef({ seq, begin, end }));
@@ -1511,10 +1510,10 @@ void SSADestructionVisitor::visitSeqCopyInst(SeqCopyInst &I) {
   auto *function_type = function_callee.getFunctionType();
   auto *seq = builder.CreatePointerCast(&I.getCopiedCollection(),
                                         function_type->getParamType(0));
-  auto *begin = builder.CreateBitOrPointerCast(&I.getBeginIndex(),
-                                               function_type->getParamType(1));
-  auto *end = builder.CreateBitOrPointerCast(&I.getEndIndex(),
-                                             function_type->getParamType(2));
+  auto *begin = builder.CreateTruncOrBitCast(&I.getBeginIndex(),
+                                             function_type->getParamType(1));
+  auto *end = builder.CreateTruncOrBitCast(&I.getEndIndex(),
+                                           function_type->getParamType(2));
   auto *llvm_call =
       builder.CreateCall(function_callee, llvm::ArrayRef({ seq, begin, end }));
   MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for SeqCopyInst");
@@ -1550,15 +1549,14 @@ void SSADestructionVisitor::visitSeqSwapInst(SeqSwapInst &I) {
   auto *function_type = function_callee.getFunctionType();
   auto *seq = builder.CreatePointerCast(&I.getFromCollection(),
                                         function_type->getParamType(0));
-  auto *begin = builder.CreateBitOrPointerCast(&I.getBeginIndex(),
-                                               function_type->getParamType(1));
-  auto *end = builder.CreateBitOrPointerCast(&I.getEndIndex(),
-                                             function_type->getParamType(2));
+  auto *begin = builder.CreateTruncOrBitCast(&I.getBeginIndex(),
+                                             function_type->getParamType(1));
+  auto *end = builder.CreateTruncOrBitCast(&I.getEndIndex(),
+                                           function_type->getParamType(2));
   auto *to_seq = builder.CreatePointerCast(&I.getToCollection(),
                                            function_type->getParamType(3));
-  auto *to_begin =
-      builder.CreateBitOrPointerCast(&I.getToBeginIndex(),
-                                     function_type->getParamType(4));
+  auto *to_begin = builder.CreateTruncOrBitCast(&I.getToBeginIndex(),
+                                                function_type->getParamType(4));
 
   auto *llvm_call =
       builder.CreateCall(function_callee,
@@ -1618,13 +1616,12 @@ void SSADestructionVisitor::visitSeqSwapWithinInst(SeqSwapWithinInst &I) {
   auto *function_type = function_callee.getFunctionType();
   auto *seq = builder.CreatePointerCast(&I.getFromCollection(),
                                         function_type->getParamType(0));
-  auto *begin = builder.CreateBitOrPointerCast(&I.getBeginIndex(),
-                                               function_type->getParamType(1));
-  auto *end = builder.CreateBitOrPointerCast(&I.getEndIndex(),
-                                             function_type->getParamType(2));
-  auto *to_begin =
-      builder.CreateBitOrPointerCast(&I.getToBeginIndex(),
-                                     function_type->getParamType(4));
+  auto *begin = builder.CreateTruncOrBitCast(&I.getBeginIndex(),
+                                             function_type->getParamType(1));
+  auto *end = builder.CreateTruncOrBitCast(&I.getEndIndex(),
+                                           function_type->getParamType(2));
+  auto *to_begin = builder.CreateTruncOrBitCast(&I.getToBeginIndex(),
+                                                function_type->getParamType(4));
   auto *llvm_call =
       builder.CreateCall(function_callee,
                          llvm::ArrayRef({ seq, begin, end, seq, to_begin }));
@@ -1667,8 +1664,8 @@ void SSADestructionVisitor::visitAssocInsertInst(AssocInsertInst &I) {
   auto *assoc = builder.CreatePointerCast(&I.getBaseCollection(),
                                           function_type->getParamType(0));
   auto *assoc_key =
-      builder.CreateBitOrPointerCast(&I.getInsertionPoint(),
-                                     function_type->getParamType(1));
+      builder.CreateTruncOrBitCast(&I.getInsertionPoint(),
+                                   function_type->getParamType(1));
 
   auto *llvm_call =
       builder.CreateCall(function_callee, llvm::ArrayRef({ assoc, assoc_key }));
@@ -1705,8 +1702,7 @@ void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
   auto *assoc = builder.CreatePointerCast(&I.getBaseCollection(),
                                           function_type->getParamType(0));
   auto *assoc_key =
-      builder.CreateBitOrPointerCast(&I.getKey(),
-                                     function_type->getParamType(1));
+      builder.CreateTruncOrBitCast(&I.getKey(), function_type->getParamType(1));
 
   auto *llvm_call =
       builder.CreateCall(function_callee, llvm::ArrayRef({ assoc, assoc_key }));
