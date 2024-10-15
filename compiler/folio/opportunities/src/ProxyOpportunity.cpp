@@ -193,7 +193,7 @@ ordered_map<llvm::Value *, set<Content *>> gather_content_sources(Content &C) {
 
   ordered_map<llvm::Value *, set<Content *>> sources = {};
 
-  println("Gathering ", C.to_string());
+  println("Gathering ", C);
 
   if (auto *elements = dyn_cast<ElementsContent>(&C)) {
     sources[&elements->collection()].insert(&C);
