@@ -26,6 +26,7 @@ namespace folio {
 namespace detail {
 
 ContentSummary conservative(llvm::Value &V) {
+
   auto *type = type_of(V);
 
   if (isa_and_nonnull<SequenceType>(type)
@@ -515,7 +516,6 @@ ContentSummary ContentAnalysisDriver::visitFoldInst(FoldInst &I) {
   }
 
   // Fetch the content of the returned collection.
-
   auto was = this->set_recurse();
   auto returned_summary = this->analyze(*returned);
   this->restore_recurse(was);
@@ -742,6 +742,11 @@ ContentSummary ContentAnalysisDriver::contextualize_call(
     llvm::Function &function,
     ContentSummary content) {
 
+  // If the call is in the function, do nothing.
+  if (call.getFunction() == &function) {
+    return content;
+  }
+
   // Unpack the content.
   auto [domain, range] = content;
 
@@ -955,9 +960,14 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     }
 
     // Analyze the live out.
-    auto was = this->set_recurse();
-    auto live_out_summary = this->analyze(*live_out);
-    this->restore_recurse(was);
+    ContentSummary live_out_summary;
+    if (call->getFunction() != called_function) {
+      auto was = this->set_recurse();
+      live_out_summary = this->analyze(*live_out);
+      this->restore_recurse(was);
+    } else {
+      live_out_summary = this->analyze(*live_out);
+    }
 
     // Contextualize the contents in the context of the call.
     auto [live_out_domain, live_out_range] =
