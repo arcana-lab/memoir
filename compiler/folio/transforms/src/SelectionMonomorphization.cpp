@@ -1,5 +1,6 @@
 // LLVM
 #include "llvm/IR/Instructions.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 
 // MEMOIR
 #include "memoir/ir/Instructions.hpp"
@@ -238,24 +239,116 @@ void propagate_declarations(
   return;
 }
 
-void annotate(const ordered_multimap<llvm::Value *, std::string> &selections) {
+bool transform(const ordered_multimap<llvm::Value *, std::string> &selections) {
+  // Track whether or not we have transformed the function.
+  bool transformed = false;
 
-  // For each value with a selection.
+  // Collect the polymorphic values (those that have multiple selections).
+  set<llvm::Value *> polymorphic = {};
   for (const auto &[value, selection] : selections) {
 
-    // Ensure that the value is a memoir instruction, other instructions can be
-    // hylomorphic.
-    auto *memoir_inst = into<MemOIRInst>(value);
-    if (not memoir_inst) {
-      continue;
-    }
-
-    // Check that this instruction has _only one_ selection, if it has more then
-    // we failed to monomorphize the program!
+    // If the value has more than one selection, it is polymorphic.
     if (selections.count(value) > 1) {
-      warnln(*value, " has a hylomorphic selection!");
-      MEMOIR_UNREACHABLE("Failed to monomorphize the program!");
+      polymorphic.insert(value);
     }
+  }
+
+  // If there are no polymorphic values, return.
+  if (polymorphic.empty()) {
+    return false;
+  }
+
+  // First, handle any polymorphic argument, where we need to monomorphize the
+  // function for a given call site.
+  for (auto *value : polymorphic) {
+    if (auto *arg = dyn_cast<llvm::Argument>(value)) {
+      // If an argument is polymorphic, fetch all of the possible call sites and
+      // partition them based on their argument's selection, if it is
+      // monomorphic.
+      map<llvm::Use *, std::string> caller_to_selection = {};
+
+      // Fetch the parent function.
+      auto *function = arg->getParent();
+
+      // For each possible callee.
+      for (auto &use : function->uses()) {
+        auto *user = use.getUser();
+        auto *call = dyn_cast<llvm::CallBase>(user);
+        if (not call) {
+          warnln("MEMOIR function ", function->getName(), " has non-call use.");
+          continue;
+        }
+
+        // Check that the function is the called operand.
+        if (call->getCalledOperand() != function) {
+          // If the call is neither a fold nor a ret PHI, warn the user.
+          if (not into<FoldInst>(call) or not into<RetPHIInst>(call)) {
+            warnln("MEMOIR function ",
+                   function->getName(),
+                   " may be indirectly called.");
+            continue;
+          }
+        }
+
+        // Get the corresponding operand.
+        auto *operand = call->getArgOperand(arg->getArgNo());
+
+        // If the operand is monomorphic, we will save it.
+        if (selections.count(operand) == 1) {
+          caller_to_selection[&use] = selections.find(operand)->second;
+        }
+      }
+
+      // Partition the callers by their selections.
+      ordered_map<std::string, vector<llvm::Use *>> selection_to_callers = {};
+      for (const auto &[caller, selection] : caller_to_selection) {
+        selection_to_callers[selection].push_back(caller);
+      }
+
+      // For each partition, create a unique function for that set of callers.
+      for (const auto &[selection, callers] : selection_to_callers) {
+        // Create a unique clone of the function for these callers.
+        llvm::ValueToValueMapTy vmap;
+        auto *clone = llvm::CloneFunction(function, vmap);
+
+        // For each of the callers, replace the called function with this unique
+        // clone.
+        for (auto *caller : callers) {
+          // Replace the use.
+          caller->set(clone);
+
+          // Update any RetPHIs that follow.
+          auto *next =
+              dyn_cast<llvm::Instruction>(caller->getUser())->getNextNode();
+          while (next) {
+            if (auto *ret_phi = into<RetPHIInst>(next)) {
+              ret_phi->getCalledOperandAsUse().set(clone);
+            } else if (isa<llvm::CallBase>(next)) {
+              break;
+            }
+
+            next = next->getNextNode();
+          }
+        }
+
+        // Mark the module as transformed.
+        transformed = true;
+
+        // We could improve the logic of this pass to keep track of changes and
+        // update the selection results, but for the time being we will just do
+        // the simple thing and apply one transformation at a time.
+        return true;
+      }
+    }
+  }
+
+  return transformed;
+}
+
+void annotate(const map<MemOIRInst *, std::string> &selections) {
+
+  // For each value with a selection.
+  for (const auto &[memoir_inst, selection] : selections) {
 
     // Annotate the instruction with the selection.
     auto metadata =
@@ -273,17 +366,40 @@ SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
   // Initialize an empty mapping for selections.
   ordered_multimap<llvm::Value *, std::string> selections = {};
 
-  // Collect all collection declarations and their selections.
-  detail::collect_declarations(selections, M);
+  do {
+    // Clear the last round of selection that we had.
+    selections.clear();
 
-  // Propagate the declaration selections to all users.
-  detail::propagate_declarations(selections, M);
+    // Collect all collection declarations and their selections.
+    detail::collect_declarations(selections, M);
 
-  // Transform the program to ensure that each selection is monomorphized.
-  // TODO
+    // Propagate the declaration selections to all users.
+    detail::propagate_declarations(selections, M);
+
+    // Transform the program to ensure that each selection is monomorphized.
+    // Continue until we don't transform the program.
+  } while (detail::transform(selections));
+
+  // Validate that the program is monomorphized.
+  map<MemOIRInst *, std::string> selections_to_annotate = {};
+  for (const auto &[value, selection] : selections) {
+    // Only insert mappings for memoir instructions.
+    auto *memoir_inst = into<MemOIRInst>(value);
+    if (not memoir_inst) {
+      continue;
+    }
+
+    // If the instruction has a polymorphic selection, error!
+    if (selections.count(value) > 1) {
+      MEMOIR_UNREACHABLE("Failed to monomorphize selections in the program!");
+    }
+
+    // Set the selection for the instruction.
+    selections_to_annotate[memoir_inst] = selection;
+  }
 
   // Annotate instructions with their selection.
-  detail::annotate(selections);
+  detail::annotate(selections_to_annotate);
 }
 
 } // namespace folio
