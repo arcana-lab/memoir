@@ -268,7 +268,6 @@ bool ProxyOpportunity::exploit(
     // Iterate over all uses of redefinitions to find any uses that need
     // updated.
     for (auto *redef : redefinitions[alloc]) {
-      // TODO
       detail::gather_uses_to_proxy(*redef, to_encode, to_decode);
     }
   }
@@ -1030,6 +1029,47 @@ bool ProxyOpportunity::exploit(
       use->set(decoded);
     }
   }
+
+  // Update the type of the allocations.
+  /*
+  for (auto *alloc : this->allocations) {
+    // Update the key type of assoc allocations.
+    if (auto *assoc_alloc = dyn_cast<AssocAllocInst>(alloc)) {
+      // Create a builder at the allocation.
+      MemOIRBuilder builder(*assoc_alloc);
+
+      println("orig alloc type: ", assoc_alloc->getCollectionType());
+
+      // Construct a memoir usize type.
+      auto *size_type_value = &builder.CreateSizeTypeInst()->getCallInst();
+
+      // Replace the key type with the size type.
+      auto &key_type_use = assoc_alloc->getKeyOperandAsUse();
+      key_type_use.set(size_type_value);
+
+      // Get the allocation type.
+      auto &alloc_type = assoc_alloc->getCollectionType();
+      println("new alloc type: ", alloc_type);
+
+      // Update any type annotations as well.
+      for (auto *redef : redefinitions[alloc]) {
+        for (auto &use : redef->uses()) {
+          auto *user = use.getUser();
+          if (auto *assert_type = into<AssertTypeInst>(user)) {
+            // Construct the allocation type.
+            builder.SetInsertPoint(&assert_type->getCallInst());
+            auto *alloc_type_value =
+                &builder.CreateTypeInst(alloc_type)->getCallInst();
+
+            // Replace the type operand with the allocation type value.
+            auto &type_use = assert_type->getTypeOperandAsUse();
+            type_use.set(alloc_type_value);
+          }
+        }
+      }
+    }
+  }
+  */
 
   return modified;
 }
