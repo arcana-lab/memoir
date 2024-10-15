@@ -1042,11 +1042,11 @@ void ContentAnalysisDriver::initialize() {
     debugln("domain(",
             value_name(*value),
             ") contains ",
-            contents.first->to_string());
+            *contents.first);
     debugln("range(",
             value_name(*value),
             ") contains ",
-            contents.second->to_string());
+            *contents.second);
     debugln();
   }
   debugln("================================");
@@ -1145,14 +1145,8 @@ void ContentAnalysisDriver::simplify() {
         first = false;
       }
 
-      debugln("domain(",
-              value_name(*value),
-              ") contains ",
-              contents.first->to_string());
-      debugln("range(",
-              value_name(*value),
-              ") contains ",
-              contents.second->to_string());
+      debugln("domain(", value_name(*value), ") contains ", *contents.first);
+      debugln("range(", value_name(*value), ") contains ", *contents.second);
     }
     if (not first) {
       debugln("===   END ", F.getName(), "===");
