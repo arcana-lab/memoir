@@ -378,8 +378,8 @@ ContentSummary ContentAnalysisDriver::visitAssocInsertInst(AssocInsertInst &I) {
 
 namespace detail {
 ContentSummary handle_collection_read(ReadInst &I, Content &collection_range) {
-  // Construct an ElemContent.
-  auto &elem = Content::create<ElementContent>(collection_range);
+  // Construct a SubsetContent.
+  auto &elem = Content::create<SubsetContent>(collection_range);
 
   // Wrap the element content in FieldContent(s) if necessary.
   Content *content = &elem;
@@ -432,7 +432,7 @@ ContentSummary ContentAnalysisDriver::visitStructReadInst(StructReadInst &I) {
 }
 
 ContentSummary ContentAnalysisDriver::visitAssocKeysInst(AssocKeysInst &I) {
-  // Construct the KeyContent
+  // Construct the KeysContent
   auto [domain, _] = this->analyze(I.getCollection());
   return { &Content::create<RangeContent>(I.getCallInst()), domain };
 }
@@ -707,10 +707,8 @@ bool contents_are_local(Content &C, llvm::Function &F) {
     return value_is_local(keys->collection(), F);
   } else if (auto *elems = dyn_cast<ElementsContent>(&C)) {
     return value_is_local(elems->collection(), F);
-  } else if (auto *key = dyn_cast<KeyContent>(&C)) {
-    return contents_are_local(key->collection(), F);
-  } else if (auto *elem = dyn_cast<ElementContent>(&C)) {
-    return contents_are_local(elem->collection(), F);
+  } else if (auto *subset = dyn_cast<SubsetContent>(&C)) {
+    return contents_are_local(subset->content(), F);
   } else if (auto *scalar = dyn_cast<ScalarContent>(&C)) {
     return value_is_local(scalar->value(), F);
   } else if (auto *field = dyn_cast<FieldContent>(&C)) {

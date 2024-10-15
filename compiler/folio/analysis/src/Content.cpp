@@ -40,14 +40,9 @@ Content &RangeContent::create(llvm::Value &V) {
   return MEMOIR_SANITIZE(new RangeContent(V), "Failed to create RangeContent.");
 }
 
-Content &KeyContent::create(Content &C) {
-  return MEMOIR_SANITIZE(new KeyContent(simplify(C)),
-                         "Failed to create KeyContent.");
-}
-
-Content &ElementContent::create(Content &C) {
-  return MEMOIR_SANITIZE(new ElementContent(simplify(C)),
-                         "Failed to create ElementContent.");
+Content &SubsetContent::create(Content &C) {
+  return MEMOIR_SANITIZE(new SubsetContent(simplify(C)),
+                         "Failed to create SubsetContent.");
 }
 
 Content &FieldContent::create(Content &parent, unsigned field_index) {
@@ -109,14 +104,6 @@ Content &ScalarContent::substitute(Content &from, Content &to) {
   return *this;
 }
 
-Content &KeyContent::substitute(Content &from, Content &to) {
-  auto &subst = this->_collection.substitute(from, to);
-  if (&subst == &this->_collection) {
-    return *this;
-  }
-  return Content::create<KeyContent>(subst);
-}
-
 Content &KeysContent::substitute(Content &from, Content &to) {
   if (from == *this) {
     return to;
@@ -129,14 +116,6 @@ Content &RangeContent::substitute(Content &from, Content &to) {
     return to;
   }
   return *this;
-}
-
-Content &ElementContent::substitute(Content &from, Content &to) {
-  auto &subst = this->_collection.substitute(from, to);
-  if (&subst == &this->_collection) {
-    return *this;
-  }
-  return Content::create<ElementContent>(subst);
 }
 
 Content &ElementsContent::substitute(Content &from, Content &to) {
@@ -152,6 +131,14 @@ Content &FieldContent::substitute(Content &from, Content &to) {
     return *this;
   }
   return Content::create<FieldContent>(subst_parent, this->_field_index);
+}
+
+Content &SubsetContent::substitute(Content &from, Content &to) {
+  auto &subst = this->content().substitute(from, to);
+  if (&subst == &this->content()) {
+    return *this;
+  }
+  return Content::create<SubsetContent>(subst);
 }
 
 Content &ConditionalContent::substitute(Content &from, Content &to) {

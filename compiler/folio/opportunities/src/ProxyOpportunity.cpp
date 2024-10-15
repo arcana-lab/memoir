@@ -199,10 +199,6 @@ ordered_map<llvm::Value *, set<Content *>> gather_content_sources(Content &C) {
     sources[&elements->collection()].insert(&C);
   } else if (auto *keys = dyn_cast<KeysContent>(&C)) {
     sources[&keys->collection()].insert(&C);
-  } else if (auto *elem = dyn_cast<ElementContent>(&C)) {
-    return gather_content_sources(elem->collection());
-  } else if (auto *key = dyn_cast<KeyContent>(&C)) {
-    return gather_content_sources(key->collection());
   } else if (auto *field = dyn_cast<FieldContent>(&C)) {
     // Wrap the results in the field content.
     auto parent_sources = gather_content_sources(field->parent());
@@ -215,6 +211,8 @@ ordered_map<llvm::Value *, set<Content *>> gather_content_sources(Content &C) {
       }
     }
 
+  } else if (auto *subset = dyn_cast<SubsetContent>(&C)) {
+    return gather_content_sources(subset->content());
   } else if (auto *cond = dyn_cast<ConditionalContent>(&C)) {
     return gather_content_sources(cond->content());
   } else if (auto *tuple = dyn_cast<TupleContent>(&C)) {

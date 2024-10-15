@@ -27,10 +27,8 @@ bool ContentSimplification::is_simple(Content &C) {
       simple &= ContentSimplification::is_simple(*elem);
     }
     return simple;
-  } else if (auto *key = dyn_cast<KeyContent>(&C)) {
-    return ContentSimplification::is_simple(key->collection());
-  } else if (auto *elem = dyn_cast<ElementContent>(&C)) {
-    return ContentSimplification::is_simple(elem->collection());
+  } else if (auto *subset = dyn_cast<SubsetContent>(&C)) {
+    return ContentSimplification::is_simple(subset->content());
   } else if (auto *cond = dyn_cast<ConditionalContent>(&C)) {
     return ContentSimplification::is_simple(cond->content());
   } else if (auto *field = dyn_cast<FieldContent>(&C)) {
@@ -93,6 +91,7 @@ Content &ContentSimplification::visitContent(Content &C) {
 }
 
 Content &ContentSimplification::visitConditionalContent(ConditionalContent &C) {
+
   // Recurse.
   auto &content = this->visit(C.content());
 
@@ -101,15 +100,19 @@ Content &ContentSimplification::visitConditionalContent(ConditionalContent &C) {
     return content;
   }
 
-  // If recursion simplified the inner content, update ourselves.
-  if (&content != &C.content()) {
-    return Content::create<ConditionalContent>(content,
-                                               C.predicate(),
-                                               C.lhs(),
-                                               C.rhs());
-  }
+  // TEMPORARY: Because the conditional expressions are getting out of hand we
+  // will collapse all of them to be a subset of their contents.
+  return Content::create<SubsetContent>(content);
 
-  return C;
+  // If recursion simplified the inner content, update ourselves.
+  // if (&content != &C.content()) {
+  //   return Content::create<ConditionalContent>(content,
+  //                                              C.predicate(),
+  //                                              C.lhs(),
+  //                                              C.rhs());
+  // }
+
+  // return C;
 }
 
 Content &ContentSimplification::visitFieldContent(FieldContent &C) {
@@ -118,17 +121,6 @@ Content &ContentSimplification::visitFieldContent(FieldContent &C) {
 
   if (&content != &C.parent()) {
     return Content::create<FieldContent>(content, C.field_index());
-  }
-
-  return C;
-}
-
-Content &ContentSimplification::visitKeyContent(KeyContent &C) {
-  // Recurse.
-  auto &content = this->visit(C.collection());
-
-  if (&content != &C.collection()) {
-    return Content::create<KeyContent>(content);
   }
 
   return C;
@@ -143,12 +135,36 @@ Content &ContentSimplification::visitKeysContent(KeysContent &C) {
   return C;
 }
 
-Content &ContentSimplification::visitElementContent(ElementContent &C) {
-  // Recurse.
-  auto &content = this->visit(C.collection());
+namespace detail {
+Content &strip_subset(Content &C) {
 
-  if (&content != &C.collection()) {
-    return Content::create<ElementContent>(content);
+  if (auto *subset = dyn_cast<SubsetContent>(&C)) {
+    return strip_subset(subset->content());
+
+  } else if (auto *union_content = dyn_cast<UnionContent>(&C)) {
+    auto &lhs = strip_subset(union_content->lhs());
+    auto &rhs = strip_subset(union_content->rhs());
+
+    return MEMOIR_SANITIZE(new UnionContent(lhs, rhs), "Failed to allocate!");
+
+  } else if (auto *field = dyn_cast<FieldContent>(&C)) {
+    auto &parent = strip_subset(field->parent());
+
+    return MEMOIR_SANITIZE(new FieldContent(parent, field->field_index()),
+                           "Failed to allocate!");
+  }
+
+  return C;
+}
+} // namespace detail
+
+Content &ContentSimplification::visitSubsetContent(SubsetContent &C) {
+  // Recurse.
+  auto &content = this->visit(detail::strip_subset(C.content()));
+
+  // If anything changed.
+  if (&content != &C.content()) {
+    return MEMOIR_SANITIZE(new SubsetContent(content), "Failed to allocate!");
   }
 
   return C;
@@ -218,7 +234,7 @@ Content &dedup(UnionContent &C, vector<Content *> &seen) {
       return *lhs;
     }
   }
-  return Content::create<UnionContent>(*lhs, *rhs);
+  return MEMOIR_SANITIZE(new UnionContent(*lhs, *rhs), "Failed to allocate!");
 }
 } // namespace detail
 
@@ -284,7 +300,8 @@ Content &ContentSimplification::visitUnionContent(UnionContent &C) {
     }
 
     // Construct a new tuple.
-    auto &new_tuple = Content::create<TupleContent>(new_elements);
+    auto &new_tuple =
+        MEMOIR_SANITIZE(new TupleContent(new_elements), "Failed to allocate!");
 
     return new_tuple;
   }
@@ -310,15 +327,17 @@ Content &ContentSimplification::visitUnionContent(UnionContent &C) {
   if (auto *rhs_union = dyn_cast<UnionContent>(&lhs)) {
     auto &rhs_lhs = rhs_union->lhs();
     auto &rhs_rhs = rhs_union->rhs();
-    auto &new_union = this->visit(Content::create<UnionContent>(lhs, rhs_lhs));
+    auto &new_union = this->visit(
+        MEMOIR_SANITIZE(new UnionContent(lhs, rhs_lhs), "Failed to allocate!"));
 
-    return this->visit(Content::create<UnionContent>(new_union, rhs_rhs));
+    return this->visit(MEMOIR_SANITIZE(new UnionContent(new_union, rhs_rhs),
+                                       "Failed to allocate!"));
   }
 
   // If we weren't able to reassociate, create a new union content if any
   // sub-simplifications happened.
   if (&lhs != &C.lhs() or &rhs != &C.rhs()) {
-    return Content::create<UnionContent>(lhs, rhs);
+    return MEMOIR_SANITIZE(new UnionContent(lhs, rhs), "Failed to allocate!");
   }
 
   return C;

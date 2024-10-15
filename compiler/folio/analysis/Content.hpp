@@ -20,12 +20,11 @@ enum ContentKind {
   CONTENT_EMPTY,
   CONTENT_STRUCT,
   CONTENT_SCALAR,
-  CONTENT_KEY,
   CONTENT_KEYS,
   CONTENT_RANGE,
-  CONTENT_ELEMENT,
   CONTENT_ELEMENTS,
   CONTENT_FIELD,
+  CONTENT_SUBSET,
   CONTENT_CONDITIONAL,
   CONTENT_TUPLE,
   CONTENT_UNION,
@@ -222,47 +221,6 @@ protected:
 };
 
 /**
- * Represents a key of a given collection.
- */
-struct KeyContent : public Content {
-  KeyContent(Content &collection)
-    : Content(ContentKind::CONTENT_KEY),
-      _collection(collection) {}
-
-  static Content &create(Content &C);
-
-  std::string to_string() const override {
-    return "key(" + this->_collection.to_string() + ")";
-  }
-
-  bool operator==(Content &other) const override {
-    auto *other_key = llvm::memoir::dyn_cast<KeyContent>(&other);
-    if (not other_key) {
-      return false;
-    }
-
-    return this->_collection == other_key->_collection;
-  }
-
-  Content &substitute(Content &from, Content &to) override;
-
-  static bool classof(const Content *content) {
-    return content->kind() == ContentKind::CONTENT_KEY;
-  }
-
-  Content &collection() {
-    return this->_collection;
-  }
-
-  llvm::memoir::Type *type() override {
-    return this->collection().type();
-  }
-
-protected:
-  Content &_collection;
-};
-
-/**
  * Represents the keys of a given collection.
  */
 struct KeysContent : public Content {
@@ -369,47 +327,6 @@ protected:
 };
 
 /**
- * Represents an element of a given collection.
- */
-struct ElementContent : public Content {
-  ElementContent(Content &collection)
-    : Content(ContentKind::CONTENT_ELEMENT),
-      _collection(collection) {}
-
-  static Content &create(Content &C);
-
-  std::string to_string() const override {
-    return "elem(" + this->_collection.to_string() + ")";
-  }
-
-  bool operator==(Content &other) const override {
-    auto *other_element = llvm::memoir::dyn_cast<ElementContent>(&other);
-    if (not other_element) {
-      return false;
-    }
-
-    return this->_collection == other_element->_collection;
-  }
-
-  Content &substitute(Content &from, Content &to) override;
-
-  static bool classof(const Content *content) {
-    return content->kind() == ContentKind::CONTENT_ELEMENT;
-  }
-
-  Content &collection() {
-    return this->_collection;
-  }
-
-  llvm::memoir::Type *type() override {
-    return this->collection().type();
-  }
-
-protected:
-  Content &_collection;
-};
-
-/**
  * Represents the elements of a given collection.
  */
 struct ElementsContent : public Content {
@@ -503,6 +420,48 @@ struct FieldContent : public Content {
 protected:
   Content &_parent;
   unsigned _field_index;
+};
+
+/**
+ * Represents a subset of the nested content.
+ */
+struct SubsetContent : public Content {
+public:
+  SubsetContent(Content &content)
+    : Content(ContentKind::CONTENT_SUBSET),
+      _content(content) {}
+
+  static Content &create(Content &content);
+
+  std::string to_string() const override {
+    return "subsetof(" + this->_content.to_string() + ")";
+  }
+
+  bool operator==(Content &other) const override {
+    auto *other_subset = llvm::memoir::dyn_cast<SubsetContent>(&other);
+    if (not other_subset) {
+      return false;
+    }
+
+    return (this->_content == other_subset->_content);
+  }
+
+  Content &substitute(Content &from, Content &to) override;
+
+  static bool classof(const Content *content) {
+    return content->kind() == ContentKind::CONTENT_SUBSET;
+  }
+
+  Content &content() {
+    return this->_content;
+  }
+
+  llvm::memoir::Type *type() override {
+    return this->content().type();
+  }
+
+protected:
+  Content &_content;
 };
 
 /**

@@ -29,10 +29,9 @@ protected:
   Content &visitUnionContent(UnionContent &C);
   Content &visitFieldContent(FieldContent &C);
   Content &visitConditionalContent(ConditionalContent &C);
-  Content &visitElementContent(ElementContent &C);
   Content &visitElementsContent(ElementsContent &C);
-  Content &visitKeyContent(KeyContent &C);
   Content &visitKeysContent(KeysContent &C);
+  Content &visitSubsetContent(SubsetContent &C);
 };
 
 Content &simplify(Content &C);

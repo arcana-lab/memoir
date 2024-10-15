@@ -102,23 +102,16 @@ bool subset_of(Content &sub, Content &super) {
     return true;
   }
 
-  // key(C) < C
-  if (auto *sub_key = dyn_cast<KeyContent>(&sub)) {
-    return subset_of(sub_key->collection(), super);
-  }
-
-  // elem(C) < C
-  if (auto *sub_elem = dyn_cast<ElementContent>(&sub)) {
-    return subset_of(sub_elem->collection(), super);
+  // subset(C) < C
+  if (auto *sub_subset = dyn_cast<SubsetContent>(&sub)) {
+    return subset_of(sub_subset->content(), super);
   }
 
   // field(elem(C)) < field(C)
   if (auto *sub_field = dyn_cast<FieldContent>(&sub)) {
     Content *child = nullptr;
-    if (auto *sub_elem = dyn_cast<ElementContent>(&sub_field->parent())) {
-      child = &sub_elem->collection();
-    } else if (auto *sub_key = dyn_cast<KeyContent>(&sub_field->parent())) {
-      child = &sub_key->collection();
+    if (auto *sub_subset = dyn_cast<SubsetContent>(&sub_field->parent())) {
+      child = &sub_subset->content();
     }
 
     if (child) {
@@ -163,11 +156,8 @@ Content &canonicalize(Content &input) {
     if (&union_content->lhs() != &lhs or &union_content->rhs() != &rhs) {
       return Content::create<UnionContent>(lhs, rhs);
     }
-  } else if (auto *key = dyn_cast<KeyContent>(&input)) {
-    return canonicalize(key->collection());
-
-  } else if (auto *elem = dyn_cast<ElementContent>(&input)) {
-    return canonicalize(elem->collection());
+  } else if (auto *subset = dyn_cast<SubsetContent>(&input)) {
+    return canonicalize(subset->content());
 
   } else if (auto *field = dyn_cast<FieldContent>(&input)) {
     auto &content = canonicalize(field->parent());
@@ -270,7 +260,7 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
       }
       redef_domain = simplified;
 
-      // If this domain is a KeyContent, it is unhandled.
+      // If this domain is a SubsetContent, it is unhandled.
       // TODO: fix this.
       if (isa<KeysContent>(redef_domain)) {
         domain = nullptr;
