@@ -10,7 +10,8 @@ class ContentSimplification : ContentVisitor<ContentSimplification, Content &> {
   friend class ContentVisitor<ContentSimplification, Content &>;
 
 public:
-  ContentSimplification(Contents &contents) : contents(contents) {}
+  ContentSimplification(Contents &contents) : contents(&contents) {}
+  ContentSimplification() : contents(nullptr) {}
 
   Content &simplify(Content &C);
 
@@ -18,7 +19,7 @@ public:
 
 protected:
   // Borrowed State.
-  Contents &contents;
+  Contents *contents;
 
   // Helper methods.
   Content *lookup_domain(llvm::Value &V);
@@ -33,6 +34,8 @@ protected:
   Content &visitKeyContent(KeyContent &C);
   Content &visitKeysContent(KeysContent &C);
 };
+
+Content &simplify(Content &C);
 
 } // namespace folio
 

@@ -1,10 +1,90 @@
 #include "folio/analysis/Content.hpp"
+#include "folio/analysis/ContentSimplification.hpp"
 
 #include "memoir/support/Print.hpp"
 
 using namespace llvm::memoir;
 
 namespace folio {
+
+// Creation.
+Content &UnderdefinedContent::create() {
+  return MEMOIR_SANITIZE(new UnderdefinedContent(),
+                         "Failed to create UnderdefinedContent.");
+}
+
+Content &EmptyContent::create() {
+  return MEMOIR_SANITIZE(new EmptyContent(), "Failed to create EmptyContent.");
+}
+
+Content &StructContent::create(llvm::Value &V) {
+  return MEMOIR_SANITIZE(new StructContent(V),
+                         "Failed to create StructContent.");
+}
+
+Content &ScalarContent::create(llvm::Value &V) {
+  return MEMOIR_SANITIZE(new ScalarContent(V),
+                         "Failed to create ScalarContent.");
+}
+
+Content &KeysContent::create(llvm::Value &V) {
+  return MEMOIR_SANITIZE(new KeysContent(V), "Failed to create KeysContent.");
+}
+
+Content &ElementsContent::create(llvm::Value &V) {
+  return MEMOIR_SANITIZE(new ElementsContent(V),
+                         "Failed to create ElementsContent.");
+}
+
+Content &RangeContent::create(llvm::Value &V) {
+  return MEMOIR_SANITIZE(new RangeContent(V), "Failed to create RangeContent.");
+}
+
+Content &KeyContent::create(Content &C) {
+  return MEMOIR_SANITIZE(new KeyContent(simplify(C)),
+                         "Failed to create KeyContent.");
+}
+
+Content &ElementContent::create(Content &C) {
+  return MEMOIR_SANITIZE(new ElementContent(simplify(C)),
+                         "Failed to create ElementContent.");
+}
+
+Content &FieldContent::create(Content &parent, unsigned field_index) {
+  return MEMOIR_SANITIZE(new FieldContent(simplify(parent), field_index),
+                         "Failed to create FieldContent.");
+}
+
+Content &ConditionalContent::create(Content &C,
+                                    llvm::CmpInst::Predicate pred,
+                                    Content &lhs,
+                                    Content &rhs) {
+  return MEMOIR_SANITIZE(new ConditionalContent(simplify(C), pred, lhs, rhs),
+                         "Failed to create ConditionalContent.");
+}
+
+Content &TupleContent::create(const vector<Content *> &elements) {
+  auto &tuple = MEMOIR_SANITIZE(new TupleContent(elements),
+                                "Failed to create TupleContent.");
+  std::for_each(tuple.elements().begin(),
+                tuple.elements().end(),
+                [](auto &elem) { elem = &simplify(*elem); });
+
+  return tuple;
+}
+
+Content &TupleContent::create(std::initializer_list<Content *> elements) {
+  return MEMOIR_SANITIZE(
+      new TupleContent(vector<Content *>(
+          std::forward<std::initializer_list<Content *>>(elements))),
+      "Failed to create TupleContent.");
+}
+
+Content &UnionContent::create(Content &lhs, Content &rhs) {
+  return simplify(
+      MEMOIR_SANITIZE(new UnionContent(simplify(lhs), simplify(rhs)),
+                      "Failed to create UnionContent."));
+}
 
 // Substitution.
 Content &UnderdefinedContent::substitute(Content &from, Content &to) {

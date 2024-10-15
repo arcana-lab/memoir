@@ -4,6 +4,11 @@ using namespace llvm::memoir;
 
 namespace folio {
 
+Content &simplify(Content &C) {
+  static ContentSimplification simplifier;
+  return simplifier.simplify(C);
+}
+
 Content &ContentSimplification::simplify(Content &C) {
   return this->visit(C);
 }
@@ -36,9 +41,14 @@ bool ContentSimplification::is_simple(Content &C) {
 
 // Helper functions to lookup contents in the environment.
 Content *ContentSimplification::lookup_domain(llvm::Value &V) {
+  // If we don't have an environment to lookup in, fail to find.
+  if (not this->contents) {
+    return nullptr;
+  }
+
   // Lookup the content.
-  auto found = this->contents.find(&V);
-  if (found == this->contents.end()) {
+  auto found = this->contents->find(&V);
+  if (found == this->contents->end()) {
     return nullptr;
   }
 
@@ -53,9 +63,14 @@ Content *ContentSimplification::lookup_domain(llvm::Value &V) {
 }
 
 Content *ContentSimplification::lookup_range(llvm::Value &V) {
+  // If we don't have an environment to lookup in, fail to find.
+  if (not this->contents) {
+    return nullptr;
+  }
+
   // Lookup the content.
-  auto found = this->contents.find(&V);
-  if (found == this->contents.end()) {
+  auto found = this->contents->find(&V);
+  if (found == this->contents->end()) {
     return nullptr;
   }
 

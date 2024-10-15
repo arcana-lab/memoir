@@ -40,8 +40,7 @@ struct Content {
             typename... Args,
             std::enable_if_t<std::is_base_of_v<Content, C>, bool> = true>
   static Content &create(Args &&...args) {
-    return MEMOIR_SANITIZE(new C(std::forward<Args>(args)...),
-                           "Failed to allocate Content");
+    return C::create(std::forward<Args>(args)...);
   }
 
   Content(ContentKind kind) : _kind(kind) {}
@@ -84,6 +83,8 @@ protected:
 struct UnderdefinedContent : public Content {
   UnderdefinedContent() : Content(ContentKind::CONTENT_UNDERDEFINED) {}
 
+  static Content &create();
+
   std::string to_string() const override {
     return "⊥";
   }
@@ -108,6 +109,8 @@ struct UnderdefinedContent : public Content {
  */
 struct EmptyContent : public Content {
   EmptyContent() : Content(ContentKind::CONTENT_EMPTY) {}
+
+  static Content &create();
 
   std::string to_string() const override {
     return "∅";
@@ -135,6 +138,8 @@ struct StructContent : public Content {
   StructContent(llvm::Value &value)
     : Content(ContentKind::CONTENT_STRUCT),
       _value(value) {}
+
+  static Content &create(llvm::Value &value);
 
   std::string to_string() const override {
     return "struct(" + llvm::memoir::value_name(this->_value) + ")";
@@ -179,6 +184,8 @@ struct ScalarContent : public Content {
     : Content(ContentKind::CONTENT_SCALAR),
       _value(value) {}
 
+  static Content &create(llvm::Value &value);
+
   std::string to_string() const override {
     return "scalar(" + llvm::memoir::value_name(this->_value) + ")";
   }
@@ -222,6 +229,8 @@ struct KeyContent : public Content {
     : Content(ContentKind::CONTENT_KEY),
       _collection(collection) {}
 
+  static Content &create(Content &C);
+
   std::string to_string() const override {
     return "key(" + this->_collection.to_string() + ")";
   }
@@ -260,6 +269,8 @@ struct KeysContent : public Content {
   KeysContent(llvm::Value &collection)
     : Content(ContentKind::CONTENT_KEYS),
       _collection(collection) {}
+
+  static Content &create(llvm::Value &collection);
 
   std::string to_string() const override {
     return "keys(" + llvm::memoir::value_name(this->_collection) + ")";
@@ -315,6 +326,8 @@ struct RangeContent : public Content {
     : Content(ContentKind::CONTENT_RANGE),
       _collection(collection) {}
 
+  static Content &create(llvm::Value &collection);
+
   std::string to_string() const override {
     return "range(" + llvm::memoir::value_name(this->_collection) + ")";
   }
@@ -363,6 +376,8 @@ struct ElementContent : public Content {
     : Content(ContentKind::CONTENT_ELEMENT),
       _collection(collection) {}
 
+  static Content &create(Content &C);
+
   std::string to_string() const override {
     return "elem(" + this->_collection.to_string() + ")";
   }
@@ -401,6 +416,8 @@ struct ElementsContent : public Content {
   ElementsContent(llvm::Value &collection)
     : Content(ContentKind::CONTENT_ELEMENTS),
       _collection(collection) {}
+
+  static Content &create(llvm::Value &collection);
 
   std::string to_string() const override {
     return "elems(" + llvm::memoir::value_name(this->_collection) + ")";
@@ -445,6 +462,8 @@ struct FieldContent : public Content {
     : Content(ContentKind::CONTENT_FIELD),
       _parent(parent),
       _field_index(field_index) {}
+
+  static Content &create(Content &parent, unsigned field_index);
 
   std::string to_string() const override {
     return "field(" + this->_parent.to_string() + ", "
@@ -500,6 +519,11 @@ public:
       _predicate(pred),
       _lhs(lhs),
       _rhs(rhs) {}
+
+  static Content &create(Content &content,
+                         llvm::CmpInst::Predicate pred,
+                         Content &lhs,
+                         Content &rhs);
 
   std::string to_string() const override {
     return "[" + this->_content.to_string() + " | " + this->_lhs.to_string()
@@ -571,6 +595,10 @@ public:
     : Content(ContentKind::CONTENT_TUPLE),
       _elements(elements) {}
 
+  static Content &create(std::initializer_list<Content *> elements);
+
+  static Content &create(const llvm::memoir::vector<Content *> &elements);
+
   std::string to_string() const override {
     return "[ "
            + std::accumulate(std::next(this->_elements.begin()),
@@ -634,6 +662,8 @@ public:
     : Content(ContentKind::CONTENT_UNION),
       _lhs(lhs),
       _rhs(rhs) {}
+
+  static Content &create(Content &lhs, Content &rhs);
 
   std::string to_string() const override {
     return "( " + this->_lhs.to_string() + " ∪ " + this->_rhs.to_string()
