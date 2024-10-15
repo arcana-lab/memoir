@@ -34,12 +34,11 @@ public:
     CHECK_AND_DELEGATE_CONTENT(EmptyContent)
     CHECK_AND_DELEGATE_CONTENT(StructContent)
     CHECK_AND_DELEGATE_CONTENT(ScalarContent)
-    CHECK_AND_DELEGATE_CONTENT(KeyContent)
     CHECK_AND_DELEGATE_CONTENT(KeysContent)
     CHECK_AND_DELEGATE_CONTENT(RangeContent)
-    CHECK_AND_DELEGATE_CONTENT(ElementContent)
     CHECK_AND_DELEGATE_CONTENT(ElementsContent)
     CHECK_AND_DELEGATE_CONTENT(FieldContent)
+    CHECK_AND_DELEGATE_CONTENT(SubsetContent)
     CHECK_AND_DELEGATE_CONTENT(ConditionalContent)
     CHECK_AND_DELEGATE_CONTENT(TupleContent)
     CHECK_AND_DELEGATE_CONTENT(UnionContent)
@@ -59,19 +58,11 @@ public:
     DELEGATE_CONTENT(Content);
   };
 
-  RetTy visitKeyContent(KeyContent &T) {
-    DELEGATE_CONTENT(Content);
-  };
-
   RetTy visitKeysContent(KeysContent &T) {
     DELEGATE_CONTENT(Content);
   };
 
   RetTy visitRangeContent(RangeContent &T) {
-    DELEGATE_CONTENT(Content);
-  };
-
-  RetTy visitElementContent(ElementContent &T) {
     DELEGATE_CONTENT(Content);
   };
 
@@ -84,6 +75,10 @@ public:
   };
 
   RetTy visitFieldContent(FieldContent &T) {
+    DELEGATE_CONTENT(Content);
+  };
+
+  RetTy visitSubsetContent(SubsetContent &T) {
     DELEGATE_CONTENT(Content);
   };
 
