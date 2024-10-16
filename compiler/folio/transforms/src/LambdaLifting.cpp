@@ -45,6 +45,11 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
           continue;
         }
 
+        // Skip self-recursive calls.
+        if (call->getFunction() == &F) {
+          continue;
+        }
+
         // Ensure the use is the called operand.
         if (&use == &call->getCalledOperandUse()) {
           // Insert the caller.
