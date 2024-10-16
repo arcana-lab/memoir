@@ -140,6 +140,32 @@ bool subset_of(Content &sub, Content &super) {
   return false;
 }
 
+bool has_non_constant_scalar(Content &C) {
+  // Returns true iff the content include a non-constant scalar.
+  if (auto *scalar = dyn_cast<ScalarContent>(&C)) {
+    if (not isa<llvm::Constant>(&scalar->value())) {
+      return true;
+    }
+  } else if (auto *subset = dyn_cast<SubsetContent>(&C)) {
+    return has_non_constant_scalar(subset->content());
+  } else if (auto *cond = dyn_cast<ConditionalContent>(&C)) {
+    return has_non_constant_scalar(cond->content());
+  } else if (auto *field = dyn_cast<FieldContent>(&C)) {
+    return has_non_constant_scalar(field->parent());
+  } else if (auto *tuple = dyn_cast<TupleContent>(&C)) {
+    bool has = false;
+    for (auto *elem : tuple->elements()) {
+      has |= has_non_constant_scalar(*elem);
+    }
+    return has;
+  } else if (auto *union_content = dyn_cast<UnionContent>(&C)) {
+    return has_non_constant_scalar(union_content->lhs())
+           or has_non_constant_scalar(union_content->lhs());
+  }
+
+  return false;
+}
+
 Content &canonicalize(Content &input) {
 
   if (auto *cond = dyn_cast<ConditionalContent>(&input)) {
@@ -297,7 +323,7 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
         continue;
       }
 
-      if (not isa<ScalarContent>(redef_domain)) {
+      if (not detail::has_non_constant_scalar(*redef_domain)) {
         domain = &Content::create<UnionContent>(*domain, *redef_domain);
         continue;
       }
@@ -334,15 +360,13 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
       }
     }
 
-    if (isa<ScalarContent>(domain)) {
+    if (detail::has_non_constant_scalar(*domain)) {
       warnln(
           "Found a scalar content to proxy, but this is currently unsupported.");
       println();
-      continue;
+      domain = nullptr;
+      break;
     }
-
-    // Simplify the contents for the given binding.
-    // domain = &simplifier.simplify(*domain);
 
     // Now that we've found a domain, check if it satisfies our requirements.
     println("  passes applicability guard");
