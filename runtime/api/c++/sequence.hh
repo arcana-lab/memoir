@@ -155,8 +155,12 @@ protected:
         return T(
             MEMOIR_FUNC(index_get_collection)(this->target_object, this->idx));
       } else {
+#if __cpp_extensions
         throw std::runtime_error(
             "element is not a collection or a collection reference");
+#else
+        abort();
+#endif
       }
     } // operator*()
 
@@ -251,7 +255,11 @@ protected:
 #undef HANDLE_PRIMITIVE_TYPE
 #undef HANDLE_INTEGER_TYPE
       else {
+#if __cpp_extensions
         throw std::runtime_error("unknown Seq element type");
+#else
+        abort();
+#endif
       }
     } // operator T()
 
@@ -389,7 +397,11 @@ public:
 
   always_inline sequence_element at(size_type idx) const {
     if (idx < 0 || idx > this->size()) {
+#if __cpp_extensions
       throw std::out_of_range("Seq.at() out of bounds");
+#else
+      abort();
+#endif
     }
     return (*this)[idx];
   }
@@ -461,6 +473,29 @@ public:
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
   else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
     MUT_FUNC(sequence_insert_##TYPE_NAME)(value, this->_storage, index);       \
+  }
+#define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
+  HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)
+#include <types.def>
+#undef HANDLE_PRIMITIVE_TYPE
+#undef HANDLE_INTEGER_TYPE
+  }
+
+  always_inline void push_back(T value) {
+    if constexpr (std::is_pointer_v<T>) {
+      using inner_type = typename std::remove_pointer_t<T>;
+      if constexpr (std::is_base_of_v<inner_type, memoir::object>) {
+        MUT_FUNC(sequence_insert_struct_ref)
+        (value, this->_storage, MEMOIR_FUNC(end)());
+      } else {
+        MUT_FUNC(sequence_insert_ptr)
+        (value, this->_storage, MEMOIR_FUNC(end)());
+      }
+    }
+#define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
+  else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
+    MUT_FUNC(sequence_insert_##TYPE_NAME)                                      \
+    (value, this->_storage, MEMOIR_FUNC(end)());                               \
   }
 #define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
   HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)
@@ -548,9 +583,15 @@ public:
     return Seq(MEMOIR_FUNC(sequence_slice)(this->_storage, from, to));
   }
 
+  always_inline operator collection_ref() {
+    return this->_storage;
+  }
+
   always_inline Seq copy() {
     return this->copy(0, this->size());
   }
+
+  always_inline void type() {}
 }; // namespace memoir
 
 } // namespace memoir
