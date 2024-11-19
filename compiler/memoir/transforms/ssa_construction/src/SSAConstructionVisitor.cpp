@@ -124,6 +124,7 @@ SSAConstructionVisitor::SSAConstructionVisitor(
 }
 
 void SSAConstructionVisitor::visitInstruction(llvm::Instruction &I) {
+
   for (auto &operand_use : I.operands()) {
     auto *operand_value = operand_use.get();
     if (not Type::value_is_collection_type(*operand_value)) {
@@ -296,6 +297,27 @@ void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
   if (Type::value_is_collection_type(result)) {
     this->set_reaching_definition(&result, &result);
   }
+
+  return;
+}
+
+void SSAConstructionVisitor::visitMutClearInst(MutClearInst &I) {
+
+  MemOIRBuilder builder(I);
+
+  // Split the live range of the collection being written.
+  auto *collection_orig = &I.getCollection();
+  auto *collection_value = update_reaching_definition(collection_orig, I);
+
+  // Create IndexWriteInst.
+  auto *clear = builder.CreateClearInst(collection_value);
+
+  // Update the reaching definitions.
+  this->set_reaching_definition(collection_orig, clear);
+  this->set_reaching_definition(clear, collection_value);
+
+  // Mark old instruction for cleanup.
+  this->mark_for_cleanup(I);
 
   return;
 }

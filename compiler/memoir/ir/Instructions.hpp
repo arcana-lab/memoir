@@ -1532,6 +1532,25 @@ protected:
   friend struct MemOIRInst;
 };
 
+struct ClearInst : public MemOIRInst {
+public:
+  llvm::Value &getResultCollection() const;
+
+  llvm::Value &getInputCollection() const;
+  llvm::Use &getInputCollectionAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::CLEAR);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  ClearInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
+
+  friend struct MemOIRInst;
+};
+
 // Type checking
 struct AssertTypeInst : public MemOIRInst {
 public:

@@ -132,4 +132,8 @@ OPERAND(MutAssocInsertInst, Collection, 0)
 OPERAND(MutAssocInsertInst, KeyOperand, 1)
 TO_STRING(MutAssocInsertInst)
 
+// MutClearInst implementation
+OPERAND(MutClearInst, Collection, 0)
+TO_STRING(MutClearInst)
+
 } // namespace llvm::memoir

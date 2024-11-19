@@ -106,6 +106,7 @@ public:
   void visitSizeInst(SizeInst &I);
   void visitEndInst(EndInst &I);
   void visitFoldInst(FoldInst &I);
+  void visitClearInst(ClearInst &I);
 
   // Typechecking
   void visitTypeInst(TypeInst &I);

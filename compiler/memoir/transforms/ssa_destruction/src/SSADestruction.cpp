@@ -1820,6 +1820,39 @@ void SSADestructionVisitor::visitRetPHIInst(RetPHIInst &I) {
   return;
 }
 
+void SSADestructionVisitor::visitClearInst(ClearInst &I) {
+
+  auto &collection_type = MEMOIR_SANITIZE(
+      dyn_cast_or_null<CollectionType>(type_of(I.getInputCollection())),
+      "Couldn't determine type of collection for ClearInst");
+
+  auto prefix =
+      ImplLinker::get_implementation_prefix(I.getCallInst(), collection_type);
+
+  auto name = prefix + "__clear";
+
+  auto function_callee = detail::get_function_callee(this->M, name);
+
+  MemOIRBuilder builder(I);
+
+  auto *function_type = function_callee.getFunctionType();
+  auto *input = builder.CreatePointerCast(&I.getInputCollection(),
+                                          function_type->getParamType(0));
+
+  auto *llvm_call =
+      builder.CreateCall(function_callee, llvm::ArrayRef({ input }));
+  MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for ClearInst");
+
+  auto *result =
+      builder.CreatePointerCast(llvm_call, I.getCallInst().getType());
+
+  this->coalesce(I, *result);
+
+  this->markForCleanup(I);
+
+  return;
+}
+
 // Fold instruction.
 void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
 

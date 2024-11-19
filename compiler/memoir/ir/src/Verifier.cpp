@@ -181,6 +181,10 @@ bool verify_linearity(llvm::Function &F, LivenessResult &LR) {
         auto &operand = swap->getFromCollection();
         reaching_definition.merge(&I, &operand);
         gather_variables(reaching_definition, operand);
+      } else if (auto *clear = dyn_cast<ClearInst>(memoir_inst)) {
+        auto &operand = clear->getInputCollection();
+        reaching_definition.merge(&I, &operand);
+        gather_variables(reaching_definition, operand);
       }
 
       // If this is an AssertCollectionType instruction, add the collection to

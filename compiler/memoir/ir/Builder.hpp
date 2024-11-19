@@ -748,6 +748,10 @@ public:
                                     name);
   }
 
+  ClearInst *CreateClearInst(llvm::Value *collection, const Twine &name = "") {
+    return this->create<ClearInst>(MemOIR_Func::CLEAR, { collection }, name);
+  }
+
   // Type annotations.
   MemOIRInst *CreateAssertTypeInst(llvm::Value *object,
                                    Type &type,

@@ -373,6 +373,23 @@ protected:
   friend struct MemOIRInst;
 };
 
+struct MutClearInst : public MutInst {
+public:
+  llvm::Value &getCollection() const;
+  llvm::Use &getCollectionAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::MUT_CLEAR);
+  };
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  MutClearInst(llvm::CallInst &call_inst) : MutInst(call_inst) {}
+
+  friend struct MemOIRInst;
+};
+
 } // namespace llvm::memoir
 
 #endif

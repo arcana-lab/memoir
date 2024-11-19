@@ -160,6 +160,7 @@ protected:
   Type *visitSwapInst(SwapInst &I);
   Type *visitCopyInst(CopyInst &I);
   Type *visitFoldInst(FoldInst &I);
+  Type *visitClearInst(ClearInst &I);
   //// SSA assoc operations
   Type *visitAssocHasInst(AssocHasInst &I);
   Type *visitAssocKeysInst(AssocKeysInst &I);

@@ -212,6 +212,13 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
 
             return new ValueRange(*lower_inc, *upper_inc);
           });
+    } else if (auto *clear_inst = dyn_cast<ClearInst>(memoir_inst)) {
+      // Add edge for collection used.
+      this->add_use_to_graph(
+          clear_inst->getInputCollectionAsUse(),
+          [](ValueRange *in) -> ValueRange * {
+            MEMOIR_UNREACHABLE("Clear constraint unimplemented!");
+          });
     }
   }
   // Handle LLVM instructions.

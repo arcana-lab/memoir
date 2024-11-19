@@ -121,6 +121,9 @@ HANDLE_INST_(MUT_SEQ_SPLIT, MUT_FUNC(sequence_split), MutSeqSplitInst)
 HANDLE_INST_(MUT_ASSOC_INSERT, MUT_FUNC(assoc_insert), MutAssocInsertInst)
 HANDLE_INST_(MUT_ASSOC_REMOVE, MUT_FUNC(assoc_remove), MutAssocRemoveInst)
 
+/* General operations */
+HANDLE_INST_(MUT_CLEAR, MUT_FUNC(clear), MutClearInst)
+
 #undef HANDLE_INST
 #undef HANDLE_ACCESS_INST
 #undef HANDLE_WRITE_INST

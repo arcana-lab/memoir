@@ -479,6 +479,10 @@ Type *TypeChecker::visitFoldInst(FoldInst &I) {
   return this->analyze(I.getInitial());
 }
 
+Type *TypeChecker::visitClearInst(ClearInst &I) {
+  return this->analyze(I.getInputCollection());
+}
+
 // SSA assoc operations.
 Type *TypeChecker::visitAssocInsertInst(AssocInsertInst &I) {
   return this->analyze(I.getBaseCollection());

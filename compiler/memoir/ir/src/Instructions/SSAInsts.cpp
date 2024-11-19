@@ -37,4 +37,9 @@ OPERAND(RetPHIInst, CalledOperand, 1)
 // TODO: implement metadata for storing the incoming collections.
 TO_STRING(RetPHIInst)
 
+// ClearInst implementation
+RESULTANT(ClearInst, ResultCollection)
+OPERAND(ClearInst, InputCollection, 0)
+TO_STRING(ClearInst)
+
 } // namespace llvm::memoir

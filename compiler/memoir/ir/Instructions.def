@@ -310,6 +310,7 @@ HANDLE_INST_(SET_RETURN_TYPE, MEMOIR_FUNC(set_return_type), ReturnTypeInst)
 
 HANDLE_INST_(SIZE, MEMOIR_FUNC(size), SizeInst)
 HANDLE_INST_(END, MEMOIR_FUNC(end), EndInst)
+HANDLE_INST_(CLEAR, MEMOIR_FUNC(clear), ClearInst)
 
 HANDLE_INST_(PROPERTY, MEMOIR_FUNC(property), PropertyInst)
 

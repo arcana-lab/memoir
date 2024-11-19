@@ -69,12 +69,14 @@ bool use_is_mutating(llvm::Use &use) {
     if (!memoir_inst) {
       return false;
     }
+
     // Skip non-mutators.
     if (!isa<MutInst>(memoir_inst) && !isa<AccessInst>(memoir_inst)
         && !isa<FoldInst>(memoir_inst) && !isa<InsertInst>(memoir_inst)
         && !isa<RemoveInst>(memoir_inst)) {
       return false;
     }
+
     // Only enable read instructions if UsePHIs are enabled.
     if (isa<ReadInst>(memoir_inst) or isa<GetInst>(memoir_inst)
         or isa<AssocHasInst>(memoir_inst)) {
@@ -82,6 +84,7 @@ bool use_is_mutating(llvm::Use &use) {
         return false;
       }
     }
+
     // If the value is closed on by the FoldInst, it will be redefined by
     // a RetPHI.
     if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
@@ -115,17 +118,6 @@ bool use_is_mutating(llvm::Use &use) {
   return false;
 }
 
-bool is_bad_if_else(llvm::BasicBlock &BB) {
-  auto *branch = dyn_cast<llvm::BranchInst>(BB.getTerminator());
-  if (not branch) {
-    return false;
-  }
-
-  // IN PROGRESS
-
-  return false;
-}
-
 } // namespace detail
 
 llvm::PreservedAnalyses SSAConstructionPass::run(
@@ -136,12 +128,6 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
   infoln();
 
   SSAConstructionStats stats;
-
-  // Do a quick structured control flow normalization.
-  for (auto &F : M) {
-    for (auto &BB : F) {
-    }
-  }
 
   auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(MAM, M);
 
