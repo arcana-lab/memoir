@@ -20,6 +20,10 @@ fi
 while [[ $# -gt 0 ]] ;
 do
     case $1 in
+        --prefix)
+            echo "@CMAKE_INSTALL_PREFIX@"
+            shift
+            ;;
         --includedir)
             echo "@CMAKE_INSTALL_INCLUDEDIR@"
             shift
