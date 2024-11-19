@@ -97,6 +97,8 @@ namespace memoir {
  */
 #define memoir_size(object) MEMOIR_FUNC(size)(object)
 
+#define memoir_clear(object) MUT_FUNC(clear)(object)
+
 #define memoir_end() MEMOIR_FUNC(end)()
 
 #define memoir_fold(_ty, _accum, _collection, _f, _closed...)                  \
