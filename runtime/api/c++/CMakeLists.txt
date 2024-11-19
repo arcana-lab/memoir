@@ -8,6 +8,7 @@ set(HEADER_FILES
   collection.hh
   sequence.hh
   assoc.hh
+  set.hh
 
   # Sequential collections
   

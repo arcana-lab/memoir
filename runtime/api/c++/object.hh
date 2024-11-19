@@ -21,6 +21,9 @@ class Seq;
 template <typename K, typename T>
 class Assoc;
 
+template <typename T>
+class Set;
+
 /*
  * Helper types and functions.
  */
@@ -53,7 +56,7 @@ inline constexpr bool is_instance_of_v<Template<Args...>, Template> =
 
 // Pretty wrapper for collection references.
 template <typename T>
-using Ref = collection_ref;
+using Ref = const collection_ref;
 
 // Object interface.
 class object {
@@ -149,14 +152,6 @@ template <typename T>
 const type_ref memoir_type = nullptr;
 
 template <typename T>
-const type_ref memoir_type<Seq<T>> =
-    memoir::MEMOIR_FUNC(sequence_type)(memoir_type<T>);
-
-template <typename K, typename V>
-const type_ref memoir_type<Assoc<K, V>> =
-    MEMOIR_FUNC(assoc_array_type)(memoir_type<K>, memoir_type<V>);
-
-template <typename T>
 const type_ref memoir_type<T *> = MEMOIR_FUNC(ptr_type)();
 
 template <>
@@ -181,6 +176,20 @@ template <>
 const type_ref memoir_type<double> = MEMOIR_FUNC(f64_type)();
 template <>
 const type_ref memoir_type<bool> = MEMOIR_FUNC(boolean_type)();
+template <>
+const type_ref memoir_type<void> = MEMOIR_FUNC(void_type)();
+
+template <typename T>
+const type_ref memoir_type<Seq<T>> =
+    memoir::MEMOIR_FUNC(sequence_type)(memoir_type<T>);
+
+template <typename K, typename V>
+const type_ref memoir_type<Assoc<K, V>> =
+    MEMOIR_FUNC(assoc_array_type)(memoir_type<K>, memoir_type<V>);
+
+template <typename T>
+const type_ref memoir_type<Set<T>> =
+    memoir::MEMOIR_FUNC(assoc_array_type)(memoir_type<T>, memoir_type<void>);
 
 } // namespace memoir
 
