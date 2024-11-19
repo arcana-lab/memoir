@@ -65,6 +65,8 @@ protected:
                                     ContentSummary summary);
   ContentSummary visitFoldInst(llvm::memoir::FoldInst &I);
 
+  ContentSummary visitClearInst(llvm::memoir::ClearInst &I);
+
   ContentSummary contextualize_call(llvm::CallBase &I,
                                     llvm::Function &F,
                                     ContentSummary summary);

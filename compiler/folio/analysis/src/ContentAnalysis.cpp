@@ -535,6 +535,10 @@ ContentSummary ContentAnalysisDriver::visitFoldInst(FoldInst &I) {
   return { &subst_domain, &subst_range };
 }
 
+ContentSummary ContentAnalysisDriver::visitClearInst(ClearInst &I) {
+  return { &Content::create<EmptyContent>(), &Content::create<EmptyContent>() };
+}
+
 ContentSummary ContentAnalysisDriver::visitUsePHIInst(UsePHIInst &I) {
   // Propagate the used collection.
   return this->analyze(I.getUsedCollection());

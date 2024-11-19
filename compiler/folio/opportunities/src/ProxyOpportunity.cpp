@@ -118,7 +118,7 @@ void gather_redefinitions(llvm::Value &V, set<llvm::Value *> &redefinitions) {
     } else if (auto *memoir_inst = into<MemOIRInst>(user)) {
       if (isa<AssocInsertInst>(memoir_inst) or isa<AssocRemoveInst>(memoir_inst)
           or isa<AssocWriteInst>(memoir_inst) or isa<RetPHIInst>(memoir_inst)
-          or isa<UsePHIInst>(memoir_inst)) {
+          or isa<UsePHIInst>(memoir_inst) or isa<ClearInst>(memoir_inst)) {
 
         // Recurse on redefinitions.
         gather_redefinitions(*user, redefinitions);

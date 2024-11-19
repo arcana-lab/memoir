@@ -146,7 +146,8 @@ void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
     } else if (isa<WriteInst>(memoir_inst) or isa<InsertInst>(memoir_inst)
                or isa<RemoveInst>(memoir_inst) or isa<SwapInst>(memoir_inst)
                or isa<UsePHIInst>(memoir_inst) or isa<DefPHIInst>(memoir_inst)
-               or isa<RetPHIInst>(memoir_inst) or isa<CopyInst>(memoir_inst)) {
+               or isa<RetPHIInst>(memoir_inst) or isa<CopyInst>(memoir_inst)
+               or isa<ClearInst>(memoir_inst)) {
       // If the memoir operation is a partial redefinition of the input
       // collection, propagate.
       if (detail::propagate(selections, from, *user)) {
