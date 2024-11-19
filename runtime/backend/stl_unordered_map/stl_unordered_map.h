@@ -80,6 +80,13 @@ extern "C" {
     return table;                                                              \
   }                                                                            \
                                                                                \
+  cname alwaysinline used                                                      \
+      K##_##V##_stl_unordered_map_p K##_##V##_stl_unordered_map__clear(        \
+          K##_##V##_stl_unordered_map_p table) {                               \
+    table->clear();                                                            \
+    return table;                                                              \
+  }                                                                            \
+                                                                               \
   cname alwaysinline used size_t K##_##V##_stl_unordered_map__size(            \
       K##_##V##_stl_unordered_map_p table) {                                   \
     return table->size();                                                      \

@@ -69,6 +69,12 @@ extern "C" {
       K##_##V##_boost_dynamic_bitset_p set) {                                  \
     return set->count();                                                       \
   }                                                                            \
+  cname alwaysinline used                                                      \
+      K##_##V##_boost_dynamic_bitset_p K##_##V##_boost_dynamic_bitset__clear(  \
+          K##_##V##_boost_dynamic_bitset_p set) {                              \
+    set->clear();                                                              \
+    return set;                                                                \
+  }                                                                            \
   cname alwaysinline used void K##_##V##_boost_dynamic_bitset__begin(          \
       K##_##V##_boost_dynamic_bitset_iter_p iter,                              \
       K##_##V##_boost_dynamic_bitset_p set) {                                  \

@@ -133,6 +133,12 @@
     return vec->size();                                                        \
   }                                                                            \
                                                                                \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__clear(              \
+      T##_stl_vector_p vec) {                                                  \
+    vec->clear();                                                              \
+    return vec;                                                                \
+  }                                                                            \
+                                                                               \
   cname alwaysinline used void T##_stl_vector__begin(                          \
       T##_stl_vector_iter_p iter,                                              \
       T##_stl_vector_p vec) {                                                  \

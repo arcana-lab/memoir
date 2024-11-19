@@ -65,6 +65,11 @@ public:
     _vals[key] = val;
   }
 
+  void clear() {
+    _vals.clear();
+    _bits.clear();
+  }
+
   struct iterator {
 
     iterator &operator=(const iterator &x) {
@@ -174,6 +179,12 @@ extern "C" {
       K##_##V##_bitmap_p map,                                                  \
       C_KEY key) {                                                             \
     map->remove(key);                                                          \
+    return map;                                                                \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used K##_##V##_bitmap_p K##_##V##_bitmap__clear(          \
+      K##_##V##_bitmap_p map) {                                                \
+    map->clear();                                                              \
     return map;                                                                \
   }                                                                            \
                                                                                \

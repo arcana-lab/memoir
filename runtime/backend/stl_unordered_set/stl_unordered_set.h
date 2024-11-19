@@ -58,6 +58,13 @@ extern "C" {
     return table;                                                              \
   }                                                                            \
                                                                                \
+  cname alwaysinline used                                                      \
+      K##_##V##_stl_unordered_set_p K##_##V##_stl_unordered_set__clear(        \
+          K##_##V##_stl_unordered_set_p table) {                               \
+    table->clear();                                                            \
+    return table;                                                              \
+  }                                                                            \
+                                                                               \
   cname alwaysinline used size_t K##_##V##_stl_unordered_set__size(            \
       K##_##V##_stl_unordered_set_p table) {                                   \
     return table->size();                                                      \
