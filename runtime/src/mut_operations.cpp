@@ -14,6 +14,16 @@
 namespace memoir {
 extern "C" {
 
+// Mutable collection operations.
+__RUNTIME_ATTR
+void MUT_FUNC(clear)(collection_ref collection) {
+  // Remove an element from a sequence.
+  MEMOIR_ACCESS_CHECK(collection);
+  auto *c = (detail::Collection *)(collection);
+
+  c->clear();
+}
+
 // Mutable sequence operations.
 #define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
   __RUNTIME_ATTR                                                               \

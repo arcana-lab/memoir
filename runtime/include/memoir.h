@@ -143,6 +143,14 @@ size_t MEMOIR_FUNC(end)();
       ...);
 #include "types.def"
 
+__IMMUT_ATTR
+__ALLOC_ATTR
+__RUNTIME_ATTR
+collection_ref MEMOIR_FUNC(clear)(const collection_ref collection);
+
+__RUNTIME_ATTR
+void MUT_FUNC(clear)(const collection_ref collection);
+
 // Immutable sequence operations.
 __IMMUT_ATTR
 __ALLOC_ATTR

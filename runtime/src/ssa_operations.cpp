@@ -79,6 +79,14 @@ size_t MEMOIR_FUNC(end)() {
   }
 #include "types.def"
 
+__IMMUT_ATTR
+__ALLOC_ATTR
+__RUNTIME_ATTR
+collection_ref MEMOIR_FUNC(clear)(const collection_ref collection) {
+  // TODO
+  return collection;
+}
+
 // Sequence operations.
 __IMMUT_ATTR
 __ALLOC_ATTR

@@ -98,6 +98,7 @@ public:
   virtual Type *get_element_type() const = 0;
   bool is_collection() const override;
   virtual uint64_t size() const = 0;
+  virtual void clear() = 0;
 
   // Construction
   Collection(Type *type);
@@ -121,6 +122,7 @@ public:
   Collection *get_slice(va_list args) override;
   Collection *join(va_list args, uint8_t num_args) override;
   uint64_t size() const override;
+  void clear() override;
 
   // Access
   uint64_t get_tensor_element(std::vector<uint64_t> &indices) const;
@@ -158,6 +160,7 @@ public:
   Collection *get_slice(va_list args) override;
   uint64_t size() const override;
   Collection *keys() const;
+  void clear() override;
 
   // Access
   uint64_t get_element(va_list args) override;
@@ -190,6 +193,7 @@ public:
   virtual Collection *get_sequence_slice(int64_t left_index,
                                          int64_t right_index) = 0;
   Collection *get_slice(va_list args) override;
+  void clear() override;
 
   // Access
   virtual uint64_t get_sequence_element(uint64_t index) = 0;
