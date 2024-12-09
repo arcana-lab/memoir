@@ -1,16 +1,15 @@
-add_llvm_library(
+add_llvm_pass_plugin(
   memoir
 
   MODULE
   /dev/null
-
-  PLUGIN_TOOL
-  opt
 )
 
 add_dependencies(memoir
   noelle
 )
+
+add_compile_definitions("MEMOIR_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\"")
 
 function(add_memoir_sources)
   cmake_parse_arguments(
@@ -34,6 +33,7 @@ endfunction()
 
 add_subdirectory(scripts)
 
+add_subdirectory(llvm)
 add_subdirectory(ir)
 add_subdirectory(support)
 add_subdirectory(utility)

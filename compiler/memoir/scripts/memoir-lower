@@ -73,17 +73,8 @@ then
     folio ${IR_FILE} -o ${IR_FILE}
 fi
 
-# Run the ImplLinker.
-memoir-load ${IR_FILE} -passes=memoir-impl-linker --impl-out-file ${IMPL_CPP_FILE} -o ${IR_FILE}
-
-# Compile the collection implementations to bitcode.
-clang++ ${IMPL_CPP_FILE} -O3 -c -emit-llvm -I$(memoir-config --includedir) -std=c++17 -o ${IMPL_IR_FILE}
-
-# Link the bitcode.
-llvm-link ${IR_FILE} ${IMPL_IR_FILE} -o ${IR_FILE}
-
-# Peform SSA destruction.
-memoir-load -passes=memoir-ssa-destruction ${IR_FILE} -o ${OUTPUT_IR_FILE}
+# Lower MEMOIR to LLVM.
+memoir-load ${IR_FILE} -passes=lower-memoir -o ${OUTPUT_IR_FILE}
 
 # Cleanup.
 rm -rf ${TEMP_DIR}

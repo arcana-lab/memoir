@@ -81,7 +81,7 @@ cp ${INPUT_IR_FILE} ${IR_FILE}
 # Run some generally helpful LLVM transformations.
 # opt -passes=always-inline,break-crit-edges,argpromotion,simplifycfg,mergereturn,loop-simplify,indvars,sroa,mem2reg,sroa ${IR_FILE} -o ${IR_FILE}
 NORM_IR_FILE=${TEMP_DIR}/normalized.bc
-opt -passes='always-inline,argpromotion,sroa,mem2reg,instsimplify,function(lowerswitch),mergereturn,break-crit-edges,loop-simplify,lcssa,indvars,globaldce' ${IR_FILE} -o ${NORM_IR_FILE}
+memoir-load -passes=raise-memoir ${IR_FILE} -o ${NORM_IR_FILE}
 cp ${NORM_IR_FILE} ${IR_FILE}
 
 # Run NOELLE norm so that it is happy.
@@ -90,20 +90,20 @@ cp ${NORM_IR_FILE} ${IR_FILE}
 # ${MEMOIR_HOME}/bin/memoir-prof ${IR_FILE} ${IR_FILE_PROF} ;
 
 # Link in the IR declarations.
-llvm-link ${IR_FILE} $(memoir-config --libdir)/memoir.decl.bc -o ${IR_FILE}
+# llvm-link ${IR_FILE} $(memoir-config --libdir)/memoir.decl.bc -o ${IR_FILE}
 
 # Run type inference if requested.
-if [ ! -z ${INFER_TYPES} ]
-then
-    TYPE_INFER_IR_FILE=${TEMP_DIR}/type_infer.bc
-    memoir-load -passes=memoir-type-infer ${IR_FILE} -o ${TYPE_INFER_IR_FILE}
-    cp ${TYPE_INFER_IR_FILE} ${IR_FILE}
-fi
+# if [ ! -z ${INFER_TYPES} ]
+# then
+    # TYPE_INFER_IR_FILE=${TEMP_DIR}/type_infer.bc
+    # memoir-load -passes=memoir-type-infer ${IR_FILE} -o ${TYPE_INFER_IR_FILE}
+    # cp ${TYPE_INFER_IR_FILE} ${IR_FILE}
+# fi
 
 # Run SSA construction and type inference.
-SSA_IR_FILE=${TEMP_DIR}/ssa.bc
-memoir-load ${PREPASSES[@]} -passes='memoir-ssa-construction,function(simplifycfg),function(loop-simplify),function(lcssa),function(memoir-live-out-insertion)' ${POSTPASSES[@]} ${IR_FILE} -o ${SSA_IR_FILE}
-cp ${SSA_IR_FILE} ${IR_FILE}
+# SSA_IR_FILE=${TEMP_DIR}/ssa.bc
+# memoir-load ${PREPASSES[@]} -passes='memoir-ssa-construction,function(simplifycfg),function(loop-simplify),function(lcssa),function(memoir-live-out-insertion)' ${POSTPASSES[@]} ${IR_FILE} -o ${SSA_IR_FILE}
+# cp ${SSA_IR_FILE} ${IR_FILE}
 
 
 mv ${IR_FILE} ${OUTPUT_IR_FILE}

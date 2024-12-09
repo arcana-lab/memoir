@@ -31,6 +31,8 @@ MODULE_PASS_(DeadElementEliminationPass, "memoir-dee")
 
 MODULE_PASS_(ExamplePass, "memoir-example")
 
+MODULE_PASS_(LinkDeclarationsPass, "memoir-link-decls")
+
 // ===
 // FUNCTION_PASS(<class>, <name>, <args>...)
 

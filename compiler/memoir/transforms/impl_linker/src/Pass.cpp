@@ -5,6 +5,7 @@
 #include "llvm/Pass.h"
 
 #include "llvm/IR/CFG.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
@@ -13,7 +14,13 @@
 #include "llvm/Analysis/DominanceFrontier.h"
 
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Program.h"
 #include "llvm/Support/raw_ostream.h"
+
+#include "llvm/Bitcode/BitcodeReader.h"
+#include "llvm/Linker/Linker.h"
+#include "llvm/Transforms/IPO/Internalize.h"
 
 // MemOIR
 #include "memoir/passes/Passes.hpp"
@@ -48,7 +55,8 @@ namespace llvm::memoir {
 llvm::cl::opt<std::string> impl_file_output(
     "impl-out-file",
     llvm::cl::desc("Specify output filename for ImplLinker."),
-    llvm::cl::value_desc("filename"));
+    llvm::cl::value_desc("filename"),
+    llvm::cl::init("/tmp/XXXXXXXXX.cpp"));
 
 llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
                                             llvm::ModuleAnalysisManager &MAM) {
@@ -174,16 +182,81 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
     }
   }
 
-  // Emit the implementation code.
-  if (impl_file_output.getNumOccurrences()) {
-    std::error_code error;
-    llvm::raw_fd_ostream os(impl_file_output, error);
-    if (error) {
-      MEMOIR_UNREACHABLE("ImplLinker: Could not open output file!");
+  // If we were not given a file to output to, create a temporary file.
+  if (impl_file_output.getNumOccurrences() == 0) {
+    if (not mkstemp(impl_file_output.getValue().data())) {
+      MEMOIR_UNREACHABLE("ImplLinker: Could not create a temporary file!");
     }
-    IL.emit(os);
-  } else {
-    IL.emit();
+  }
+
+  // Emit the implementation code.
+  std::error_code error;
+  llvm::raw_fd_ostream os(impl_file_output,
+                          error,
+                          llvm::sys::fs::CreationDisposition::CD_CreateAlways);
+  if (error) {
+    MEMOIR_UNREACHABLE("ImplLinker: Could not open output file!");
+  }
+  IL.emit(os);
+
+  // Create a temporary bitcode file.
+  std::string bitcode_filename = "XXXXXXXXXX.bc";
+  if (not mkstemp(bitcode_filename.data())) {
+    MEMOIR_UNREACHABLE(
+        "ImplLinker: Could not create a temporary bitcode file!");
+  }
+
+  // Compile the file.
+  // TODO: can we get -march=XXX from LLVM and use it here?
+  llvm::sys::ExecuteAndWait(
+      "clang++",
+      llvm::ArrayRef<llvm::StringRef>({ impl_file_output,
+                                        "-O3",
+                                        "-gdwarf-4",
+                                        "-c",
+                                        "-emit-llvm",
+                                        "-I" MEMOIR_INSTALL_PREFIX "/include",
+                                        "-std=c++17",
+                                        "-o",
+                                        bitcode_filename }));
+
+  // Load the new bitcode.
+  auto buf =
+      llvm::MemoryBuffer::getFile(MEMOIR_INSTALL_PREFIX "/lib/memoir.decl.bc");
+  auto other = llvm::parseBitcodeFile(*buf.get(), M.getContext());
+  auto other_module = std::move(other.get());
+
+  println(*other_module);
+
+  // Prepare the module for linking.
+  const llvm::GlobalValue::LinkageTypes linkage =
+      llvm::GlobalValue::WeakAnyLinkage;
+
+  for (auto &A : other_module->aliases()) {
+    if (!A.isDeclaration()) {
+      A.setLinkage(linkage);
+    }
+  }
+
+  for (auto &F : *other_module) {
+    if (!F.isDeclaration()) {
+      F.setLinkage(linkage);
+    }
+
+    F.setLinkage(linkage);
+  }
+
+  // Link the modules.
+  if (llvm::Linker::linkModules(
+          M,
+          std::move(other_module),
+          llvm::Linker::Flags::OverrideFromSrc,
+          [](llvm::Module &M, const llvm::StringSet<> &GVS) {
+            llvm::internalizeModule(M, [&GVS](const llvm::GlobalValue &GV) {
+              return !GV.hasName() || (GVS.count(GV.getName()) == 0);
+            });
+          })) {
+    MEMOIR_UNREACHABLE("LLVM Linker failed to link in MEMOIR declarations!");
   }
 
   return llvm::PreservedAnalyses::none();

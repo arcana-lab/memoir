@@ -1,7 +1,22 @@
 // LLVM
+#include "llvm/Analysis/CGSCCPassManager.h"
+
+#include "llvm/Transforms/IPO/AlwaysInliner.h"
+#include "llvm/Transforms/IPO/ArgumentPromotion.h"
+#include "llvm/Transforms/IPO/GlobalDCE.h"
+#include "llvm/Transforms/IPO/Inliner.h"
 #include "llvm/Transforms/Scalar/IndVarSimplify.h"
+#include "llvm/Transforms/Scalar/InstSimplifyPass.h"
+#include "llvm/Transforms/Scalar/LoopSimplifyCFG.h"
+#include "llvm/Transforms/Scalar/MemCpyOptimizer.h"
+#include "llvm/Transforms/Scalar/SROA.h"
+#include "llvm/Transforms/Scalar/SimplifyCFG.h"
+#include "llvm/Transforms/Utils/BreakCriticalEdges.h"
 #include "llvm/Transforms/Utils/LCSSA.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
+#include "llvm/Transforms/Utils/LowerSwitch.h"
+#include "llvm/Transforms/Utils/Mem2Reg.h"
+#include "llvm/Transforms/Utils/UnifyFunctionExitNodes.h"
 
 // MEMOIR
 #include "memoir/passes/Passes.hpp"
@@ -15,8 +30,21 @@ using namespace llvm::memoir;
 
 // Helper function to adapt function pass to a module pass.
 template <typename T>
-static auto adapt(T &&fp) {
+static auto adapt_function(T &&fp) {
   return llvm::createModuleToFunctionPassAdaptor(std::move(fp));
+}
+
+// Helper function to adapt CGSCC pass to a module pass.
+template <typename T>
+static auto adapt_cgscc(T &&cp) {
+  return llvm::createModuleToPostOrderCGSCCPassAdaptor(std::move(cp));
+}
+
+// Helper function to adapt loop pass to a module pass.
+template <typename T>
+static auto adapt_loop(T &&lp) {
+  return llvm::createModuleToFunctionPassAdaptor(
+      llvm::createFunctionToLoopPassAdaptor(std::move(lp)));
 }
 
 // Macro to register simple passes with the pass manager
@@ -26,6 +54,75 @@ static auto adapt(T &&fp) {
     return true;                                                               \
   }
 
+static void raise_memoir(llvm::ModulePassManager &MPM) {
+  // always-inline
+  MPM.addPass(llvm::AlwaysInlinerPass());
+  // inline
+  MPM.addPass(adapt_cgscc(llvm::InlinerPass()));
+  // argpromotion
+  MPM.addPass(adapt_cgscc(llvm::ArgumentPromotionPass()));
+  // sroa
+  MPM.addPass(adapt_function(llvm::SROAPass(llvm::SROAOptions::PreserveCFG)));
+  // mem2reg
+  MPM.addPass(adapt_function(llvm::PromotePass()));
+  // instsimplify
+  MPM.addPass(adapt_function(llvm::InstSimplifyPass()));
+  // function(lowerswitch)
+  MPM.addPass(adapt_function(llvm::LowerSwitchPass()));
+  // mergereturn
+  MPM.addPass(adapt_function(llvm::UnifyFunctionExitNodesPass()));
+  // break-crit-edges
+  MPM.addPass(adapt_function(llvm::BreakCriticalEdgesPass()));
+  // loop-simplify
+  MPM.addPass(adapt_loop(llvm::LoopSimplifyCFGPass()));
+  // lcssa
+  MPM.addPass(adapt_function(llvm::LCSSAPass()));
+  // indvars
+  MPM.addPass(adapt_loop(llvm::IndVarSimplifyPass()));
+  // globaldce
+  MPM.addPass(llvm::GlobalDCEPass());
+
+  // Link the MEMOIR declarations
+  MPM.addPass(LinkDeclarationsPass());
+
+  // Perform SSA construction.
+  MPM.addPass(SSAConstructionPass());
+
+  // Perform type inference.
+  MPM.addPass(TypeInferencePass());
+
+  // function(simplifycfg)
+  MPM.addPass(adapt_function(llvm::SimplifyCFGPass()));
+  // function(loop-simplify)
+  MPM.addPass(adapt_loop(llvm::LoopSimplifyCFGPass()));
+  // function(lcssa)
+  MPM.addPass(adapt_function(llvm::LCSSAPass()));
+  // function(memoir-live-out-insertion)
+  MPM.addPass(adapt_function(LiveOutInsertionPass()));
+
+  return;
+}
+
+static void lower_memoir(llvm::ModulePassManager &MPM) {
+  // memoir-impl-linker
+  MPM.addPass(ImplLinkerPass());
+
+  // memoir-ssa-destruction
+  MPM.addPass(SSADestructionPass());
+
+  // always-inline
+  MPM.addPass(llvm::AlwaysInlinerPass());
+
+  // mem2reg
+  MPM.addPass(adapt_function(llvm::PromotePass()));
+
+  // memcpyopt
+  MPM.addPass(adapt_function(llvm::MemCpyOptPass()));
+
+  // global-dce
+  MPM.addPass(llvm::GlobalDCEPass());
+}
+
 // Register the passes and pipelines with the new pass manager
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
 llvmGetPassPluginInfo() {
@@ -33,17 +130,41 @@ llvmGetPassPluginInfo() {
            "memoir",
            LLVM_VERSION_STRING,
            [](llvm::PassBuilder &PB) {
+             // Raise MEMOIR at the start of LTO
+             PB.registerFullLinkTimeOptimizationEarlyEPCallback(
+                 [](llvm::ModulePassManager &MPM,
+                    llvm::OptimizationLevel level) { raise_memoir(MPM); });
+
+             // Lower MEMOIR at the end of LTO
+             PB.registerFullLinkTimeOptimizationLastEPCallback(
+                 [](llvm::ModulePassManager &MPM,
+                    llvm::OptimizationLevel level) { lower_memoir(MPM); });
+
              // Register module transformation passes.
              PB.registerPipelineParsingCallback(
                  [](llvm::StringRef name,
                     llvm::ModulePassManager &MPM,
                     llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
+                   // Pass that converts LLVM to MEMOIR
+                   if (name == "raise-memoir") {
+                     raise_memoir(MPM);
+
+                     return true;
+                   }
+
+                   // Pass that converts MEMOIR to LLVM
+                   if (name == "lower-memoir") {
+                     lower_memoir(MPM);
+
+                     return true;
+                   }
+
                    // LowerFold require some addition simplification to be run
                    // after it so it doesn't break other passes in the pipeline.
                    if (name == "memoir-lower-fold") {
                      MPM.addPass(LowerFoldPass());
-                     MPM.addPass(adapt(llvm::LoopSimplifyPass()));
-                     MPM.addPass(adapt(llvm::LCSSAPass()));
+                     MPM.addPass(adapt_function(llvm::LoopSimplifyPass()));
+                     MPM.addPass(adapt_function(llvm::LCSSAPass()));
                      return true;
                    }
 
