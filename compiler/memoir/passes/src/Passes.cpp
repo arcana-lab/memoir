@@ -85,6 +85,9 @@ static void raise_memoir(llvm::ModulePassManager &MPM) {
   // Link the MEMOIR declarations
   MPM.addPass(LinkDeclarationsPass());
 
+  // Perform type inference.
+  MPM.addPass(TypeInferencePass());
+
   // Perform SSA construction.
   MPM.addPass(SSAConstructionPass());
 
