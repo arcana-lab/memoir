@@ -1808,12 +1808,7 @@ void SSADestructionVisitor::visitRetPHIInst(RetPHIInst &I) {
   auto &input_collection = I.getInputCollection();
   auto &collection = I.getResultCollection();
 
-  auto found_replacement = this->ret_phi_replacements.find(&collection);
-  if (found_replacement != this->ret_phi_replacements.end()) {
-    this->coalesce(collection, *found_replacement->second);
-  } else {
-    this->coalesce(collection, input_collection);
-  }
+  this->coalesce(collection, input_collection);
 
   this->markForCleanup(I);
 

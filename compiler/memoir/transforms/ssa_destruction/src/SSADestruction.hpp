@@ -132,7 +132,6 @@ protected:
   map<llvm::Value *, llvm::Value *> coalesced_values;
   map<llvm::Value *, llvm::Value *> replaced_values;
   map<llvm::Value *, llvm::Value *> def_phi_replacements;
-  map<llvm::Value *, llvm::Value *> ret_phi_replacements;
   ordered_set<llvm::Instruction *> instructions_to_delete;
 
   llvm::Value *find_replacement(llvm::Value *value);
