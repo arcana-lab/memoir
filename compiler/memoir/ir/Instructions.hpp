@@ -628,6 +628,7 @@ protected:
 struct AccessInst : public MemOIRInst {
 public:
   virtual CollectionType &getCollectionType() const;
+  Type &getElementType() const;
 
   virtual llvm::Value &getObjectOperand() const = 0;
   virtual llvm::Use &getObjectOperandAsUse() const = 0;

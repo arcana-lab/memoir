@@ -43,6 +43,67 @@ unsigned MutWriteInst::getSubIndex(unsigned sub_idx) const {
 
 VAR_OPERAND(MutWriteInst, SubIndexOperand, 3)
 
+Type &MutWriteInst::getElementType() const {
+  // Determine the element type from the operation.
+  switch (this->getKind()) {
+    case MemOIR_Func::MUT_STRUCT_WRITE_UINT64:
+    case MemOIR_Func::MUT_INDEX_WRITE_UINT64:
+    case MemOIR_Func::MUT_ASSOC_WRITE_UINT64:
+      return Type::get_u64_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_UINT32:
+    case MemOIR_Func::MUT_INDEX_WRITE_UINT32:
+    case MemOIR_Func::MUT_ASSOC_WRITE_UINT32:
+      return Type::get_u32_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_UINT16:
+    case MemOIR_Func::MUT_INDEX_WRITE_UINT16:
+    case MemOIR_Func::MUT_ASSOC_WRITE_UINT16:
+      return Type::get_u16_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_UINT8:
+    case MemOIR_Func::MUT_INDEX_WRITE_UINT8:
+    case MemOIR_Func::MUT_ASSOC_WRITE_UINT8:
+      return Type::get_u8_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_INT64:
+    case MemOIR_Func::MUT_INDEX_WRITE_INT64:
+    case MemOIR_Func::MUT_ASSOC_WRITE_INT64:
+      return Type::get_u64_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_INT32:
+    case MemOIR_Func::MUT_INDEX_WRITE_INT32:
+    case MemOIR_Func::MUT_ASSOC_WRITE_INT32:
+      return Type::get_u32_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_INT16:
+    case MemOIR_Func::MUT_INDEX_WRITE_INT16:
+    case MemOIR_Func::MUT_ASSOC_WRITE_INT16:
+      return Type::get_u16_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_INT8:
+    case MemOIR_Func::MUT_INDEX_WRITE_INT8:
+    case MemOIR_Func::MUT_ASSOC_WRITE_INT8:
+      return Type::get_u8_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_INT2:
+    case MemOIR_Func::MUT_INDEX_WRITE_INT2:
+    case MemOIR_Func::MUT_ASSOC_WRITE_INT2:
+      return Type::get_u2_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_BOOL:
+    case MemOIR_Func::MUT_INDEX_WRITE_BOOL:
+    case MemOIR_Func::MUT_ASSOC_WRITE_BOOL:
+      return Type::get_bool_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_DOUBLE:
+    case MemOIR_Func::MUT_INDEX_WRITE_DOUBLE:
+    case MemOIR_Func::MUT_ASSOC_WRITE_DOUBLE:
+      return Type::get_f64_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_FLOAT:
+    case MemOIR_Func::MUT_INDEX_WRITE_FLOAT:
+    case MemOIR_Func::MUT_ASSOC_WRITE_FLOAT:
+      return Type::get_f32_type();
+    case MemOIR_Func::MUT_STRUCT_WRITE_PTR:
+    case MemOIR_Func::MUT_INDEX_WRITE_PTR:
+    case MemOIR_Func::MUT_ASSOC_WRITE_PTR:
+      return Type::get_ptr_type();
+    default: // Otherwise, analyze the function to determine the type.
+      return cast<CollectionType>(type_of(this->getObjectOperand()))
+          ->getElementType();
+  }
+}
+
 // MutStructWriteInst implementation
 unsigned MutStructWriteInst::getFieldIndex() const {
   auto &field_index_as_value = this->getFieldIndexOperand();

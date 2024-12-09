@@ -534,22 +534,31 @@ Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
   // If we have load instruction, trace back to its global variable and find the
   // original store to it.
   auto *load_ptr = I.getPointerOperand();
-  auto *global = dyn_cast<llvm::GlobalVariable>(load_ptr->stripPointerCasts());
 
-  // If the load is not from a GlobalVariable, return NULL.
-  if (!global) {
-    return nullptr;
+  if (auto *global =
+          dyn_cast<llvm::GlobalVariable>(load_ptr->stripPointerCasts())) {
+
+    // Find the original store for this global variable.
+    for (auto *user : global->users()) {
+      if (auto *store_inst = dyn_cast<llvm::StoreInst>(user)) {
+        auto *store_value = store_inst->getValueOperand();
+
+        auto *stored_type = this->analyze(*store_value);
+
+        if (stored_type != nullptr) {
+          return stored_type;
+        }
+      }
+    }
   }
 
-  // Find the original store for this global variable.
-  for (auto *user : global->users()) {
-    if (auto *store_inst = dyn_cast<llvm::StoreInst>(user)) {
-      auto *store_value = store_inst->getValueOperand();
-
-      auto *stored_type = this->analyze(*store_value);
-
-      if (stored_type != nullptr) {
-        return stored_type;
+  // See if the loaded value is used in any type assertions.
+  for (auto &use : I.uses()) {
+    if (auto *user_as_inst = dyn_cast<llvm::Instruction>(use.getUser())) {
+      if (auto *assert_type = into<AssertTypeInst>(user_as_inst)) {
+        if (&I == &assert_type->getObject()) {
+          return &assert_type->getType();
+        }
       }
     }
   }

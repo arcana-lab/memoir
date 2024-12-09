@@ -53,6 +53,8 @@ struct MutWriteInst : public MutInst {
   llvm::Value &getSubIndexOperand(unsigned sub_idx) const;
   llvm::Use &getSubIndexOperandAsUse(unsigned sub_idx) const;
 
+  Type &getElementType() const;
+
   static bool classof(const MemOIRInst *I) {
     return
 #define HANDLE_WRITE_INST(ENUM, FUNC, CLASS)                                   \
