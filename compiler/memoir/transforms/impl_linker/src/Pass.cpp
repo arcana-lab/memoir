@@ -199,34 +199,53 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   }
   IL.emit(os);
 
+  println("ImplLinker: C++ implementation at ", impl_file_output);
+
+  os.close();
+
   // Create a temporary bitcode file.
-  std::string bitcode_filename = "XXXXXXXXXX.bc";
+  std::string bitcode_filename = "/tmp/XXXXXXXXXX.bc";
   if (not mkstemp(bitcode_filename.data())) {
     MEMOIR_UNREACHABLE(
         "ImplLinker: Could not create a temporary bitcode file!");
   }
 
+  println("ImplLinker: bitcodes at ", bitcode_filename);
+
   // Compile the file.
   // TODO: can we get -march=XXX from LLVM and use it here?
-  llvm::sys::ExecuteAndWait(
-      "clang++",
-      llvm::ArrayRef<llvm::StringRef>({ impl_file_output,
-                                        "-O3",
-                                        "-gdwarf-4",
-                                        "-c",
-                                        "-emit-llvm",
-                                        "-I" MEMOIR_INSTALL_PREFIX "/include",
-                                        "-std=c++17",
-                                        "-o",
-                                        bitcode_filename }));
+  // auto clang_program = llvm::sys::findProgramByName();
+  const char *clang_path = LLVM_BIN_DIR "/clang++";
+  llvm::StringRef args[] = { clang_path,
+                             impl_file_output,
+                             "-O3",
+                             "-gdwarf-4",
+                             "-c",
+                             "-emit-llvm",
+                             "-I" MEMOIR_INSTALL_PREFIX "/include",
+                             "-o",
+                             bitcode_filename };
+  std::string message = "";
+  bool failed = false;
+  llvm::sys::ExecuteAndWait(clang_path,
+                            args,
+                            std::nullopt,
+                            {},
+                            0,
+                            0,
+                            &message,
+                            &failed);
+
+  if (failed) {
+    println("ImplLinker: clang++ failed with:");
+    println(message);
+    MEMOIR_UNREACHABLE("clang++ failed to compile implementations, see above.");
+  }
 
   // Load the new bitcode.
-  auto buf =
-      llvm::MemoryBuffer::getFile(MEMOIR_INSTALL_PREFIX "/lib/memoir.decl.bc");
+  auto buf = llvm::MemoryBuffer::getFile(bitcode_filename);
   auto other = llvm::parseBitcodeFile(*buf.get(), M.getContext());
   auto other_module = std::move(other.get());
-
-  println(*other_module);
 
   // Prepare the module for linking.
   const llvm::GlobalValue::LinkageTypes linkage =
