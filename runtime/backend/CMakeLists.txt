@@ -1,7 +1,7 @@
 set(BACKEND_INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR}/backend)
 set(BACKEND_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/backend)
 
-set(CMAKE_C_FLAGS   "-O3 -g0 -fdeclspec -fPIC")
+set(CMAKE_C_FLAGS   "-O3 -gdwarf-4 -fdeclspec -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17")
 
 # add_subdirectory(vector)
@@ -13,7 +13,10 @@ add_subdirectory(stl_vector)
 add_subdirectory(stl_unordered_set)
 add_subdirectory(bitmap)
 add_subdirectory(bitset)
+
 add_subdirectory(boost_dynamic_bitset)
+add_subdirectory(boost_bit_vector)
+add_subdirectory(boost_flat_set)
 
 # Configure LLVM
 # find_package(LLVM 9 REQUIRED CONFIG)
