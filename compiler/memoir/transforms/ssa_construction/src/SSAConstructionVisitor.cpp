@@ -542,13 +542,6 @@ void SSAConstructionVisitor::visitAssocGetInst(AssocGetInst &I) {
 void SSAConstructionVisitor::visitMutSeqInsertInst(MutSeqInsertInst &I) {
   MemOIRBuilder builder(I);
 
-  // Fetch type information.
-  auto *type = type_of(I.getCollection());
-  MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
-  auto *collection_type = dyn_cast<CollectionType>(type);
-  MEMOIR_NULL_CHECK(collection_type,
-                    "seq_insert not operating on a collection type");
-
   // Fetch operand information.
   auto *collection_orig = &I.getCollection();
   auto *collection_value = update_reaching_definition(collection_orig, I);
