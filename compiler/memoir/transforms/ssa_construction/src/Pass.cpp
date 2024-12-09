@@ -136,31 +136,32 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
       continue;
     }
 
-    bool no_memoir = true;
+    infoln();
+    infoln("=========================");
+    infoln("BEGIN: ", F.getName());
+
+    // Collect all source-level collection pointers names.
+    ordered_set<llvm::Value *> memoir_names = {};
     for (auto &A : F.args()) {
-      if (Type::value_is_collection_type(A) || Type::value_is_struct_type(A)) {
-        no_memoir = false;
-        break;
-      }
-    }
-    if (no_memoir) {
-      for (auto &BB : F) {
-        for (auto &I : BB) {
-          if (Type::value_is_collection_type(I)
-              || Type::value_is_struct_type(I)) {
-            no_memoir = false;
-            break;
+      if (Type::value_is_collection_type(A)) {
+        memoir_names.insert(&A);
+      } else {
+        for (auto &use : A.uses()) {
+          if (auto *load = dyn_cast<llvm::LoadInst>(use.getUser())) {
+            if (Type::value_is_collection_type(*load)) {
+              memoir_names.insert(load);
+            }
           }
         }
       }
     }
-    if (no_memoir) {
-      continue;
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        if (Type::value_is_collection_type(I)) {
+          memoir_names.insert(&I);
+        }
+      }
     }
-
-    infoln();
-    infoln("=========================");
-    infoln("BEGIN: ", F.getName());
 
     // Get the dominator forest.
     auto &DT = FAM.getResult<llvm::DominatorTreeAnalysis>(F);
@@ -171,21 +172,6 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     // Get the depth-first, preorder traversal of the dominator tree rooted at
     // the entry basic block.
     auto dfs_traversal = dfs_preorder_traversal(DT);
-
-    // Collect all source-level collection pointers names.
-    ordered_set<llvm::Value *> memoir_names = {};
-    for (auto &A : F.args()) {
-      if (Type::value_is_collection_type(A)) {
-        memoir_names.insert(&A);
-      }
-    }
-    for (auto &BB : F) {
-      for (auto &I : BB) {
-        if (Type::value_is_collection_type(I)) {
-          memoir_names.insert(&I);
-        }
-      }
-    }
 
     // Insert PHIs.
     map<llvm::PHINode *, llvm::Value *> inserted_phis = {};

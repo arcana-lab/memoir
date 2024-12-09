@@ -8,6 +8,12 @@
 
 namespace llvm::memoir {
 
+#define TYPE_ERROR(I)                                                          \
+  {                                                                            \
+    println("Type error:\n  ", I);                                             \
+    MEMOIR_UNREACHABLE("Invalid type!");                                       \
+  }
+
 llvm::Value *SSAConstructionVisitor::update_reaching_definition(
     llvm::Value *variable,
     MemOIRInst &I) {
@@ -345,20 +351,13 @@ void SSAConstructionVisitor::visitMutStructWriteInst(MutStructWriteInst &I) {
   MemOIRBuilder builder(I);
 
   // Fetch type information.
-  auto *type = type_of(I.getObjectOperand());
-  MEMOIR_NULL_CHECK(type, "Couldn't determine type of MutStructWriteInst!");
-  auto *struct_type = dyn_cast<StructType>(type);
-  MEMOIR_NULL_CHECK(struct_type,
-                    "MutStructWriteInst not operating on a struct type");
-  auto *field_type = &struct_type->getFieldType(I.getFieldIndex());
-
-  // If this is a sub-index access, fetch the type.
-  for (auto i = 0; i < I.getNumberOfSubIndices(); ++i) {
-    if (auto *struct_field_type = dyn_cast<StructType>(field_type)) {
-      auto sub_index = I.getSubIndex(i);
-      field_type = &struct_field_type->getFieldType(sub_index);
-    }
-  }
+  // auto *type = type_of(I.getObjectOperand());
+  // MEMOIR_NULL_CHECK(type, "Couldn't determine type of MutStructWriteInst!");
+  // auto *struct_type = dyn_cast<StructType>(type);
+  // MEMOIR_NULL_CHECK(struct_type,
+  //                   "MutStructWriteInst not operating on a struct type");
+  // auto *field_type = &struct_type->getFieldType(I.getFieldIndex());
+  auto *field_type = &I.getElementType();
 
   // Split the live range of the collection being written.
   // NOTE: this is only necessary when we are using Field Arrays explicitly.
@@ -380,20 +379,7 @@ void SSAConstructionVisitor::visitMutIndexWriteInst(MutIndexWriteInst &I) {
   MemOIRBuilder builder(I);
 
   // Fetch type information.
-  auto *type = type_of(I.getObjectOperand());
-  MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
-  auto *collection_type = dyn_cast<CollectionType>(type);
-  MEMOIR_NULL_CHECK(collection_type,
-                    "seq_insert not operating on a collection type");
-  auto *element_type = &collection_type->getElementType();
-
-  // If this is a sub-index access, fetch the type.
-  for (auto i = 0; i < I.getNumberOfSubIndices(); ++i) {
-    if (auto *struct_elem_type = dyn_cast<StructType>(element_type)) {
-      auto sub_index = I.getSubIndex(i);
-      element_type = &struct_elem_type->getFieldType(sub_index);
-    }
-  }
+  auto *element_type = &I.getElementType();
 
   // Split the live range of the collection being written.
   auto *collection_orig = &I.getObjectOperand();
@@ -420,20 +406,13 @@ void SSAConstructionVisitor::visitMutAssocWriteInst(MutAssocWriteInst &I) {
   MemOIRBuilder builder(I);
 
   // Fetch type information.
-  auto *type = type_of(I.getObjectOperand());
-  MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
-  auto *collection_type = dyn_cast<CollectionType>(type);
-  MEMOIR_NULL_CHECK(collection_type,
-                    "seq_insert not operating on a collection type");
-  auto *element_type = &collection_type->getElementType();
-
-  // If this is a sub-index access, fetch the type.
-  for (auto i = 0; i < I.getNumberOfSubIndices(); ++i) {
-    if (auto *struct_elem_type = dyn_cast<StructType>(element_type)) {
-      auto sub_index = I.getSubIndex(i);
-      element_type = &struct_elem_type->getFieldType(sub_index);
-    }
-  }
+  // auto *type = type_of(I.getObjectOperand());
+  // MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
+  // auto *collection_type = dyn_cast<CollectionType>(type);
+  // MEMOIR_NULL_CHECK(collection_type,
+  //                   "seq_insert not operating on a collection type");
+  // auto *element_type = &collection_type->getElementType();
+  auto *element_type = &I.getElementType();
 
   // Split the live range of the collection being written.
   auto *collection_orig = &I.getObjectOperand();
