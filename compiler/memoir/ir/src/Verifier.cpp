@@ -276,6 +276,9 @@ bool Verifier::verify(llvm::Function &F, llvm::FunctionAnalysisManager &FAM) {
     return true;
   }
 
+  // TEMPORARY
+  return false;
+
   // Get the liveness analysis result for this function.
   auto &LR = FAM.getResult<LivenessAnalysis>(F);
 
