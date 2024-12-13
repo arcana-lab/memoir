@@ -10,6 +10,7 @@ add_dependencies(memoir
 )
 
 add_compile_definitions("MEMOIR_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\"")
+add_compile_definitions("LLVM_BIN_DIR=\"${LLVM_TOOLS_BINARY_DIR}\"")
 
 function(add_memoir_sources)
   cmake_parse_arguments(
