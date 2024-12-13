@@ -27,7 +27,6 @@ do
     case $1 in
         -o|--output)
             OUTPUT_FILE=$2
-            CLANG_ARGS+=("-o ${OUTPUT_FILE}")
             shift
             shift
             ;;
@@ -79,16 +78,15 @@ fi
 
 if [ "${MODE}" = "compile" ]
 then
-    gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectorize -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument ${CLANG_ARGS[@]} $(memoir-config --cxxflags)
+    gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectorize -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument ${CLANG_ARGS[@]} -o ${OUTPUT_FILE} $(memoir-config --cxxflags)
     exit
 fi
 
-# Generate the bitcode.
-gclang++ ${OPT_LEVEL} -fno-vectorize -fno-slp-vectorize -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument ${CLANG_ARGS[@]} $(memoir-config --cxxflags --ldflags)
+TEMP_DIR=$(mktemp --directory)
+IR_FILE=${TEMP_DIR}/temp.bc
 
-# Extract the bitcode.
-IR_FILE=${OUTPUT_FILE}.bc
-get-bc ${OUTPUT_FILE}
+# Generate the bitcode.
+gclang++ -fPIE ${OPT_LEVEL} -fno-vectorize -fno-slp-vectorize -Xclang -disable-O0-optnone -Xclang -disable-llvm-passes -Wno-unused-command-line-argument ${CLANG_ARGS[@]} -c -emit-llvm -o ${IR_FILE} $(memoir-config --cxxflags)
 
 # If we are not linking, and we are emitting MEMOIR, do so now.
 if [ "${EMIT_MUT}" = "y" ]
@@ -97,7 +95,6 @@ then
     mv ${IR_FILE} ${OUTPUT_FILE}
     exit
 fi
-
 
 # Normalize the bitcode
 memoir-norm ${MEMOIR_NORM_ARGS[@]} ${IR_FILE} -o ${IR_FILE}
@@ -132,7 +129,7 @@ OBJ_FILE=${OUTPUT_FILE}.o
 llc ${OPT_LEVEL} ${IR_FILE} --filetype=obj -o ${OBJ_FILE}
 
 # Compile to binary.
-clang ${OBJ_FILE} -o ${OUTPUT_FILE} $(memoir-config --ldflags) ${LINK_FLAGS[@]}
+clang -no-pie ${OBJ_FILE} -o ${OUTPUT_FILE} $(memoir-config --ldflags) ${LINK_FLAGS[@]}
 
 # Cleanup
 rm ${IR_FILE} ${OBJ_FILE}
