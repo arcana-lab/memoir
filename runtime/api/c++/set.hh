@@ -129,7 +129,7 @@ public:
 
   always_inline Set()
     : Set(memoir::MEMOIR_FUNC(allocate_assoc_array)(memoir_type<T>,
-                                                      memoir_type<T>)) {
+                                                    memoir_type<void>)) {
     // Do nothing.
   }
 
@@ -165,6 +165,32 @@ public:
   always_inline size_type size() const {
     return MEMOIR_FUNC(size)(this->_storage);
   }
+
+  always_inline void swap(Set<T> &other) {
+    auto *tmp = this->_storage;
+    this->_storage = other._storage;
+    other._storage = tmp;
+  }
+
+  template <typename RetTy, typename... Args>
+  always_inline RetTy fold(RetTy init,
+                           RetTy (*func)(RetTy, T, Args...),
+                           Args... args) const {
+    if (false) {
+      // Stub.
+    }
+#define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
+  else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
+    return MEMOIR_FUNC(                                                        \
+        fold_##TYPE_NAME)(init, this->_storage, (void *)func, args...);        \
+  }
+#define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
+  HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)
+#include <types.def>
+#undef HANDLE_PRIMITIVE_TYPE
+#undef HANDLE_INTEGER_TYPE
+  }
+
 }; // class Set
 
 } // namespace memoir

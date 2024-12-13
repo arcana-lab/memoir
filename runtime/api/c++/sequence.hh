@@ -2,6 +2,7 @@
 #define MEMOIR_CPP_SEQUENCE_HH
 #pragma once
 
+#include <algorithm>
 #include <stdexcept>
 
 #include "memoir.h"
@@ -15,7 +16,8 @@ namespace memoir {
 template <typename T>
 class Seq : public collection {
   // static_assert(is_instance_of_v<remove_all_pointers_t<T>, memoir::object>,
-  //               "Trying to store non memoir object in a memoir collection!");
+  //               "Trying to store non memoir object in a memoir
+  //               collection!");
 public:
   using value_type = T;
   using size_type = std::size_t;
@@ -104,7 +106,8 @@ protected:
     //   return *this;
     // }
 
-    // collection_sequence_element &operator=(collection_sequence_element other)
+    // collection_sequence_element &operator=(collection_sequence_element
+    // other)
     // {
     //   this->target_object = std::swap(this->target_object,
     //   other.target_object); this->idx = std::swap(this->idx, other.idx);
@@ -180,14 +183,16 @@ protected:
   public:
     // using inner_type = typename std::remove_pointer_t<T>;
 
-    // primitive_sequence_element &operator=(primitive_sequence_element &&other)
+    // primitive_sequence_element &operator=(primitive_sequence_element
+    // &&other)
     // {
     //   this->target_object = std::move(other.target_object);
     //   this->idx = std::move(other.idx);
     //   return *this;
     // }
 
-    // primitive_sequence_element &operator=(primitive_sequence_element other) {
+    // primitive_sequence_element &operator=(primitive_sequence_element other)
+    // {
     //   this->target_object = std::swap(this->target_object,
     //   other.target_object); this->idx = std::swap(this->idx, other.idx);
     //   return *this;
@@ -263,13 +268,20 @@ protected:
       }
     } // operator T()
 
+    always_inline friend void swap(primitive_sequence_element a,
+                                   primitive_sequence_element b) {
+      T tmp = *a;
+      a = *b;
+      b = tmp;
+    }
+
     always_inline primitive_sequence_element(memoir::Collection *target_object,
                                              size_type idx)
       : target_object(target_object),
         idx(idx) {}
 
-    memoir::Collection *const target_object;
-    const size_type idx;
+    memoir::Collection *target_object;
+    size_type idx;
   }; // class primitive_sequence_element
 
 public:
@@ -283,7 +295,7 @@ public:
 
   class iterator {
   public:
-    using iterator_category = std::forward_iterator_tag;
+    using iterator_category = std::random_access_iterator_tag;
     using difference_type = difference_type;
     using value_type = sequence_element;
     using pointer = value_type;
@@ -295,9 +307,12 @@ public:
       : _storage(storage),
         _index(index) {}
 
-    always_inline iterator(iterator &elem)
+    always_inline iterator(const iterator &elem)
       : _storage(elem._storage),
         _index(elem._index) {}
+
+    // Copy operator
+    always_inline iterator &operator=(const iterator &other) = default;
 
     // Splat.
     always_inline reference operator*() const {
@@ -321,6 +336,60 @@ public:
       return tmp;
     }
 
+    // Prefix decrement.
+    always_inline iterator &operator--() {
+      --this->_index;
+      return *this;
+    }
+
+    // Postfix decrement.
+    always_inline iterator operator--(int) {
+      iterator tmp = *this;
+      --(*this);
+      return tmp;
+    }
+
+    // Arithmetic.
+    always_inline iterator &operator+=(difference_type offset) {
+      this->_index += offset;
+      return *this;
+    }
+
+    always_inline friend iterator operator+(const iterator &iter,
+                                            difference_type offset) {
+      return iterator(iter._storage, iter._index + offset);
+    }
+
+    always_inline friend iterator operator+(difference_type offset,
+                                            const iterator &iter) {
+      return iter + offset;
+    }
+
+    always_inline iterator &operator-=(difference_type offset) {
+      this->_index -= offset;
+      return *this;
+    }
+
+    always_inline friend iterator operator-(const iterator &iter,
+                                            difference_type offset) {
+      return iterator(iter._storage, iter._index - offset);
+    }
+
+    always_inline friend iterator operator-(difference_type base,
+                                            const iterator &iter) {
+      return iterator(iter._storage, base - iter._index);
+    }
+
+    always_inline friend difference_type operator-(const iterator &a,
+                                                   const iterator &b) {
+      return a._index - b._index;
+    }
+
+    // always_inline operator difference_type() const {
+    //   return this->_index;
+    // }
+
+    // Comparison.
     always_inline friend bool operator==(const iterator &a, const iterator &b) {
       return (a._storage == b._storage) && (a._index == b._index);
     }
@@ -329,8 +398,40 @@ public:
       return (a._storage != b._storage) || (a._index != b._index);
     }
 
+    always_inline friend bool operator<(const iterator &a, const iterator &b) {
+      return a._index < b._index;
+    }
+
+    always_inline friend bool operator<(const iterator &a, difference_type b) {
+      return a._index < b;
+    }
+
+    always_inline friend bool operator>(const iterator &a, const iterator &b) {
+      return a._index > b._index;
+    }
+
+    always_inline friend bool operator>(const iterator &a, difference_type b) {
+      return a._index > b;
+    }
+
+    always_inline friend bool operator<=(const iterator &a, const iterator &b) {
+      return a._index <= b._index;
+    }
+
+    always_inline friend bool operator<=(const iterator &a, difference_type b) {
+      return a._index <= b;
+    }
+
+    always_inline friend bool operator>=(const iterator &a, const iterator &b) {
+      return a._index >= b._index;
+    }
+
+    always_inline friend bool operator>=(const iterator &a, difference_type b) {
+      return a._index >= b;
+    }
+
   protected:
-    memoir::Collection *const _storage;
+    memoir::Collection *_storage;
     difference_type _index;
 
     friend class Seq<T>;
@@ -457,10 +558,6 @@ public:
   }
 
   // Modifiers.
-  always_inline void clear() {
-    MEMOIR_FUNC(sequence_remove)(this->_storage, 0, this->size());
-  }
-
   always_inline void insert(T value, size_type index) {
     if constexpr (std::is_pointer_v<T>) {
       using inner_type = typename std::remove_pointer_t<T>;
@@ -502,6 +599,10 @@ public:
 #include <types.def>
 #undef HANDLE_PRIMITIVE_TYPE
 #undef HANDLE_INTEGER_TYPE
+  }
+
+  always_inline void push_back() {
+    MUT_FUNC(sequence_insert)(this->_storage, MEMOIR_FUNC(end));
   }
 
   always_inline void insert(const Seq &to_insert, size_type index) {
@@ -591,8 +692,35 @@ public:
     return this->copy(0, this->size());
   }
 
-  always_inline void type() {}
-}; // namespace memoir
+  always_inline void swap(Seq<T> &other) {
+    auto *tmp = this->_storage;
+    this->_storage = other._storage;
+    other._storage = tmp;
+  }
+
+  always_inline void type() {
+    MEMOIR_FUNC(assert_collection_type)(memoir_type<Seq<T>>, this->_storage);
+  }
+
+  template <typename RetTy, typename... Args>
+  always_inline RetTy fold(RetTy init,
+                           RetTy (*func)(RetTy, size_t, T, Args...),
+                           Args... args) const {
+    if (false) {
+      // Stub.
+    }
+#define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
+  else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
+    return MEMOIR_FUNC(                                                        \
+        fold_##TYPE_NAME)(init, this->_storage, (void *)func, args...);        \
+  }
+#define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
+  HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)
+#include <types.def>
+#undef HANDLE_PRIMITIVE_TYPE
+#undef HANDLE_INTEGER_TYPE
+  }
+};
 
 } // namespace memoir
 
