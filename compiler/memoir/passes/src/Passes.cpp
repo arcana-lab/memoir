@@ -60,7 +60,8 @@ static void raise_memoir(llvm::ModulePassManager &MPM) {
   // inline
   MPM.addPass(adapt_cgscc(llvm::InlinerPass()));
   // argpromotion
-  MPM.addPass(adapt_cgscc(llvm::ArgumentPromotionPass()));
+  MPM.addPass(adapt_cgscc(
+      llvm::ArgumentPromotionPass(/* Don't limit max elements */ 0)));
   // sroa
   MPM.addPass(adapt_function(llvm::SROAPass(llvm::SROAOptions::PreserveCFG)));
   // mem2reg
