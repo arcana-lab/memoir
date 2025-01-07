@@ -18,6 +18,7 @@
 namespace llvm::memoir {
 
 enum class MetadataKind {
+  MD_STRUCT_FIELDS,
 #define METADATA(ENUM, STR, CLASS) ENUM,
 #include "memoir/utility/Metadata.def"
   MD_NONE,
@@ -53,6 +54,15 @@ public:
 
   template <typename T>
   static bool remove(MemOIRInst &I);
+
+  template <typename T>
+  static std::optional<T> get(StructType &type, unsigned field);
+
+  template <typename T>
+  static T get_or_add(StructType &type, unsigned field);
+
+  template <typename T>
+  static bool remove(StructType &type, unsigned field);
 
   // Constructor.
   Metadata(llvm::MDTuple &md) : md(&md) {}
