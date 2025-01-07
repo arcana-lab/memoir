@@ -4,6 +4,9 @@
 #include <cstdio>
 #include <memory>
 
+#include "objects.h"
+#include "types.h"
+
 #define MEMOIR_ASSERT(cond, msg)                                               \
   if (!cond) {                                                                 \
     fprintf(stderr, "\x1b[31m-----[ MemOIR Assert Failed ]-----\x1b[0m\n");    \

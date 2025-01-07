@@ -16,7 +16,6 @@ bool is_object_type(Type *type) {
   TypeCode code = type->getCode();
   switch (code) {
     case StructTy:
-    case TensorTy:
     case AssocArrayTy:
     case SequenceTy:
       return true;
@@ -38,7 +37,6 @@ bool is_struct_type(Type *type) {
 bool is_collection_type(Type *type) {
   TypeCode code = type->getCode();
   switch (code) {
-    case TensorTy:
     case AssocArrayTy:
     case SequenceTy:
       return true;
@@ -118,122 +116,6 @@ StructType::StructType(const char *name, std::vector<Type *> &field_types)
 
 bool StructType::equals(Type *other) {
   return (this == other);
-}
-
-/*
- * Tensor Type
- */
-const uint64_t TensorType::unknown_length = 0;
-
-TensorType::static_tensor_type_list &TensorType::get_static_tensor_types() {
-  static TensorType::static_tensor_type_list static_tensor_types;
-  return static_tensor_types;
-}
-
-TensorType::tensor_type_list &TensorType::get_tensor_types() {
-  static TensorType::tensor_type_list tensor_types;
-  return tensor_types;
-}
-
-TensorType *TensorType::get(Type *element_type, uint64_t num_dimensions) {
-  auto &tensor_types = TensorType::get_tensor_types();
-  for (auto const &[elem_type, num_dims, tensor_type] : tensor_types) {
-    if ((elem_type == element_type) && (num_dims == num_dimensions)) {
-      return tensor_type;
-    }
-  }
-
-  std::vector<uint64_t> length_of_dimensions;
-
-  for (auto i = 0; i < num_dimensions; i++) {
-    length_of_dimensions.push_back(TensorType::unknown_length);
-  }
-
-  auto *new_tensor_type =
-      new TensorType(element_type, num_dimensions, length_of_dimensions);
-
-  tensor_types.push_front(
-      std::tuple(element_type, num_dimensions, new_tensor_type));
-
-  return new_tensor_type;
-}
-
-TensorType *TensorType::get(Type *element_type,
-                            uint64_t num_dimensions,
-                            std::vector<uint64_t> &length_of_dimensions) {
-  auto &tensor_types = TensorType::get_static_tensor_types();
-  for (auto const &[elem_type, num_dims, len_of_dims, tensor_type] :
-       tensor_types) {
-    if ((elem_type == element_type) && (num_dims == num_dimensions)
-        && (len_of_dims == length_of_dimensions)) {
-      return tensor_type;
-    }
-  }
-
-  auto new_tensor_type =
-      new TensorType(element_type, num_dimensions, length_of_dimensions);
-
-  tensor_types.push_front(std::tuple(element_type,
-                                     num_dimensions,
-                                     length_of_dimensions,
-                                     new_tensor_type));
-
-  return new_tensor_type;
-}
-
-TensorType::TensorType(Type *element_type, uint64_t num_dimensions)
-  : Type(TypeCode::TensorTy),
-    element_type(element_type),
-    num_dimensions(num_dimensions),
-    is_static_length(false) {
-  /*
-   * Build the length of dimensions with all unknowns.
-   */
-  for (auto i = 0; i < num_dimensions; i++) {
-    this->length_of_dimensions.push_back(TensorType::unknown_length);
-  }
-}
-
-TensorType::TensorType(Type *element_type,
-                       uint64_t num_dimensions,
-                       std::vector<uint64_t> &length_of_dimensions)
-  : Type(TypeCode::TensorTy),
-    element_type(element_type),
-    num_dimensions(num_dimensions),
-    length_of_dimensions(length_of_dimensions) {
-  /*
-   * Determine if all dimensions of the tensor are of static length.
-   */
-  this->is_static_length = true;
-  for (auto length : length_of_dimensions) {
-    if (length == TensorType::unknown_length) {
-      this->is_static_length = false;
-      break;
-    }
-  }
-}
-
-bool TensorType::equals(Type *other) {
-  if (this->getCode() != other->getCode()) {
-    return false;
-  }
-
-  auto other_as_tensor = (TensorType *)other;
-  auto other_num_dimensions = other_as_tensor->num_dimensions;
-  if (this->num_dimensions != other_num_dimensions) {
-    return false;
-  }
-
-  for (auto i = 0; i < this->num_dimensions; i++) {
-    auto this_length = this->length_of_dimensions.at(i);
-    auto other_length = other_as_tensor->length_of_dimensions.at(i);
-    if (this_length != other_length) {
-      return false;
-    }
-  }
-
-  auto other_element_type = other_as_tensor->element_type;
-  return this->element_type->equals(other_element_type);
 }
 
 /*

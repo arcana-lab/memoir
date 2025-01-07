@@ -12,6 +12,8 @@
 
 #include "internal.h"
 #include "memoir.h"
+#include "objects.h"
+#include "types.h"
 
 namespace memoir {
 
@@ -19,21 +21,8 @@ extern "C" {
 
 // Type checking
 __RUNTIME_ATTR
-bool MEMOIR_FUNC(assert_struct_type)(const type_ref type,
-                                     const struct_ref object) {
-  if (object == nullptr) {
-    return is_object_type(type);
-  }
-
-  MEMOIR_ASSERT((type->equals(((detail::Object *)object)->get_type())),
-                "Struct is not the correct type");
-
-  return true;
-}
-
-__RUNTIME_ATTR
-bool MEMOIR_FUNC(assert_collection_type)(const type_ref type,
-                                         const collection_ref object) {
+bool MEMOIR_FUNC(assert_type)(const type_ref type,
+                              const collection_ref object) {
   if (object == nullptr) {
     return is_object_type(type);
   }

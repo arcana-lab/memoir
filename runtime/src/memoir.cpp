@@ -1,40 +1,6 @@
-#ifndef MEMOIR_MEMOIR_H
-#define MEMOIR_MEMOIR_H
+#include "memoir.h"
 
-/*
- * Object representation recognizable by LLVM IR
- * This file describes the API for building and
- * accessing object-ir objects, fields and types
- *
- * Author(s): Tommy McMichen
- * Created: Mar 4, 2022
- */
-
-#include <cstdarg>
-#include <cstddef>
-#include <cstdint>
-
-#include "utils.h"
-
-namespace memoir {
-
-struct Type;
-struct Collection;
-
-extern "C" {
-
-#define __RUNTIME_ATTR                                                         \
-  extern "C" __declspec(noalias) __attribute__((nothrow))                      \
-  __attribute__((noinline)) __attribute__((optnone)) __attribute__((used))
-#define __ALLOC_ATTR __declspec(allocator)
-#define __IMMUT_ATTR __attribute__((pure))
-
-typedef Type *__restrict__ type_ref;
-typedef Collection *__restrict__ collection_ref;
-}
-
-#define MEMOIR_FUNC(name) memoir__##name
-#define MUT_FUNC(name) mut__##name
+using namespace memoir;
 
 // Struct Types
 __RUNTIME_ATTR type_ref MEMOIR_FUNC(define_struct_type)(const char *name,
@@ -168,45 +134,43 @@ collection_ref MEMOIR_FUNC(assoc_keys)(const collection_ref collection);
   void MUT_FUNC(write_##TYPE_NAME)(C_TYPE value,                               \
                                    collection_ref collection_to_access,        \
                                    ...);
-#include "types.def"
 
 // Nested object access
-__IMMUT_ATTR
-__RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(get)(const collection_ref collection_to_access, ...);
+collection_ref MEMOIR_FUNC(get)(const collection_ref collection_to_access,
+                                ...) {
+  return collection;
+}
 
 // SSA renaming
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(usePHI)(const collection_ref collection);
+collection_ref MEMOIR_FUNC(usePHI)(const collection_ref collection) {
+  return collection;
+}
 
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(argPHI)(const collection_ref collection);
+collection_ref MEMOIR_FUNC(argPHI)(const collection_ref collection) {
+  return collection;
+}
 
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
 collection_ref MEMOIR_FUNC(retPHI)(const collection_ref collection,
-                                   void *function);
+                                   void *function) {
+  return collection;
+}
 
 // Type checking and function signatures.
 __RUNTIME_ATTR
-bool MEMOIR_FUNC(assert_type)(const type_ref type, const collection_ref object);
+bool MEMOIR_FUNC(assert_type)(const type_ref type,
+                              const collection_ref object) {
+  return true;
+}
 __RUNTIME_ATTR
-void MEMOIR_FUNC(return_type)(const type_ref type);
-
-// MEMOIR Keyword arguments.
-#define MEMOIR_KEYWORD(NAME) "memoir." #NAME
-__attribute__((used, weak))
-const char *MEMOIR_FUNC(keywords)[] = { MEMOIR_KEYWORD(closed),
-                                        MEMOIR_KEYWORD(range),
-                                        MEMOIR_KEYWORD(input),
-                                        MEMOIR_KEYWORD(value) };
-#undef MEMOIR_KEYWORD
-
-} // namespace memoir
-
-#endif
+void MEMOIR_FUNC(return_type)(const type_ref type) {
+  return true;
+}

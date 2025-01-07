@@ -22,19 +22,6 @@ std::vector<uint64_t> init_elements(Type *type, size_t num) {
       }
       return list;
     }
-    case TypeCode::TensorTy: {
-      auto tensor_type = (TensorType *)type;
-      MEMOIR_ASSERT((tensor_type->is_static_length),
-                    "Attempt to create tensor element of non-static length");
-      auto &length_of_dimensions = tensor_type->length_of_dimensions;
-      std::vector<uint64_t> list;
-      list.reserve(num);
-      for (auto i = 0; i < num; i++) {
-        auto tensor = new Tensor(tensor_type, length_of_dimensions);
-        list.push_back((uint64_t)tensor);
-      }
-      return list;
-    }
     case TypeCode::SequenceTy: {
       auto seq_type = (SequenceType *)type;
       std::vector<uint64_t> list;
@@ -102,14 +89,6 @@ uint64_t init_element(Type *type) {
       auto *struct_type = static_cast<StructType *>(type);
       auto *strct = new Struct(struct_type);
       return (uint64_t)strct;
-    }
-    case TypeCode::TensorTy: {
-      auto tensor_type = (TensorType *)type;
-      MEMOIR_ASSERT((tensor_type->is_static_length),
-                    "Attempt to create tensor element of non-static length");
-      auto &length_of_dimensions = tensor_type->length_of_dimensions;
-      auto tensor = new Tensor(tensor_type, length_of_dimensions);
-      return (uint64_t)tensor;
     }
     case TypeCode::SequenceTy: {
       auto seq_type = (SequenceType *)type;

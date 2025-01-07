@@ -1,5 +1,6 @@
 #include "internal.h"
 #include "memoir.h"
+#include "types.h"
 
 namespace memoir {
 
@@ -51,13 +52,7 @@ type_ref MEMOIR_FUNC(static_tensor_type)(type_ref type,
 
   va_end(args);
 
-  return TensorType::get(type, num_dimensions, length_of_dimensions);
-}
-
-__RUNTIME_ATTR
-type_ref MEMOIR_FUNC(tensor_type)(const type_ref element_type,
-                                  uint64_t num_dimensions) {
-  return TensorType::get(element_type, num_dimensions);
+  return SequenceType::get(type);
 }
 
 __RUNTIME_ATTR
