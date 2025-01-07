@@ -135,37 +135,23 @@ protected:
   Type *visitDefineStructTypeInst(DefineStructTypeInst &I);
   Type *visitStructTypeInst(StructTypeInst &I);
   Type *visitStaticTensorTypeInst(StaticTensorTypeInst &I);
-  Type *visitTensorTypeInst(TensorTypeInst &I);
   Type *visitAssocArrayTypeInst(AssocArrayTypeInst &I);
   Type *visitSequenceTypeInst(SequenceTypeInst &I);
   //// Allocation instructions
-  Type *visitStructAllocInst(StructAllocInst &I);
-  Type *visitTensorAllocInst(TensorAllocInst &I);
-  Type *visitAssocArrayAllocInst(AssocArrayAllocInst &I);
-  Type *visitSequenceAllocInst(SequenceAllocInst &I);
+  Type *visitAllocInst(AllocInst &I);
   //// Access instructions
+  Type *visitAccessInst(AccessInst &I);
   Type *visitReadInst(ReadInst &I);
-  Type *visitStructReadInst(StructReadInst &I);
   Type *visitGetInst(GetInst &I);
-  Type *visitStructGetInst(StructGetInst &I);
-  Type *visitWriteInst(WriteInst &I);
+  Type *visitHasInst(HasInst &I);
+  Type *visitKeysInst(KeysInst &I);
+  Type *visitFoldInst(FoldInst &I);
+  //// Update instructions
+  Type *visitUpdateInst(UpdateInst &I);
   //// SSA operations
   Type *visitUsePHIInst(UsePHIInst &I);
-  Type *visitDefPHIInst(DefPHIInst &I);
   Type *visitArgPHIInst(ArgPHIInst &I);
   Type *visitRetPHIInst(RetPHIInst &I);
-  //// SSA collection operations
-  Type *visitInsertInst(InsertInst &I);
-  Type *visitRemoveInst(RemoveInst &I);
-  Type *visitSwapInst(SwapInst &I);
-  Type *visitCopyInst(CopyInst &I);
-  Type *visitFoldInst(FoldInst &I);
-  Type *visitClearInst(ClearInst &I);
-  //// SSA assoc operations
-  Type *visitAssocHasInst(AssocHasInst &I);
-  Type *visitAssocKeysInst(AssocKeysInst &I);
-  Type *visitAssocRemoveInst(AssocRemoveInst &I);
-  Type *visitAssocInsertInst(AssocInsertInst &I);
 
   // Constructor.
   TypeChecker();
