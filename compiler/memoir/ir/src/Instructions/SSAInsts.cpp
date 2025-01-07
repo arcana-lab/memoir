@@ -13,12 +13,6 @@ OPERAND(UsePHIInst, UsedCollection, 0)
 
 TO_STRING(UsePHIInst)
 
-// DefPHIInst implementation
-RESULTANT(DefPHIInst, ResultCollection)
-OPERAND(DefPHIInst, DefinedCollection, 0)
-
-TO_STRING(DefPHIInst)
-
 // ArgPHIInst implementation
 RESULTANT(ArgPHIInst, ResultCollection)
 OPERAND(ArgPHIInst, InputCollection, 0)
@@ -34,12 +28,6 @@ llvm::Function *RetPHIInst::getCalledFunction() const {
 }
 
 OPERAND(RetPHIInst, CalledOperand, 1)
-// TODO: implement metadata for storing the incoming collections.
 TO_STRING(RetPHIInst)
-
-// ClearInst implementation
-RESULTANT(ClearInst, ResultCollection)
-OPERAND(ClearInst, InputCollection, 0)
-TO_STRING(ClearInst)
 
 } // namespace llvm::memoir

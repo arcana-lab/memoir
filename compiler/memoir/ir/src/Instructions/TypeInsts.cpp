@@ -274,38 +274,6 @@ VAR_OPERAND(StaticTensorTypeInst, LengthOfDimensionOperand, 2)
 TO_STRING(StaticTensorTypeInst)
 
 /*
- * TensorType implementation
- */
-GET_TYPE_IMPL(TensorTypeInst)
-
-Type &TensorTypeInst::getElementType() const {
-  auto type = type_of(this->getElementOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine the element type of TensorType");
-  return *type;
-}
-
-OPERAND(TensorTypeInst, ElementOperand, 0)
-
-unsigned TensorTypeInst::getNumberOfDimensions() const {
-  auto &dims_value = this->getNumberOfDimensionsOperand();
-
-  auto dims_const = dyn_cast<llvm::ConstantInt>(&dims_value);
-  MEMOIR_NULL_CHECK(dims_const,
-                    "Number of dimensions passed to TensorType is non-static");
-
-  auto num_dims = dims_const->getZExtValue();
-  MEMOIR_ASSERT(
-      (num_dims <= std::numeric_limits<unsigned>::max()),
-      "Number of dimensions passed to TensorType is larger than maximum value of unsigned");
-
-  return num_dims;
-}
-
-OPERAND(TensorTypeInst, NumberOfDimensionsOperand, 1)
-
-TO_STRING(TensorTypeInst);
-
-/*
  * AssocArrayType implementation
  */
 GET_TYPE_IMPL(AssocArrayTypeInst)

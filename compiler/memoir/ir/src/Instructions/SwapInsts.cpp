@@ -1,7 +1,9 @@
-#include "memoir/utility/InstructionUtils.hpp"
+#if 0
+#  include "memoir/utility/InstructionUtils.hpp"
 
 namespace llvm::memoir {
 
+  
 // Abstract SwapInst implementation.
 RESULTANT(SwapInst, Result)
 
@@ -73,3 +75,4 @@ llvm::Use &SeqSwapWithinInst::getIncomingCollectionAsUseFor(
 }
 
 } // namespace llvm::memoir
+#endif

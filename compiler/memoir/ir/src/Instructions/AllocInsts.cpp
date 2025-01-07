@@ -7,111 +7,65 @@
 
 namespace llvm::memoir {
 
-// Base AllocInst implementation
+// AllocInst implementation
 RESULTANT(AllocInst, Allocation)
 
-// StructAllocInst implementation
-StructType &StructAllocInst::getStructType() const {
-  // TODO: convert this to a dyn_cast later.
-  return static_cast<StructType &>(this->getType());
+Type &AllocInst::getType() const {
+  return MEMOIR_SANITIZE(type_of(this->getTypeOperand()),
+                         "Could not determine allocation type");
 }
 
-Type &StructAllocInst::getType() const {
-  auto type = type_of(this->getTypeOperand());
-  MEMOIR_NULL_CHECK(
-      type,
-      "TypeAnalysis could not determine type for struct allocation");
-  return *type;
+OPERAND(AllocInst, TypeOperand, 0)
+
+llvm::iterator_range<AllocInst::size_iterator> AllocInst::sizes() {
+  return llvm::make_range(this->sizes_begin(), this->sizes_end());
 }
 
-OPERAND(StructAllocInst, TypeOperand, 0)
-
-TO_STRING(StructAllocInst)
-
-// CollectionAllocInst implementation
-Type &CollectionAllocInst::getType() const {
-  return this->getCollectionType();
+AllocInst::size_iterator AllocInst::sizes_begin() {
+  return size_iterator(this->size_ops_begin());
 }
 
-// TensorAllocInst implementation
-RESULTANT(TensorAllocInst, Collection)
-
-CollectionType &TensorAllocInst::getCollectionType() const {
-  return Type::get_tensor_type(this->getElementType(),
-                               this->getNumberOfDimensions());
+AllocInst::size_iterator AllocInst::sizes_end() {
+  return size_iterator(this->size_ops_end());
 }
 
-Type &TensorAllocInst::getElementType() const {
-  auto type = type_of(this->getElementOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine the element type");
-  return *type;
+llvm::iterator_range<AllocInst::const_size_iterator> AllocInst::sizes() const {
+  return llvm::make_range(this->sizes_begin(), this->sizes_end());
 }
 
-OPERAND(TensorAllocInst, ElementOperand, 0)
-
-unsigned TensorAllocInst::getNumberOfDimensions() const {
-  auto &num_dims_as_value = this->getNumberOfDimensionsOperand();
-  auto num_dims_as_constant = dyn_cast<llvm::ConstantInt>(&num_dims_as_value);
-  MEMOIR_NULL_CHECK(
-      num_dims_as_constant,
-      "Attempt to allocate a tensor with dynamic number of dimensions");
-
-  auto num_dims = num_dims_as_constant->getZExtValue();
-
-  MEMOIR_ASSERT(
-      (num_dims < 256),
-      "Attempt to allocate a tensor with more than 255 dimensions"
-      "This is unsupported due to the maximum number of arguments allowed in LLVM CallInsts");
-
-  return (unsigned)num_dims;
+AllocInst::const_size_iterator AllocInst::sizes_begin() const {
+  return const_size_iterator(this->size_ops_begin());
 }
 
-OPERAND(TensorAllocInst, NumberOfDimensionsOperand, 1)
-VAR_OPERAND(TensorAllocInst, LengthOfDimensionOperand, 2)
-TO_STRING(TensorAllocInst)
-
-// AssocArrayAllocInst implementation
-RESULTANT(AssocArrayAllocInst, Collection)
-
-CollectionType &AssocArrayAllocInst::getCollectionType() const {
-  return Type::get_assoc_array_type(this->getKeyType(), this->getValueType());
+AllocInst::const_size_iterator AllocInst::sizes_end() const {
+  return const_size_iterator(this->size_ops_end());
 }
 
-Type &AssocArrayAllocInst::getKeyType() const {
-  auto type = type_of(this->getKeyOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine the Key type");
-  return *type;
+llvm::iterator_range<AllocInst::size_op_iterator> AllocInst::size_operands() {
+  return llvm::make_range(this->size_ops_begin(), this->size_ops_end());
 }
 
-OPERAND(AssocArrayAllocInst, KeyOperand, 0)
-
-Type &AssocArrayAllocInst::getValueType() const {
-  auto type = type_of(this->getValueOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine the Value type");
-  return *type;
+AllocInst::size_op_iterator AllocInst::size_ops_begin() {
+  return size_op_iterator(this->getTypeOperandAsUse().getNext());
 }
 
-OPERAND(AssocArrayAllocInst, ValueOperand, 1)
-
-TO_STRING(AssocArrayAllocInst)
-
-// SequenceAllocInst implementation
-RESULTANT(SequenceAllocInst, Collection)
-
-CollectionType &SequenceAllocInst::getCollectionType() const {
-  return Type::get_sequence_type(this->getElementType());
+AllocInst::size_op_iterator AllocInst::size_ops_end() {
+  return size_op_iterator(this->kw_begin().asUse());
 }
 
-Type &SequenceAllocInst::getElementType() const {
-  auto type = type_of(this->getElementOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine the element type");
-  return *type;
+llvm::iterator_range<AllocInst::const_size_op_iterator> AllocInst::
+    size_operands() const {
+  return llvm::make_range(this->size_ops_begin(), this->size_ops_end());
 }
 
-OPERAND(SequenceAllocInst, ElementOperand, 0)
+AllocInst::const_size_op_iterator AllocInst::size_ops_begin() const {
+  return const_size_op_iterator(this->getTypeOperandAsUse().getNext());
+}
 
-OPERAND(SequenceAllocInst, SizeOperand, 1)
+AllocInst::const_size_op_iterator AllocInst::size_ops_end() const {
+  return const_size_op_iterator(this->kw_begin().asUse());
+}
 
-TO_STRING(SequenceAllocInst)
+TO_STRING(AllocInst)
 
 } // namespace llvm::memoir

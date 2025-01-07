@@ -105,4 +105,36 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemOIRInst &I) {
   return os;
 }
 
+llvm::iterator_range<keyword_iterator> MemOIRInst::keywords() const {
+  return llvm::make_range(this->kw_begin(), this->kw_end());
+}
+
+keyword_iterator MemOIRInst::kw_begin() const {
+  for (auto &arg : this->getCallInst().args()) {
+    if (Keyword::is_keyword(*arg.get())) {
+      return keyword_iterator(&arg);
+    }
+  }
+  return this->kw_end();
+}
+
+keyword_iterator MemOIRInst::kw_end() const {
+  return keyword_iterator(nullptr);
+}
+
+bool MemOIRInst::has_keywords() const {
+  return this->kw_begin() != this->kw_end();
+}
+
+template <typename KeywordTy,
+          std::enable_if_t<std::is_base_of_v<Keyword, KeywordTy>, bool>>
+std::optional<KeywordTy> MemOIRInst::get_keyword() const {
+  for (auto kw : this->keywords()) {
+    if (auto the_kw = try_cast<KeywordTy>(kw)) {
+      return the_kw;
+    }
+  }
+  return {};
+}
+
 } // namespace llvm::memoir

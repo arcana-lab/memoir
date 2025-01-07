@@ -14,6 +14,7 @@
 
 #include "memoir/utility/FunctionNames.hpp"
 
+#include "memoir/ir/Keywords.hpp"
 #include "memoir/ir/Types.hpp"
 
 /*
@@ -40,6 +41,17 @@ public:
   llvm::Module *getModule() const;
   llvm::BasicBlock *getParent() const;
   MemOIR_Func getKind() const;
+
+  bool has_keywords() const;
+
+  template <
+      typename KeywordTy,
+      std::enable_if_t<std::is_base_of_v<Keyword, KeywordTy>, bool> = true>
+  std::optional<KeywordTy> get_keyword() const;
+
+  llvm::iterator_range<keyword_iterator> keywords() const;
+  keyword_iterator kw_begin() const;
+  keyword_iterator kw_end() const;
 
   explicit operator llvm::Value *() {
     return &this->getCallInst();
@@ -418,29 +430,7 @@ protected:
   friend struct MemOIRInst;
 };
 
-struct TensorTypeInst : public TypeInst {
-public:
-  Type &getType() const override;
-  Type &getElementType() const;
-  llvm::Value &getElementOperand() const;
-  llvm::Use &getElementOperandAsUse() const;
-  unsigned getNumberOfDimensions() const;
-  llvm::Value &getNumberOfDimensionsOperand() const;
-  llvm::Use &getNumberOfDimensionsOperandAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::TENSOR_TYPE);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  TensorTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct AssocArrayTypeInst : public TypeInst {
+struct AssocTypeInst : public TypeInst {
 public:
   Type &getType() const override;
   Type &getKeyType() const;
@@ -457,11 +447,11 @@ public:
   std::string toString(std::string indent = "") const override;
 
 protected:
-  AssocArrayTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
+  AssocTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
-using AssocTypeInst = struct AssocArrayTypeInst;
+using AssocArrayTypeInst = struct AssocTypeInst;
 
 struct SequenceTypeInst : public TypeInst {
 public:
@@ -486,7 +476,30 @@ protected:
 struct AllocInst : public MemOIRInst {
 public:
   llvm::Value &getAllocation() const;
-  virtual Type &getType() const = 0;
+
+  Type &getType() const;
+  llvm::Value &getTypeOperand() const;
+  llvm::Use &getTypeOperandAsUse() const;
+
+  using size_iterator = llvm::User::value_op_iterator;
+  llvm::iterator_range<size_iterator> sizes();
+  size_iterator sizes_begin();
+  size_iterator sizes_end();
+
+  using const_size_iterator = llvm::User::const_value_op_iterator;
+  llvm::iterator_range<const_size_iterator> sizes() const;
+  const_size_iterator sizes_begin() const;
+  const_size_iterator sizes_end() const;
+
+  using size_op_iterator = llvm::User::op_iterator;
+  llvm::iterator_range<size_op_iterator> size_operands();
+  size_op_iterator size_ops_begin();
+  size_op_iterator size_ops_end();
+
+  using const_size_op_iterator = llvm::User::const_op_iterator;
+  llvm::iterator_range<const_size_op_iterator> size_operands() const;
+  const_size_op_iterator size_ops_begin() const;
+  const_size_op_iterator size_ops_end() const;
 
   static bool classof(const MemOIRInst *I) {
     return
@@ -496,130 +509,10 @@ public:
         false;
   };
 
+  std::string toString(std::string indent = "") const override;
+
 protected:
   AllocInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct StructAllocInst : public AllocInst {
-public:
-  llvm::Value &getStruct() const;
-
-  StructType &getStructType() const;
-  Type &getType() const override;
-
-  llvm::Value &getTypeOperand() const;
-  llvm::Use &getTypeOperandAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::ALLOCATE_STRUCT);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  StructAllocInst(llvm::CallInst &call_inst) : AllocInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct CollectionAllocInst : public AllocInst {
-public:
-  virtual llvm::Value &getCollection() const = 0;
-  virtual CollectionType &getCollectionType() const = 0;
-
-  static bool classof(const MemOIRInst *I) {
-    return (
-#define HANDLE_COLLECTION_ALLOC_INST(ENUM, FUNC, CLASS)                        \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false);
-  };
-
-  Type &getType() const override;
-
-protected:
-  CollectionAllocInst(llvm::CallInst &call_inst) : AllocInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct TensorAllocInst : public CollectionAllocInst {
-public:
-  llvm::Value &getCollection() const override;
-  CollectionType &getCollectionType() const override;
-
-  Type &getElementType() const;
-  llvm::Value &getElementOperand() const;
-  llvm::Use &getElementOperandAsUse() const;
-
-  unsigned getNumberOfDimensions() const;
-  llvm::Value &getNumberOfDimensionsOperand() const;
-  llvm::Use &getNumberOfDimensionsOperandAsUse() const;
-  llvm::Value &getLengthOfDimensionOperand(unsigned dimension_index) const;
-  llvm::Use &getLengthOfDimensionOperandAsUse(unsigned dimension_index) const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::ALLOCATE_TENSOR);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  TensorAllocInst(llvm::CallInst &call_inst) : CollectionAllocInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct AssocArrayAllocInst : public CollectionAllocInst {
-public:
-  llvm::Value &getCollection() const override;
-  CollectionType &getCollectionType() const override;
-
-  Type &getKeyType() const;
-  llvm::Value &getKeyOperand() const;
-  llvm::Use &getKeyOperandAsUse() const;
-
-  Type &getValueType() const;
-  llvm::Value &getValueOperand() const;
-  llvm::Use &getValueOperandAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::ALLOCATE_ASSOC_ARRAY);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  AssocArrayAllocInst(llvm::CallInst &call_inst)
-    : CollectionAllocInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-using AssocAllocInst = struct AssocArrayAllocInst;
-
-struct SequenceAllocInst : public CollectionAllocInst {
-public:
-  llvm::Value &getCollection() const override;
-  CollectionType &getCollectionType() const override;
-
-  Type &getElementType() const;
-  llvm::Value &getElementOperand() const;
-  llvm::Use &getElementOperandAsUse() const;
-
-  llvm::Value &getSizeOperand() const;
-  llvm::Use &getSizeOperandAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::ALLOCATE_SEQUENCE);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  SequenceAllocInst(llvm::CallInst &call_inst)
-    : CollectionAllocInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -627,11 +520,31 @@ protected:
 // Accesses
 struct AccessInst : public MemOIRInst {
 public:
-  virtual CollectionType &getCollectionType() const;
+  Type &getObjectType() const;
   Type &getElementType() const;
 
-  virtual llvm::Value &getObjectOperand() const = 0;
-  virtual llvm::Use &getObjectOperandAsUse() const = 0;
+  virtual llvm::Value &getObject() const = 0;
+  virtual llvm::Use &getObjectAsUse() const = 0;
+
+  using index_iterator = llvm::User::value_op_iterator;
+  llvm::iterator_range<index_iterator> indices();
+  index_iterator indices_begin();
+  index_iterator indices_end();
+
+  using const_index_iterator = llvm::User::const_value_op_iterator;
+  llvm::iterator_range<const_index_iterator> indices() const;
+  const_index_iterator indices_begin() const;
+  const_index_iterator indices_end() const;
+
+  using index_op_iterator = llvm::User::op_iterator;
+  llvm::iterator_range<index_op_iterator> index_operands();
+  index_op_iterator index_operands_begin();
+  index_op_iterator index_operands_end();
+
+  using const_index_op_iterator = llvm::User::const_op_iterator;
+  llvm::iterator_range<const_index_op_iterator> index_operands() const;
+  const_index_op_iterator index_operands_begin() const;
+  const_index_op_iterator index_operands_end() const;
 
   static bool classof(const MemOIRInst *I) {
     return (
@@ -647,21 +560,12 @@ protected:
   friend struct MemOIRInst;
 };
 
-// Read Accesses
 struct ReadInst : public AccessInst {
 public:
   llvm::Value &getValueRead() const;
 
-  llvm::Value &getObjectOperand() const override;
-  llvm::Use &getObjectOperandAsUse() const override;
-
-  // Sub-element access.
-  unsigned getNumberOfSubIndices() const;
-  vector<llvm::Value *> getSubIndices() const;
-
-  unsigned getSubIndex(unsigned sub_idx) const;
-  llvm::Value &getSubIndexOperand(unsigned sub_idx) const;
-  llvm::Use &getSubIndexOperandAsUse(unsigned sub_idx) const;
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
     return
@@ -671,93 +575,98 @@ public:
         false;
   };
 
+  std::string toString(std::string indent = "") const override;
+
 protected:
   ReadInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
 
-struct StructReadInst : public ReadInst {
+struct GetInst : public AccessInst {
 public:
-  CollectionType &getCollectionType() const override;
+  llvm::Value &getNestedObject() const;
 
-  unsigned getFieldIndex() const;
-  llvm::Value &getFieldIndexOperand() const;
-  llvm::Use &getFieldIndexOperandAsUse() const;
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_STRUCT_READ_INST(ENUM, FUNC, CLASS)                             \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
+    return I->getKind() == MemOIR_Func::GET;
   };
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  StructReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {}
+  GetInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
 
-struct IndexReadInst : public ReadInst {
-public:
-  llvm::Value &getIndex() const;
-  llvm::Use &getIndexAsUse() const;
+struct CopyInst : public AccessInst {
+  llvm::Value &getResult() const;
+
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_INDEX_READ_INST(ENUM, FUNC, CLASS)                              \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
+    return I->getKind() == MemOIR_Func::COPY;
+  }
+
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  CopyInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
+
+  friend struct MemOIRInst;
+};
+
+struct SizeInst : public AccessInst {
+public:
+  llvm::Value &getSize() const;
+
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
+
+  static bool classof(const MemOIRInst *I) {
+    return I->getKind() == MemOIR_Func::SIZE;
   };
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  IndexReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {}
+  SizeInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
 
-struct AssocReadInst : public ReadInst {
+// Instructions that apply functional updates to an object
+struct UpdateInst : public AccessInst {
 public:
-  llvm::Value &getKeyOperand() const;
-  llvm::Use &getKeyOperandAsUse() const;
+  llvm::Value &getResult() const;
 
   static bool classof(const MemOIRInst *I) {
     return
-#define HANDLE_ASSOC_READ_INST(ENUM, FUNC, CLASS)                              \
+#define HANDLE_UPDATE_INST(ENUM, FUNC, CLASS)                                  \
   (I->getKind() == MemOIR_Func::ENUM) ||
 #include "memoir/ir/Instructions.def"
         false;
-  };
-
-  std::string toString(std::string indent = "") const override;
+  }
 
 protected:
-  AssocReadInst(llvm::CallInst &call_inst) : ReadInst(call_inst) {}
+  UpdateInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
 
-// Write Accesses
-struct WriteInst : public AccessInst {
+struct WriteInst : public UpdateInst {
 public:
+  llvm::Value &getResult() const;
+
   llvm::Value &getValueWritten() const;
   llvm::Use &getValueWrittenAsUse() const;
 
-  llvm::Value &getObjectOperand() const override;
-  llvm::Use &getObjectOperandAsUse() const override;
-
-  unsigned getNumberOfSubIndices() const;
-  vector<llvm::Value *> getSubIndices() const;
-
-  unsigned getSubIndex(unsigned sub_idx) const;
-  llvm::Value &getSubIndexOperand(unsigned sub_idx) const;
-  llvm::Use &getSubIndexOperandAsUse(unsigned sub_idx) const;
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
     return
@@ -767,562 +676,107 @@ public:
         false;
   };
 
-protected:
-  WriteInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct StructWriteInst : public WriteInst {
-public:
-  CollectionType &getCollectionType() const override;
-
-  unsigned getFieldIndex() const;
-  llvm::Value &getFieldIndexOperand() const;
-  llvm::Use &getFieldIndexOperandAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_STRUCT_WRITE_INST(ENUM, FUNC, CLASS)                            \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  };
-
   std::string toString(std::string indent = "") const override;
 
 protected:
-  StructWriteInst(llvm::CallInst &call_inst) : WriteInst(call_inst) {}
+  WriteInst(llvm::CallInst &call_inst) : UpdateInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
 
-struct IndexWriteInst : public WriteInst {
+struct InsertInst : public UpdateInst {
 public:
-  llvm::Value &getCollection() const;
-
-  llvm::Value &getIndex() const;
-  llvm::Use &getIndexAsUse() const;
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_INDEX_WRITE_INST(ENUM, FUNC, CLASS)                             \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  IndexWriteInst(llvm::CallInst &call_inst) : WriteInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct AssocWriteInst : public WriteInst {
-public:
-  llvm::Value &getCollection() const;
-
-  llvm::Value &getKeyOperand() const;
-  llvm::Use &getKeyOperandAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_ASSOC_WRITE_INST(ENUM, FUNC, CLASS)                             \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  AssocWriteInst(llvm::CallInst &call_inst) : WriteInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-// Nested Accesses
-struct GetInst : public AccessInst {
-public:
-  llvm::Value &getNestedObject() const;
-
-  llvm::Value &getObjectOperand() const override;
-  llvm::Use &getObjectOperandAsUse() const override;
-
-  static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_GET_INST(ENUM, FUNC, CLASS)                                     \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  };
-
-protected:
-  GetInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct StructGetInst : public GetInst {
-public:
-  CollectionType &getCollectionType() const override;
-
-  unsigned getFieldIndex() const;
-  llvm::Value &getFieldIndexOperand() const;
-  llvm::Use &getFieldIndexOperandAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_STRUCT_GET_INST(ENUM, FUNC, CLASS)                              \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  StructGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct IndexGetInst : public GetInst {
-public:
-  llvm::Value &getIndex() const;
-  llvm::Use &getIndexAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_INDEX_GET_INST(ENUM, FUNC, CLASS)                               \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  IndexGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct AssocGetInst : public GetInst {
-public:
-  llvm::Value &getKeyOperand() const;
-  llvm::Use &getKeyOperandAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_ASSOC_GET_INST(ENUM, FUNC, CLASS)                               \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  AssocGetInst(llvm::CallInst &call_inst) : GetInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-// Abstract insert operation.
-struct InsertInst : public MemOIRInst {
-public:
-  virtual llvm::Value &getResultCollection() const;
-
-  virtual llvm::Value &getBaseCollection() const = 0;
-  virtual llvm::Use &getBaseCollectionAsUse() const = 0;
-
-  virtual llvm::Value &getInsertionPoint() const = 0;
-  virtual llvm::Use &getInsertionPointAsUse() const = 0;
-
-  static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_INSERT_INST(ENUM, FUNC, CLASS)                                  \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
+    return I->getKind() == MemOIR_Func::INSERT;
   }
 
-  InsertInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
+  std::string toString(std::string indent = "") const override;
+
+protected:
+  InsertInst(llvm::CallInst &call_inst) : UpdateInst(call_inst) {}
+
+  friend struct MemOIRInst;
 };
 
-// Sequence insert operations.
-struct SeqInsertInst : public InsertInst {
+struct RemoveInst : public UpdateInst {
 public:
-  llvm::Value &getBaseCollection() const override;
-  llvm::Use &getBaseCollectionAsUse() const override;
-
-  llvm::Value &getInsertionPoint() const override;
-  llvm::Use &getInsertionPointAsUse() const override;
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::SEQ_INSERT);
+    return I->getKind() == MemOIR_Func::REMOVE;
   };
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  SeqInsertInst(llvm::CallInst &call_inst) : InsertInst(call_inst) {}
+  RemoveInst(llvm::CallInst &call_inst) : UpdateInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
 
-struct SeqInsertValueInst : public InsertInst {
+struct ClearInst : public UpdateInst {
 public:
-  llvm::Value &getBaseCollection() const override;
-  llvm::Use &getBaseCollectionAsUse() const override;
-
-  llvm::Value &getValueInserted() const;
-  llvm::Use &getValueInsertedAsUse() const;
-
-  llvm::Value &getInsertionPoint() const override;
-  llvm::Use &getInsertionPointAsUse() const override;
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS)                              \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
+    return (I->getKind() == MemOIR_Func::CLEAR);
   };
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  SeqInsertValueInst(llvm::CallInst &call_inst) : InsertInst(call_inst) {}
+  ClearInst(llvm::CallInst &call_inst) : UpdateInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
+// ==============================================================
 
-struct SeqInsertSeqInst : public InsertInst {
+// Assoc operations
+struct HasInst : public AccessInst {
 public:
-  llvm::Value &getBaseCollection() const override;
-  llvm::Use &getBaseCollectionAsUse() const override;
-
-  llvm::Value &getInsertedCollection() const;
-  llvm::Use &getInsertedCollectionAsUse() const;
-
-  llvm::Value &getInsertionPoint() const override;
-  llvm::Use &getInsertionPointAsUse() const override;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::SEQ_INSERT_SEQ);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  SeqInsertSeqInst(llvm::CallInst &call_inst) : InsertInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct RemoveInst : public MemOIRInst {
-public:
-  virtual llvm::Value &getResultCollection() const;
-
-  virtual llvm::Value &getBaseCollection() const = 0;
-  virtual llvm::Use &getBaseCollectionAsUse() const = 0;
-
-  static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_REMOVE_INST(ENUM, FUNC, CLASS)                                  \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  };
-
-  RemoveInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
-};
-
-struct SeqRemoveInst : public RemoveInst {
-public:
-  llvm::Value &getBaseCollection() const override;
-  llvm::Use &getBaseCollectionAsUse() const override;
-
-  llvm::Value &getBeginIndex() const;
-  llvm::Use &getBeginIndexAsUse() const;
-
-  llvm::Value &getEndIndex() const;
-  llvm::Use &getEndIndexAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::SEQ_REMOVE);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  SeqRemoveInst(llvm::CallInst &call_inst) : RemoveInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct SwapInst : public MemOIRInst {
   llvm::Value &getResult() const;
 
-  virtual llvm::Value &getIncomingCollectionFor(
-      llvm::Value &collection) const = 0;
-  virtual llvm::Use &getIncomingCollectionAsUseFor(
-      llvm::Value &collection) const = 0;
-
-  virtual llvm::Value &getFromCollection() const = 0;
-  virtual llvm::Use &getFromCollectionAsUse() const = 0;
-
-  virtual llvm::Value &getBeginIndex() const = 0;
-  virtual llvm::Use &getBeginIndexAsUse() const = 0;
-
-  virtual llvm::Value &getEndIndex() const = 0;
-  virtual llvm::Use &getEndIndexAsUse() const = 0;
-
-  virtual llvm::Value &getToCollection() const = 0;
-  virtual llvm::Use &getToCollectionAsUse() const = 0;
-
-  virtual llvm::Value &getToBeginIndex() const = 0;
-  virtual llvm::Use &getToBeginIndexAsUse() const = 0;
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_SWAP_INST(ENUM, FUNC, CLASS)                                    \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  }
-
-  SwapInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
-};
-
-struct SeqSwapInst : public SwapInst {
-public:
-  llvm::Value &getIncomingCollectionFor(llvm::Value &collection) const override;
-  llvm::Use &getIncomingCollectionAsUseFor(
-      llvm::Value &collection) const override;
-
-  llvm::Value &getFromCollection() const override;
-  llvm::Use &getFromCollectionAsUse() const override;
-
-  llvm::Value &getBeginIndex() const override;
-  llvm::Use &getBeginIndexAsUse() const override;
-
-  llvm::Value &getEndIndex() const override;
-  llvm::Use &getEndIndexAsUse() const override;
-
-  llvm::Value &getToCollection() const override;
-  llvm::Use &getToCollectionAsUse() const override;
-
-  llvm::Value &getToBeginIndex() const override;
-  llvm::Use &getToBeginIndexAsUse() const override;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::SEQ_SWAP);
+    return (I->getKind() == MemOIR_Func::HAS);
   };
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  SeqSwapInst(llvm::CallInst &call_inst) : SwapInst(call_inst) {}
+  HasInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
 
-struct SeqSwapWithinInst : public SwapInst {
+struct KeysInst : public AccessInst {
 public:
-  llvm::Value &getIncomingCollectionFor(llvm::Value &collection) const override;
-  llvm::Use &getIncomingCollectionAsUseFor(
-      llvm::Value &collection) const override;
+  llvm::Value &getResult() const;
 
-  llvm::Value &getFromCollection() const override;
-  llvm::Use &getFromCollectionAsUse() const override;
-
-  llvm::Value &getBeginIndex() const override;
-  llvm::Use &getBeginIndexAsUse() const override;
-
-  llvm::Value &getEndIndex() const override;
-  llvm::Use &getEndIndexAsUse() const override;
-
-  llvm::Value &getToCollection() const override;
-  llvm::Use &getToCollectionAsUse() const override;
-
-  llvm::Value &getToBeginIndex() const override;
-  llvm::Use &getToBeginIndexAsUse() const override;
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::SEQ_SWAP_WITHIN);
+    return (I->getKind() == MemOIR_Func::KEYS);
   };
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  SeqSwapWithinInst(llvm::CallInst &call_inst) : SwapInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct CopyInst : public MemOIRInst {
-  virtual llvm::Value &getCopy() const;
-
-  virtual llvm::Value &getCopiedCollection() const;
-  virtual llvm::Use &getCopiedCollectionAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_COPY_INST(ENUM, FUNC, CLASS)                                    \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  }
-
-protected:
-  CopyInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct SeqCopyInst : public CopyInst {
-public:
-  llvm::Value &getBeginIndex() const;
-  llvm::Use &getBeginIndexAsUse() const;
-
-  llvm::Value &getEndIndex() const;
-  llvm::Use &getEndIndexAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::SEQ_COPY);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  SeqCopyInst(llvm::CallInst &call_inst) : CopyInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-// Other sequence operations.
-struct SizeInst : public MemOIRInst {
-public:
-  llvm::Value &getSize() const;
-
-  llvm::Value &getCollection() const;
-  llvm::Use &getCollectionAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::SIZE);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  SizeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct EndInst : public MemOIRInst {
-public:
-  llvm::Value &getValue() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::END);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  EndInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-// Assoc operations.
-struct AssocHasInst : public AccessInst {
-public:
-  llvm::Value &getObjectOperand() const override;
-  llvm::Use &getObjectOperandAsUse() const override;
-
-  llvm::Value &getKeyOperand() const;
-  llvm::Use &getKeyOperandAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::ASSOC_HAS);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  AssocHasInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct AssocInsertInst : public InsertInst {
-public:
-  llvm::Value &getBaseCollection() const override;
-  llvm::Use &getBaseCollectionAsUse() const override;
-
-  llvm::Value &getInsertionPoint() const override;
-  llvm::Use &getInsertionPointAsUse() const override;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::ASSOC_INSERT);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  AssocInsertInst(llvm::CallInst &call_inst) : InsertInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct AssocRemoveInst : public RemoveInst {
-public:
-  llvm::Value &getBaseCollection() const override;
-  llvm::Use &getBaseCollectionAsUse() const override;
-
-  llvm::Value &getKey() const;
-  llvm::Use &getKeyAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::ASSOC_REMOVE);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  AssocRemoveInst(llvm::CallInst &call_inst) : RemoveInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct AssocKeysInst : public MemOIRInst {
-public:
-  llvm::Value &getKeys() const;
-
-  llvm::Value &getCollection() const;
-  llvm::Use &getCollectionAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::ASSOC_KEYS);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  AssocKeysInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
+  KeysInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
 
 // Fold operations.
-struct FoldInst : public MemOIRInst {
+struct FoldInst : public AccessInst {
 public:
   llvm::Value &getResult() const;
 
@@ -1331,16 +785,34 @@ public:
   llvm::Value &getInitial() const;
   llvm::Use &getInitialAsUse() const;
 
-  llvm::Value &getCollection() const;
-  llvm::Use &getCollectionAsUse() const;
+  llvm::Value &getObject() const override;
+  llvm::Use &getObjectAsUse() const override;
 
   llvm::Function &getFunction() const;
   llvm::Value &getFunctionOperand() const;
   llvm::Use &getFunctionOperandAsUse() const;
 
-  unsigned getNumberOfClosed() const;
-  llvm::Value &getClosed(unsigned index) const;
-  llvm::Use &getClosedAsUse(unsigned index) const;
+  std::optional<ClosedKeyword> getClosed() const;
+
+  using iterator = ClosedKeyword::iterator;
+  llvm::iterator_range<iterator> closed();
+  iterator closed_begin();
+  iterator closed_end();
+
+  using operand_iterator = ClosedKeyword::operand_iterator;
+  llvm::iterator_range<operand_iterator> closed_operands();
+  operand_iterator closed_ops_begin();
+  operand_iterator closed_ops_end();
+
+  using const_iterator = ClosedKeyword::const_iterator;
+  llvm::iterator_range<const_iterator> closed() const;
+  const_iterator closed_begin() const;
+  const_iterator closed_end() const;
+
+  using const_operand_iterator = ClosedKeyword::const_operand_iterator;
+  llvm::iterator_range<const_operand_iterator> closed_operands() const;
+  const_operand_iterator closed_ops_begin() const;
+  const_operand_iterator closed_ops_end() const;
 
   /**
    * Get the argument corresponding to the accumulator value.
@@ -1363,7 +835,7 @@ public:
 
   /**
    * Get the corresponding argument in the fold function for the given
-   * closed use.
+   // * closed use.
    *
    * @param use the use of the closed value
    * @returns the corresponding argument
@@ -1375,7 +847,7 @@ public:
    * @param arg the argument
    * @returns the operand use corresponding to the argument
    */
-  llvm::Use &getOperandForArgument(llvm::Argument &arg) const;
+  // llvm::Use &getOperandForArgument(llvm::Argument &arg) const;
 
   std::string toString(std::string indent = "") const override;
 
@@ -1388,7 +860,7 @@ public:
   };
 
 protected:
-  FoldInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
+  FoldInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1429,21 +901,18 @@ protected:
   friend struct MemOIRInst;
 };
 
-struct DefPHIInst : public MemOIRInst {
+struct EndInst : public MemOIRInst {
 public:
-  llvm::Value &getResultCollection() const;
-
-  llvm::Value &getDefinedCollection() const;
-  llvm::Use &getDefinedCollectionAsUse() const;
+  llvm::Value &getValue() const;
 
   static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::DEF_PHI);
+    return (I->getKind() == MemOIR_Func::END);
   };
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  DefPHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
+  EndInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1499,55 +968,19 @@ protected:
 };
 
 // Deletion operations
-struct DeleteStructInst : public MemOIRInst {
+struct DeleteInst : public MemOIRInst {
 public:
-  llvm::Value &getDeletedStruct() const;
-  llvm::Use &getDeletedStructAsUse() const;
+  llvm::Value &getObject() const;
+  llvm::Use &getObjectAsUse() const;
 
   static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::DELETE_STRUCT);
+    return (I->getKind() == MemOIR_Func::DELETE);
   };
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  DeleteStructInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct DeleteCollectionInst : public MemOIRInst {
-public:
-  llvm::Value &getDeletedCollection() const;
-  llvm::Use &getDeletedCollectionAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::DELETE_COLLECTION);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  DeleteCollectionInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct ClearInst : public MemOIRInst {
-public:
-  llvm::Value &getResultCollection() const;
-
-  llvm::Value &getInputCollection() const;
-  llvm::Use &getInputCollectionAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::CLEAR);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  ClearInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
+  DeleteInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1555,70 +988,21 @@ protected:
 // Type checking
 struct AssertTypeInst : public MemOIRInst {
 public:
-  virtual Type &getType() const = 0;
-  virtual llvm::Value &getTypeOperand() const = 0;
-  virtual llvm::Use &getTypeOperandAsUse() const = 0;
+  Type &getType() const;
+  llvm::Value &getTypeOperand() const;
+  llvm::Use &getTypeOperandAsUse() const;
 
-  virtual llvm::Value &getObject() const = 0;
-  virtual llvm::Use &getObjectAsUse() const = 0;
+  llvm::Value &getObject() const;
+  llvm::Use &getObjectAsUse() const;
 
   static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_ASSERT_TYPE_INST(ENUM, FUNC, CLASS)                             \
-  (I->getKind() == MemOIR_Func::ENUM) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  }
+    return (I->getKind() == MemOIR_Func::ASSERT_TYPE);
+  };
+
+  std::string toString(std::string indent = "") const override;
 
 protected:
   AssertTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct AssertStructTypeInst : public AssertTypeInst {
-public:
-  Type &getType() const override;
-  llvm::Value &getTypeOperand() const override;
-  llvm::Use &getTypeOperandAsUse() const override;
-
-  llvm::Value &getStruct() const;
-  llvm::Use &getStructAsUse() const;
-  llvm::Value &getObject() const override;
-  llvm::Use &getObjectAsUse() const override;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::ASSERT_STRUCT_TYPE);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  AssertStructTypeInst(llvm::CallInst &call_inst) : AssertTypeInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct AssertCollectionTypeInst : public AssertTypeInst {
-public:
-  Type &getType() const override;
-  llvm::Value &getTypeOperand() const override;
-  llvm::Use &getTypeOperandAsUse() const override;
-
-  llvm::Value &getCollection() const;
-  llvm::Use &getCollectionAsUse() const;
-  llvm::Value &getObject() const override;
-  llvm::Use &getObjectAsUse() const override;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::ASSERT_COLLECTION_TYPE);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  AssertCollectionTypeInst(llvm::CallInst &call_inst)
-    : AssertTypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -1637,33 +1021,6 @@ public:
 
 protected:
   ReturnTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct Property;
-
-struct PropertyInst : public MemOIRInst {
-public:
-  Property getProperty() const;
-
-  std::string getPropertyID() const;
-  llvm::Value &getPropertyIDOperand() const;
-  llvm::Use &getPropertyIDOperandAsUse() const;
-
-  unsigned getNumberOfArguments() const;
-
-  llvm::Value &getArgument(unsigned index) const;
-  llvm::Use &getArgumentAsUse(unsigned index) const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::PROPERTY);
-  };
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  PropertyInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
 
   friend struct MemOIRInst;
 };

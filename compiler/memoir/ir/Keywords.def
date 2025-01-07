@@ -1,0 +1,12 @@
+#ifndef KEYWORD
+#  define KEYWORD(STR, CLASS)
+#endif
+#define KEYWORD_(STR, CLASS) KEYWORD(STR, CLASS)
+
+KEYWORD_(closed, ClosedKeyword)
+KEYWORD_(range, RangeKeyword)
+KEYWORD_(input, InputKeyword)
+KEYWORD_(value, ValueKeyword)
+
+#undef KEYWORD
+#undef KEYWORD_
