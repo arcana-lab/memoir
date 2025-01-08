@@ -1,6 +1,8 @@
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/MutOperations.hpp"
 
+#include "memoir/support/Print.hpp"
+
 namespace llvm::memoir {
 
 map<llvm::Instruction *, MemOIRInst *> *MemOIRInst::llvm_to_memoir = nullptr;
@@ -119,7 +121,7 @@ keyword_iterator MemOIRInst::kw_begin() const {
 }
 
 keyword_iterator MemOIRInst::kw_end() const {
-  return keyword_iterator(nullptr);
+  return keyword_iterator(this->getCallInst().arg_end());
 }
 
 bool MemOIRInst::has_keywords() const {

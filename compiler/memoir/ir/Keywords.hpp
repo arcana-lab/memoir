@@ -21,7 +21,7 @@ public:
   /**
    * Check if the given value is a keyword string.
    */
-  static bool is_keyword(const llvm::Value &V);
+  static bool is_keyword(llvm::Value &V);
 
   /**
    * Get the LLVM constant for the given keyword.
@@ -42,8 +42,7 @@ public:
   /**
    * Get the operand use of this keyword.
    */
-  llvm::Use &getAsUse();
-  const llvm::Use &getAsUse() const;
+  llvm::Use &getAsUse() const;
 
   llvm::iterator_range<iterator> values();
   iterator begin();
@@ -61,12 +60,12 @@ public:
   const_operand_iterator op_begin() const;
   const_operand_iterator op_end() const;
 
-  Keyword(const llvm::Use &use) : use(&use) {}
+  Keyword(llvm::Use &use) : use(&use) {}
 
   static const char *PREFIX;
 
 protected:
-  const llvm::Use *use;
+  llvm::Use *use;
 };
 
 struct keyword_iterator {
@@ -109,7 +108,7 @@ public:
     return str.ends_with(NAME);
   }
 
-  ClosedKeyword(const llvm::Use &use) : Keyword(use) {}
+  ClosedKeyword(llvm::Use &use) : Keyword(use) {}
 
 protected:
   static const char *NAME;
@@ -137,7 +136,7 @@ public:
     return str.ends_with(NAME);
   }
 
-  InputKeyword(const llvm::Use &use) : Keyword(use) {}
+  InputKeyword(llvm::Use &use) : Keyword(use) {}
 
 protected:
   static const char *NAME;
@@ -160,7 +159,7 @@ public:
     return str.ends_with(NAME);
   }
 
-  RangeKeyword(const llvm::Use &use) : Keyword(use) {}
+  RangeKeyword(llvm::Use &use) : Keyword(use) {}
 
 protected:
   static const char *NAME;
@@ -180,7 +179,7 @@ public:
     return str.ends_with(NAME);
   }
 
-  ValueKeyword(const llvm::Use &use) : Keyword(use) {}
+  ValueKeyword(llvm::Use &use) : Keyword(use) {}
 
 protected:
   static const char *NAME;

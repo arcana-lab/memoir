@@ -8,7 +8,7 @@ const char *Keyword::PREFIX = "memoir.";
 #define KEYWORD(STR, CLASS) const char *CLASS::NAME = #STR;
 #include "memoir/ir/Keywords.def"
 
-bool Keyword::is_keyword(const llvm::Value &V) {
+bool Keyword::is_keyword(llvm::Value &V) {
   auto *data = dyn_cast<llvm::ConstantDataArray>(&V);
   if (not data) {
     return false;
@@ -25,18 +25,20 @@ bool Keyword::is_keyword(const llvm::Value &V) {
 }
 
 namespace llvm::memoir::detail {
-llvm::Use *find_end_of_keyword(const llvm::Use &U) {
+
+llvm::Use *find_end_of_keyword(llvm::Use &U) {
   // Find either the next keyword or the end of the operand list.
-  auto *curr = U.getNext();
+  auto *curr = std::next(&U);
   while (curr and not Keyword::is_keyword(*curr->get())) {
-    curr = curr->getNext();
+    curr = std::next(curr);
   }
 
   return curr;
 }
+
 } // namespace llvm::memoir::detail
 
-const llvm::Use &Keyword::getAsUse() const {
+llvm::Use &Keyword::getAsUse() const {
   return *this->use;
 }
 
@@ -107,7 +109,7 @@ llvm::iterator_range<Keyword::iterator> ClosedKeyword::args() {
 }
 
 Keyword::iterator ClosedKeyword::args_begin() {
-  return iterator(this->getAsUse().getNext());
+  return iterator(std::next(&this->getAsUse()));
 }
 
 Keyword::iterator ClosedKeyword::args_end() {
@@ -119,7 +121,7 @@ llvm::iterator_range<Keyword::operand_iterator> ClosedKeyword::arg_operands() {
 }
 
 Keyword::operand_iterator ClosedKeyword::arg_ops_begin() {
-  return operand_iterator(this->getAsUse().getNext());
+  return operand_iterator(std::next(&this->getAsUse()));
 }
 
 Keyword::operand_iterator ClosedKeyword::arg_ops_end() {
@@ -132,7 +134,7 @@ llvm::Value &InputKeyword::getInput() const {
 }
 
 llvm::Use &InputKeyword::getInputAsUse() const {
-  return *this->getAsUse().getNext();
+  return *std::next(&this->getAsUse());
 }
 
 llvm::iterator_range<Keyword::iterator> InputKeyword::indices() {
@@ -140,7 +142,7 @@ llvm::iterator_range<Keyword::iterator> InputKeyword::indices() {
 }
 
 Keyword::iterator InputKeyword::indices_begin() {
-  return iterator(this->getAsUse().getNext());
+  return iterator(std::next(&this->getAsUse()));
 }
 
 Keyword::iterator InputKeyword::indices_end() {
@@ -152,7 +154,7 @@ llvm::iterator_range<Keyword::operand_iterator> InputKeyword::index_operands() {
 }
 
 Keyword::operand_iterator InputKeyword::index_ops_begin() {
-  return operand_iterator(this->getAsUse().getNext());
+  return operand_iterator(std::next(&this->getAsUse()));
 }
 
 Keyword::operand_iterator InputKeyword::index_ops_end() {
@@ -165,7 +167,7 @@ llvm::Value &RangeKeyword::getBegin() const {
 }
 
 llvm::Use &RangeKeyword::getBeginAsUse() const {
-  return *this->getAsUse().getNext();
+  return *std::next(&this->getAsUse());
 }
 
 llvm::Value &RangeKeyword::getEnd() const {
@@ -173,7 +175,7 @@ llvm::Value &RangeKeyword::getEnd() const {
 }
 
 llvm::Use &RangeKeyword::getEndAsUse() const {
-  return *this->getBeginAsUse().getNext();
+  return *std::next(&this->getBeginAsUse());
 }
 
 // ValueKeyword implementation
@@ -182,5 +184,5 @@ llvm::Value &ValueKeyword::getValue() const {
 }
 
 llvm::Use &ValueKeyword::getValueAsUse() const {
-  return *this->getAsUse().getNext();
+  return *std::next(&this->getAsUse());
 }

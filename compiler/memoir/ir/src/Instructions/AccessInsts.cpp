@@ -109,7 +109,7 @@ llvm::iterator_range<AccessInst::index_op_iterator> AccessInst::
 }
 
 AccessInst::index_op_iterator AccessInst::index_operands_begin() {
-  return index_op_iterator(this->getObjectAsUse().getNext());
+  return index_op_iterator(std::next(&this->getObjectAsUse()));
 }
 
 AccessInst::index_op_iterator AccessInst::index_operands_end() {
@@ -123,7 +123,7 @@ llvm::iterator_range<AccessInst::const_index_op_iterator> AccessInst::
 }
 
 AccessInst::const_index_op_iterator AccessInst::index_operands_begin() const {
-  return const_index_op_iterator(this->getObjectAsUse().getNext());
+  return const_index_op_iterator(std::next(&this->getObjectAsUse()));
 }
 
 AccessInst::const_index_op_iterator AccessInst::index_operands_end() const {
