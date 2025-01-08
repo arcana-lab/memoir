@@ -77,9 +77,7 @@ HANDLE_READ_INST_(READ_PTR, MEMOIR_FUNC(read_ptr), ReadInst)
 HANDLE_READ_INST_(READ_STRUCT_REF, MEMOIR_FUNC(read_struct_ref), ReadInst)
 HANDLE_READ_INST_(READ_COLLECTION_REF, MEMOIR_FUNC(read_collection_ref), ReadInst)
 
-
-
-HANDLE_ACCESS_INST_(GET, MEMOIR_FUNC(get_collection), GetInst)
+HANDLE_ACCESS_INST_(GET, MEMOIR_FUNC(get), GetInst)
 
 /* Collection operations */
 HANDLE_INST_(DELETE, MEMOIR_FUNC(delete), DeleteInst)
