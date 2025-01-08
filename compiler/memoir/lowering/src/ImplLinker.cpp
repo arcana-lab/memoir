@@ -11,6 +11,48 @@
 
 namespace llvm::memoir {
 
+namespace detail {
+void register_default_implementations() {
+  Implementation::define(
+      { Implementation( // std::vector<T>
+            SEQ_IMPL,
+            SequenceType::get(TypeVariable::get())),
+
+        Implementation( // std::unordered_map<T, U>
+            ASSOC_IMPL,
+            AssocType::get(TypeVariable::get(), TypeVariable::get())),
+
+        Implementation( // std::unordered_set<T>
+            SET_IMPL,
+            AssocType::get(TypeVariable::get(), VoidType::get()))
+
+      });
+}
+} // namespace detail
+
+ImplLinker::ImplLinker(llvm::Module &M) : M(M) {
+  // Register the default implementations.
+  detail::register_default_implementations();
+}
+
+const Implementation &ImplLinker::get_default_implementation(
+    CollectionType &type) {
+
+  if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
+    return MEMOIR_SANITIZE(
+        Implementation::lookup(SEQ_IMPL),
+        "Failed to find the default sequence implementation");
+  } else if (auto *assoc_type = dyn_cast<AssocType>(&type)) {
+    if (isa<VoidType>(assoc_type->getElementType())) {
+      return MEMOIR_SANITIZE(Implementation::lookup(SET_IMPL),
+                             "Failed to find the default set implementation");
+    } else {
+      return MEMOIR_SANITIZE(Implementation::lookup(ASSOC_IMPL),
+                             "Failed to find the default assoc implementation");
+    }
+  }
+}
+
 std::string ImplLinker::get_implementation_name(llvm::Instruction &I,
                                                 CollectionType &type) {
 
@@ -67,6 +109,78 @@ std::string ImplLinker::get_implementation_prefix(llvm::Instruction &I,
     return prefix;
 
   } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
+    // Unpack the sequence type.
+    auto &element_type = seq_type->getElementType();
+    auto element_code = element_type.get_code();
+
+    // Construct the function prefix.
+    auto prefix = *element_code + "_" + implementation;
+
+    return prefix;
+
+  } else {
+    MEMOIR_UNREACHABLE("Unhandled collection type.");
+  }
+}
+
+std::string ImplLinker::get_implementation_name(StructType &type,
+                                                unsigned field) {
+
+  if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {
+    // Unpack the assoc type.
+    auto &key_type = assoc_type->getKeyType();
+    auto &value_type = assoc_type->getValueType();
+
+    // Check for selection metadata.
+    auto selection = Metadata::get<SelectionMetadata>(I);
+
+    // Get the implementation ID.
+    auto implementation = selection.has_value() ? selection->getImplementation()
+                          : isa<VoidType>(&value_type) ? SET_IMPL
+                                                       : ASSOC_IMPL;
+
+    return implementation;
+
+  } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
+    // Unpack the sequence type.
+    auto &element_type = seq_type->getElementType();
+
+    // Check for selection metadata.
+    auto selection = Metadata::get<SelectionMetadata>(I);
+
+    // Get the implementation name.
+    auto implementation =
+        selection.has_value() ? selection->getImplementation() : SEQ_IMPL;
+
+    return implementation;
+
+  } else {
+    MEMOIR_UNREACHABLE("Unknown CollectionType");
+  }
+}
+
+std::string ImplLinker::get_implementation_prefix(StructType &type,
+                                                  unsigned field) {
+
+  // Get the implementation name.
+  auto implementation = ImplLinker::get_implementation_name(type, field);
+
+  auto &field_type = type.getFieldType(field);
+
+  if (auto *assoc_type = dyn_cast<AssocArrayType>(&field_type)) {
+    // Unpack the assoc type.
+    auto &key_type = assoc_type->getKeyType();
+    auto &value_type = assoc_type->getValueType();
+
+    auto key_code = key_type.get_code();
+    auto value_code = value_type.get_code();
+
+    // Construct the function prefix.
+    auto prefix = *key_code + "_" + *value_code + "_" + implementation;
+
+    return prefix;
+
+  } else if (auto *seq_type = dyn_cast<SequenceType>(&field_type)) {
     // Unpack the sequence type.
     auto &element_type = seq_type->getElementType();
     auto element_code = element_type.get_code();

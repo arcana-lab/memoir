@@ -18,7 +18,10 @@ namespace llvm::memoir {
 
 class ImplLinker {
 public:
-  ImplLinker(llvm::Module &M) : M(M) {}
+  /**
+   * Construt a new ImplLinker for the given LLVM module.
+   */
+  ImplLinker(llvm::Module &M);
   ~ImplLinker() {}
 
   /**
@@ -40,6 +43,33 @@ public:
    */
   static std::string get_implementation_prefix(llvm::Instruction &I,
                                                CollectionType &type);
+
+  /**
+   * Get the name of the implementation for the given field.
+   *
+   * @param type the struct type
+   * @param field the field index
+   * @returns the implementation name as a string
+   */
+  static std::string get_implementation_name(StructType &type, unsigned field);
+
+  /**
+   * Get the implementation's function prefix for the given field.
+   *
+   * @param type the struct type
+   * @param field the field index
+   * @returns the implementation's function prefix as a string
+   */
+  static std::string get_implementation_prefix(StructType &type,
+                                               unsigned field);
+
+  /**
+   * Get the default implementation for the given type.
+   *
+   * @param type of the collection
+   * @returns the default implementation
+   */
+  static const Implementation &get_default_implementation(CollectionType &type);
 
   void implement_seq(std::string impl_name, TypeLayout &element_type_layout);
 
