@@ -221,24 +221,15 @@ Type *TypeChecker::visitStructTypeInst(StructTypeInst &I) {
       "Could not find a definition for the given struct type name");
 }
 
-Type *TypeChecker::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
-  // Get the length of dimensions.
-  auto num_dimensions = I.getNumberOfDimensions();
-
-  vector<size_t> length_of_dimensions;
-  length_of_dimensions.resize(num_dimensions);
-
-  for (unsigned dim_idx = 0; dim_idx < num_dimensions; dim_idx++) {
-    length_of_dimensions[dim_idx] = I.getLengthOfDimension(dim_idx);
-  }
-
+Type *TypeChecker::visitArrayTypeInst(ArrayTypeInst &I) {
   // Get the element type.
-  auto &elem_type =
-      MEMOIR_SANITIZE(this->analyze(I.getElementTypeOperand()),
-                      "Could not determine element of StaticTensorType");
+  auto &elem_type = MEMOIR_SANITIZE(this->analyze(I.getElementTypeOperand()),
+                                    "Could not determine element of ArrayType");
+
+  auto &length = I.getLength();
 
   // Build the new type.
-  auto &type = Type::get_static_tensor_type(elem_type, length_of_dimensions);
+  auto &type = Type::get_static_tensor_type(elem_type, length);
 
   return &type;
 }

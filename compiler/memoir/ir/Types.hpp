@@ -28,7 +28,7 @@ enum class TypeCode {
   REFERENCE,
   STRUCT,
   FIELD_ARRAY,
-  STATIC_TENSOR,
+  ARRAY,
   TENSOR,
   ASSOC_ARRAY,
   SEQUENCE,
@@ -44,7 +44,7 @@ struct VoidType;
 struct ReferenceType;
 struct StructType;
 struct FieldArrayType;
-struct StaticTensorType;
+struct ArrayType;
 struct TensorType;
 struct AssocArrayType;
 struct SequenceType;
@@ -76,9 +76,7 @@ public:
   static StructType &get_struct_type(std::string name);
   static FieldArrayType &get_field_array_type(StructType &type,
                                               unsigned field_index);
-  static StaticTensorType &get_static_tensor_type(
-      Type &element_type,
-      vector<size_t> dimension_lengths);
+  static ArrayType &get_array_type(Type &element_type, size_t length);
   static TensorType &get_tensor_type(Type &element_type,
                                      unsigned num_dimensions);
   static AssocArrayType &get_assoc_array_type(Type &key_type, Type &value_type);
@@ -280,7 +278,7 @@ public:
       default:
         return false;
       case TypeCode::FIELD_ARRAY:
-      case TypeCode::STATIC_TENSOR:
+      case TypeCode::ARRAY:
       case TypeCode::TENSOR:
       case TypeCode::SEQUENCE:
       case TypeCode::ASSOC_ARRAY:
@@ -321,31 +319,26 @@ protected:
   FieldArrayType(StructType &struct_type, unsigned field_index);
 };
 
-struct StaticTensorType : public CollectionType {
+struct ArrayType : public CollectionType {
 public:
-  static StaticTensorType &get(Type &element_type,
-                               vector<size_t> length_of_dimensions);
+  static ArrayType &get(Type &element_type, size_t length);
 
   Type &getElementType() const override;
-  unsigned getNumberOfDimensions() const;
-  size_t getLengthOfDimension(unsigned dimension_index) const;
+  size_t getLength() const;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::STATIC_TENSOR);
+    return (T->getCode() == TypeCode::ARRAY);
   }
 
   std::string toString(std::string indent = "") const override;
 
 protected:
   Type &element_type;
-  unsigned number_of_dimensions;
-  vector<size_t> length_of_dimensions;
+  size_t length;
 
-  StaticTensorType(Type &element_type,
-                   unsigned number_of_dimensions,
-                   vector<size_t> length_of_dimensions);
+  ArrayType(Type &element_type, size_t length);
 
-  static ordered_multimap<Type *, StaticTensorType *> *static_tensor_types;
+  static ordered_multimap<Type *, ArrayType *> *array_types;
 };
 
 struct TensorType : public CollectionType {

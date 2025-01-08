@@ -102,7 +102,7 @@ protected:
   Type *visitReferenceTypeInst(ReferenceTypeInst &I);
   Type *visitDefineStructTypeInst(DefineStructTypeInst &I);
   Type *visitStructTypeInst(StructTypeInst &I);
-  Type *visitStaticTensorTypeInst(StaticTensorTypeInst &I);
+  Type *visitArrayTypeInst(ArrayTypeInst &I);
   Type *visitAssocArrayTypeInst(AssocArrayTypeInst &I);
   Type *visitSequenceTypeInst(SequenceTypeInst &I);
   //// Allocation instructions

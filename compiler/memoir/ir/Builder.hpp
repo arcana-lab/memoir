@@ -107,8 +107,8 @@ public:
       return this->CreateStructTypeInst(name_global, name);
     } else if (auto *field_array_type = dyn_cast<FieldArrayType>(&type)) {
       return this->CreateTypeInst(field_array_type->getStructType());
-    } else if (auto *static_tensor_type = dyn_cast<StaticTensorType>(&type)) {
-      MEMOIR_UNREACHABLE("CreateStaticTensorType is unimplemented!");
+    } else if (auto *array_type = dyn_cast<ArrayType>(&type)) {
+      MEMOIR_UNREACHABLE("CreateArrayType is unimplemented!");
     } else if (auto *tensor_type = dyn_cast<TensorType>(&type)) {
       MEMOIR_UNREACHABLE("CreateTensorType is unimplemented!");
     } else if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {

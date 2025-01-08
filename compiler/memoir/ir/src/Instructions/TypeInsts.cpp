@@ -221,57 +221,28 @@ OPERAND(StructTypeInst, NameOperand, 0)
 TO_STRING(StructTypeInst)
 
 /*
- * StaticTensorType implementation
+ * ArrayType implementation
  */
-GET_TYPE_IMPL(StaticTensorTypeInst)
+GET_TYPE_IMPL(ArrayTypeInst)
 
-Type &StaticTensorTypeInst::getElementType() const {
+Type &ArrayTypeInst::getElementType() const {
   auto type = type_of(this->getElementTypeOperand());
-  MEMOIR_NULL_CHECK(type,
-                    "Could not determine element type of StaticTensorTypeInst");
+  MEMOIR_NULL_CHECK(type, "Could not determine element type of ArrayTypeInst");
   return *type;
 }
 
-OPERAND(StaticTensorTypeInst, ElementTypeOperand, 0)
+OPERAND(ArrayTypeInst, ElementTypeOperand, 0)
 
-unsigned StaticTensorTypeInst::getNumberOfDimensions() const {
-  auto &dims_value = this->getNumberOfDimensionsOperand();
-
-  auto dims_const = dyn_cast<llvm::ConstantInt>(&dims_value);
-  MEMOIR_NULL_CHECK(
-      dims_const,
-      "Number of dimensions passed to StaticTensorType is non-static");
-
-  auto num_dims = dims_const->getZExtValue();
-  MEMOIR_ASSERT(
-      (num_dims <= std::numeric_limits<unsigned>::max()),
-      "Number of dimensions is larger than maximum value of unsigned");
-
-  return num_dims;
+size_t ArrayTypeInst::getLength() const {
+  auto &value = this->getLengthOperand();
+  auto &constant = MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(&value),
+                                   "ArrayType length is not statically known!");
+  return constant.getZExtValue();
 }
 
-OPERAND(StaticTensorTypeInst, NumberOfDimensionsOperand, 1)
+OPERAND(ArrayTypeInst, LengthOperand, 1)
 
-size_t StaticTensorTypeInst::getLengthOfDimension(
-    unsigned dimension_index) const {
-  auto &length_value = this->getLengthOfDimensionOperand(dimension_index);
-
-  auto length_const = dyn_cast<llvm::ConstantInt>(&length_value);
-  MEMOIR_NULL_CHECK(
-      length_const,
-      "Attempt to create a static tensor type of non-static length");
-
-  auto length = length_const->getZExtValue();
-  MEMOIR_ASSERT(
-      (length < std::numeric_limits<size_t>::max()),
-      "Attempt to create static tensor type larger than maximum value of size_t");
-
-  return length;
-}
-
-VAR_OPERAND(StaticTensorTypeInst, LengthOfDimensionOperand, 2)
-
-TO_STRING(StaticTensorTypeInst)
+TO_STRING(ArrayTypeInst)
 
 /*
  * AssocArrayType implementation

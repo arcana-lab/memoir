@@ -36,22 +36,7 @@ type_ref MEMOIR_FUNC(struct_type)(const char *name) {
 
 // Collection types.
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(static_tensor_type)(type_ref type,
-                                         uint64_t num_dimensions,
-                                         ...) {
-  std::vector<uint64_t> length_of_dimensions;
-
-  va_list args;
-
-  va_start(args, num_dimensions);
-
-  for (int i = 0; i < num_dimensions; i++) {
-    auto arg = va_arg(args, uint64_t);
-    length_of_dimensions.push_back(arg);
-  }
-
-  va_end(args);
-
+type_ref MEMOIR_FUNC(array_type)(type_ref type, size_t length) {
   return SequenceType::get(type);
 }
 

@@ -198,48 +198,32 @@ FieldArrayType &FieldArrayType::get(StructType &struct_type,
 map<StructType *, map<unsigned, FieldArrayType *>>
     *FieldArrayType::struct_to_field_array = nullptr;
 
-// StaticTensorType getter.
-StaticTensorType &Type::get_static_tensor_type(Type &element_type,
-                                               vector<size_t> dimension_sizes) {
-  return StaticTensorType::get(element_type, dimension_sizes);
+// ArrayType getter.
+ArrayType &Type::get_array_type(Type &element_type, size_t length) {
+  return ArrayType::get(element_type, dimension_sizes);
 }
 
-StaticTensorType &StaticTensorType::get(Type &element_type,
-                                        vector<size_t> dimension_sizes) {
-  if (StaticTensorType::static_tensor_types == nullptr) {
-    StaticTensorType::static_tensor_types =
-        new ordered_multimap<Type *, StaticTensorType *>();
+ArrayType &ArrayType::get(Type &element_type, size_t length) {
+  if (ArrayType::array_types == nullptr) {
+    ArrayType::array_types = new ordered_multimap<Type *, ArrayType *>();
   }
 
-  auto existing_types =
-      StaticTensorType::static_tensor_types->equal_range(&element_type);
+  auto existing_types = ArrayTypes::array_types->equal_range(&element_type);
   for (auto it = existing_types.first; it != existing_types.second; ++it) {
     auto *existing_type = it->second;
-    auto num_dimensions = existing_type->getNumberOfDimensions();
-    if (num_dimensions != dimension_sizes.size()) {
-      continue;
-    }
 
-    for (unsigned dim_index = 0; dim_index < num_dimensions; ++dim_index) {
-      if (existing_type->getLengthOfDimension(dim_index)
-          != dimension_sizes[dim_index]) {
-        continue;
-      }
+    if (existing_type->getLength() == length) {
+      return *existing_type;
     }
-
-    return *(existing_type);
   }
 
-  auto *type = new StaticTensorType(element_type,
-                                    dimension_sizes.size(),
-                                    dimension_sizes);
-  *StaticTensorType::static_tensor_types->insert({ &element_type, type });
+  auto *type = new ArrayType(element_type, length);
+  ArrayType::array_types->insert({ &element_type, type });
 
   return *type;
 }
 
-ordered_multimap<Type *, StaticTensorType *>
-    *StaticTensorType::static_tensor_types = nullptr;
+ordered_multimap<Type *, ArrayType *> *ArrayType::array_types = nullptr;
 
 // TensorType getter.
 TensorType &Type::get_tensor_type(Type &element_type, unsigned num_dimensions) {
@@ -706,42 +690,26 @@ std::string FieldArrayType::toString(std::string indent) const {
 }
 
 /*
- * StaticTensorType implementation
+ * ArrayType implementation
  */
-StaticTensorType::StaticTensorType(Type &element_type,
-                                   unsigned number_of_dimensions,
-                                   vector<size_t> length_of_dimensions)
-  : CollectionType(TypeCode::STATIC_TENSOR),
+ArrayType::ArrayType(Type &element_type, size_t length)
+  : CollectionType(TypeCode::ARRAY),
     element_type(element_type),
-    number_of_dimensions(number_of_dimensions),
-    length_of_dimensions(length_of_dimensions) {
-  // Do nothing.
-}
+    length(length) {}
 
-Type &StaticTensorType::getElementType() const {
+Type &ArrayType::getElementType() const {
   return this->element_type;
 }
 
-unsigned StaticTensorType::getNumberOfDimensions() const {
-  return this->number_of_dimensions;
+size_t ArrayType::getLength() const {
+  return this->length;
 }
 
-size_t StaticTensorType::getLengthOfDimension(unsigned dimension_index) const {
-  MEMOIR_ASSERT(
-      (dimension_index < this->getNumberOfDimensions()),
-      "Attempt to get length of out-of-range dimension index for static tensor type");
-
-  return this->length_of_dimensions.at(dimension_index);
-}
-
-std::string StaticTensorType::toString(std::string indent) const {
+std::string ArrayType::toString(std::string indent) const {
   std::string str;
 
-  str = "(static-tensor " + this->element_type.toString(indent);
-  for (size_t dim = 0; dim < this->length_of_dimensions.size(); dim++) {
-    str += " " + std::to_string(this->length_of_dimensions.at(dim));
-  }
-  str += ")";
+  str = "(" + this->element_type.toString(indent) + "x"
+        + std::to_string(this->length) + ")";
 
   return str;
 }

@@ -44,11 +44,10 @@ __RUNTIME_ATTR type_ref MEMOIR_FUNC(define_struct_type)(const char *name,
 __RUNTIME_ATTR
 type_ref MEMOIR_FUNC(struct_type)(const char *name);
 
-// Static-length Tensor Type
+// Static-length Array Type
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(static_tensor_type)(const type_ref element_type,
-                                         uint64_t num_dimensions,
-                                         ...);
+type_ref MEMOIR_FUNC(array_type)(const type_ref element_type, size_t length);
+
 // Collection Types
 __RUNTIME_ATTR
 type_ref MEMOIR_FUNC(assoc_array_type)(const type_ref key_type,

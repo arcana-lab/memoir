@@ -405,27 +405,26 @@ protected:
   friend struct MemOIRInst;
 };
 
-struct StaticTensorTypeInst : public TypeInst {
+struct ArrayTypeInst : public TypeInst {
 public:
   Type &getType() const override;
+
   Type &getElementType() const;
   llvm::Value &getElementTypeOperand() const;
   llvm::Use &getElementTypeOperandAsUse() const;
-  unsigned getNumberOfDimensions() const;
-  llvm::Value &getNumberOfDimensionsOperand() const;
-  llvm::Use &getNumberOfDimensionsOperandAsUse() const;
-  size_t getLengthOfDimension(unsigned dimension_index) const;
-  llvm::Value &getLengthOfDimensionOperand(unsigned dimension_index) const;
-  llvm::Use &getLengthOfDimensionOperandAsUse(unsigned dimension_index) const;
+
+  size_t getLength() const;
+  llvm::Value &getLengthOperand() const;
+  llvm::Use &getLengthOperandAsUse() const;
 
   static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::STATIC_TENSOR_TYPE);
+    return (I->getKind() == MemOIR_Func::ARRAY_TYPE);
   };
 
   std::string toString(std::string indent = "") const override;
 
 protected:
-  StaticTensorTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
+  ArrayTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
@@ -583,6 +582,9 @@ protected:
   friend struct MemOIRInst;
 };
 
+/**
+ * GetInst is unstable!
+ */
 struct GetInst : public AccessInst {
 public:
   llvm::Value &getNestedObject() const;
