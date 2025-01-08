@@ -447,11 +447,11 @@ Type *TypeChecker::visitLLVMCallInst(llvm::CallInst &I) {
 
 // Union-find
 TypeVariable &TypeChecker::new_type_variable() {
-  auto *typevar = new TypeVariable(this->current_id++);
+  auto &typevar = TypeVariable::get();
 
-  this->type_bindings[typevar] = typevar;
+  this->type_bindings[&typevar] = &typevar;
 
-  return *typevar;
+  return typevar;
 }
 
 Type *TypeChecker::find(Type *t) {

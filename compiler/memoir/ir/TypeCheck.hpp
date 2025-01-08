@@ -29,38 +29,6 @@
 
 namespace llvm::memoir {
 
-/**
- * A type variable used for unification.
- */
-struct TypeVariable : public Type {
-public:
-  using TypeID = uint64_t;
-
-  // Constructor
-  TypeVariable(TypeID id) : Type(TypeCode::OTHER), id(id) {}
-
-  // Equality.
-  bool operator==(Type &T) const {
-    if (auto *tvar = dyn_cast<TypeVariable>(&T)) {
-      return tvar->id == this->id;
-    }
-    return false;
-  }
-
-  // This class will only be used in the context of the base types and
-  // itself, so it is the only one that follows "other".
-  static bool classof(const Type *t) {
-    return (t->getCode() == TypeCode::OTHER);
-  }
-
-  std::string toString(std::string indent = "") const override {
-    return "typevar(" + std::to_string(this->id) + ")";
-  }
-
-protected:
-  TypeID id;
-}; // namespace llvm::memoir
-
 /*
  * Type Analysis
  *

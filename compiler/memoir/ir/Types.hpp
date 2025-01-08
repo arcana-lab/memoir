@@ -32,6 +32,7 @@ enum class TypeCode {
   TENSOR,
   ASSOC_ARRAY,
   SEQUENCE,
+  VARIABLE,
   OTHER, // A special code for extensibility
 };
 
@@ -411,6 +412,43 @@ protected:
   static map<Type *, SequenceType *> *sequence_types;
 
   SequenceType(Type &element_type);
+};
+
+/**
+ * A type variable used for unification.
+ */
+struct TypeVariable : public Type {
+public:
+  using TypeID = uint64_t;
+
+  static TypeVariable &get() {
+    static TypeID id = 0;
+    auto *var = new TypeVariable(id++);
+    return *var;
+  }
+
+  // Equality.
+  bool operator==(Type &T) const {
+    if (auto *tvar = dyn_cast<TypeVariable>(&T)) {
+      return tvar->id == this->id;
+    }
+    return false;
+  }
+
+  // This class will only be used in the context of the base types and
+  // itself, so it is the only one that follows "other".
+  static bool classof(const Type *t) {
+    return (t->getCode() == TypeCode::OTHER);
+  }
+
+  std::string toString(std::string indent = "") const override {
+    return "typevar(" + std::to_string(this->id) + ")";
+  }
+
+protected:
+  TypeVariable(TypeID id) : Type(TypeCode::VARIABLE), id(id) {}
+
+  TypeID id;
 };
 
 /**
