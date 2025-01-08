@@ -37,9 +37,11 @@ collection_ref qsort(collection_ref seq, size_t start, size_t end) {
 
   // Perform insertion sort for n < 3
   if (n == 2) {
-    if (memoir_index_read(u32, seq, start)
-        > memoir_index_read(u32, seq, end - 1)) {
-      memoir_seq_swap_within(seq, start, end - 1);
+    auto left = memoir_index_read(u32, seq, start);
+    auto right = memoir_index_read(u32, seq, end - 1);
+    if (left > right) {
+      memoir_index_write(u32, right, seq, start);
+      memoir_index_write(u32, left, seq, end - 1);
     }
     return seq;
   }
@@ -48,7 +50,11 @@ collection_ref qsort(collection_ref seq, size_t start, size_t end) {
   auto p = n / 2 + start;
 
   // Move pivot.
-  memoir_seq_swap_within(seq, start, p);
+  {
+    auto tmp = memoir_index_read(u32, seq, start);
+    memoir_index_write(u32, memoir_index_read(u32, seq, p), seq, start);
+    memoir_index_write(u32, tmp, seq, p);
+  }
 
   // Get the pivot value.
   auto pv = memoir_index_read(u32, seq, start);
@@ -70,7 +76,10 @@ collection_ref qsort(collection_ref seq, size_t start, size_t end) {
       }
     }
     if (l < r) {
-      memoir_seq_swap_within(seq, l, r);
+      auto tmp = memoir_index_read(u32, seq, l);
+      memoir_index_write(u32, memoir_index_read(u32, seq, r), seq, l);
+      memoir_index_write(u32, tmp, seq, r);
+
     } else {
       break;
     }
@@ -78,7 +87,11 @@ collection_ref qsort(collection_ref seq, size_t start, size_t end) {
 
   // Move the pivot back into place.
   p = r;
-  memoir_seq_swap_within(seq, start, p);
+  {
+    auto tmp = memoir_index_read(u32, seq, start);
+    memoir_index_write(u32, memoir_index_read(u32, seq, p), seq, start);
+    memoir_index_write(u32, tmp, seq, p);
+  }
 
   // Recurse.
   seq = qsort(seq, start, r);
@@ -148,7 +161,7 @@ int main(int argc, char *argv[]) {
     memoir_index_write(u64, VAL5, seq2, 1);
 
     if (argc > 1) {
-      memoir_seq_insert_range(seq2, seq, 2);
+      memoir_insert(seq, 2, memoir_input(seq2));
     }
 
     if (argc > 1) {
@@ -179,7 +192,7 @@ int main(int argc, char *argv[]) {
     memoir_index_write(u64, VAL4, seq2, 0);
     memoir_index_write(u64, VAL5, seq2, 1);
 
-    memoir_seq_insert_range(seq2, seq, 2);
+    memoir_insert(seq, 2, memoir_input(seq2));
 
     EXPECT(memoir_index_read(u64, seq, 0) == VAL0, "seq[0] differs!");
     EXPECT(memoir_index_read(u64, seq, 1) == VAL1, "seq[1] differs!");
@@ -199,65 +212,13 @@ int main(int argc, char *argv[]) {
     memoir_index_write(u64, VAL4, seq, 4);
     memoir_index_write(u64, VAL5, seq, 5);
 
-    memoir_seq_remove(seq, 3);
+    memoir_remove(seq, 3);
 
     EXPECT(memoir_index_read(u64, seq, 0) == VAL0, "seq[0] differs!");
     EXPECT(memoir_index_read(u64, seq, 1) == VAL1, "seq[1] differs!");
     EXPECT(memoir_index_read(u64, seq, 2) == VAL2, "seq[2] differs!");
     EXPECT(memoir_index_read(u64, seq, 3) == VAL4, "seq[3] differs!");
     EXPECT(memoir_index_read(u64, seq, 4) == VAL5, "seq[4] differs!");
-  }
-
-  TEST(swap) {
-    auto *seq = memoir_allocate_sequence(memoir_u64_t, 4);
-
-    memoir_index_write(u64, VAL0, seq, 0);
-    memoir_index_write(u64, VAL1, seq, 1);
-    memoir_index_write(u64, VAL2, seq, 2);
-    memoir_index_write(u64, VAL3, seq, 3);
-
-    memoir_seq_swap(seq, 0, seq, memoir_size(seq) - 1);
-
-    EXPECT(memoir_index_read(u64, seq, 0) == VAL3, "seq[0] differs!");
-    EXPECT(memoir_index_read(u64, seq, 1) == VAL1, "seq[1] differs!");
-    EXPECT(memoir_index_read(u64, seq, 2) == VAL2, "seq[2] differs!");
-    EXPECT(memoir_index_read(u64, seq, 3) == VAL0, "seq[3] differs!");
-  }
-
-  TEST(sequence_ref) {
-    auto *obj0 = memoir_allocate_struct(type);
-    memoir_struct_write(u32, rand(), obj0, 0);
-    memoir_struct_write(u32, VAL0_1, obj0, 1);
-
-    auto *obj1 = memoir_allocate_struct(type);
-    memoir_struct_write(u32, rand(), obj1, 0);
-    memoir_struct_write(u32, VAL1_1, obj1, 1);
-
-    auto *obj2 = memoir_allocate_struct(type);
-    memoir_struct_write(u32, rand(), obj2, 0);
-    memoir_struct_write(u32, VAL2_1, obj2, 1);
-
-    auto seq = memoir_allocate_sequence(memoir_ref_t(type), 3);
-    memoir_index_write(struct_ref, obj0, seq, 0);
-    memoir_index_write(struct_ref, obj1, seq, 1);
-    memoir_index_write(struct_ref, obj2, seq, 2);
-
-    obj0 = memoir_index_read(struct_ref, seq, 0);
-    memoir_struct_write(u32, VAL0_0, obj0, 0);
-    obj1 = memoir_index_read(struct_ref, seq, 1);
-    memoir_struct_write(u32, VAL1_0, obj1, 0);
-    obj2 = memoir_index_read(struct_ref, seq, 2);
-    memoir_struct_write(u32, VAL2_0, obj2, 0);
-
-    obj0 = memoir_index_read(struct_ref, seq, 0);
-    EXPECT(memoir_struct_read(u32, obj0, 0) == VAL0_0, "[0].0 differs");
-    EXPECT(memoir_struct_read(u32, obj0, 1) == VAL0_1, "[0].1 differs");
-    obj1 = memoir_index_read(struct_ref, seq, 1);
-    EXPECT(memoir_struct_read(u32, obj1, 0) == VAL1_0, "[1].0 differs");
-    EXPECT(memoir_struct_read(u32, obj1, 1) == VAL1_1, "[1].1 differs");
-    obj2 = memoir_index_read(struct_ref, seq, 2);
-    EXPECT(memoir_struct_read(u32, obj2, 0) == VAL2_0, "[2].0 differs");
-    EXPECT(memoir_struct_read(u32, obj2, 1) == VAL2_1, "[2].1 differs");
   }
 
   TEST(sequence_struct) {
@@ -325,33 +286,25 @@ int main(int argc, char *argv[]) {
 
     auto seq = memoir_allocate_sequence(type, 3);
 
-    auto obj0 = memoir_index_get(struct, seq, 0);
-    memoir_struct_write(u32, VAL0_0, obj0, 0);
-    memoir_struct_write(u32, VAL0_1, obj0, 1);
-    auto obj1 = memoir_index_get(struct, seq, 1);
-    memoir_struct_write(u32, VAL1_0, obj1, 0);
-    memoir_struct_write(u32, VAL1_1, obj1, 1);
-    auto obj2 = memoir_index_get(struct, seq, 2);
-    memoir_struct_write(u32, VAL2_0, obj2, 0);
-    memoir_struct_write(u32, VAL2_1, obj2, 1);
+    memoir_write(u32, VAL0_0, seq, 0, 0);
+    memoir_write(u32, VAL0_1, seq, 0, 1);
+    memoir_write(u32, VAL1_0, seq, 1, 0);
+    memoir_write(u32, VAL1_1, seq, 1, 1);
+    memoir_write(u32, VAL2_0, seq, 2, 0);
+    memoir_write(u32, VAL2_1, seq, 2, 1);
 
-    memoir_seq_insert_elem(seq, 0);
+    memoir_insert(seq, 0);
 
-    obj0 = memoir_index_get(struct, seq, 0);
-    memoir_struct_write(u32, VAL3_0, obj0, 0);
-    memoir_struct_write(u32, VAL3_1, obj0, 1);
+    memoir_write(u32, VAL3_0, seq, 0, 0);
+    memoir_write(u32, VAL3_1, seq, 0, 1);
 
-    auto r0 = memoir_index_get(struct, seq, 0);
-    EXPECT(memoir_struct_read(u32, r0, 0) == VAL3_0, "[0].0 differs");
-    EXPECT(memoir_struct_read(u32, r0, 1) == VAL3_1, "[0].1 differs");
-    auto r1 = memoir_index_get(struct, seq, 1);
-    EXPECT(memoir_struct_read(u32, r1, 0) == VAL0_0, "[1].0 differs");
-    EXPECT(memoir_struct_read(u32, r1, 1) == VAL0_1, "[1].1 differs");
-    auto r2 = memoir_index_get(struct, seq, 2);
-    EXPECT(memoir_struct_read(u32, r2, 0) == VAL1_0, "[2].0 differs");
-    EXPECT(memoir_struct_read(u32, r2, 1) == VAL1_1, "[2].1 differs");
-    auto r3 = memoir_index_get(struct, seq, 3);
-    EXPECT(memoir_struct_read(u32, r3, 0) == VAL2_0, "[2].0 differs");
-    EXPECT(memoir_struct_read(u32, r3, 1) == VAL2_1, "[2].1 differs");
+    EXPECT(memoir_read(u32, seq, 0, 0) == VAL3_0, "[0].0 differs");
+    EXPECT(memoir_read(u32, seq, 0, 1) == VAL3_1, "[0].1 differs");
+    EXPECT(memoir_read(u32, seq, 1, 0) == VAL0_0, "[1].0 differs");
+    EXPECT(memoir_read(u32, seq, 1, 1) == VAL0_1, "[1].1 differs");
+    EXPECT(memoir_read(u32, seq, 2, 0) == VAL1_0, "[2].0 differs");
+    EXPECT(memoir_read(u32, seq, 2, 1) == VAL1_1, "[2].1 differs");
+    EXPECT(memoir_read(u32, seq, 3, 0) == VAL2_0, "[2].0 differs");
+    EXPECT(memoir_read(u32, seq, 3, 1) == VAL2_1, "[2].1 differs");
   }
 }
