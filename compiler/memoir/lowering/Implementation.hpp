@@ -57,6 +57,10 @@ public:
    */
   unsigned num_dimensions() const;
 
+  Implementation(std::string name, Type &type_template)
+    : name(name),
+      type_template(&type_template) {}
+
   std::string get_name() const {
     return this->name;
   }
@@ -66,14 +70,10 @@ public:
   }
 
 protected:
-  Implementation(std::string name, Type &type_template)
-    : name(name),
-      type_template(&type_template) {}
-
   std::string name;
   Type *type_template;
 
-  static map<std::string, Implementation> impls;
+  static map<std::string, Implementation> *impls;
 };
 
 } // namespace llvm::memoir

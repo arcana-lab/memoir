@@ -1,5 +1,7 @@
 #include "memoir/lowering/Implementation.hpp"
 
+namespace llvm::memoir {
+
 namespace detail {
 
 bool match(map<TypeVariable *, Type *> &environment,
@@ -7,7 +9,7 @@ bool match(map<TypeVariable *, Type *> &environment,
            Type &pattern) {
 
   // If these are the same type objects, they match.
-  if (&to_match == *pattern) {
+  if (&to_match == &pattern) {
     return true;
   }
 
@@ -35,8 +37,8 @@ bool match(map<TypeVariable *, Type *> &environment,
     auto *seq_to_match = cast<SequenceType>(&to_match);
 
     return match(environment,
-                 assoc_to_match->getElementType(),
-                 assoc->getElementType());
+                 seq_to_match->getElementType(),
+                 seq->getElementType());
   } else if (auto *assoc = dyn_cast<AssocType>(&pattern)) {
     auto *assoc_to_match = cast<AssocType>(&to_match);
 
@@ -57,7 +59,7 @@ bool Implementation::match(Type &to_match) const {
   return detail::match(environment, to_match, this->get_template());
 }
 
-unsigned num_dimensions() const {
+unsigned Implementation::num_dimensions() const {
   auto *type = &this->get_template();
 
   unsigned n;
@@ -69,3 +71,5 @@ unsigned num_dimensions() const {
 }
 
 map<std::string, Implementation> *Implementation::impls = nullptr;
+
+} // namespace llvm::memoir
