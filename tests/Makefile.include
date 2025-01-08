@@ -79,7 +79,7 @@ $(IR_FILE_OPT): $(IR_FILE_SSA)
 	@memoir-load $(OPTFLAGS) $< -o $@
 
 $(IR_FILE_LOWERED): $(IR_FILE_OPT)
-	@$(LOWER) $< -o $@
+	@$(LOWER) --disable-folio $< -o $@
 
 $(OBJ_FILE): $(IR_FILE)
 	@llc -filetype=obj $< -o $@
