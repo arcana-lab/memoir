@@ -17,13 +17,6 @@ namespace memoir {
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(defPHI)(const collection_ref in) {
-  return in;
-}
-
-__IMMUT_ATTR
-__ALLOC_ATTR
-__RUNTIME_ATTR
 collection_ref MEMOIR_FUNC(usePHI)(const collection_ref in) {
   return in;
 }
