@@ -431,7 +431,7 @@ public:
   // This class will only be used in the context of the base types and
   // itself, so it is the only one that follows "other".
   static bool classof(const Type *t) {
-    return (t->getCode() == TypeCode::OTHER);
+    return (t->getCode() == TypeCode::VARIABLE);
   }
 
   std::string toString(std::string indent = "") const override {
