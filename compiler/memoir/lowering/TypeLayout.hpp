@@ -392,18 +392,17 @@ protected:
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
 
-  TypeLayout &visitAssocArrayType(AssocArrayType &T) {
-    MEMOIR_UNREACHABLE("AssocArrayType is unimplemented!");
-    // CHECK_MEMOIZED(T);
+  TypeLayout &visitCollectionType(CollectionType &T) {
+    CHECK_MEMOIZED(T);
 
-    // MEMOIZE_AND_RETURN(T, llvm_type);
-  }
+    auto &ptr_type =
+        MEMOIR_SANITIZE(llvm::PointerType::get(this->C, /* AddressSpace = */ 0),
+                        "Failed to get LLVM pointer type!");
 
-  TypeLayout &visitSequenceType(SequenceType &T) {
-    MEMOIR_UNREACHABLE("SequenceType is unimplemented!");
-    // CHECK_MEMOIZED(T);
+    auto &type_layout = MEMOIR_SANITIZE(new TypeLayout(T, ptr_type),
+                                        "Failed to construct TypeLayout!");
 
-    // MEMOIZE_AND_RETURN(T, llvm_type);
+    MEMOIZE_AND_RETURN(T, type_layout);
   }
 
   // Owned state.
