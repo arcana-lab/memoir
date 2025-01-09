@@ -1,27 +1,30 @@
 #ifndef COMMON_ASSERT_H
 #define COMMON_ASSERT_H
-#pragma once
 
 #include <cassert>
 #include <cstdio>
 #include <string>
 #include <type_traits>
 
-#define _MEMOIR_ASSERT(c, msg, pretty_func, pretty_line)                       \
+#include "memoir/support/Print.hpp"
+
+namespace llvm::memoir {
+
+#define _MEMOIR_ASSERT(pretty_func, pretty_line, c, msg...)                    \
   if (!(c)) {                                                                  \
-    fprintf(stderr, "\n");                                                     \
-    fprintf(stderr, "\x1b[31m====================================\n");         \
-    fprintf(stderr, "\x1b[1;31mMemOIR Assert Failed!\x1b[0m\n");               \
-    fprintf(stderr, "  \x1b[1;33m%s\x1b[0m\n", msg);                           \
-    fprintf(stderr, "  in\x1b[1;35m %s\x1b[0m\n", pretty_func);                \
-    fprintf(stderr, "  at\x1b[1;35m %d\x1b[0m\n", pretty_line);                \
-    fprintf(stderr,                                                            \
-            "\x1b[31m====================================\x1b[0m\n\n");        \
+    println("\n");                                                             \
+    println("\x1b[31m====================================");                   \
+    println("\x1b[1;31mMemOIR Assert Failed!\x1b[0m");                         \
+    println("  \x1b[1;33m", msg, "\x1b[0m");                                   \
+    println("  in \x1b[1;35m", pretty_func, "\x1b[0m");                        \
+    println("  at \x1b[1;35m", pretty_line, "\x1b[0m");                        \
+    println("\x1b[31m====================================\x1b[0m");            \
+    println();                                                                 \
     assert(c);                                                                 \
   }
 
-#define MEMOIR_ASSERT(c, msg)                                                  \
-  _MEMOIR_ASSERT(c, msg, __PRETTY_FUNCTION__, __LINE__)
+#define MEMOIR_ASSERT(c, msg...)                                               \
+  _MEMOIR_ASSERT(__PRETTY_FUNCTION__, __LINE__, c, msg)
 
 #define MEMOIR_UNREACHABLE(msg) MEMOIR_ASSERT(false, msg)
 
@@ -40,5 +43,7 @@ sanitize(T t,
   _MEMOIR_ASSERT((t != nullptr), message, pretty_func, pretty_line);
   return *t;
 }
+
+} // namespace llvm::memoir
 
 #endif

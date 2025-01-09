@@ -1,6 +1,5 @@
 #ifndef MEMOIR_PRINT_H
 #define MEMOIR_PRINT_H
-#pragma once
 
 #include "llvm/IR/Value.h"
 
