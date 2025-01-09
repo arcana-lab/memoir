@@ -29,9 +29,8 @@ namespace memoir {
 /*
  * Derived types
  */
-#define memoir_static_tensor_type(element_type, ...)                           \
-  MEMOIR_FUNC(static_tensor_type)                                              \
-  (element_type, MEMOIR_NARGS(__VA_ARGS__), __VA_ARGS__)
+#define memoir_static_tensor_type(element_type, length)                        \
+  MEMOIR_FUNC(array_type)(element_type, (size_t)length)
 
 #define memoir_tensor_type(element_type, num_dimensions)                       \
   MEMOIR_FUNC(tensor_type)(element_type, num_dimensions)
@@ -145,7 +144,8 @@ namespace memoir {
 #define memoir_seq_insert_range(_to_insert, _obj, _indices...)                 \
   memoir_insert(_obj, _indices, memoir_input(_to_insert))
 
-#define memoir_seq_append(object, other) memoir_insert(object, other)
+#define memoir_seq_append(object, other)                                       \
+  memoir_insert(object, memoir_end(), memoir_input(other))
 
 // Removal operations.
 #define memoir_remove(_obj, _args...) MUT_FUNC(remove)(_obj, ##_args)
@@ -177,7 +177,7 @@ namespace memoir {
 #define memoir_assert_collection_type(type, object)                            \
   memoir_assert_type(type, object)
 
-#define memoir_return_type(type) MEMOIR_FUNC(set_return_type)(type)
+#define memoir_return_type(type) MEMOIR_FUNC(return_type)(type)
 #define memoir_return(type, object)                                            \
   memoir_return_type(type);                                                    \
   return object
