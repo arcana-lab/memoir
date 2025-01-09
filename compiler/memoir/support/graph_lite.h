@@ -1364,7 +1364,7 @@ private: // helpers for node search
             src_iv)
             << "\n";
       }
-      llvm::memoir::MEMOIR_ASSERT(false, "source node is not found");
+      MEMOIR_ASSERT(false, "source node is not found");
     }
     NeighborsContainerType &src_neighbors = [this, &src_pos]() -> auto & {
       if constexpr (is_out) {
