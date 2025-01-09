@@ -170,21 +170,19 @@ llvm::PreservedAnalyses TempArgReificationPass::run(
     auto *cloned_func = found_clone->second;
 
     if (fold) {
-      // Construct the list of arguments.
-      vector<llvm::Value *> new_closed(
-          fold->getNumberOfClosed() + stores.size(),
-          nullptr);
+      // Construct the list of arguments, initialize with the current closed
+      // arguments.
+      // [ closed... ]
+      vector<llvm::Value *> new_closed(fold->closed_begin(),
+                                       fold->closed_end());
 
-      // First, copy over the current list of arguments.
-      for (auto closed_idx = 0; closed_idx < fold->getNumberOfClosed();
-           ++closed_idx) {
-        auto *orig_arg = &fold->getClosed(closed_idx);
-        new_closed[closed_idx] = orig_arg;
-      }
-
-      unsigned arg_offset = (not fold->getElementArgument()) ? 2 : 3;
+      // Allocate space for the new arguments.
+      // [ closed..., null, ..., null]
+      new_closed.insert(new_closed.end(), stores.size(), nullptr);
 
       // Then we will replace each of the stores.
+      // [ closed..., store0, ..., storeN ]
+      unsigned arg_offset = (not fold->getElementArgument()) ? 2 : 3;
       for (auto *store : stores) {
         auto *ptr = store->getPointerOperand();
         auto *global = dyn_cast<llvm::GlobalVariable>(ptr);
@@ -209,7 +207,7 @@ llvm::PreservedAnalyses TempArgReificationPass::run(
       MemOIRBuilder builder(call);
       auto *new_fold = builder.CreateFoldInst(fold->getKind(),
                                               &fold->getInitial(),
-                                              &fold->getCollection(),
+                                              &fold->getObject(),
                                               cloned_func,
                                               new_closed);
       auto &new_call = new_fold->getCallInst();
