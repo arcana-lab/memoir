@@ -200,7 +200,7 @@ map<StructType *, map<unsigned, FieldArrayType *>>
 
 // ArrayType getter.
 ArrayType &Type::get_array_type(Type &element_type, size_t length) {
-  return ArrayType::get(element_type, dimension_sizes);
+  return ArrayType::get(element_type, length);
 }
 
 ArrayType &ArrayType::get(Type &element_type, size_t length) {
@@ -208,7 +208,7 @@ ArrayType &ArrayType::get(Type &element_type, size_t length) {
     ArrayType::array_types = new ordered_multimap<Type *, ArrayType *>();
   }
 
-  auto existing_types = ArrayTypes::array_types->equal_range(&element_type);
+  auto existing_types = ArrayType::array_types->equal_range(&element_type);
   for (auto it = existing_types.first; it != existing_types.second; ++it) {
     auto *existing_type = it->second;
 
@@ -340,7 +340,7 @@ bool Type::is_struct_type(Type &type) {
 
 bool Type::is_collection_type(Type &type) {
   switch (type.getCode()) {
-    case TypeCode::STATIC_TENSOR:
+    case TypeCode::ARRAY:
     case TypeCode::TENSOR:
     case TypeCode::ASSOC_ARRAY:
     case TypeCode::SEQUENCE:
