@@ -204,7 +204,6 @@ const char *MEMOIR_FUNC(keywords)[] = { MEMOIR_KEYWORD(closed),
                                         MEMOIR_KEYWORD(range),
                                         MEMOIR_KEYWORD(input),
                                         MEMOIR_KEYWORD(value) };
-#undef MEMOIR_KEYWORD
 
 } // namespace memoir
 
