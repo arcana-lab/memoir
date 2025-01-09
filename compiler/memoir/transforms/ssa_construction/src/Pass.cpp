@@ -79,7 +79,7 @@ bool use_is_mutating(llvm::Use &use) {
 
     // Only enable read instructions if UsePHIs are enabled.
     if (isa<ReadInst>(memoir_inst) or isa<GetInst>(memoir_inst)
-        or isa<AssocHasInst>(memoir_inst)) {
+        or isa<HasInst>(memoir_inst)) {
       if (not construct_use_phis) {
         return false;
       }
@@ -88,26 +88,19 @@ bool use_is_mutating(llvm::Use &use) {
     // If the value is closed on by the FoldInst, it will be redefined by
     // a RetPHI.
     if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
-      // If the fold has no closure, skip it.
-      auto num_closed = fold->getNumberOfClosed();
-      if (num_closed == 0) {
-        return false;
-      }
-      // If the fold use is out of the closed argument range, skip it.
-      if (fold->getClosedAsUse(0).getOperandNo() > use.getOperandNo()) {
-        return false;
-      }
-      // If there are no mutators for the corresponding argument in the
-      // fold body, skip it.
-      if (not detail::value_is_mutated(fold->getClosedArgument(use))) {
-        return false;
-      }
-    }
+      if (auto closed_kw = fold->getClosed()) {
+        // Check if the use is within the closed operand list.
+        if (use.getOperandNo() < closed_kw->getAsUse().getOperandNo()) {
+          return false;
+        }
 
-    if (auto *append_inst = dyn_cast<MutSeqAppendInst>(memoir_inst)) {
-      if (name != &append_inst->getCollection()) {
-        return false;
+        auto &closed_arg = fold->getClosedArgument(use);
+        if (detail::value_is_mutated(closed_arg)) {
+          return true;
+        }
       }
+
+      return false;
     }
 
     // If we made it this far, then the use is mutating.

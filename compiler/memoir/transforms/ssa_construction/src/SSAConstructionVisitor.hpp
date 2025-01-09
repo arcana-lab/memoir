@@ -36,37 +36,26 @@ public:
   void visitPHINode(llvm::PHINode &I);
   void visitLLVMCallInst(llvm::CallInst &I);
   void visitReturnInst(llvm::ReturnInst &I);
+
   // SSA operations
   void visitUsePHIInst(UsePHIInst &I);
-  void visitDefPHIInst(DefPHIInst &I);
   void visitArgPHIInst(ArgPHIInst &I);
   void visitRetPHIInst(RetPHIInst &I);
   void visitFoldInst(FoldInst &I);
   void visitClearInst(ClearInst &I);
-  // MUT Operationns
-  void visitMutClearInst(MutClearInst &I);
+
+  // MUT Operations
+
   // Access operations
-  void visitMutStructWriteInst(MutStructWriteInst &I);
-  void visitMutIndexWriteInst(MutIndexWriteInst &I);
-  void visitMutAssocWriteInst(MutAssocWriteInst &I);
-  void visitIndexReadInst(IndexReadInst &I);
-  void visitAssocReadInst(AssocReadInst &I);
-  void visitIndexGetInst(IndexGetInst &I);
-  void visitAssocGetInst(AssocGetInst &I);
-  // MUT Sequence operations
-  void visitMutSeqInsertInst(MutSeqInsertInst &I);
-  void visitMutSeqInsertValueInst(MutSeqInsertValueInst &I);
-  void visitMutSeqInsertSeqInst(MutSeqInsertSeqInst &I);
-  void visitMutSeqRemoveInst(MutSeqRemoveInst &I);
-  void visitMutSeqAppendInst(MutSeqAppendInst &I);
-  void visitMutSeqSwapInst(MutSeqSwapInst &I);
-  void visitMutSeqSwapWithinInst(MutSeqSwapWithinInst &I);
-  void visitMutSeqSplitInst(MutSeqSplitInst &I);
-  // SSA Assoc operations
-  void visitAssocHasInst(AssocHasInst &I);
-  // MUT Assoc operations
-  void visitMutAssocInsertInst(MutAssocInsertInst &I);
-  void visitMutAssocRemoveInst(MutAssocRemoveInst &I);
+  void visitHasInst(HasInst &I);
+  void visitReadInst(ReadInst &I);
+  void visitGetInst(GetInst &I);
+
+  // Update operations
+  void visitMutWriteInst(MutWriteInst &I);
+  void visitMutInsertInst(MutInsertInst &I);
+  void visitMutRemoveInst(MutRemoveInst &I);
+  void visitMutClearInst(MutClearInst &I);
 
   llvm::Value *update_reaching_definition(llvm::Value *variable,
                                           MemOIRInst &program_point);
@@ -86,6 +75,10 @@ public:
 
   void mark_for_cleanup(llvm::Instruction &I);
   void mark_for_cleanup(MemOIRInst &I);
+
+  void prepare_keywords(MemOIRBuilder &builder,
+                        MemOIRInst &I,
+                        Type *element_type = nullptr);
 
   void cleanup();
 
