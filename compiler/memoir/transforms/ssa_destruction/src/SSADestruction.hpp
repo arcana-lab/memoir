@@ -62,58 +62,37 @@ public:
   void visitInstruction(llvm::Instruction &I);
 
   // Allocation operations
-  void visitSequenceAllocInst(SequenceAllocInst &I);
-  void visitAssocArrayAllocInst(AssocArrayAllocInst &I);
-  void visitStructAllocInst(StructAllocInst &I);
+  void visitAllocInst(AllocInst &I);
 
   // Deallocation operationts
-  void visitDeleteCollectionInst(DeleteCollectionInst &I);
+  void visitDeleteInst(DeleteInst &I);
 
   // Access operations
-  //// Index accesses
-  void visitIndexReadInst(IndexReadInst &I);
-  void visitIndexWriteInst(IndexWriteInst &I);
-  void visitIndexGetInst(IndexGetInst &I);
-  //// Assoc accesses
-  void visitAssocReadInst(AssocReadInst &I);
-  void visitAssocWriteInst(AssocWriteInst &I);
-  void visitAssocGetInst(AssocGetInst &I);
-  void visitAssocHasInst(AssocHasInst &I);
-  //// Struct accesses
-  void visitStructReadInst(StructReadInst &I);
-  void visitStructWriteInst(StructWriteInst &I);
-  void visitStructGetInst(StructGetInst &I);
-
-  // Sequence operations
-  void visitSeqInsertInst(SeqInsertInst &I);
-  void visitSeqInsertValueInst(SeqInsertValueInst &I);
-  void visitSeqInsertSeqInst(SeqInsertSeqInst &I);
-  void visitSeqRemoveInst(SeqRemoveInst &I);
-  void visitSeqCopyInst(SeqCopyInst &I);
-  void visitSeqSwapInst(SeqSwapInst &I);
-  void visitSeqSwapWithinInst(SeqSwapWithinInst &I);
-
-  // Assoc operations
-  void visitAssocInsertInst(AssocInsertInst &I);
-  void visitAssocRemoveInst(AssocRemoveInst &I);
-  void visitAssocKeysInst(AssocKeysInst &I);
-
-  // SSA collection operations
-  void visitUsePHIInst(UsePHIInst &I);
-  void visitDefPHIInst(DefPHIInst &I);
-  void visitArgPHIInst(ArgPHIInst &I);
-  void visitRetPHIInst(RetPHIInst &I);
+  void visitReadInst(ReadInst &I);
+  void visitGetInst(GetInst &I);
+  void visitCopyInst(CopyInst &I);
+  void visitKeysInst(KeysInst &I);
   void visitSizeInst(SizeInst &I);
-  void visitEndInst(EndInst &I);
   void visitFoldInst(FoldInst &I);
   void visitClearInst(ClearInst &I);
 
+  // Update operations
+  void visitWriteInst(WriteInst &I);
+  void visitInsertInst(InsertInst &I);
+  void visitRemoveInst(RemoveInst &I);
+
+  // SSA collection operations
+  void visitUsePHIInst(UsePHIInst &I);
+  void visitArgPHIInst(ArgPHIInst &I);
+  void visitRetPHIInst(RetPHIInst &I);
+
+  // Other operations
+  void visitEndInst(EndInst &I);
+
   // Typechecking
   void visitTypeInst(TypeInst &I);
-  void visitAssertCollectionTypeInst(AssertCollectionTypeInst &I);
-  void visitAssertStructTypeInst(AssertStructTypeInst &I);
+  void visitAssertTypeInst(AssertTypeInst &I);
   void visitReturnTypeInst(ReturnTypeInst &I);
-  void visitPropertyInst(PropertyInst &I);
 
   void do_coalesce(llvm::Value &V);
 

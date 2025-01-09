@@ -8,6 +8,7 @@
 #include "memoir/support/Print.hpp"
 
 #include "memoir/lowering/ImplLinker.hpp"
+#include "memoir/lowering/Implementation.hpp"
 #include "memoir/lowering/TypeLayout.hpp"
 
 #include "memoir/lowering/LowerFold.hpp"
@@ -17,6 +18,61 @@
 namespace llvm::memoir {
 
 namespace detail {
+
+/**
+ * Fetch the Implementation from either the selection metadata or the type if no
+ * metadata exists.
+ */
+static const Implementation &get_implementation(
+    const std::optional<std::string> &selection,
+    CollectionType &type) {
+
+  // Lookup the selection, if we were given one.
+  if (selection.has_value()) {
+    return MEMOIR_SANITIZE(
+        Implementation::lookup(selection.value()),
+        "Requested implementation has not been registered with the compiler!");
+  }
+
+  // Otherwise, get the default implementation.
+  return ImplLinker::get_default_implementation(type);
+}
+
+static std::string get_implementation_prefix(const Implementation &impl,
+                                             CollectionType &type) {
+  if (auto *assoc_type = dyn_cast<AssocType>(&type)) {
+    auto &key_type = assoc_type->getKeyType();
+    auto key_code = key_type.get_code();
+
+    auto &element_type = assoc_type->getElementType();
+    auto element_code = element_type.get_code();
+
+    return *key_code + "_" + *element_code + "_" + impl.get_name();
+
+  } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
+    auto &element_type = seq_type->getElementType();
+    auto element_code = element_type.get_code();
+
+    return *element_code + "_" + impl.get_name();
+  } else {
+    MEMOIR_UNREACHABLE("Unhandled collection type.");
+  }
+}
+
+static std::string get_implementation_prefix(llvm::Instruction &I,
+                                             CollectionType &type) {
+  // Fetch any selection metadata from the instruction.
+  std::optional<std::string> selection = std::nullopt;
+  auto selection_metadata = Metadata::get<SelectionMetadata>(I);
+  if (selection_metadata.has_value()) {
+    selection = selection_metadata->getImplementation(0);
+  }
+
+  // Fetch the implementation.
+  const auto &impl = get_implementation(selection, type);
+
+  return get_implementation_prefix(impl, type);
+}
 
 FunctionCallee get_function_callee(llvm::Module &M, std::string name) {
   auto *function = M.getFunction(name);
@@ -28,15 +84,12 @@ FunctionCallee get_function_callee(llvm::Module &M, std::string name) {
   return FunctionCallee(function);
 }
 
-llvm::Value &construct_field_read(llvm::Instruction &I,
+llvm::Value &construct_field_read(MemOIRBuilder &builder,
                                   llvm::Type &result_type,
                                   StructType &type,
                                   TypeLayout &layout,
                                   llvm::Value &object,
                                   unsigned field_index) {
-
-  // Make a builder.
-  MemOIRBuilder builder(&I);
 
   // Fetch the LLVM struct type.
   auto *llvm_type = cast<llvm::StructType>(&layout.get_llvm_type());
@@ -202,214 +255,103 @@ void SSADestructionVisitor::visitInstruction(llvm::Instruction &I) {
   return;
 }
 
-void SSADestructionVisitor::visitSequenceAllocInst(SequenceAllocInst &I) {
+#if 0
+void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
+
+  MemOIRBuilder builder(I);
+
   // TODO: run escape analysis to determine if we can do a stack allocation.
   // auto escaped = this->EA.escapes(I);
   bool escaped = true;
 
-  auto &collection_type = I.getCollectionType();
-  auto &seq_type = *(cast<SequenceType>(&collection_type));
-  auto impl_prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
+  auto &type = I.getType();
 
-  auto &element_type = I.getElementType();
+  if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
 
-  auto operation = escaped ? "allocate" : "initialize";
-  auto name = impl_prefix + "__" + operation;
-  auto function_callee = detail::get_function_callee(this->M, name);
+    // Fetch the allocation.
+    auto impl_prefix =
+        detail::get_implementation_prefix(I.getCallInst(), *collection_type);
+    auto operation = escaped ? "allocate" : "initialize";
+    auto name = impl_prefix + "__" + operation;
+    auto function_callee = detail::get_function_callee(this->M, name);
 
-  MemOIRBuilder builder(I);
+    // Construct the list of extra arguments.
+    vector<llvm::Value *> args(I.sizes_begin(), I.sizes_end());
 
-  auto *vector_size = &I.getSizeOperand();
+    auto &llvm_call =
+        MEMOIR_SANITIZE(builder.CreateCall(function_callee, args),
+                        "Could not create the call to allocation.");
 
-  llvm::CallInst *llvm_call;
-  if (escaped) {
-    llvm_call =
-        builder.CreateCall(function_callee, llvm::ArrayRef({ vector_size }));
-    MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for vector alloc");
+    this->coalesce(I, llvm_call);
+
+  } else if (auto *struct_type = dyn_cast<StructType>(&type)) {
+
+    // Get the LLVM StructType for this struct.
+    auto &type_layout = TC.convert(*struct_type);
+    auto *llvm_struct_type =
+        dyn_cast<llvm::StructType>(&type_layout.get_llvm_type());
+    MEMOIR_NULL_CHECK(llvm_struct_type,
+                      "TypeLayout did not contain a StructType");
+    auto *llvm_ptr_type = llvm::PointerType::get(llvm_struct_type, 0);
+    MEMOIR_NULL_CHECK(llvm_ptr_type, "Could not get the LLVM PointerType");
+
+    // Get the in-memory size of the given type.
+    auto &data_layout = this->M.getDataLayout();
+    auto llvm_struct_size = data_layout.getTypeAllocSize(llvm_struct_type);
+
+    // Get the size of a pointer for the given architecture.
+    auto *int_ptr_type = builder.getIntPtrTy(data_layout);
+
+    // Get the constant for the given LLVM struct size.
+    auto *llvm_struct_size_constant =
+        llvm::ConstantInt::get(int_ptr_type, llvm_struct_size);
+
+    // Get the allocator information for this allocation.
+    // TODO: Get this information from attached metadata, we can safely default
+    // to malloc though. auto allocator_name = "malloc";
+
+    // Get the allocator function.
+    // auto *allocator_function = this->M.getFunction(allocator_name);
+    // MEMOIR_NULL_CHECK(allocator_function, "Couldn't get the allocator
+    // function!");
+
+    // Create the allocation.
+    auto &llvm_call =
+        MEMOIR_SANITIZE(builder.CreateMalloc(int_ptr_type,
+                                             llvm_struct_type,
+                                             llvm_struct_size_constant,
+                                             /* ArraySize = */ nullptr,
+                                             /* MallocF = */ nullptr,
+                                             /* Name = */ "struct."),
+                        "Couldn't create malloc for StructAllocInst");
+
+    this->coalesce(I, llvm_call);
+
   } else {
-    // Create/fetch the struct type.
-    auto struct_name = "struct." + impl_prefix + "_t";
-    auto *struct_type = llvm::StructType::create(M.getContext(), struct_name);
-    MEMOIR_NULL_CHECK(struct_type, "Could not find or create LLVM StructType");
-
-    // Create a stack location.
-    auto *llvm_alloca = builder.CreateAlloca(struct_type);
-
-    // Initialize the stack location.
-    llvm_call = builder.CreateCall(
-        function_callee,
-        llvm::ArrayRef<llvm::Value *>({ llvm_alloca, vector_size }));
+    MEMOIR_UNREACHABLE("Unhandled type allocation.");
   }
 
-  this->coalesce(I, *llvm_call);
-
   this->markForCleanup(I);
-
-  return;
 }
+#endif
 
-void SSADestructionVisitor::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
-  // TODO: run escape analysis to determine if we can do a stack allocation.
-  // auto escaped = this->EA.escapes(I);
-  bool escaped = true;
+void SSADestructionVisitor::visitDeleteInst(DeleteInst &I) {
 
-  auto &assoc_type = *(cast<AssocArrayType>(&I.getCollectionType()));
-  auto &value_type = I.getValueType();
+  if (auto *collection_type =
+          dyn_cast_or_null<CollectionType>(type_of(I.getObject()))) {
 
-  auto impl_prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
-
-  auto operation = escaped ? "allocate" : "initialize";
-  auto name = impl_prefix + "__" + operation;
-  auto function_callee = detail::get_function_callee(this->M, name);
-
-  if (isa<CollectionType>(&value_type)) {
-    // TODO: emit the needed implementation to the linker.
-    auto &value_type_layout = TC.convert(value_type);
-    auto &llvm_value_type = value_type_layout.get_llvm_type();
-
-    auto &data_layout = M.getDataLayout();
-    auto llvm_value_size = data_layout.getTypeAllocSize(&llvm_value_type);
-    debugln("value type size = ", llvm_value_size);
-    if (auto *arr_type = dyn_cast<llvm::ArrayType>(&llvm_value_type)) {
-      debugln("  element size = ",
-              data_layout.getTypeAllocSize(arr_type->getElementType()));
-    }
-  }
-
-  MemOIRBuilder builder(I);
-
-  llvm::CallInst *llvm_call;
-  if (escaped) {
-    llvm_call = builder.CreateCall(function_callee);
-  } else {
-    // Create/fetch the struct type.
-    auto struct_name = "struct." + impl_prefix + "_t";
-    auto *struct_type = llvm::StructType::create(M.getContext(), struct_name);
-    MEMOIR_NULL_CHECK(
-        struct_type,
-        "Could not find or create the LLVM StructType for Assoc!");
-
-    // Create a stack location.
-    auto *llvm_alloca = builder.CreateAlloca(struct_type);
-
-    // Initialize the stack location.
-    llvm_call =
-        builder.CreateCall(function_callee,
-                           llvm::ArrayRef<llvm::Value *>({ llvm_alloca }));
-  }
-  MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for hashtable alloc");
-
-  auto *collection = llvm_call;
-
-  this->coalesce(I, *collection);
-
-  this->markForCleanup(I);
-
-  return;
-}
-
-void SSADestructionVisitor::visitStructAllocInst(StructAllocInst &I) {
-  // Get a builder for this instruction.
-  MemOIRBuilder builder(I);
-
-  // Get the LLVM StructType for this struct.
-  auto &struct_type = I.getStructType();
-  auto &type_layout = TC.convert(struct_type);
-  auto *llvm_struct_type =
-      dyn_cast<llvm::StructType>(&type_layout.get_llvm_type());
-  MEMOIR_NULL_CHECK(llvm_struct_type,
-                    "TypeLayout did not contain a StructType");
-  auto *llvm_ptr_type = llvm::PointerType::get(llvm_struct_type, 0);
-  MEMOIR_NULL_CHECK(llvm_ptr_type, "Could not get the LLVM PointerType");
-
-  // Get the in-memory size of the given type.
-  auto &data_layout = this->M.getDataLayout();
-  auto llvm_struct_size = data_layout.getTypeAllocSize(llvm_struct_type);
-
-  // Get the size of a pointer for the given architecture.
-  auto *int_ptr_type = builder.getIntPtrTy(data_layout);
-
-  // Get the constant for the given LLVM struct size.
-  auto *llvm_struct_size_constant =
-      llvm::ConstantInt::get(int_ptr_type, llvm_struct_size);
-
-  // Get the allocator information for this allocation.
-  // TODO: Get this information from attached metadata, we can safely default to
-  // malloc though.
-  // auto allocator_name = "malloc";
-
-  // Get the allocator function.
-  // auto *allocator_function = this->M.getFunction(allocator_name);
-  // MEMOIR_NULL_CHECK(allocator_function, "Couldn't get the allocator
-  // function!");
-
-  // Create the allocation.
-  auto *allocation = builder.CreateMalloc(int_ptr_type,
-                                          llvm_struct_type,
-                                          llvm_struct_size_constant,
-                                          /* ArraySize = */ nullptr,
-                                          /* MallocF = */ nullptr,
-                                          /* Name = */ "struct.");
-  MEMOIR_NULL_CHECK(allocation, "Couldn't create malloc for StructAllocInst");
-
-  auto *alloc_ptr = allocation;
-
-  // Replace the struct allocation with the new allocation.
-  this->coalesce(I, *alloc_ptr);
-
-  this->markForCleanup(I);
-
-  return;
-}
-
-void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
-  auto &collection_type = MEMOIR_SANITIZE(
-      dyn_cast_or_null<CollectionType>(type_of(I.getDeletedCollection())),
-      "Couldn't determine type of collection");
-  if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
     auto prefix =
-        ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
+        detail::get_implementation_prefix(I.getCallInst(), *collection_type);
 
-    auto vector_free_name = prefix + "__free";
+    auto free_name = prefix + "__free";
 
-    auto function_callee =
-        detail::get_function_callee(this->M, vector_free_name);
+    auto function_callee = detail::get_function_callee(this->M, free_name);
 
     MemOIRBuilder builder(I);
 
-    auto *function_type = function_callee.getFunctionType();
-    auto *vector_value =
-        builder.CreatePointerCast(&I.getDeletedCollection(),
-                                  function_type->getParamType(0));
     auto *llvm_call =
-        builder.CreateCall(function_callee, llvm::ArrayRef({ vector_value }));
+        builder.CreateCall(function_callee, llvm::ArrayRef({ &I.getObject() }));
     MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for vector read");
-
-    this->markForCleanup(I);
-  } else if (auto *assoc_type = dyn_cast<AssocArrayType>(&collection_type)) {
-    auto prefix =
-        ImplLinker::get_implementation_prefix(I.getCallInst(), *assoc_type);
-
-    auto assoc_free_name = prefix + "__free";
-
-    auto *function = this->M.getFunction(assoc_free_name);
-    auto function_callee = FunctionCallee(function);
-    if (function == nullptr) {
-      warnln("Couldn't find assoc free for ", assoc_free_name);
-      return;
-    }
-
-    MemOIRBuilder builder(I);
-
-    auto *function_type = function_callee.getFunctionType();
-    auto *assoc_value =
-        builder.CreatePointerCast(&I.getDeletedCollection(),
-                                  function_type->getParamType(0));
-    auto *llvm_call =
-        builder.CreateCall(function_callee, llvm::ArrayRef({ assoc_value }));
-    MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for assoc read");
 
     this->markForCleanup(I);
   }
@@ -419,23 +361,21 @@ void SSADestructionVisitor::visitDeleteCollectionInst(DeleteCollectionInst &I) {
 
 void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
 
-  auto &collection_type = MEMOIR_SANITIZE(
-      dyn_cast_or_null<CollectionType>(type_of(I.getCollection())),
-      "Couldn't determine type of collection");
+  auto &collection_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(type_of(I.getObject())),
+                      "Couldn't determine type of collection");
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), collection_type);
+      detail::get_implementation_prefix(I.getCallInst(), collection_type);
   std::string name = prefix + "__size";
 
   auto function_callee = detail::get_function_callee(this->M, name);
 
   MemOIRBuilder builder(I);
 
-  auto *function_type = function_callee.getFunctionType();
-  auto *value = builder.CreatePointerCast(&I.getCollection(),
-                                          function_type->getParamType(0));
-  auto *llvm_call =
-      builder.CreateCall(function_callee, llvm::ArrayRef({ value }));
+  vector<llvm::Value *> args(I.indices_begin(), I.indices_end());
+
+  auto *llvm_call = builder.CreateCall(function_callee, args);
   MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for size");
 
   this->coalesce(I, *llvm_call);
@@ -445,198 +385,39 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
   return;
 }
 
-static llvm::Value &contextualize_end(EndInst &end_inst,
+// Collect the list of indices before the given use.
+static llvm::Value &contextualize_end(AccessInst &inst,
                                       llvm::Use &use,
-                                      InsertInst &insert_inst) {
-  MemOIRBuilder builder(insert_inst);
-
-  auto *size_inst = builder.CreateSizeInst(&insert_inst.getBaseCollection());
-
-  MEMOIR_NULL_CHECK(size_inst,
-                    "Could not contextualize EndInst for InsertInst!");
-
-  // Propagate the selection metadata.
-  auto selection = Metadata::get<SelectionMetadata>(insert_inst);
-  if (selection.has_value()) {
-    auto metadata = Metadata::get_or_add<SelectionMetadata>(*size_inst);
-    metadata.setImplementation(selection->getImplementation());
+                                      bool minus_one = false) {
+  vector<llvm::Value *> indices = {};
+  for (auto &index_use : inst.index_operands()) {
+    if (&use != &index_use) {
+      indices.push_back(index_use.get());
+    }
   }
 
-  use.set(&size_inst->getCallInst());
-
-  return size_inst->getCallInst();
-}
-
-static llvm::Value &contextualize_end(EndInst &end_inst,
-                                      llvm::Use &use,
-                                      RemoveInst &remove_inst) {
-  MemOIRBuilder builder(remove_inst);
-
-  auto *size_inst = builder.CreateSizeInst(&remove_inst.getBaseCollection());
-  MEMOIR_NULL_CHECK(size_inst,
-                    "Could not contextualize EndInst for RemoveInst!");
-
-  // Propagate the selection metadata.
-  auto selection = Metadata::get<SelectionMetadata>(remove_inst);
-  if (selection.has_value()) {
-    auto metadata = Metadata::get_or_add<SelectionMetadata>(*size_inst);
-    metadata.setImplementation(selection->getImplementation());
-  }
-
-  use.set(&size_inst->getCallInst());
-
-  return size_inst->getCallInst();
-}
-
-static llvm::Value &contextualize_end(EndInst &end_inst,
-                                      llvm::Use &use,
-                                      CopyInst &copy_inst) {
-  MemOIRBuilder builder(copy_inst);
-
-  auto *size_inst = builder.CreateSizeInst(&copy_inst.getCopiedCollection());
-  MEMOIR_NULL_CHECK(size_inst, "Could not contextualize EndInst for CopyInst!");
-
-  // Propagate the selection metadata.
-  auto selection = Metadata::get<SelectionMetadata>(copy_inst);
-  if (selection.has_value()) {
-    auto metadata = Metadata::get_or_add<SelectionMetadata>(*size_inst);
-    metadata.setImplementation(selection->getImplementation());
-  }
-
-  use.set(&size_inst->getCallInst());
-
-  return size_inst->getCallInst();
-}
-
-static llvm::Value &contextualize_end(EndInst &end_inst,
-                                      llvm::Use &use,
-                                      SeqSwapInst &swap_inst) {
-  MemOIRBuilder builder(swap_inst);
-
-  // TODO: this assumes that TO operands will all be _after_ the TO collection
-  // operand. Could make this more extensible, but that would require something
-  // akin to TableGen.
-  auto &collection =
-      (use.getOperandNo() > swap_inst.getToCollectionAsUse().getOperandNo())
-          ? swap_inst.getToCollection()
-          : swap_inst.getFromCollection();
-
-  auto *size_inst = builder.CreateSizeInst(&collection);
-  MEMOIR_NULL_CHECK(size_inst, "Could not contextualize EndInst for CopyInst!");
-
-  // Propagate the selection metadata.
-  auto selection = Metadata::get<SelectionMetadata>(swap_inst);
-  if (selection.has_value()) {
-    auto metadata = Metadata::get_or_add<SelectionMetadata>(*size_inst);
-    metadata.setImplementation(selection->getImplementation());
-  }
-
-  use.set(&size_inst->getCallInst());
-
-  return size_inst->getCallInst();
-}
-
-static llvm::Value &contextualize_end(EndInst &end_inst,
-                                      llvm::Use &use,
-                                      SeqSwapWithinInst &swap_within_inst) {
-  MemOIRBuilder builder(swap_within_inst);
-
-  auto *size_inst =
-      builder.CreateSizeInst(&swap_within_inst.getFromCollection());
-  MEMOIR_NULL_CHECK(size_inst,
-                    "Could not contextualize EndInst for SeqSwapWithinInst!");
-
-  // Propagate the selection metadata.
-  auto selection = Metadata::get<SelectionMetadata>(swap_within_inst);
-  if (selection.has_value()) {
-    auto metadata = Metadata::get_or_add<SelectionMetadata>(*size_inst);
-    metadata.setImplementation(selection->getImplementation());
-  }
-
-  use.set(&size_inst->getCallInst());
-
-  return size_inst->getCallInst();
-}
-
-static llvm::Value &contextualize_end(EndInst &end_inst,
-                                      llvm::Use &use,
-                                      IndexReadInst &inst) {
   MemOIRBuilder builder(inst);
 
-  auto &size_inst =
-      MEMOIR_SANITIZE(builder.CreateSizeInst(&inst.getObjectOperand()),
-                      "Could not contextualize EndInst for IndexReadInst!");
-
-  auto &size_value = size_inst.getCallInst();
+  auto *size_inst = builder.CreateSizeInst(&inst.getObject(), indices);
 
   // Propagate the selection metadata.
-  auto selection = Metadata::get<SelectionMetadata>(inst);
-  if (selection.has_value()) {
-    auto metadata = Metadata::get_or_add<SelectionMetadata>(size_value);
-    metadata.setImplementation(selection->getImplementation());
+  if (auto selection = Metadata::get<SelectionMetadata>(inst)) {
+    auto &metadata = selection->getMetadata();
+    auto *clone = llvm::MDNode::replaceWithDistinct(metadata.clone());
+    size_inst->getCallInst().setMetadata(
+        Metadata::get_kind<SelectionMetadata>(),
+        clone);
   }
 
-  auto *size_minus_one =
-      builder.CreateSub(&size_value,
-                        llvm::ConstantInt::get(size_value.getType(), 1));
-
-  use.set(size_minus_one);
-
-  return *size_minus_one;
-}
-
-static llvm::Value &contextualize_end(EndInst &end_inst,
-                                      llvm::Use &use,
-                                      IndexWriteInst &inst) {
-  MemOIRBuilder builder(inst);
-
-  auto &size_inst =
-      MEMOIR_SANITIZE(builder.CreateSizeInst(&inst.getObjectOperand()),
-                      "Could not contextualize EndInst for IndexWriteInst!");
-
-  auto &size_value = size_inst.getCallInst();
-
-  // Propagate the selection metadata.
-  auto selection = Metadata::get<SelectionMetadata>(inst);
-  if (selection.has_value()) {
-    auto metadata = Metadata::get_or_add<SelectionMetadata>(size_value);
-    metadata.setImplementation(selection->getImplementation());
+  llvm::Value *size = &size_inst->getSize();
+  if (minus_one) {
+    auto *constant_one = llvm::ConstantInt::get(size->getType(), 1);
+    size = builder.CreateSub(size, constant_one);
   }
 
-  auto *size_minus_one =
-      builder.CreateSub(&size_value,
-                        llvm::ConstantInt::get(size_value.getType(), 1));
+  use.set(size);
 
-  use.set(size_minus_one);
-
-  return *size_minus_one;
-}
-
-static llvm::Value &contextualize_end(EndInst &end_inst,
-                                      llvm::Use &use,
-                                      IndexGetInst &inst) {
-  MemOIRBuilder builder(inst);
-
-  auto &size_inst =
-      MEMOIR_SANITIZE(builder.CreateSizeInst(&inst.getObjectOperand()),
-                      "Could not contextualize EndInst for IndexGetInst!");
-
-  auto &size_value = size_inst.getCallInst();
-
-  // Propagate the selection metadata.
-  auto selection = Metadata::get<SelectionMetadata>(inst);
-  if (selection.has_value()) {
-    auto metadata = Metadata::get_or_add<SelectionMetadata>(size_value);
-    metadata.setImplementation(selection->getImplementation());
-  }
-
-  auto *size_minus_one =
-      builder.CreateSub(&size_value,
-                        llvm::ConstantInt::get(size_value.getType(), 1));
-
-  use.set(size_minus_one);
-
-  return *size_minus_one;
+  return *size;
 }
 
 void SSADestructionVisitor::visitEndInst(EndInst &I) {
@@ -650,22 +431,12 @@ void SSADestructionVisitor::visitEndInst(EndInst &I) {
     }
 
     // Handle end in the context of its use.
-    if (auto *insert_inst = into<InsertInst>(user_as_inst)) {
-      contextualize_end(I, use, *insert_inst);
-    } else if (auto *remove_inst = into<RemoveInst>(user_as_inst)) {
-      contextualize_end(I, use, *remove_inst);
-    } else if (auto *copy_inst = into<CopyInst>(user_as_inst)) {
-      contextualize_end(I, use, *copy_inst);
-    } else if (auto *swap_inst = into<SeqSwapInst>(user_as_inst)) {
-      contextualize_end(I, use, *swap_inst);
-    } else if (auto *swap_within_inst = into<SeqSwapWithinInst>(user_as_inst)) {
-      contextualize_end(I, use, *swap_within_inst);
-    } else if (auto *read_inst = into<IndexReadInst>(user_as_inst)) {
-      contextualize_end(I, use, *read_inst);
-    } else if (auto *write_inst = into<IndexWriteInst>(user_as_inst)) {
-      contextualize_end(I, use, *write_inst);
-    } else if (auto *get_inst = into<IndexGetInst>(user_as_inst)) {
-      contextualize_end(I, use, *get_inst);
+    if (auto *access = into<AccessInst>(user_as_inst)) {
+      // If the operation references a single element, subtract one from the
+      // size so we are not off by one.
+      bool minus_one = (isa<ReadInst>(access) or isa<WriteInst>(access)
+                        or isa<GetInst>(access) or isa<SizeInst>(access));
+      contextualize_end(*access, use, minus_one);
     } else if (auto *phi_node = dyn_cast<llvm::PHINode>(user_as_inst)) {
       MEMOIR_UNREACHABLE(
           "Contextualizing EndInst at a PHINode is not yet supported!");
@@ -684,7 +455,253 @@ void SSADestructionVisitor::visitEndInst(EndInst &I) {
   return;
 }
 
-void SSADestructionVisitor::visitIndexReadInst(IndexReadInst &I) {
+namespace detail {
+
+struct NestedObjectInfo {
+  NestedObjectInfo(llvm::Value &object,
+                   Type &type,
+                   AccessInst::index_iterator begin,
+                   AccessInst::index_iterator end,
+                   const Implementation &impl)
+    : object(object),
+      type(type),
+      begin(begin),
+      end(end),
+      implementation(&impl) {}
+
+  NestedObjectInfo(llvm::Value &object,
+                   Type &type,
+                   AccessInst::index_iterator begin,
+                   AccessInst::index_iterator end)
+    : object(object),
+      type(type),
+      begin(begin),
+      end(end),
+      implementation(nullptr) {}
+
+  llvm::Value &object;
+  Type &type;
+  AccessInst::index_iterator begin, end;
+  const Implementation *implementation;
+};
+static NestedObjectInfo get_nested_object(AccessInst &I,
+                                          TypeConverter &TC,
+                                          llvm::Module &M) {
+
+  MemOIRBuilder builder(I);
+
+  // Unpack the instruction.
+  auto *object = &I.getObject();
+  auto *type = &I.getObjectType();
+
+  // Fetch the selection from the instruction metadata, if it exists.
+  unsigned selection_index = 0;
+  auto selection_metadata = Metadata::get<SelectionMetadata>(I);
+
+  // Construct nested access.
+  for (auto it = I.indices_begin(), ie = I.indices_end(); it != ie; ++it) {
+    auto *index = *it;
+
+    if (auto *struct_type = dyn_cast<StructType>(type)) {
+
+      // Determine the field being accessed.
+      auto &index_constant =
+          MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
+                          "Field index is not a constant integer.");
+      auto field_index = index_constant.getZExtValue();
+      auto &field_type = struct_type->getFieldType(field_index);
+
+      // If the field type is a primitive, we have reached the innermost object.
+      if (Type::is_primitive_type(field_type)) {
+        return NestedObjectInfo(*object, *type, it, ie);
+      }
+
+      // Fetch the field's selection metadata.
+      selection_metadata =
+          Metadata::get<SelectionMetadata>(*struct_type, field_index);
+      selection_index = 0;
+
+      // Otherwise, construct a get.
+      auto &layout = TC.convert(*struct_type);
+
+      // Fetch the LLVM struct type.
+      auto *llvm_type = cast<llvm::StructType>(&layout.get_llvm_type());
+
+      // Fetch the LLVM field type.
+      auto field_offset = layout.get_field_offset(field_index);
+      auto *llvm_field_type = llvm_type->getElementType(field_offset);
+
+      // Construct the GEP for the field.
+      object = builder.CreateStructGEP(llvm_type, object, field_offset);
+      MEMOIR_NULL_CHECK(object, "Failed to construct GEP instruction");
+      type = &field_type;
+
+    } else if (auto *array_type = dyn_cast<ArrayType>(type)) {
+
+      // Unpack the type.
+      auto &element_type = array_type->getElementType();
+      auto length = array_type->getLength();
+
+      // If the element is a primitive, we have reached the innermost object.
+      if (Type::is_primitive_type(element_type)) {
+        return NestedObjectInfo(*object, *type, it, ie);
+      }
+
+      // Otherwise, construct a get for the inner element.
+      auto &layout = TC.convert(*array_type);
+
+      // Fetch the LLVM array type.
+      auto *llvm_type = cast<llvm::ArrayType>(&layout.get_llvm_type());
+
+      // Fetch the LLVM element type.
+      auto *llvm_element_type = llvm_type->getElementType();
+
+      // Construct the GEP for the element.
+      auto *index_type =
+          builder.getIndexTy(M.getDataLayout(), /* AddressSpace = */ 0);
+      auto *zero_index = builder.getIntN(index_type->getBitWidth(), 0);
+      auto *prepared_index = builder.CreateZExtOrTrunc(index, index_type);
+
+      object = builder.CreateInBoundsGEP(
+          llvm_element_type,
+          object,
+          llvm::ArrayRef<llvm::Value *>({ zero_index, prepared_index }));
+
+      // Update the running object type.
+      type = &element_type;
+
+    } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+      // Fetch the collection implementation.
+      std::optional<std::string> dim_name = std::nullopt;
+      if (selection_metadata.has_value()) {
+        dim_name = selection_metadata->getImplementation(selection_index++);
+      }
+      const auto &dim_impl =
+          detail::get_implementation(dim_name, *collection_type);
+
+      // Check if the implementation covers the remaining indices or not.
+      if (dim_impl.num_dimensions() == std::distance(it, ie)) {
+        return NestedObjectInfo(*object, *type, it, ie, dim_impl);
+      }
+
+      // Otherwise, we will construct the get operation for the nested object.
+      auto prefix =
+          detail::get_implementation_prefix(dim_impl, *collection_type);
+
+      auto &element_type = collection_type->getElementType();
+      auto function_name = prefix + "__get";
+      auto function_callee = detail::get_function_callee(M, function_name);
+
+      // Construct a call to vector read.
+      auto *function_type = function_callee.getFunctionType();
+      auto *prepared_index =
+          builder.CreateZExtOrTrunc(index, function_type->getParamType(1));
+
+      auto &call = MEMOIR_SANITIZE(
+          builder.CreateCall(function_callee,
+                             llvm::ArrayRef({ object, prepared_index })),
+          "Could not create the call for vector read");
+
+      object = &call;
+      type = &element_type;
+
+    } else {
+      MEMOIR_UNREACHABLE("Dimension mismatch");
+    }
+  }
+
+  MEMOIR_UNREACHABLE(
+      "Reached end indices list and never found a non-nested object!");
+}
+
+} // namespace detail
+
+void SSADestructionVisitor::visitReadInst(ReadInst &I) {
+
+  // Get the nested object as a value.
+  auto info = detail::get_nested_object(I, this->TC, this->M);
+
+  // Construct the read.
+  MemOIRBuilder builder(I);
+
+  llvm::Value *result = nullptr;
+  if (auto *struct_type = dyn_cast<StructType>(&info.type)) {
+    // There will only ever be a single index for an innermost struct access.
+    auto &field_value = MEMOIR_SANITIZE(*info.begin, "Field index is NULL!");
+    auto &field_const =
+        MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(&field_value),
+                        "Field index is not statically known!");
+    auto field_index = field_const.getZExtValue();
+
+    // Fetch the type layout for the struct.
+    auto &layout = TC.convert(*struct_type);
+
+    // Construct the read.
+    result = &detail::construct_field_read(builder,
+                                           *I.getCallInst().getType(),
+                                           *struct_type,
+                                           layout,
+                                           info.object,
+                                           field_index);
+
+  } else if (auto *array_type = dyn_cast<ArrayType>(&info.type)) {
+    // Get the type layout for the tensor type.
+    auto &type_layout = TC.convert(*array_type);
+    auto &llvm_type = type_layout.get_llvm_type();
+
+    // Construct a gep for the element.
+    auto &index = MEMOIR_SANITIZE(*info.begin, "Field index is NULL!");
+
+    auto *index_type =
+        builder.getIndexTy(this->M.getDataLayout(), /* AddressSpace = */ 0);
+    auto *zero_index = builder.getIntN(index_type->getBitWidth(), 0);
+    auto *prepared_index = builder.CreateZExtOrTrunc(&index, index_type);
+
+    auto *gep = builder.CreateInBoundsGEP(
+        &llvm_type,
+        &info.object,
+        llvm::ArrayRef<llvm::Value *>({ zero_index, prepared_index }));
+
+    // Construct the load of the element.
+    result = builder.CreateLoad(&llvm_type, gep);
+    MEMOIR_NULL_CHECK(result, "Could not create load");
+
+  } else if (auto *collection_type = dyn_cast<CollectionType>(&info.type)) {
+    // Fetch the function that implements this operation.
+    auto prefix = detail::get_implementation_prefix(*info.implementation,
+                                                    *collection_type);
+    auto function_name = prefix + "__read";
+    auto callee = detail::get_function_callee(this->M, function_name);
+
+    // Construct the call.
+    auto *function_type = callee.getFunctionType();
+
+    vector<llvm::Value *> arguments = { &info.object };
+    for (auto it = info.begin; it != info.end; ++it) {
+      auto *index = *it;
+      auto *prepared_index = builder.CreateZExtOrTrunc(
+          index,
+          function_type->getParamType(arguments.size()));
+
+      arguments.push_back(prepared_index);
+    }
+
+    result = builder.CreateCall(callee, llvm::ArrayRef(arguments));
+    MEMOIR_NULL_CHECK(result, "Could not create the call");
+
+  } else {
+    MEMOIR_UNREACHABLE("Unhandled type for nested object.");
+  }
+
+  // Coalesce the original with the resultant.
+  this->coalesce(I, *result);
+
+  // The instruction is dead now.
+  this->markForCleanup(I);
+}
+
+#if 0
+  void SSADestructionVisitor::visitIndexReadInst(IndexReadInst &I) {
   // Get a builder.
   MemOIRBuilder builder(I);
 
@@ -699,7 +716,7 @@ void SSADestructionVisitor::visitIndexReadInst(IndexReadInst &I) {
   if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
     if (I.getNumberOfSubIndices() == 0) {
       auto prefix =
-          ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
+          detail::get_implementation_prefix(I.getCallInst(), *seq_type);
       auto vector_read_name = prefix + "__read";
 
       auto function_callee =
@@ -732,7 +749,7 @@ void SSADestructionVisitor::visitIndexReadInst(IndexReadInst &I) {
       }
 
       auto prefix =
-          ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
+          detail::get_implementation_prefix(I.getCallInst(), *seq_type);
       auto vector_read_name = prefix + "__get";
 
       auto function_callee =
@@ -816,7 +833,7 @@ void SSADestructionVisitor::visitIndexGetInst(IndexGetInst &I) {
 
   if (auto *seq_type = dyn_cast<SequenceType>(&collection_type)) {
     auto prefix =
-        ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
+        detail::get_implementation_prefix(I.getCallInst(), *seq_type);
     auto vector_read_name = prefix + "__get";
 
     auto function_callee =
@@ -893,7 +910,7 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
 
     if (I.getNumberOfSubIndices() == 0) {
       auto prefix =
-          ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
+          detail::get_implementation_prefix(I.getCallInst(), *seq_type);
       auto name = prefix + "__write";
 
       auto function_callee = detail::get_function_callee(this->M, name);
@@ -924,7 +941,7 @@ void SSADestructionVisitor::visitIndexWriteInst(IndexWriteInst &I) {
                           "Sub-index write to non-struct element");
 
       auto prefix =
-          ImplLinker::get_implementation_prefix(I.getCallInst(), *seq_type);
+          detail::get_implementation_prefix(I.getCallInst(), *seq_type);
       auto name = prefix + "__get";
 
       auto function_callee = detail::get_function_callee(this->M, name);
@@ -1010,7 +1027,7 @@ void SSADestructionVisitor::visitAssocReadInst(AssocReadInst &I) {
   if (I.getNumberOfSubIndices() == 0) {
 
     auto prefix =
-        ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
+        detail::get_implementation_prefix(I.getCallInst(), assoc_type);
     auto name = prefix + "__read";
 
     auto function_callee = detail::get_function_callee(this->M, name);
@@ -1037,7 +1054,7 @@ void SSADestructionVisitor::visitAssocReadInst(AssocReadInst &I) {
                         "Sub-index read to non-struct type!");
 
     auto prefix =
-        ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
+        detail::get_implementation_prefix(I.getCallInst(), assoc_type);
     auto name = prefix + "__get";
 
     auto function_callee = detail::get_function_callee(this->M, name);
@@ -1083,7 +1100,7 @@ void SSADestructionVisitor::visitAssocWriteInst(AssocWriteInst &I) {
   if (I.getNumberOfSubIndices() == 0) {
 
     auto prefix =
-        ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
+        detail::get_implementation_prefix(I.getCallInst(), assoc_type);
     auto name = prefix + "__write";
 
     auto function_callee = detail::get_function_callee(this->M, name);
@@ -1108,7 +1125,7 @@ void SSADestructionVisitor::visitAssocWriteInst(AssocWriteInst &I) {
                         "Sub-index write to non-struct element.");
 
     auto prefix =
-        ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
+        detail::get_implementation_prefix(I.getCallInst(), assoc_type);
     auto name = prefix + "__get";
 
     auto function_callee = detail::get_function_callee(this->M, name);
@@ -1148,7 +1165,7 @@ void SSADestructionVisitor::visitAssocGetInst(AssocGetInst &I) {
       "Couldn't determine type of read collection");
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
+      detail::get_implementation_prefix(I.getCallInst(), assoc_type);
   auto name = prefix + "__get";
 
   auto function_callee = detail::get_function_callee(this->M, name);
@@ -1180,14 +1197,16 @@ void SSADestructionVisitor::visitAssocGetInst(AssocGetInst &I) {
   return;
 }
 
-void SSADestructionVisitor::visitAssocHasInst(AssocHasInst &I) {
+#endif
 
-  auto &assoc_type = MEMOIR_SANITIZE(
-      dyn_cast_or_null<AssocArrayType>(type_of(I.getObjectOperand())),
-      "Couldn't determine type of has collection");
+#if 0
+void SSADestructionVisitor::visitHasInst(HasInst &I) {
 
-  auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
+  auto &assoc_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<AssocArrayType>(type_of(I.getObject())),
+                      "Couldn't determine type of has collection");
+
+  auto prefix = detail::get_implementation_prefix(I.getCallInst(), assoc_type);
   auto name = prefix + "__has";
 
   auto function_callee = detail::get_function_callee(this->M, name);
@@ -1213,9 +1232,10 @@ void SSADestructionVisitor::visitAssocHasInst(AssocHasInst &I) {
 
   return;
 }
+#endif
 
+#if 0
 // Struct access lowering.
-
 void SSADestructionVisitor::visitStructReadInst(StructReadInst &I) {
 
   // Make a builder.
@@ -1319,6 +1339,13 @@ void SSADestructionVisitor::visitStructGetInst(StructGetInst &I) {
   return;
 }
 
+#endif
+
+void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
+  MEMOIR_UNREACHABLE("TODO");
+}
+
+#if 0
 // Sequence operations lowering implementation.
 void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
   auto &seq_type = MEMOIR_SANITIZE(
@@ -1326,7 +1353,7 @@ void SSADestructionVisitor::visitSeqInsertInst(SeqInsertInst &I) {
       "Couldn't determine type of written collection");
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
+      detail::get_implementation_prefix(I.getCallInst(), seq_type);
   auto name = prefix + "__insert";
 
   MemOIRBuilder builder(I);
@@ -1365,7 +1392,7 @@ void SSADestructionVisitor::visitSeqInsertValueInst(SeqInsertValueInst &I) {
       "Couldn't determine type of written collection");
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
+      detail::get_implementation_prefix(I.getCallInst(), seq_type);
 
   MemOIRBuilder builder(I);
 
@@ -1415,7 +1442,7 @@ void SSADestructionVisitor::visitSeqInsertSeqInst(SeqInsertSeqInst &I) {
       "Couldn't determine type of written collection");
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
+      detail::get_implementation_prefix(I.getCallInst(), seq_type);
 
   // TODO: check if we are inserting a copy/view, if we are, remove the copy
   // and use *__insert_range
@@ -1450,7 +1477,13 @@ void SSADestructionVisitor::visitSeqInsertSeqInst(SeqInsertSeqInst &I) {
   this->markForCleanup(I);
   return;
 }
+#endif
 
+void SSADestructionVisitor::visitRemoveInst(RemoveInst &I) {
+  MEMOIR_UNREACHABLE("TODO");
+}
+
+#if 0
 void SSADestructionVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
   MemOIRBuilder builder(I);
 
@@ -1459,7 +1492,7 @@ void SSADestructionVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
       "Couldn't determine type of written collection");
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
+      detail::get_implementation_prefix(I.getCallInst(), seq_type);
 
   // TODO: check if we statically know that this is a single element. If it
   // is, we make this a *__remove
@@ -1492,7 +1525,9 @@ void SSADestructionVisitor::visitSeqRemoveInst(SeqRemoveInst &I) {
 
   return;
 }
+#endif
 
+#if 0
 void SSADestructionVisitor::visitSeqCopyInst(SeqCopyInst &I) {
   MemOIRBuilder builder(I);
 
@@ -1501,7 +1536,7 @@ void SSADestructionVisitor::visitSeqCopyInst(SeqCopyInst &I) {
       "Couldn't determine type of written collection");
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
+      detail::get_implementation_prefix(I.getCallInst(), seq_type);
 
   auto name = prefix + "__copy";
 
@@ -1531,121 +1566,9 @@ void SSADestructionVisitor::visitSeqCopyInst(SeqCopyInst &I) {
 
   return;
 }
+#endif
 
-void SSADestructionVisitor::visitSeqSwapInst(SeqSwapInst &I) {
-  MemOIRBuilder builder(I);
-
-  auto &seq_type = MEMOIR_SANITIZE(
-      dyn_cast_or_null<SequenceType>(type_of(I.getFromCollection())),
-      "Couldn't determine type of written collection");
-
-  auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
-
-  auto name = prefix + "__swap";
-
-  auto function_callee = detail::get_function_callee(this->M, name);
-
-  auto *function_type = function_callee.getFunctionType();
-  auto *seq = builder.CreatePointerCast(&I.getFromCollection(),
-                                        function_type->getParamType(0));
-  auto *begin = builder.CreateTruncOrBitCast(&I.getBeginIndex(),
-                                             function_type->getParamType(1));
-  auto *end = builder.CreateTruncOrBitCast(&I.getEndIndex(),
-                                           function_type->getParamType(2));
-  auto *to_seq = builder.CreatePointerCast(&I.getToCollection(),
-                                           function_type->getParamType(3));
-  auto *to_begin = builder.CreateTruncOrBitCast(&I.getToBeginIndex(),
-                                                function_type->getParamType(4));
-
-  auto *llvm_call =
-      builder.CreateCall(function_callee,
-                         llvm::ArrayRef({ seq, begin, end, to_seq, to_begin }));
-  MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for SeqSwapInst");
-
-  // Coalesce the results with the input operands.
-  auto &result_pair = I.getResult();
-  for (auto &use : result_pair.uses()) {
-    auto *user = use.getUser();
-    auto *user_as_inst = dyn_cast_or_null<llvm::Instruction>(user);
-    if (!user_as_inst) {
-      continue;
-    }
-    if (auto *extract_value = dyn_cast<llvm::ExtractValueInst>(user_as_inst)) {
-      auto extract_index = *(extract_value->idx_begin());
-      switch (extract_index) {
-        case 0:
-          this->coalesce(*extract_value, I.getFromCollection());
-          this->markForCleanup(*extract_value);
-          break;
-        case 1:
-          this->coalesce(*extract_value, I.getToCollection());
-          this->markForCleanup(*extract_value);
-          break;
-        default:
-          break;
-      }
-    } else if (auto *phi = dyn_cast<llvm::PHINode>(user_as_inst)) {
-      MEMOIR_UNREACHABLE(
-          "Result pair from SeqSwapInst used by PHI, tell Tommy to implement this.");
-    } else {
-      MEMOIR_UNREACHABLE("Result pair used by unknown instruction!");
-    }
-  }
-
-  // Mark the old instruction for cleanup.
-  this->markForCleanup(I);
-
-  return;
-}
-
-void SSADestructionVisitor::visitSeqSwapWithinInst(SeqSwapWithinInst &I) {
-  MemOIRBuilder builder(I);
-
-  auto &seq_type = MEMOIR_SANITIZE(
-      dyn_cast_or_null<SequenceType>(type_of(I.getFromCollection())),
-      "Couldn't determine type of written collection");
-
-  auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), seq_type);
-
-  auto name = prefix + "__swap";
-
-  auto function_callee = detail::get_function_callee(this->M, name);
-
-  auto *function_type = function_callee.getFunctionType();
-  auto *seq = builder.CreatePointerCast(&I.getFromCollection(),
-                                        function_type->getParamType(0));
-  auto *begin = builder.CreateTruncOrBitCast(&I.getBeginIndex(),
-                                             function_type->getParamType(1));
-  auto *end = builder.CreateTruncOrBitCast(&I.getEndIndex(),
-                                           function_type->getParamType(2));
-  auto *to_begin = builder.CreateTruncOrBitCast(&I.getToBeginIndex(),
-                                                function_type->getParamType(4));
-  auto *llvm_call =
-      builder.CreateCall(function_callee,
-                         llvm::ArrayRef({ seq, begin, end, seq, to_begin }));
-  MEMOIR_NULL_CHECK(llvm_call,
-                    "Could not create the call for SeqSwapWithinInst");
-
-  auto *return_type = llvm_call->getType();
-  if (!return_type->isVoidTy()) {
-    auto *collection =
-        builder.CreatePointerCast(llvm_call, I.getCallInst().getType());
-
-    // Coalesce the result with the original resultant.
-    this->coalesce(I.getResult(), *collection);
-  } else {
-    // Coalesce the result with the input operand.
-    this->coalesce(I.getResult(), I.getFromCollection());
-  }
-
-  // Mark the old instruction for cleanup.
-  this->markForCleanup(I);
-
-  return;
-}
-
+#if 0
 // Assoc operations lowering implementation.
 void SSADestructionVisitor::visitAssocInsertInst(AssocInsertInst &I) {
   auto &assoc_type = MEMOIR_SANITIZE(
@@ -1653,7 +1576,7 @@ void SSADestructionVisitor::visitAssocInsertInst(AssocInsertInst &I) {
       "Couldn't determine type of collection being inserted into.");
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
+      detail::get_implementation_prefix(I.getCallInst(), assoc_type);
   auto name = prefix + "__insert";
 
   auto function_callee = detail::get_function_callee(this->M, name);
@@ -1683,14 +1606,16 @@ void SSADestructionVisitor::visitAssocInsertInst(AssocInsertInst &I) {
 
   return;
 }
+#endif
 
+#if 0
 void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
   auto &assoc_type = MEMOIR_SANITIZE(
       dyn_cast_or_null<AssocArrayType>(type_of(I.getBaseCollection())),
       "Couldn't determine type of written collection");
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
+      detail::get_implementation_prefix(I.getCallInst(), assoc_type);
 
   auto name = prefix + "__remove";
 
@@ -1721,15 +1646,19 @@ void SSADestructionVisitor::visitAssocRemoveInst(AssocRemoveInst &I) {
 
   return;
 }
+#endif
 
-void SSADestructionVisitor::visitAssocKeysInst(AssocKeysInst &I) {
+void SSADestructionVisitor::visitKeysInst(KeysInst &I) {
+
+// TODO
+#if 0
 
   auto &assoc_type = MEMOIR_SANITIZE(
-      dyn_cast_or_null<AssocArrayType>(type_of(I.getCollection())),
+      dyn_cast_or_null<AssocArrayType>(&I.getElementType)),
       "Couldn't determine type assoc collection");
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), assoc_type);
+      detail::get_implementation_prefix(I.getCallInst(), assoc_type);
 
   auto name = prefix + "__keys";
 
@@ -1752,6 +1681,8 @@ void SSADestructionVisitor::visitAssocKeysInst(AssocKeysInst &I) {
 
   this->markForCleanup(I);
 
+#endif
+
   return;
 }
 
@@ -1762,23 +1693,6 @@ void SSADestructionVisitor::visitUsePHIInst(UsePHIInst &I) {
   auto &collection = I.getResultCollection();
 
   this->coalesce(collection, used_collection);
-
-  this->markForCleanup(I);
-
-  return;
-}
-
-void SSADestructionVisitor::visitDefPHIInst(DefPHIInst &I) {
-
-  auto &defined_collection = I.getDefinedCollection();
-  auto &collection = I.getResultCollection();
-
-  auto found_replacement = this->def_phi_replacements.find(&I.getCallInst());
-  if (found_replacement != this->def_phi_replacements.end()) {
-    this->coalesce(collection, *found_replacement->second);
-  } else {
-    this->coalesce(collection, defined_collection);
-  }
 
   this->markForCleanup(I);
 
@@ -1817,12 +1731,16 @@ void SSADestructionVisitor::visitRetPHIInst(RetPHIInst &I) {
 
 void SSADestructionVisitor::visitClearInst(ClearInst &I) {
 
-  auto &collection_type = MEMOIR_SANITIZE(
-      dyn_cast_or_null<CollectionType>(type_of(I.getInputCollection())),
-      "Couldn't determine type of collection for ClearInst");
+  // TODO
+
+#if 0
+
+  auto &collection_type =
+      MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(&I.getObjectType()),
+                      "Couldn't determine type of collection for ClearInst");
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), collection_type);
+      detail::get_implementation_prefix(I.getCallInst(), collection_type);
 
   auto name = prefix + "__clear";
 
@@ -1831,8 +1749,8 @@ void SSADestructionVisitor::visitClearInst(ClearInst &I) {
   MemOIRBuilder builder(I);
 
   auto *function_type = function_callee.getFunctionType();
-  auto *input = builder.CreatePointerCast(&I.getInputCollection(),
-                                          function_type->getParamType(0));
+  auto *input =
+      builder.CreatePointerCast(&I.getObject(), function_type->getParamType(0));
 
   auto *llvm_call =
       builder.CreateCall(function_callee, llvm::ArrayRef({ input }));
@@ -1845,19 +1763,20 @@ void SSADestructionVisitor::visitClearInst(ClearInst &I) {
 
   this->markForCleanup(I);
 
+#endif
+
   return;
 }
 
 // Fold instruction.
+#if 0
 void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
 
   // Fetch the iterator functions.
-  auto &collection_type = MEMOIR_SANITIZE(
-      dyn_cast_or_null<CollectionType>(type_of(I.getCollection())),
-      "Couldn't determine collection type");
+  auto &collection_type = I.getObjectType();
 
   auto prefix =
-      ImplLinker::get_implementation_prefix(I.getCallInst(), collection_type);
+      detail::get_implementation_prefix(I.getCallInst(), collection_type);
 
   auto begin_name = prefix + (I.isReverse() ? "__rbegin" : "__begin");
   auto next_name = prefix + (I.isReverse() ? "__rnext" : "__next");
@@ -1875,8 +1794,8 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
   auto *iter_type =
       llvm::StructType::getTypeByName(M.getContext(), iter_struct_name);
   if (not iter_type) {
-    // If we could not find the iterator type by name, get the next function and
-    // find any typed GEPs.
+    // If we could not find the iterator type by name, get the next function
+    // and find any typed GEPs.
     auto *iter_arg = begin_func->getArg(0);
     for (auto &use : iter_arg->uses()) {
       auto *user = use.getUser();
@@ -1917,28 +1836,16 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
 
   return;
 }
+#endif
 
 // Type erasure.
-void SSADestructionVisitor::visitAssertCollectionTypeInst(
-    AssertCollectionTypeInst &I) {
-  this->markForCleanup(I);
-
-  return;
-}
-
-void SSADestructionVisitor::visitAssertStructTypeInst(AssertStructTypeInst &I) {
+void SSADestructionVisitor::visitAssertTypeInst(AssertTypeInst &I) {
   this->markForCleanup(I);
 
   return;
 }
 
 void SSADestructionVisitor::visitReturnTypeInst(ReturnTypeInst &I) {
-  this->markForCleanup(I);
-
-  return;
-}
-
-void SSADestructionVisitor::visitPropertyInst(PropertyInst &I) {
   this->markForCleanup(I);
 
   return;
