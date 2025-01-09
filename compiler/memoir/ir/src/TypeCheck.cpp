@@ -14,6 +14,11 @@ Type *TypeChecker::type_of(MemOIRInst &I) {
 Type *TypeChecker::type_of(llvm::Value &V) {
   TypeChecker TA;
 
+  // Only type check LLVM pointers.
+  if (not isa<llvm::PointerType>(V.getType())) {
+    return nullptr;
+  }
+
   // Get the type of this value.
   auto *type = TA.analyze(V);
 
@@ -226,10 +231,10 @@ Type *TypeChecker::visitArrayTypeInst(ArrayTypeInst &I) {
   auto &elem_type = MEMOIR_SANITIZE(this->analyze(I.getElementTypeOperand()),
                                     "Could not determine element of ArrayType");
 
-  auto &length = I.getLength();
+  auto length = I.getLength();
 
   // Build the new type.
-  auto &type = Type::get_static_tensor_type(elem_type, length);
+  auto &type = Type::get_array_type(elem_type, length);
 
   return &type;
 }
@@ -375,7 +380,6 @@ Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
 }
 
 Type *TypeChecker::visitPHINode(llvm::PHINode &I) {
-
   // Check that we have not already visited this PHI.
   auto found = value_bindings.find(&I);
   if (found != value_bindings.end()) {
@@ -509,8 +513,19 @@ Type *TypeChecker::unify(Type *t, Type *u) {
     }
   }
 
-  // If neither t nor u is a type variable, and they are not equal, we have a
-  // type error!
+  if (t) {
+    println("t = ", *t);
+  } else {
+    println("t = NULL");
+  }
+  if (u) {
+    println("u = ", *u);
+  } else {
+    println("u = NULL");
+  }
+
+  // If neither t nor u is a type variable, and they are not equal, we
+  // have a type error!
   MEMOIR_UNREACHABLE("Unable to merge types!");
 }
 
