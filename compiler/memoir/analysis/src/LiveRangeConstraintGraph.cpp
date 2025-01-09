@@ -1,8 +1,10 @@
-#include "memoir/analysis/LiveRangeAnalysis.hpp"
+#if 0
 
-#include "memoir/support/Assert.hpp"
-#include "memoir/support/Casting.hpp"
-#include "memoir/support/Print.hpp"
+#  include "memoir/analysis/LiveRangeAnalysis.hpp"
+
+#  include "memoir/support/Assert.hpp"
+#  include "memoir/support/Casting.hpp"
+#  include "memoir/support/Print.hpp"
 
 namespace llvm::memoir {
 
@@ -235,3 +237,5 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
 }
 
 } // namespace llvm::memoir
+
+#endif
