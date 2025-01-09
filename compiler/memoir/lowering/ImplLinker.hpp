@@ -3,6 +3,7 @@
 
 #include "memoir/support/InternalDatatypes.hpp"
 
+#include "memoir/lowering/Implementation.hpp"
 #include "memoir/lowering/TypeLayout.hpp"
 
 /*
@@ -23,45 +24,6 @@ public:
    */
   ImplLinker(llvm::Module &M);
   ~ImplLinker() {}
-
-  /**
-   * Get the name of the implementation for the given instruction.
-   *
-   * @param I the llvm::Instruction
-   * @param type the MEMOIR type of I
-   * @returns the implementation name as a string
-   */
-  static std::string get_implementation_name(llvm::Instruction &I,
-                                             CollectionType &type);
-
-  /**
-   * Get the implementation's function prefix for the given instruction.
-   *
-   * @param I the llvm::Instruction
-   * @param type the MEMOIR type of I
-   * @returns the implementation's function prefix as a string
-   */
-  static std::string get_implementation_prefix(llvm::Instruction &I,
-                                               CollectionType &type);
-
-  /**
-   * Get the name of the implementation for the given field.
-   *
-   * @param type the struct type
-   * @param field the field index
-   * @returns the implementation name as a string
-   */
-  static std::string get_implementation_name(StructType &type, unsigned field);
-
-  /**
-   * Get the implementation's function prefix for the given field.
-   *
-   * @param type the struct type
-   * @param field the field index
-   * @returns the implementation's function prefix as a string
-   */
-  static std::string get_implementation_prefix(StructType &type,
-                                               unsigned field);
 
   /**
    * Get the default implementation for the given type.
