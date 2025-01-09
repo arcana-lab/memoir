@@ -25,24 +25,21 @@
 #define MEMOIR_ASSERT(c, msg...)                                               \
   _MEMOIR_ASSERT(__PRETTY_FUNCTION__, __LINE__, c, msg)
 
-#define MEMOIR_UNREACHABLE(msg) MEMOIR_ASSERT(false, msg)
+#define MEMOIR_UNREACHABLE(msg...) MEMOIR_ASSERT(false, msg)
 
-#define MEMOIR_NULL_CHECK(v, msg) MEMOIR_ASSERT((v != nullptr), msg)
+#define MEMOIR_NULL_CHECK(v, msg...) MEMOIR_ASSERT((v != nullptr), msg)
 
-#define MEMOIR_SANITIZE(v, msg)                                                \
-  llvm::memoir::sanitize(v, msg, __PRETTY_FUNCTION__, __LINE__)
+#define MEMOIR_SANITIZE(v, msg...)                                             \
+  llvm::memoir::sanitize(__PRETTY_FUNCTION__, __LINE__, v, msg)
 
 namespace llvm::memoir {
 
-template <typename T>
+template <typename T, typename... Ms>
 inline typename std::enable_if_t<
     std::is_pointer_v<T>,
     std::add_lvalue_reference_t<std::remove_pointer_t<T>>>
-sanitize(T t,
-         const char *message,
-         const char *pretty_func = "",
-         int pretty_line = 0) {
-  _MEMOIR_ASSERT((t != nullptr), message, pretty_func, pretty_line);
+sanitize(const char *pretty_func, int pretty_line, T t, Ms const &...messages) {
+  _MEMOIR_ASSERT(pretty_func, pretty_line, (t != nullptr), messages...);
   return *t;
 }
 

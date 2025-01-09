@@ -76,7 +76,7 @@ llvm::CallInst &MemOIRInst::getCallInst() const {
 }
 
 llvm::Function &MemOIRInst::getLLVMFunction() const {
-  return sanitize(
+  return MEMOIR_SANITIZE(
       this->getCallInst().getCalledFunction(),
       "MemOIRInst has been corrupted, CallInst is no longer direct!");
 }

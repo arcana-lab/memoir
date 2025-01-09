@@ -76,8 +76,9 @@ llvm::Argument *ValueExpression::handleCallContext(
   auto *module = called_function->getParent();
 
   // Get information from the old function type.
-  auto &old_func_type = sanitize(called_function->getFunctionType(),
-                                 "Couldn't determine the old function type");
+  auto &old_func_type =
+      MEMOIR_SANITIZE(called_function->getFunctionType(),
+                      "Couldn't determine the old function type");
   auto *return_type = old_func_type.getReturnType();
   auto param_types = old_func_type.params().vec();
   auto is_var_arg = old_func_type.isVarArg();
@@ -166,8 +167,9 @@ llvm::Argument *ValueExpression::handleCallContext(
 
   // Get the new argument.
   auto *first_argument = new_function->arg_begin();
-  auto &materialized_argument = sanitize(first_argument + num_fixed_args,
-                                         "Could not get the new argument");
+  auto &materialized_argument =
+      MEMOIR_SANITIZE(first_argument + num_fixed_args,
+                      "Could not get the new argument");
 
   // Return the new argument.
   return &materialized_argument;
