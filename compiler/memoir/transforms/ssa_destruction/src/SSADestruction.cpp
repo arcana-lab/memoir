@@ -1074,9 +1074,6 @@ void SSADestructionVisitor::visitKeysInst(KeysInst &I) {
                                           I);
 
   // Fetch the function that implements this operation.
-  auto prefix =
-      detail::get_implementation_prefix(*info.implementation, collection_type);
-
   vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
@@ -1101,7 +1098,6 @@ void SSADestructionVisitor::visitKeysInst(KeysInst &I) {
 }
 
 // Fold instruction.
-#if 0
 void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
 
   // Get the nested object as a value.
@@ -1114,45 +1110,19 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
                                           "Non-collection object to ",
                                           I);
 
-  // Fetch the function that implements this operation.
+  // Get the functions to call.
   auto prefix =
       detail::get_implementation_prefix(*info.implementation, collection_type);
-
-  vector<llvm::Value *> arguments = { &info.object };
-  arguments.insert(arguments.end(), info.begin, info.end);
-
-  auto callee = detail::prepare_call(builder,
-                                     *info.implementation,
-                                     collection_type,
-                                     "keys",
-                                     arguments);
-
-  auto &result =
-      MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
-                      "Could not create the call for ",
-                      I);
-
-  // Coalesce the original with the resultant.
-  this->coalesce(I, result);
-
-  // The instruction is dead now.
-  this->markForCleanup(I);
-
-  // OLD BELOW
-
-  // Fetch the iterator functions.
-  auto &collection_type = I.getObjectType();
 
   auto begin_name = prefix + (I.isReverse() ? "__rbegin" : "__begin");
   auto next_name = prefix + (I.isReverse() ? "__rnext" : "__next");
 
-  // Get the functions to call.
-  auto begin_function_callee = detail::get_function_callee(this->M, begin_name);
-  auto next_function_callee = detail::get_function_callee(this->M, next_name);
+  auto begin_callee = detail::get_function_callee(this->M, begin_name);
+  auto next_callee = detail::get_function_callee(this->M, next_name);
 
   // Unpack the functions.
-  auto *begin_func = cast<llvm::Function>(begin_function_callee.getCallee());
-  auto *next_func = cast<llvm::Function>(next_function_callee.getCallee());
+  auto *begin_func = cast<llvm::Function>(begin_callee.getCallee());
+  auto *next_func = cast<llvm::Function>(next_callee.getCallee());
 
   // Fetch the iterator and element types.
   auto iter_struct_name = "struct." + prefix + "_iter";
@@ -1194,14 +1164,13 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
       },
       [&](llvm::Instruction &I) { this->markForCleanup(I); });
 
-  // If the result of the fold is a collection, we need to patch it with the
-  // original operand.
+  // TODO: If the result of the fold is a collection, we need to patch it with
+  // the original operand.
 
   this->markForCleanup(I);
 
   return;
 }
-#endif
 
 // General-purpose SSA lowering.
 void SSADestructionVisitor::visitUsePHIInst(UsePHIInst &I) {
