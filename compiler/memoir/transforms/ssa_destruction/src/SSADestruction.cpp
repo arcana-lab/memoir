@@ -61,21 +61,6 @@ static std::string get_implementation_prefix(const Implementation &impl,
   }
 }
 
-static std::string get_implementation_prefix(llvm::Instruction &I,
-                                             CollectionType &type) {
-  // Fetch any selection metadata from the instruction.
-  std::optional<std::string> selection = std::nullopt;
-  auto selection_metadata = Metadata::get<SelectionMetadata>(I);
-  if (selection_metadata.has_value()) {
-    selection = selection_metadata->getImplementation(0);
-  }
-
-  // Fetch the implementation.
-  const auto &impl = get_implementation(selection, type);
-
-  return get_implementation_prefix(impl, type);
-}
-
 FunctionCallee get_function_callee(llvm::Module &M, std::string name) {
   auto *function = M.getFunction(name);
   if (not function) {
@@ -241,8 +226,14 @@ void construct_field_write(MemOIRBuilder &builder,
  * @returns the function callee for the given function name.
  */
 static FunctionCallee prepare_call(MemOIRBuilder &builder,
-                                   const std::string &function_name,
+                                   const Implementation &implementation,
+                                   CollectionType &type,
+                                   const std::string &operation,
                                    vector<llvm::Value *> &arguments) {
+
+  auto prefix = detail::get_implementation_prefix(implementation, type);
+  auto function_name = prefix + "__" + operation;
+
   auto callee = detail::get_function_callee(builder.getModule(), function_name);
   auto *function_type = callee.getFunctionType();
 
@@ -315,17 +306,13 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
           detail::get_implementation(dim_name, *collection_type);
       println(dim_impl.get_name());
 
-      // Fetch the function name to call.
-      auto prefix =
-          detail::get_implementation_prefix(dim_impl, *collection_type);
-      auto function_name = prefix + "__allocate";
-
       // Fetch the arguments.
       vector<llvm::Value *> arguments = {};
+      auto *nested_type = collection_type;
       for (unsigned dim = 0; dim < dim_impl.num_dimensions();
            ++dim, ++size_it) {
-        auto &elem_type = collection_type->getElementType();
-        collection_type = dyn_cast_or_null<CollectionType>(&elem_type);
+        auto &elem_type = nested_type->getElementType();
+        nested_type = dyn_cast_or_null<CollectionType>(&elem_type);
 
         if (size_it != size_ie) {
           arguments.push_back(*size_it);
@@ -333,10 +320,17 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
       }
 
       // Construct the call.
-      auto callee = detail::prepare_call(builder, function_name, arguments);
+      auto callee = detail::prepare_call(builder,
+                                         dim_impl,
+                                         *collection_type,
+                                         "allocate",
+                                         arguments);
       auto &call =
           MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
                           "Could not create the call for vector read");
+
+      collection_type = nested_type;
+
       if (not result) {
         result = &call;
       } else {
@@ -401,21 +395,32 @@ void SSADestructionVisitor::visitDeleteInst(DeleteInst &I) {
   if (auto *collection_type =
           dyn_cast_or_null<CollectionType>(type_of(I.getObject()))) {
 
-    auto prefix =
-        detail::get_implementation_prefix(I.getCallInst(), *collection_type);
-
-    auto free_name = prefix + "__free";
-
-    auto function_callee = detail::get_function_callee(this->M, free_name);
-
     MemOIRBuilder builder(I);
 
-    auto *llvm_call =
-        builder.CreateCall(function_callee, llvm::ArrayRef({ &I.getObject() }));
+    vector<llvm::Value *> arguments = { &I.getObject() };
+
+    // Fetch the collection implementation.
+    std::optional<std::string> impl_name = std::nullopt;
+    auto selection_metadata = I.get_keyword<SelectionMetadata>();
+    if (selection_metadata.has_value()) {
+      impl_name = selection_metadata->getImplementation();
+    }
+
+    const auto &impl = detail::get_implementation(impl_name, *collection_type);
+
+    auto callee = detail::prepare_call(builder,
+                                       impl,
+                                       *collection_type,
+                                       "free",
+                                       arguments);
+
+    auto *llvm_call = builder.CreateCall(callee, llvm::ArrayRef(arguments));
     MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for vector read");
 
     this->markForCleanup(I);
   }
+
+  // TODO: handle freeing nested collections.
 
   return;
 }
@@ -622,22 +627,19 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
       }
 
       // Otherwise, we will construct the get operation for the nested object.
-      auto prefix =
-          detail::get_implementation_prefix(dim_impl, *collection_type);
-
+      vector<llvm::Value *> arguments = { object, index };
+      // TODO: this needs to gather all indices required by the Implementation
       auto &element_type = collection_type->getElementType();
-      auto function_name = prefix + "__get";
-      auto function_callee = detail::get_function_callee(M, function_name);
 
-      // Construct a call to vector read.
-      auto *function_type = function_callee.getFunctionType();
-      auto *prepared_index =
-          builder.CreateZExtOrTrunc(index, function_type->getParamType(1));
+      auto callee = detail::prepare_call(builder,
+                                         dim_impl,
+                                         *collection_type,
+                                         "get",
+                                         arguments);
 
-      auto &call = MEMOIR_SANITIZE(
-          builder.CreateCall(function_callee,
-                             llvm::ArrayRef({ object, prepared_index })),
-          "Could not create the call for vector read");
+      auto &call =
+          MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
+                          "Could not create the call for get");
 
       object = &call;
       type = &element_type;
@@ -724,14 +726,14 @@ void SSADestructionVisitor::visitReadInst(ReadInst &I) {
 
   } else if (auto *collection_type = dyn_cast<CollectionType>(&info.type)) {
     // Fetch the function that implements this operation.
-    auto prefix = detail::get_implementation_prefix(*info.implementation,
-                                                    *collection_type);
-    auto function_name = prefix + "__read";
-
     vector<llvm::Value *> arguments = { &info.object };
     arguments.insert(arguments.end(), info.begin, info.end);
 
-    auto callee = detail::prepare_call(builder, function_name, arguments);
+    auto callee = detail::prepare_call(builder,
+                                       *info.implementation,
+                                       *collection_type,
+                                       "read",
+                                       arguments);
 
     result = builder.CreateCall(callee, llvm::ArrayRef(arguments));
     MEMOIR_NULL_CHECK(result, "Could not create the call");
@@ -796,16 +798,16 @@ void SSADestructionVisitor::visitWriteInst(WriteInst &I) {
     builder.CreateStore(&I.getValueWritten(), gep);
 
   } else if (auto *collection_type = dyn_cast<CollectionType>(&info.type)) {
-    // Fetch the function that implements this operation.
-    auto prefix = detail::get_implementation_prefix(*info.implementation,
-                                                    *collection_type);
-    auto function_name = prefix + "__write";
-
+    // Construct the call.
     vector<llvm::Value *> arguments = { &info.object };
     arguments.insert(arguments.end(), info.begin, info.end);
     arguments.push_back(&I.getValueWritten());
 
-    auto callee = detail::prepare_call(builder, function_name, arguments);
+    auto callee = detail::prepare_call(builder,
+                                       *info.implementation,
+                                       *collection_type,
+                                       "write",
+                                       arguments);
 
     builder.CreateCall(callee, llvm::ArrayRef(arguments));
 
@@ -814,7 +816,7 @@ void SSADestructionVisitor::visitWriteInst(WriteInst &I) {
   }
 
   // Coalesce the original with the resultant.
-  this->coalesce(I, info.object);
+  this->coalesce(I, I.getObject());
 
   // The instruction is dead now.
   this->markForCleanup(I);
@@ -831,16 +833,15 @@ void SSADestructionVisitor::visitHasInst(HasInst &I) {
                                           "Non-collection object to ",
                                           I);
 
-  // Fetch the function that implements this operation.
-  auto prefix =
-      detail::get_implementation_prefix(*info.implementation, collection_type);
-  auto function_name = prefix + "__has";
-
   // Construct the call.
   vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
-  auto callee = detail::prepare_call(builder, function_name, arguments);
+  auto callee = detail::prepare_call(builder,
+                                     *info.implementation,
+                                     collection_type,
+                                     "has",
+                                     arguments);
 
   auto &result =
       MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
@@ -868,29 +869,30 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
                                           I);
 
   // Fetch the function that implements this operation.
-  auto prefix =
-      detail::get_implementation_prefix(*info.implementation, collection_type);
-
   vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
-  std::string function_name = prefix + "__insert";
+  std::string operation_name = "insert";
   if (auto value_kw = I.get_keyword<ValueKeyword>()) {
-    function_name += "_value";
+    operation_name += "_value";
     arguments.push_back(&value_kw->getValue());
 
   } else if (auto input_kw = I.get_keyword<InputKeyword>()) {
-    function_name += "_input";
+    operation_name += "_input";
     arguments.push_back(&input_kw->getInput());
 
     if (auto range_kw = I.get_keyword<RangeKeyword>()) {
-      function_name += "_range";
+      operation_name += "_range";
       arguments.push_back(&range_kw->getBegin());
       arguments.push_back(&range_kw->getEnd());
     }
   }
 
-  auto callee = detail::prepare_call(builder, function_name, arguments);
+  auto callee = detail::prepare_call(builder,
+                                     *info.implementation,
+                                     collection_type,
+                                     operation_name,
+                                     arguments);
 
   auto &result =
       MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
@@ -918,20 +920,21 @@ void SSADestructionVisitor::visitRemoveInst(RemoveInst &I) {
                                           I);
 
   // Fetch the function that implements this operation.
-  auto prefix =
-      detail::get_implementation_prefix(*info.implementation, collection_type);
-
   vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
-  std::string function_name = prefix + "__remove";
+  std::string operation_name = "remove";
   if (auto range_kw = I.get_keyword<RangeKeyword>()) {
-    function_name += "_range";
+    operation_name += "_range";
     arguments.push_back(&range_kw->getBegin());
     arguments.push_back(&range_kw->getEnd());
   }
 
-  auto callee = detail::prepare_call(builder, function_name, arguments);
+  auto callee = detail::prepare_call(builder,
+                                     *info.implementation,
+                                     collection_type,
+                                     operation_name,
+                                     arguments);
 
   auto &result =
       MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
@@ -959,20 +962,21 @@ void SSADestructionVisitor::visitCopyInst(CopyInst &I) {
                                           I);
 
   // Fetch the function that implements this operation.
-  auto prefix =
-      detail::get_implementation_prefix(*info.implementation, collection_type);
-
   vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
-  std::string function_name = prefix + "__copy";
+  std::string operation_name = "copy";
   if (auto range_kw = I.get_keyword<RangeKeyword>()) {
-    function_name += "_range";
+    operation_name += "_range";
     arguments.push_back(&range_kw->getBegin());
     arguments.push_back(&range_kw->getEnd());
   }
 
-  auto callee = detail::prepare_call(builder, function_name, arguments);
+  auto callee = detail::prepare_call(builder,
+                                     *info.implementation,
+                                     collection_type,
+                                     operation_name,
+                                     arguments);
 
   auto &result =
       MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
@@ -1000,15 +1004,14 @@ void SSADestructionVisitor::visitClearInst(ClearInst &I) {
                                           I);
 
   // Fetch the function that implements this operation.
-  auto prefix =
-      detail::get_implementation_prefix(*info.implementation, collection_type);
-
   vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
-  auto function_name = prefix + "__clear";
-
-  auto callee = detail::prepare_call(builder, function_name, arguments);
+  auto callee = detail::prepare_call(builder,
+                                     *info.implementation,
+                                     collection_type,
+                                     "clear",
+                                     arguments);
 
   auto &result =
       MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
@@ -1036,15 +1039,14 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
                                           I);
 
   // Fetch the function that implements this operation.
-  auto prefix =
-      detail::get_implementation_prefix(*info.implementation, collection_type);
-
   vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
-  auto function_name = prefix + "__size";
-
-  auto callee = detail::prepare_call(builder, function_name, arguments);
+  auto callee = detail::prepare_call(builder,
+                                     *info.implementation,
+                                     collection_type,
+                                     "size",
+                                     arguments);
 
   auto &result =
       MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
@@ -1078,9 +1080,11 @@ void SSADestructionVisitor::visitKeysInst(KeysInst &I) {
   vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
-  auto function_name = prefix + "__keys";
-
-  auto callee = detail::prepare_call(builder, function_name, arguments);
+  auto callee = detail::prepare_call(builder,
+                                     *info.implementation,
+                                     collection_type,
+                                     "keys",
+                                     arguments);
 
   auto &result =
       MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
@@ -1100,11 +1104,44 @@ void SSADestructionVisitor::visitKeysInst(KeysInst &I) {
 #if 0
 void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
 
+  // Get the nested object as a value.
+  auto info = detail::get_nested_object(I, this->TC, this->M);
+
+  // Construct the read.
+  MemOIRBuilder builder(I);
+
+  auto &collection_type = MEMOIR_SANITIZE(dyn_cast<CollectionType>(&info.type),
+                                          "Non-collection object to ",
+                                          I);
+
+  // Fetch the function that implements this operation.
+  auto prefix =
+      detail::get_implementation_prefix(*info.implementation, collection_type);
+
+  vector<llvm::Value *> arguments = { &info.object };
+  arguments.insert(arguments.end(), info.begin, info.end);
+
+  auto callee = detail::prepare_call(builder,
+                                     *info.implementation,
+                                     collection_type,
+                                     "keys",
+                                     arguments);
+
+  auto &result =
+      MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
+                      "Could not create the call for ",
+                      I);
+
+  // Coalesce the original with the resultant.
+  this->coalesce(I, result);
+
+  // The instruction is dead now.
+  this->markForCleanup(I);
+
+  // OLD BELOW
+
   // Fetch the iterator functions.
   auto &collection_type = I.getObjectType();
-
-  auto prefix =
-      detail::get_implementation_prefix(I.getCallInst(), collection_type);
 
   auto begin_name = prefix + (I.isReverse() ? "__rbegin" : "__begin");
   auto next_name = prefix + (I.isReverse() ? "__rnext" : "__next");
