@@ -135,6 +135,10 @@ TO_STRING(ReferenceTypeInst)
  */
 GET_TYPE_IMPL(DefineStructTypeInst)
 
+StructType &DefineStructTypeInst::getStructType() const {
+  return *cast<StructType>(&this->getType());
+}
+
 std::string DefineStructTypeInst::getName() const {
   auto &name_value = this->getNameOperand();
 
