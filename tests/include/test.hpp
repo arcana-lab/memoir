@@ -9,13 +9,13 @@ namespace memoir::test {
 #define TEST(NAME)                                                             \
   if (memoir::test::tests > 0) {                                               \
     if (memoir::test::test_passing) {                                          \
-      printf("\r                                              \r");            \
+      fprintf(stderr, "\r                                              \r");   \
       ++memoir::test::passed;                                                  \
     } else {                                                                   \
       ++memoir::test::failed;                                                  \
     }                                                                          \
   }                                                                            \
-  printf("\e[1m%s \e[0m", #NAME);                                              \
+  fprintf(stderr, "\e[1m%s \e[0m", #NAME);                                     \
   ++memoir::test::tests;                                                       \
   memoir::test::test_passing = true;
 
@@ -32,22 +32,23 @@ static bool test_passing = false;
 
 __attribute__((destructor)) void end() {
   if (memoir::test::test_passing) {
-    printf("\r                                              \r");
+    fprintf(stderr, "\r                                              \r");
     ++memoir::test::passed;
   } else {
     ++memoir::test::failed;
   }
-  printf("\e[32;1m%u PASSED\e[0m, \e[31;1m%u FAILED\e[0m of \e[1m%u TESTS\n",
-         passed,
-         failed,
-         tests);
+  fprintf(stderr,
+          "\e[32;1m%u PASSED\e[0m, \e[31;1m%u FAILED\e[0m of \e[1m%u TESTS\n",
+          passed,
+          failed,
+          tests);
   return;
 }
 
 __attribute__((optnone)) bool expect(bool test, const char *error) {
   // If the test failed, print the error.
   if (not test) {
-    printf("\e[31;1mFAILED\e[0m\n  \e[33;1mREASON:\e[0m %s\n", error);
+    fprintf(stderr, "\e[31;1mFAILED\e[0m\n  \e[33;1mREASON:\e[0m %s\n", error);
   }
   return test;
 }
