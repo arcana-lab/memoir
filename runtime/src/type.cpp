@@ -41,8 +41,8 @@ type_ref MEMOIR_FUNC(array_type)(type_ref type, size_t length) {
 }
 
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(assoc_array_type)(const type_ref key_type,
-                                       const type_ref value_type) {
+type_ref MEMOIR_FUNC(assoc_type)(const type_ref key_type,
+                                 const type_ref value_type) {
   return AssocArrayType::get(key_type, value_type);
 }
 

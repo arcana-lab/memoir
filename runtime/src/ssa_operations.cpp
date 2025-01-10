@@ -109,7 +109,7 @@ collection_ref MEMOIR_FUNC(insert)(const collection_ref collection, ...) {
 // Assoc operations.
 __IMMUT_ATTR
 __RUNTIME_ATTR
-bool MEMOIR_FUNC(assoc_has)(const collection_ref collection, ...) {
+bool MEMOIR_FUNC(has)(const collection_ref collection, ...) {
   MEMOIR_ACCESS_CHECK(collection);
 
   va_list args;
@@ -126,7 +126,7 @@ bool MEMOIR_FUNC(assoc_has)(const collection_ref collection, ...) {
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(assoc_keys)(const collection_ref collection) {
+collection_ref MEMOIR_FUNC(keys)(const collection_ref collection) {
   MEMOIR_ACCESS_CHECK(collection);
 
   MEMOIR_TYPE_CHECK(collection, TypeCode::AssocArrayTy);

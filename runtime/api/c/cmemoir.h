@@ -35,11 +35,11 @@ namespace memoir {
 #define memoir_tensor_type(element_type, num_dimensions)                       \
   MEMOIR_FUNC(tensor_type)(element_type, num_dimensions)
 
-#define memoir_assoc_array_type(key_type, value_type)                          \
-  MEMOIR_FUNC(assoc_array_type)(key_type, value_type)
-
 #define memoir_assoc_type(key_type, value_type)                                \
-  MEMOIR_FUNC(assoc_array_type)(key_type, value_type)
+  MEMOIR_FUNC(assoc_type)(key_type, value_type)
+
+#define memoir_assoc_array_type(key_type, value_type)                          \
+  memoir_assoc_type(key_type, value_type)
 
 #define memoir_sequence_type(element_type)                                     \
   MEMOIR_FUNC(sequence_type)(element_type)
@@ -92,9 +92,9 @@ namespace memoir {
 /*
  * Collection operations
  */
-#define memoir_size(object, ...) MEMOIR_FUNC(size)(object, __VA_ARGS__)
+#define memoir_size(_obj, _args...) MEMOIR_FUNC(size)(_obj, ##_args)
 
-#define memoir_clear(object, ...) MUT_FUNC(clear)(object, __VA_ARGS__)
+#define memoir_clear(_obj, _args...) MUT_FUNC(clear)(_obj, ##_args)
 
 #define memoir_end() MEMOIR_FUNC(end)()
 
@@ -159,7 +159,9 @@ namespace memoir {
   memoir_remove(_obj, ##_indices, memoir_end())
 
 // Associative array operations.
-#define memoir_assoc_has(_obj, key) MEMOIR_FUNC(assoc_has)(_obj, key)
+#define memoir_has(_obj, key) MEMOIR_FUNC(has)(_obj, key)
+
+#define memoir_assoc_has(_obj, key) MEMOIR_FUNC(has)(_obj, key)
 
 #define memoir_assoc_insert(_obj, key) memoir_insert(_obj, key)
 

@@ -13,7 +13,7 @@
 HANDLE_TYPE_INST_(DEFINE_STRUCT_TYPE, MEMOIR_FUNC(define_struct_type), DefineStructTypeInst)
 HANDLE_TYPE_INST_(STRUCT_TYPE, MEMOIR_FUNC(struct_type), StructTypeInst)
 HANDLE_TYPE_INST_(ARRAY_TYPE, MEMOIR_FUNC(array_type), ArrayTypeInst)
-HANDLE_TYPE_INST_(ASSOC_ARRAY_TYPE, MEMOIR_FUNC(assoc_array_type), AssocArrayTypeInst)
+HANDLE_TYPE_INST_(ASSOC_ARRAY_TYPE, MEMOIR_FUNC(assoc_type), AssocArrayTypeInst)
 HANDLE_TYPE_INST_(SEQUENCE_TYPE, MEMOIR_FUNC(sequence_type), SequenceTypeInst)
 HANDLE_TYPE_INST_(REFERENCE_TYPE, MEMOIR_FUNC(ref_type), ReferenceTypeInst)
 
@@ -119,8 +119,8 @@ HANDLE_UPDATE_INST_(CLEAR, MEMOIR_FUNC(clear), ClearInst)
 HANDLE_INST_(COPY, MEMOIR_FUNC(copy), CopyInst)
 
 /* Associative operations. */
-HANDLE_ACCESS_INST_(HAS, MEMOIR_FUNC(assoc_has), HasInst)
-HANDLE_INST_(KEYS, MEMOIR_FUNC(assoc_keys), KeysInst)
+HANDLE_ACCESS_INST_(HAS, MEMOIR_FUNC(has), HasInst)
+HANDLE_INST_(KEYS, MEMOIR_FUNC(keys), KeysInst)
 
 /* SSA/readonce operations. */
 HANDLE_INST_(USE_PHI, MEMOIR_FUNC(usePHI), UsePHIInst)

@@ -50,8 +50,8 @@ type_ref MEMOIR_FUNC(array_type)(const type_ref element_type, size_t length);
 
 // Collection Types
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(assoc_array_type)(const type_ref key_type,
-                                       const type_ref value_type);
+type_ref MEMOIR_FUNC(assoc_type)(const type_ref key_type,
+                                 const type_ref value_type);
 
 __RUNTIME_ATTR
 type_ref MEMOIR_FUNC(sequence_type)(const type_ref element_type);
@@ -139,12 +139,12 @@ void MUT_FUNC(remove)(collection_ref collection, ...);
 // SSA Assoc operations.
 __IMMUT_ATTR
 __RUNTIME_ATTR
-bool MEMOIR_FUNC(assoc_has)(const collection_ref collection, ...);
+bool MEMOIR_FUNC(has)(const collection_ref collection, ...);
 
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(assoc_keys)(const collection_ref collection);
+collection_ref MEMOIR_FUNC(keys)(const collection_ref collection);
 
 // Read/write accesses
 #define HANDLE_TYPE(TYPE_NAME, C_TYPE)                                         \
