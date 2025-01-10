@@ -75,10 +75,10 @@ int main() {
 
     // Update the outer fields
     memoir_struct_write(u32, 123, myObj, 0);
-    memoir_struct_write(struct_ref, innerObj, myObj, 1);
+    memoir_struct_write(ref, innerObj, myObj, 1);
 
     // Get the object from the pointer
-    auto deref = memoir_struct_read(struct_ref, myObj, 1);
+    auto deref = memoir_struct_read(ref, myObj, 1);
 
     // Update the inner fields
     memoir_struct_write(u32, 456, deref, 0);

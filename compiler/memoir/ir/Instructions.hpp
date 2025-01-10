@@ -44,9 +44,7 @@ public:
 
   bool has_keywords() const;
 
-  template <
-      typename KeywordTy,
-      std::enable_if_t<std::is_base_of_v<Keyword, KeywordTy>, bool> = true>
+  template <typename KeywordTy>
   std::optional<KeywordTy> get_keyword() const;
 
   llvm::iterator_range<keyword_iterator> keywords() const;
@@ -362,6 +360,8 @@ protected:
 struct DefineStructTypeInst : public TypeInst {
 public:
   Type &getType() const override;
+  StructType &getStructType() const;
+
   std::string getName() const;
   llvm::Value &getNameOperand() const;
   llvm::Use &getNameOperandAsUse() const;

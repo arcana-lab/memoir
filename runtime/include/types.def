@@ -15,7 +15,7 @@ HANDLE_TYPE(boolean, bool)
 HANDLE_TYPE(f64, double)
 HANDLE_TYPE(f32, float)
 HANDLE_TYPE(ptr, void *)
-HANDLE_TYPE(collection_ref, Collection *)
+HANDLE_TYPE(ref, Collection *)
 
 #ifndef HANDLE_INTEGER_TYPE
 #  define HANDLE_INTEGER_TYPE(TYPE_NAME,                                       \
@@ -49,7 +49,7 @@ HANDLE_PRIMITIVE_TYPE(ptr, void *, Pointer)
                                 C_TYPE,                                        \
                                 CLASS_PREFIX) /* NO HANDLING */
 #endif
-HANDLE_REFERENCE_TYPE(collection_ref, Collection *, Collection)
+HANDLE_REFERENCE_TYPE(ref, Collection *, Collection)
 
 #ifndef HANDLE_NESTED_TYPE
 #  define HANDLE_NESTED_TYPE(TYPE_NAME, C_TYPE, CLASS_PREFIX) /* NO HANDLING   \

@@ -605,7 +605,7 @@ protected:
     } else if (isa<PointerType>(&type)) {                                      \
       return MemOIR_Func::ENUM_PREFIX##_PTR;                                   \
     } else if (isa<ReferenceType>(&type)) {                                    \
-      return MemOIR_Func::ENUM_PREFIX##_STRUCT_REF;                            \
+      return MemOIR_Func::ENUM_PREFIX##_REF;                                   \
     } else if (auto *integer_type = dyn_cast<IntegerType>(&type)) {            \
       if (!integer_type->isSigned()) {                                         \
         switch (integer_type->getBitWidth()) {                                 \
@@ -660,7 +660,7 @@ protected:
     } else if (isa<PointerType>(&type)) {                                      \
       return MemOIR_Func::ENUM_PREFIX##_PTR;                                   \
     } else if (isa<CollectionType>(&type)) {                                   \
-      return MemOIR_Func::ENUM_PREFIX##_COLLECTION_REF;                        \
+      return MemOIR_Func::ENUM_PREFIX##_REF;                                   \
     } else if (auto *integer_type = dyn_cast<IntegerType>(&type)) {            \
       if (!integer_type->isSigned()) {                                         \
         switch (integer_type->getBitWidth()) {                                 \
