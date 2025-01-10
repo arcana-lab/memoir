@@ -113,7 +113,7 @@ llvm::iterator_range<keyword_iterator> MemOIRInst::keywords() const {
 
 keyword_iterator MemOIRInst::kw_begin() const {
   for (auto &arg : this->getCallInst().args()) {
-    if (Keyword::is_keyword(*arg.get())) {
+    if (Keyword::is_keyword(arg.get())) {
       return keyword_iterator(&arg);
     }
   }
@@ -128,15 +128,16 @@ bool MemOIRInst::has_keywords() const {
   return this->kw_begin() != this->kw_end();
 }
 
-template <typename KeywordTy,
-          std::enable_if_t<std::is_base_of_v<Keyword, KeywordTy>, bool>>
-std::optional<KeywordTy> MemOIRInst::get_keyword() const {
-  for (auto kw : this->keywords()) {
-    if (auto the_kw = try_cast<KeywordTy>(kw)) {
-      return the_kw;
-    }
+#define KEYWORD(STR, CLASS)                                                    \
+  template <>                                                                  \
+  std::optional<CLASS> MemOIRInst::get_keyword<CLASS>() const {                \
+    for (auto kw : this->keywords()) {                                         \
+      if (auto the_kw = try_cast<CLASS>(kw)) {                                 \
+        return the_kw;                                                         \
+      }                                                                        \
+    }                                                                          \
+    return {};                                                                 \
   }
-  return {};
-}
+#include "memoir/ir/Keywords.def"
 
 } // namespace llvm::memoir
