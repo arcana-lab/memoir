@@ -65,11 +65,12 @@
     return (*vec)[index];                                                      \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void T##_stl_vector__write(T##_stl_vector_p vec,     \
-                                                     size_t index,             \
-                                                     C_TYPE value) {           \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__write(              \
+      T##_stl_vector_p vec,                                                    \
+      size_t index,                                                            \
+      C_TYPE value) {                                                          \
     (*vec)[index] = value;                                                     \
-    return;                                                                    \
+    return vec;                                                                \
   }                                                                            \
                                                                                \
   cname alwaysinline used T##_stl_vector_p T##_stl_vector__copy(               \
@@ -155,7 +156,7 @@
       T##_stl_vector_p vec) {                                                  \
     iter->_it = vec->begin();                                                  \
     iter->_ie = vec->end();                                                    \
-    iter->_idx = 0;                                                            \
+    iter->_idx = -1;                                                           \
   }                                                                            \
   cname alwaysinline used bool T##_stl_vector__next(                           \
       T##_stl_vector_iter_p iter) {                                            \
@@ -172,7 +173,7 @@
       T##_stl_vector_p vec) {                                                  \
     iter->_it = vec->rbegin();                                                 \
     iter->_ie = vec->rend();                                                   \
-    iter->_idx = vec->size() - 1;                                              \
+    iter->_idx = vec->size();                                                  \
   }                                                                            \
   cname alwaysinline used bool T##_stl_vector__rnext(                          \
       T##_stl_vector_iter_p iter) {                                            \
@@ -217,11 +218,12 @@
     return vec->test(index);                                                   \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void T##_stl_vector__write(T##_stl_vector_p vec,     \
-                                                     size_t index,             \
-                                                     C_TYPE value) {           \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__write(              \
+      T##_stl_vector_p vec,                                                    \
+      size_t index,                                                            \
+      C_TYPE value) {                                                          \
     vec->set(index, value);                                                    \
-    return;                                                                    \
+    return vec;                                                                \
   }                                                                            \
                                                                                \
   cname alwaysinline used size_t T##_stl_vector__size(T##_stl_vector_p vec) {  \
@@ -302,11 +304,12 @@
     return (*vec)[index];                                                      \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void T##_stl_vector__write(T##_stl_vector_p vec,     \
-                                                     size_t index,             \
-                                                     C_TYPE value) {           \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__write(              \
+      T##_stl_vector_p vec,                                                    \
+      size_t index,                                                            \
+      C_TYPE value) {                                                          \
     (*vec)[index] = value;                                                     \
-    return;                                                                    \
+    return vec;                                                                \
   }                                                                            \
                                                                                \
   cname alwaysinline used T##_stl_vector_p T##_stl_vector__copy(               \
