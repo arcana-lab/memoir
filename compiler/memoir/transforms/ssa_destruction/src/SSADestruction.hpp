@@ -75,6 +75,7 @@ public:
   void visitSizeInst(SizeInst &I);
   void visitFoldInst(FoldInst &I);
   void visitClearInst(ClearInst &I);
+  void visitHasInst(HasInst &I);
 
   // Update operations
   void visitWriteInst(WriteInst &I);
