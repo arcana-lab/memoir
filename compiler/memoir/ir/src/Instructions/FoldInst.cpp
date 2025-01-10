@@ -161,7 +161,7 @@ llvm::Argument &FoldInst::getClosedArgument(llvm::Use &U) const {
   auto closed_kw_no = closed_kw->getAsUse().getOperandNo();
 
   // Compute the index of this use within the list of closed arguments.
-  auto closed_index = U.getOperandNo() - closed_kw_no;
+  auto closed_index = U.getOperandNo() - closed_kw_no - 1;
 
   // If the element type is void, the first closed argument is at operand 2,
   // otherwise operand 3.
@@ -171,7 +171,7 @@ llvm::Argument &FoldInst::getClosedArgument(llvm::Use &U) const {
   // Compute the argument number corresponding to the closed operand.
   auto arg_no = closed_index + first_closed;
   auto &arg = MEMOIR_SANITIZE(this->getFunction().getArg(arg_no),
-                              "Out-of-range argument number");
+                              "Failed to get function argument.");
 
   return arg;
 }
