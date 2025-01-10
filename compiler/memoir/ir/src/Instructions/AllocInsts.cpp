@@ -46,7 +46,7 @@ llvm::iterator_range<AllocInst::size_op_iterator> AllocInst::size_operands() {
 }
 
 AllocInst::size_op_iterator AllocInst::size_ops_begin() {
-  return size_op_iterator(this->getTypeOperandAsUse().getNext());
+  return size_op_iterator(std::next(&this->getTypeOperandAsUse()));
 }
 
 AllocInst::size_op_iterator AllocInst::size_ops_end() {
@@ -59,7 +59,7 @@ llvm::iterator_range<AllocInst::const_size_op_iterator> AllocInst::
 }
 
 AllocInst::const_size_op_iterator AllocInst::size_ops_begin() const {
-  return const_size_op_iterator(this->getTypeOperandAsUse().getNext());
+  return const_size_op_iterator(std::next(&this->getTypeOperandAsUse()));
 }
 
 AllocInst::const_size_op_iterator AllocInst::size_ops_end() const {
