@@ -309,11 +309,11 @@ map<Type *, SequenceType *> *SequenceType::sequence_types = nullptr;
  * Static checker methods
  */
 bool Type::is_primitive_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::INTEGER:
-    case TypeCode::FLOAT:
-    case TypeCode::DOUBLE:
-    case TypeCode::POINTER:
+  switch (type.getKind()) {
+    case TypeKind::INTEGER:
+    case TypeKind::FLOAT:
+    case TypeKind::DOUBLE:
+    case TypeKind::POINTER:
       return true;
     default:
       return false;
@@ -321,8 +321,8 @@ bool Type::is_primitive_type(Type &type) {
 }
 
 bool Type::is_reference_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::REFERENCE:
+  switch (type.getKind()) {
+    case TypeKind::REFERENCE:
       return true;
     default:
       return false;
@@ -330,8 +330,8 @@ bool Type::is_reference_type(Type &type) {
 }
 
 bool Type::is_struct_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::STRUCT:
+  switch (type.getKind()) {
+    case TypeKind::STRUCT:
       return true;
     default:
       return false;
@@ -339,15 +339,27 @@ bool Type::is_struct_type(Type &type) {
 }
 
 bool Type::is_collection_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::ARRAY:
-    case TypeCode::TENSOR:
-    case TypeCode::ASSOC_ARRAY:
-    case TypeCode::SEQUENCE:
+  switch (type.getKind()) {
+    case TypeKind::ARRAY:
+    case TypeKind::TENSOR:
+    case TypeKind::ASSOC_ARRAY:
+    case TypeKind::SEQUENCE:
       return true;
     default:
       return false;
   }
+}
+
+bool Type::value_is_object(llvm::Value &value) {
+  if (not isa<llvm::PointerType>(value.getType())) {
+    return false;
+  }
+
+  if (not isa<llvm::Instruction>(&value) and not isa<llvm::Argument>(&value)) {
+    return false;
+  }
+
+  return isa_and_nonnull<ObjectType>(type_of(value));
 }
 
 bool Type::value_is_collection_type(llvm::Value &value) {
@@ -377,7 +389,7 @@ bool Type::value_is_struct_type(llvm::Value &value) {
 /*
  * Abstract Type implementation
  */
-Type::Type(TypeCode code) : code(code) {
+Type::Type(TypeKind code) : code(code) {
   // Do nothing.
 }
 
@@ -395,7 +407,7 @@ opt<std::string> Type::get_code() const {
   return {};
 }
 
-TypeCode Type::getCode() const {
+TypeKind Type::getKind() const {
   return this->code;
 }
 
@@ -408,7 +420,7 @@ llvm::Type *Type::get_llvm_type(llvm::LLVMContext &C) const {
  * IntegerType implementation
  */
 IntegerType::IntegerType(unsigned bitwidth, bool is_signed)
-  : Type(TypeCode::INTEGER),
+  : Type(TypeKind::INTEGER),
     bitwidth(bitwidth),
     is_signed(is_signed) {
   // Do nothing.
@@ -456,7 +468,7 @@ llvm::Type *IntegerType::get_llvm_type(llvm::LLVMContext &C) const {
 /*
  * FloatType implementation
  */
-FloatType::FloatType() : Type(TypeCode::FLOAT) {
+FloatType::FloatType() : Type(TypeKind::FLOAT) {
   // Do nothing.
 }
 
@@ -479,7 +491,7 @@ llvm::Type *FloatType::get_llvm_type(llvm::LLVMContext &C) const {
 /*
  * DoubleType implementation
  */
-DoubleType::DoubleType() : Type(TypeCode::DOUBLE) {
+DoubleType::DoubleType() : Type(TypeKind::DOUBLE) {
   // Do nothing.
 }
 
@@ -502,7 +514,7 @@ llvm::Type *DoubleType::get_llvm_type(llvm::LLVMContext &C) const {
 /*
  * PointerType implementation
  */
-PointerType::PointerType() : Type(TypeCode::POINTER) {
+PointerType::PointerType() : Type(TypeKind::POINTER) {
   // Do nothing.
 }
 
@@ -525,7 +537,7 @@ llvm::Type *PointerType::get_llvm_type(llvm::LLVMContext &C) const {
 /*
  * VoidType implementation
  */
-VoidType::VoidType() : Type(TypeCode::VOID) {
+VoidType::VoidType() : Type(TypeKind::VOID) {
   // Do nothing.
 }
 
@@ -549,7 +561,7 @@ llvm::Type *VoidType::get_llvm_type(llvm::LLVMContext &C) const {
  * ReferenceType implementation
  */
 ReferenceType::ReferenceType(Type &referenced_type)
-  : Type(TypeCode::REFERENCE),
+  : Type(TypeKind::REFERENCE),
     referenced_type(referenced_type) {
   // Do nothing.
 }
@@ -579,12 +591,17 @@ llvm::Type *ReferenceType::get_llvm_type(llvm::LLVMContext &C) const {
 }
 
 /*
+ * ObjectType implementation
+ */
+ObjectType::ObjectType(TypeKind kind) : Type(kind) {}
+
+/*
  * StructType implementation
  */
 StructType::StructType(DefineStructTypeInst &definition,
                        std::string name,
                        vector<Type *> field_types)
-  : Type(TypeCode::STRUCT),
+  : ObjectType(TypeKind::STRUCT),
     definition(definition),
     name(name),
     field_types(field_types) {
@@ -640,7 +657,7 @@ llvm::Type *StructType::get_llvm_type(llvm::LLVMContext &C) const {
 /*
  * Abstract CollectionType implementation
  */
-CollectionType::CollectionType(TypeCode code) : Type(code) {
+CollectionType::CollectionType(TypeKind code) : ObjectType(code) {
   // Do nothing.
 }
 
@@ -656,7 +673,7 @@ llvm::Type *CollectionType::get_llvm_type(llvm::LLVMContext &C) const {
  * FieldArrayType implementation
  */
 FieldArrayType::FieldArrayType(StructType &struct_type, unsigned field_index)
-  : CollectionType(TypeCode::FIELD_ARRAY),
+  : CollectionType(TypeKind::FIELD_ARRAY),
     struct_type(struct_type),
     field_index(field_index) {
   // Do nothing.
@@ -693,7 +710,7 @@ std::string FieldArrayType::toString(std::string indent) const {
  * ArrayType implementation
  */
 ArrayType::ArrayType(Type &element_type, size_t length)
-  : CollectionType(TypeCode::ARRAY),
+  : CollectionType(TypeKind::ARRAY),
     element_type(element_type),
     length(length) {}
 
@@ -718,7 +735,7 @@ std::string ArrayType::toString(std::string indent) const {
  * TensorType implementation
  */
 TensorType::TensorType(Type &element_type, unsigned number_of_dimensions)
-  : CollectionType(TypeCode::TENSOR),
+  : CollectionType(TypeKind::TENSOR),
     element_type(element_type),
     number_of_dimensions(number_of_dimensions) {
   // Do nothing.
@@ -745,7 +762,7 @@ std::string TensorType::toString(std::string indent) const {
  * AssocArrayType implementation
  */
 AssocArrayType::AssocArrayType(Type &key_type, Type &value_type)
-  : CollectionType(TypeCode::ASSOC_ARRAY),
+  : CollectionType(TypeKind::ASSOC_ARRAY),
     key_type(key_type),
     value_type(value_type) {
   // Do nothing.
@@ -776,7 +793,7 @@ std::string AssocArrayType::toString(std::string indent) const {
  * SequenceType implementation
  */
 SequenceType::SequenceType(Type &element_type)
-  : CollectionType(TypeCode::SEQUENCE),
+  : CollectionType(TypeKind::SEQUENCE),
     element_type(element_type) {
   // Do nothing.
 }
