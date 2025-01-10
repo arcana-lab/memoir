@@ -8,8 +8,20 @@ const char *Keyword::PREFIX = "memoir.";
 #define KEYWORD(STR, CLASS) const char *CLASS::NAME = #STR;
 #include "memoir/ir/Keywords.def"
 
+bool Keyword::is_keyword(llvm::Value *value) {
+  if (value == nullptr) {
+    return false;
+  }
+  return Keyword::is_keyword(*value);
+}
+
 bool Keyword::is_keyword(llvm::Value &V) {
-  auto *data = dyn_cast<llvm::ConstantDataArray>(&V);
+  auto *global = dyn_cast<llvm::GlobalVariable>(&V);
+  if (not global) {
+    return false;
+  }
+  auto *init = global->getInitializer();
+  auto *data = dyn_cast_or_null<llvm::ConstantDataSequential>(init);
   if (not data) {
     return false;
   }
@@ -17,19 +29,22 @@ bool Keyword::is_keyword(llvm::Value &V) {
     return false;
   }
   auto str = data->getAsCString();
-  if (not str.starts_with(Keyword::PREFIX)) {
-    return false;
-  } else {
+  if (str.starts_with(Keyword::PREFIX)) {
     return true;
   }
+  return false;
 }
 
 namespace llvm::memoir::detail {
 
 llvm::Use *find_end_of_keyword(llvm::Use &U) {
   // Find either the next keyword or the end of the operand list.
+  auto *call = dyn_cast<llvm::CallBase>(U.getUser());
   auto *curr = std::next(&U);
-  while (curr and not Keyword::is_keyword(*curr->get())) {
+  while (curr != call->arg_end()) {
+    if (Keyword::is_keyword(curr->get())) {
+      return curr;
+    }
     curr = std::next(curr);
   }
 

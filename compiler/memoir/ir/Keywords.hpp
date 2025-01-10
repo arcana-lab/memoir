@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/User.h"
 
 #include "memoir/support/Assert.hpp"
@@ -22,6 +23,7 @@ public:
    * Check if the given value is a keyword string.
    */
   static bool is_keyword(llvm::Value &V);
+  static bool is_keyword(llvm::Value *V);
 
   /**
    * Get the LLVM constant for the given keyword.
@@ -103,7 +105,9 @@ public:
 
   static bool classof(const Keyword &kw) {
     auto *value = kw.getAsUse().get();
-    auto *data = cast<llvm::ConstantDataArray>(value);
+    auto *global = cast<llvm::GlobalVariable>(value);
+    auto *init = global->getInitializer();
+    auto *data = cast<llvm::ConstantDataSequential>(init);
     auto str = data->getAsCString();
     return str.ends_with(NAME);
   }
@@ -131,7 +135,9 @@ public:
 
   static bool classof(const Keyword &kw) {
     auto *value = kw.getAsUse().get();
-    auto *data = cast<llvm::ConstantDataArray>(value);
+    auto *global = cast<llvm::GlobalVariable>(value);
+    auto *init = global->getInitializer();
+    auto *data = cast<llvm::ConstantDataSequential>(init);
     auto str = data->getAsCString();
     return str.ends_with(NAME);
   }
@@ -154,7 +160,9 @@ public:
 
   static bool classof(const Keyword &kw) {
     auto *value = kw.getAsUse().get();
-    auto *data = cast<llvm::ConstantDataArray>(value);
+    auto *global = cast<llvm::GlobalVariable>(value);
+    auto *init = global->getInitializer();
+    auto *data = cast<llvm::ConstantDataSequential>(init);
     auto str = data->getAsCString();
     return str.ends_with(NAME);
   }
@@ -174,7 +182,9 @@ public:
 
   static bool classof(const Keyword &kw) {
     auto *value = kw.getAsUse().get();
-    auto *data = cast<llvm::ConstantDataArray>(value);
+    auto *global = cast<llvm::GlobalVariable>(value);
+    auto *init = global->getInitializer();
+    auto *data = cast<llvm::ConstantDataSequential>(init);
     auto str = data->getAsCString();
     return str.ends_with(NAME);
   }
