@@ -176,7 +176,7 @@
     iter->_idx = vec->size();                                                  \
   }                                                                            \
   cname alwaysinline used bool T##_stl_vector__rnext(                          \
-      T##_stl_vector_iter_p iter) {                                            \
+      T##_stl_vector_riter_p iter) {                                           \
     if (iter->_it == iter->_ie) {                                              \
       return false;                                                            \
     }                                                                          \
@@ -409,7 +409,7 @@
     iter->_idx = vec->size();                                                  \
   }                                                                            \
   cname alwaysinline used bool T##_stl_vector__rnext(                          \
-      T##_stl_vector_iter_p iter) {                                            \
+      T##_stl_vector_riter_p iter) {                                           \
     if (iter->_it == iter->_ie) {                                              \
       return false;                                                            \
     }                                                                          \
