@@ -167,7 +167,7 @@ void SSAConstructionVisitor::visitInstruction(llvm::Instruction &I) {
 
   for (auto &operand_use : I.operands()) {
     auto *operand_value = operand_use.get();
-    if (not Type::value_is_collection_type(*operand_value)) {
+    if (not Type::value_is_object(*operand_value)) {
       continue;
     }
 
@@ -175,7 +175,7 @@ void SSAConstructionVisitor::visitInstruction(llvm::Instruction &I) {
     operand_use.set(reaching_operand);
   }
 
-  if (Type::value_is_collection_type(I)) {
+  if (Type::value_is_object(I)) {
     this->set_reaching_definition(&I, &I);
   }
 
@@ -208,7 +208,7 @@ void SSAConstructionVisitor::visitPHINode(llvm::PHINode &I) {
 void SSAConstructionVisitor::visitLLVMCallInst(llvm::CallInst &I) {
   for (auto &arg_use : I.data_ops()) {
     auto *arg_value = arg_use.get();
-    if (not Type::value_is_collection_type(*arg_value)) {
+    if (not Type::value_is_object(*arg_value)) {
       continue;
     }
 
@@ -228,7 +228,7 @@ void SSAConstructionVisitor::visitLLVMCallInst(llvm::CallInst &I) {
 
   // Create a new reaching definition for the returned value, if it's a MEMOIR
   // collection.
-  if (Type::value_is_collection_type(I)) {
+  if (Type::value_is_object(I)) {
     this->set_reaching_definition(&I, &I);
   }
 
@@ -239,8 +239,7 @@ void SSAConstructionVisitor::visitReturnInst(llvm::ReturnInst &I) {
 
   // If the returned value is a collection:
   auto *return_value = I.getReturnValue();
-  if (return_value != nullptr
-      and Type::value_is_collection_type(*return_value)) {
+  if (return_value != nullptr and Type::value_is_object(*return_value)) {
 
     // Update the reaching definition of the return value.
     auto *return_reaching = update_reaching_definition(return_value, I);
@@ -260,7 +259,7 @@ void SSAConstructionVisitor::visitReturnInst(llvm::ReturnInst &I) {
   for (auto &A : function->args()) {
 
     // Skip non-collection arguments.
-    if (not Type::value_is_collection_type(A)) {
+    if (not Type::value_is_object(A)) {
       continue;
     }
 
@@ -298,7 +297,7 @@ void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
   // Update the reaching definitions for the initial value, if it is a
   // collection.
   auto &initial = I.getInitial();
-  if (Type::value_is_collection_type(initial)) {
+  if (Type::value_is_object(initial)) {
     auto *reaching = update_reaching_definition(&initial, I);
     I.getInitialAsUse().set(reaching);
   }
@@ -309,7 +308,7 @@ void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
       auto *closed = closed_use.get();
 
       // If the closed value is not a collection type, skip it.
-      if (not Type::value_is_collection_type(*closed)) {
+      if (not Type::value_is_object(*closed)) {
         continue;
       }
 
@@ -334,7 +333,7 @@ void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
   // Create a new reaching definition for the returned value, if it's a MEMOIR
   // collection.
   auto &result = I.getResult();
-  if (Type::value_is_collection_type(result)) {
+  if (Type::value_is_object(result)) {
     this->set_reaching_definition(&result, &result);
   }
 

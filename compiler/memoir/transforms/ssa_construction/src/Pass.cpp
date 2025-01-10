@@ -141,7 +141,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
       } else {
         for (auto &use : A.uses()) {
           if (auto *load = dyn_cast<llvm::LoadInst>(use.getUser())) {
-            if (Type::value_is_collection_type(*load)) {
+            if (Type::value_is_object(*load)) {
               memoir_names.insert(load);
             }
           }
@@ -150,7 +150,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     }
     for (auto &BB : F) {
       for (auto &I : BB) {
-        if (Type::value_is_collection_type(I)) {
+        if (Type::value_is_object(I)) {
           memoir_names.insert(&I);
         }
       }
@@ -295,7 +295,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
         for (auto &phi : succ_bb->phis()) {
 
           // Ensure that the value is of collection type.
-          if (not Type::value_is_collection_type(phi)) {
+          if (not Type::value_is_object(phi)) {
             continue;
           }
 
