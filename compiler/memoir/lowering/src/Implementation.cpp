@@ -28,7 +28,7 @@ bool match(map<TypeVariable *, Type *> &environment,
   }
 
   // Check the type codes.
-  if (to_match.getCode() != pattern.getCode()) {
+  if (to_match.getKind() != pattern.getKind()) {
     return false;
   }
 
