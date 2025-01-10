@@ -75,44 +75,85 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
     // Collect all of the collection allocations in the program.
     for (auto &BB : F) {
       for (auto &I : BB) {
-        if (auto *seq_alloc = into<SequenceAllocInst>(&I)) {
+        if (auto *alloc = into<AllocInst>(&I)) {
 
-          // Get the implementation name for this allocation.
-          auto impl_name = ImplLinker::get_implementation_name(
-              I,
-              seq_alloc->getCollectionType());
+          // Check that this is a collection implementation.
+          auto *collection_type = dyn_cast<CollectionType>(&alloc->getType());
+          if (not collection_type) {
+            continue;
+          }
 
-          // Get the type layout for the element type.
-          auto &element_layout = TC.convert(seq_alloc->getElementType());
+          // Fetch the selection from the instruction metadata, if it exists.
+          std::optional<std::string> selection = std::nullopt;
+          auto selection_metadata = Metadata::get<SelectionMetadata>(I);
+          if (selection_metadata.has_value()) {
+            for (const auto &impl_name :
+                 selection_metadata->implementations()) {
 
-          // Implement the sequence.
-          IL.implement_seq(impl_name, element_layout);
+              // Lookup the implementation with the given name.
+              auto &impl =
+                  MEMOIR_SANITIZE(Implementation::lookup(impl_name),
+                                  "Failed to find selected implementation: ",
+                                  impl_name);
 
-        } else if (auto *assoc_alloc = into<AssocAllocInst>(&I)) {
+              // Implement the selection.
+              if (auto *seq_type = dyn_cast<SequenceType>(collection_type)) {
+                // Implement the sequence.
+                auto &element_layout = TC.convert(seq_type->getElementType());
 
-          // Get the implementation name for this allocation.
-          auto impl_name = ImplLinker::get_implementation_name(
-              I,
-              assoc_alloc->getCollectionType());
+                IL.implement_seq(impl_name, element_layout);
 
-          // Get the type layout for the key type.
-          auto &key_layout = TC.convert(assoc_alloc->getKeyType());
+              } else if (auto *assoc_type =
+                             dyn_cast<AssocType>(collection_type)) {
+                // Implement the assoc.
+                auto &key_layout = TC.convert(assoc_type->getKeyType());
+                auto &val_layout = TC.convert(assoc_type->getValueType());
 
-          // Get the type layout for the value type.
-          auto &value_layout = TC.convert(assoc_alloc->getValueType());
+                IL.implement_assoc(impl_name, key_layout, val_layout);
+              }
 
-          // Implement the assoc.
-          IL.implement_assoc(impl_name, key_layout, value_layout);
+              // Get the next collection type to match.
+              for (unsigned dim = 0; dim < impl.num_dimensions(); ++dim) {
+                MEMOIR_ASSERT(
+                    collection_type,
+                    "Could not match implementation on a non-collection type.");
+                auto &elem_type = collection_type->getElementType();
+                collection_type = dyn_cast<CollectionType>(&elem_type);
+              }
+            }
+          }
 
         } else if (auto *define_type = into<DefineStructTypeInst>(&I)) {
           // Get the struct type.
-          auto &struct_type = define_type->getType();
+          auto &struct_type = define_type->getStructType();
 
           // Get the type layout for the struct.
           auto &struct_layout = TC.convert(struct_type);
 
           // Implement the struct.
           IL.implement_type(struct_layout);
+
+          // For each collection-typed field, fetch the selection, if it exists.
+          for (unsigned field_index = 0;
+               field_index < struct_type.getNumFields();
+               ++field_index) {
+            auto &field_type = struct_type.getFieldType(field_index);
+
+            // Ensure that the field is a collection.
+            auto *collection_type = dyn_cast<CollectionType>(&field_type);
+            if (not collection_type) {
+              continue;
+            }
+
+            // Check if the field has selection metadata attached.
+            std::optional<std::string> selection = std::nullopt;
+            auto selection_metadata =
+                Metadata::get<SelectionMetadata>(struct_type, field_index);
+            if (selection_metadata.has_value()) {
+              selection = selection_metadata->getImplementation(0);
+            }
+          }
+
         }
 
         // Also handle instructions that don't have selections.
@@ -136,21 +177,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
           // Get the type of the collection being operated on.
           Type *type = nullptr;
           if (auto *access = dyn_cast<AccessInst>(inst)) {
-            type = type_of(access->getObjectOperand());
-          } else if (auto *insert = dyn_cast<InsertInst>(inst)) {
-            type = type_of(insert->getBaseCollection());
-          } else if (auto *remove = dyn_cast<RemoveInst>(inst)) {
-            type = type_of(remove->getBaseCollection());
-          } else if (auto *fold = dyn_cast<FoldInst>(inst)) {
-            type = type_of(fold->getCollection());
-          } else if (auto *copy = dyn_cast<CopyInst>(inst)) {
-            type = type_of(copy->getCopiedCollection());
-          } else if (auto *swap = dyn_cast<SwapInst>(inst)) {
-            type = type_of(swap->getFromCollection());
-          } else if (auto *size = dyn_cast<SizeInst>(inst)) {
-            type = type_of(size->getCollection());
-          } else if (auto *keys = dyn_cast<AssocKeysInst>(inst)) {
-            type = type_of(keys->getCollection());
+            type = type_of(access->getObject());
           }
 
           // If we couldn't determine a type, skip it.
