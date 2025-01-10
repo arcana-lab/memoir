@@ -2,6 +2,22 @@
 
 namespace llvm::memoir {
 
+std::string Metadata::to_string(llvm::Metadata &metadata) {
+  if (auto *md_constant = dyn_cast<llvm::ConstantAsMetadata>(&metadata)) {
+    auto *constant = md_constant->getValue();
+    auto &constant_as_data_array = MEMOIR_SANITIZE(
+        dyn_cast_or_null<llvm::ConstantDataArray>(constant),
+        "Malformed SelectionMetadata, expected an llvm::ConstantDataArray");
+
+    return constant_as_data_array.getAsString().str();
+
+  } else if (auto *md_string = dyn_cast<llvm::MDString>(&metadata)) {
+    return md_string->getString().str();
+  }
+
+  MEMOIR_UNREACHABLE("Expected the metadata to contain a string.");
+}
+
 namespace detail {
 
 std::string get_metadata_tag(MetadataKind kind) {
@@ -263,6 +279,10 @@ llvm::MDTuple &get_or_add_field_metadata(StructType &type, unsigned field) {
       tuple.push_back(item);                                                   \
     }                                                                          \
     return true;                                                               \
+  }                                                                            \
+  template <>                                                                  \
+  std::string Metadata::get_kind<CLASS>() {                                    \
+    return STR;                                                                \
   }
 #include "memoir/utility/Metadata.def"
 
