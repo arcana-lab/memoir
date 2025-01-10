@@ -73,19 +73,26 @@
   }                                                                            \
                                                                                \
   cname alwaysinline used T##_stl_vector_p T##_stl_vector__copy(               \
+      T##_stl_vector_p vec) {                                                  \
+    T##_stl_vector_p new_vec =                                                 \
+        new T##_stl_vector_t(vec->cbegin(), vec->cend());                      \
+    return new_vec;                                                            \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__copy_range(         \
       T##_stl_vector_p vec,                                                    \
       size_t begin_index,                                                      \
       size_t end_index) {                                                      \
     T##_stl_vector_p new_vec =                                                 \
-        new T##_stl_vector_t(vec->cbegin() + begin_index,                      \
-                             vec->cbegin() + end_index);                       \
+        new T##_stl_vector_t(std::next(vec->cbegin(), begin_index),            \
+                             std::next(vec->cbegin(), end_index));             \
     return new_vec;                                                            \
   }                                                                            \
                                                                                \
   cname alwaysinline used T##_stl_vector_p T##_stl_vector__remove(             \
       T##_stl_vector_p vec,                                                    \
       size_t index) {                                                          \
-    vec->erase(vec->begin() + index);                                          \
+    vec->erase(std::next(vec->begin(), index));                                \
     return vec;                                                                \
   }                                                                            \
                                                                                \
@@ -101,35 +108,36 @@
       T##_stl_vector_p vec,                                                    \
       size_t start) {                                                          \
     using elem_type = C_TYPE;                                                  \
-    vec->insert(vec->begin() + start, elem_type());                            \
+    vec->insert(std::next(vec->begin(), start), elem_type());                  \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_element(     \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_value(       \
       T##_stl_vector_p vec,                                                    \
       size_t start,                                                            \
       C_TYPE value) {                                                          \
-    vec->insert(vec->begin() + start, value);                                  \
+    vec->insert(std::next(vec->begin(), start), value);                        \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_range(       \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_input(       \
       T##_stl_vector_p vec,                                                    \
       size_t start,                                                            \
       T##_stl_vector_p vec2) {                                                 \
-    vec->insert(vec->begin() + start, vec2->begin(), vec2->end());             \
+    vec->insert(std::next(vec->begin(), start), vec2->cbegin(), vec2->cend()); \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void T##_stl_vector__swap(T##_stl_vector_p vec,      \
-                                                    size_t from,               \
-                                                    size_t to,                 \
-                                                    T##_stl_vector_p vec2,     \
-                                                    size_t start) {            \
-    std::swap_ranges(vec->begin() + from,                                      \
-                     vec->begin() + to,                                        \
-                     vec2->begin() + start);                                   \
-    return;                                                                    \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_input_range( \
+      T##_stl_vector_p vec,                                                    \
+      size_t start,                                                            \
+      T##_stl_vector_p vec2,                                                   \
+      size_t begin,                                                            \
+      size_t end) {                                                            \
+    vec->insert(std::next(vec->begin(), start),                                \
+                std::next(vec2->cbegin(), begin),                              \
+                std::next(vec2->cbegin(), end));                               \
+    return vec;                                                                \
   }                                                                            \
                                                                                \
   cname alwaysinline used size_t T##_stl_vector__size(T##_stl_vector_p vec) {  \
@@ -302,19 +310,26 @@
   }                                                                            \
                                                                                \
   cname alwaysinline used T##_stl_vector_p T##_stl_vector__copy(               \
+      T##_stl_vector_p vec) {                                                  \
+    T##_stl_vector_p new_vec =                                                 \
+        new T##_stl_vector_t(vec->cbegin(), vec->cend());                      \
+    return new_vec;                                                            \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__copy_range(         \
       T##_stl_vector_p vec,                                                    \
       size_t begin_index,                                                      \
       size_t end_index) {                                                      \
     T##_stl_vector_p new_vec =                                                 \
-        new T##_stl_vector_t(vec->cbegin() + begin_index,                      \
-                             vec->cbegin() + end_index);                       \
+        new T##_stl_vector_t(std::next(vec->cbegin(), begin_index),            \
+                             std::next(vec->cbegin(), end_index));             \
     return new_vec;                                                            \
   }                                                                            \
                                                                                \
   cname alwaysinline used T##_stl_vector_p T##_stl_vector__remove(             \
       T##_stl_vector_p vec,                                                    \
       size_t index) {                                                          \
-    vec->erase(vec->begin() + index);                                          \
+    vec->erase(std::next(vec->begin(), index));                                \
     return vec;                                                                \
   }                                                                            \
                                                                                \
@@ -322,43 +337,44 @@
       T##_stl_vector_p vec,                                                    \
       size_t begin_index,                                                      \
       size_t end_index) {                                                      \
-    vec->erase(vec->begin() + begin_index, vec->begin() + end_index);          \
+    vec->erase(std::next(vec->begin(), begin_index),                           \
+               std::next(vec->begin(), end_index));                            \
     return vec;                                                                \
   }                                                                            \
-                                                                               \
   cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert(             \
       T##_stl_vector_p vec,                                                    \
       size_t start) {                                                          \
     using elem_type = C_TYPE;                                                  \
-    vec->insert(vec->begin() + start, elem_type());                            \
+    vec->insert(std::next(vec->begin(), start), elem_type());                  \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_element(     \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_value(       \
       T##_stl_vector_p vec,                                                    \
       size_t start,                                                            \
-      C_TYPE *value) {                                                         \
-    vec->insert(vec->begin() + start, *value);                                 \
+      C_TYPE value) {                                                          \
+    vec->insert(std::next(vec->begin(), start), value);                        \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_range(       \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_input(       \
       T##_stl_vector_p vec,                                                    \
       size_t start,                                                            \
       T##_stl_vector_p vec2) {                                                 \
-    vec->insert(vec->begin() + start, vec2->begin(), vec2->end());             \
+    vec->insert(std::next(vec->begin(), start), vec2->cbegin(), vec2->cend()); \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void T##_stl_vector__swap(T##_stl_vector_p vec,      \
-                                                    size_t from,               \
-                                                    size_t to,                 \
-                                                    T##_stl_vector_p vec2,     \
-                                                    size_t start) {            \
-    std::swap_ranges(vec->begin() + from,                                      \
-                     vec->begin() + to,                                        \
-                     vec2->begin() + start);                                   \
-    return;                                                                    \
+  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_input_range( \
+      T##_stl_vector_p vec,                                                    \
+      size_t start,                                                            \
+      T##_stl_vector_p vec2,                                                   \
+      size_t begin,                                                            \
+      size_t end) {                                                            \
+    vec->insert(std::next(vec->begin(), start),                                \
+                std::next(vec2->cbegin(), begin),                              \
+                std::next(vec2->cbegin(), end));                               \
+    return vec;                                                                \
   }                                                                            \
                                                                                \
   cname alwaysinline used size_t T##_stl_vector__size(T##_stl_vector_p vec) {  \
