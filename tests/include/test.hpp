@@ -1,7 +1,9 @@
 #ifndef MEMOIR_TESTS_MEMOIRTESTING_H
 #define MEMOIR_TESTS_MEMOIRTESTING_H
 
+#include <csignal>
 #include <cstdio>
+#include <cstdlib>
 
 namespace memoir::test {
 
@@ -51,6 +53,16 @@ __attribute__((optnone)) bool expect(bool test, const char *error) {
     fprintf(stderr, "\e[31;1mFAILED\e[0m\n  \e[33;1mREASON:\e[0m %s\n", error);
   }
   return test;
+}
+
+__attribute__((optnone)) void segfault_handler(int sig) {
+  fprintf(stderr, "\e[31;1mFAILED, SEGFAULT!\n");
+  memoir::test::test_passing = false;
+  exit(2);
+}
+
+__attribute__((constructor)) void begin() {
+  std::signal(SIGSEGV, segfault_handler);
 }
 
 } // namespace memoir::test
