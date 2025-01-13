@@ -8,6 +8,7 @@ namespace llvm::memoir {
 
 bool lower_fold(
     FoldInst &I,
+    llvm::Value &collection,
     llvm::Function *begin_func = nullptr,
     llvm::Function *next_func = nullptr,
     llvm::Type *iter_type = nullptr,
