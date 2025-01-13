@@ -324,7 +324,7 @@ public:
   }
 
   KeysInst *CreateKeysInst(llvm::Value *object,
-                           const vector<llvm::Value *> &indices,
+                           const vector<llvm::Value *> &indices = {},
                            const Twine &name = "") {
     vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
