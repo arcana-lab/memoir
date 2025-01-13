@@ -84,42 +84,48 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
           }
 
           // Fetch the selection from the instruction metadata, if it exists.
-          std::optional<std::string> selection = std::nullopt;
-          auto selection_metadata = Metadata::get<SelectionMetadata>(I);
-          if (selection_metadata.has_value()) {
-            for (const auto &impl_name :
-                 selection_metadata->implementations()) {
+          auto selection = Metadata::get<SelectionMetadata>(I);
+          auto selection_index = 0;
 
-              // Lookup the implementation with the given name.
-              auto &impl =
-                  MEMOIR_SANITIZE(Implementation::lookup(impl_name),
-                                  "Failed to find selected implementation: ",
-                                  impl_name);
+          // Implement each of the required collection types.
+          while (collection_type) {
+            // Get the implementation.
+            const Implementation *impl = nullptr;
+            if (selection.has_value()) {
+              auto selected_name =
+                  selection->getImplementation(selection_index++);
+              impl = Implementation::lookup(selected_name);
+            }
 
-              // Implement the selection.
-              if (auto *seq_type = dyn_cast<SequenceType>(collection_type)) {
-                // Implement the sequence.
-                auto &element_layout = TC.convert(seq_type->getElementType());
+            // Get the default implementation if none was selected.
+            if (not impl) {
+              impl = &ImplLinker::get_default_implementation(*collection_type);
+            }
 
-                IL.implement_seq(impl_name, element_layout);
+            // Implement the selection.
+            // TODO: this needs to change to support impls N-dimensional impls
+            if (auto *seq_type = dyn_cast<SequenceType>(collection_type)) {
+              // Implement the sequence.
+              auto &element_layout = TC.convert(seq_type->getElementType());
 
-              } else if (auto *assoc_type =
-                             dyn_cast<AssocType>(collection_type)) {
-                // Implement the assoc.
-                auto &key_layout = TC.convert(assoc_type->getKeyType());
-                auto &val_layout = TC.convert(assoc_type->getValueType());
+              IL.implement_seq(impl->get_name(), element_layout);
 
-                IL.implement_assoc(impl_name, key_layout, val_layout);
-              }
+            } else if (auto *assoc_type =
+                           dyn_cast<AssocType>(collection_type)) {
+              // Implement the assoc.
+              auto &key_layout = TC.convert(assoc_type->getKeyType());
+              auto &val_layout = TC.convert(assoc_type->getValueType());
 
-              // Get the next collection type to match.
-              for (unsigned dim = 0; dim < impl.num_dimensions(); ++dim) {
-                MEMOIR_ASSERT(
-                    collection_type,
-                    "Could not match implementation on a non-collection type.");
-                auto &elem_type = collection_type->getElementType();
-                collection_type = dyn_cast<CollectionType>(&elem_type);
-              }
+              IL.implement_assoc(impl->get_name(), key_layout, val_layout);
+            }
+
+            // Get the next collection type to match.
+            for (unsigned dim = 0; dim < impl->num_dimensions(); ++dim) {
+              MEMOIR_ASSERT(
+                  collection_type,
+                  "Could not match implementation on a non-collection type.");
+              auto &elem_type = collection_type->getElementType();
+              collection_type = dyn_cast<CollectionType>(&elem_type);
             }
           }
 

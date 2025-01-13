@@ -69,31 +69,51 @@ void ImplLinker::implement_type(TypeLayout &type_layout) {
 }
 
 void ImplLinker::implement_seq(std::string impl_name,
-                               TypeLayout &element_type_layout) {
+                               TypeLayout &element_layout) {
 
-  this->implement_type(element_type_layout);
+  this->implement_type(element_layout);
 
-  insert_unique(this->seq_implementations, impl_name, &element_type_layout);
+  if (isa<CollectionType>(&element_layout.get_memoir_type())) {
+    auto range = this->seq_implementations.equal_range(impl_name);
+    for (auto it = range.first; it != range.second; ++it) {
+      auto *layout = it->second;
+      if (isa<CollectionType>(layout->get_memoir_type())) {
+        return;
+      }
+    }
+  }
+
+  insert_unique(this->seq_implementations, impl_name, &element_layout);
 
   return;
 }
 
 void ImplLinker::implement_assoc(std::string impl_name,
-                                 TypeLayout &key_type_layout,
-                                 TypeLayout &value_type_layout) {
-  this->implement_type(key_type_layout);
-  this->implement_type(value_type_layout);
+                                 TypeLayout &key_layout,
+                                 TypeLayout &value_layout) {
+  this->implement_type(key_layout);
+  this->implement_type(value_layout);
+
+  if (isa<CollectionType>(&value_layout.get_memoir_type())) {
+    auto range = this->assoc_implementations.equal_range(impl_name);
+    for (auto it = range.first; it != range.second; ++it) {
+      auto [_, layout] = it->second;
+      if (isa<CollectionType>(layout->get_memoir_type())) {
+        return;
+      }
+    }
+  }
 
   insert_unique(this->assoc_implementations,
                 impl_name,
-                std::make_tuple(&key_type_layout, &value_type_layout));
+                std::make_tuple(&key_layout, &value_layout));
 
   // For the time being, we will need to instantiate the stl_vector for the key
   // type to handle keys. Properly handling the keys iterator as a collection
   // all its own is future work.
   if (impl_name == "stl_unordered_map" || impl_name == "stl_map"
       || impl_name == "stl_unordered_set") {
-    this->implement_seq("stl_vector", key_type_layout);
+    this->implement_seq("stl_vector", key_layout);
   }
 
   return;
@@ -128,7 +148,7 @@ static std::string memoir_to_c_type(Type &T) {
   } else if (auto *struct_type = dyn_cast<StructType>(&T)) {
     return "impl__" + struct_type->getName();
   } else if (auto *collection_type = dyn_cast<CollectionType>(&T)) {
-    MEMOIR_UNREACHABLE("Nested collections are not yet supported!");
+    return "void *"; // TODO: attach attributes here: restrict, etc
   }
 
   MEMOIR_UNREACHABLE("Attempting to create Impl for unknown type!");
@@ -183,8 +203,7 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
                  ", ",
                  c_type,
                  ")");
-      } else if (isa<StructType>(&elem_type)
-                 || isa<CollectionType>(&elem_type)) {
+      } else if (isa<StructType>(&elem_type) or isa<ArrayType>(&elem_type)) {
         fprintln(os,
                  "INSTANTIATE_NESTED_",
                  impl_name,
