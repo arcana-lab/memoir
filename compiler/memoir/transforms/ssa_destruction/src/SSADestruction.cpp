@@ -1,6 +1,7 @@
 #include <string>
 
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
@@ -69,6 +70,43 @@ FunctionCallee get_function_callee(llvm::Module &M, std::string name) {
   }
 
   return FunctionCallee(function);
+}
+
+/**
+ * @param function_name the function to find and prepare
+ * @param arguments, the list of arguments to prepare for the call
+ * @returns the function callee for the given function name.
+ */
+static FunctionCallee prepare_call(MemOIRBuilder &builder,
+                                   const Implementation &implementation,
+                                   CollectionType &type,
+                                   const std::string &operation,
+                                   vector<llvm::Value *> &arguments) {
+
+  auto prefix = detail::get_implementation_prefix(implementation, type);
+  auto function_name = prefix + "__" + operation;
+
+  auto callee = detail::get_function_callee(builder.getModule(), function_name);
+  auto *function_type = callee.getFunctionType();
+
+  auto arg_index = 0;
+  for (auto &arg : arguments) {
+    // Prepare the argument.
+    auto *param_type = function_type->getParamType(arg_index);
+
+    // If the argument doesn't match the parameter's type, prepare it.
+    if (arg->getType() != param_type) {
+      if (isa<llvm::IntegerType>(param_type)) {
+        arg = builder.CreateZExtOrTrunc(arg, param_type);
+      } else {
+        MEMOIR_UNREACHABLE("Unhandled type mismatch!");
+      }
+    }
+
+    ++arg_index;
+  }
+
+  return callee;
 }
 
 llvm::Value &construct_field_read(MemOIRBuilder &builder,
@@ -220,41 +258,27 @@ void construct_field_write(MemOIRBuilder &builder,
       "Failed to create the LLVM store for field write");
 }
 
-/**
- * @param function_name the function to find and prepare
- * @param arguments, the list of arguments to prepare for the call
- * @returns the function callee for the given function name.
- */
-static FunctionCallee prepare_call(MemOIRBuilder &builder,
-                                   const Implementation &implementation,
-                                   CollectionType &type,
-                                   const std::string &operation,
-                                   vector<llvm::Value *> &arguments) {
+llvm::CallBase &construct_collection_write(
+    MemOIRBuilder &builder,
+    llvm::Value &object,
+    CollectionType &collection_type,
+    std::input_iterator auto index_begin,
+    std::input_iterator auto index_end,
+    llvm::Value &written,
+    const Implementation &implementation) {
 
-  auto prefix = detail::get_implementation_prefix(implementation, type);
-  auto function_name = prefix + "__" + operation;
+  vector<llvm::Value *> arguments = { &object };
+  arguments.insert(arguments.end(), index_begin, index_end);
+  arguments.push_back(&written);
 
-  auto callee = detail::get_function_callee(builder.getModule(), function_name);
-  auto *function_type = callee.getFunctionType();
+  auto callee = detail::prepare_call(builder,
+                                     implementation,
+                                     collection_type,
+                                     "write",
+                                     arguments);
 
-  auto arg_index = 0;
-  for (auto &arg : arguments) {
-    // Prepare the argument.
-    auto *param_type = function_type->getParamType(arg_index);
-
-    // If the argument doesn't match the parameter's type, prepare it.
-    if (arg->getType() != param_type) {
-      if (isa<llvm::IntegerType>(param_type)) {
-        arg = builder.CreateZExtOrTrunc(arg, param_type);
-      } else {
-        MEMOIR_UNREACHABLE("Unhandled type mismatch!");
-      }
-    }
-
-    ++arg_index;
-  }
-
-  return callee;
+  return MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
+                         "Failed to construct collection write.");
 }
 
 } // namespace detail
@@ -294,6 +318,7 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
 
     // Allocate the nested collections.
     llvm::Value *result = nullptr;
+    llvm::Use *nesting_use = nullptr;
     while (collection_type) {
 
       // Fetch the collection implementation.
@@ -304,18 +329,18 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
 
       const auto &dim_impl =
           detail::get_implementation(dim_name, *collection_type);
-      println(dim_impl.get_name());
 
       // Fetch the arguments.
       vector<llvm::Value *> arguments = {};
       auto *nested_type = collection_type;
+      auto dim_size_it = size_it;
       for (unsigned dim = 0; dim < dim_impl.num_dimensions();
-           ++dim, ++size_it) {
+           ++dim, ++dim_size_it) {
         auto &elem_type = nested_type->getElementType();
         nested_type = dyn_cast_or_null<CollectionType>(&elem_type);
 
-        if (size_it != size_ie) {
-          arguments.push_back(*size_it);
+        if (dim_size_it != size_ie) {
+          arguments.push_back(*dim_size_it);
         }
       }
 
@@ -329,14 +354,78 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
           MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
                           "Could not create the call for vector read");
 
-      collection_type = nested_type;
+      // If the nested element is a collection and this collection is a
+      // sequence, construct a for loop to initialize its elements.
+      if (nested_type and isa<SequenceType>(collection_type)) {
+
+        // For:
+        // A = alloc(N, M)
+        // Construct the loop:
+        //   if (N != 0)
+        //     for (i = 0; i < N; ++i)
+        //       A[i] = { ... };
+
+        // Construct the if conditions and for loops.
+        vector<llvm::Value *> loop_indices = {};
+        for (auto it = size_it; it != dim_size_it; ++it) {
+          auto *init_size = *size_it;
+          auto *zero_constant = Constant::getNullValue(init_size->getType());
+          auto *size_is_nonzero =
+              builder.CreateICmpNE(init_size, zero_constant);
+
+          auto *then_body =
+              llvm::SplitBlockAndInsertIfThen(size_is_nonzero,
+                                              builder.GetInsertPoint(),
+                                              /* Unreachable? */ false);
+
+          auto [loop_body, loop_iv] =
+              llvm::SplitBlockAndInsertSimpleForLoop(init_size, then_body);
+
+          // Update the insertion point for future construction.
+          builder.SetInsertPoint(loop_body);
+
+          loop_indices.push_back(loop_iv);
+        }
+
+        // Construct the write instruction with an undefined value being
+        // written for the time being.
+        auto &undef = MEMOIR_SANITIZE(
+            llvm::UndefValue::get(
+                llvm::PointerType::get(builder.getContext(), 0)),
+            "Failed to get undef!");
+        auto &write = detail::construct_collection_write(builder,
+                                                         call,
+                                                         *collection_type,
+                                                         loop_indices.begin(),
+                                                         loop_indices.end(),
+                                                         undef,
+                                                         dim_impl);
+
+        builder.SetInsertPoint(&write);
+
+        // Save the Use that needs updated by the actual allocation.
+        for (auto &operand : write.args()) {
+          if (operand.get() == &undef) {
+            nesting_use = &operand;
+            break;
+          }
+        }
+      }
+
+      println("alloc ", call);
 
       if (not result) {
         result = &call;
+      } else if (nesting_use) {
+        nesting_use->set(&call);
+        nesting_use = nullptr;
       } else {
         MEMOIR_UNREACHABLE(
-            "Initializing nested collections not yet supported!");
+            "Malformed allocation, initializing nested collection w/o a nesting collection.");
       }
+
+      size_it = dim_size_it;
+      collection_type = nested_type;
     }
 
     this->coalesce(I, *result);
@@ -484,9 +573,7 @@ void SSADestructionVisitor::visitEndInst(EndInst &I) {
       MEMOIR_UNREACHABLE(
           "Contextualizing EndInst intraprocedurally is not yet supported!");
     } else {
-      println(*user_as_inst);
-      MEMOIR_UNREACHABLE(
-          "Unknown user of EndInst, above use is not yet supported!");
+      MEMOIR_UNREACHABLE("Unknown user of EndInst: ", *user_as_inst);
     }
   }
 
@@ -584,7 +671,8 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
       auto &element_type = array_type->getElementType();
       auto length = array_type->getLength();
 
-      // If the element is a primitive, we have reached the innermost object.
+      // If the element is a primitive, we have reached the innermost
+      // object.
       if (Type::is_primitive_type(element_type)) {
         return NestedObjectInfo(*object, *type, it, ie);
       }
@@ -622,19 +710,25 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
           detail::get_implementation(dim_name, *collection_type);
 
       // Check if the implementation covers the remaining indices or not.
-      if (dim_impl.num_dimensions() == std::distance(it, ie)) {
+      if (not isa<SizeInst>(I)
+          and dim_impl.num_dimensions() == std::distance(it, ie)) {
         return NestedObjectInfo(*object, *type, it, ie, dim_impl);
       }
 
-      // Otherwise, we will construct the get operation for the nested object.
+      // Otherwise, we will construct the get operation for the nested
+      // object.
       vector<llvm::Value *> arguments = { object, index };
-      // TODO: this needs to gather all indices required by the Implementation
+      // TODO: this needs to gather all indices required by the
+      // Implementation
       auto &element_type = collection_type->getElementType();
+
+      // Determine the type of operation based on the nested element type.
+      auto operation = isa<CollectionType>(&element_type) ? "read" : "get";
 
       auto callee = detail::prepare_call(builder,
                                          dim_impl,
                                          *collection_type,
-                                         "get",
+                                         operation,
                                          arguments);
 
       auto &call =
@@ -684,7 +778,8 @@ void SSADestructionVisitor::visitReadInst(ReadInst &I) {
 
   llvm::Value *result = nullptr;
   if (auto *struct_type = dyn_cast<StructType>(&info.type)) {
-    // There will only ever be a single index for an innermost struct access.
+    // There will only ever be a single index for an innermost struct
+    // access.
     auto &field_value = MEMOIR_SANITIZE(*info.begin, "Field index is NULL!");
     auto &field_const =
         MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(&field_value),
@@ -758,7 +853,8 @@ void SSADestructionVisitor::visitWriteInst(WriteInst &I) {
   MemOIRBuilder builder(I);
 
   if (auto *struct_type = dyn_cast<StructType>(&info.type)) {
-    // There will only ever be a single index for an innermost struct access.
+    // There will only ever be a single index for an innermost struct
+    // access.
     auto &field_value = MEMOIR_SANITIZE(*info.begin, "Field index is NULL!");
     auto &field_const =
         MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(&field_value),
@@ -798,19 +894,13 @@ void SSADestructionVisitor::visitWriteInst(WriteInst &I) {
     builder.CreateStore(&I.getValueWritten(), gep);
 
   } else if (auto *collection_type = dyn_cast<CollectionType>(&info.type)) {
-    // Construct the call.
-    vector<llvm::Value *> arguments = { &info.object };
-    arguments.insert(arguments.end(), info.begin, info.end);
-    arguments.push_back(&I.getValueWritten());
-
-    auto callee = detail::prepare_call(builder,
-                                       *info.implementation,
+    detail::construct_collection_write(builder,
+                                       info.object,
                                        *collection_type,
-                                       "write",
-                                       arguments);
-
-    builder.CreateCall(callee, llvm::ArrayRef(arguments));
-
+                                       info.begin,
+                                       info.end,
+                                       I.getValueWritten(),
+                                       *info.implementation);
   } else {
     MEMOIR_UNREACHABLE("Unhandled type for nested object.");
   }
@@ -900,7 +990,7 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
                       I);
 
   // Coalesce the original with the resultant.
-  this->coalesce(I, result);
+  this->coalesce(I, I.getObject());
 
   // The instruction is dead now.
   this->markForCleanup(I);
@@ -942,7 +1032,7 @@ void SSADestructionVisitor::visitRemoveInst(RemoveInst &I) {
                       I);
 
   // Coalesce the original with the resultant.
-  this->coalesce(I, result);
+  this->coalesce(I, I.getObject());
 
   // The instruction is dead now.
   this->markForCleanup(I);
@@ -1019,7 +1109,7 @@ void SSADestructionVisitor::visitClearInst(ClearInst &I) {
                       I);
 
   // Coalesce the original with the resultant.
-  this->coalesce(I, result);
+  this->coalesce(I, I.getObject());
 
   // The instruction is dead now.
   this->markForCleanup(I);
@@ -1156,6 +1246,7 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
   // Invoke the LowerFold utility.
   lower_fold(
       I,
+      info.object,
       begin_func,
       next_func,
       iter_type,
@@ -1164,8 +1255,10 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
       },
       [&](llvm::Instruction &I) { this->markForCleanup(I); });
 
-  // TODO: If the result of the fold is a collection, we need to patch it with
-  // the original operand.
+  // TODO: If the result of the fold is a collection, we need to patch it
+  // with the original operand. if (Type::value_is_object(I.getResult())) {
+  //   this->coalesce(I, I.getInitial());
+  // }
 
   this->markForCleanup(I);
 
