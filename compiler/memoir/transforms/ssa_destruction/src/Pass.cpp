@@ -136,18 +136,18 @@ PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
 
     // Apply rewrite rules and renaming for reaching definitions.
     infoln("Coallescing collection variables");
-    set<llvm::Instruction *> folds = {};
+    set<llvm::Instruction *> stage = {};
     for (auto *bb : dfs_preorder) {
       for (auto &I : *bb) {
-        if (into<FoldInst>(I)) {
-          folds.insert(&I);
+        if (into<FoldInst>(I) or into<AllocInst>(I)) {
+          stage.insert(&I);
           continue;
         }
         SSADV.visit(I);
       }
     }
 
-    for (auto *inst : folds) {
+    for (auto *inst : stage) {
       SSADV.visit(*inst);
     }
 
