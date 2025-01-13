@@ -41,6 +41,8 @@ namespace memoir {
 #define memoir_assoc_array_type(key_type, value_type)                          \
   memoir_assoc_type(key_type, value_type)
 
+#define memoir_set_type(key_type) memoir_assoc_type(key_type, memoir_void_t)
+
 #define memoir_sequence_type(element_type)                                     \
   MEMOIR_FUNC(sequence_type)(element_type)
 
@@ -68,14 +70,15 @@ namespace memoir {
 /*
  * Allocation
  */
-#define memoir_allocate_struct(type) MEMOIR_FUNC(allocate)(type)
+#define memoir_allocate(type, args...) MEMOIR_FUNC(allocate)(type, ##args)
+
+#define memoir_allocate_struct(type) memoir_allocate(type)
 
 #define memoir_allocate_sequence(element_type, initial_size)                   \
-  MEMOIR_FUNC(allocate)                                                        \
-  (memoir_sequence_type(element_type), (size_t)initial_size)
+  memoir_allocate(memoir_sequence_type(element_type), (size_t)initial_size)
 
 #define memoir_allocate_assoc(key_type, value_type)                            \
-  MEMOIR_FUNC(allocate)(memoir_assoc_type(key_type, value_type))
+  memoir_allocate(memoir_assoc_type(key_type, value_type))
 
 #define memoir_allocate_assoc_array(key_type, value_type)                      \
   memoir_allocate_assoc(key_type, value_type)
@@ -137,6 +140,8 @@ namespace memoir {
   MEMOIR_KEYWORD(range), (size_t)_from, (size_t)_to
 
 #define memoir_input(_obj) MEMOIR_KEYWORD(input), _obj
+
+#define memoir_value(_val) MEMOIR_KEYWORD(value), _val
 
 #define memoir_input_range(_obj, _from, _to)                                   \
   memoir_input(_obj), memoir_range(_from, _to)
