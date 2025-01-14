@@ -300,6 +300,140 @@ void SSADestructionVisitor::visitInstruction(llvm::Instruction &I) {
   return;
 }
 
+namespace detail {
+
+llvm::Value &construct_collection_allocation(
+    MemOIRBuilder &builder,
+    CollectionType &type,
+    llvm::ArrayRef<llvm::Value *> sizes,
+    std::optional<SelectionMetadata> selection,
+    unsigned selection_index = 0) {
+
+  auto *collection_type = &type;
+
+  auto size_it = sizes.begin(), size_ie = sizes.end();
+
+  // Allocate the nested collections.
+  llvm::Value *result = nullptr;
+  llvm::Use *nesting_use = nullptr;
+  while (collection_type) {
+
+    // If we are not the outermost, nor need to be initialized then we are
+    // done.
+    if (result and not nesting_use) {
+      break;
+    }
+
+    // Fetch the collection implementation.
+    std::optional<std::string> dim_name = std::nullopt;
+    if (selection.has_value()) {
+      selection->getImplementation(selection_index++);
+    }
+
+    const auto &dim_impl =
+        detail::get_implementation(dim_name, *collection_type);
+
+    // Fetch the arguments.
+    vector<llvm::Value *> arguments = {};
+    auto *nested_type = collection_type;
+    auto dim_size_it = size_it;
+    for (unsigned dim = 0; dim < dim_impl.num_dimensions(); ++dim) {
+      if (dim_size_it != size_ie) {
+        arguments.push_back(*dim_size_it);
+        ++dim_size_it;
+      } else if (isa<SequenceType>(nested_type)) {
+        arguments.push_back(builder.getInt64(0));
+      }
+
+      auto &elem_type = nested_type->getElementType();
+      nested_type = dyn_cast_or_null<CollectionType>(&elem_type);
+    }
+
+    // Construct the call.
+    auto callee = detail::prepare_call(builder,
+                                       dim_impl,
+                                       *collection_type,
+                                       "allocate",
+                                       arguments);
+    auto &call =
+        MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
+                        "Could not create the call for vector read");
+
+    // If the nested element is a collection and this collection is a
+    // sequence, construct a for loop to initialize its elements.
+    if (nested_type and isa<SequenceType>(collection_type)) {
+
+      // For:
+      // A = alloc(N, M)
+      // Construct the loop:
+      //   if (N != 0)
+      //     for (i = 0; i < N; ++i)
+      //       A[i] = { ... };
+
+      // Construct the if conditions and for loops.
+      vector<llvm::Value *> loop_indices = {};
+      for (auto it = size_it; it != dim_size_it; ++it) {
+        auto *init_size = *size_it;
+        auto *zero_constant = Constant::getNullValue(init_size->getType());
+        auto *size_is_nonzero = builder.CreateICmpNE(init_size, zero_constant);
+
+        auto *then_body =
+            llvm::SplitBlockAndInsertIfThen(size_is_nonzero,
+                                            builder.GetInsertPoint(),
+                                            /* Unreachable? */ false);
+
+        auto [loop_body, loop_iv] =
+            llvm::SplitBlockAndInsertSimpleForLoop(init_size, then_body);
+
+        // Update the insertion point for future construction.
+        builder.SetInsertPoint(loop_body);
+
+        loop_indices.push_back(loop_iv);
+      }
+
+      // Construct the write instruction with an undefined value being
+      // written for the time being.
+      auto &undef =
+          MEMOIR_SANITIZE(llvm::UndefValue::get(
+                              llvm::PointerType::get(builder.getContext(), 0)),
+                          "Failed to get undef!");
+      auto &write = detail::construct_collection_write(builder,
+                                                       call,
+                                                       *collection_type,
+                                                       loop_indices.begin(),
+                                                       loop_indices.end(),
+                                                       undef,
+                                                       dim_impl);
+
+      builder.SetInsertPoint(&write);
+
+      // Save the Use that needs updated by the actual allocation.
+      for (auto &operand : write.args()) {
+        if (operand.get() == &undef) {
+          nesting_use = &operand;
+          break;
+        }
+      }
+    }
+
+    if (not result) {
+      result = &call;
+    } else if (nesting_use) {
+      nesting_use->set(&call);
+      nesting_use = nullptr;
+    } else {
+      MEMOIR_UNREACHABLE(
+          "Malformed allocation, initializing nested collection w/o a nesting collection.");
+    }
+
+    size_it = dim_size_it;
+    collection_type = nested_type;
+  }
+
+  return *result;
+}
+} // namespace detail
+
 void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
 
   MemOIRBuilder builder(I);
@@ -315,123 +449,14 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
     // Track where we are in the size list.
     auto size_it = I.sizes_begin(), size_ie = I.sizes_end();
 
-    // Allocate the nested collections.
-    llvm::Value *result = nullptr;
-    llvm::Use *nesting_use = nullptr;
-    while (collection_type) {
+    // Construct the allocation.
+    auto &result = detail::construct_collection_allocation(
+        builder,
+        *collection_type,
+        llvm::SmallVector<llvm::Value *>(size_it, size_ie),
+        selection_metadata);
+    this->coalesce(I, result);
 
-      // If we are not the outermost, nor need to be initialized then we are
-      // done.
-      if (result and not nesting_use) {
-        break;
-      }
-
-      // Fetch the collection implementation.
-      std::optional<std::string> dim_name = std::nullopt;
-      if (selection_metadata.has_value()) {
-        selection_metadata->getImplementation(selection_index++);
-      }
-
-      const auto &dim_impl =
-          detail::get_implementation(dim_name, *collection_type);
-
-      // Fetch the arguments.
-      vector<llvm::Value *> arguments = {};
-      auto *nested_type = collection_type;
-      auto dim_size_it = size_it;
-      for (unsigned dim = 0; dim < dim_impl.num_dimensions(); ++dim) {
-        auto &elem_type = nested_type->getElementType();
-        nested_type = dyn_cast_or_null<CollectionType>(&elem_type);
-
-        if (dim_size_it != size_ie) {
-          arguments.push_back(*dim_size_it);
-          ++dim_size_it;
-        }
-      }
-
-      // Construct the call.
-      auto callee = detail::prepare_call(builder,
-                                         dim_impl,
-                                         *collection_type,
-                                         "allocate",
-                                         arguments);
-      auto &call =
-          MEMOIR_SANITIZE(builder.CreateCall(callee, llvm::ArrayRef(arguments)),
-                          "Could not create the call for vector read");
-
-      // If the nested element is a collection and this collection is a
-      // sequence, construct a for loop to initialize its elements.
-      if (nested_type and isa<SequenceType>(collection_type)) {
-
-        // For:
-        // A = alloc(N, M)
-        // Construct the loop:
-        //   if (N != 0)
-        //     for (i = 0; i < N; ++i)
-        //       A[i] = { ... };
-
-        // Construct the if conditions and for loops.
-        vector<llvm::Value *> loop_indices = {};
-        for (auto it = size_it; it != dim_size_it; ++it) {
-          auto *init_size = *size_it;
-          auto *zero_constant = Constant::getNullValue(init_size->getType());
-          auto *size_is_nonzero =
-              builder.CreateICmpNE(init_size, zero_constant);
-
-          auto *then_body =
-              llvm::SplitBlockAndInsertIfThen(size_is_nonzero,
-                                              builder.GetInsertPoint(),
-                                              /* Unreachable? */ false);
-
-          auto [loop_body, loop_iv] =
-              llvm::SplitBlockAndInsertSimpleForLoop(init_size, then_body);
-
-          // Update the insertion point for future construction.
-          builder.SetInsertPoint(loop_body);
-
-          loop_indices.push_back(loop_iv);
-        }
-
-        // Construct the write instruction with an undefined value being
-        // written for the time being.
-        auto &undef = MEMOIR_SANITIZE(
-            llvm::UndefValue::get(
-                llvm::PointerType::get(builder.getContext(), 0)),
-            "Failed to get undef!");
-        auto &write = detail::construct_collection_write(builder,
-                                                         call,
-                                                         *collection_type,
-                                                         loop_indices.begin(),
-                                                         loop_indices.end(),
-                                                         undef,
-                                                         dim_impl);
-
-        builder.SetInsertPoint(&write);
-
-        // Save the Use that needs updated by the actual allocation.
-        for (auto &operand : write.args()) {
-          if (operand.get() == &undef) {
-            nesting_use = &operand;
-            break;
-          }
-        }
-      }
-
-      if (not result) {
-        result = &call;
-      } else if (nesting_use) {
-        nesting_use->set(&call);
-        nesting_use = nullptr;
-      } else {
-        MEMOIR_UNREACHABLE(
-            "Malformed allocation, initializing nested collection w/o a nesting collection.");
-      }
-
-      size_it = dim_size_it;
-      collection_type = nested_type;
-    }
-
-    this->coalesce(I, *result);
   } else if (auto *struct_type = dyn_cast<StructType>(type)) {
 
     // Get the LLVM StructType for this struct.
@@ -454,15 +479,6 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
     auto *llvm_struct_size_constant =
         llvm::ConstantInt::get(int_ptr_type, llvm_struct_size);
 
-    // Get the allocator information for this allocation.
-    // TODO: Get this information from attached metadata, we can safely
-    // default to malloc though. auto allocator_name = "malloc";
-
-    // Get the allocator function.
-    // auto *allocator_function = this->M.getFunction(allocator_name);
-    // MEMOIR_NULL_CHECK(allocator_function, "Couldn't get the allocator
-    // function!");
-
     // Create the allocation.
     auto &call = MEMOIR_SANITIZE(builder.CreateMalloc(int_ptr_type,
                                                       llvm_struct_type,
@@ -473,6 +489,28 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
                                  "Couldn't create malloc for StructAllocInst");
 
     this->coalesce(I, call);
+
+    // Initialize the inner collections, if any exist.
+    for (unsigned field = 0; field < struct_type->getNumFields(); ++field) {
+      auto &field_type = struct_type->getFieldType(field);
+
+      if (auto *collection_type = dyn_cast<CollectionType>(&field_type)) {
+        auto selection = Metadata::get<SelectionMetadata>(*struct_type, field);
+
+        auto &result = detail::construct_collection_allocation(builder,
+                                                               *collection_type,
+                                                               {},
+                                                               selection);
+
+        // Write the allocation to the field.
+        detail::construct_field_write(builder,
+                                      *struct_type,
+                                      type_layout,
+                                      call,
+                                      field,
+                                      result);
+      }
+    }
   } else {
     MEMOIR_UNREACHABLE("Unhandled type allocation.");
   }
@@ -632,12 +670,12 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
   auto selection_metadata = Metadata::get<SelectionMetadata>(I);
 
   // Construct nested access.
-  for (auto it = I.indices_begin(), ie = I.indices_end(); it != ie; ++it) {
-    auto *index = *it;
+  for (auto it = I.indices_begin(), ie = I.indices_end(); it != ie;) {
 
     if (auto *struct_type = dyn_cast<StructType>(type)) {
 
       // Determine the field being accessed.
+      auto *index = *it;
       auto &index_constant =
           MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
                           "Field index is not a constant integer.");
@@ -669,7 +707,14 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
       // Construct the GEP for the field.
       object = builder.CreateStructGEP(llvm_type, object, field_offset);
       MEMOIR_NULL_CHECK(object, "Failed to construct GEP instruction");
+
+      // If the element is unsized, load the pointer to it first.
+      if (Type::is_unsized(field_type)) {
+        object = builder.CreateLoad(llvm_field_type, object);
+      }
+
       type = &field_type;
+      it = std::next(it);
 
     } else if (auto *array_type = dyn_cast<ArrayType>(type)) {
 
@@ -696,6 +741,7 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
       auto *index_type =
           builder.getIndexTy(M.getDataLayout(), /* AddressSpace = */ 0);
       auto *zero_index = builder.getIntN(index_type->getBitWidth(), 0);
+      auto *index = *it++;
       auto *prepared_index = builder.CreateZExtOrTrunc(index, index_type);
 
       object = builder.CreateInBoundsGEP(
@@ -723,9 +769,11 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
 
       // Otherwise, we will construct the get operation for the nested
       // object.
-      vector<llvm::Value *> arguments = { object, index };
-      // TODO: this needs to gather all indices required by the
-      // Implementation
+      vector<llvm::Value *> arguments = { object };
+      auto dim_it = std::next(it, dim_impl.num_dimensions());
+      arguments.insert(arguments.end(), it, dim_it);
+      it = dim_it;
+
       auto &element_type = collection_type->getElementType();
 
       // Determine the type of operation based on the nested element type.
@@ -745,10 +793,7 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
       type = &element_type;
 
     } else {
-      MEMOIR_UNREACHABLE("Dimension mismatch at ",
-                         value_name(*index),
-                         " in ",
-                         I);
+      MEMOIR_UNREACHABLE("Dimension mismatch in ", I);
     }
   }
 
@@ -1283,11 +1328,6 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
         this->coalesce(orig, replacement);
       },
       [&](llvm::Instruction &I) { this->markForCleanup(I); });
-
-  // TODO: If the result of the fold is a collection, we need to patch it
-  // with the original operand. if (Type::value_is_object(I.getResult())) {
-  //   this->coalesce(I, I.getInitial());
-  // }
 
   this->markForCleanup(I);
 
