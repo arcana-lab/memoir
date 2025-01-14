@@ -56,7 +56,7 @@ llvm::cl::opt<std::string> impl_file_output(
     "impl-out-file",
     llvm::cl::desc("Specify output filename for ImplLinker."),
     llvm::cl::value_desc("filename"),
-    llvm::cl::init("/tmp/XXXXXXXXX.cpp"));
+    llvm::cl::init("/tmp/XXXXXX.cpp"));
 
 namespace detail {
 void link_implementation(ImplLinker &IL,
@@ -223,7 +223,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
 
   // If we were not given a file to output to, create a temporary file.
   if (impl_file_output.getNumOccurrences() == 0) {
-    if (not mkstemp(impl_file_output.getValue().data())) {
+    if (not mkstemps(impl_file_output.getValue().data(), 4)) {
       MEMOIR_UNREACHABLE("ImplLinker: Could not create a temporary file!");
     }
   }
@@ -243,8 +243,8 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   os.close();
 
   // Create a temporary bitcode file.
-  std::string bitcode_filename = "/tmp/XXXXXXXXXX.bc";
-  if (not mkstemp(bitcode_filename.data())) {
+  std::string bitcode_filename = "/tmp/XXXXXX.bc";
+  if (not mkstemps(bitcode_filename.data(), 3)) {
     MEMOIR_UNREACHABLE(
         "ImplLinker: Could not create a temporary bitcode file!");
   }
