@@ -68,7 +68,16 @@ extern "C" {
       K##_##V##_stl_unordered_map_p K##_##V##_stl_unordered_map__insert(       \
           K##_##V##_stl_unordered_map_p table,                                 \
           C_KEY key) {                                                         \
-    (*table)[key] = C_VALUE();                                                 \
+    (*table)[key];                                                             \
+    return table;                                                              \
+  }                                                                            \
+                                                                               \
+  cname alwaysinline used                                                      \
+      K##_##V##_stl_unordered_map_p K##_##V##_stl_unordered_map__insert_value( \
+          K##_##V##_stl_unordered_map_p table,                                 \
+          C_KEY key,                                                           \
+          C_VALUE val) {                                                       \
+    (*table)[key] = val;                                                       \
     return table;                                                              \
   }                                                                            \
                                                                                \
