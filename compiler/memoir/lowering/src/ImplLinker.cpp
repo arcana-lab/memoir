@@ -94,11 +94,11 @@ void ImplLinker::implement_assoc(std::string impl_name,
   this->implement_type(key_layout);
   this->implement_type(value_layout);
 
-  if (isa<CollectionType>(&value_layout.get_memoir_type())) {
+  if (Type::is_unsized(value_layout.get_memoir_type())) {
     auto range = this->assoc_implementations.equal_range(impl_name);
     for (auto it = range.first; it != range.second; ++it) {
       auto [_, layout] = it->second;
-      if (isa<CollectionType>(layout->get_memoir_type())) {
+      if (Type::is_unsized(layout->get_memoir_type())) {
         return;
       }
     }

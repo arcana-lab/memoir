@@ -350,6 +350,16 @@ bool Type::is_collection_type(Type &type) {
   }
 }
 
+bool Type::is_unsized(Type &type) {
+  switch (type.getKind()) {
+    case TypeKind::ASSOC_ARRAY:
+    case TypeKind::SEQUENCE:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool Type::value_is_object(llvm::Value &value) {
   if (not isa<llvm::PointerType>(value.getType())) {
     return false;
