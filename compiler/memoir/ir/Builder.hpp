@@ -194,7 +194,7 @@ public:
 
   // Allocation Instructions
   AllocInst *CreateAllocInst(llvm::Value *type,
-                             const vector<llvm::Value *> &extra_args = {},
+                             llvm::ArrayRef<llvm::Value *> extra_args = {},
                              const Twine &name = "") {
     vector<llvm::Value *> args = { type };
     args.insert(args.end(), extra_args.begin(), extra_args.end());
@@ -203,7 +203,7 @@ public:
   }
 
   AllocInst *CreateAllocInst(Type &type,
-                             const vector<llvm::Value *> &extra_args = {},
+                             llvm::ArrayRef<llvm::Value *> extra_args = {},
                              const Twine &name = "") {
     auto &type_as_value = this->CreateTypeInst(type)->getCallInst();
     return this->CreateAllocInst(&type_as_value, extra_args, name);
@@ -269,7 +269,7 @@ public:
   //// Read Instructions
   ReadInst *CreateReadInst(Type &element_type,
                            llvm::Value *llvm_object,
-                           const vector<llvm::Value *> &indices = {},
+                           llvm::ArrayRef<llvm::Value *> indices = {},
                            const Twine &name = "") {
     vector<llvm::Value *> args = { llvm_object };
     args.insert(args.end(), indices.begin(), indices.end());
@@ -279,7 +279,7 @@ public:
 
   //// Get Instructions
   GetInst *CreateGetInst(llvm::Value *llvm_object,
-                         const vector<llvm::Value *> &indices = {},
+                         llvm::ArrayRef<llvm::Value *> indices = {},
                          const Twine &name = "") {
     vector<llvm::Value *> args = { llvm_object };
     args.insert(args.end(), indices.begin(), indices.end());
@@ -291,10 +291,10 @@ public:
   WriteInst *CreateWriteInst(Type &element_type,
                              llvm::Value *llvm_value_to_write,
                              llvm::Value *llvm_object,
-                             const vector<llvm::Value *> &indices = {},
+                             llvm::ArrayRef<llvm::Value *> indices = {},
                              const Twine &name = "") {
     vector<llvm::Value *> args = { llvm_value_to_write, llvm_object };
-    args.insert(args.end(), indices.cbegin(), indices.cend());
+    args.insert(args.end(), indices.begin(), indices.end());
 
     return this->create<WriteInst>(getWriteEnumForType(element_type),
                                    args,
@@ -306,7 +306,7 @@ public:
   }
 
   InsertInst *CreateInsertInst(llvm::Value *object,
-                               const vector<llvm::Value *> &indices,
+                               llvm::ArrayRef<llvm::Value *> indices,
                                const Twine &name = "") {
     vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
@@ -315,7 +315,7 @@ public:
   }
 
   RemoveInst *CreateRemoveInst(llvm::Value *object,
-                               const vector<llvm::Value *> &indices,
+                               llvm::ArrayRef<llvm::Value *> indices,
                                const Twine &name = "") {
     vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
@@ -324,7 +324,7 @@ public:
   }
 
   KeysInst *CreateKeysInst(llvm::Value *object,
-                           const vector<llvm::Value *> &indices = {},
+                           llvm::ArrayRef<llvm::Value *> indices = {},
                            const Twine &name = "") {
     vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
@@ -333,7 +333,7 @@ public:
   }
 
   HasInst *CreateHasInst(llvm::Value *object,
-                         const vector<llvm::Value *> &indices,
+                         llvm::ArrayRef<llvm::Value *> indices,
                          const Twine &name = "") {
     vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
@@ -345,7 +345,7 @@ public:
   MutWriteInst *CreateMutWriteInst(Type &element_type,
                                    llvm::Value *llvm_value_to_write,
                                    llvm::Value *llvm_object,
-                                   const vector<llvm::Value *> &indices = {},
+                                   llvm::ArrayRef<llvm::Value *> indices = {},
                                    const Twine &name = "") {
     vector<llvm::Value *> args = { llvm_value_to_write, llvm_object };
     args.insert(args.end(), indices.begin(), indices.end());
@@ -356,7 +356,7 @@ public:
   }
 
   MutInsertInst *CreateMutInsertInst(llvm::Value *object,
-                                     const vector<llvm::Value *> &indices,
+                                     llvm::ArrayRef<llvm::Value *> indices,
                                      const Twine &name = "") {
     vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
@@ -365,7 +365,7 @@ public:
   }
 
   MutRemoveInst *CreateMutRemoveInst(llvm::Value *object,
-                                     const vector<llvm::Value *> &indices,
+                                     llvm::ArrayRef<llvm::Value *> indices,
                                      const Twine &name = "") {
     vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
@@ -375,7 +375,7 @@ public:
 
   // Sequence operations.
   CopyInst *CreateCopyInst(llvm::Value *object,
-                           const vector<llvm::Value *> &extra_args = {},
+                           llvm::ArrayRef<llvm::Value *> extra_args = {},
                            const Twine &name = "") {
     vector<llvm::Value *> args = { object };
     args.insert(args.end(), extra_args.begin(), extra_args.end());
@@ -435,7 +435,7 @@ public:
   // General-purpose collection operations.
   //// Size operations.
   SizeInst *CreateSizeInst(llvm::Value *object,
-                           const vector<llvm::Value *> &extra_args = {},
+                           llvm::ArrayRef<llvm::Value *> extra_args = {},
                            const Twine &name = "") {
     vector<llvm::Value *> args = { object };
     args.insert(args.end(), extra_args.begin(), extra_args.end());
@@ -502,7 +502,7 @@ public:
   }
 
   ClearInst *CreateClearInst(llvm::Value *collection,
-                             const vector<llvm::Value *> &extra_args = {},
+                             llvm::ArrayRef<llvm::Value *> extra_args = {},
                              const Twine &name = "") {
     vector<llvm::Value *> arguments = { collection };
     arguments.insert(arguments.end(), extra_args.begin(), extra_args.end());
