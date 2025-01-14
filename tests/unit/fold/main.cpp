@@ -9,6 +9,16 @@ uint32_t sum_seq(uint32_t accum, size_t i, uint32_t v) {
   return accum + v;
 }
 
+uint32_t sum_inner_seq(uint32_t accum, size_t i, uint32_t v) {
+  return accum + v;
+}
+
+uint32_t sum_outer_seq(uint32_t accum, size_t i, collection_ref v) {
+  memoir_assert_collection_type(memoir_sequence_type(memoir_u32_t), v);
+
+  return memoir_fold(u32, sum_inner_seq, accum, v);
+}
+
 collection_ref accum_seq(collection_ref accum, size_t i, uint32_t v) {
   auto seq_t = memoir_sequence_type(memoir_u32_t);
   memoir_assert_collection_type(seq_t, accum);
@@ -227,5 +237,32 @@ int main() {
     auto sum = memoir_fold(u32, sum_seq, 0, seq);
 
     EXPECT(sum == 0, "differs!");
+  }
+
+  TEST(nested) {
+#define N 10
+
+    auto obj = memoir_allocate(
+        memoir_sequence_type(memoir_sequence_type(memoir_u32_t)),
+        N,
+        N);
+
+    for (auto i = 0; i < N; ++i) {
+      for (auto j = 0; j < N; ++j) {
+        memoir_write(u32, i + j, obj, i, j);
+      }
+    }
+
+    EXPECT(N == memoir_size(obj), "outer size differs");
+    for (auto i = 0; i < N; ++i) {
+      EXPECT(N == memoir_size(obj, i), "inner size differs");
+      EXPECT((N * i + N * (N - 1) / 2) == memoir_fold(u32, sum_seq, 0, obj, i),
+             "inner fold differs!");
+    }
+
+    auto nested_fold = memoir_fold(u32, sum_outer_seq, 0, obj);
+    EXPECT(((N - 1) * N * N) == nested_fold, "nested fold differs!");
+
+#undef N
   }
 }
