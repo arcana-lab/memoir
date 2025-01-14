@@ -164,15 +164,15 @@ namespace memoir {
   memoir_remove(_obj, ##_indices, memoir_end())
 
 // Associative array operations.
-#define memoir_has(_obj, key) MEMOIR_FUNC(has)(_obj, key)
+#define memoir_has(_obj, _args...) MEMOIR_FUNC(has)(_obj, ##_args)
 
-#define memoir_assoc_has(_obj, key) MEMOIR_FUNC(has)(_obj, key)
+#define memoir_assoc_has(_obj, _args...) MEMOIR_FUNC(has)(_obj, ##_args)
 
-#define memoir_assoc_insert(_obj, key) memoir_insert(_obj, key)
+#define memoir_assoc_insert(_obj, _args...) memoir_insert(_obj, ##_args)
 
-#define memoir_assoc_remove(_obj, key) memoir_remove(_obj, key)
+#define memoir_assoc_remove(_obj, _args...) memoir_remove(_obj, ##_args)
 
-#define memoir_assoc_keys(_obj) MEMOIR_FUNC(assoc_keys)(_obj)
+#define memoir_assoc_keys(_obj, _args...) MEMOIR_FUNC(assoc_keys)(_obj, ##_args)
 
 /*
  * Type checking
