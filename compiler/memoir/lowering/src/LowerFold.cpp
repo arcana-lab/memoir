@@ -147,8 +147,8 @@ static HeaderInfo lower_fold_header(FoldInst &I,
     auto *element_gep =
         builder.CreateStructGEP(&iter_type, iter_alloca, 1, "fold.elem.ptr.");
 
-    // If the resultant is a nested object, don't load it.
-    if (isa<StructType>(&element_type) or isa<CollectionType>(&element_type)) {
+    // If the resultant is a nested, sized object, don't load it.
+    if (isa<StructType>(&element_type) or isa<ArrayType>(&element_type)) {
       element = element_gep;
     } else {
       auto *llvm_element_type = iter_struct_type.getElementType(1);
@@ -339,6 +339,7 @@ static HeaderInfo lower_fold_header(
 
 bool lower_fold(FoldInst &I,
                 llvm::Value &collection,
+                Type &type,
                 llvm::Function *begin_func,
                 llvm::Function *next_func,
                 llvm::Type *iter_type,
@@ -347,10 +348,8 @@ bool lower_fold(FoldInst &I,
 
   bool destructing_ssa = (begin_func and next_func and iter_type);
 
-  // Fetch information about the collection being folded over.
-  auto &collection_type =
-      MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(type_of(collection)),
-                      "FoldInst accessing non-collection type!");
+  auto &collection_type = MEMOIR_SANITIZE(dyn_cast<CollectionType>(&type),
+                                          "Lowering fold over non-collection!");
 
   // Above the fold instruction, create a SizeInst for the collection,
   MemOIRBuilder builder(I);

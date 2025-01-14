@@ -777,7 +777,7 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
       auto &element_type = collection_type->getElementType();
 
       // Determine the type of operation based on the nested element type.
-      auto operation = isa<CollectionType>(&element_type) ? "read" : "get";
+      auto operation = Type::is_unsized(element_type) ? "read" : "get";
 
       auto callee = detail::prepare_call(builder,
                                          dim_impl,
@@ -1265,7 +1265,7 @@ void SSADestructionVisitor::visitKeysInst(KeysInst &I) {
 void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
 
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M);
+  auto info = detail::get_nested_object(I, this->TC, this->M, true);
 
   // Construct the read.
   MemOIRBuilder builder(I);
@@ -1321,6 +1321,7 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
   lower_fold(
       I,
       info.object,
+      collection_type,
       begin_func,
       next_func,
       iter_type,
