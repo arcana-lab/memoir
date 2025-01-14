@@ -119,6 +119,14 @@ void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
         // Propagate to the instruction, don't recurse.
         detail::propagate(selections, from, fold->getResult());
 
+        // If the element type of the fold is a collection, propagate to the
+        // corresponding argument.
+        if (Type::is_unsized(fold->getElementType())) {
+          if (auto *argument = fold->getElementArgument()) {
+            detail::propagate(selections, from, *argument);
+          }
+        }
+
       } else if (&fold->getInitialAsUse() == &use) {
         // If the use is the initial value:
 
