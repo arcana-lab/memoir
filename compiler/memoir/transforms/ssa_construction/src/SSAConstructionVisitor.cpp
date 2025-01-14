@@ -129,11 +129,18 @@ void SSAConstructionVisitor::prepare_keywords(MemOIRBuilder &builder,
       MEMOIR_ASSERT(
           Type::is_primitive_type(*element_type),
           "Invalid use of 'value' keyword with non-primitive element type");
-      auto *llvm_type = element_type->get_llvm_type(builder.getContext());
-      auto *coerced =
-          builder.CreateTrunc(&value_kw->getValue(), llvm_type, "coerce.");
 
-      value_kw->getValueAsUse().set(coerced);
+      auto *llvm_type = element_type->get_llvm_type(builder.getContext());
+
+      // Coerce the value, if necessary.
+      auto *value = &value_kw->getValue();
+      if (isa<llvm::IntegerType>(llvm_type)) {
+        value = builder.CreateZExtOrTrunc(value, llvm_type, "coerce.");
+      } else if (llvm_type->isFloatingPointTy()) {
+        value = builder.CreateFPCast(value, llvm_type, "coerce.");
+      }
+
+      value_kw->getValueAsUse().set(value);
 
     } else if (auto input_kw = try_cast<InputKeyword>(kw)) {
       // Update the reaching definition of the input collection.
