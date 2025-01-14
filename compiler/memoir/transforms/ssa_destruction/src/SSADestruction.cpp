@@ -89,10 +89,11 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
   auto callee = detail::get_function_callee(builder.getModule(), function_name);
   auto *function_type = callee.getFunctionType();
 
-  auto arg_index = 0;
+  auto param_index = 0;
   for (auto &arg : arguments) {
+
     // Prepare the argument.
-    auto *param_type = function_type->getParamType(arg_index);
+    auto *param_type = function_type->getParamType(param_index++);
 
     // If the argument doesn't match the parameter's type, prepare it.
     if (arg->getType() != param_type) {
@@ -102,8 +103,6 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
         MEMOIR_UNREACHABLE("Unhandled type mismatch!");
       }
     }
-
-    ++arg_index;
   }
 
   return callee;
@@ -321,6 +320,12 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
     llvm::Use *nesting_use = nullptr;
     while (collection_type) {
 
+      // If we are not the outermost, nor need to be initialized then we are
+      // done.
+      if (result and not nesting_use) {
+        break;
+      }
+
       // Fetch the collection implementation.
       std::optional<std::string> dim_name = std::nullopt;
       if (selection_metadata.has_value()) {
@@ -334,13 +339,13 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
       vector<llvm::Value *> arguments = {};
       auto *nested_type = collection_type;
       auto dim_size_it = size_it;
-      for (unsigned dim = 0; dim < dim_impl.num_dimensions();
-           ++dim, ++dim_size_it) {
+      for (unsigned dim = 0; dim < dim_impl.num_dimensions(); ++dim) {
         auto &elem_type = nested_type->getElementType();
         nested_type = dyn_cast_or_null<CollectionType>(&elem_type);
 
         if (dim_size_it != size_ie) {
           arguments.push_back(*dim_size_it);
+          ++dim_size_it;
         }
       }
 
@@ -412,8 +417,6 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
         }
       }
 
-      println("alloc ", call);
-
       if (not result) {
         result = &call;
       } else if (nesting_use) {
@@ -429,7 +432,6 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
     }
 
     this->coalesce(I, *result);
-
   } else if (auto *struct_type = dyn_cast<StructType>(type)) {
 
     // Get the LLVM StructType for this struct.
@@ -471,7 +473,6 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
                                  "Couldn't create malloc for StructAllocInst");
 
     this->coalesce(I, call);
-
   } else {
     MEMOIR_UNREACHABLE("Unhandled type allocation.");
   }
@@ -565,7 +566,11 @@ void SSADestructionVisitor::visitEndInst(EndInst &I) {
       // size so we are not off by one.
       bool minus_one = (isa<ReadInst>(access) or isa<WriteInst>(access)
                         or isa<GetInst>(access) or isa<SizeInst>(access));
-      contextualize_end(*access, use, minus_one);
+      auto &contextualized = contextualize_end(*access, use, minus_one);
+      if (auto *contextualized_inst =
+              dyn_cast<llvm::Instruction>(&contextualized)) {
+        this->stage(*contextualized_inst);
+      }
     } else if (auto *phi_node = dyn_cast<llvm::PHINode>(user_as_inst)) {
       MEMOIR_UNREACHABLE(
           "Contextualizing EndInst at a PHINode is not yet supported!");
@@ -613,7 +618,8 @@ struct NestedObjectInfo {
 };
 static NestedObjectInfo get_nested_object(AccessInst &I,
                                           TypeConverter &TC,
-                                          llvm::Module &M) {
+                                          llvm::Module &M,
+                                          bool fully_qualified = false) {
 
   MemOIRBuilder builder(I);
 
@@ -710,7 +716,7 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
           detail::get_implementation(dim_name, *collection_type);
 
       // Check if the implementation covers the remaining indices or not.
-      if (not isa<SizeInst>(I)
+      if (not fully_qualified
           and dim_impl.num_dimensions() == std::distance(it, ie)) {
         return NestedObjectInfo(*object, *type, it, ie, dim_impl);
       }
@@ -968,6 +974,7 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
     arguments.push_back(&value_kw->getValue());
 
   } else if (auto input_kw = I.get_keyword<InputKeyword>()) {
+    // IDEA: extend this to support set and map unions?
     operation_name += "_input";
     arguments.push_back(&input_kw->getInput());
 
@@ -975,6 +982,28 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
       operation_name += "_range";
       arguments.push_back(&range_kw->getBegin());
       arguments.push_back(&range_kw->getEnd());
+    }
+  } else if (Type::is_unsized(collection_type.getElementType())) {
+    // If the element type is unsized, we must provide the default initializer.
+    auto &nested_type = collection_type.getElementType();
+    if (auto *nested_collection_type = dyn_cast<CollectionType>(&nested_type)) {
+      // Default initialize the nested collection.
+
+      vector<llvm::Value *> args = {};
+      if (isa<SequenceType>(nested_collection_type)) {
+        args.push_back(builder.getInt64(0));
+      }
+
+      // TODO: How do we get the nested implementation here?
+      auto *alloc = builder.CreateAllocInst(nested_type, args, "default");
+      this->stage(alloc->getCallInst());
+
+      operation_name += "_value";
+      arguments.push_back(&alloc->getCallInst());
+
+    } else {
+      MEMOIR_UNREACHABLE(
+          "Inserting an element type with unknown default initializer!");
     }
   }
 
@@ -1084,7 +1113,7 @@ void SSADestructionVisitor::visitCopyInst(CopyInst &I) {
 
 void SSADestructionVisitor::visitClearInst(ClearInst &I) {
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M);
+  auto info = detail::get_nested_object(I, this->TC, this->M, true);
 
   // Construct the read.
   MemOIRBuilder builder(I);
@@ -1119,7 +1148,7 @@ void SSADestructionVisitor::visitClearInst(ClearInst &I) {
 
 void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M);
+  auto info = detail::get_nested_object(I, this->TC, this->M, true);
 
   // Construct the read.
   MemOIRBuilder builder(I);
@@ -1436,6 +1465,18 @@ void SSADestructionVisitor::markForCleanup(MemOIRInst &I) {
 
 void SSADestructionVisitor::markForCleanup(llvm::Instruction &I) {
   this->instructions_to_delete.insert(&I);
+}
+
+const set<llvm::Instruction *> &SSADestructionVisitor::staged() {
+  return this->_staged;
+}
+
+void SSADestructionVisitor::stage(llvm::Instruction &I) {
+  this->_staged.insert(&I);
+}
+
+void SSADestructionVisitor::clear_stage() {
+  this->_staged.clear();
 }
 
 } // namespace llvm::memoir

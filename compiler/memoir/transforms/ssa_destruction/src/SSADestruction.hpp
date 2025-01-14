@@ -95,6 +95,11 @@ public:
   void visitAssertTypeInst(AssertTypeInst &I);
   void visitReturnTypeInst(ReturnTypeInst &I);
 
+  // Staged lowering
+  void stage(llvm::Instruction &I);
+  void clear_stage();
+  const set<llvm::Instruction *> &staged();
+
   void do_coalesce(llvm::Value &V);
 
   void cleanup();
@@ -113,6 +118,8 @@ protected:
   map<llvm::Value *, llvm::Value *> replaced_values;
   map<llvm::Value *, llvm::Value *> def_phi_replacements;
   ordered_set<llvm::Instruction *> instructions_to_delete;
+
+  set<llvm::Instruction *> _staged;
 
   llvm::Value *find_replacement(llvm::Value *value);
 
