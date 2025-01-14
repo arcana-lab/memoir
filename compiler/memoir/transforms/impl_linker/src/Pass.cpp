@@ -58,6 +58,57 @@ llvm::cl::opt<std::string> impl_file_output(
     llvm::cl::value_desc("filename"),
     llvm::cl::init("/tmp/XXXXXXXXX.cpp"));
 
+namespace detail {
+void link_implementation(ImplLinker &IL,
+                         TypeConverter &TC,
+                         CollectionType &type,
+                         std::optional<SelectionMetadata> selection,
+                         unsigned selection_index = 0) {
+
+  // Implement each of the required collection types.
+  auto *collection_type = &type;
+  while (collection_type) {
+    // Get the implementation.
+    const Implementation *impl = nullptr;
+    if (selection.has_value()) {
+      auto selected_name = selection->getImplementation(selection_index++);
+      impl = Implementation::lookup(selected_name);
+    }
+
+    // Get the default implementation if none was selected.
+    if (not impl) {
+      impl = &ImplLinker::get_default_implementation(*collection_type);
+    }
+
+    // Implement the selection.
+    // TODO: this needs to change to support impls N-dimensional impls
+    if (auto *seq_type = dyn_cast<SequenceType>(collection_type)) {
+      // Implement the sequence.
+      auto &element_layout = TC.convert(seq_type->getElementType());
+
+      IL.implement_seq(impl->get_name(), element_layout);
+
+    } else if (auto *assoc_type = dyn_cast<AssocType>(collection_type)) {
+      // Implement the assoc.
+      auto &key_layout = TC.convert(assoc_type->getKeyType());
+      auto &val_layout = TC.convert(assoc_type->getValueType());
+
+      IL.implement_assoc(impl->get_name(), key_layout, val_layout);
+    }
+
+    // Get the next collection type to match.
+    for (unsigned dim = 0; dim < impl->num_dimensions(); ++dim) {
+      MEMOIR_ASSERT(collection_type,
+                    "Could not match implementation on a non-collection type.");
+      auto &elem_type = collection_type->getElementType();
+      collection_type = dyn_cast<CollectionType>(&elem_type);
+    }
+  }
+
+  return;
+}
+} // namespace detail
+
 llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
                                             llvm::ModuleAnalysisManager &MAM) {
 
@@ -85,49 +136,9 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
 
           // Fetch the selection from the instruction metadata, if it exists.
           auto selection = Metadata::get<SelectionMetadata>(I);
-          auto selection_index = 0;
 
-          // Implement each of the required collection types.
-          while (collection_type) {
-            // Get the implementation.
-            const Implementation *impl = nullptr;
-            if (selection.has_value()) {
-              auto selected_name =
-                  selection->getImplementation(selection_index++);
-              impl = Implementation::lookup(selected_name);
-            }
-
-            // Get the default implementation if none was selected.
-            if (not impl) {
-              impl = &ImplLinker::get_default_implementation(*collection_type);
-            }
-
-            // Implement the selection.
-            // TODO: this needs to change to support impls N-dimensional impls
-            if (auto *seq_type = dyn_cast<SequenceType>(collection_type)) {
-              // Implement the sequence.
-              auto &element_layout = TC.convert(seq_type->getElementType());
-
-              IL.implement_seq(impl->get_name(), element_layout);
-
-            } else if (auto *assoc_type =
-                           dyn_cast<AssocType>(collection_type)) {
-              // Implement the assoc.
-              auto &key_layout = TC.convert(assoc_type->getKeyType());
-              auto &val_layout = TC.convert(assoc_type->getValueType());
-
-              IL.implement_assoc(impl->get_name(), key_layout, val_layout);
-            }
-
-            // Get the next collection type to match.
-            for (unsigned dim = 0; dim < impl->num_dimensions(); ++dim) {
-              MEMOIR_ASSERT(
-                  collection_type,
-                  "Could not match implementation on a non-collection type.");
-              auto &elem_type = collection_type->getElementType();
-              collection_type = dyn_cast<CollectionType>(&elem_type);
-            }
-          }
+          // Link the selection.
+          detail::link_implementation(IL, TC, *collection_type, selection);
 
         } else if (auto *define_type = into<DefineStructTypeInst>(&I)) {
           // Get the struct type.
@@ -145,21 +156,16 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
                ++field_index) {
             auto &field_type = struct_type.getFieldType(field_index);
 
-            // Ensure that the field is a collection.
-            auto *collection_type = dyn_cast<CollectionType>(&field_type);
-            if (not collection_type) {
-              continue;
-            }
+            // If the field is a collection, implement it.
+            if (auto *collection_type = dyn_cast<CollectionType>(&field_type)) {
 
-            // Check if the field has selection metadata attached.
-            std::optional<std::string> selection = std::nullopt;
-            auto selection_metadata =
-                Metadata::get<SelectionMetadata>(struct_type, field_index);
-            if (selection_metadata.has_value()) {
-              selection = selection_metadata->getImplementation(0);
+              // Fetch the selection for the given field.
+              auto selection =
+                  Metadata::get<SelectionMetadata>(struct_type, field_index);
+
+              detail::link_implementation(IL, TC, *collection_type, selection);
             }
           }
-
         }
 
         // Also handle instructions that don't have selections.
