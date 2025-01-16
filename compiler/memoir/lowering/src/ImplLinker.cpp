@@ -8,13 +8,19 @@
 #define ASSOC_IMPL "stl_unordered_map"
 #define SET_IMPL "stl_unordered_set"
 #define SEQ_IMPL "stl_vector"
+#define ASSOC_SEQ_IMPL "stl_multimap"
 
 namespace llvm::memoir {
 
 namespace detail {
 void register_default_implementations() {
   Implementation::define(
-      { Implementation( // std::vector<T>
+      { Implementation( // std::multimap<T, U>
+            ASSOC_SEQ_IMPL,
+            AssocType::get(TypeVariable::get(),
+                           SequenceType::get(TypeVariable::get()))),
+
+        Implementation( // std::vector<T>
             SEQ_IMPL,
             SequenceType::get(TypeVariable::get())),
 
@@ -41,14 +47,21 @@ const Implementation &ImplLinker::get_default_implementation(
   if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
     return MEMOIR_SANITIZE(
         Implementation::lookup(SEQ_IMPL),
-        "Failed to find the default sequence implementation");
+        "Failed to find the default implementation (" SEQ_IMPL ")");
   } else if (auto *assoc_type = dyn_cast<AssocType>(&type)) {
-    if (isa<VoidType>(assoc_type->getElementType())) {
-      return MEMOIR_SANITIZE(Implementation::lookup(SET_IMPL),
-                             "Failed to find the default set implementation");
+    auto &element_type = assoc_type->getElementType();
+    if (isa<VoidType>(&element_type)) {
+      return MEMOIR_SANITIZE(
+          Implementation::lookup(SET_IMPL),
+          "Failed to find the default implementation (" SET_IMPL ")");
+    } else if (isa<SequenceType>(&element_type)) {
+      return MEMOIR_SANITIZE(
+          Implementation::lookup(ASSOC_SEQ_IMPL),
+          "Failed to find the default implementation (" ASSOC_SEQ_IMPL ")");
     } else {
-      return MEMOIR_SANITIZE(Implementation::lookup(ASSOC_IMPL),
-                             "Failed to find the default assoc implementation");
+      return MEMOIR_SANITIZE(
+          Implementation::lookup(ASSOC_IMPL),
+          "Failed to find the default implementation (" ASSOC_IMPL ")");
     }
   }
 
@@ -112,7 +125,7 @@ void ImplLinker::implement_assoc(std::string impl_name,
   // type to handle keys. Properly handling the keys iterator as a collection
   // all its own is future work.
   if (impl_name == "stl_unordered_map" || impl_name == "stl_map"
-      || impl_name == "stl_unordered_set") {
+      || impl_name == "stl_multimap" || impl_name == "stl_unordered_set") {
     this->implement_seq("stl_vector", key_layout);
   }
 
@@ -242,6 +255,12 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
       auto &value_type = value->get_memoir_type();
       auto value_code = *value_type.get_code();
       auto c_value = memoir_to_c_type(value_type);
+
+      if (auto *seq_type = dyn_cast<SequenceType>(&value_type)) {
+        auto &elem_type = seq_type->getElementType();
+        value_code = *elem_type.get_code();
+        c_value = memoir_to_c_type(elem_type);
+      }
 
       fprintln(os,
                "INSTANTIATE_",
