@@ -91,9 +91,15 @@ void link_implementation(ImplLinker &IL,
     } else if (auto *assoc_type = dyn_cast<AssocType>(collection_type)) {
       // Implement the assoc.
       auto &key_layout = TC.convert(assoc_type->getKeyType());
-      auto &val_layout = TC.convert(assoc_type->getValueType());
+      if (auto *seq_type =
+              dyn_cast<SequenceType>(&assoc_type->getValueType())) {
+        auto &elem_layout = TC.convert(seq_type->getElementType());
+        IL.implement_assoc(impl->get_name(), key_layout, elem_layout);
+      } else {
+        auto &val_layout = TC.convert(assoc_type->getValueType());
 
-      IL.implement_assoc(impl->get_name(), key_layout, val_layout);
+        IL.implement_assoc(impl->get_name(), key_layout, val_layout);
+      }
     }
 
     // Get the next collection type to match.
@@ -185,6 +191,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
 #define SET_IMPL "stl_unordered_set"
 #define SEQ_IMPL "stl_vector"
 #define ASSOC_IMPL "stl_unordered_map"
+#define ASSOC_SEQ_IMPL "stl_multimap"
 
           // Get the type of the collection being operated on.
           Type *type = nullptr;
@@ -210,8 +217,12 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
             auto &key_layout = TC.convert(assoc_type->getKeyType());
             auto &val_layout = TC.convert(assoc_type->getValueType());
 
-            if (isa<VoidType>(assoc_type->getValueType())) {
+            if (isa<VoidType>(&assoc_type->getValueType())) {
               IL.implement_assoc(SET_IMPL, key_layout, val_layout);
+            } else if (auto *seq_type = dyn_cast<SequenceType>(
+                           &assoc_type->getValueType())) {
+              auto &elem_layout = TC.convert(seq_type->getElementType());
+              IL.implement_assoc(ASSOC_SEQ_IMPL, key_layout, elem_layout);
             } else {
               IL.implement_assoc(ASSOC_IMPL, key_layout, val_layout);
             }
@@ -255,15 +266,13 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   // TODO: can we get -march=XXX from LLVM and use it here?
   // auto clang_program = llvm::sys::findProgramByName();
   const char *clang_path = LLVM_BIN_DIR "/clang++";
-  llvm::StringRef args[] = { clang_path,
-                             impl_file_output,
-                             "-O3",
-                             "-gdwarf-4",
-                             "-c",
-                             "-emit-llvm",
-                             "-I" MEMOIR_INSTALL_PREFIX "/include",
-                             "-o",
-                             bitcode_filename };
+  llvm::StringRef args[] = {
+    clang_path,   impl_file_output,
+    "-O3",        "-std=c++20",
+    "-gdwarf-4",  "-c",
+    "-emit-llvm", "-I" MEMOIR_INSTALL_PREFIX "/include",
+    "-o",         bitcode_filename
+  };
   std::string message = "";
   bool failed = false;
   llvm::sys::ExecuteAndWait(clang_path,
