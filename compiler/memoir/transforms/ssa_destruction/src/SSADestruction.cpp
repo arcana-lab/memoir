@@ -44,11 +44,16 @@ static const Implementation &get_implementation(
 static std::string get_implementation_prefix(const Implementation &impl,
                                              CollectionType &type) {
   if (auto *assoc_type = dyn_cast<AssocType>(&type)) {
+
     auto &key_type = assoc_type->getKeyType();
     auto key_code = key_type.get_code();
 
     auto &element_type = assoc_type->getElementType();
     auto element_code = element_type.get_code();
+
+    if (auto *seq_type = dyn_cast<SequenceType>(&type.getElementType())) {
+      element_code = seq_type->getElementType().get_code();
+    }
 
     return *key_code + "_" + *element_code + "_" + impl.get_name();
 
@@ -337,12 +342,15 @@ llvm::Value &construct_collection_allocation(
     vector<llvm::Value *> arguments = {};
     auto *nested_type = collection_type;
     auto dim_size_it = size_it;
+    bool in_assoc = false;
     for (unsigned dim = 0; dim < dim_impl.num_dimensions(); ++dim) {
       if (dim_size_it != size_ie) {
         arguments.push_back(*dim_size_it);
         ++dim_size_it;
-      } else if (isa<SequenceType>(nested_type)) {
+      } else if (not in_assoc and isa<SequenceType>(nested_type)) {
         arguments.push_back(builder.getInt64(0));
+      } else if (isa<AssocType>(nested_type)) {
+        in_assoc = true;
       }
 
       auto &elem_type = nested_type->getElementType();
@@ -762,8 +770,10 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
           detail::get_implementation(dim_name, *collection_type);
 
       // Check if the implementation covers the remaining indices or not.
-      if (not fully_qualified
-          and dim_impl.num_dimensions() == std::distance(it, ie)) {
+      auto num_dimensions = dim_impl.num_dimensions();
+      auto remaining = std::distance(it, ie);
+      if ((fully_qualified and (num_dimensions > remaining))
+          or (not fully_qualified and (num_dimensions >= remaining))) {
         return NestedObjectInfo(*object, *type, it, ie, dim_impl);
       }
 
@@ -815,6 +825,15 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
   }
 
   MEMOIR_UNREACHABLE("Could not get the nested object for ", I);
+}
+
+unsigned compute_depth(NestedObjectInfo &info) {
+  if (not info.implementation) {
+    return 0;
+  }
+
+  return info.implementation->num_dimensions()
+         - std::distance(info.begin, info.end);
 }
 
 } // namespace detail
@@ -1002,6 +1021,9 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
   // Get the nested object as a value.
   auto info = detail::get_nested_object(I, this->TC, this->M);
 
+  // Compute the operation depth.
+  auto depth = detail::compute_depth(info);
+
   // Construct the read.
   MemOIRBuilder builder(I);
 
@@ -1028,9 +1050,9 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
       arguments.push_back(&range_kw->getBegin());
       arguments.push_back(&range_kw->getEnd());
     }
-  } else if (Type::is_unsized(collection_type.getElementType())) {
+  } else if (depth == 0 and Type::is_unsized(I.getElementType())) {
     // If the element type is unsized, we must provide the default initializer.
-    auto &nested_type = collection_type.getElementType();
+    auto &nested_type = I.getElementType();
     if (auto *nested_collection_type = dyn_cast<CollectionType>(&nested_type)) {
       // Default initialize the nested collection.
 
@@ -1050,6 +1072,11 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
       MEMOIR_UNREACHABLE(
           "Inserting an element type with unknown default initializer!");
     }
+  }
+
+  // If this is not a complete depth operation, append the depth.
+  if (depth > 0) {
+    operation_name += "__" + std::to_string(depth);
   }
 
   auto callee = detail::prepare_call(builder,
@@ -1195,6 +1222,9 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
   // Get the nested object as a value.
   auto info = detail::get_nested_object(I, this->TC, this->M, true);
 
+  // Compute the operation depth.
+  auto depth = detail::compute_depth(info);
+
   // Construct the read.
   MemOIRBuilder builder(I);
 
@@ -1205,6 +1235,12 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
   // Fetch the function that implements this operation.
   vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
+
+  std::string operation = "size";
+
+  if (depth > 0) {
+    operation += "__" + std::to_string(depth);
+  }
 
   auto callee = detail::prepare_call(builder,
                                      *info.implementation,
