@@ -4,7 +4,7 @@ namespace llvm::memoir {
 
 namespace detail {
 
-bool match(map<TypeVariable *, Type *> &environment,
+bool match(AssocList<TypeVariable *, Type *> &environment,
            Type &to_match,
            Type &pattern) {
 
@@ -54,9 +54,15 @@ bool match(map<TypeVariable *, Type *> &environment,
 
 } // namespace detail
 
-bool Implementation::match(Type &to_match) const {
-  map<TypeVariable *, Type *> environment = {};
-  return detail::match(environment, to_match, this->get_template());
+bool Implementation::match(Type &to_match,
+                           AssocList<TypeVariable *, Type *> *env) const {
+
+  if (env) {
+    return detail::match(*env, to_match, this->get_template());
+  }
+
+  AssocList<TypeVariable *, Type *> local_env = {};
+  return detail::match(local_env, to_match, this->get_template());
 }
 
 unsigned Implementation::num_dimensions() const {
@@ -68,6 +74,29 @@ unsigned Implementation::num_dimensions() const {
     type = &collection_type->getElementType();
   }
   return n;
+}
+
+std::string Implementation::get_prefix(Type &type) const {
+  // Constructs the function/type prefix of the implementation by matching the
+  // type variables in the template.
+  AssocList<TypeVariable *, Type *> environment = {};
+  MEMOIR_ASSERT(this->match(type, &environment),
+                "Failed to match implementation template");
+
+  // Construct the prefix by listing the bound type variables in order.
+  std::string prefix = "";
+  for (const auto &binding : environment) {
+    if (auto binding_code = binding.second->get_code()) {
+      prefix += binding_code.value() + "_";
+    } else {
+      MEMOIR_UNREACHABLE("Bound type in template has no code!");
+    }
+  }
+
+  // Finally, append the name of the implementation
+  prefix += this->get_name();
+
+  return prefix;
 }
 
 map<std::string, Implementation> *Implementation::impls = nullptr;

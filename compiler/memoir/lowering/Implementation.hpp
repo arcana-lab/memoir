@@ -5,6 +5,8 @@
 
 #include "memoir/ir/Types.hpp"
 
+#include "memoir/support/AssocList.hpp"
+
 namespace llvm::memoir {
 
 /**
@@ -50,12 +52,19 @@ public:
    * @param to_match the type to be matched against
    * @returns true if the type matches the template, false otherwise
    */
-  bool match(Type &to_match) const;
+  bool match(Type &to_match,
+             AssocList<TypeVariable *, Type *> *env = nullptr) const;
 
   /**
    * @returns the number of dimensions that this implementation covers.
    */
   unsigned num_dimensions() const;
+
+  /**
+   * @returns the function/type prefix for this implementation with the given
+   * type.
+   */
+  std::string get_prefix(Type &type) const;
 
   Implementation(std::string name, Type &type_template)
     : name(name),
