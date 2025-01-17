@@ -20,7 +20,7 @@ namespace llvm::memoir {
 class ImplLinker {
 public:
   /**
-   * Construt a new ImplLinker for the given LLVM module.
+   * Construct a new ImplLinker for the given LLVM module.
    */
   ImplLinker(llvm::Module &M);
   ~ImplLinker() {}
@@ -33,23 +33,18 @@ public:
    */
   static const Implementation &get_default_implementation(CollectionType &type);
 
-  void implement_seq(std::string impl_name, TypeLayout &element_type_layout);
+  void implement(Type &type);
 
-  void implement_assoc(std::string impl_name,
-                       TypeLayout &key_type_layout,
-                       TypeLayout &value_type_layout);
-
-  void implement_type(TypeLayout &struct_type_layout);
+  void implement(Instantiation &inst);
 
   void emit(llvm::raw_ostream &os = llvm::errs());
 
 protected:
-  ordered_set<TypeLayout *> struct_implementations;
-  ordered_multimap<std::string, TypeLayout *> seq_implementations;
-  ordered_multimap<std::string, tuple<TypeLayout *, TypeLayout *>>
-      assoc_implementations;
+  ordered_set<StructType *> structs_to_emit;
+  ordered_set<Instantiation *> collections_to_emit;
 
   llvm::Module &M;
+  TypeConverter TC;
 
 }; // class ImplLinker
 

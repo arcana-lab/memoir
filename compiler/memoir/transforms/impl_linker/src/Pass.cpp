@@ -60,7 +60,6 @@ llvm::cl::opt<std::string> impl_file_output(
 
 namespace detail {
 void link_implementation(ImplLinker &IL,
-                         TypeConverter &TC,
                          CollectionType &type,
                          std::optional<SelectionMetadata> selection,
                          unsigned selection_index = 0) {
@@ -68,6 +67,7 @@ void link_implementation(ImplLinker &IL,
   // Implement each of the required collection types.
   auto *collection_type = &type;
   while (collection_type) {
+
     // Get the implementation.
     const Implementation *impl = nullptr;
     if (selection.has_value()) {
@@ -82,24 +82,12 @@ void link_implementation(ImplLinker &IL,
 
     // Implement the selection.
     // TODO: this needs to change to support impls N-dimensional impls
-    if (auto *seq_type = dyn_cast<SequenceType>(collection_type)) {
-      // Implement the sequence.
-      auto &element_layout = TC.convert(seq_type->getElementType());
+    if (Type::is_unsized(*collection_type)) {
 
-      IL.implement_seq(impl->get_name(), element_layout);
+      // Instantiate the implementation.
+      auto &inst = impl->instantiate(type);
 
-    } else if (auto *assoc_type = dyn_cast<AssocType>(collection_type)) {
-      // Implement the assoc.
-      auto &key_layout = TC.convert(assoc_type->getKeyType());
-      if (auto *seq_type =
-              dyn_cast<SequenceType>(&assoc_type->getValueType())) {
-        auto &elem_layout = TC.convert(seq_type->getElementType());
-        IL.implement_assoc(impl->get_name(), key_layout, elem_layout);
-      } else {
-        auto &val_layout = TC.convert(assoc_type->getValueType());
-
-        IL.implement_assoc(impl->get_name(), key_layout, val_layout);
-      }
+      IL.implement(inst);
     }
 
     // Get the next collection type to match.
@@ -117,9 +105,6 @@ void link_implementation(ImplLinker &IL,
 
 llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
                                             llvm::ModuleAnalysisManager &MAM) {
-
-  // Get the TypeConverter.
-  TypeConverter TC(M.getContext());
 
   // Get the ImplLinker.
   ImplLinker IL(M);
@@ -144,17 +129,14 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
           auto selection = Metadata::get<SelectionMetadata>(I);
 
           // Link the selection.
-          detail::link_implementation(IL, TC, *collection_type, selection);
+          detail::link_implementation(IL, *collection_type, selection);
 
         } else if (auto *define_type = into<DefineStructTypeInst>(&I)) {
           // Get the struct type.
           auto &struct_type = define_type->getStructType();
 
-          // Get the type layout for the struct.
-          auto &struct_layout = TC.convert(struct_type);
-
           // Implement the struct.
-          IL.implement_type(struct_layout);
+          IL.implement(struct_type);
 
           // For each collection-typed field, fetch the selection, if it exists.
           for (unsigned field_index = 0;
@@ -169,7 +151,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
               auto selection =
                   Metadata::get<SelectionMetadata>(struct_type, field_index);
 
-              detail::link_implementation(IL, TC, *collection_type, selection);
+              detail::link_implementation(IL, *collection_type, selection);
             }
           }
         }
@@ -200,33 +182,19 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
           }
 
           // If we couldn't determine a type, skip it.
+          auto *collection_type = dyn_cast_or_null<CollectionType>(type);
           if (not type) {
             continue;
           }
 
           // Link the default implementation.
-          if (auto *seq_type = dyn_cast<SequenceType>(type)) {
-            // Get the type layout for the element type.
-            auto &element_layout = TC.convert(seq_type->getElementType());
+          auto &default_impl =
+              ImplLinker::get_default_implementation(*collection_type);
 
-            // Implement the sequence.
-            IL.implement_seq(SEQ_IMPL, element_layout);
+          // Instantiate the default implementation.
+          auto &default_inst = default_impl.instantiate(*collection_type);
 
-          } else if (auto *assoc_type = dyn_cast<AssocArrayType>(type)) {
-            // Get the type layout for the key and value types.
-            auto &key_layout = TC.convert(assoc_type->getKeyType());
-            auto &val_layout = TC.convert(assoc_type->getValueType());
-
-            if (isa<VoidType>(&assoc_type->getValueType())) {
-              IL.implement_assoc(SET_IMPL, key_layout, val_layout);
-            } else if (auto *seq_type = dyn_cast<SequenceType>(
-                           &assoc_type->getValueType())) {
-              auto &elem_layout = TC.convert(seq_type->getElementType());
-              IL.implement_assoc(ASSOC_SEQ_IMPL, key_layout, elem_layout);
-            } else {
-              IL.implement_assoc(ASSOC_IMPL, key_layout, val_layout);
-            }
-          }
+          IL.implement(default_inst);
         }
       }
     }
