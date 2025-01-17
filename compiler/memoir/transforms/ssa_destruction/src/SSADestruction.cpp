@@ -41,32 +41,6 @@ static const Implementation &get_implementation(
   return ImplLinker::get_default_implementation(type);
 }
 
-static std::string get_implementation_prefix(const Implementation &impl,
-                                             CollectionType &type) {
-  if (auto *assoc_type = dyn_cast<AssocType>(&type)) {
-
-    auto &key_type = assoc_type->getKeyType();
-    auto key_code = key_type.get_code();
-
-    auto &element_type = assoc_type->getElementType();
-    auto element_code = element_type.get_code();
-
-    if (auto *seq_type = dyn_cast<SequenceType>(&type.getElementType())) {
-      element_code = seq_type->getElementType().get_code();
-    }
-
-    return *key_code + "_" + *element_code + "_" + impl.get_name();
-
-  } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
-    auto &element_type = seq_type->getElementType();
-    auto element_code = element_type.get_code();
-
-    return *element_code + "_" + impl.get_name();
-  } else {
-    MEMOIR_UNREACHABLE("Unhandled collection type.");
-  }
-}
-
 FunctionCallee get_function_callee(llvm::Module &M, std::string name) {
   auto *function = M.getFunction(name);
   if (not function) {
@@ -88,7 +62,10 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
                                    const std::string &operation,
                                    vector<llvm::Value *> &arguments) {
 
-  auto prefix = detail::get_implementation_prefix(implementation, type);
+  auto &instantiation = implementation.instantiate(type);
+
+  auto prefix = instantiation.get_prefix();
+
   auto function_name = prefix + "__" + operation;
 
   auto callee = detail::get_function_callee(builder.getModule(), function_name);
@@ -1311,8 +1288,9 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
                                           I);
 
   // Get the functions to call.
-  auto prefix =
-      detail::get_implementation_prefix(*info.implementation, collection_type);
+  auto &instantiation = info.implementation->instantiate(collection_type);
+
+  auto prefix = instantiation.get_prefix();
 
   auto begin_name = prefix + (I.isReverse() ? "__rbegin" : "__begin");
   auto next_name = prefix + (I.isReverse() ? "__rnext" : "__next");
