@@ -4,20 +4,35 @@ set(BACKEND_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/backend)
 set(CMAKE_C_FLAGS   "-O3 -gdwarf-4 -fdeclspec -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17")
 
+install(
+  FILES utilities.h
+  DESTINATION ${BACKEND_INSTALL_INCLUDEDIR}
+)
+
+function(install_impl DIR)
+  install(
+    FILES
+    ${DIR}/definition.hpp
+    ${DIR}/instantiation.h
+    DESTINATION
+    ${BACKEND_INSTALL_INCLUDEDIR}/${DIR}
+    )
+endfunction()
+
 # add_subdirectory(vector)
 # add_subdirectory(hashtable)
-add_subdirectory(stl_unordered_map)
-add_subdirectory(stl_map)
-add_subdirectory(stl_multimap)
-# add_subdirectory(deepsjeng_ttable)
-add_subdirectory(stl_vector)
-add_subdirectory(stl_unordered_set)
-add_subdirectory(bitmap)
-add_subdirectory(bitset)
+# install_impl(stl_unordered_map)
+# install_impl(stl_map)
+# install_impl(stl_multimap)
+# install_impl(deepsjeng_ttable)
+install_impl(stl_vector)
+# install_impl(stl_unordered_set)
+# install_impl(bitmap)
+# install_impl(bitset)
 
-add_subdirectory(boost_dynamic_bitset)
-add_subdirectory(boost_bit_vector)
-add_subdirectory(boost_flat_set)
+# install_impl(boost_dynamic_bitset)
+# install_impl(boost_bit_vector)
+# install_impl(boost_flat_set)
 
 # Configure LLVM
 # find_package(LLVM 9 REQUIRED CONFIG)
@@ -30,6 +45,6 @@ add_subdirectory(boost_flat_set)
 # set(LLVM_BACKEND_INSTALL_LIBDIR ${BACKEND_INSTALL_LIBDIR}/llvm)
 # set(LLVM_BACKEND_INSTALL_INCLUDEDIR ${BACKEND_INSTALL_INCLUDEDIR}/llvm)
 
-# add_subdirectory(llvm_smallvector)
-# add_subdirectory(llvm_densemap)
-# add_subdirectory(llvm_smallptrset)
+# install_impl(llvm_smallvector)
+# install_impl(llvm_densemap)
+# install_impl(llvm_smallptrset)

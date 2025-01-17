@@ -1,8 +1,7 @@
-set(impl "stl_vector")
-
 install(
   FILES
-  ${impl}.h
+  definition.hpp
+  instantiation.h
   DESTINATION
   ${BACKEND_INSTALL_INCLUDEDIR}
 )
