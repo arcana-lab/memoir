@@ -9,6 +9,9 @@
 
 namespace llvm::memoir {
 
+// Forward definitions.
+struct Instantiation;
+
 /**
  * An Implementation holds a unique name and a type template specifying which
  * object types it can match on.
@@ -16,29 +19,29 @@ namespace llvm::memoir {
 struct Implementation {
 public:
   static void define(Implementation impl) {
-    if (Implementation::impls == nullptr) {
-      Implementation::impls = new map<std::string, Implementation>;
+    if (Implementation::templates == nullptr) {
+      Implementation::templates = new map<std::string, Implementation>;
     }
-    Implementation::impls->insert({ impl.get_name(), impl });
+    Implementation::templates->insert({ impl.get_name(), impl });
   }
 
   static void define(std::initializer_list<Implementation> impl_list) {
-    if (Implementation::impls == nullptr) {
-      Implementation::impls = new map<std::string, Implementation>;
+    if (Implementation::templates == nullptr) {
+      Implementation::templates = new map<std::string, Implementation>;
     }
     for (const auto &impl : impl_list) {
-      Implementation::impls->insert({ impl.get_name(), impl });
+      Implementation::templates->insert({ impl.get_name(), impl });
     }
   }
 
   static Implementation *lookup(std::string name) {
-    if (Implementation::impls == nullptr) {
+    if (Implementation::templates == nullptr) {
       return nullptr;
     }
 
-    auto &impls = *Implementation::impls;
-    auto found = impls.find(name);
-    if (found == impls.end()) {
+    auto &templates = *Implementation::templates;
+    auto found = templates.find(name);
+    if (found == templates.end()) {
       return nullptr;
     }
 
@@ -61,10 +64,9 @@ public:
   unsigned num_dimensions() const;
 
   /**
-   * @returns the function/type prefix for this implementation with the given
-   * type.
+   * @returns a new implementation, instantiated for the provided type.
    */
-  std::string get_prefix(Type &type) const;
+  Instantiation &instantiate(Type &type) const;
 
   Implementation(std::string name, Type &type_template)
     : name(name),
@@ -82,7 +84,40 @@ protected:
   std::string name;
   Type *type_template;
 
-  static map<std::string, Implementation> *impls;
+  static map<std::string, Implementation> *templates;
+};
+
+struct Instantiation : public Implementation {
+
+  /**
+   * Fetches or constructs the given instantiation.
+   */
+  static Instantiation &instantiate(
+      std::string name,
+      Type &type_template,
+      const AssocList<TypeVariable *, Type *> &types);
+
+  /**
+   * @returns the function/type prefix for this instantiation.
+   */
+  std::string get_prefix() const;
+
+  vector<Type *> &types() {
+    return this->_types;
+  }
+
+  const vector<Type *> &types() const {
+    return this->_types;
+  }
+
+protected:
+  vector<Type *> _types;
+
+  Instantiation(std::string name, Type &type_template)
+    : Implementation(name, type_template),
+      _types() {}
+
+  static ordered_multimap<std::string, Instantiation *> *instantiations;
 };
 
 } // namespace llvm::memoir

@@ -76,20 +76,69 @@ unsigned Implementation::num_dimensions() const {
   return n;
 }
 
-std::string Implementation::get_prefix(Type &type) const {
-  // Constructs the function/type prefix of the implementation by matching the
-  // type variables in the template.
+Instantiation &Implementation::instantiate(Type &type) const {
+  // Match the type against the template.
   AssocList<TypeVariable *, Type *> environment = {};
   MEMOIR_ASSERT(this->match(type, &environment),
                 "Failed to match implementation template");
 
+  // If we succeeded, then construct the instantiation object and return it.
+  return Instantiation::instantiate(this->get_name(),
+                                    this->get_template(),
+                                    environment);
+}
+
+map<std::string, Implementation> *Implementation::templates = nullptr;
+
+// =============================================================================
+Instantiation &Instantiation::instantiate(
+    std::string name,
+    Type &type_template,
+    const AssocList<TypeVariable *, Type *> &bindings) {
+  if (Instantiation::instantiations == nullptr) {
+    Instantiation::instantiations =
+        new ordered_multimap<std::string, Instantiation *>();
+  }
+  auto &map = *Instantiation::instantiations;
+
+  // See if we have already instantiated this.
+  auto range = map.equal_range(name);
+  auto found =
+      std::find_if(range.first, range.second, [&bindings](const auto &pair) {
+        auto *inst = pair.second;
+        return std::equal(inst->types().begin(),
+                          inst->types().end(),
+                          bindings.begin(),
+                          bindings.end(),
+                          [](const auto &ty, const auto &binding) {
+                            return ty == binding.second;
+                          });
+      });
+
+  // If we found an existing instantiation, return it.
+  if (found != range.second) {
+    return *found->second;
+  }
+
+  // If we haven't, construct a new one.
+  auto *inst = new Instantiation(name, type_template);
+  for (auto &[var, ty] : bindings) {
+    inst->types().push_back(ty);
+  }
+
+  map.insert(range.second, { name, inst });
+
+  return *inst;
+}
+
+std::string Instantiation::get_prefix() const {
   // Construct the prefix by listing the bound type variables in order.
   std::string prefix = "";
-  for (const auto &binding : environment) {
-    if (auto binding_code = binding.second->get_code()) {
-      prefix += binding_code.value() + "_";
+  for (const auto &type : this->types()) {
+    if (auto code = type->get_code()) {
+      prefix += code.value() + "_";
     } else {
-      MEMOIR_UNREACHABLE("Bound type in template has no code!");
+      MEMOIR_UNREACHABLE("Type in instantiation has no code!");
     }
   }
 
@@ -99,6 +148,7 @@ std::string Implementation::get_prefix(Type &type) const {
   return prefix;
 }
 
-map<std::string, Implementation> *Implementation::impls = nullptr;
+ordered_multimap<std::string, Instantiation *> *Instantiation::instantiations =
+    nullptr;
 
 } // namespace llvm::memoir
