@@ -151,6 +151,8 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
   for (auto *instantiation : this->collections_to_emit) {
     auto name = instantiation->get_name();
 
+    fprintln(os, "");
+
     auto type_id = 0;
     for (auto *type : instantiation->types()) {
 
