@@ -183,7 +183,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
 
           // If we couldn't determine a type, skip it.
           auto *collection_type = dyn_cast_or_null<CollectionType>(type);
-          if (not type) {
+          if (not collection_type) {
             continue;
           }
 
