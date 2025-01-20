@@ -12,9 +12,10 @@
 
 template <typename Key, typename Val>
 struct UnorderedMap : std::unordered_map<Key, Val> {
-  UnorderedMap() : std::unordered_map<Key, Val>() {}
-  UnorderedMap(const UnorderedMap<Key, Val> &other)
-    : std::unordered_map<Key, Val>(other) {}
+  using Base = typename std::unordered_map<Key, Val>;
+
+  UnorderedMap() : Base() {}
+  UnorderedMap(const UnorderedMap<Key, Val> &other) : Base(other) {}
   ~UnorderedMap() {
     // TODO: if the element is a collection pointer, delete it too.
   }
@@ -59,7 +60,7 @@ struct UnorderedMap : std::unordered_map<Key, Val> {
   }
 
   size_t size() {
-    return this->size();
+    return this->Base::size();
   }
 
   Vector<Key> *keys() {
@@ -74,8 +75,8 @@ struct UnorderedMap : std::unordered_map<Key, Val> {
   struct iterator {
     Key _key;
     Val _val;
-    std::unordered_map<Key, Val>::iterator _it;
-    std::unordered_map<Key, Val>::iterator _ie;
+    Base::iterator _it;
+    Base::iterator _ie;
 
     bool next() {
       if (this->_it == this->_ie) {
@@ -89,8 +90,8 @@ struct UnorderedMap : std::unordered_map<Key, Val> {
     }
   };
 
-  using std::unordered_map<Key, Val>::begin;
-  using std::unordered_map<Key, Val>::end;
+  using Base::begin;
+  using Base::end;
 
   void begin(iterator *iter) {
     iter->_it = this->begin();

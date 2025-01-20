@@ -12,15 +12,16 @@
 
 template <typename Key>
 struct UnorderedSet : std::unordered_set<Key> {
-  UnorderedSet() : std::unordered_set<Key>() {}
-  UnorderedSet(const UnorderedSet<Key> &other)
-    : std::unordered_set<Key>(other) {}
+  using Base = typename std::unordered_set<Key>;
+
+  UnorderedSet() : Base() {}
+  UnorderedSet(const UnorderedSet<Key> &other) : Base(other) {}
   ~UnorderedSet() {
     // TODO: if the element is a collection pointer, delete it too.
   }
 
   void insert(const Key &key) {
-    this->std::unordered_set<Key>::insert(key);
+    this->Base::insert(key);
   }
 
   void remove(const Key &key) {
@@ -43,7 +44,7 @@ struct UnorderedSet : std::unordered_set<Key> {
   }
 
   size_t size() {
-    return this->size();
+    return this->Base::size();
   }
 
   Vector<Key> *keys() {
@@ -57,8 +58,8 @@ struct UnorderedSet : std::unordered_set<Key> {
 
   struct iterator {
     Key _key;
-    std::unordered_set<Key>::iterator _it;
-    std::unordered_set<Key>::iterator _ie;
+    Base::iterator _it;
+    Base::iterator _ie;
 
     bool next() {
       if (this->_it == this->_ie) {
@@ -70,8 +71,8 @@ struct UnorderedSet : std::unordered_set<Key> {
     }
   };
 
-  using std::unordered_set<Key>::begin;
-  using std::unordered_set<Key>::end;
+  using Base::begin;
+  using Base::end;
 
   void begin(iterator *iter) {
     iter->_it = this->begin();
