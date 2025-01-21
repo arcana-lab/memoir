@@ -544,9 +544,10 @@ static llvm::Value &contextualize_end(AccessInst &inst,
                                       bool minus_one = false) {
   vector<llvm::Value *> indices = {};
   for (auto &index_use : inst.index_operands()) {
-    if (&use != &index_use) {
-      indices.push_back(index_use.get());
+    if (&use == &index_use) {
+      break;
     }
+    indices.push_back(index_use.get());
   }
 
   MemOIRBuilder builder(inst);
