@@ -24,6 +24,10 @@ struct UnorderedSet : std::unordered_set<Key> {
     this->Base::insert(key);
   }
 
+  void insert_input(UnorderedSet<Key> *other) {
+    this->Base::insert(other->begin(), other->end());
+  }
+
   void remove(const Key &key) {
     this->erase(key);
   }
@@ -36,7 +40,7 @@ struct UnorderedSet : std::unordered_set<Key> {
   }
 
   void clear() {
-    this->clear();
+    this->Base::clear();
   }
 
   bool has(const Key &key) {

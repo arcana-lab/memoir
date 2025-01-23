@@ -45,6 +45,11 @@ cname alwaysinline used PTR OP(insert)(PTR set, KEY_TYPE key) {
   return set;
 }
 
+cname alwaysinline used PTR OP(insert_input)(PTR set, PTR set2) {
+  set->insert_input(set2);
+  return set;
+}
+
 cname alwaysinline used bool OP(has)(PTR set, KEY_TYPE key) {
   return set->has(key);
 }
