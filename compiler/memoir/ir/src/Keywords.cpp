@@ -157,7 +157,7 @@ llvm::iterator_range<Keyword::iterator> InputKeyword::indices() {
 }
 
 Keyword::iterator InputKeyword::indices_begin() {
-  return iterator(std::next(&this->getAsUse()));
+  return iterator(std::next(&this->getInputAsUse()));
 }
 
 Keyword::iterator InputKeyword::indices_end() {
