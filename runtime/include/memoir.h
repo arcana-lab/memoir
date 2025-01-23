@@ -73,7 +73,6 @@ __RUNTIME_ATTR
 type_ref MEMOIR_FUNC(void_type)();
 
 // Object construction
-__IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
 collection_ref MEMOIR_FUNC(allocate)(const type_ref type, ...);

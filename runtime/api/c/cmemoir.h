@@ -139,7 +139,7 @@ namespace memoir {
 #define memoir_range(_from, _to)                                               \
   MEMOIR_KEYWORD(range), (size_t)_from, (size_t)_to
 
-#define memoir_input(_obj) MEMOIR_KEYWORD(input), _obj
+#define memoir_input(_obj, _args...) MEMOIR_KEYWORD(input), _obj, ##_args
 
 #define memoir_value(_val) MEMOIR_KEYWORD(value), _val
 

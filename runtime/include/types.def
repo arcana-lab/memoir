@@ -14,7 +14,7 @@ HANDLE_TYPE(i2, int8_t)
 HANDLE_TYPE(boolean, bool)
 HANDLE_TYPE(f64, double)
 HANDLE_TYPE(f32, float)
-HANDLE_TYPE(ptr, void *)
+HANDLE_TYPE(ptr, char *)
 HANDLE_TYPE(ref, Collection *)
 
 #ifndef HANDLE_INTEGER_TYPE
@@ -42,7 +42,7 @@ HANDLE_INTEGER_TYPE(boolean, bool, 1, false)
 #endif
 HANDLE_PRIMITIVE_TYPE(f64, double, Double)
 HANDLE_PRIMITIVE_TYPE(f32, float, Float)
-HANDLE_PRIMITIVE_TYPE(ptr, void *, Pointer)
+HANDLE_PRIMITIVE_TYPE(ptr, char *, Pointer)
 
 #ifndef HANDLE_REFERENCE_TYPE
 #  define HANDLE_REFERENCE_TYPE(TYPE_NAME,                                     \
