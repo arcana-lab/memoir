@@ -181,8 +181,12 @@ llvm::PreservedAnalyses LiveOutInsertionPass::run(
     }
 
     if (not postdominates) {
+      println(*arg->getParent());
       MEMOIR_UNREACHABLE("Failed to find a value that dominates function exit "
-                         "and postdominates all others.");
+                         "and postdominates all others for argument ",
+                         *arg,
+                         " in ",
+                         arg->getParent()->getName());
     }
 
     // Insert the live out metadata.
