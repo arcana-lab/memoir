@@ -8,9 +8,31 @@ while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a sym
 done
 MEMOIR_HOME=$(realpath $( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..)
 
+function usage {
+    echo "Invoke opt with memoir compiler libraries loaded."
+    echo "  USAGE: `basename 0` [--gdb] <OPT_ARGS>"
+}
+
+PREFIX=""
+ARGS=()
+while [[ $# -gt 0 ]] ;
+do
+    case $1 in
+        --gdb)
+            PREFIX="gdb --args"
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 1
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
 LIB_DIR=${MEMOIR_HOME}/lib
 
-NOELLE_LOAD=${MEMOIR_HOME}/bin/noelle-load
-
-# ${NOELLE_LOAD} -load ${LIB_DIR}/memoir.so --memoir-cl "$@"
-opt -load-pass-plugin=${MEMOIR_HOME}/lib/Noelle.so -load-pass-plugin=${MEMOIR_HOME}/lib/memoir.so "$@"
+${PREFIX} opt -load-pass-plugin=${MEMOIR_HOME}/lib/Noelle.so -load-pass-plugin=${MEMOIR_HOME}/lib/memoir.so ${ARGS[@]}

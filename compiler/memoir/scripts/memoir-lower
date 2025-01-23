@@ -17,15 +17,10 @@ if [[ $# -lt 1 ]]; then
 fi
 
 PASSES=()
-
+ARGS=()
 while [[ $# -gt 0 ]] ;
 do
     case $1 in
-        -o|--output)
-            OUTPUT_IR_FILE=$2
-            shift
-            shift
-            ;;
         -h|--help)
             usage
             echo ""
@@ -37,44 +32,18 @@ do
             shift
             ;;
         *)
-            if [ -n "${INPUT_IR_FILE}" ] ; then
-                echo "Too many positional arguments passed!"
-                usage
-                exit 1
-            fi
-            INPUT_IR_FILE=$1
+            ARGS+=("$1")
             shift
             ;;
     esac
 done
 
-if [ -z ${INPUT_IR_FILE} ] ; then
-    echo "No input IR file specified."
-    usage
-    exit 1
-fi
-
-if [ -z ${OUTPUT_IR_FILE} ] ; then
-    echo "No output IR file specified."
-    usage
-    exit 1
-fi
-
-TEMP_DIR=$(mktemp --directory)
-IMPL_CPP_FILE=${TEMP_DIR}/impl.cpp
-IMPL_IR_FILE=${TEMP_DIR}/impl.bc
-IR_FILE=${TEMP_DIR}/lowering.bc
-
-cp ${INPUT_IR_FILE} ${IR_FILE}
-
 # Run Folio.
+# TODO: make this load folio and add the pass.
 if [ -z ${DISABLE_FOLIO} ]
 then
     folio ${IR_FILE} -o ${IR_FILE}
 fi
 
 # Lower MEMOIR to LLVM.
-memoir-load ${IR_FILE} -passes=lower-memoir -o ${OUTPUT_IR_FILE}
-
-# Cleanup.
-rm -rf ${TEMP_DIR}
+memoir-load -passes=lower-memoir ${ARGS[@]}
