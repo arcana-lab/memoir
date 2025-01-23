@@ -6,10 +6,18 @@
 #include "memoir/lowering/Implementation.hpp"
 #include "memoir/lowering/TypeLayout.hpp"
 
+// Default implementations
+#define ASSOC_IMPL "stl_unordered_map"
+#define SET_IMPL "stl_unordered_set"
+#define SEQ_IMPL "stl_vector"
+#define ASSOC_SEQ_IMPL "boost_flat_multimap"
+
+#define ENABLE_MULTIMAP 0
+
 /*
  * This file provides a utility which instantiates the necessary collection
- * implementations, this information is consumed by the linker to generate the
- * collections which store user-defined objects.
+ * implementations, this information is consumed by the linker to generate
+ * the collections which store user-defined objects.
  *
  * Author(s): Tommy McMichen
  * Created: September 27, 2023

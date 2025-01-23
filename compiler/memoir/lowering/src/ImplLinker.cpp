@@ -4,35 +4,31 @@
 
 #include "memoir/utility/Metadata.hpp"
 
-// Default implementations
-#define ASSOC_IMPL "stl_unordered_map"
-#define SET_IMPL "stl_unordered_set"
-#define SEQ_IMPL "stl_vector"
-#define ASSOC_SEQ_IMPL "stl_multimap"
-
 namespace llvm::memoir {
 
 namespace detail {
 void register_default_implementations() {
-  Implementation::define(
-      { Implementation( // std::multimap<T, U>
-            ASSOC_SEQ_IMPL,
-            AssocType::get(TypeVariable::get(),
-                           SequenceType::get(TypeVariable::get()))),
+  Implementation::define({
+#if ENABLE_MULTIMAP
+      Implementation( // std::multimap<T, U>
+          ASSOC_SEQ_IMPL,
+          AssocType::get(TypeVariable::get(),
+                         SequenceType::get(TypeVariable::get()))),
+#endif
 
-        Implementation( // std::vector<T>
-            SEQ_IMPL,
-            SequenceType::get(TypeVariable::get())),
+      Implementation( // std::vector<T>
+          SEQ_IMPL,
+          SequenceType::get(TypeVariable::get())),
 
-        Implementation( // std::unordered_map<T, U>
-            ASSOC_IMPL,
-            AssocType::get(TypeVariable::get(), TypeVariable::get())),
+      Implementation( // std::unordered_map<T, U>
+          ASSOC_IMPL,
+          AssocType::get(TypeVariable::get(), TypeVariable::get())),
 
-        Implementation( // std::unordered_set<T>
-            SET_IMPL,
-            AssocType::get(TypeVariable::get(), VoidType::get()))
+      Implementation( // std::unordered_set<T>
+          SET_IMPL,
+          AssocType::get(TypeVariable::get(), VoidType::get()))
 
-      });
+  });
 }
 } // namespace detail
 
@@ -54,11 +50,15 @@ const Implementation &ImplLinker::get_default_implementation(
       return MEMOIR_SANITIZE(
           Implementation::lookup(SET_IMPL),
           "Failed to find the default implementation (" SET_IMPL ")");
-    } else if (isa<SequenceType>(&element_type)) {
+    }
+#if ENABLE_MULTIMAP
+    else if (isa<SequenceType>(&element_type)) {
       return MEMOIR_SANITIZE(
           Implementation::lookup(ASSOC_SEQ_IMPL),
           "Failed to find the default implementation (" ASSOC_SEQ_IMPL ")");
-    } else {
+    }
+#endif
+    else {
       return MEMOIR_SANITIZE(
           Implementation::lookup(ASSOC_IMPL),
           "Failed to find the default implementation (" ASSOC_IMPL ")");
@@ -76,11 +76,36 @@ void ImplLinker::implement(Type &type) {
 }
 
 void ImplLinker::implement(Instantiation &inst) {
-  this->collections_to_emit.insert(&inst);
 
-  for (auto *type : inst.types()) {
+  auto &types = inst.types();
+
+  for (auto *type : types) {
     this->implement(*type);
   }
+
+  // Ensure that this instantiation is unique.
+  auto it = this->collections_to_emit.begin();
+  for (; it != this->collections_to_emit.end(); ++it) {
+    auto &it_inst = **it;
+    if (it_inst.get_name() != inst.get_name()) {
+      continue;
+    }
+
+    auto &it_types = it_inst.types();
+    auto types_are_equal =
+        std::equal(types.begin(),
+                   types.end(),
+                   it_types.begin(),
+                   it_types.end(),
+                   [&](const auto *lhs, const auto *rhs) {
+                     return lhs->get_code() == rhs->get_code();
+                   });
+    if (types_are_equal) {
+      return;
+    }
+  }
+
+  this->collections_to_emit.insert(&inst);
 }
 
 // Utility functions.
@@ -104,7 +129,7 @@ static std::string memoir_to_c_type(Type &T) {
   } else if (isa<DoubleType>(&T)) {
     return "double";
   } else if (isa<PointerType>(&T)) {
-    return "void *";
+    return "char *";
   } else if (isa<VoidType>(&T)) {
     return "void";
   } else if (auto *ref_type = dyn_cast<ReferenceType>(&T)) {
@@ -112,7 +137,7 @@ static std::string memoir_to_c_type(Type &T) {
   } else if (auto *struct_type = dyn_cast<StructType>(&T)) {
     return "impl__" + struct_type->getName();
   } else if (auto *collection_type = dyn_cast<CollectionType>(&T)) {
-    return "void *"; // TODO: attach attributes here: restrict, etc
+    return "char *"; // TODO: attach attributes here: restrict, etc
   }
 
   MEMOIR_UNREACHABLE("Attempting to create Impl for unknown type!");
