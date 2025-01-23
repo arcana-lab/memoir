@@ -1,3 +1,6 @@
+#ifndef MEMOIR_TRANSFORMS_SSACONSTRUCTIONVISITOR_H
+#define MEMOIR_TRANSFORMS_SSACONSTRUCTIONVISITOR_H
+
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
@@ -96,4 +99,8 @@ protected:
   SSAConstructionStats *stats;
 };
 
+bool use_is_mutating(llvm::Use &use, bool construct_use_phis = false);
+
 } // namespace llvm::memoir
+
+#endif // MEMOIR_TRANSFORMS_SSACONSTRUCTIONVISITOR_H
