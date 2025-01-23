@@ -85,7 +85,7 @@ void link_implementation(ImplLinker &IL,
     if (Type::is_unsized(*collection_type)) {
 
       // Instantiate the implementation.
-      auto &inst = impl->instantiate(type);
+      auto &inst = impl->instantiate(*collection_type);
 
       IL.implement(inst);
     }
@@ -170,11 +170,6 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
             continue;
           }
 
-#define SET_IMPL "stl_unordered_set"
-#define SEQ_IMPL "stl_vector"
-#define ASSOC_IMPL "stl_unordered_map"
-#define ASSOC_SEQ_IMPL "stl_multimap"
-
           // Get the type of the collection being operated on.
           Type *type = nullptr;
           if (auto *access = dyn_cast<AccessInst>(inst)) {
@@ -243,6 +238,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   };
   std::string message = "";
   bool failed = false;
+  print("Compiling implementations...");
   llvm::sys::ExecuteAndWait(clang_path,
                             args,
                             std::nullopt,
@@ -253,9 +249,12 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
                             &failed);
 
   if (failed) {
-    println("ImplLinker: clang++ failed with:");
-    println(message);
-    MEMOIR_UNREACHABLE("clang++ failed to compile implementations, see above.");
+    println("FAILED!");
+    MEMOIR_UNREACHABLE(
+        "clang++ failed to compile implementations with message:\n",
+        message);
+  } else {
+    print("\r                                                    \r");
   }
 
   // Load the new bitcode.
@@ -282,6 +281,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   }
 
   // Link the modules.
+  print("Linking implementations... ");
   if (llvm::Linker::linkModules(
           M,
           std::move(other_module),
@@ -291,7 +291,10 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
               return !GV.hasName() || (GVS.count(GV.getName()) == 0);
             });
           })) {
+    println("FAILED!");
     MEMOIR_UNREACHABLE("LLVM Linker failed to link in MEMOIR declarations!");
+  } else {
+    print("\r                                                    \r");
   }
 
   return llvm::PreservedAnalyses::none();
