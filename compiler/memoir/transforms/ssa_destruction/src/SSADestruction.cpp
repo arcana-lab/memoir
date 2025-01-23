@@ -640,23 +640,28 @@ struct NestedObjectInfo {
   AccessInst::index_iterator begin, end;
   const Implementation *implementation;
 };
-static NestedObjectInfo get_nested_object(AccessInst &I,
-                                          TypeConverter &TC,
-                                          llvm::Module &M,
-                                          bool fully_qualified = false) {
+static NestedObjectInfo get_nested_object(
+    llvm::Instruction &IP,
+    llvm::Value &outer_object,
+    Type &object_type,
+    std::input_iterator auto indices_begin,
+    std::input_iterator auto indices_end,
+    TypeConverter &TC,
+    bool fully_qualified = false,
+    std::optional<SelectionMetadata> selection_metadata = {},
+    unsigned selection_index = 0) {
 
-  MemOIRBuilder builder(I);
+  MemOIRBuilder builder(&IP);
 
   // Unpack the instruction.
-  auto *object = &I.getObject();
-  auto *type = &I.getObjectType();
+  auto *object = &outer_object;
+  auto *type = &object_type;
 
-  // Fetch the selection from the instruction metadata, if it exists.
-  unsigned selection_index = 0;
-  auto selection_metadata = Metadata::get<SelectionMetadata>(I);
+  // Fetch the module.
+  auto &M = builder.getModule();
 
   // Construct nested access.
-  for (auto it = I.indices_begin(), ie = I.indices_end(); it != ie;) {
+  for (auto it = indices_begin, ie = indices_end; it != ie;) {
 
     if (auto *struct_type = dyn_cast<StructType>(type)) {
 
@@ -781,12 +786,12 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
       type = &element_type;
 
     } else {
-      MEMOIR_UNREACHABLE("Dimension mismatch in ", I);
+      MEMOIR_UNREACHABLE("Dimension mismatch!");
     }
   }
 
   if (isa<StructType>(type) or isa<ArrayType>(type)) {
-    return NestedObjectInfo(*object, *type, I.indices_end(), I.indices_end());
+    return NestedObjectInfo(*object, *type, indices_end, indices_end);
 
   } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
     std::optional<std::string> impl_name = std::nullopt;
@@ -795,14 +800,24 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
     }
     const auto &impl = detail::get_implementation(impl_name, *collection_type);
 
-    return NestedObjectInfo(*object,
-                            *type,
-                            I.indices_end(),
-                            I.indices_end(),
-                            impl);
+    return NestedObjectInfo(*object, *type, indices_end, indices_end, impl);
   }
 
-  MEMOIR_UNREACHABLE("Could not get the nested object for ", I);
+  MEMOIR_UNREACHABLE("Could not get the nested object");
+}
+
+static NestedObjectInfo get_nested_object(AccessInst &I,
+                                          TypeConverter &TC,
+                                          bool fully_qualified = false) {
+  return get_nested_object(I.getCallInst(),
+                           I.getObject(),
+                           I.getObjectType(),
+                           I.indices_begin(),
+                           I.indices_end(),
+                           TC,
+                           fully_qualified,
+                           Metadata::get<SelectionMetadata>(I),
+                           0);
 }
 
 unsigned compute_depth(NestedObjectInfo &info) {
@@ -819,7 +834,7 @@ unsigned compute_depth(NestedObjectInfo &info) {
 void SSADestructionVisitor::visitReadInst(ReadInst &I) {
 
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M);
+  auto info = detail::get_nested_object(I, this->TC);
 
   // Construct the read.
   MemOIRBuilder builder(I);
@@ -895,7 +910,7 @@ void SSADestructionVisitor::visitReadInst(ReadInst &I) {
 void SSADestructionVisitor::visitWriteInst(WriteInst &I) {
 
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M);
+  auto info = detail::get_nested_object(I, this->TC);
 
   // Construct the read.
   MemOIRBuilder builder(I);
@@ -962,7 +977,7 @@ void SSADestructionVisitor::visitWriteInst(WriteInst &I) {
 
 void SSADestructionVisitor::visitHasInst(HasInst &I) {
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M);
+  auto info = detail::get_nested_object(I, this->TC);
 
   // Construct the read.
   MemOIRBuilder builder(I);
@@ -996,40 +1011,71 @@ void SSADestructionVisitor::visitHasInst(HasInst &I) {
 }
 
 void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
-  // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M);
-
-  // Compute the operation depth.
-  auto depth = detail::compute_depth(info);
 
   // Construct the read.
   MemOIRBuilder builder(I);
 
-  auto &collection_type = MEMOIR_SANITIZE(dyn_cast<CollectionType>(&info.type),
-                                          "Non-collection object to ",
-                                          I);
+  // Handle operation keywords.
+  vector<llvm::Value *> arguments = {};
 
-  // Fetch the function that implements this operation.
-  vector<llvm::Value *> arguments = { &info.object };
-  arguments.insert(arguments.end(), info.begin, info.end);
-
+  bool base_operation = true;
+  bool fully_qualified = false;
   std::string operation_name = "insert";
   if (auto value_kw = I.get_keyword<ValueKeyword>()) {
     operation_name += "_value";
     arguments.push_back(&value_kw->getValue());
+    base_operation = false;
 
   } else if (auto input_kw = I.get_keyword<InputKeyword>()) {
     // IDEA: extend this to support set and map unions?
     operation_name += "_input";
-    arguments.push_back(&input_kw->getInput());
+    fully_qualified = true;
+    base_operation = false;
+
+    std::optional<SelectionMetadata> input_selection = {};
+    if (auto *input_inst = dyn_cast<llvm::Instruction>(&input_kw->getInput())) {
+      input_selection = Metadata::get<SelectionMetadata>(*input_inst);
+    }
+
+    auto &input_type =
+        MEMOIR_SANITIZE(type_of(input_kw->getInput()),
+                        "Failed to get type of InputKeyword object");
+
+    auto input_info = detail::get_nested_object(I.getCallInst(),
+                                                input_kw->getInput(),
+                                                input_type,
+                                                input_kw->indices_begin(),
+                                                input_kw->indices_end(),
+                                                this->TC,
+                                                /* fully qualified? */ true,
+                                                input_selection);
+
+    arguments.push_back(&input_info.object);
 
     if (auto range_kw = I.get_keyword<RangeKeyword>()) {
       operation_name += "_range";
       arguments.push_back(&range_kw->getBegin());
       arguments.push_back(&range_kw->getEnd());
     }
-  } else if (depth == 0 and Type::is_unsized(I.getElementType())) {
-    // If the element type is unsized, we must provide the default initializer.
+  }
+
+  // Get the nested object as a value.
+  auto info = detail::get_nested_object(I, this->TC, fully_qualified);
+
+  // Compute the operation depth.
+  auto depth = fully_qualified ? 0 : detail::compute_depth(info);
+
+  auto &collection_type = MEMOIR_SANITIZE(dyn_cast<CollectionType>(&info.type),
+                                          "Non-collection object to ",
+                                          I);
+
+  // Fetch the function that implements this operation.
+  arguments.insert(arguments.begin(), info.begin, info.end);
+  arguments.insert(arguments.begin(), &info.object);
+
+  if (base_operation and depth == 0 and Type::is_unsized(I.getElementType())) {
+    // If the element type is unsized, we must provide the default
+    // initializer.
     auto &nested_type = I.getElementType();
     if (auto *nested_collection_type = dyn_cast<CollectionType>(&nested_type)) {
       // Default initialize the nested collection.
@@ -1079,7 +1125,7 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
 
 void SSADestructionVisitor::visitRemoveInst(RemoveInst &I) {
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M);
+  auto info = detail::get_nested_object(I, this->TC);
 
   // Construct the read.
   MemOIRBuilder builder(I);
@@ -1121,7 +1167,7 @@ void SSADestructionVisitor::visitRemoveInst(RemoveInst &I) {
 
 void SSADestructionVisitor::visitCopyInst(CopyInst &I) {
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M);
+  auto info = detail::get_nested_object(I, this->TC);
 
   // Construct the read.
   MemOIRBuilder builder(I);
@@ -1163,7 +1209,7 @@ void SSADestructionVisitor::visitCopyInst(CopyInst &I) {
 
 void SSADestructionVisitor::visitClearInst(ClearInst &I) {
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M, true);
+  auto info = detail::get_nested_object(I, this->TC, true);
 
   // Construct the read.
   MemOIRBuilder builder(I);
@@ -1198,7 +1244,7 @@ void SSADestructionVisitor::visitClearInst(ClearInst &I) {
 
 void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M, true);
+  auto info = detail::get_nested_object(I, this->TC, true);
 
   // Compute the operation depth.
   auto depth = detail::compute_depth(info);
@@ -1242,7 +1288,7 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
 
 void SSADestructionVisitor::visitKeysInst(KeysInst &I) {
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M);
+  auto info = detail::get_nested_object(I, this->TC);
 
   // Construct the read.
   MemOIRBuilder builder(I);
@@ -1279,7 +1325,7 @@ void SSADestructionVisitor::visitKeysInst(KeysInst &I) {
 void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
 
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC, this->M, true);
+  auto info = detail::get_nested_object(I, this->TC, true);
 
   // Construct the read.
   MemOIRBuilder builder(I);
