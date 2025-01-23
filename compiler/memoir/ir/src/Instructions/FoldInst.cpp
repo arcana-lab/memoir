@@ -151,7 +151,7 @@ llvm::Argument *FoldInst::getElementArgument() const {
 llvm::Argument &FoldInst::getClosedArgument(llvm::Use &U) const {
   // Get the collection type.
   auto &collection_type =
-      MEMOIR_SANITIZE(dyn_cast<CollectionType>(&this->getObjectType()),
+      MEMOIR_SANITIZE(dyn_cast<CollectionType>(&this->getElementType()),
                       "FoldInst over a non-collection");
 
   // Fetch the operand number of the closed keyword.
