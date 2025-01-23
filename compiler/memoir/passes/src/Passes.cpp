@@ -108,6 +108,7 @@ static void raise_memoir(llvm::ModulePassManager &MPM) {
 }
 
 static void lower_memoir(llvm::ModulePassManager &MPM) {
+
   // memoir-impl-linker
   MPM.addPass(ImplLinkerPass());
 
@@ -130,47 +131,62 @@ static void lower_memoir(llvm::ModulePassManager &MPM) {
 // Register the passes and pipelines with the new pass manager
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
 llvmGetPassPluginInfo() {
-  return { LLVM_PLUGIN_API_VERSION,
-           "memoir",
-           LLVM_VERSION_STRING,
-           [](llvm::PassBuilder &PB) {
-             // Raise MEMOIR at the start of LTO
-             PB.registerFullLinkTimeOptimizationEarlyEPCallback(
-                 [](llvm::ModulePassManager &MPM,
-                    llvm::OptimizationLevel level) { raise_memoir(MPM); });
+  return {
+    LLVM_PLUGIN_API_VERSION,
+    "memoir",
+    LLVM_VERSION_STRING,
+    [](llvm::PassBuilder &PB) {
+      // Raise MEMOIR at the start of LTO
+      PB.registerFullLinkTimeOptimizationEarlyEPCallback(
+          [](llvm::ModulePassManager &MPM, llvm::OptimizationLevel level) {
+            if (level == llvm::OptimizationLevel::O3)
+              raise_memoir(MPM);
+          });
 
-             // Lower MEMOIR at the end of LTO
-             PB.registerFullLinkTimeOptimizationLastEPCallback(
-                 [](llvm::ModulePassManager &MPM,
-                    llvm::OptimizationLevel level) { lower_memoir(MPM); });
+      // Lower MEMOIR at the end of LTO
+      PB.registerFullLinkTimeOptimizationLastEPCallback(
+          [](llvm::ModulePassManager &MPM, llvm::OptimizationLevel level) {
+            if (level == llvm::OptimizationLevel::O3)
+              lower_memoir(MPM);
+          });
 
-             // Register module transformation passes.
-             PB.registerPipelineParsingCallback(
-                 [](llvm::StringRef name,
-                    llvm::ModulePassManager &MPM,
-                    llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
-                   // Pass that converts LLVM to MEMOIR
-                   if (name == "raise-memoir") {
-                     raise_memoir(MPM);
+      // Register module transformation passes.
+      PB.registerPipelineParsingCallback(
+          [](llvm::StringRef name,
+             llvm::ModulePassManager &MPM,
+             llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
+            // Pass that converts LLVM to MEMOIR
+            if (name == "raise-memoir") {
+              raise_memoir(MPM);
 
-                     return true;
-                   }
+              return true;
+            }
 
-                   // Pass that converts MEMOIR to LLVM
-                   if (name == "lower-memoir") {
-                     lower_memoir(MPM);
+            // Pass that converts MEMOIR to LLVM
+            if (name == "lower-memoir") {
+              lower_memoir(MPM);
 
-                     return true;
-                   }
+              return true;
+            }
 
-                   // LowerFold require some addition simplification to be run
-                   // after it so it doesn't break other passes in the pipeline.
-                   if (name == "memoir-lower-fold") {
-                     MPM.addPass(LowerFoldPass());
-                     MPM.addPass(adapt_function(llvm::LoopSimplifyPass()));
-                     MPM.addPass(adapt_function(llvm::LCSSAPass()));
-                     return true;
-                   }
+            if (name == "memoir") {
+              raise_memoir(MPM);
+
+              // TODO: add optimization levels
+
+              lower_memoir(MPM);
+
+              return true;
+            }
+
+            // LowerFold require some addition simplification to be run
+            // after it so it doesn't break other passes in the pipeline.
+            if (name == "memoir-lower-fold") {
+              MPM.addPass(LowerFoldPass());
+              MPM.addPass(adapt_function(llvm::LoopSimplifyPass()));
+              MPM.addPass(adapt_function(llvm::LCSSAPass()));
+              return true;
+            }
 
 #define MODULE_PASS(CLASS, NAME)                                               \
   if (name == NAME) {                                                          \
@@ -178,43 +194,44 @@ llvmGetPassPluginInfo() {
     return true;                                                               \
   }
 #include "memoir/passes/Passes.def"
-                   return false;
-                 });
+            return false;
+          });
 
-             // Register module transformation passes.
-             PB.registerPipelineParsingCallback(
-                 [](llvm::StringRef name,
-                    llvm::FunctionPassManager &FPM,
-                    llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
+      // Register module transformation passes.
+      PB.registerPipelineParsingCallback(
+          [](llvm::StringRef name,
+             llvm::FunctionPassManager &FPM,
+             llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
 #define FUNCTION_PASS(CLASS, NAME)                                             \
   if (name == NAME) {                                                          \
     FPM.addPass(CLASS());                                                      \
     return true;                                                               \
   }
 #include "memoir/passes/Passes.def"
-                   return false;
-                 });
+            return false;
+          });
 
-             // Register module analyses.
-             PB.registerAnalysisRegistrationCallback(
-                 [](llvm::ModuleAnalysisManager &MAM) {
+      // Register module analyses.
+      PB.registerAnalysisRegistrationCallback(
+          [](llvm::ModuleAnalysisManager &MAM) {
 #define MODULE_ANALYSIS(CLASS, RESULT)                                         \
   MAM.registerPass([&] { return CLASS(); });
 #include "memoir/passes/Passes.def"
-                   // MAM.registerPass([&] { return
-                   // llvm::memoir::RangeAnalysis(); }); MAM.registerPass([&] {
-                   // return llvm::memoir::LiveRangeAnalysis(); });
-                 });
+            // MAM.registerPass([&] { return
+            // llvm::memoir::RangeAnalysis(); }); MAM.registerPass([&] {
+            // return llvm::memoir::LiveRangeAnalysis(); });
+          });
 
-             // Register function analyses.
-             PB.registerAnalysisRegistrationCallback(
-                 [](llvm::FunctionAnalysisManager &FAM) {
+      // Register function analyses.
+      PB.registerAnalysisRegistrationCallback(
+          [](llvm::FunctionAnalysisManager &FAM) {
 #define FUNCTION_ANALYSIS(CLASS, RESULT)                                       \
   FAM.registerPass([&] { return CLASS(); });
 #include "memoir/passes/Passes.def"
-                   // FAM.registerPass([&] { return
-                   // llvm::memoir::LivenessAnalysis();
-                   // });
-                 });
-           } };
+            // FAM.registerPass([&] { return
+            // llvm::memoir::LivenessAnalysis();
+            // });
+          });
+    }
+  };
 }
