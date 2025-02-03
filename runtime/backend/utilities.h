@@ -63,4 +63,35 @@
 
 #define EQUAL(x, y) COMPLEMENT(NOT_EQUAL(x, y))
 
+#include <cstdint>
+#include <functional>
+
+template <int N>
+struct Bytes : public std::array<uint8_t, N> {};
+
+template <int N>
+struct std::hash<Bytes<N>> {
+  std::size_t operator()(const Bytes<N> &xs) const {
+    constexpr std::size_t prime{ 0x100000001B3 };
+    std::size_t result{ 0xcbf29ce484222325 };
+    for (auto x : xs) {
+      result = (result * prime) ^ x;
+    }
+    return result;
+  }
+};
+
+#define DEF_HASH(CLASS)                                                        \
+  template <>                                                                  \
+  struct std::hash<CLASS> {                                                    \
+    std::size_t operator()(const CLASS &xs) const {                            \
+      constexpr std::size_t prime{ 0x100000001B3 };                            \
+      std::size_t result{ 0xcbf29ce484222325 };                                \
+      for (auto x : xs) {                                                      \
+        result = (result * prime) ^ x;                                         \
+      }                                                                        \
+      return result;                                                           \
+    }                                                                          \
+  }
+
 #endif // MEMOIR_BACKEND_UTILITIES_H
