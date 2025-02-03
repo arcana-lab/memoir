@@ -229,13 +229,19 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   // TODO: can we get -march=XXX from LLVM and use it here?
   // auto clang_program = llvm::sys::findProgramByName();
   const char *clang_path = LLVM_BIN_DIR "/clang++";
-  llvm::StringRef args[] = {
-    clang_path,   impl_file_output,
-    "-O3",        "-std=c++20",
-    "-gdwarf-4",  "-c",
-    "-emit-llvm", "-I" MEMOIR_INSTALL_PREFIX "/include",
-    "-o",         bitcode_filename
-  };
+  llvm::StringRef args[] = { clang_path,
+                             impl_file_output,
+                             "-O3",
+                             "-std=c++20",
+                             "-gdwarf-4",
+                             "-c",
+                             "-emit-llvm",
+                             "-I" MEMOIR_INSTALL_PREFIX "/include",
+#ifdef BOOST_INCLUDE_DIR
+                             "-I" BOOST_INCLUDE_DIR "/include",
+#endif
+                             "-o",
+                             bitcode_filename };
   std::string message = "";
   bool failed = false;
   print("Compiling implementations...");
