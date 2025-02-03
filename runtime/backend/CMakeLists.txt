@@ -30,10 +30,11 @@ install_impl(stl_vector)
 install_impl(stl_unordered_set)
 # install_impl(bitmap)
 # install_impl(bitset)
+install_impl(index_map)
 
 # install_impl(boost_dynamic_bitset)
 # install_impl(boost_bit_vector)
-# install_impl(boost_flat_set)
+install_impl(boost_flat_set)
 
 # Configure LLVM
 # find_package(LLVM 9 REQUIRED CONFIG)
