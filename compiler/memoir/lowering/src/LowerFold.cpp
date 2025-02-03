@@ -428,11 +428,24 @@ bool lower_fold(FoldInst &I,
           // Ensure that the RetPHI is for FoldInst.
           if (ret_phi->getCalledFunction()
               == I.getCallInst().getCalledFunction()) {
+
             if (not found_ret_phi) {
               found_ret_phi = ret_phi;
             } else {
-              MEMOIR_UNREACHABLE("Cannot disambiguate between two RetPHIs!"
-                                 "Need to add a dominance check here.");
+              auto *fold_bb = I.getParent();
+              auto *new_bb = ret_phi->getParent();
+              auto *old_bb = found_ret_phi->getParent();
+              if (fold_bb != old_bb and fold_bb == new_bb) {
+                found_ret_phi = ret_phi;
+              } else if (fold_bb != new_bb and fold_bb == old_bb) {
+                continue;
+              } else {
+                println(*loop_header.getParent());
+                println(*ret_phi);
+                println(*found_ret_phi);
+                MEMOIR_UNREACHABLE("Cannot disambiguate between two RetPHIs!"
+                                   "Need to add a dominance check here.");
+              }
             }
           } else {
             debugln("wrong function!");
