@@ -7,8 +7,16 @@
 #include "memoir/lowering/TypeLayout.hpp"
 
 // Default implementations
-#define ASSOC_IMPL "stl_unordered_map"
-#define SET_IMPL "stl_unordered_set"
+#ifdef BOOST_INCLUDE_DIR
+#  define ASSOC_IMPL "index_map"
+#else
+#  define ASSOC_IMPL "stl_unordered_map"
+#endif
+#ifdef BOOST_INCLUDE_DIR
+#  define SET_IMPL "boost_flat_set"
+#else
+#  define SET_IMPL "stl_unordered_set"
+#endif
 #define SEQ_IMPL "stl_vector"
 #define ASSOC_SEQ_IMPL "boost_flat_multimap"
 

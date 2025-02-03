@@ -147,6 +147,7 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
   // General include headers.
   fprintln(os, "#include <stdint.h>");
   fprintln(os, "#include <array>");
+  fprintln(os, "#include <backend/utilities.h>");
 
   // Instantiate the struct implementations.
   for (auto *struct_type : this->structs_to_emit) {
@@ -161,15 +162,12 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
     // Create a C struct for it.
     auto type_name = memoir_to_c_type(struct_layout.get_memoir_type());
     fprintln(os,
-             "typedef struct _",
+             "struct ",
              type_name,
-             " {\n",
-             "  std::array<uint8_t, ",
+             " : public Bytes<",
              struct_size,
-             "> _storage;\n",
-             "}",
-             type_name,
-             ";");
+             "> {};");
+    fprintln(os, "DEF_HASH(", type_name, ");");
   }
 
   // Instantiate all of the collection implementations.
