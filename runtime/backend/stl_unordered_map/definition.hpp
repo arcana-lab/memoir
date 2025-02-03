@@ -25,11 +25,11 @@ struct UnorderedMap : std::unordered_map<Key, Val> {
   }
 
   Val read(const Key &key) {
-    return this->at(key);
+    return this->Base::at(key);
   }
 
   void write(const Key &key, const Val &val) {
-    this->at(key) = val;
+    this->Base::at(key) = val;
   }
 
   void insert(const Key &key) {
@@ -41,7 +41,7 @@ struct UnorderedMap : std::unordered_map<Key, Val> {
   }
 
   void remove(const Key &key) {
-    this->erase(key);
+    this->Base::erase(key);
   }
 
   UnorderedMap<Key, Val> *copy() {
@@ -52,11 +52,11 @@ struct UnorderedMap : std::unordered_map<Key, Val> {
   }
 
   void clear() {
-    this->clear();
+    this->Base::clear();
   }
 
   bool has(const Key &key) {
-    return this->count(key) > 0;
+    return this->Base::count(key) > 0;
   }
 
   size_t size() {
