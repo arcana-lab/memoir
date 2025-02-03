@@ -72,6 +72,13 @@ bool use_is_mutating(llvm::Use &use, bool construct_use_phis) {
       return false;
     }
 
+    // If the value is used in an input keyword.
+    if (auto input_kw = memoir_inst->get_keyword<InputKeyword>()) {
+      if (&input_kw->getInputAsUse() == &use) {
+        return false;
+      }
+    }
+
     // If we made it this far, then the use is mutating.
     return true;
   }
@@ -377,6 +384,25 @@ void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
   if (auto closed_keyword = I.get_keyword<ClosedKeyword>()) {
     for (auto &closed_use : closed_keyword->arg_operands()) {
       auto *closed = closed_use.get();
+
+      // Update the argument to match the function being called.
+      auto &closed_param = I.getClosedArgument(closed_use);
+      if (closed_param.getType() != closed->getType()) {
+        auto *param_type = closed_param.getType();
+        auto *val_type = closed->getType();
+
+        MemOIRBuilder builder(I);
+
+        if (isa<llvm::IntegerType>(param_type)) {
+          if (isa<llvm::IntegerType>(val_type)) {
+            // TODO: look at the closed value to see if we can determine whether
+            // to sign- or zero-extend
+            bool is_signed = false;
+            closed = builder.CreateIntCast(closed, param_type, is_signed);
+            closed_use.set(closed);
+          }
+        }
+      }
 
       // If the closed value is not a collection type, skip it.
       if (not Type::value_is_object(*closed)) {
