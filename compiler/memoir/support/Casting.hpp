@@ -7,7 +7,6 @@
 #include "llvm/Support/Casting.h"
 
 #include "memoir/ir/Instructions.hpp"
-#include "memoir/ir/Properties.hpp"
 
 #include "memoir/support/Assert.hpp"
 
@@ -65,33 +64,59 @@ To *into(From &I) {
   return dyn_cast_or_null<To>(&I.getCallInst());
 }
 
-// Functions to check type of Property
+// Functions to check type of Keyword
 template <class To,
-          class From,
-          std::enable_if_t<std::is_base_of_v<Property, To>, bool> = true,
-          std::enable_if_t<std::is_base_of_v<Property, From>, bool> = true>
-bool isa(const From &p) {
-  return To::class_of(p);
-}
-
-template <class To,
-          class From,
-          std::enable_if_t<std::is_base_of_v<Property, To>, bool> = true,
-          std::enable_if_t<std::is_base_of_v<Property, From>, bool> = true>
-To cast(const From &p) {
-  return To(p.getPropertyInst());
-}
-
-template <class To,
-          class From,
-          std::enable_if_t<std::is_base_of_v<Property, To>, bool> = true,
-          std::enable_if_t<std::is_base_of_v<Property, From>, bool> = true>
-std::optional<To> try_cast(const From &p) {
-  if (isa<To>(p)) {
-    return To(p.getPropertyInst());
-  } else {
+          std::enable_if_t<std::is_base_of_v<Keyword, To>, bool> = true,
+          std::enable_if_t<not std::is_same_v<Keyword, To>, bool> = true>
+std::optional<To> into(llvm::Use &U) {
+  auto *value = U.get();
+  auto *data = dyn_cast_or_null<llvm::ConstantDataArray>(value);
+  if (not data) {
     return std::nullopt;
   }
+  if (not data->isCString()) {
+    return std::nullopt;
+  }
+  auto str = data->getAsCString();
+  if (not str.starts_with(Keyword::PREFIX)) {
+    return std::nullopt;
+  }
+#define KEYWORD(STR, CLASS)                                                    \
+  else if (str.ends_with(#STR)) {                                              \
+    return CLASS(U);                                                           \
+  }
+#include "memoir/ir/Keywords.def"
+  else {
+    return std::nullopt;
+  }
+}
+
+// template <class To,
+//           class From,
+//           std::enable_if_t<std::is_base_of_v<Keyword, To>, bool> = true,
+//           std::enable_if_t<std::is_base_of_v<Keyword, From>, bool> = true>
+// bool isa(const From &kw) {
+//   return To::class_of(kw);
+// }
+
+// template <class To,
+//           class From,
+//           std::enable_if_t<std::is_base_of_v<Keyword, To>, bool> = true,
+//           std::enable_if_t<std::is_base_of_v<Keyword, From>, bool> = true>
+// To cast(const From &kw) {
+//   return To(kw.get_use());
+// }
+
+template <class To,
+          class From,
+          std::enable_if_t<std::is_base_of_v<Keyword, To>, bool> = true,
+          std::enable_if_t<std::is_base_of_v<Keyword, From>, bool> = true>
+std::optional<To> try_cast(const From &kw) {
+  if (To::classof(kw)) {
+    return To(kw.getAsUse());
+  }
+
+  return {};
 }
 
 } // namespace llvm::memoir

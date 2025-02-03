@@ -12,7 +12,6 @@
 #include "memoir/transforms/utilities/Inlining.hpp"
 
 #include "memoir/lowering/LowerFold.hpp"
-
 namespace llvm::memoir {
 
 namespace detail {
@@ -102,7 +101,7 @@ static HeaderInfo lower_fold_header(FoldInst &I,
   auto begin_callee = FunctionCallee(&begin_func);
   auto *iterator = builder.CreateCall(
       begin_callee,
-      llvm::ArrayRef<llvm::Value *>({ iter_alloca, &I.getCollection() }));
+      llvm::ArrayRef<llvm::Value *>({ iter_alloca, &collection }));
 
   // Construct the contents of the header.
   builder.SetInsertPoint(header);
@@ -148,8 +147,8 @@ static HeaderInfo lower_fold_header(FoldInst &I,
     auto *element_gep =
         builder.CreateStructGEP(&iter_type, iter_alloca, 1, "fold.elem.ptr.");
 
-    // If the resultant is a nested object, don't load it.
-    if (isa<StructType>(&element_type) or isa<CollectionType>(&element_type)) {
+    // If the resultant is a nested, sized object, don't load it.
+    if (isa<StructType>(&element_type) or isa<ArrayType>(&element_type)) {
       element = element_gep;
     } else {
       auto *llvm_element_type = iter_struct_type.getElementType(1);
@@ -236,8 +235,8 @@ static HeaderInfo lower_fold_header(
   auto *iterable = &collection;
   if (collection_is_assoc) {
     // Create the AssocKeysInst
-    auto &keys = MEMOIR_SANITIZE(builder.CreateAssocKeysInst(&collection),
-                                 "Failed to create AssocKeysInst!");
+    auto &keys = MEMOIR_SANITIZE(builder.CreateKeysInst(&collection),
+                                 "Failed to create KeysInst!");
 
     // Set the iterable collection to the AssocKeysInst.
     iterable = &keys.getCallInst();
@@ -246,7 +245,7 @@ static HeaderInfo lower_fold_header(
   // Create a call to get the size of the instruction.
   //   %n = size(%collection)
   auto *collection_size =
-      &builder.CreateSizeInst(iterable, "fold.size.")->getCallInst();
+      &builder.CreateSizeInst(iterable, {}, "fold.size.")->getCallInst();
 
   // Get the index type.
   auto *index_type = cast<llvm::IntegerType>(collection_size->getType());
@@ -296,8 +295,8 @@ static HeaderInfo lower_fold_header(
 
     // Read the key from the keys sequence.
     auto &read_key = MEMOIR_SANITIZE(
-        builder.CreateIndexReadInst(key_type, iterable, iterable_index),
-        "Failed to create IndexReadInst for AssocKeys!");
+        builder.CreateReadInst(key_type, iterable, { iterable_index }),
+        "Failed to create ReadInst for AssocKeys!");
 
     // Save the key for later.
     key = &read_key.getValueRead();
@@ -309,43 +308,22 @@ static HeaderInfo lower_fold_header(
   if (isa<VoidType>(&element_type)) {
     // Do nothing.
   } else if (isa<StructType>(&element_type)) {
-    if (collection_is_assoc) {
-      // Read the value from the collection.
-      auto &read_value = MEMOIR_SANITIZE(
-          builder.CreateAssocGetInst(element_type, &collection, key),
-          "Failed to create AssocGetInst!");
+    // Read the value from the collection.
+    auto &read_value =
+        MEMOIR_SANITIZE(builder.CreateGetInst(&collection, { key }),
+                        "Failed to create IndexGetInst!");
 
-      // Save the element read for later.
-      element = &read_value.getCallInst();
+    // Save the element read for later.
+    element = &read_value.getCallInst();
 
-    } else {
-      // Read the value from the collection.
-      auto &read_value = MEMOIR_SANITIZE(
-          builder.CreateIndexGetInst(element_type, &collection, key),
-          "Failed to create IndexGetInst!");
-
-      // Save the element read for later.
-      element = &read_value.getCallInst();
-    }
   } else {
-    if (collection_is_assoc) {
-      // Read the value from the collection.
-      auto &read_value = MEMOIR_SANITIZE(
-          builder.CreateAssocReadInst(element_type, &collection, key),
-          "Failed to create AssocReadInst!");
+    // Read the value from the collection.
+    auto &read_value = MEMOIR_SANITIZE(
+        builder.CreateReadInst(element_type, &collection, { key }),
+        "Failed to create ReadInst!");
 
-      // Save the element read for later.
-      element = &read_value.getCallInst();
-
-    } else {
-      // Read the value from the collection.
-      auto &read_value = MEMOIR_SANITIZE(
-          builder.CreateIndexReadInst(element_type, &collection, key),
-          "Failed to create IndexReadInst!");
-
-      // Save the element read for later.
-      element = &read_value.getCallInst();
-    }
+    // Save the element read for later.
+    element = &read_value.getCallInst();
   }
 
   return HeaderInfo(*preheader,
@@ -360,6 +338,8 @@ static HeaderInfo lower_fold_header(
 } // namespace detail
 
 bool lower_fold(FoldInst &I,
+                llvm::Value &collection,
+                Type &type,
                 llvm::Function *begin_func,
                 llvm::Function *next_func,
                 llvm::Type *iter_type,
@@ -368,11 +348,8 @@ bool lower_fold(FoldInst &I,
 
   bool destructing_ssa = (begin_func and next_func and iter_type);
 
-  // Fetch information about the collection being folded over.
-  auto &collection = I.getCollection();
-  auto &collection_type =
-      MEMOIR_SANITIZE(dyn_cast_or_null<CollectionType>(type_of(collection)),
-                      "FoldInst accessing non-collection type!");
+  auto &collection_type = MEMOIR_SANITIZE(dyn_cast<CollectionType>(&type),
+                                          "Lowering fold over non-collection!");
 
   // Above the fold instruction, create a SizeInst for the collection,
   MemOIRBuilder builder(I);
@@ -407,14 +384,7 @@ bool lower_fold(FoldInst &I,
   if (element) {
     arguments.push_back(element);
   }
-  for (unsigned closed_idx = 0; closed_idx < I.getNumberOfClosed();
-       ++closed_idx) {
-    // Get the closed variable.
-    auto &closed = I.getClosed(closed_idx);
-
-    // Add the closed variable to the list of arguments.
-    arguments.push_back(&closed);
-  }
+  arguments.insert(arguments.end(), I.closed_begin(), I.closed_end());
 
   // Create a call to the fold function so that we can inline it.
   auto &call = MEMOIR_SANITIZE(
@@ -435,18 +405,18 @@ bool lower_fold(FoldInst &I,
   coalesce(I.getCallInst(), accumulator);
 
   // For each closed argument:
-  for (unsigned closed_idx = 0; closed_idx < I.getNumberOfClosed();
-       ++closed_idx) {
-    auto &closed = I.getClosed(closed_idx);
+  auto closed_idx = -1;
+  for (auto *closed : I.closed()) {
+    ++closed_idx;
 
     // Check that it is a collection.
-    if (not Type::value_is_collection_type(closed)) {
+    if (not Type::value_is_object(*closed)) {
       continue;
     }
 
     // See if it has a RetPHI for the original fold.
     RetPHIInst *found_ret_phi = nullptr;
-    for (auto &closed_use : closed.uses()) {
+    for (auto &closed_use : closed->uses()) {
       auto *closed_user = closed_use.getUser();
 
       if (auto *closed_user_as_inst =
@@ -458,11 +428,24 @@ bool lower_fold(FoldInst &I,
           // Ensure that the RetPHI is for FoldInst.
           if (ret_phi->getCalledFunction()
               == I.getCallInst().getCalledFunction()) {
+
             if (not found_ret_phi) {
               found_ret_phi = ret_phi;
             } else {
-              MEMOIR_UNREACHABLE("Cannot disambiguate between two RetPHIs!"
-                                 "Need to add a dominance check here.");
+              auto *fold_bb = I.getParent();
+              auto *new_bb = ret_phi->getParent();
+              auto *old_bb = found_ret_phi->getParent();
+              if (fold_bb != old_bb and fold_bb == new_bb) {
+                found_ret_phi = ret_phi;
+              } else if (fold_bb != new_bb and fold_bb == old_bb) {
+                continue;
+              } else {
+                println(*loop_header.getParent());
+                println(*ret_phi);
+                println(*found_ret_phi);
+                MEMOIR_UNREACHABLE("Cannot disambiguate between two RetPHIs!"
+                                   "Need to add a dominance check here.");
+              }
             }
           } else {
             debugln("wrong function!");
@@ -483,7 +466,7 @@ bool lower_fold(FoldInst &I,
       //  - Add a PHI for it in the loop.
       builder.SetInsertPoint(&accumulator);
       auto *closed_phi =
-          builder.CreatePHI(closed.getType(), 2, "fold.closed.phi.");
+          builder.CreatePHI(closed->getType(), 2, "fold.closed.phi.");
 
       //  -- Update the use of the closed variabled to be the new PHI.
       auto &element_type = collection_type.getElementType();
@@ -497,9 +480,8 @@ bool lower_fold(FoldInst &I,
 
       //  -- Wire up the PHI with the original value and the RetPHI.
       for (auto *pred : llvm::predecessors(closed_phi->getParent())) {
-        auto *incoming = (pred == &loop_preheader)
-                             ? &closed
-                             : &closed_ret_phi->getCallInst();
+        auto *incoming =
+            (pred == &loop_preheader) ? closed : &closed_ret_phi->getCallInst();
 
         closed_phi->addIncoming(incoming, pred);
       }

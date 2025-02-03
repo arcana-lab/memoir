@@ -56,13 +56,55 @@ llvm::cl::opt<std::string> impl_file_output(
     "impl-out-file",
     llvm::cl::desc("Specify output filename for ImplLinker."),
     llvm::cl::value_desc("filename"),
-    llvm::cl::init("/tmp/XXXXXXXXX.cpp"));
+    llvm::cl::init("/tmp/XXXXXX.cpp"));
+
+namespace detail {
+void link_implementation(ImplLinker &IL,
+                         CollectionType &type,
+                         std::optional<SelectionMetadata> selection,
+                         unsigned selection_index = 0) {
+
+  // Implement each of the required collection types.
+  auto *collection_type = &type;
+  while (collection_type) {
+
+    // Get the implementation.
+    const Implementation *impl = nullptr;
+    if (selection.has_value()) {
+      auto selected_name = selection->getImplementation(selection_index++);
+      impl = Implementation::lookup(selected_name);
+    }
+
+    // Get the default implementation if none was selected.
+    if (not impl) {
+      impl = &ImplLinker::get_default_implementation(*collection_type);
+    }
+
+    // Implement the selection.
+    // TODO: this needs to change to support impls N-dimensional impls
+    if (Type::is_unsized(*collection_type)) {
+
+      // Instantiate the implementation.
+      auto &inst = impl->instantiate(*collection_type);
+
+      IL.implement(inst);
+    }
+
+    // Get the next collection type to match.
+    for (unsigned dim = 0; dim < impl->num_dimensions(); ++dim) {
+      MEMOIR_ASSERT(collection_type,
+                    "Could not match implementation on a non-collection type.");
+      auto &elem_type = collection_type->getElementType();
+      collection_type = dyn_cast<CollectionType>(&elem_type);
+    }
+  }
+
+  return;
+}
+} // namespace detail
 
 llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
                                             llvm::ModuleAnalysisManager &MAM) {
-
-  // Get the TypeConverter.
-  TypeConverter TC(M.getContext());
 
   // Get the ImplLinker.
   ImplLinker IL(M);
@@ -75,44 +117,43 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
     // Collect all of the collection allocations in the program.
     for (auto &BB : F) {
       for (auto &I : BB) {
-        if (auto *seq_alloc = into<SequenceAllocInst>(&I)) {
+        if (auto *alloc = into<AllocInst>(&I)) {
 
-          // Get the implementation name for this allocation.
-          auto impl_name = ImplLinker::get_implementation_name(
-              I,
-              seq_alloc->getCollectionType());
+          // Check that this is a collection implementation.
+          auto *collection_type = dyn_cast<CollectionType>(&alloc->getType());
+          if (not collection_type) {
+            continue;
+          }
 
-          // Get the type layout for the element type.
-          auto &element_layout = TC.convert(seq_alloc->getElementType());
+          // Fetch the selection from the instruction metadata, if it exists.
+          auto selection = Metadata::get<SelectionMetadata>(I);
 
-          // Implement the sequence.
-          IL.implement_seq(impl_name, element_layout);
-
-        } else if (auto *assoc_alloc = into<AssocAllocInst>(&I)) {
-
-          // Get the implementation name for this allocation.
-          auto impl_name = ImplLinker::get_implementation_name(
-              I,
-              assoc_alloc->getCollectionType());
-
-          // Get the type layout for the key type.
-          auto &key_layout = TC.convert(assoc_alloc->getKeyType());
-
-          // Get the type layout for the value type.
-          auto &value_layout = TC.convert(assoc_alloc->getValueType());
-
-          // Implement the assoc.
-          IL.implement_assoc(impl_name, key_layout, value_layout);
+          // Link the selection.
+          detail::link_implementation(IL, *collection_type, selection);
 
         } else if (auto *define_type = into<DefineStructTypeInst>(&I)) {
           // Get the struct type.
-          auto &struct_type = define_type->getType();
-
-          // Get the type layout for the struct.
-          auto &struct_layout = TC.convert(struct_type);
+          auto &struct_type = define_type->getStructType();
 
           // Implement the struct.
-          IL.implement_type(struct_layout);
+          IL.implement(struct_type);
+
+          // For each collection-typed field, fetch the selection, if it exists.
+          for (unsigned field_index = 0;
+               field_index < struct_type.getNumFields();
+               ++field_index) {
+            auto &field_type = struct_type.getFieldType(field_index);
+
+            // If the field is a collection, implement it.
+            if (auto *collection_type = dyn_cast<CollectionType>(&field_type)) {
+
+              // Fetch the selection for the given field.
+              auto selection =
+                  Metadata::get<SelectionMetadata>(struct_type, field_index);
+
+              detail::link_implementation(IL, *collection_type, selection);
+            }
+          }
         }
 
         // Also handle instructions that don't have selections.
@@ -129,54 +170,26 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
             continue;
           }
 
-#define SET_IMPL "stl_unordered_set"
-#define SEQ_IMPL "stl_vector"
-#define ASSOC_IMPL "stl_unordered_map"
-
           // Get the type of the collection being operated on.
           Type *type = nullptr;
           if (auto *access = dyn_cast<AccessInst>(inst)) {
-            type = type_of(access->getObjectOperand());
-          } else if (auto *insert = dyn_cast<InsertInst>(inst)) {
-            type = type_of(insert->getBaseCollection());
-          } else if (auto *remove = dyn_cast<RemoveInst>(inst)) {
-            type = type_of(remove->getBaseCollection());
-          } else if (auto *fold = dyn_cast<FoldInst>(inst)) {
-            type = type_of(fold->getCollection());
-          } else if (auto *copy = dyn_cast<CopyInst>(inst)) {
-            type = type_of(copy->getCopiedCollection());
-          } else if (auto *swap = dyn_cast<SwapInst>(inst)) {
-            type = type_of(swap->getFromCollection());
-          } else if (auto *size = dyn_cast<SizeInst>(inst)) {
-            type = type_of(size->getCollection());
-          } else if (auto *keys = dyn_cast<AssocKeysInst>(inst)) {
-            type = type_of(keys->getCollection());
+            type = type_of(access->getObject());
           }
 
           // If we couldn't determine a type, skip it.
-          if (not type) {
+          auto *collection_type = dyn_cast_or_null<CollectionType>(type);
+          if (not collection_type) {
             continue;
           }
 
           // Link the default implementation.
-          if (auto *seq_type = dyn_cast<SequenceType>(type)) {
-            // Get the type layout for the element type.
-            auto &element_layout = TC.convert(seq_type->getElementType());
+          auto &default_impl =
+              ImplLinker::get_default_implementation(*collection_type);
 
-            // Implement the sequence.
-            IL.implement_seq(SEQ_IMPL, element_layout);
+          // Instantiate the default implementation.
+          auto &default_inst = default_impl.instantiate(*collection_type);
 
-          } else if (auto *assoc_type = dyn_cast<AssocArrayType>(type)) {
-            // Get the type layout for the key and value types.
-            auto &key_layout = TC.convert(assoc_type->getKeyType());
-            auto &val_layout = TC.convert(assoc_type->getValueType());
-
-            if (isa<VoidType>(assoc_type->getValueType())) {
-              IL.implement_assoc(SET_IMPL, key_layout, val_layout);
-            } else {
-              IL.implement_assoc(ASSOC_IMPL, key_layout, val_layout);
-            }
-          }
+          IL.implement(default_inst);
         }
       }
     }
@@ -184,7 +197,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
 
   // If we were not given a file to output to, create a temporary file.
   if (impl_file_output.getNumOccurrences() == 0) {
-    if (not mkstemp(impl_file_output.getValue().data())) {
+    if (not mkstemps(impl_file_output.getValue().data(), 4)) {
       MEMOIR_UNREACHABLE("ImplLinker: Could not create a temporary file!");
     }
   }
@@ -204,8 +217,8 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   os.close();
 
   // Create a temporary bitcode file.
-  std::string bitcode_filename = "/tmp/XXXXXXXXXX.bc";
-  if (not mkstemp(bitcode_filename.data())) {
+  std::string bitcode_filename = "/tmp/XXXXXX.bc";
+  if (not mkstemps(bitcode_filename.data(), 3)) {
     MEMOIR_UNREACHABLE(
         "ImplLinker: Could not create a temporary bitcode file!");
   }
@@ -219,14 +232,19 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   llvm::StringRef args[] = { clang_path,
                              impl_file_output,
                              "-O3",
+                             "-std=c++20",
                              "-gdwarf-4",
                              "-c",
                              "-emit-llvm",
                              "-I" MEMOIR_INSTALL_PREFIX "/include",
+#ifdef BOOST_INCLUDE_DIR
+                             "-I" BOOST_INCLUDE_DIR "/include",
+#endif
                              "-o",
                              bitcode_filename };
   std::string message = "";
   bool failed = false;
+  print("Compiling implementations...");
   llvm::sys::ExecuteAndWait(clang_path,
                             args,
                             std::nullopt,
@@ -237,9 +255,12 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
                             &failed);
 
   if (failed) {
-    println("ImplLinker: clang++ failed with:");
-    println(message);
-    MEMOIR_UNREACHABLE("clang++ failed to compile implementations, see above.");
+    println("FAILED!");
+    MEMOIR_UNREACHABLE(
+        "clang++ failed to compile implementations with message:\n",
+        message);
+  } else {
+    print("\r                                                    \r");
   }
 
   // Load the new bitcode.
@@ -266,6 +287,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   }
 
   // Link the modules.
+  print("Linking implementations... ");
   if (llvm::Linker::linkModules(
           M,
           std::move(other_module),
@@ -275,7 +297,10 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
               return !GV.hasName() || (GVS.count(GV.getName()) == 0);
             });
           })) {
+    println("FAILED!");
     MEMOIR_UNREACHABLE("LLVM Linker failed to link in MEMOIR declarations!");
+  } else {
+    print("\r                                                    \r");
   }
 
   return llvm::PreservedAnalyses::none();

@@ -19,7 +19,7 @@
 
 namespace llvm::memoir {
 
-enum class TypeCode {
+enum class TypeKind {
   INTEGER,
   FLOAT,
   DOUBLE,
@@ -28,10 +28,11 @@ enum class TypeCode {
   REFERENCE,
   STRUCT,
   FIELD_ARRAY,
-  STATIC_TENSOR,
+  ARRAY,
   TENSOR,
   ASSOC_ARRAY,
   SEQUENCE,
+  VARIABLE,
   OTHER, // A special code for extensibility
 };
 
@@ -43,7 +44,7 @@ struct VoidType;
 struct ReferenceType;
 struct StructType;
 struct FieldArrayType;
-struct StaticTensorType;
+struct ArrayType;
 struct TensorType;
 struct AssocArrayType;
 struct SequenceType;
@@ -75,9 +76,7 @@ public:
   static StructType &get_struct_type(std::string name);
   static FieldArrayType &get_field_array_type(StructType &type,
                                               unsigned field_index);
-  static StaticTensorType &get_static_tensor_type(
-      Type &element_type,
-      vector<size_t> dimension_lengths);
+  static ArrayType &get_array_type(Type &element_type, size_t length);
   static TensorType &get_tensor_type(Type &element_type,
                                      unsigned num_dimensions);
   static AssocArrayType &get_assoc_array_type(Type &key_type, Type &value_type);
@@ -89,10 +88,12 @@ public:
   static bool is_reference_type(Type &type);
   static bool is_struct_type(Type &type);
   static bool is_collection_type(Type &type);
+  static bool is_unsized(Type &type);
+  static bool value_is_object(llvm::Value &value);
   static bool value_is_collection_type(llvm::Value &value);
   static bool value_is_struct_type(llvm::Value &value);
 
-  TypeCode getCode() const;
+  TypeKind getKind() const;
 
   // TODO: implement conversion to LLVM type
   virtual llvm::Type *get_llvm_type(llvm::LLVMContext &C) const;
@@ -107,9 +108,9 @@ public:
   virtual ~Type() = default;
 
 protected:
-  TypeCode code;
+  TypeKind code;
 
-  Type(TypeCode code);
+  Type(TypeKind code);
 };
 
 struct IntegerType : public Type {
@@ -124,7 +125,7 @@ public:
 
   // RTTI.
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::INTEGER);
+    return (T->getKind() == TypeKind::INTEGER);
   }
 
   // Debug.
@@ -147,7 +148,7 @@ public:
   static FloatType &get();
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::FLOAT);
+    return (T->getKind() == TypeKind::FLOAT);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -164,7 +165,7 @@ public:
   static DoubleType &get();
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::DOUBLE);
+    return (T->getKind() == TypeKind::DOUBLE);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -181,7 +182,7 @@ public:
   static PointerType &get();
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::POINTER);
+    return (T->getKind() == TypeKind::POINTER);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -198,7 +199,7 @@ public:
   static VoidType &get();
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::VOID);
+    return (T->getKind() == TypeKind::VOID);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -217,7 +218,7 @@ public:
   Type &getReferencedType() const;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::REFERENCE);
+    return (T->getKind() == TypeKind::REFERENCE);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -233,7 +234,26 @@ protected:
   ReferenceType(Type &referenced_type);
 };
 
-struct StructType : public Type {
+struct ObjectType : public Type {
+public:
+  static bool classof(const Type *T) {
+    switch (T->getKind()) {
+      default:
+        return false;
+      case TypeKind::STRUCT:
+      case TypeKind::ARRAY:
+      case TypeKind::TENSOR:
+      case TypeKind::SEQUENCE:
+      case TypeKind::ASSOC_ARRAY:
+        return true;
+    };
+  }
+
+protected:
+  ObjectType(TypeKind code);
+};
+
+struct StructType : public ObjectType {
 public:
   // Creation.
   static StructType &define(DefineStructTypeInst &definition,
@@ -251,7 +271,7 @@ public:
 
   // RTTI.
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::STRUCT);
+    return (T->getKind() == TypeKind::STRUCT);
   }
 
   // Debug.
@@ -270,19 +290,19 @@ protected:
              vector<Type *> field_types);
 };
 
-struct CollectionType : public Type {
+struct CollectionType : public ObjectType {
 public:
   virtual Type &getElementType() const = 0;
 
   static bool classof(const Type *T) {
-    switch (T->getCode()) {
+    switch (T->getKind()) {
       default:
         return false;
-      case TypeCode::FIELD_ARRAY:
-      case TypeCode::STATIC_TENSOR:
-      case TypeCode::TENSOR:
-      case TypeCode::SEQUENCE:
-      case TypeCode::ASSOC_ARRAY:
+      case TypeKind::FIELD_ARRAY:
+      case TypeKind::ARRAY:
+      case TypeKind::TENSOR:
+      case TypeKind::SEQUENCE:
+      case TypeKind::ASSOC_ARRAY:
         return true;
     };
   }
@@ -292,7 +312,7 @@ public:
   llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
 protected:
-  CollectionType(TypeCode code);
+  CollectionType(TypeKind code);
 };
 
 struct FieldArrayType : public CollectionType {
@@ -305,7 +325,7 @@ public:
   unsigned getFieldIndex() const;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::FIELD_ARRAY);
+    return (T->getKind() == TypeKind::FIELD_ARRAY);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -320,31 +340,26 @@ protected:
   FieldArrayType(StructType &struct_type, unsigned field_index);
 };
 
-struct StaticTensorType : public CollectionType {
+struct ArrayType : public CollectionType {
 public:
-  static StaticTensorType &get(Type &element_type,
-                               vector<size_t> length_of_dimensions);
+  static ArrayType &get(Type &element_type, size_t length);
 
   Type &getElementType() const override;
-  unsigned getNumberOfDimensions() const;
-  size_t getLengthOfDimension(unsigned dimension_index) const;
+  size_t getLength() const;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::STATIC_TENSOR);
+    return (T->getKind() == TypeKind::ARRAY);
   }
 
   std::string toString(std::string indent = "") const override;
 
 protected:
   Type &element_type;
-  unsigned number_of_dimensions;
-  vector<size_t> length_of_dimensions;
+  size_t length;
 
-  StaticTensorType(Type &element_type,
-                   unsigned number_of_dimensions,
-                   vector<size_t> length_of_dimensions);
+  ArrayType(Type &element_type, size_t length);
 
-  static ordered_multimap<Type *, StaticTensorType *> *static_tensor_types;
+  static ordered_multimap<Type *, ArrayType *> *array_types;
 };
 
 struct TensorType : public CollectionType {
@@ -355,7 +370,7 @@ public:
   unsigned getNumberOfDimensions() const;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::TENSOR);
+    return (T->getKind() == TypeKind::TENSOR);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -378,7 +393,7 @@ public:
   Type &getElementType() const override;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::ASSOC_ARRAY);
+    return (T->getKind() == TypeKind::ASSOC_ARRAY);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -400,7 +415,7 @@ public:
   Type &getElementType() const override;
 
   static bool classof(const Type *T) {
-    return (T->getCode() == TypeCode::SEQUENCE);
+    return (T->getKind() == TypeKind::SEQUENCE);
   }
 
   std::string toString(std::string indent = "") const override;
@@ -411,6 +426,43 @@ protected:
   static map<Type *, SequenceType *> *sequence_types;
 
   SequenceType(Type &element_type);
+};
+
+/**
+ * A type variable used for unification.
+ */
+struct TypeVariable : public Type {
+public:
+  using TypeID = uint64_t;
+
+  static TypeVariable &get() {
+    static TypeID id = 0;
+    auto *var = new TypeVariable(id++);
+    return *var;
+  }
+
+  // Equality.
+  bool operator==(Type &T) const {
+    if (auto *tvar = dyn_cast<TypeVariable>(&T)) {
+      return tvar->id == this->id;
+    }
+    return false;
+  }
+
+  // This class will only be used in the context of the base types and
+  // itself, so it is the only one that follows "other".
+  static bool classof(const Type *t) {
+    return (t->getKind() == TypeKind::VARIABLE);
+  }
+
+  std::string toString(std::string indent = "") const override {
+    return "typevar(" + std::to_string(this->id) + ")";
+  }
+
+protected:
+  TypeVariable(TypeID id) : Type(TypeKind::VARIABLE), id(id) {}
+
+  TypeID id;
 };
 
 /**

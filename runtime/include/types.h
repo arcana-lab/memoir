@@ -24,7 +24,6 @@ struct Collection;
 
 enum TypeCode {
   StructTy,
-  TensorTy,
   AssocArrayTy,
   SequenceTy,
   IntegerTy,
@@ -76,48 +75,6 @@ private:
 /*
  * Collection Types
  */
-struct TensorType : public Type {
-public:
-  static TensorType *get(Type *element_type, uint64_t num_dimensions);
-  static TensorType *get(Type *element_type,
-                         uint64_t num_dimensions,
-                         std::vector<uint64_t> &length_of_dimensions);
-
-  static const uint64_t unknown_length;
-
-  Type *element_type;
-  uint64_t num_dimensions;
-  bool is_static_length;
-  std::vector<uint64_t> length_of_dimensions;
-
-  bool equals(Type *other) override;
-  std::string to_string() override;
-
-private:
-  TensorType(Type *element_type, uint64_t num_dimensions);
-  TensorType(Type *element_type,
-             uint64_t num_dimensions,
-             std::vector<uint64_t> &length_of_dimensions);
-
-  // clang-format off
-  using static_tensor_type_list =
-    std::list<
-      std::tuple<
-        Type *,                /* element type */
-        uint64_t,              /* num dimensions */
-        std::vector<uint64_t>, /* length of dimensions */
-        TensorType *>>;
-  using tensor_type_list =
-    std::list<
-      std::tuple<
-        Type *,         /* element type */
-        uint64_t,       /* num dimensions */
-        TensorType *>>;
-  // clang-format on
-
-  static static_tensor_type_list &get_static_tensor_types();
-  static tensor_type_list &get_tensor_types();
-};
 
 struct AssocArrayType : public Type {
 public:

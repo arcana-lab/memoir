@@ -4,124 +4,108 @@
 
 #include "memoir/utility/Metadata.hpp"
 
-// Default implementations
-#define ASSOC_IMPL "stl_unordered_map"
-#define SET_IMPL "stl_unordered_set"
-#define SEQ_IMPL "stl_vector"
-
 namespace llvm::memoir {
 
-std::string ImplLinker::get_implementation_name(llvm::Instruction &I,
-                                                CollectionType &type) {
+namespace detail {
+void register_default_implementations() {
+  Implementation::define({
+#if ENABLE_MULTIMAP
+      Implementation( // std::multimap<T, U>
+          ASSOC_SEQ_IMPL,
+          AssocType::get(TypeVariable::get(),
+                         SequenceType::get(TypeVariable::get()))),
+#endif
 
-  if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {
-    // Unpack the assoc type.
-    auto &key_type = assoc_type->getKeyType();
-    auto &value_type = assoc_type->getValueType();
+      Implementation( // std::vector<T>
+          SEQ_IMPL,
+          SequenceType::get(TypeVariable::get())),
 
-    // Check for selection metadata.
-    auto selection = Metadata::get<SelectionMetadata>(I);
+      Implementation( // std::unordered_map<T, U>
+          ASSOC_IMPL,
+          AssocType::get(TypeVariable::get(), TypeVariable::get())),
 
-    // Get the implementation ID.
-    auto implementation = selection.has_value() ? selection->getImplementation()
-                          : isa<VoidType>(&value_type) ? SET_IMPL
-                                                       : ASSOC_IMPL;
+      Implementation( // std::unordered_set<T>
+          SET_IMPL,
+          AssocType::get(TypeVariable::get(), VoidType::get()))
 
-    return implementation;
+  });
+}
+} // namespace detail
 
-  } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
-    // Unpack the sequence type.
-    auto &element_type = seq_type->getElementType();
+ImplLinker::ImplLinker(llvm::Module &M) : M(M), TC(M.getContext()) {
+  // Register the default implementations.
+  detail::register_default_implementations();
+}
 
-    // Check for selection metadata.
-    auto selection = Metadata::get<SelectionMetadata>(I);
+const Implementation &ImplLinker::get_default_implementation(
+    CollectionType &type) {
 
-    // Get the implementation name.
-    auto implementation =
-        selection.has_value() ? selection->getImplementation() : SEQ_IMPL;
+  if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
+    return MEMOIR_SANITIZE(
+        Implementation::lookup(SEQ_IMPL),
+        "Failed to find the default implementation (" SEQ_IMPL ")");
+  } else if (auto *assoc_type = dyn_cast<AssocType>(&type)) {
+    auto &element_type = assoc_type->getElementType();
+    if (isa<VoidType>(&element_type)) {
+      return MEMOIR_SANITIZE(
+          Implementation::lookup(SET_IMPL),
+          "Failed to find the default implementation (" SET_IMPL ")");
+    }
+#if ENABLE_MULTIMAP
+    else if (isa<SequenceType>(&element_type)) {
+      return MEMOIR_SANITIZE(
+          Implementation::lookup(ASSOC_SEQ_IMPL),
+          "Failed to find the default implementation (" ASSOC_SEQ_IMPL ")");
+    }
+#endif
+    else {
+      return MEMOIR_SANITIZE(
+          Implementation::lookup(ASSOC_IMPL),
+          "Failed to find the default implementation (" ASSOC_IMPL ")");
+    }
+  }
 
-    return implementation;
+  warnln(type);
+  MEMOIR_UNREACHABLE("Collection type has no default implementation!");
+}
 
-  } else {
-    MEMOIR_UNREACHABLE("Unknown CollectionType");
+void ImplLinker::implement(Type &type) {
+  if (auto *struct_type = dyn_cast<StructType>(&type)) {
+    this->structs_to_emit.insert(struct_type);
   }
 }
 
-std::string ImplLinker::get_implementation_prefix(llvm::Instruction &I,
-                                                  CollectionType &type) {
+void ImplLinker::implement(Instantiation &inst) {
 
-  // Get the implementation name.
-  auto implementation = ImplLinker::get_implementation_name(I, type);
+  auto &types = inst.types();
 
-  if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {
-    // Unpack the assoc type.
-    auto &key_type = assoc_type->getKeyType();
-    auto &value_type = assoc_type->getValueType();
-
-    auto key_code = key_type.get_code();
-    auto value_code = value_type.get_code();
-
-    // Construct the function prefix.
-    auto prefix = *key_code + "_" + *value_code + "_" + implementation;
-
-    return prefix;
-
-  } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
-    // Unpack the sequence type.
-    auto &element_type = seq_type->getElementType();
-    auto element_code = element_type.get_code();
-
-    // Construct the function prefix.
-    auto prefix = *element_code + "_" + implementation;
-
-    return prefix;
-
-  } else {
-    MEMOIR_UNREACHABLE("Unhandled collection type.");
-  }
-}
-
-void ImplLinker::implement_type(TypeLayout &type_layout) {
-  // Unpack the type layout.
-  auto &llvm_type = type_layout.get_llvm_type();
-
-  // If it is a struct type, add it to set of structs to implement.
-  if (isa<llvm::StructType>(&llvm_type)) {
-    this->struct_implementations.insert(&type_layout);
+  for (auto *type : types) {
+    this->implement(*type);
   }
 
-  return;
-}
+  // Ensure that this instantiation is unique.
+  auto it = this->collections_to_emit.begin();
+  for (; it != this->collections_to_emit.end(); ++it) {
+    auto &it_inst = **it;
+    if (it_inst.get_name() != inst.get_name()) {
+      continue;
+    }
 
-void ImplLinker::implement_seq(std::string impl_name,
-                               TypeLayout &element_type_layout) {
-
-  this->implement_type(element_type_layout);
-
-  insert_unique(this->seq_implementations, impl_name, &element_type_layout);
-
-  return;
-}
-
-void ImplLinker::implement_assoc(std::string impl_name,
-                                 TypeLayout &key_type_layout,
-                                 TypeLayout &value_type_layout) {
-  this->implement_type(key_type_layout);
-  this->implement_type(value_type_layout);
-
-  insert_unique(this->assoc_implementations,
-                impl_name,
-                std::make_tuple(&key_type_layout, &value_type_layout));
-
-  // For the time being, we will need to instantiate the stl_vector for the key
-  // type to handle keys. Properly handling the keys iterator as a collection
-  // all its own is future work.
-  if (impl_name == "stl_unordered_map" || impl_name == "stl_map"
-      || impl_name == "stl_unordered_set") {
-    this->implement_seq("stl_vector", key_type_layout);
+    auto &it_types = it_inst.types();
+    auto types_are_equal =
+        std::equal(types.begin(),
+                   types.end(),
+                   it_types.begin(),
+                   it_types.end(),
+                   [&](const auto *lhs, const auto *rhs) {
+                     return lhs->get_code() == rhs->get_code();
+                   });
+    if (types_are_equal) {
+      return;
+    }
   }
 
-  return;
+  this->collections_to_emit.insert(&inst);
 }
 
 // Utility functions.
@@ -145,7 +129,7 @@ static std::string memoir_to_c_type(Type &T) {
   } else if (isa<DoubleType>(&T)) {
     return "double";
   } else if (isa<PointerType>(&T)) {
-    return "void *";
+    return "char *";
   } else if (isa<VoidType>(&T)) {
     return "void";
   } else if (auto *ref_type = dyn_cast<ReferenceType>(&T)) {
@@ -153,7 +137,7 @@ static std::string memoir_to_c_type(Type &T) {
   } else if (auto *struct_type = dyn_cast<StructType>(&T)) {
     return "impl__" + struct_type->getName();
   } else if (auto *collection_type = dyn_cast<CollectionType>(&T)) {
-    MEMOIR_UNREACHABLE("Nested collections are not yet supported!");
+    return "char *"; // TODO: attach attributes here: restrict, etc
   }
 
   MEMOIR_UNREACHABLE("Attempting to create Impl for unknown type!");
@@ -163,104 +147,78 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
   // General include headers.
   fprintln(os, "#include <stdint.h>");
   fprintln(os, "#include <array>");
+  fprintln(os, "#include <backend/utilities.h>");
 
   // Instantiate the struct implementations.
-  for (auto *struct_layout : this->struct_implementations) {
+  for (auto *struct_type : this->structs_to_emit) {
+    // Convert the struct to a type layout.
+    auto &struct_layout = TC.convert(*struct_type);
+
     // Get the size of the struct layout in bytes.
     auto &data_layout = this->M.getDataLayout();
     auto struct_size =
-        data_layout.getTypeAllocSize(&struct_layout->get_llvm_type());
+        data_layout.getTypeAllocSize(&struct_layout.get_llvm_type());
 
     // Create a C struct for it.
-    auto type_name = memoir_to_c_type(struct_layout->get_memoir_type());
+    auto type_name = memoir_to_c_type(struct_layout.get_memoir_type());
     fprintln(os,
-             "typedef struct _",
+             "struct ",
              type_name,
-             " {\n",
-             "  std::array<uint8_t, ",
+             " : public Bytes<",
              struct_size,
-             "> _storage;\n",
-             "}",
-             type_name,
-             ";");
+             "> {};");
+    fprintln(os, "DEF_HASH(", type_name, ");");
   }
 
-  // Instantiate the sequence implementations.
-  for (auto it = this->seq_implementations.begin();
-       it != this->seq_implementations.end();) {
+  // Instantiate all of the collection implementations.
+  for (auto *instantiation : this->collections_to_emit) {
+    auto name = instantiation->get_name();
 
-    auto impl_name = it->first;
+    fprintln(os, "");
 
-    fprintln(os, "#include \"backend/", impl_name, ".h\"");
+    auto type_id = 0;
+    for (auto *type : instantiation->types()) {
 
-    for (; it != this->seq_implementations.upper_bound(impl_name); ++it) {
-      auto *elem = it->second;
-      auto &elem_type = elem->get_memoir_type();
-      auto elem_code = *elem_type.get_code();
-      auto c_type = memoir_to_c_type(elem_type);
-
-      if (c_type == "bool") {
-        fprintln(os,
-                 "INSTANTIATE_NO_REF_",
-                 impl_name,
-                 "(",
-                 elem_code,
-                 ", ",
-                 c_type,
-                 ")");
-      } else if (isa<StructType>(&elem_type)
-                 || isa<CollectionType>(&elem_type)) {
-        fprintln(os,
-                 "INSTANTIATE_NESTED_",
-                 impl_name,
-                 "(",
-                 elem_code,
-                 ", ",
-                 c_type,
-                 ")");
-      } else {
-        fprintln(os,
-                 "INSTANTIATE_",
-                 impl_name,
-                 "(",
-                 elem_code,
-                 ", ",
-                 c_type,
-                 ")");
-      }
-    }
-  }
-
-  // Instantiate the assoc implementations.
-  for (auto it = this->assoc_implementations.begin();
-       it != this->assoc_implementations.end();) {
-
-    auto impl_name = it->first;
-
-    fprintln(os, "#include \"backend/", impl_name, ".h\"");
-
-    for (; it != this->assoc_implementations.upper_bound(impl_name); ++it) {
-      auto [key, value] = it->second;
-      auto &key_type = key->get_memoir_type();
-      auto key_code = *key_type.get_code();
-      auto c_key = memoir_to_c_type(key_type);
-
-      auto &value_type = value->get_memoir_type();
-      auto value_code = *value_type.get_code();
-      auto c_value = memoir_to_c_type(value_type);
-
+      // Emit the type code.
       fprintln(os,
-               "INSTANTIATE_",
-               impl_name,
-               "(",
-               key_code,
-               ", ",
-               c_key,
-               ", ",
-               value_code,
-               ", ",
-               c_value,
-               ")");
+               "#define CODE_",
+               std::to_string(type_id),
+               " ",
+               type->get_code().value());
+
+      // Convert the type.
+      auto &layout = TC.convert(*type);
+
+      // Emit the C type.
+      fprintln(os,
+               "#define TYPE_",
+               std::to_string(type_id),
+               " ",
+               memoir_to_c_type(*type));
+
+      ++type_id;
+    }
+
+    // Instantiate the collection.
+    fprintln(os,
+             "#include <backend/",
+             instantiation->get_name(),
+             "/instantiation.h>");
+
+    // Undef
+    type_id = 0;
+    for (auto *type : instantiation->types()) {
+
+      // Emit the type code.
+      fprintln(os, "#undef CODE_", std::to_string(type_id));
+
+      // Convert the type.
+      auto &layout = TC.convert(*type);
+
+      // Emit the C type.
+      fprintln(os, "#undef TYPE_", std::to_string(type_id));
+
+      ++type_id;
     }
   }
 }

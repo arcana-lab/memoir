@@ -136,19 +136,35 @@ PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
 
     // Apply rewrite rules and renaming for reaching definitions.
     infoln("Coallescing collection variables");
-    set<llvm::Instruction *> folds = {};
     for (auto *bb : dfs_preorder) {
       for (auto &I : *bb) {
-        if (into<FoldInst>(I)) {
-          folds.insert(&I);
+        if (into<FoldInst>(I) or into<AllocInst>(I)) {
+          SSADV.stage(I);
           continue;
         }
         SSADV.visit(I);
       }
     }
 
-    for (auto *inst : folds) {
-      SSADV.visit(*inst);
+    // Recursively destruct instructions until none are staged.
+    while (not SSADV.staged().empty()) {
+      // Copy the current stage and clear the next stage.
+      auto stage = SSADV.staged();
+      SSADV.clear_stage();
+
+      // Visit each of the staged instructions.
+      for (auto *inst : stage) {
+        SSADV.visit(*inst);
+      }
+    }
+
+    // Finally, clean up any leftover type information.
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        if (auto *type = into<TypeInst>(I)) {
+          SSADV.visit(I);
+        }
+      }
     }
 
     infoln("END: ", F.getName());

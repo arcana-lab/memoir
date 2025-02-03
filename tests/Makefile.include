@@ -43,9 +43,9 @@ BINARY=$(BUILD_DIR)/$(BINARY_NAME)
 C_BITCODES := $(patsubst %.c,$(BUILD_DIR)/%.bc,$(CFILES))
 CXX_BITCODES :=  $(patsubst %.cpp,$(BUILD_DIR)/%.bc,$(CXXFILES))
 
-all: setup optimize compile test
+all: setup optimize compile
 
-noopt: setup baseline compile test
+noopt: setup baseline compile
 
 setup: $(BUILD_DIR)
 
@@ -79,7 +79,7 @@ $(IR_FILE_OPT): $(IR_FILE_SSA)
 	@memoir-load $(OPTFLAGS) $< -o $@
 
 $(IR_FILE_LOWERED): $(IR_FILE_OPT)
-	@$(LOWER) $< -o $@
+	@$(LOWER) --disable-folio $< -o $@
 
 $(OBJ_FILE): $(IR_FILE)
 	@llc -filetype=obj $< -o $@

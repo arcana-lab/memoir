@@ -29,38 +29,6 @@
 
 namespace llvm::memoir {
 
-/**
- * A type variable used for unification.
- */
-struct TypeVariable : public Type {
-public:
-  using TypeID = uint64_t;
-
-  // Constructor
-  TypeVariable(TypeID id) : Type(TypeCode::OTHER), id(id) {}
-
-  // Equality.
-  bool operator==(Type &T) const {
-    if (auto *tvar = dyn_cast<TypeVariable>(&T)) {
-      return tvar->id == this->id;
-    }
-    return false;
-  }
-
-  // This class will only be used in the context of the base types and
-  // itself, so it is the only one that follows "other".
-  static bool classof(const Type *t) {
-    return (t->getCode() == TypeCode::OTHER);
-  }
-
-  std::string toString(std::string indent = "") const override {
-    return "typevar(" + std::to_string(this->id) + ")";
-  }
-
-protected:
-  TypeID id;
-}; // namespace llvm::memoir
-
 /*
  * Type Analysis
  *
@@ -134,38 +102,24 @@ protected:
   Type *visitReferenceTypeInst(ReferenceTypeInst &I);
   Type *visitDefineStructTypeInst(DefineStructTypeInst &I);
   Type *visitStructTypeInst(StructTypeInst &I);
-  Type *visitStaticTensorTypeInst(StaticTensorTypeInst &I);
-  Type *visitTensorTypeInst(TensorTypeInst &I);
+  Type *visitArrayTypeInst(ArrayTypeInst &I);
   Type *visitAssocArrayTypeInst(AssocArrayTypeInst &I);
   Type *visitSequenceTypeInst(SequenceTypeInst &I);
   //// Allocation instructions
-  Type *visitStructAllocInst(StructAllocInst &I);
-  Type *visitTensorAllocInst(TensorAllocInst &I);
-  Type *visitAssocArrayAllocInst(AssocArrayAllocInst &I);
-  Type *visitSequenceAllocInst(SequenceAllocInst &I);
+  Type *visitAllocInst(AllocInst &I);
   //// Access instructions
+  Type *visitAccessInst(AccessInst &I);
   Type *visitReadInst(ReadInst &I);
-  Type *visitStructReadInst(StructReadInst &I);
   Type *visitGetInst(GetInst &I);
-  Type *visitStructGetInst(StructGetInst &I);
-  Type *visitWriteInst(WriteInst &I);
+  Type *visitHasInst(HasInst &I);
+  Type *visitKeysInst(KeysInst &I);
+  Type *visitFoldInst(FoldInst &I);
+  //// Update instructions
+  Type *visitUpdateInst(UpdateInst &I);
   //// SSA operations
   Type *visitUsePHIInst(UsePHIInst &I);
-  Type *visitDefPHIInst(DefPHIInst &I);
   Type *visitArgPHIInst(ArgPHIInst &I);
   Type *visitRetPHIInst(RetPHIInst &I);
-  //// SSA collection operations
-  Type *visitInsertInst(InsertInst &I);
-  Type *visitRemoveInst(RemoveInst &I);
-  Type *visitSwapInst(SwapInst &I);
-  Type *visitCopyInst(CopyInst &I);
-  Type *visitFoldInst(FoldInst &I);
-  Type *visitClearInst(ClearInst &I);
-  //// SSA assoc operations
-  Type *visitAssocHasInst(AssocHasInst &I);
-  Type *visitAssocKeysInst(AssocKeysInst &I);
-  Type *visitAssocRemoveInst(AssocRemoveInst &I);
-  Type *visitAssocInsertInst(AssocInsertInst &I);
 
   // Constructor.
   TypeChecker();

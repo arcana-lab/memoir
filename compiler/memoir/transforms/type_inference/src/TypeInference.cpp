@@ -34,20 +34,13 @@ static inferred_type argument_has_type_annotation(llvm::Argument &A) {
       continue;
     }
 
-    // If the argument is a collection type, see if the user is an
-    // AssertCollectionTypeInst.
-    if (auto *assert_inst = into<AssertCollectionTypeInst>(user_as_inst)) {
-      return { true, &assert_inst->getType() };
-    }
-    // Otherwise, if the argument is a struct type, see if the user is an
-    // AssertStructTypeInst.
-    else if (auto *assert_inst = into<AssertStructTypeInst>(user_as_inst)) {
+    // Check for a type assertion.
+    if (auto *assert_inst = into<AssertTypeInst>(user_as_inst)) {
       return { true, &assert_inst->getType() };
     }
   }
 
-  // If we weren't able to find a type annotation for the argument, return
-  // false.
+  // If we couldn't find a type annotation for the argument, return false.
   return { false, nullptr };
 }
 
@@ -89,7 +82,7 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
 
         // Fetch the collection type.
         auto &collection_type = MEMOIR_SANITIZE(
-            dyn_cast_or_null<CollectionType>(type_of(fold->getCollection())),
+            dyn_cast_or_null<CollectionType>(&fold->getElementType()),
             "Fold over non-collection type!");
 
         // Get the element type.
@@ -128,16 +121,16 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
         }
 
         // Otherwise, get the closure argument that we match with.
-        else if (fold->getNumberOfClosed() > 0) {
+        else if (auto closed_kw = fold->get_keyword<ClosedKeyword>()) {
 
-          // Get the first closed argument index.
           auto first_closed_argument = isa<VoidType>(&element_type) ? 2 : 3;
 
-          // Get the closed value.
-          auto &closed_value =
-              fold->getClosed(A.getArgNo() - first_closed_argument);
+          auto index = A.getArgNo() - first_closed_argument;
 
-          // Get the type of the closed value.
+          auto &closed_value = MEMOIR_SANITIZE(
+              *std::next(closed_kw->args_begin(), index),
+              "Failed to fetch the closed value for fold function argument");
+
           type = type_of(closed_value);
           found_type = true;
         }

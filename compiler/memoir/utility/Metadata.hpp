@@ -18,6 +18,7 @@
 namespace llvm::memoir {
 
 enum class MetadataKind {
+  MD_STRUCT_FIELDS,
 #define METADATA(ENUM, STR, CLASS) ENUM,
 #include "memoir/utility/Metadata.def"
   MD_NONE,
@@ -53,6 +54,26 @@ public:
 
   template <typename T>
   static bool remove(MemOIRInst &I);
+
+  template <typename T>
+  static std::optional<T> get(StructType &type, unsigned field);
+
+  template <typename T>
+  static T get_or_add(StructType &type, unsigned field);
+
+  template <typename T>
+  static bool remove(StructType &type, unsigned field);
+
+  /**
+   * @return the metadata kind as a string.
+   */
+  template <typename T>
+  static std::string get_kind();
+
+  /**
+   * @returns the string held by the metadata
+   */
+  static std::string to_string(llvm::Metadata &metadata);
 
   // Constructor.
   Metadata(llvm::MDTuple &md) : md(&md) {}
@@ -97,18 +118,48 @@ public:
   /**
    * Get the identifier for the selection.
    *
+   * @param i the index of the dimension
    * @return the selection identifier as a string
    */
-  std::string getImplementation() const;
-  llvm::Metadata &getImplementationMD() const;
-  const llvm::MDOperand &getImplementationMDOperand() const;
+  std::string getImplementation(unsigned i = 0) const;
+  llvm::Metadata &getImplementationMD(unsigned i = 0) const;
+  const llvm::MDOperand &getImplementationMDOperand(unsigned i = 0) const;
+
+  struct iterator {
+  public:
+    iterator(const llvm::MDOperand *op) : op(op) {}
+
+    iterator &operator++() {
+      op = std::next(op);
+      return *this;
+    }
+
+    std::string operator*() {
+      return Metadata::to_string(*this->op->get());
+    }
+
+    friend bool operator==(const iterator &lhs, const iterator &rhs) {
+      return lhs.op == rhs.op;
+    }
+
+  protected:
+    const llvm::MDOperand *op;
+  };
+
+  /**
+   * @return an iterator over the selected implementations.
+   */
+  llvm::iterator_range<iterator> implementations();
+  iterator impl_begin();
+  iterator impl_end();
 
   /**
    * Set the selected implementation.
    *
    * @param ID the selection identifier
+   * @param i the index of the dimension
    */
-  void setImplementation(std::string id);
+  void setImplementation(std::string id, unsigned i = 0);
 };
 
 struct TempArgumentMetadata : public Metadata {

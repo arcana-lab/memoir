@@ -198,48 +198,32 @@ FieldArrayType &FieldArrayType::get(StructType &struct_type,
 map<StructType *, map<unsigned, FieldArrayType *>>
     *FieldArrayType::struct_to_field_array = nullptr;
 
-// StaticTensorType getter.
-StaticTensorType &Type::get_static_tensor_type(Type &element_type,
-                                               vector<size_t> dimension_sizes) {
-  return StaticTensorType::get(element_type, dimension_sizes);
+// ArrayType getter.
+ArrayType &Type::get_array_type(Type &element_type, size_t length) {
+  return ArrayType::get(element_type, length);
 }
 
-StaticTensorType &StaticTensorType::get(Type &element_type,
-                                        vector<size_t> dimension_sizes) {
-  if (StaticTensorType::static_tensor_types == nullptr) {
-    StaticTensorType::static_tensor_types =
-        new ordered_multimap<Type *, StaticTensorType *>();
+ArrayType &ArrayType::get(Type &element_type, size_t length) {
+  if (ArrayType::array_types == nullptr) {
+    ArrayType::array_types = new ordered_multimap<Type *, ArrayType *>();
   }
 
-  auto existing_types =
-      StaticTensorType::static_tensor_types->equal_range(&element_type);
+  auto existing_types = ArrayType::array_types->equal_range(&element_type);
   for (auto it = existing_types.first; it != existing_types.second; ++it) {
     auto *existing_type = it->second;
-    auto num_dimensions = existing_type->getNumberOfDimensions();
-    if (num_dimensions != dimension_sizes.size()) {
-      continue;
-    }
 
-    for (unsigned dim_index = 0; dim_index < num_dimensions; ++dim_index) {
-      if (existing_type->getLengthOfDimension(dim_index)
-          != dimension_sizes[dim_index]) {
-        continue;
-      }
+    if (existing_type->getLength() == length) {
+      return *existing_type;
     }
-
-    return *(existing_type);
   }
 
-  auto *type = new StaticTensorType(element_type,
-                                    dimension_sizes.size(),
-                                    dimension_sizes);
-  *StaticTensorType::static_tensor_types->insert({ &element_type, type });
+  auto *type = new ArrayType(element_type, length);
+  ArrayType::array_types->insert({ &element_type, type });
 
   return *type;
 }
 
-ordered_multimap<Type *, StaticTensorType *>
-    *StaticTensorType::static_tensor_types = nullptr;
+ordered_multimap<Type *, ArrayType *> *ArrayType::array_types = nullptr;
 
 // TensorType getter.
 TensorType &Type::get_tensor_type(Type &element_type, unsigned num_dimensions) {
@@ -325,11 +309,11 @@ map<Type *, SequenceType *> *SequenceType::sequence_types = nullptr;
  * Static checker methods
  */
 bool Type::is_primitive_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::INTEGER:
-    case TypeCode::FLOAT:
-    case TypeCode::DOUBLE:
-    case TypeCode::POINTER:
+  switch (type.getKind()) {
+    case TypeKind::INTEGER:
+    case TypeKind::FLOAT:
+    case TypeKind::DOUBLE:
+    case TypeKind::POINTER:
       return true;
     default:
       return false;
@@ -337,8 +321,8 @@ bool Type::is_primitive_type(Type &type) {
 }
 
 bool Type::is_reference_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::REFERENCE:
+  switch (type.getKind()) {
+    case TypeKind::REFERENCE:
       return true;
     default:
       return false;
@@ -346,8 +330,8 @@ bool Type::is_reference_type(Type &type) {
 }
 
 bool Type::is_struct_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::STRUCT:
+  switch (type.getKind()) {
+    case TypeKind::STRUCT:
       return true;
     default:
       return false;
@@ -355,15 +339,37 @@ bool Type::is_struct_type(Type &type) {
 }
 
 bool Type::is_collection_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::STATIC_TENSOR:
-    case TypeCode::TENSOR:
-    case TypeCode::ASSOC_ARRAY:
-    case TypeCode::SEQUENCE:
+  switch (type.getKind()) {
+    case TypeKind::ARRAY:
+    case TypeKind::TENSOR:
+    case TypeKind::ASSOC_ARRAY:
+    case TypeKind::SEQUENCE:
       return true;
     default:
       return false;
   }
+}
+
+bool Type::is_unsized(Type &type) {
+  switch (type.getKind()) {
+    case TypeKind::ASSOC_ARRAY:
+    case TypeKind::SEQUENCE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool Type::value_is_object(llvm::Value &value) {
+  if (not isa<llvm::PointerType>(value.getType())) {
+    return false;
+  }
+
+  if (not isa<llvm::Instruction>(&value) and not isa<llvm::Argument>(&value)) {
+    return false;
+  }
+
+  return isa_and_nonnull<ObjectType>(type_of(value));
 }
 
 bool Type::value_is_collection_type(llvm::Value &value) {
@@ -393,7 +399,7 @@ bool Type::value_is_struct_type(llvm::Value &value) {
 /*
  * Abstract Type implementation
  */
-Type::Type(TypeCode code) : code(code) {
+Type::Type(TypeKind code) : code(code) {
   // Do nothing.
 }
 
@@ -411,7 +417,7 @@ opt<std::string> Type::get_code() const {
   return {};
 }
 
-TypeCode Type::getCode() const {
+TypeKind Type::getKind() const {
   return this->code;
 }
 
@@ -424,7 +430,7 @@ llvm::Type *Type::get_llvm_type(llvm::LLVMContext &C) const {
  * IntegerType implementation
  */
 IntegerType::IntegerType(unsigned bitwidth, bool is_signed)
-  : Type(TypeCode::INTEGER),
+  : Type(TypeKind::INTEGER),
     bitwidth(bitwidth),
     is_signed(is_signed) {
   // Do nothing.
@@ -472,7 +478,7 @@ llvm::Type *IntegerType::get_llvm_type(llvm::LLVMContext &C) const {
 /*
  * FloatType implementation
  */
-FloatType::FloatType() : Type(TypeCode::FLOAT) {
+FloatType::FloatType() : Type(TypeKind::FLOAT) {
   // Do nothing.
 }
 
@@ -495,7 +501,7 @@ llvm::Type *FloatType::get_llvm_type(llvm::LLVMContext &C) const {
 /*
  * DoubleType implementation
  */
-DoubleType::DoubleType() : Type(TypeCode::DOUBLE) {
+DoubleType::DoubleType() : Type(TypeKind::DOUBLE) {
   // Do nothing.
 }
 
@@ -518,7 +524,7 @@ llvm::Type *DoubleType::get_llvm_type(llvm::LLVMContext &C) const {
 /*
  * PointerType implementation
  */
-PointerType::PointerType() : Type(TypeCode::POINTER) {
+PointerType::PointerType() : Type(TypeKind::POINTER) {
   // Do nothing.
 }
 
@@ -541,7 +547,7 @@ llvm::Type *PointerType::get_llvm_type(llvm::LLVMContext &C) const {
 /*
  * VoidType implementation
  */
-VoidType::VoidType() : Type(TypeCode::VOID) {
+VoidType::VoidType() : Type(TypeKind::VOID) {
   // Do nothing.
 }
 
@@ -565,7 +571,7 @@ llvm::Type *VoidType::get_llvm_type(llvm::LLVMContext &C) const {
  * ReferenceType implementation
  */
 ReferenceType::ReferenceType(Type &referenced_type)
-  : Type(TypeCode::REFERENCE),
+  : Type(TypeKind::REFERENCE),
     referenced_type(referenced_type) {
   // Do nothing.
 }
@@ -595,12 +601,17 @@ llvm::Type *ReferenceType::get_llvm_type(llvm::LLVMContext &C) const {
 }
 
 /*
+ * ObjectType implementation
+ */
+ObjectType::ObjectType(TypeKind kind) : Type(kind) {}
+
+/*
  * StructType implementation
  */
 StructType::StructType(DefineStructTypeInst &definition,
                        std::string name,
                        vector<Type *> field_types)
-  : Type(TypeCode::STRUCT),
+  : ObjectType(TypeKind::STRUCT),
     definition(definition),
     name(name),
     field_types(field_types) {
@@ -656,7 +667,7 @@ llvm::Type *StructType::get_llvm_type(llvm::LLVMContext &C) const {
 /*
  * Abstract CollectionType implementation
  */
-CollectionType::CollectionType(TypeCode code) : Type(code) {
+CollectionType::CollectionType(TypeKind code) : ObjectType(code) {
   // Do nothing.
 }
 
@@ -672,7 +683,7 @@ llvm::Type *CollectionType::get_llvm_type(llvm::LLVMContext &C) const {
  * FieldArrayType implementation
  */
 FieldArrayType::FieldArrayType(StructType &struct_type, unsigned field_index)
-  : CollectionType(TypeCode::FIELD_ARRAY),
+  : CollectionType(TypeKind::FIELD_ARRAY),
     struct_type(struct_type),
     field_index(field_index) {
   // Do nothing.
@@ -706,42 +717,26 @@ std::string FieldArrayType::toString(std::string indent) const {
 }
 
 /*
- * StaticTensorType implementation
+ * ArrayType implementation
  */
-StaticTensorType::StaticTensorType(Type &element_type,
-                                   unsigned number_of_dimensions,
-                                   vector<size_t> length_of_dimensions)
-  : CollectionType(TypeCode::STATIC_TENSOR),
+ArrayType::ArrayType(Type &element_type, size_t length)
+  : CollectionType(TypeKind::ARRAY),
     element_type(element_type),
-    number_of_dimensions(number_of_dimensions),
-    length_of_dimensions(length_of_dimensions) {
-  // Do nothing.
-}
+    length(length) {}
 
-Type &StaticTensorType::getElementType() const {
+Type &ArrayType::getElementType() const {
   return this->element_type;
 }
 
-unsigned StaticTensorType::getNumberOfDimensions() const {
-  return this->number_of_dimensions;
+size_t ArrayType::getLength() const {
+  return this->length;
 }
 
-size_t StaticTensorType::getLengthOfDimension(unsigned dimension_index) const {
-  MEMOIR_ASSERT(
-      (dimension_index < this->getNumberOfDimensions()),
-      "Attempt to get length of out-of-range dimension index for static tensor type");
-
-  return this->length_of_dimensions.at(dimension_index);
-}
-
-std::string StaticTensorType::toString(std::string indent) const {
+std::string ArrayType::toString(std::string indent) const {
   std::string str;
 
-  str = "(static-tensor " + this->element_type.toString(indent);
-  for (size_t dim = 0; dim < this->length_of_dimensions.size(); dim++) {
-    str += " " + std::to_string(this->length_of_dimensions.at(dim));
-  }
-  str += ")";
+  str = "(" + this->element_type.toString(indent) + "x"
+        + std::to_string(this->length) + ")";
 
   return str;
 }
@@ -750,7 +745,7 @@ std::string StaticTensorType::toString(std::string indent) const {
  * TensorType implementation
  */
 TensorType::TensorType(Type &element_type, unsigned number_of_dimensions)
-  : CollectionType(TypeCode::TENSOR),
+  : CollectionType(TypeKind::TENSOR),
     element_type(element_type),
     number_of_dimensions(number_of_dimensions) {
   // Do nothing.
@@ -777,7 +772,7 @@ std::string TensorType::toString(std::string indent) const {
  * AssocArrayType implementation
  */
 AssocArrayType::AssocArrayType(Type &key_type, Type &value_type)
-  : CollectionType(TypeCode::ASSOC_ARRAY),
+  : CollectionType(TypeKind::ASSOC_ARRAY),
     key_type(key_type),
     value_type(value_type) {
   // Do nothing.
@@ -808,7 +803,7 @@ std::string AssocArrayType::toString(std::string indent) const {
  * SequenceType implementation
  */
 SequenceType::SequenceType(Type &element_type)
-  : CollectionType(TypeCode::SEQUENCE),
+  : CollectionType(TypeKind::SEQUENCE),
     element_type(element_type) {
   // Do nothing.
 }

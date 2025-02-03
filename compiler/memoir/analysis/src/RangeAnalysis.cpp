@@ -114,6 +114,32 @@ static void add_index_use(
   index_value_to_uses[index_use.get()].insert(&index_use);
 }
 
+static void add_index_uses(
+    map<llvm::Value *, set<llvm::Use *>> &index_value_to_uses,
+    Type *type,
+    llvm::iterator_range<llvm::Use *> range) {
+
+  for (auto &index : range) {
+    if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+      if (auto *seq_type = dyn_cast<SequenceType>(collection_type)) {
+        add_index_use(index_value_to_uses, index);
+      }
+
+      type = &collection_type->getElementType();
+
+    } else if (auto *struct_type = dyn_cast<StructType>(type)) {
+      auto &index_const =
+          MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index.get()),
+                          "Access with non-static field index");
+      auto field_index = index_const.getZExtValue();
+
+      type = &struct_type->getFieldType(field_index);
+    }
+  }
+
+  return;
+}
+
 bool RangeAnalysisDriver::analyze(llvm::Module &M,
                                   arcana::noelle::Noelle &noelle) {
 
@@ -131,39 +157,21 @@ bool RangeAnalysisDriver::analyze(llvm::Module &M,
           continue;
         }
 
-        if (auto *read_inst = dyn_cast<IndexReadInst>(memoir_inst)) {
-          auto &index_use = read_inst->getIndexAsUse();
-          add_index_use(index_value_to_uses, index_use);
+        if (auto *access = dyn_cast<AccessInst>(memoir_inst)) {
+          auto *type = &access->getObjectType();
+          add_index_uses(index_value_to_uses, type, access->index_operands());
 
-        } else if (auto *write_inst = dyn_cast<IndexWriteInst>(memoir_inst)) {
-          auto &index_use = write_inst->getIndexAsUse();
-          add_index_use(index_value_to_uses, index_use);
-
-        } else if (auto *get_inst = dyn_cast<IndexGetInst>(memoir_inst)) {
-          auto &index_use = get_inst->getIndexAsUse();
-          add_index_use(index_value_to_uses, index_use);
-
-        } else if (auto *insert_inst = dyn_cast<SeqInsertInst>(memoir_inst)) {
-          add_index_use(index_value_to_uses,
-                        insert_inst->getInsertionPointAsUse());
-
-        } else if (auto *insert_seq_inst =
-                       dyn_cast<SeqInsertSeqInst>(memoir_inst)) {
-          auto &index_value_use = insert_seq_inst->getInsertionPointAsUse();
-          add_index_use(index_value_to_uses, index_value_use);
-
-        } else if (auto *remove_inst = dyn_cast<SeqRemoveInst>(memoir_inst)) {
-          add_index_use(index_value_to_uses, remove_inst->getBeginIndexAsUse());
-          add_index_use(index_value_to_uses, remove_inst->getEndIndexAsUse());
-          // } else if (auto *swap_inst = dyn_cast<SwapInst>(memoir_inst)) {
-          //   index_value_to_uses[&I].insert({
-          //   &swap_inst->getBeginIndexAsUse(),
-          //                                    &swap_inst->getEndIndexAsUse(),
-          //                                    &swap_inst->getToBeginIndexAsUse()
-          //                                    });
-        } else if (auto *copy_inst = dyn_cast<SeqCopyInst>(memoir_inst)) {
-          add_index_use(index_value_to_uses, copy_inst->getBeginIndexAsUse());
-          add_index_use(index_value_to_uses, copy_inst->getEndIndexAsUse());
+          for (auto keyword : access->keywords()) {
+            if (auto range_kw = try_cast<RangeKeyword>(keyword)) {
+              add_index_use(index_value_to_uses, range_kw->getBeginAsUse());
+              add_index_use(index_value_to_uses, range_kw->getEndAsUse());
+            } else if (auto input_kw = try_cast<InputKeyword>(keyword)) {
+              auto *type = type_of(input_kw->getInput());
+              add_index_uses(index_value_to_uses,
+                             type,
+                             input_kw->index_operands());
+            }
+          }
         }
       }
     }

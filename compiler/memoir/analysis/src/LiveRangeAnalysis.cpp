@@ -63,7 +63,7 @@ LiveRangeConstraintGraph LiveRangeAnalysisDriver::construct() {
     for (auto &BB : F) {
       for (auto &I : BB) {
         if (isa_and_nonnull<SequenceType>(type_of(I))
-            || isa_and_nonnull<IndexReadInst>(into<MemOIRInst>(I))) {
+            || isa_and_nonnull<ReadInst>(into<MemOIRInst>(I))) {
 
           visited.insert(&I);
 

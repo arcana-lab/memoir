@@ -163,34 +163,22 @@ bool verify_linearity(llvm::Function &F, LivenessResult &LR) {
 
       // If this is a collection operation that returns a new collection, add it
       // to the set of variables.
-      if (isa<AllocInst>(memoir_inst) or isa<AssocKeysInst>(memoir_inst)) {
+      if (isa<AllocInst>(memoir_inst) or isa<KeysInst>(memoir_inst)
+          or isa<CopyInst>(memoir_inst)) {
         reaching_definition.insert(&I);
-      } else if (auto *write = dyn_cast<WriteInst>(memoir_inst)) {
-        auto &operand = write->getObjectOperand();
-        reaching_definition.merge(&I, &operand);
-        gather_variables(reaching_definition, operand);
-      } else if (auto *insert = dyn_cast<InsertInst>(memoir_inst)) {
-        auto &operand = insert->getBaseCollection();
-        reaching_definition.merge(&I, &operand);
-        gather_variables(reaching_definition, operand);
-      } else if (auto *remove = dyn_cast<RemoveInst>(memoir_inst)) {
-        auto &operand = remove->getBaseCollection();
-        reaching_definition.merge(&I, &operand);
-        gather_variables(reaching_definition, operand);
-      } else if (auto *swap = dyn_cast<SeqSwapWithinInst>(memoir_inst)) {
-        auto &operand = swap->getFromCollection();
-        reaching_definition.merge(&I, &operand);
-        gather_variables(reaching_definition, operand);
-      } else if (auto *clear = dyn_cast<ClearInst>(memoir_inst)) {
-        auto &operand = clear->getInputCollection();
-        reaching_definition.merge(&I, &operand);
+      }
+
+      // Merge the reaching definitions for the input and redefinition.
+      else if (auto *update = dyn_cast<UpdateInst>(memoir_inst)) {
+        auto &operand = update->getObject();
+        reaching_definition.merge(&update->getResult(), &operand);
         gather_variables(reaching_definition, operand);
       }
 
       // If this is an AssertCollectionType instruction, add the collection to
       // the set of variables.
-      if (auto *assert_inst = dyn_cast<AssertCollectionTypeInst>(memoir_inst)) {
-        reaching_definition.insert(&assert_inst->getCollection());
+      else if (auto *assert_inst = dyn_cast<AssertTypeInst>(memoir_inst)) {
+        reaching_definition.insert(&assert_inst->getObject());
       }
     }
   }

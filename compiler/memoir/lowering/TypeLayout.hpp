@@ -238,23 +238,19 @@ protected:
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
 
-  TypeLayout &visitStaticTensorType(StaticTensorType &T) {
+  TypeLayout &visitArrayType(ArrayType &T) {
     CHECK_MEMOIZED(T);
 
     // Get the type layout of the element.
     auto &element_type = this->visit(T.getElementType());
 
-    // Get the dimension information.
-    auto num_dimensions = T.getNumberOfDimensions();
-    MEMOIR_ASSERT(
-        (num_dimensions == 1),
-        "Support for multidimensional static tensor types is unsupported");
-    auto num_elements = T.getLengthOfDimension(0);
+    // Get the length.
+    auto length = T.getLength();
 
     // Create the vector type.
     auto &llvm_type = MEMOIR_SANITIZE(
-        llvm::ArrayType::get(&element_type.get_llvm_type(), num_elements),
-        "Could not construct the llvm VectorType for StaticTensorType.");
+        llvm::ArrayType::get(&element_type.get_llvm_type(), length),
+        "Could not construct the llvm VectorType for ArrayType.");
 
     // Create the type layout.
     auto *type_layout = new TypeLayout(T, llvm_type);
@@ -396,18 +392,17 @@ protected:
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
 
-  TypeLayout &visitAssocArrayType(AssocArrayType &T) {
-    MEMOIR_UNREACHABLE("AssocArrayType is unimplemented!");
-    // CHECK_MEMOIZED(T);
+  TypeLayout &visitCollectionType(CollectionType &T) {
+    CHECK_MEMOIZED(T);
 
-    // MEMOIZE_AND_RETURN(T, llvm_type);
-  }
+    auto &ptr_type =
+        MEMOIR_SANITIZE(llvm::PointerType::get(this->C, /* AddressSpace = */ 0),
+                        "Failed to get LLVM pointer type!");
 
-  TypeLayout &visitSequenceType(SequenceType &T) {
-    MEMOIR_UNREACHABLE("SequenceType is unimplemented!");
-    // CHECK_MEMOIZED(T);
+    auto &type_layout = MEMOIR_SANITIZE(new TypeLayout(T, ptr_type),
+                                        "Failed to construct TypeLayout!");
 
-    // MEMOIZE_AND_RETURN(T, llvm_type);
+    MEMOIZE_AND_RETURN(T, type_layout);
   }
 
   // Owned state.

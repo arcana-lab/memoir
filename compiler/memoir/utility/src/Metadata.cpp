@@ -2,8 +2,28 @@
 
 namespace llvm::memoir {
 
+std::string Metadata::to_string(llvm::Metadata &metadata) {
+  if (auto *md_constant = dyn_cast<llvm::ConstantAsMetadata>(&metadata)) {
+    auto *constant = md_constant->getValue();
+    auto &constant_as_data_array = MEMOIR_SANITIZE(
+        dyn_cast_or_null<llvm::ConstantDataArray>(constant),
+        "Malformed SelectionMetadata, expected an llvm::ConstantDataArray");
+
+    return constant_as_data_array.getAsString().str();
+
+  } else if (auto *md_string = dyn_cast<llvm::MDString>(&metadata)) {
+    return md_string->getString().str();
+  }
+
+  MEMOIR_UNREACHABLE("Expected the metadata to contain a string.");
+}
+
+namespace detail {
+
 std::string get_metadata_tag(MetadataKind kind) {
   switch (kind) {
+    case MetadataKind::MD_STRUCT_FIELDS:
+      return "memoir.fields";
 #define METADATA(ENUM, STR, CLASS)                                             \
   case MetadataKind::ENUM:                                                     \
     return STR;
@@ -13,10 +33,102 @@ std::string get_metadata_tag(MetadataKind kind) {
   }
 }
 
+llvm::MDNode *find_tagged_metadata(llvm::MDTuple &tuple, std::string tag) {
+  for (auto &operand : tuple.operands()) {
+    auto *op_metadata = dyn_cast_or_null<llvm::MDNode>(operand.get());
+    if (not op_metadata) {
+      continue;
+    }
+
+    auto *op_tag =
+        dyn_cast_or_null<llvm::MDString>(op_metadata->getOperand(0).get());
+    if (op_tag->getString().str() == tag) {
+      return op_metadata;
+    }
+  }
+
+  return nullptr;
+}
+
+llvm::MDTuple *get_field_metadata(StructType &type, unsigned field) {
+  // Get the fields metadata.
+  auto &I = type.getDefinition();
+  auto tag = get_metadata_tag(MetadataKind::MD_STRUCT_FIELDS);
+  auto *fields_metadata =
+      dyn_cast_or_null<llvm::MDTuple>(I.getCallInst().getMetadata(tag));
+  if (not fields_metadata) {
+    return nullptr;
+  }
+
+  // Find the corresponding field metadata.
+  for (auto &operand : fields_metadata->operands()) {
+    auto *op_node = dyn_cast_or_null<llvm::MDNode>(operand.get());
+    auto *first = op_node->op_begin()->get();
+    if (auto *first_as_constant =
+            dyn_cast_or_null<llvm::ConstantAsMetadata>(first)) {
+      auto *constant = first_as_constant->getValue();
+      auto *constant_int = dyn_cast<llvm::ConstantInt>(constant);
+      auto constant_value = constant_int->getZExtValue();
+      if (constant_value == field) {
+        auto *second = op_node->getOperand(1).get();
+        return dyn_cast_or_null<llvm::MDTuple>(second);
+      }
+    }
+  }
+
+  // Could not find any metadata for the corresponding field.
+  return nullptr;
+}
+
+llvm::MDTuple &get_or_add_field_metadata(StructType &type, unsigned field) {
+  // Try to get the metadata.
+  if (auto *found = get_field_metadata(type, field)) {
+    return *found;
+  }
+
+  // Construct the fields metadata.
+  auto &I = type.getDefinition();
+  auto &context = I.getCallInst().getContext();
+  auto tag = get_metadata_tag(MetadataKind::MD_STRUCT_FIELDS);
+  auto *fields_metadata =
+      dyn_cast_or_null<llvm::MDTuple>(I.getCallInst().getMetadata(tag));
+  if (not fields_metadata) {
+    fields_metadata =
+        llvm::MDTuple::getDistinct(context,
+                                   llvm::ArrayRef<llvm::Metadata *>({}));
+  }
+
+  // Create the tuple for the given field.
+  auto &tuple = MEMOIR_SANITIZE(
+      llvm::MDTuple::getDistinct(context, llvm::ArrayRef<llvm::Metadata *>({})),
+      "Failed to create MDTuple");
+
+  // Create the field index constant as metadata.
+  auto *field_integer_type = llvm::IntegerType::get(context, 8);
+  auto *field_constant = llvm::ConstantInt::get(field_integer_type, field);
+  auto *field_constant_as_metadata =
+      llvm::ConstantAsMetadata::get(field_constant);
+
+  // Create the node for the given field.
+  auto &field_metadata = MEMOIR_SANITIZE(
+      llvm::MDNode::getDistinct(context,
+                                llvm::ArrayRef<llvm::Metadata *>(
+                                    { field_constant_as_metadata, &tuple })),
+      "Failed to create MDNode");
+
+  // Append the field.
+  fields_metadata->push_back(&field_metadata);
+
+  // Return the inner tuple.
+  return tuple;
+}
+
+} // namespace detail
+
 #define METADATA(ENUM, STR, CLASS)                                             \
   template <>                                                                  \
   std::optional<CLASS> Metadata::get(llvm::Function &F) {                      \
-    auto tag = get_metadata_tag(MetadataKind::ENUM);                           \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
     if (not F.hasMetadata(tag)) {                                              \
       return std::nullopt;                                                     \
     }                                                                          \
@@ -31,7 +143,7 @@ std::string get_metadata_tag(MetadataKind kind) {
       return got.value();                                                      \
     }                                                                          \
     auto &context = F.getContext();                                            \
-    auto tag = get_metadata_tag(MetadataKind::ENUM);                           \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
     auto *metadata =                                                           \
         llvm::MDTuple::getDistinct(context,                                    \
                                    llvm::ArrayRef<llvm::Metadata *>({}));      \
@@ -40,13 +152,13 @@ std::string get_metadata_tag(MetadataKind kind) {
   }                                                                            \
   template <>                                                                  \
   bool Metadata::remove<CLASS>(llvm::Function & F) {                           \
-    auto tag = get_metadata_tag(MetadataKind::ENUM);                           \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
     F.setMetadata(tag, nullptr);                                               \
     return true;                                                               \
   }                                                                            \
   template <>                                                                  \
   std::optional<CLASS> Metadata::get<CLASS>(llvm::Instruction & I) {           \
-    auto tag = get_metadata_tag(MetadataKind::ENUM);                           \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
     if (not I.hasMetadata(tag)) {                                              \
       return std::nullopt;                                                     \
     }                                                                          \
@@ -61,7 +173,7 @@ std::string get_metadata_tag(MetadataKind kind) {
       return got.value();                                                      \
     }                                                                          \
     auto &context = I.getContext();                                            \
-    auto tag = get_metadata_tag(MetadataKind::ENUM);                           \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
     auto *metadata =                                                           \
         llvm::MDTuple::getDistinct(context,                                    \
                                    llvm::ArrayRef<llvm::Metadata *>({}));      \
@@ -70,13 +182,13 @@ std::string get_metadata_tag(MetadataKind kind) {
   }                                                                            \
   template <>                                                                  \
   bool Metadata::remove<CLASS>(llvm::Instruction & I) {                        \
-    auto tag = get_metadata_tag(MetadataKind::ENUM);                           \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
     I.setMetadata(tag, nullptr);                                               \
     return true;                                                               \
   }                                                                            \
   template <>                                                                  \
   std::optional<CLASS> Metadata::get<CLASS>(MemOIRInst & I) {                  \
-    auto tag = get_metadata_tag(MetadataKind::ENUM);                           \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
     if (not I.getCallInst().hasMetadata(tag)) {                                \
       return std::nullopt;                                                     \
     }                                                                          \
@@ -92,7 +204,7 @@ std::string get_metadata_tag(MetadataKind kind) {
       return got.value();                                                      \
     }                                                                          \
     auto &context = I.getCallInst().getContext();                              \
-    auto tag = get_metadata_tag(MetadataKind::ENUM);                           \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
     auto *metadata =                                                           \
         llvm::MDTuple::getDistinct(context,                                    \
                                    llvm::ArrayRef<llvm::Metadata *>({}));      \
@@ -101,9 +213,76 @@ std::string get_metadata_tag(MetadataKind kind) {
   }                                                                            \
   template <>                                                                  \
   bool Metadata::remove<CLASS>(MemOIRInst & I) {                               \
-    auto tag = get_metadata_tag(MetadataKind::ENUM);                           \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
     I.getCallInst().setMetadata(tag, nullptr);                                 \
     return true;                                                               \
+  }                                                                            \
+  template <>                                                                  \
+  std::optional<CLASS> Metadata::get<CLASS>(StructType & type,                 \
+                                            unsigned field) {                  \
+    auto *tuple = detail::get_field_metadata(type, field);                     \
+    if (not tuple) {                                                           \
+      return std::nullopt;                                                     \
+    }                                                                          \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
+    auto *tagged_node = detail::find_tagged_metadata(*tuple, tag);             \
+    if (not tagged_node) {                                                     \
+      return std::nullopt;                                                     \
+    }                                                                          \
+    auto &metadata = MEMOIR_SANITIZE(                                          \
+        dyn_cast_or_null<llvm::MDTuple>(tagged_node->getOperand(1).get()),     \
+        "Malformed metadata.");                                                \
+    return CLASS(metadata);                                                    \
+  }                                                                            \
+  template <>                                                                  \
+  CLASS Metadata::get_or_add<CLASS>(StructType & type, unsigned field) {       \
+    auto &tuple = detail::get_or_add_field_metadata(type, field);              \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
+    auto *tagged_node = detail::find_tagged_metadata(tuple, tag);              \
+    if (not tagged_node) {                                                     \
+      auto &context = type.getDefinition().getCallInst().getContext();         \
+      auto *metadata_tag = llvm::MDString::get(context, tag);                  \
+      auto *empty_tuple =                                                      \
+          llvm::MDTuple::getDistinct(context,                                  \
+                                     llvm::ArrayRef<llvm::Metadata *>({}));    \
+      tagged_node = llvm::MDNode::getDistinct(                                 \
+          context,                                                             \
+          llvm::ArrayRef<llvm::Metadata *>({ metadata_tag, empty_tuple }));    \
+      return CLASS(*empty_tuple);                                              \
+    }                                                                          \
+    auto &metadata = MEMOIR_SANITIZE(                                          \
+        dyn_cast_or_null<llvm::MDTuple>(tagged_node->getOperand(1).get()),     \
+        "Malformed metadata.");                                                \
+    return CLASS(metadata);                                                    \
+  }                                                                            \
+  template <>                                                                  \
+  bool Metadata::remove<CLASS>(StructType & type, unsigned field) {            \
+    auto &tuple = detail::get_or_add_field_metadata(type, field);              \
+    auto tag = detail::get_metadata_tag(MetadataKind::ENUM);                   \
+    auto *tagged_node = detail::find_tagged_metadata(tuple, tag);              \
+    if (not tagged_node) {                                                     \
+      return false;                                                            \
+    }                                                                          \
+    vector<llvm::Metadata *> items = {};                                       \
+    while (tuple.getNumOperands() > 0) {                                       \
+      auto &operand = tuple.getOperand(tuple.getNumOperands() - 1);            \
+      auto *op_metadata = operand.get();                                       \
+      if (op_metadata == tagged_node) {                                        \
+        tuple.pop_back();                                                      \
+        break;                                                                 \
+      } else {                                                                 \
+        items.push_back(op_metadata);                                          \
+      }                                                                        \
+      tuple.pop_back();                                                        \
+    }                                                                          \
+    for (auto *item : items) {                                                 \
+      tuple.push_back(item);                                                   \
+    }                                                                          \
+    return true;                                                               \
+  }                                                                            \
+  template <>                                                                  \
+  std::string Metadata::get_kind<CLASS>() {                                    \
+    return STR;                                                                \
   }
 #include "memoir/utility/Metadata.def"
 

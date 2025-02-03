@@ -21,17 +21,6 @@ std::string Struct::to_string() {
   return str;
 }
 
-std::string Tensor::to_string() {
-  std::string str = "(Tensor: \n";
-  str += "  (type: ";
-  str += type->to_string();
-  str += ")\n";
-  str += "  (length: ";
-  // str += length;
-  str += "))\n";
-  return str;
-}
-
 std::string AssocArray::to_string() {
   return "(AssocArray)";
 }
@@ -58,10 +47,6 @@ std::string StructType::to_string() {
   }
   str += ")\n";
   return str;
-}
-
-std::string TensorType::to_string() {
-  return "(Type: tensor)";
 }
 
 std::string AssocArrayType::to_string() {

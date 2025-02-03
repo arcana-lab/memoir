@@ -8,25 +8,26 @@
 
 namespace llvm::memoir {
 
-OPERAND(SelectionMetadata, Implementation, 0)
+VAR_OPERAND(SelectionMetadata, Implementation, 0)
 
-std::string SelectionMetadata::getImplementation() const {
-  // Fetch the metadata.
-  auto &metadata = this->getImplementationMD();
-  auto &constant_as_metadata = MEMOIR_SANITIZE(
-      dyn_cast<llvm::ConstantAsMetadata>(&metadata),
-      "Malformed LiveOutMetadata, expected an llvm::ConstantAsMetadata");
-
-  // Unpack the selection id from the metadata.
-  auto *constant = constant_as_metadata.getValue();
-  auto &constant_as_data_array = MEMOIR_SANITIZE(
-      dyn_cast_or_null<llvm::ConstantDataArray>(constant),
-      "Malformed LiveOutMetadata, expected an llvm::ConstantDataArray");
-
-  return constant_as_data_array.getAsString().str();
+std::string SelectionMetadata::getImplementation(unsigned i) const {
+  return Metadata::to_string(this->getImplementationMD(i));
 }
 
-void SelectionMetadata::setImplementation(std::string id) {
+llvm::iterator_range<SelectionMetadata::iterator> SelectionMetadata::
+    implementations() {
+  return llvm::make_range(this->impl_begin(), this->impl_end());
+}
+
+SelectionMetadata::iterator SelectionMetadata::impl_begin() {
+  return iterator(this->getMetadata().op_begin());
+}
+
+SelectionMetadata::iterator SelectionMetadata::impl_end() {
+  return iterator(this->getMetadata().op_end());
+}
+
+void SelectionMetadata::setImplementation(std::string id, unsigned i) {
   // Fetch relevant information.
   auto &metadata = this->getMetadata();
   auto &context = metadata.getContext();

@@ -3,12 +3,29 @@
 
 #include "memoir/support/InternalDatatypes.hpp"
 
+#include "memoir/lowering/Implementation.hpp"
 #include "memoir/lowering/TypeLayout.hpp"
+
+// Default implementations
+#ifdef BOOST_INCLUDE_DIR
+#  define ASSOC_IMPL "index_map"
+#else
+#  define ASSOC_IMPL "stl_unordered_map"
+#endif
+#ifdef BOOST_INCLUDE_DIR
+#  define SET_IMPL "boost_flat_set"
+#else
+#  define SET_IMPL "stl_unordered_set"
+#endif
+#define SEQ_IMPL "stl_vector"
+#define ASSOC_SEQ_IMPL "boost_flat_multimap"
+
+#define ENABLE_MULTIMAP 0
 
 /*
  * This file provides a utility which instantiates the necessary collection
- * implementations, this information is consumed by the linker to generate the
- * collections which store user-defined objects.
+ * implementations, this information is consumed by the linker to generate
+ * the collections which store user-defined objects.
  *
  * Author(s): Tommy McMichen
  * Created: September 27, 2023
@@ -18,46 +35,32 @@ namespace llvm::memoir {
 
 class ImplLinker {
 public:
-  ImplLinker(llvm::Module &M) : M(M) {}
+  /**
+   * Construct a new ImplLinker for the given LLVM module.
+   */
+  ImplLinker(llvm::Module &M);
   ~ImplLinker() {}
 
   /**
-   * Get the name of the implementation for the given instruction.
+   * Get the default implementation for the given type.
    *
-   * @param I the llvm::Instruction
-   * @param type the MEMOIR type of I
-   * @returns the implementation name as a string
+   * @param type of the collection
+   * @returns the default implementation
    */
-  static std::string get_implementation_name(llvm::Instruction &I,
-                                             CollectionType &type);
+  static const Implementation &get_default_implementation(CollectionType &type);
 
-  /**
-   * Get the implementation's function prefix for the given instruction.
-   *
-   * @param I the llvm::Instruction
-   * @param type the MEMOIR type of I
-   * @returns the implementation's function prefix as a string
-   */
-  static std::string get_implementation_prefix(llvm::Instruction &I,
-                                               CollectionType &type);
+  void implement(Type &type);
 
-  void implement_seq(std::string impl_name, TypeLayout &element_type_layout);
-
-  void implement_assoc(std::string impl_name,
-                       TypeLayout &key_type_layout,
-                       TypeLayout &value_type_layout);
-
-  void implement_type(TypeLayout &struct_type_layout);
+  void implement(Instantiation &inst);
 
   void emit(llvm::raw_ostream &os = llvm::errs());
 
 protected:
-  ordered_set<TypeLayout *> struct_implementations;
-  ordered_multimap<std::string, TypeLayout *> seq_implementations;
-  ordered_multimap<std::string, tuple<TypeLayout *, TypeLayout *>>
-      assoc_implementations;
+  ordered_set<StructType *> structs_to_emit;
+  ordered_set<Instantiation *> collections_to_emit;
 
   llvm::Module &M;
+  TypeConverter TC;
 
 }; // class ImplLinker
 

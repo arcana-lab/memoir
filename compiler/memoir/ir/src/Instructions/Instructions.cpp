@@ -1,6 +1,8 @@
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/MutOperations.hpp"
 
+#include "memoir/support/Print.hpp"
+
 namespace llvm::memoir {
 
 map<llvm::Instruction *, MemOIRInst *> *MemOIRInst::llvm_to_memoir = nullptr;
@@ -74,7 +76,7 @@ llvm::CallInst &MemOIRInst::getCallInst() const {
 }
 
 llvm::Function &MemOIRInst::getLLVMFunction() const {
-  return sanitize(
+  return MEMOIR_SANITIZE(
       this->getCallInst().getCalledFunction(),
       "MemOIRInst has been corrupted, CallInst is no longer direct!");
 }
@@ -104,5 +106,38 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemOIRInst &I) {
   os << I.toString("");
   return os;
 }
+
+llvm::iterator_range<keyword_iterator> MemOIRInst::keywords() const {
+  return llvm::make_range(this->kw_begin(), this->kw_end());
+}
+
+keyword_iterator MemOIRInst::kw_begin() const {
+  for (auto &arg : this->getCallInst().args()) {
+    if (Keyword::is_keyword(arg.get())) {
+      return keyword_iterator(&arg);
+    }
+  }
+  return this->kw_end();
+}
+
+keyword_iterator MemOIRInst::kw_end() const {
+  return keyword_iterator(this->getCallInst().arg_end());
+}
+
+bool MemOIRInst::has_keywords() const {
+  return this->kw_begin() != this->kw_end();
+}
+
+#define KEYWORD(STR, CLASS)                                                    \
+  template <>                                                                  \
+  std::optional<CLASS> MemOIRInst::get_keyword<CLASS>() const {                \
+    for (auto kw : this->keywords()) {                                         \
+      if (auto the_kw = try_cast<CLASS>(kw)) {                                 \
+        return the_kw;                                                         \
+      }                                                                        \
+    }                                                                          \
+    return {};                                                                 \
+  }
+#include "memoir/ir/Keywords.def"
 
 } // namespace llvm::memoir

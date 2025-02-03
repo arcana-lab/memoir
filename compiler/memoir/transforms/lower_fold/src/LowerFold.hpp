@@ -53,7 +53,8 @@ public:
 
     // Lower each fold.
     for (auto *fold : folds) {
-      if (lower_fold(*fold)) {
+      // TODO, construct a get for the nested collection.
+      if (lower_fold(*fold, fold->getObject(), fold->getElementType())) {
         this->to_cleanup.insert(&fold->getCallInst());
       }
     }

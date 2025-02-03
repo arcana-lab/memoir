@@ -47,79 +47,6 @@ llvm::cl::opt<bool> construct_use_phis(
     "memoir-enable-use-phis",
     llvm::cl::desc("Enable construction of Use PHIs."));
 
-namespace detail {
-
-bool use_is_mutating(llvm::Use &U);
-
-bool value_is_mutated(llvm::Value &V) {
-  for (auto &use : V.uses()) {
-    if (use_is_mutating(use)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-bool use_is_mutating(llvm::Use &use) {
-  auto *name = use.get();
-  auto *def = use.getUser();
-  if (auto *def_as_inst = dyn_cast<llvm::Instruction>(def)) {
-    auto *memoir_inst = MemOIRInst::get(*def_as_inst);
-    if (!memoir_inst) {
-      return false;
-    }
-
-    // Skip non-mutators.
-    if (!isa<MutInst>(memoir_inst) && !isa<AccessInst>(memoir_inst)
-        && !isa<FoldInst>(memoir_inst) && !isa<InsertInst>(memoir_inst)
-        && !isa<RemoveInst>(memoir_inst)) {
-      return false;
-    }
-
-    // Only enable read instructions if UsePHIs are enabled.
-    if (isa<ReadInst>(memoir_inst) or isa<GetInst>(memoir_inst)
-        or isa<AssocHasInst>(memoir_inst)) {
-      if (not construct_use_phis) {
-        return false;
-      }
-    }
-
-    // If the value is closed on by the FoldInst, it will be redefined by
-    // a RetPHI.
-    if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
-      // If the fold has no closure, skip it.
-      auto num_closed = fold->getNumberOfClosed();
-      if (num_closed == 0) {
-        return false;
-      }
-      // If the fold use is out of the closed argument range, skip it.
-      if (fold->getClosedAsUse(0).getOperandNo() > use.getOperandNo()) {
-        return false;
-      }
-      // If there are no mutators for the corresponding argument in the
-      // fold body, skip it.
-      if (not detail::value_is_mutated(fold->getClosedArgument(use))) {
-        return false;
-      }
-    }
-
-    if (auto *append_inst = dyn_cast<MutSeqAppendInst>(memoir_inst)) {
-      if (name != &append_inst->getCollection()) {
-        return false;
-      }
-    }
-
-    // If we made it this far, then the use is mutating.
-    return true;
-  }
-
-  // Non-instruction uses are fake!
-  return false;
-}
-
-} // namespace detail
-
 llvm::PreservedAnalyses SSAConstructionPass::run(
     llvm::Module &M,
     llvm::ModuleAnalysisManager &MAM) {
@@ -143,12 +70,12 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     // Collect all source-level collection pointers names.
     ordered_set<llvm::Value *> memoir_names = {};
     for (auto &A : F.args()) {
-      if (Type::value_is_collection_type(A)) {
+      if (Type::value_is_object(A)) {
         memoir_names.insert(&A);
       } else {
         for (auto &use : A.uses()) {
           if (auto *load = dyn_cast<llvm::LoadInst>(use.getUser())) {
-            if (Type::value_is_collection_type(*load)) {
+            if (Type::value_is_object(*load)) {
               memoir_names.insert(load);
             }
           }
@@ -157,7 +84,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     }
     for (auto &BB : F) {
       for (auto &I : BB) {
-        if (Type::value_is_collection_type(I)) {
+        if (Type::value_is_object(I)) {
           memoir_names.insert(&I);
         }
       }
@@ -192,7 +119,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
 
       // Gather the set of basic blocks containing mutators and PHI nodes.
       for (auto &use : name->uses()) {
-        if (not detail::use_is_mutating(use)) {
+        if (not use_is_mutating(use, construct_use_phis)) {
           continue;
         }
 
@@ -302,7 +229,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
         for (auto &phi : succ_bb->phis()) {
 
           // Ensure that the value is of collection type.
-          if (not Type::value_is_collection_type(phi)) {
+          if (not Type::value_is_object(phi)) {
             continue;
           }
 

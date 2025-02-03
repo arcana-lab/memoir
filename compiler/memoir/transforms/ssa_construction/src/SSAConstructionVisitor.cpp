@@ -1,5 +1,7 @@
 #include "SSAConstructionVisitor.hpp"
 
+#include "llvm/IR/User.h"
+
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
@@ -13,6 +15,77 @@ namespace llvm::memoir {
     println("Type error:\n  ", I);                                             \
     MEMOIR_UNREACHABLE("Invalid type!");                                       \
   }
+
+namespace detail {
+
+bool value_is_mutated(llvm::Value &V) {
+  for (auto &use : V.uses()) {
+    if (use_is_mutating(use)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+} // namespace detail
+
+bool use_is_mutating(llvm::Use &use, bool construct_use_phis) {
+  auto *name = use.get();
+  auto *def = use.getUser();
+  if (auto *def_as_inst = dyn_cast<llvm::Instruction>(def)) {
+    auto *memoir_inst = MemOIRInst::get(*def_as_inst);
+    if (!memoir_inst) {
+      return false;
+    }
+
+    // Skip non-mutators.
+    if (!isa<MutInst>(memoir_inst) && !isa<AccessInst>(memoir_inst)
+        && !isa<FoldInst>(memoir_inst) && !isa<InsertInst>(memoir_inst)
+        && !isa<RemoveInst>(memoir_inst)) {
+      return false;
+    }
+
+    // Only enable read instructions if UsePHIs are enabled.
+    if (isa<ReadInst>(memoir_inst) or isa<GetInst>(memoir_inst)
+        or isa<HasInst>(memoir_inst)) {
+      if (not construct_use_phis) {
+        return false;
+      }
+    }
+
+    // If the value is closed on by the FoldInst, it will be redefined by
+    // a RetPHI.
+    if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
+      if (auto closed_kw = fold->getClosed()) {
+        // Check if the use is within the closed operand list.
+        if (use.getOperandNo() < closed_kw->getAsUse().getOperandNo()) {
+          return false;
+        }
+
+        auto &closed_arg = fold->getClosedArgument(use);
+        if (detail::value_is_mutated(closed_arg)) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    // If the value is used in an input keyword.
+    if (auto input_kw = memoir_inst->get_keyword<InputKeyword>()) {
+      if (&input_kw->getInputAsUse() == &use) {
+        return false;
+      }
+    }
+
+    // If we made it this far, then the use is mutating.
+    return true;
+  }
+
+  // Non-instruction uses are fake!
+  return false;
+}
 
 llvm::Value *SSAConstructionVisitor::update_reaching_definition(
     llvm::Value *variable,
@@ -75,7 +148,9 @@ llvm::Value *SSAConstructionVisitor::update_reaching_definition(
 
   } while (reaching_variable != nullptr && reaching_variable != variable);
 
-  this->reaching_definitions[variable] = reaching_variable;
+  if (reaching_variable != nullptr) {
+    this->reaching_definitions[variable] = reaching_variable;
+  }
 
   return reaching_variable;
 }
@@ -113,6 +188,43 @@ void SSAConstructionVisitor::mark_for_cleanup(MemOIRInst &I) {
   this->mark_for_cleanup(I.getCallInst());
 }
 
+void SSAConstructionVisitor::prepare_keywords(MemOIRBuilder &builder,
+                                              MemOIRInst &I,
+                                              Type *element_type) {
+  // Prepare each keyword.
+  for (auto kw : I.keywords()) {
+    if (auto value_kw = try_cast<ValueKeyword>(kw)) {
+      // Coerce the value to the correct type.
+      MEMOIR_ASSERT(element_type,
+                    "Cannot prepare ValueKeyword with no element type");
+      MEMOIR_ASSERT(
+          Type::is_primitive_type(*element_type),
+          "Invalid use of 'value' keyword with non-primitive element type");
+
+      auto *llvm_type = element_type->get_llvm_type(builder.getContext());
+
+      // Coerce the value, if necessary.
+      auto *value = &value_kw->getValue();
+      if (isa<llvm::IntegerType>(llvm_type)) {
+        value = builder.CreateZExtOrTrunc(value, llvm_type, "coerce.");
+      } else if (llvm_type->isFloatingPointTy()) {
+        value = builder.CreateFPCast(value, llvm_type, "coerce.");
+      }
+
+      value_kw->getValueAsUse().set(value);
+
+    } else if (auto input_kw = try_cast<InputKeyword>(kw)) {
+      // Update the reaching definition of the input collection.
+      auto *input_orig = &input_kw->getInput();
+      auto *input_curr = update_reaching_definition(input_orig, I);
+
+      input_kw->getInputAsUse().set(input_curr);
+    }
+  }
+
+  return;
+}
+
 SSAConstructionVisitor::SSAConstructionVisitor(
     llvm::DominatorTree &DT,
     ordered_set<llvm::Value *> memoir_names,
@@ -133,7 +245,7 @@ void SSAConstructionVisitor::visitInstruction(llvm::Instruction &I) {
 
   for (auto &operand_use : I.operands()) {
     auto *operand_value = operand_use.get();
-    if (not Type::value_is_collection_type(*operand_value)) {
+    if (not Type::value_is_object(*operand_value)) {
       continue;
     }
 
@@ -141,7 +253,7 @@ void SSAConstructionVisitor::visitInstruction(llvm::Instruction &I) {
     operand_use.set(reaching_operand);
   }
 
-  if (Type::value_is_collection_type(I)) {
+  if (Type::value_is_object(I)) {
     this->set_reaching_definition(&I, &I);
   }
 
@@ -174,7 +286,7 @@ void SSAConstructionVisitor::visitPHINode(llvm::PHINode &I) {
 void SSAConstructionVisitor::visitLLVMCallInst(llvm::CallInst &I) {
   for (auto &arg_use : I.data_ops()) {
     auto *arg_value = arg_use.get();
-    if (not Type::value_is_collection_type(*arg_value)) {
+    if (not Type::value_is_object(*arg_value)) {
       continue;
     }
 
@@ -194,7 +306,7 @@ void SSAConstructionVisitor::visitLLVMCallInst(llvm::CallInst &I) {
 
   // Create a new reaching definition for the returned value, if it's a MEMOIR
   // collection.
-  if (Type::value_is_collection_type(I)) {
+  if (Type::value_is_object(I)) {
     this->set_reaching_definition(&I, &I);
   }
 
@@ -205,8 +317,7 @@ void SSAConstructionVisitor::visitReturnInst(llvm::ReturnInst &I) {
 
   // If the returned value is a collection:
   auto *return_value = I.getReturnValue();
-  if (return_value != nullptr
-      and Type::value_is_collection_type(*return_value)) {
+  if (return_value != nullptr and Type::value_is_object(*return_value)) {
 
     // Update the reaching definition of the return value.
     auto *return_reaching = update_reaching_definition(return_value, I);
@@ -226,7 +337,7 @@ void SSAConstructionVisitor::visitReturnInst(llvm::ReturnInst &I) {
   for (auto &A : function->args()) {
 
     // Skip non-collection arguments.
-    if (not Type::value_is_collection_type(A)) {
+    if (not Type::value_is_object(A)) {
       continue;
     }
 
@@ -256,7 +367,7 @@ void SSAConstructionVisitor::visitReturnInst(llvm::ReturnInst &I) {
 void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
 
   // Update the reaching definition for the collection operand.
-  auto &collection_use = I.getCollectionAsUse();
+  auto &collection_use = I.getObjectAsUse();
   auto *reaching_collection =
       update_reaching_definition(collection_use.get(), I);
   collection_use.set(reaching_collection);
@@ -264,75 +375,72 @@ void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
   // Update the reaching definitions for the initial value, if it is a
   // collection.
   auto &initial = I.getInitial();
-  if (Type::value_is_collection_type(initial)) {
+  if (Type::value_is_object(initial)) {
     auto *reaching = update_reaching_definition(&initial, I);
     I.getInitialAsUse().set(reaching);
   }
 
   // For each of the closed collections:
-  for (unsigned closed_idx = 0; closed_idx < I.getNumberOfClosed();
-       ++closed_idx) {
-    auto &closed_use = I.getClosedAsUse(closed_idx);
-    auto *closed = closed_use.get();
+  if (auto closed_keyword = I.get_keyword<ClosedKeyword>()) {
+    for (auto &closed_use : closed_keyword->arg_operands()) {
+      auto *closed = closed_use.get();
 
-    // If the closed value is not a collection type, skip it.
-    if (not Type::value_is_collection_type(*closed)) {
-      continue;
+      // Update the argument to match the function being called.
+      auto &closed_param = I.getClosedArgument(closed_use);
+      if (closed_param.getType() != closed->getType()) {
+        auto *param_type = closed_param.getType();
+        auto *val_type = closed->getType();
+
+        MemOIRBuilder builder(I);
+
+        if (isa<llvm::IntegerType>(param_type)) {
+          if (isa<llvm::IntegerType>(val_type)) {
+            // TODO: look at the closed value to see if we can determine whether
+            // to sign- or zero-extend
+            bool is_signed = false;
+            closed = builder.CreateIntCast(closed, param_type, is_signed);
+            closed_use.set(closed);
+          }
+        }
+      }
+
+      // If the closed value is not a collection type, skip it.
+      if (not Type::value_is_object(*closed)) {
+        continue;
+      }
+
+      // Update the use to use the current reaching definition.
+      auto *reaching = update_reaching_definition(closed, I);
+      closed_use.set(reaching);
+
+      // If the use is mutating, create a RET-PHI and update the reaching
+      // definition.
+      if (use_is_mutating(closed_use, this->construct_use_phis)) {
+
+        // Insert a RetPHI for the fold operation.
+        MemOIRBuilder builder(I, true);
+        auto *function = I.getCallInst().getCalledFunction();
+        auto *ret_phi = builder.CreateRetPHI(reaching, function);
+        auto *ret_phi_value = &ret_phi->getResultCollection();
+
+        // Update the reaching definitions.
+        this->set_reaching_definition(closed, ret_phi_value);
+        this->set_reaching_definition(ret_phi_value, reaching);
+      }
     }
-
-    // Update the use to use the current reaching definition.
-    auto *reaching = update_reaching_definition(closed, I);
-    closed_use.set(reaching);
-
-    // Inspec the called function, and see if there are any live-out values.
-
-    // Insert a RetPHI for the fold operation.
-    MemOIRBuilder builder(I, true);
-    auto *function = I.getCallInst().getCalledFunction();
-    auto *ret_phi = builder.CreateRetPHI(reaching, function);
-    auto *ret_phi_value = &ret_phi->getResultCollection();
-
-    // Update the reaching definitions.
-    this->set_reaching_definition(closed, ret_phi_value);
-    this->set_reaching_definition(ret_phi_value, reaching);
   }
 
   // Create a new reaching definition for the returned value, if it's a MEMOIR
   // collection.
   auto &result = I.getResult();
-  if (Type::value_is_collection_type(result)) {
+  if (Type::value_is_object(result)) {
     this->set_reaching_definition(&result, &result);
   }
 
   return;
 }
 
-void SSAConstructionVisitor::visitMutClearInst(MutClearInst &I) {
-
-  MemOIRBuilder builder(I);
-
-  // Split the live range of the collection being written.
-  auto *collection_orig = &I.getCollection();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-
-  // Create IndexWriteInst.
-  auto *clear = builder.CreateClearInst(collection_value);
-
-  // Update the reaching definitions.
-  this->set_reaching_definition(collection_orig, clear);
-  this->set_reaching_definition(clear, collection_value);
-
-  // Mark old instruction for cleanup.
-  this->mark_for_cleanup(I);
-
-  return;
-}
-
 void SSAConstructionVisitor::visitUsePHIInst(UsePHIInst &I) {
-  return;
-}
-
-void SSAConstructionVisitor::visitDefPHIInst(DefPHIInst &I) {
   return;
 }
 
@@ -344,57 +452,26 @@ void SSAConstructionVisitor::visitRetPHIInst(RetPHIInst &I) {
   return;
 }
 
-void SSAConstructionVisitor::visitMutStructWriteInst(MutStructWriteInst &I) {
-  // NOTE: this is currently a direct translation to StructWriteInst, when we
-  // update to use FieldArrays explicitly, this is where they will need to be
-  // constructed.
+// Update instructions
+void SSAConstructionVisitor::visitMutWriteInst(MutWriteInst &I) {
   MemOIRBuilder builder(I);
 
-  // Fetch type information.
-  // auto *type = type_of(I.getObjectOperand());
-  // MEMOIR_NULL_CHECK(type, "Couldn't determine type of MutStructWriteInst!");
-  // auto *struct_type = dyn_cast<StructType>(type);
-  // MEMOIR_NULL_CHECK(struct_type,
-  //                   "MutStructWriteInst not operating on a struct type");
-  // auto *field_type = &struct_type->getFieldType(I.getFieldIndex());
-  auto *field_type = &I.getElementType();
-
   // Split the live range of the collection being written.
-  // NOTE: this is only necessary when we are using Field Arrays explicitly.
+  auto *orig = &I.getObject();
+  auto *curr = update_reaching_definition(orig, I);
+
+  // Collect the extra arguments for the write instruction.
+  vector<llvm::Value *> arguments(I.indices_begin(), I.indices_end());
 
   // Create IndexWriteInst.
-  builder.CreateStructWriteInst(*field_type,
-                                &I.getValueWritten(),
-                                &I.getObjectOperand(),
-                                &I.getFieldIndexOperand(),
-                                I.getSubIndices());
-
-  // Mark old instruction for cleanup.
-  this->mark_for_cleanup(I);
-
-  return;
-}
-
-void SSAConstructionVisitor::visitMutIndexWriteInst(MutIndexWriteInst &I) {
-  MemOIRBuilder builder(I);
-
-  // Fetch type information.
-  auto *element_type = &I.getElementType();
-
-  // Split the live range of the collection being written.
-  auto *collection_orig = &I.getObjectOperand();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-
-  // Create IndexWriteInst.
-  auto *ssa_write = builder.CreateIndexWriteInst(*element_type,
-                                                 &I.getValueWritten(),
-                                                 collection_value,
-                                                 &I.getIndex(),
-                                                 I.getSubIndices());
+  auto *redef = builder.CreateWriteInst(I.getElementType(),
+                                        &I.getValueWritten(),
+                                        curr,
+                                        arguments);
 
   // Update the reaching definitions.
-  this->set_reaching_definition(collection_orig, ssa_write);
-  this->set_reaching_definition(ssa_write, collection_value);
+  this->set_reaching_definition(orig, redef);
+  this->set_reaching_definition(redef, curr);
 
   // Mark old instruction for cleanup.
   this->mark_for_cleanup(I);
@@ -402,157 +479,27 @@ void SSAConstructionVisitor::visitMutIndexWriteInst(MutIndexWriteInst &I) {
   return;
 }
 
-void SSAConstructionVisitor::visitMutAssocWriteInst(MutAssocWriteInst &I) {
-  MemOIRBuilder builder(I);
-
-  // Fetch type information.
-  // auto *type = type_of(I.getObjectOperand());
-  // MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
-  // auto *collection_type = dyn_cast<CollectionType>(type);
-  // MEMOIR_NULL_CHECK(collection_type,
-  //                   "seq_insert not operating on a collection type");
-  // auto *element_type = &collection_type->getElementType();
-  auto *element_type = &I.getElementType();
-
-  // Split the live range of the collection being written.
-  auto *collection_orig = &I.getObjectOperand();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-
-  // Create AssocWriteInst.
-  auto *def_phi_value = builder.CreateAssocWriteInst(*element_type,
-                                                     &I.getValueWritten(),
-                                                     collection_value,
-                                                     &I.getKeyOperand(),
-                                                     I.getSubIndices());
-
-  // Update the reaching definitions.
-  this->set_reaching_definition(collection_orig, def_phi_value);
-  this->set_reaching_definition(def_phi_value, collection_value);
-
-  // Mark old instruction for cleanup.
-  this->mark_for_cleanup(I);
-
-  return;
-}
-
-void SSAConstructionVisitor::visitIndexReadInst(IndexReadInst &I) {
-  // Split the live range of the collection being read.
-  auto *collection_orig = &I.getObjectOperand();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-
-  // Update the read to operate on the reaching definition.
-  I.getObjectOperandAsUse().set(collection_value);
-
-  if (this->construct_use_phis) {
-    MemOIRBuilder builder(I, true);
-
-    // Build a UsePHI for the instruction.
-    auto *use_phi = builder.CreateUsePHI(collection_value);
-    auto *use_phi_value = &use_phi->getResultCollection();
-
-    // Set the UseInst for the UsePHI.
-    // use_phi->setUseInst(I);
-
-    // Update the reaching definitions.
-    this->set_reaching_definition(collection_orig, use_phi_value);
-    this->set_reaching_definition(use_phi_value, collection_value);
-  }
-
-  return;
-}
-
-void SSAConstructionVisitor::visitAssocReadInst(AssocReadInst &I) {
-  // Split the live range of the collection being read.
-  auto *collection_orig = &I.getObjectOperand();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-
-  // Update the read to operate on the reaching definition.
-  I.getObjectOperandAsUse().set(collection_value);
-
-  if (this->construct_use_phis) {
-    MemOIRBuilder builder(I, true);
-
-    // Build a UsePHI for the instruction.
-    auto *use_phi = builder.CreateUsePHI(collection_value);
-    auto *use_phi_value = &use_phi->getResultCollection();
-
-    // Set the UseInst for the UsePHI.
-    // use_phi->setUseInst(I);
-
-    // Update the reaching definitions.
-    this->set_reaching_definition(collection_orig, use_phi_value);
-    this->set_reaching_definition(use_phi_value, collection_value);
-  }
-
-  return;
-}
-
-void SSAConstructionVisitor::visitIndexGetInst(IndexGetInst &I) {
-  // Split the live range of the collection being read.
-  auto *collection_orig = &I.getObjectOperand();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-
-  // Update the read to operate on the reaching definition.
-  I.getObjectOperandAsUse().set(collection_value);
-
-  if (this->construct_use_phis) {
-    MemOIRBuilder builder(I, true);
-
-    // Build a UsePHI for the instruction.
-    auto *use_phi = builder.CreateUsePHI(collection_value);
-    auto *use_phi_value = &use_phi->getResultCollection();
-
-    // Set the UseInst for the UsePHI.
-    // use_phi->setUseInst(I);
-
-    // Update the reaching definitions.
-    this->set_reaching_definition(collection_orig, use_phi_value);
-    this->set_reaching_definition(use_phi_value, collection_value);
-  }
-
-  return;
-}
-
-void SSAConstructionVisitor::visitAssocGetInst(AssocGetInst &I) {
-  // Split the live range of the collection being read.
-  auto *collection_orig = &I.getObjectOperand();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-
-  // Update the read to operate on the reaching definition.
-  I.getObjectOperandAsUse().set(collection_value);
-
-  if (this->construct_use_phis) {
-    MemOIRBuilder builder(I, true);
-
-    // Build a UsePHI for the instruction.
-    auto *use_phi = builder.CreateUsePHI(collection_value);
-    auto *use_phi_value = &use_phi->getResultCollection();
-
-    // Set the UseInst for the UsePHI.
-    // use_phi->setUseInst(I);
-
-    // Update the reaching definitions.
-    this->set_reaching_definition(collection_orig, use_phi_value);
-    this->set_reaching_definition(use_phi_value, collection_value);
-  }
-
-  return;
-}
-
-void SSAConstructionVisitor::visitMutSeqInsertInst(MutSeqInsertInst &I) {
+void SSAConstructionVisitor::visitMutInsertInst(MutInsertInst &I) {
   MemOIRBuilder builder(I);
 
   // Fetch operand information.
-  auto *collection_orig = &I.getCollection();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-  auto *index_value = &I.getInsertionPoint();
+  auto *orig = &I.getObject();
+  auto *curr = update_reaching_definition(orig, I);
+
+  // Handle keywords.
+  this->prepare_keywords(builder, I, &I.getElementType());
+
+  // Collect the arguments.
+  vector<llvm::Value *> arguments(
+      llvm::User::value_op_iterator(std::next(&I.getObjectAsUse())),
+      llvm::User::value_op_iterator(I.getCallInst().arg_end()));
 
   // Create SeqInsertInst.
-  auto *ssa_insert = builder.CreateSeqInsertInst(collection_value, index_value);
+  auto *redef = builder.CreateInsertInst(curr, arguments);
 
   // Update reaching definitions.
-  this->set_reaching_definition(collection_orig, ssa_insert);
-  this->set_reaching_definition(ssa_insert, collection_value);
+  this->set_reaching_definition(orig, redef);
+  this->set_reaching_definition(redef, curr);
 
   // Mark old instruction for cleanup.
   this->mark_for_cleanup(I);
@@ -560,33 +507,24 @@ void SSAConstructionVisitor::visitMutSeqInsertInst(MutSeqInsertInst &I) {
   return;
 }
 
-void SSAConstructionVisitor::visitMutSeqInsertValueInst(
-    MutSeqInsertValueInst &I) {
+void SSAConstructionVisitor::visitMutRemoveInst(MutRemoveInst &I) {
   MemOIRBuilder builder(I);
 
-  // Fetch type information.
-  auto *type = type_of(I.getCollection());
-  MEMOIR_NULL_CHECK(type, "Couldn't determine type of seq_insert!");
-  auto *collection_type = dyn_cast<CollectionType>(type);
-  MEMOIR_NULL_CHECK(collection_type,
-                    "seq_insert not operating on a collection type");
-  auto &element_type = collection_type->getElementType();
+  // Fetch the reaching definition.
+  auto *orig = &I.getObject();
+  auto *curr = update_reaching_definition(orig, I);
 
-  // Fetch operand information.
-  auto *collection_orig = &I.getCollection();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-  auto *write_value = &I.getValueInserted();
-  auto *index_value = &I.getInsertionPoint();
+  this->prepare_keywords(builder, I, &I.getElementType());
 
-  // Create SeqInsertValueInst.
-  auto *ssa_insert = builder.CreateSeqInsertValueInst(element_type,
-                                                      write_value,
-                                                      collection_value,
-                                                      index_value);
+  vector<llvm::Value *> arguments(
+      llvm::User::value_op_iterator(std::next(&I.getObjectAsUse())),
+      llvm::User::value_op_iterator(I.getCallInst().arg_end()));
+
+  auto *redef = builder.CreateRemoveInst(curr, arguments);
 
   // Update reaching definitions.
-  this->set_reaching_definition(collection_orig, ssa_insert);
-  this->set_reaching_definition(ssa_insert, collection_value);
+  this->set_reaching_definition(orig, redef);
+  this->set_reaching_definition(redef, curr);
 
   // Mark old instruction for cleanup.
   this->mark_for_cleanup(I);
@@ -594,180 +532,20 @@ void SSAConstructionVisitor::visitMutSeqInsertValueInst(
   return;
 }
 
-void SSAConstructionVisitor::visitMutSeqInsertSeqInst(MutSeqInsertSeqInst &I) {
+void SSAConstructionVisitor::visitMutClearInst(MutClearInst &I) {
   MemOIRBuilder builder(I);
 
-  auto *collection_orig = &I.getCollection();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-  auto *insert_orig = &I.getInsertedCollection();
-  auto *insert_value = update_reaching_definition(insert_orig, I);
-  auto *index_value = &I.getInsertionPoint();
+  // Split the live range of the collection being written.
+  auto *orig = &I.getObject();
+  auto *curr = update_reaching_definition(orig, I);
 
-  // Create SeqInsertSeqInst.
-  auto *ssa_insert = builder.CreateSeqInsertSeqInst(insert_value,
-                                                    collection_value,
-                                                    index_value,
-                                                    "seq.insert.");
+  vector<llvm::Value *> arguments(I.indices_begin(), I.indices_end());
 
-  // Update reaching definitions.
-  this->set_reaching_definition(collection_orig, ssa_insert);
-  this->set_reaching_definition(ssa_insert, collection_value);
-
-  // Mark old instructions for cleanup.
-  this->mark_for_cleanup(I);
-
-  return;
-}
-
-void SSAConstructionVisitor::visitMutSeqRemoveInst(MutSeqRemoveInst &I) {
-  MemOIRBuilder builder(I);
-
-  auto *collection_orig = &I.getCollection();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-  auto *begin_value = &I.getBeginIndex();
-  auto *end_value = &I.getEndIndex();
-
-  // Create SeqRemoveInst.
-  auto *ssa_remove = builder.CreateSeqRemoveInst(collection_value,
-                                                 begin_value,
-                                                 end_value,
-                                                 "seq.remove.");
-
-  // Update reaching definitions.
-  this->set_reaching_definition(collection_orig, ssa_remove);
-  this->set_reaching_definition(ssa_remove, collection_value);
-
-  // Mark old instruction for cleanup.
-  this->mark_for_cleanup(I);
-
-  return;
-}
-
-void SSAConstructionVisitor::visitMutSeqAppendInst(MutSeqAppendInst &I) {
-  MemOIRBuilder builder(I);
-
-  auto *collection_orig = &I.getCollection();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-  auto *appended_collection_orig = &I.getAppendedCollection();
-  auto *appended_collection_value =
-      update_reaching_definition(appended_collection_orig, I);
-
-  // Create EndInst.
-  auto *end = builder.CreateEndInst("seq.end.");
-
-  // Create SeqInsertSeqInst.
-  auto *ssa_append = builder.CreateSeqInsertSeqInst(appended_collection_value,
-                                                    collection_value,
-                                                    &end->getCallInst(),
-                                                    "seq.append.");
-
-  // Update reaching definitions.
-  this->set_reaching_definition(collection_orig, ssa_append);
-  this->set_reaching_definition(ssa_append, collection_value);
-
-  // Mark old instruction for cleanup.
-  this->mark_for_cleanup(I);
-
-  return;
-}
-
-void SSAConstructionVisitor::visitMutSeqSwapInst(MutSeqSwapInst &I) {
-  MemOIRBuilder builder(I);
-
-  auto *from_collection_orig = &I.getFromCollection();
-  auto *from_collection_value =
-      update_reaching_definition(from_collection_orig, I);
-  auto *from_begin_value = &I.getBeginIndex();
-  auto *from_end_value = &I.getEndIndex();
-  auto *to_collection_orig = &I.getToCollection();
-  auto *to_collection_value = update_reaching_definition(to_collection_orig, I);
-  auto *to_begin_value = &I.getToBeginIndex();
-
-  // Create SeqSwapInst
-  auto *ssa_swap = builder.CreateSeqSwapInst(from_collection_value,
-                                             from_begin_value,
-                                             from_end_value,
-                                             to_collection_value,
-                                             to_begin_value,
-                                             "seq.swap.");
-
-  // Extract the FROM and TO collections
-  auto *ssa_from_collection =
-      builder.CreateExtractValue(&ssa_swap->getCallInst(),
-                                 llvm::ArrayRef<unsigned>({ 0 }),
-                                 "seq.swap.from.");
-  auto *ssa_to_collection =
-      builder.CreateExtractValue(&ssa_swap->getCallInst(),
-                                 llvm::ArrayRef<unsigned>({ 1 }),
-                                 "seq.swap.to.");
+  auto *redef = builder.CreateClearInst(curr, arguments);
 
   // Update the reaching definitions.
-  this->set_reaching_definition(from_collection_orig, ssa_from_collection);
-  this->set_reaching_definition(ssa_from_collection, from_collection_value);
-
-  this->set_reaching_definition(to_collection_orig, ssa_to_collection);
-  this->set_reaching_definition(ssa_to_collection, to_collection_value);
-
-  // Mark instruction for cleanup.
-  this->mark_for_cleanup(I);
-
-  return;
-}
-
-void SSAConstructionVisitor::visitMutSeqSwapWithinInst(
-    MutSeqSwapWithinInst &I) {
-  MemOIRBuilder builder(I);
-
-  auto *from_collection_orig = &I.getFromCollection();
-  auto *from_collection_value =
-      update_reaching_definition(from_collection_orig, I);
-  auto *from_begin_value = &I.getBeginIndex();
-  auto *from_end_value = &I.getEndIndex();
-  auto *to_begin_value = &I.getToBeginIndex();
-
-  // Create SeqSwapWithinInst
-  auto *ssa_from_collection =
-      builder.CreateSeqSwapWithinInst(from_collection_value,
-                                      from_begin_value,
-                                      from_end_value,
-                                      to_begin_value,
-                                      "seq.swap.");
-
-  // Update the reaching definitions.
-  this->set_reaching_definition(from_collection_orig, ssa_from_collection);
-  this->set_reaching_definition(ssa_from_collection, from_collection_value);
-
-  // Mark instruction for cleanup.
-  this->mark_for_cleanup(I);
-
-  return;
-}
-
-void SSAConstructionVisitor::visitMutSeqSplitInst(MutSeqSplitInst &I) {
-  MemOIRBuilder builder(I);
-
-  auto *split_value = &I.getSplit();
-  auto *collection_orig = &I.getCollection();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
-  auto *begin_value = &I.getBeginIndex();
-  auto *end_value = &I.getEndIndex();
-
-  // Create SeqCopy
-  auto *ssa_split = builder.CreateSeqCopyInst(collection_value,
-                                              begin_value,
-                                              end_value,
-                                              "seq.split.");
-
-  // Create SeqRemove
-  auto *ssa_remaining = builder.CreateSeqRemoveInst(collection_value,
-                                                    begin_value,
-                                                    end_value,
-                                                    "seq.split.remaining.");
-
-  // Update reaching definitions.
-  this->set_reaching_definition(split_value, ssa_split);
-  this->set_reaching_definition(collection_orig, ssa_remaining);
-  this->set_reaching_definition(ssa_remaining, collection_value);
+  this->set_reaching_definition(orig, redef);
+  this->set_reaching_definition(redef, curr);
 
   // Mark old instruction for cleanup.
   this->mark_for_cleanup(I);
@@ -775,73 +553,72 @@ void SSAConstructionVisitor::visitMutSeqSplitInst(MutSeqSplitInst &I) {
   return;
 }
 
-void SSAConstructionVisitor::visitAssocHasInst(AssocHasInst &I) {
-  // Split the live range of the collection being accessed.
-  auto *collection_orig = &I.getObjectOperand();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
+// Access instructions
+void SSAConstructionVisitor::visitReadInst(ReadInst &I) {
+  // Split the live range of the collection being read.
+  auto *orig = &I.getObject();
+  auto *curr = update_reaching_definition(orig, I);
 
-  // Update the write to operate on the reaching definition.
-  I.getObjectOperandAsUse().set(collection_value);
+  // Update the read to operate on the reaching definition.
+  I.getObjectAsUse().set(curr);
 
   if (this->construct_use_phis) {
     MemOIRBuilder builder(I, true);
 
     // Build a UsePHI for the instruction.
-    auto *use_phi = builder.CreateUsePHI(collection_value);
-    auto *use_phi_value = &use_phi->getUsedCollection();
+    auto *use_phi = builder.CreateUsePHI(curr);
+    auto *use_phi_value = &use_phi->getResultCollection();
 
     // Update the reaching definitions.
-    this->set_reaching_definition(collection_orig, use_phi_value);
-    this->set_reaching_definition(use_phi_value, collection_value);
+    this->set_reaching_definition(orig, use_phi_value);
+    this->set_reaching_definition(use_phi_value, curr);
   }
 
   return;
 }
 
-void SSAConstructionVisitor::visitMutAssocRemoveInst(MutAssocRemoveInst &I) {
-  MemOIRBuilder builder(I);
+void SSAConstructionVisitor::visitGetInst(GetInst &I) {
+  // Split the live range of the collection being read.
+  auto *orig = &I.getObject();
+  auto *curr = update_reaching_definition(orig, I);
 
-  // Split the live range of the collection being written.
-  auto *collection_orig = &I.getCollection();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
+  // Update the read to operate on the reaching definition.
+  I.getObjectAsUse().set(curr);
 
-  // Update the write to operate on the reaching definition.
-  I.getCollectionAsUse().set(collection_value);
+  if (this->construct_use_phis) {
+    MemOIRBuilder builder(I, true);
 
-  // Replace the MUT operation with its SSA form.
-  auto *ssa_remove =
-      builder.CreateAssocRemoveInst(collection_value, &I.getKeyOperand());
-  auto *ssa_remove_value = &ssa_remove->getCallInst();
+    // Build a UsePHI for the instruction.
+    auto *use_phi = builder.CreateUsePHI(curr);
+    auto *use_phi_value = &use_phi->getResultCollection();
 
-  // Update the reaching definitions.
-  this->set_reaching_definition(collection_orig, ssa_remove_value);
-  this->set_reaching_definition(ssa_remove_value, collection_value);
-
-  this->mark_for_cleanup(I);
+    // Update the reaching definitions.
+    this->set_reaching_definition(orig, use_phi_value);
+    this->set_reaching_definition(use_phi_value, curr);
+  }
 
   return;
 }
 
-void SSAConstructionVisitor::visitMutAssocInsertInst(MutAssocInsertInst &I) {
-  MemOIRBuilder builder(I);
+void SSAConstructionVisitor::visitHasInst(HasInst &I) {
+  // Split the live range of the collection being read.
+  auto *orig = &I.getObject();
+  auto *curr = update_reaching_definition(orig, I);
 
-  // Split the live range of the collection being written.
-  auto *collection_orig = &I.getCollection();
-  auto *collection_value = update_reaching_definition(collection_orig, I);
+  // Update the read to operate on the reaching definition.
+  I.getObjectAsUse().set(curr);
 
-  // Update the write to operate on the reaching definition.
-  I.getCollectionAsUse().set(collection_value);
+  if (this->construct_use_phis) {
+    MemOIRBuilder builder(I, true);
 
-  // Replace the MUT operation with its SSA form.
-  auto *ssa_insert =
-      builder.CreateAssocInsertInst(collection_value, &I.getKeyOperand());
-  auto *ssa_insert_value = &ssa_insert->getCallInst();
+    // Build a UsePHI for the instruction.
+    auto *use_phi = builder.CreateUsePHI(curr);
+    auto *use_phi_value = &use_phi->getResultCollection();
 
-  // Update the reaching definitions.
-  this->set_reaching_definition(collection_orig, ssa_insert_value);
-  this->set_reaching_definition(ssa_insert_value, collection_value);
-
-  this->mark_for_cleanup(I);
+    // Update the reaching definitions.
+    this->set_reaching_definition(orig, use_phi_value);
+    this->set_reaching_definition(use_phi_value, curr);
+  }
 
   return;
 }

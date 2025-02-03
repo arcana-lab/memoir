@@ -44,9 +44,7 @@ void _gather_reaching_definitions(llvm::Value &V,
 
     if (auto *memoir_inst = into<MemOIRInst>(user)) {
 
-      if (isa<WriteInst>(memoir_inst) or isa<InsertInst>(memoir_inst)
-          or isa<RemoveInst>(memoir_inst) or isa<SwapInst>(memoir_inst)
-          or isa<RetPHIInst>(memoir_inst) or isa<DefPHIInst>(memoir_inst)
+      if (isa<UpdateInst>(memoir_inst) or isa<RetPHIInst>(memoir_inst)
           or isa<UsePHIInst>(memoir_inst)) {
 
         // Merge the user with the reaching definitions of the value.
@@ -183,8 +181,12 @@ llvm::PreservedAnalyses LiveOutInsertionPass::run(
     }
 
     if (not postdominates) {
+      println(*arg->getParent());
       MEMOIR_UNREACHABLE("Failed to find a value that dominates function exit "
-                         "and postdominates all others.");
+                         "and postdominates all others for argument ",
+                         *arg,
+                         " in ",
+                         arg->getParent()->getName());
     }
 
     // Insert the live out metadata.
