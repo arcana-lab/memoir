@@ -77,10 +77,10 @@ HANDLE_READ_INST_(READ_PTR, MEMOIR_FUNC(read_ptr), ReadInst)
 HANDLE_READ_INST_(READ_REF, MEMOIR_FUNC(read_ref), ReadInst)
 
 HANDLE_ACCESS_INST_(GET, MEMOIR_FUNC(get), GetInst)
+HANDLE_ACCESS_INST_(SIZE, MEMOIR_FUNC(size), SizeInst)
 
 /* Collection operations */
 HANDLE_INST_(DELETE, MEMOIR_FUNC(delete), DeleteInst)
-HANDLE_INST_(SIZE, MEMOIR_FUNC(size), SizeInst)
 HANDLE_INST_(END, MEMOIR_FUNC(end), EndInst)
 
 /* Update operations */
