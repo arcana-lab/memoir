@@ -42,8 +42,10 @@ done
 # TODO: make this load folio and add the pass.
 if [ -z ${DISABLE_FOLIO} ]
 then
-    folio ${IR_FILE} -o ${IR_FILE}
+    memoir-load -load-pass-plugin=$(memoir-config --libdir)/folio.so -passes=folio-selection,lower-memoir ${ARGS[@]}    
+else
+    memoir-load -passes=lower-memoir ${ARGS[@]}    
 fi
 
 # Lower MEMOIR to LLVM.
-memoir-load -passes=lower-memoir ${ARGS[@]}
+
