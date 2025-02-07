@@ -72,7 +72,9 @@ void link_implementation(ImplLinker &IL,
     const Implementation *impl = nullptr;
     if (selection.has_value()) {
       auto selected_name = selection->getImplementation(selection_index++);
-      impl = Implementation::lookup(selected_name);
+      if (selected_name.has_value()) {
+        impl = Implementation::lookup(selected_name.value());
+      }
     }
 
     // Get the default implementation if none was selected.
