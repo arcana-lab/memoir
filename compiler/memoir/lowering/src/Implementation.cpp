@@ -80,7 +80,10 @@ Instantiation &Implementation::instantiate(Type &type) const {
   // Match the type against the template.
   AssocList<TypeVariable *, Type *> environment = {};
   MEMOIR_ASSERT(this->match(type, &environment),
-                "Failed to match implementation template");
+                "Failed to match ",
+                this->get_name(),
+                " with ",
+                type);
 
   // If we succeeded, then construct the instantiation object and return it.
   return Instantiation::instantiate(this->get_name(),
