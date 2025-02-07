@@ -7,11 +7,7 @@
 #include "memoir/lowering/TypeLayout.hpp"
 
 // Default implementations
-#ifdef BOOST_INCLUDE_DIR
-#  define ASSOC_IMPL "index_map"
-#else
-#  define ASSOC_IMPL "stl_unordered_map"
-#endif
+#define ASSOC_IMPL "stl_unordered_map"
 #ifdef BOOST_INCLUDE_DIR
 #  define SET_IMPL "boost_flat_set"
 #else
