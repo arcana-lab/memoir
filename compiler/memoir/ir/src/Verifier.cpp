@@ -260,7 +260,8 @@ bool verify_linearity(llvm::Function &F, LivenessResult &LR) {
 // Top-level queries.
 bool Verifier::verify(llvm::Function &F, llvm::FunctionAnalysisManager &FAM) {
   // First, have LLVM verify that this is a valid LLVM function.
-  if (llvm::verifyFunction(F)) {
+  if (llvm::verifyFunction(F, &llvm::errs())) {
+    println("LLVM Verifier failed on ", F.getName());
     return true;
   }
 
@@ -280,7 +281,8 @@ bool Verifier::verify(llvm::Function &F, llvm::FunctionAnalysisManager &FAM) {
 
 bool Verifier::verify(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
   // First, have LLVM verify that this is a valid LLVM module.
-  if (llvm::verifyModule(M)) {
+  if (llvm::verifyModule(M, &llvm::errs())) {
+    println("LLVM Verifier failed");
     return true;
   }
 
@@ -291,6 +293,7 @@ bool Verifier::verify(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
 
     // Verify the function.
     if (Verifier::verify(F, FAM)) {
+      println("MEMOIR Verifier failed on ", F.getName());
       return true;
     }
   }
