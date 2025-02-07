@@ -54,7 +54,9 @@ static auto adapt_loop(T &&lp) {
     return true;                                                               \
   }
 
-static void raise_memoir(llvm::ModulePassManager &MPM) {
+namespace llvm::memoir {
+
+void raise_memoir(llvm::ModulePassManager &MPM) {
   // always-inline
   MPM.addPass(llvm::AlwaysInlinerPass());
   // inline
@@ -107,7 +109,7 @@ static void raise_memoir(llvm::ModulePassManager &MPM) {
   return;
 }
 
-static void lower_memoir(llvm::ModulePassManager &MPM) {
+void lower_memoir(llvm::ModulePassManager &MPM) {
 
   // memoir-impl-linker
   MPM.addPass(ImplLinkerPass());
@@ -127,6 +129,8 @@ static void lower_memoir(llvm::ModulePassManager &MPM) {
   // global-dce
   MPM.addPass(llvm::GlobalDCEPass());
 }
+
+} // namespace llvm::memoir
 
 // Register the passes and pipelines with the new pass manager
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo

@@ -4,15 +4,18 @@
 #include "memoir/support/InternalDatatypes.hpp"
 #include "memoir/support/Print.hpp"
 
-#include "folio/analysis/ConstraintInference.hpp"
-#include "folio/analysis/ContentAnalysis.hpp"
-#include "folio/opportunities/Analysis.hpp"
-
 #include "folio/transforms/LambdaLifting.hpp"
+#include "folio/transforms/ProxyInsertion.hpp"
 #include "folio/transforms/SelectionMonomorphization.hpp"
 
-#include "folio/solver/Implementation.hpp"
-#include "folio/solver/Solver.hpp"
+#if 0
+#  include "folio/analysis/ConstraintInference.hpp"
+#  include "folio/analysis/ContentAnalysis.hpp"
+#  include "folio/opportunities/Analysis.hpp"
+
+#  include "folio/solver/Implementation.hpp"
+#  include "folio/solver/Solver.hpp"
+#endif
 
 #include "folio/pass/Pass.hpp"
 
@@ -20,6 +23,7 @@ using namespace llvm::memoir;
 
 namespace folio {
 
+#if 0
 namespace detail {
 
 void transform(llvm::Module &M,
@@ -69,12 +73,24 @@ void transform(llvm::Module &M,
 
 } // namespace detail
 
+#endif
+
 llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
                                        llvm::ModuleAnalysisManager &MAM) {
 
   // First, we will normalize the code such that memoir functions are called at
   // most once.
   LambdaLifting lifter(M);
+
+  // Insert proxies and encode uses.
+  ProxyInsertion proxies(M);
+
+  // Perform selection monomorphization.
+  SelectionMonomorphization monomorph(M);
+
+  return llvm::PreservedAnalyses::none();
+
+#if 0
 
   // Fetch the ConstraintInference results.
   auto &constraints = MAM.getResult<ConstraintInference>(M);
@@ -135,7 +151,7 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
   }
 
   // DEBUG: print the list of candidates.
-#if 0
+#  if 0
   auto candidate_index = 0;
   for (auto &candidate : solver.candidates()) {
     debugln("Candidate ", std::to_string(candidate_index++));
@@ -148,7 +164,7 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
     debugln("  ", std::to_string(num_exploited), " opportunities exploited.");
     debugln();
   }
-#endif
+#  endif
 
   // Select a candidate.
   Candidate *selected_candidate = nullptr;
@@ -173,8 +189,11 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
   // Transform the program to utilize the selected candidate.
   detail::transform(M, MAM, *selected_candidate);
 
+
   // All done.
   return llvm::PreservedAnalyses::none();
+
+#endif
 }
 
 } // namespace folio

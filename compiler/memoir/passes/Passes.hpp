@@ -17,6 +17,10 @@
 
 namespace llvm::memoir {
 
+void raise_memoir(llvm::ModulePassManager &MPM);
+
+void lower_memoir(llvm::ModulePassManager &MPM);
+
 #define PASS(SCOPE, CLASS, NAME, ARGS...)                                      \
   struct CLASS : public llvm::PassInfoMixin<CLASS> {                           \
     llvm::PreservedAnalyses run(llvm::SCOPE &,                                 \
