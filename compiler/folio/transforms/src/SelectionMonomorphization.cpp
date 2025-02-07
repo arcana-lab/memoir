@@ -18,11 +18,97 @@ using namespace llvm::memoir;
 
 namespace folio {
 
+using ImplList = vector<std::optional<std::string>>;
+struct Selections {
+
+  using ID = uint32_t;
+
+  // A mapping from implementation list to its unique identifier.
+  ordered_map<ImplList, ID> implementations;
+
+  // A multimapping from value to its implementations.
+  ordered_multimap<llvm::Value *, ID> selections;
+
+  // Returns TRUE if the value changed.
+  bool insert(llvm::Value &V, ID id) {
+    auto old_size = this->selections.size();
+    insert_unique(this->selections, &V, id);
+    return old_size != this->selections.size();
+  }
+
+  bool insert(llvm::Value &V, const ImplList &selection) {
+    ID id = this->implementations.size();
+    auto found = this->implementations.find(selection);
+    if (found != this->implementations.end()) {
+      id = found->second;
+    } else {
+      this->implementations[selection] = id;
+    }
+
+    return this->insert(V, id);
+  }
+
+  bool propagate(llvm::Value &from, llvm::Value &to) {
+    // Check for trivial cycles.
+    if (&from == &to) {
+      return false;
+    }
+
+    // Gather all of the selections of @from.
+    vector<ID> from_selections;
+    from_selections.reserve(this->selections.count(&from));
+    for (auto it = this->selections.lower_bound(&from);
+         it != this->selections.upper_bound(&from);
+         ++it) {
+      from_selections.push_back(it->second);
+    }
+
+    // Union the selections.
+    bool changed = false;
+    for (const auto &selection : from_selections) {
+      changed |= this->insert(to, selection);
+    }
+
+    return changed;
+  }
+
+  const ImplList &from_id(const ID &id) {
+    for (const auto &[sel, sel_id] : this->implementations) {
+      if (id == sel_id) {
+        return sel;
+      }
+    }
+    MEMOIR_UNREACHABLE("Failed to find selection with given ID!");
+  }
+
+  size_t size() {
+    return this->selections.size();
+  }
+
+  decltype(auto) begin() const {
+    return this->selections.begin();
+  }
+
+  decltype(auto) end() const {
+    return this->selections.end();
+  }
+
+  decltype(auto) count(llvm::Value *value) const {
+    return this->selections.count(value);
+  }
+
+  decltype(auto) find(llvm::Value *value) const {
+    return this->selections.find(value);
+  }
+
+  decltype(auto) clear() {
+    return this->selections.clear();
+  }
+};
+
 namespace detail {
 
-void collect_declarations(
-    ordered_multimap<llvm::Value *, std::string> &selections,
-    llvm::Module &M) {
+void collect_declarations(Selections &selections, llvm::Module &M) {
 
   for (auto &F : M) {
     if (F.empty()) {
@@ -44,11 +130,17 @@ void collect_declarations(
           continue;
         }
 
-        // Fetch the selected implementation from the metadata.
-        auto selection = metadata->getImplementation();
-
         // Store the selection for this declaration.
-        insert_unique(selections, (llvm::Value *)&I, selection);
+        ImplList selection = {};
+        for (auto impl : metadata->implementations()) {
+          if (impl.has_value()) {
+            selection.push_back(impl);
+          } else {
+            selection.push_back({});
+          }
+        }
+
+        selections.insert(I, selection);
       }
     }
   }
@@ -56,36 +148,7 @@ void collect_declarations(
   return;
 }
 
-bool propagate(ordered_multimap<llvm::Value *, std::string> &selections,
-               llvm::Value &from,
-               llvm::Value &to) {
-
-  // Gather all of the selections of @from.
-  vector<std::string> from_selections;
-  from_selections.reserve(selections.count(&from));
-  for (auto it = selections.lower_bound(&from);
-       it != selections.upper_bound(&from);
-       ++it) {
-    from_selections.push_back(it->second);
-  }
-
-  // Save the original size of the collection so that we can check if any were
-  // inserted later.
-  auto original_size = selections.count(&to);
-
-  // Union the selections.
-  for (auto selection : from_selections) {
-    insert_unique(selections, &to, selection);
-  }
-
-  // If the selections of @to have been modified, add it to the worklist.
-  auto new_size = selections.count(&to);
-  auto changed = (original_size != new_size);
-
-  return changed;
-}
-
-void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
+void propagate(Selections &selections,
                vector<llvm::Value *> &worklist,
                llvm::Module &M,
                llvm::Value &from,
@@ -102,28 +165,19 @@ void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
   // Handle each use case in turn.
   if (auto *memoir_inst = into<MemOIRInst>(user)) {
 
-    if (auto *insert_seq = dyn_cast<SeqInsertSeqInst>(memoir_inst)) {
+    if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
 
-      // If the use is the base collection, propagate.
-      if (insert_seq->getBaseCollectionAsUse().getOperandNo() == operand_no) {
-        if (detail::propagate(selections, from, *user)) {
-          worklist.push_back(user);
-        }
-      }
-
-    } else if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
-
-      if (&fold->getCollectionAsUse() == &use) {
-        // If the use is the collection being folded over.
+      // If the use is the collection being folded over.
+      if (&fold->getObjectAsUse() == &use) {
 
         // Propagate to the instruction, don't recurse.
-        detail::propagate(selections, from, fold->getResult());
+        selections.propagate(from, fold->getResult());
 
         // If the element type of the fold is a collection, propagate to the
         // corresponding argument.
         if (Type::is_unsized(fold->getElementType())) {
           if (auto *argument = fold->getElementArgument()) {
-            detail::propagate(selections, from, *argument);
+            selections.propagate(from, *argument);
           }
         }
 
@@ -138,7 +192,7 @@ void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
 
         // Propagate to the corresponding argument.
         auto &argument = fold->getAccumulatorArgument();
-        if (detail::propagate(selections, from, argument)) {
+        if (selections.propagate(from, argument)) {
           worklist.push_back(&argument);
         }
 
@@ -146,40 +200,48 @@ void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
         // Otherwise, the collection is closed on, propagate to the
         // corresponding argument, but don't recurse.
         auto &argument = fold->getClosedArgument(use);
-        if (detail::propagate(selections, from, argument)) {
+        if (selections.propagate(from, argument)) {
           worklist.push_back(&argument);
         }
       }
 
-    } else if (isa<WriteInst>(memoir_inst) or isa<InsertInst>(memoir_inst)
-               or isa<RemoveInst>(memoir_inst) or isa<SwapInst>(memoir_inst)
-               or isa<UsePHIInst>(memoir_inst) or isa<DefPHIInst>(memoir_inst)
-               or isa<RetPHIInst>(memoir_inst) or isa<CopyInst>(memoir_inst)
-               or isa<ClearInst>(memoir_inst)) {
+    } else if (auto *update = dyn_cast<UpdateInst>(memoir_inst)) {
+
+      // Ensure that the use is the object being updated.
+      if (&use == &update->getObjectAsUse()) {
+        // If the memoir operation is a partial redefinition of the input
+        // collection, propagate.
+        if (selections.propagate(from, *user)) {
+          worklist.push_back(user);
+        }
+      }
+
+    } else if (isa<UsePHIInst>(memoir_inst) or isa<RetPHIInst>(memoir_inst)
+               or isa<CopyInst>(memoir_inst)) {
+
       // If the memoir operation is a partial redefinition of the input
       // collection, propagate.
-      if (detail::propagate(selections, from, *user)) {
+      if (selections.propagate(from, *user)) {
         worklist.push_back(user);
       }
 
-    } else if (isa<AccessInst>(memoir_inst) or isa<AssocHasInst>(memoir_inst)
-               or isa<AssocKeysInst>(memoir_inst)
-               or isa<DeleteCollectionInst>(memoir_inst)
-               or isa<SizeInst>(memoir_inst)) {
+    } else if (isa<AccessInst>(memoir_inst) or isa<DeleteInst>(memoir_inst)) {
+
       // If the memoir operation is an access to the input collection,
       // propagate, but don't recurse.
-      detail::propagate(selections, from, *user);
+      selections.propagate(from, *user);
     }
 
   } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+
     // Propagate to the PHI.
-    if (detail::propagate(selections, from, *phi)) {
+    if (selections.propagate(from, *phi)) {
       worklist.push_back(phi);
     }
 
   } else if (auto *extract = dyn_cast<llvm::ExtractValueInst>(user)) {
     // Propagate to the extracted value.
-    if (detail::propagate(selections, from, *extract)) {
+    if (selections.propagate(from, *extract)) {
       worklist.push_back(extract);
     }
 
@@ -190,7 +252,7 @@ void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
     if (auto *called_function = call->getCalledFunction()) {
       auto &argument = MEMOIR_SANITIZE(called_function->getArg(operand_no),
                                        "Argument out of range.");
-      if (detail::propagate(selections, from, argument)) {
+      if (selections.propagate(from, argument)) {
         worklist.push_back(&argument);
       }
     }
@@ -208,7 +270,7 @@ void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
         if (F.getFunctionType() == function_type) {
           auto &argument =
               MEMOIR_SANITIZE(F.getArg(operand_no), "Argument out of range.");
-          if (detail::propagate(selections, from, argument)) {
+          if (selections.propagate(from, argument)) {
             worklist.push_back(&argument);
           }
         }
@@ -217,9 +279,7 @@ void propagate(ordered_multimap<llvm::Value *, std::string> &selections,
   }
 }
 
-void propagate_declarations(
-    ordered_multimap<llvm::Value *, std::string> &selections,
-    llvm::Module &M) {
+void propagate_declarations(Selections &selections, llvm::Module &M) {
 
   // Now, we need to find any memoir instruction that _would_ have multiple
   // selections.
@@ -248,7 +308,7 @@ void propagate_declarations(
   return;
 }
 
-bool transform(const ordered_multimap<llvm::Value *, std::string> &selections) {
+bool transform(const Selections &selections) {
   // Track whether or not we have transformed the function.
   bool transformed = false;
 
@@ -274,7 +334,7 @@ bool transform(const ordered_multimap<llvm::Value *, std::string> &selections) {
       // If an argument is polymorphic, fetch all of the possible call sites and
       // partition them based on their argument's selection, if it is
       // monomorphic.
-      map<llvm::Use *, std::string> caller_to_selection = {};
+      map<llvm::Use *, Selections::ID> caller_to_selection = {};
 
       // Fetch the parent function.
       auto *function = arg->getParent();
@@ -309,7 +369,8 @@ bool transform(const ordered_multimap<llvm::Value *, std::string> &selections) {
       }
 
       // Partition the callers by their selections.
-      ordered_map<std::string, vector<llvm::Use *>> selection_to_callers = {};
+      ordered_map<Selections::ID, vector<llvm::Use *>>
+          selection_to_callers = {};
       for (const auto &[caller, selection] : caller_to_selection) {
         selection_to_callers[selection].push_back(caller);
       }
@@ -354,7 +415,7 @@ bool transform(const ordered_multimap<llvm::Value *, std::string> &selections) {
   return transformed;
 }
 
-void annotate(const map<MemOIRInst *, std::string> &selections) {
+void annotate(const map<MemOIRInst *, const ImplList *> &selections) {
 
   // For each value with a selection.
   for (const auto &[memoir_inst, selection] : selections) {
@@ -363,7 +424,17 @@ void annotate(const map<MemOIRInst *, std::string> &selections) {
     auto metadata =
         Metadata::get_or_add<SelectionMetadata>(memoir_inst->getCallInst());
 
-    metadata.setImplementation(selection);
+    unsigned selection_index = 0;
+    for (const auto &impl : *selection) {
+      if (impl.has_value()) {
+        metadata.setImplementation(impl.value(), selection_index);
+      } else {
+        // TODO: if we don't have a value, get the default implementation.
+      }
+
+      // TODO: skip along if our implementation tiles multiple dimensions.,
+      ++selection_index;
+    }
   }
 
   return;
@@ -373,7 +444,7 @@ void annotate(const map<MemOIRInst *, std::string> &selections) {
 
 SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
   // Initialize an empty mapping for selections.
-  ordered_multimap<llvm::Value *, std::string> selections = {};
+  Selections selections = {};
 
   do {
     // Clear the last round of selection that we had.
@@ -390,7 +461,7 @@ SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
   } while (detail::transform(selections));
 
   // Validate that the program is monomorphized.
-  map<MemOIRInst *, std::string> selections_to_annotate = {};
+  map<MemOIRInst *, const ImplList *> selections_to_annotate = {};
   for (const auto &[value, selection] : selections) {
     // Only insert mappings for memoir instructions.
     auto *memoir_inst = into<MemOIRInst>(value);
@@ -404,7 +475,7 @@ SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
     }
 
     // Set the selection for the instruction.
-    selections_to_annotate[memoir_inst] = selection;
+    selections_to_annotate[memoir_inst] = &selections.from_id(selection);
   }
 
   // Annotate instructions with their selection.
