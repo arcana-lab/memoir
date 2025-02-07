@@ -10,8 +10,21 @@ namespace llvm::memoir {
 
 VAR_OPERAND(SelectionMetadata, Implementation, 0)
 
-std::string SelectionMetadata::getImplementation(unsigned i) const {
-  return Metadata::to_string(this->getImplementationMD(i));
+std::optional<std::string> SelectionMetadata::getImplementation(
+    unsigned i) const {
+  if (this->getMetadata().getNumOperands() <= i) {
+    return {};
+  }
+
+  auto &operand = this->getImplementationMDOperand(i);
+  auto *selection = operand.get();
+  if (auto *selection_node = dyn_cast<llvm::MDNode>(selection)) {
+    if (selection_node->getNumOperands() == 0) {
+      return {};
+    }
+  }
+
+  return Metadata::to_string(*selection);
 }
 
 llvm::iterator_range<SelectionMetadata::iterator> SelectionMetadata::
@@ -41,11 +54,13 @@ void SelectionMetadata::setImplementation(std::string id, unsigned i) {
   // Create a metadata wrapper.
   auto *selection_metadata = llvm::ConstantAsMetadata::get(selection_constant);
 
-  // Append the metadata.
-  if (metadata.getNumOperands() == 1) {
-    metadata.pop_back();
+  // Pad the MDTuple with NULL.
+  while (metadata.getNumOperands() <= i) {
+    metadata.push_back(MDNode::get(context, {}));
   }
-  metadata.push_back(selection_metadata);
+
+  // Set the selection metadata.
+  metadata.replaceOperandWith(i, selection_metadata);
 }
 
 } // namespace llvm::memoir

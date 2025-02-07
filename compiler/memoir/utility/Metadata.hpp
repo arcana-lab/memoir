@@ -2,6 +2,7 @@
 #define COMMON_METADATA_H
 #pragma once
 
+#include <iterator>
 #include <optional>
 #include <string>
 
@@ -121,12 +122,14 @@ public:
    * @param i the index of the dimension
    * @return the selection identifier as a string
    */
-  std::string getImplementation(unsigned i = 0) const;
+  std::optional<std::string> getImplementation(unsigned i = 0) const;
   llvm::Metadata &getImplementationMD(unsigned i = 0) const;
   const llvm::MDOperand &getImplementationMDOperand(unsigned i = 0) const;
 
   struct iterator {
   public:
+    using iterator_category = std::input_iterator_tag;
+
     iterator(const llvm::MDOperand *op) : op(op) {}
 
     iterator &operator++() {
@@ -134,8 +137,12 @@ public:
       return *this;
     }
 
-    std::string operator*() {
-      return Metadata::to_string(*this->op->get());
+    std::optional<std::string> operator*() {
+      if (isa_and_nonnull<llvm::ConstantAsMetadata>(this->op->get())) {
+        return { Metadata::to_string(*this->op->get()) };
+      } else {
+        return {};
+      }
     }
 
     friend bool operator==(const iterator &lhs, const iterator &rhs) {
