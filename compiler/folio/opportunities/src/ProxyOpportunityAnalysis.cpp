@@ -1,5 +1,5 @@
-#include "folio/analysis/ContentAnalysis.hpp"
-#include "folio/analysis/ContentSimplification.hpp"
+// #include "folio/analysis/ContentAnalysis.hpp"
+// #include "folio/analysis/ContentSimplification.hpp"
 
 #include "folio/opportunities/Analysis.hpp"
 
@@ -206,7 +206,7 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
   Opportunities result;
 
   // Fetch the Content Analysis results.
-  auto &contents = MAM.getResult<ContentAnalysis>(M);
+  // auto &contents = MAM.getResult<ContentAnalysis>(M);
 
   // Discover all proxy opportunities in the program.
 
@@ -216,16 +216,16 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
   //  - range(P) \contains domain(C)
 
   // Find all collection allocations in the program.
-  set<CollectionAllocInst *> allocations = {};
+  set<AllocInst *> allocations = {};
   auto *assoc_alloc_func =
-      FunctionNames::get_memoir_function(M, MemOIR_Func::ALLOCATE_ASSOC_ARRAY);
+      FunctionNames::get_memoir_function(M, MemOIR_Func::ALLOCATE);
   for (auto &uses : assoc_alloc_func->uses()) {
-    auto *alloc_inst = into<AssocAllocInst>(uses.getUser());
-    if (not alloc_inst) {
+    auto *alloc = into<AllocInst>(uses.getUser());
+    if (not alloc) {
       continue;
     }
 
-    allocations.insert(alloc_inst);
+    allocations.insert(alloc);
   }
 
 #if 0
@@ -243,7 +243,7 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
 
   // For each allocation that we found, determine a maximal domain for it, if
   // possible.
-  ContentSimplification simplifier(contents);
+  // ContentSimplification simplifier(contents);
   map<CollectionAllocInst *, Content *> domains = {};
   for (auto *alloc : allocations) {
 

@@ -19,14 +19,14 @@ public:
 
   ProxyOpportunity(
       Proxy &proxy,
-      const llvm::memoir::set<llvm::memoir::CollectionAllocInst *> &allocations)
+      const llvm::memoir::set<llvm::memoir::AllocInst *> &allocations)
     : proxy(proxy),
       allocations(allocations) {}
 
 protected:
   Proxy &proxy;
-  llvm::memoir::set<llvm::memoir::CollectionAllocInst *> allocations;
-  llvm::memoir::set<llvm::memoir::CollectionAllocInst *> transients;
+  llvm::memoir::set<llvm::memoir::AllocInst *> allocations;
+  llvm::memoir::set<llvm::memoir::AllocInst *> transients;
 };
 
 } // namespace folio

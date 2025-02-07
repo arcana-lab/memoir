@@ -248,7 +248,7 @@ bool ProxyOpportunity::exploit(
   bool modified = false;
 
   // Collect the set of redefinitions of each allocation involved.
-  ordered_map<CollectionAllocInst *, set<llvm::Value *>> redefinitions = {};
+  ordered_map<AllocInst *, set<llvm::Value *>> redefinitions = {};
   for (auto *alloc : this->allocations) {
     detail::gather_redefinitions(alloc->getCallInst(), redefinitions[alloc]);
   }
@@ -527,6 +527,7 @@ bool ProxyOpportunity::exploit(
       encoder_type = &encoder_alloc->getCollectionType();
     }
 
+#if 0
     // After the definition of each source, insert
     // its values into the proxy.
     for (auto [src, src_contents] : sources) {
@@ -812,6 +813,7 @@ bool ProxyOpportunity::exploit(
       // - Add the return instruction.
       builder.CreateRet(current_accum);
     }
+#endif
 
     // Make the proxy available at all uses.
 
