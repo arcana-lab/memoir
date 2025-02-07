@@ -309,7 +309,7 @@ llvm::Value &construct_collection_allocation(
     // Fetch the collection implementation.
     std::optional<std::string> dim_name = std::nullopt;
     if (selection.has_value()) {
-      selection->getImplementation(selection_index++);
+      dim_name = selection->getImplementation(selection_index++);
     }
 
     const auto &dim_impl =
@@ -618,12 +618,14 @@ struct NestedObjectInfo {
                    Type &type,
                    AccessInst::index_iterator begin,
                    AccessInst::index_iterator end,
-                   const Implementation &impl)
+                   const Implementation &impl,
+                   unsigned selection_index)
     : object(object),
       type(type),
       begin(begin),
       end(end),
-      implementation(&impl) {}
+      implementation(&impl),
+      selection_index(selection_index) {}
 
   NestedObjectInfo(llvm::Value &object,
                    Type &type,
@@ -633,12 +635,14 @@ struct NestedObjectInfo {
       type(type),
       begin(begin),
       end(end),
-      implementation(nullptr) {}
+      implementation(nullptr),
+      selection_index(0) {}
 
   llvm::Value &object;
   Type &type;
   AccessInst::index_iterator begin, end;
   const Implementation *implementation;
+  unsigned selection_index;
 };
 static NestedObjectInfo get_nested_object(
     llvm::Instruction &IP,
@@ -757,7 +761,12 @@ static NestedObjectInfo get_nested_object(
       auto remaining = std::distance(it, ie);
       if ((fully_qualified and (num_dimensions > remaining))
           or (not fully_qualified and (num_dimensions >= remaining))) {
-        return NestedObjectInfo(*object, *type, it, ie, dim_impl);
+        return NestedObjectInfo(*object,
+                                *type,
+                                it,
+                                ie,
+                                dim_impl,
+                                selection_index);
       }
 
       // Otherwise, we will construct the get operation for the nested
@@ -800,7 +809,12 @@ static NestedObjectInfo get_nested_object(
     }
     const auto &impl = detail::get_implementation(impl_name, *collection_type);
 
-    return NestedObjectInfo(*object, *type, indices_end, indices_end, impl);
+    return NestedObjectInfo(*object,
+                            *type,
+                            indices_end,
+                            indices_end,
+                            impl,
+                            selection_index);
   }
 
   MEMOIR_UNREACHABLE("Could not get the nested object");
@@ -1086,8 +1100,28 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
       }
 
       // TODO: How do we get the nested implementation here?
+
       auto *alloc = builder.CreateAllocInst(nested_type, args, "default");
       this->stage(alloc->getCallInst());
+
+      // Propagate the nested selection info here.
+      auto selection = Metadata::get<SelectionMetadata>(I);
+      if (selection.has_value()) {
+        auto alloc_selection = Metadata::get_or_add<SelectionMetadata>(*alloc);
+
+        auto sel_it = selection->impl_begin();
+        for (auto i = 0; i < info.selection_index; ++i, ++sel_it) {
+          // Do nothing.
+        }
+
+        unsigned alloc_index = 0;
+        for (; sel_it != selection->impl_end(); ++sel_it, ++alloc_index) {
+          auto sel = *sel_it;
+          if (sel.has_value()) {
+            alloc_selection.setImplementation(sel.value(), alloc_index);
+          }
+        }
+      }
 
       operation_name += "_value";
       arguments.push_back(&alloc->getCallInst());
@@ -1243,6 +1277,7 @@ void SSADestructionVisitor::visitClearInst(ClearInst &I) {
 }
 
 void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
+
   // Get the nested object as a value.
   auto info = detail::get_nested_object(I, this->TC, true);
 
