@@ -19,13 +19,15 @@
 typedef IndexMap<KEY_TYPE, VAL_TYPE> TYPE;
 typedef TYPE *PTR;
 
-#define FWD_TYPE CAT(PREFIX, _fwd_t)
-#define FWD_PTR CAT(PREFIX, _fwd_p)
-typedef TYPE::ForwardMap FWD_TYPE;
-typedef FWD_TYPE *FWD_PTR;
+#define ENC_TYPE CAT(PREFIX, _enc_t)
+#define ENC_PTR CAT(PREFIX, _enc_p)
+typedef TYPE::Encoder ENC_TYPE;
+typedef ENC_TYPE *ENC_PTR;
 
-/* typedef KeyToIndexMap<KEY_TYPE> REV_TYPE; */
-/* typedef REV_TYPE *REV_PTR; */
+#define DEC_TYPE CAT(PREFIX, _dec_t)
+#define DEC_PTR CAT(PREFIX, _dec_p)
+typedef TYPE::Decoder DEC_TYPE;
+typedef DEC_TYPE *DEC_PTR;
 
 #define ITER_TYPE CAT(PREFIX, _iter_t)
 #define ITER_PTR CAT(PREFIX, _iter_p)
@@ -40,36 +42,46 @@ cname alwaysinline used PTR OP(allocate)() {
   return new TYPE();
 }
 
-cname alwaysinline used PTR OP(allocate_index)(FWD_PTR fwd) {
-  return new TYPE(fwd);
+cname alwaysinline used ENC_PTR OP(allocate_encoder)() {
+  return new ENC_TYPE();
 }
 
-cname alwaysinline used FWD_PTR OP(forward)(PTR map) {
-  return map->forward();
+cname alwaysinline used DEC_PTR OP(allocate_decoder)() {
+  return new DEC_TYPE();
 }
 
-#if 0
-cname alwaysinline used PTR OP(reverse)(PTR map) {
-  return map->reverse();
+cname alwaysinline used void OP(set_encoder)(PTR map, ENC_PTR enc) {
+  return map->encoder(enc);
 }
-#endif
+
+cname alwaysinline used void OP(set_decoder)(PTR map, DEC_PTR dec) {
+  return map->decoder(dec);
+}
+
+cname alwaysinline used ENC_PTR OP(get_encoder)(PTR map) {
+  return map->encoder();
+}
+
+cname alwaysinline used DEC_PTR OP(get_decoder)(PTR map) {
+  return map->decoder();
+}
 
 cname alwaysinline used void OP(free)(PTR map) {
   delete map;
 }
 
-cname alwaysinline used VAL_TYPE OP(read_index)(PTR map, SIZE_TYPE i) {
-  return map->read_index(i);
+cname alwaysinline used VAL_TYPE OP(read_encoded)(PTR map, SIZE_TYPE i) {
+  return map->read_encoded(i);
 }
 
 cname alwaysinline used VAL_TYPE OP(read)(PTR map, KEY_TYPE key) {
   return map->read(key);
 }
 
-cname alwaysinline used PTR OP(write_index)(PTR map,
-                                            SIZE_TYPE i,
-                                            VAL_TYPE value) {
-  map->write_index(i, value);
+cname alwaysinline used PTR OP(write_encoded)(PTR map,
+                                              SIZE_TYPE i,
+                                              VAL_TYPE value) {
+  map->write_encoded(i, value);
   return map;
 }
 
@@ -78,8 +90,8 @@ cname alwaysinline used PTR OP(write)(PTR map, KEY_TYPE key, VAL_TYPE value) {
   return map;
 }
 
-cname alwaysinline used VAL_TYPE *OP(get_index)(PTR map, SIZE_TYPE i) {
-  return map->get_index(i);
+cname alwaysinline used VAL_TYPE *OP(get_encoded)(PTR map, SIZE_TYPE i) {
+  return map->get_encoded(i);
 }
 
 cname alwaysinline used VAL_TYPE *OP(get)(PTR map, KEY_TYPE key) {
@@ -90,8 +102,8 @@ cname alwaysinline used PTR OP(copy)(PTR map) {
   return map->copy();
 }
 
-cname alwaysinline used PTR OP(remove_index)(PTR map, SIZE_TYPE i) {
-  map->remove_index(i);
+cname alwaysinline used PTR OP(remove_encoded)(PTR map, SIZE_TYPE i) {
+  map->remove_encoded(i);
   return map;
 }
 
@@ -100,8 +112,8 @@ cname alwaysinline used PTR OP(remove)(PTR map, KEY_TYPE key) {
   return map;
 }
 
-cname alwaysinline used PTR OP(insert_index)(PTR map, SIZE_TYPE i) {
-  map->insert_index(i);
+cname alwaysinline used PTR OP(insert_encoded)(PTR map, SIZE_TYPE i) {
+  map->insert_encoded(i);
   return map;
 }
 
@@ -110,10 +122,10 @@ cname alwaysinline used PTR OP(insert)(PTR map, KEY_TYPE key) {
   return map;
 }
 
-cname alwaysinline used PTR OP(insert_value_index)(PTR map,
-                                                   SIZE_TYPE i,
-                                                   VAL_TYPE value) {
-  map->insert_index(i, value);
+cname alwaysinline used PTR OP(insert_value_encoded)(PTR map,
+                                                     SIZE_TYPE i,
+                                                     VAL_TYPE value) {
+  map->insert_encoded(i, value);
   return map;
 }
 
@@ -124,8 +136,8 @@ cname alwaysinline used PTR OP(insert_value)(PTR map,
   return map;
 }
 
-cname alwaysinline used bool OP(has_index)(PTR map, SIZE_TYPE i) {
-  return map->has_index(i);
+cname alwaysinline used bool OP(has_encoded)(PTR map, SIZE_TYPE i) {
+  return map->has_encoded(i);
 }
 
 cname alwaysinline used bool OP(has)(PTR map, KEY_TYPE key) {
@@ -156,7 +168,7 @@ cname alwaysinline used bool OP(next)(ITER_PTR iter) {
 #undef PREFIX
 #undef TYPE
 #undef PTR
-#undef FWD_TYPE
-#undef FWD_PTR
+#undef ENC_TYPE
+#undef ENC_PTR
 #undef ITER_TYPE
 #undef ITER_PTR

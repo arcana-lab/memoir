@@ -1,5 +1,5 @@
-#ifndef MEMOIR_BACKEND_INDEXMAP_H
-#define MEMOIR_BACKEND_INDEXMAP_H
+#ifndef MEMOIR_BACKEND_INDEXSET_H
+#define MEMOIR_BACKEND_INDEXSET_H
 
 #include <cstdint>
 #include <cstdio>
@@ -11,6 +11,17 @@
 #include <backend/stl_vector/definition.hpp>
 
 using Size = size_t;
+
+template <typename Key>
+struct KeyToIndexMap : std::unordered_map<Key, Size> {
+  using Base = std::unordered_map<Key, Size>;
+
+#if 0
+  const Key &keyof(const Size &i) {
+    // TODO
+  }
+#endif
+};
 
 template <typename Key, typename Val>
 struct IndexMap {
@@ -30,18 +41,17 @@ public:
   using Data = std::vector<Val>;
   Data _data;
 
-  using Encoder = std::unordered_map<Key, Size>;
+  using Encoder = std::unordered_map<Key, size_t>;
   Encoder *_encoder;
 
   using Decoder = std::vector<Key>;
   Decoder *_decoder;
 
-  IndexMap() : _present(), _data(), _encoder(new Encoder()) {}
-  IndexMap(Encoder *encoder) : _present(), _data(), _encoder(encoder) {}
+  IndexMap() {}
   IndexMap(const IndexMap<Key, Val> &other)
     : _present(other._present),
       _data(other._data),
-      _encoder(other._encoder) {}
+      _forward(other._forward) {}
   ~IndexMap() {
     // TODO: if the element is a collection pointer, delete it too.
   }
@@ -57,29 +67,29 @@ public:
   }
 
   Size indexof(const Key &key) {
-    return _encoder->at(key);
+    return encoder->at(key);
   }
 
   Size addkey(const Key &key) {
-    auto i = _encoder->size();
+    auto i = encoder->size();
     _encoder->insert({ key, i });
     return i;
   }
 
   bool haskey(const Key &key) {
-    return _encoder->count(key) > 0;
+    return encoder->count(key) > 0;
   }
 
-  Decoder *decoder() {
+  DecoderMap *decoder() {
     return _decoder;
   }
 
-  void decoder(Decoder *dec) {
+  void decoder(DecoderMap *dec) {
     _decoder = dec;
   }
 
   const Key &keyof(const Size &index) {
-    return _decoder->keyof(index);
+    return _decoder[index];
   }
   // ====================================
 
@@ -113,16 +123,7 @@ public:
   }
 
   void insert(const Key &key) {
-    insert_encoded(addkey(key));
-  }
-
-  void insert_encoded(const Size &i, const Val &val) {
-    insert_encoded(i);
-    write_encoded(i, val);
-  }
-
-  void insert(const Key &key, const Val &val) {
-    insert_encoded(addkey(key), val);
+    insert_encoded(_forward->addkey(key));
   }
 
   void remove_encoded(const Size &i) {
@@ -130,7 +131,7 @@ public:
   }
 
   void remove(const Key &key) {
-    if (haskey(key)) {
+    if (_forward->haskey(key)) {
       remove_encoded(indexof(key));
     }
   }
@@ -152,7 +153,7 @@ public:
   }
 
   bool has(const Key &key) {
-    if (haskey(key)) {
+    if (_forward->haskey(key)) {
       return has_encoded(indexof(key));
     }
     return false;
@@ -194,4 +195,4 @@ public:
   }
 };
 
-#endif // MEMOIR_BACKEND_INDEXMAP_H
+#endif // MEMOIR_BACKEND_INDEXSET_H
