@@ -38,11 +38,11 @@ endfunction()
 
 add_subdirectory(scripts)
 
-add_subdirectory(analysis)
+# add_subdirectory(analysis)
 add_subdirectory(transforms)
-add_subdirectory(solver)
+# add_subdirectory(solver)
 add_subdirectory(pass)
-add_subdirectory(opportunities)
+# add_subdirectory(opportunities)
 
 install(
   TARGETS folio
