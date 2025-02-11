@@ -9,7 +9,8 @@
 #define KEY_CODE CODE_0
 #define KEY_TYPE TYPE_0
 
-#define PREFIX CAT(KEY_CODE, _stl_unordered_set)
+#define IMPL stl_unordered_set
+#define PREFIX CAT(KEY_CODE, CAT(_, IMPL))
 
 #define TYPE CAT(PREFIX, _t)
 #define PTR CAT(PREFIX, _p)
@@ -73,6 +74,9 @@ cname alwaysinline used bool OP(next)(ITER_PTR iter) {
 
 #undef KEY_CODE
 #undef KEY_TYPE
+#undef IMPL
 #undef PREFIX
+#undef TYPE
+#undef PTR
 #undef ITER_TYPE
 #undef ITER_PTR

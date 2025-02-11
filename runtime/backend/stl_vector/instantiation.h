@@ -8,7 +8,8 @@
 
 #define RESERVE_SIZE 4000 + 60 + 1
 
-#define PREFIX CAT(CODE_0, _stl_vector)
+#define IMPL stl_vector
+#define PREFIX CAT(CODE_0, CAT(_, IMPL))
 
 #define TYPE CAT(PREFIX, _t)
 #define PTR CAT(PREFIX, _p)
@@ -120,3 +121,13 @@ cname alwaysinline used void OP(rbegin)(RITER_PTR iter, PTR vec) {
 cname alwaysinline used bool OP(rnext)(RITER_PTR iter) {
   return iter->next();
 }
+
+#undef RESERVE_SIZE
+#undef IMPL
+#undef PREFIX
+#undef TYPE
+#undef PTR
+#undef ITER_TYPE
+#undef ITER_PTR
+#undef RITER_TYPE
+#undef RITER_PTR

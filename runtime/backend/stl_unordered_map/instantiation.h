@@ -11,7 +11,8 @@
 #define VAL_CODE CODE_1
 #define VAL_TYPE TYPE_1
 
-#define PREFIX CAT(KEY_CODE, CAT(_, CAT(VAL_CODE, _stl_unordered_map)))
+#define IMPL stl_unordered_map
+#define PREFIX CAT(KEY_CODE, CAT(_, CAT(VAL_CODE, CAT(_, IMPL))))
 
 #define TYPE CAT(PREFIX, _t)
 #define PTR CAT(PREFIX, _p)
@@ -92,6 +93,9 @@ cname alwaysinline used bool OP(next)(ITER_PTR iter) {
 #undef KEY_TYPE
 #undef VAL_CODE
 #undef VAL_TYPE
+#undef IMPL
 #undef PREFIX
+#undef TYPE
+#undef PTR
 #undef ITER_TYPE
 #undef ITER_PTR
