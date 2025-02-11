@@ -10,6 +10,7 @@
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
 
 #include "llvm/Analysis/DominanceFrontier.h"
 
@@ -238,6 +239,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
                              "-gdwarf-4",
                              "-c",
                              "-emit-llvm",
+                             "-Wall",
                              "-I" MEMOIR_INSTALL_PREFIX "/include",
 #ifdef BOOST_INCLUDE_DIR
                              "-I" BOOST_INCLUDE_DIR "/include",
@@ -286,6 +288,23 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
     }
 
     F.setLinkage(linkage);
+  }
+
+  // Verify both modules before linking.
+  print("Verifying program module... ");
+  if (llvm::verifyModule(M, &llvm::errs())) {
+    println("FAILED!");
+    MEMOIR_UNREACHABLE("Failed to verify the original module.");
+  } else {
+    print("\r                                                    \r");
+  }
+
+  print("Verifying implementations module... ");
+  if (llvm::verifyModule(*other_module, &llvm::errs())) {
+    println("FAILED!");
+    MEMOIR_UNREACHABLE("Failed to verify the implementations module.");
+  } else {
+    print("\r                                                    \r");
   }
 
   // Link the modules.
