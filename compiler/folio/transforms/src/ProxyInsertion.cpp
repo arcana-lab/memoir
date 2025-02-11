@@ -1,7 +1,9 @@
+#include "llvm/IR/Verifier.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include "memoir/ir/Builder.hpp"
 #include "memoir/lowering/Implementation.hpp"
+#include "memoir/transforms/utilities/ReifyTempArgs.hpp"
 #include "memoir/utility/Metadata.hpp"
 
 #include "folio/transforms/ProxyInsertion.hpp"
@@ -25,6 +27,28 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M) : M(M) {
   analyze();
 
   transform();
+
+  for (auto &F : M) {
+    if (not F.empty()) {
+      if (llvm::verifyFunction(F, &llvm::errs())) {
+        println(F);
+        MEMOIR_UNREACHABLE("Failed to verify ", F.getName());
+      }
+    }
+  }
+  println("Verified module post-proxy insertion.");
+
+  reify_tempargs(M);
+
+  for (auto &F : M) {
+    if (not F.empty()) {
+      if (llvm::verifyFunction(F, &llvm::errs())) {
+        println(F);
+        MEMOIR_UNREACHABLE("Failed to verify ", F.getName());
+      }
+    }
+  }
+  println("Verified module post-temparg reify.");
 }
 
 void ProxyInsertion::gather_assoc_objects(AllocInst &alloc,
@@ -78,6 +102,10 @@ void ProxyInsertion::analyze() {
 
 namespace detail {
 
+bool is_last_index(llvm::Use *use, AccessInst::index_op_iterator index_end) {
+  return std::next(AccessInst::index_op_iterator(use)) == index_end;
+}
+
 void gather_redefinitions(llvm::Value &V, set<llvm::Value *> &redefinitions) {
 
   if (redefinitions.count(&V) > 0) {
@@ -119,13 +147,21 @@ void gather_redefinitions(llvm::Value &V, set<llvm::Value *> &redefinitions) {
           // Do nothing.
 
         } else {
-          println(*fold);
-          println(use.getOperandNo());
-
           // Gather uses of the closed argument.
           gather_redefinitions(fold->getClosedArgument(use), redefinitions);
         }
       }
+
+    } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
+      auto &callee =
+          MEMOIR_SANITIZE(call->getCalledFunction(),
+                          "Found use of MEMOIR collection by indirect callee!");
+
+      auto &arg =
+          MEMOIR_SANITIZE(callee.getArg(use.getOperandNo()),
+                          "No arguments in the callee matching this use!");
+
+      gather_redefinitions(arg, redefinitions);
     }
   }
 
@@ -143,7 +179,8 @@ int32_t indices_match_offsets(AccessInst &access, vector<unsigned> &offsets) {
 
     auto offset = *offset_it;
 
-    // If we have reached the end of the index operands, there is no index use.
+    // If we have reached the end of the index operands, there is no index
+    // use.
     if (index_it == index_ie) {
       break;
     }
@@ -186,7 +223,8 @@ llvm::Use *get_index_use(AccessInst &access, vector<unsigned> &offsets) {
 
   for (auto offset : offsets) {
 
-    // If we have reached the end of the index operands, there is no index use.
+    // If we have reached the end of the index operands, there is no index
+    // use.
     if (index_it == index_ie) {
       return nullptr;
     }
@@ -228,46 +266,52 @@ llvm::Use *get_index_use(AccessInst &access, vector<unsigned> &offsets) {
 void gather_uses_to_proxy(llvm::Value &V,
                           vector<unsigned> &offsets,
                           set<llvm::Use *> &to_encode,
-                          set<llvm::Use *> &to_decode) {
-  // From a given collection, V, gather all uses that need to be either encoded
-  // or decoded.
+                          set<llvm::Use *> &to_decode,
+                          set<llvm::Use *> &to_addkey) {
+  // From a given collection, V, gather all uses that need to be either
+  // encoded or decoded.
   for (auto &use : V.uses()) {
     auto *user = use.getUser();
 
     if (auto *fold = into<FoldInst>(user)) {
-      // If we find an index use, encode it.
 
-      if (auto *index_use = detail::get_index_use(*fold, offsets)) {
-        to_encode.insert(index_use);
-      } else {
+      if (use == fold->getObjectAsUse()) {
 
-        // If the offset is exactly equal to the keys being folded over, decode
-        // the index argument of the body.
-        auto distance = detail::indices_match_offsets(*fold, offsets);
-        if (distance == -1) {
-          // Do nothing.
-        }
+        // If we find an index use, encode it.
+        if (auto *index_use = detail::get_index_use(*fold, offsets)) {
+          to_encode.insert(index_use);
 
-        // If the offset are fully exhausted, add uses of the index argument to
-        // the set of uses to decode.
-        else if (distance == offsets.size()) {
-          auto &index_arg = fold->getIndexArgument();
-          for (auto &index_use : index_arg.uses()) {
-            to_decode.insert(&index_use);
+        } else {
+
+          // If the offset is exactly equal to the keys being folded over,
+          // decode the index argument of the body.
+          auto distance = detail::indices_match_offsets(*fold, offsets);
+          if (distance == -1) {
+            // Do nothing.
           }
-        }
 
-        // If the offsets are not fully exhausted, recurse on the value
-        // argument.
-        else if (distance > 0) {
-          if (auto *elem_arg = fold->getElementArgument()) {
-            vector<unsigned> nested_offsets(
-                std::next(offsets.begin(), distance),
-                offsets.end());
-            gather_uses_to_proxy(*elem_arg,
-                                 nested_offsets,
-                                 to_encode,
-                                 to_decode);
+          // If the offset are fully exhausted, add uses of the index argument
+          // to the set of uses to decode.
+          else if (distance == int32_t(offsets.size())) {
+            auto &index_arg = fold->getIndexArgument();
+            for (auto &index_use : index_arg.uses()) {
+              to_decode.insert(&index_use);
+            }
+          }
+
+          // If the offsets are not fully exhausted, recurse on the value
+          // argument.
+          else if (distance > 0) {
+            if (auto *elem_arg = fold->getElementArgument()) {
+              vector<unsigned> nested_offsets(
+                  std::next(offsets.begin(), distance),
+                  offsets.end());
+              gather_uses_to_proxy(*elem_arg,
+                                   nested_offsets,
+                                   to_encode,
+                                   to_decode,
+                                   to_addkey);
+            }
           }
         }
       }
@@ -276,6 +320,13 @@ void gather_uses_to_proxy(llvm::Value &V,
 
       // Find the index use for the given offset and mark it for decoding.
       if (auto *index_use = detail::get_index_use(*access, offsets)) {
+        if (isa<InsertInst>(access)) {
+          if (detail::is_last_index(index_use, access->index_operands_end())) {
+            to_addkey.insert(index_use);
+            continue;
+          }
+        }
+
         to_encode.insert(index_use);
       }
     }
@@ -424,6 +475,110 @@ llvm::FunctionCallee create_addkey_function(llvm::Module &M,
   return llvm::FunctionCallee(&addkey_function);
 }
 
+void add_tempargs(map<llvm::Function *, llvm::Instruction *> &local_patches,
+                  llvm::ArrayRef<set<llvm::Value *>> values_to_patch,
+                  llvm::ArrayRef<set<llvm::Use *>> uses_to_patch,
+                  llvm::Instruction &patch_with,
+                  Type &patch_type) {
+
+  println(patch_with);
+
+  MemOIRBuilder builder(&patch_with);
+  auto &context = builder.getContext();
+  auto &module = builder.getModule();
+
+  // Unpack the patch.
+  auto *patch_func = patch_with.getFunction();
+  auto *llvm_patch_type = patch_type.get_llvm_type(context);
+
+  // Track the local patch for each function.
+  local_patches[patch_func] = &patch_with;
+
+  // Find the set of functions that need the patch.
+  set<llvm::Function *> functions = {};
+  for (auto &values : values_to_patch) {
+    for (auto *val : values) {
+      if (auto *arg = dyn_cast<llvm::Argument>(val)) {
+        functions.insert(arg->getParent());
+      } else if (auto *inst = dyn_cast<llvm::Instruction>(val)) {
+        functions.insert(inst->getFunction());
+      }
+    }
+  }
+
+  for (auto &uses : uses_to_patch) {
+    for (auto *use : uses) {
+      if (auto *inst = dyn_cast<llvm::Instruction>(use->getUser())) {
+        functions.insert(inst->getFunction());
+      }
+    }
+  }
+
+  // Determine the set of functions that we need to pass the proxy to.
+  map<llvm::CallBase *, llvm::GlobalVariable *> calls_to_patch = {};
+  map<FoldInst *, llvm::GlobalVariable *> folds_to_patch = {};
+  for (auto *func : functions) {
+    // Create the global variable.
+    auto *global = new llvm::GlobalVariable(
+        module,
+        llvm_patch_type,
+        /* isConstant? */ false,
+        llvm::GlobalValue::LinkageTypes::InternalLinkage,
+        llvm::Constant::getNullValue(llvm_patch_type),
+        "temparg");
+
+    // Create the load in the entry of the fold body.
+    builder.SetInsertPoint(func->getEntryBlock().getFirstNonPHI());
+
+    auto *load = builder.CreateLoad(llvm_patch_type, global);
+    Metadata::get_or_add<TempArgumentMetadata>(*load);
+
+    // Annotate the loaded value with type information.
+    builder.CreateAssertTypeInst(load, patch_type);
+
+    local_patches[func] = load;
+
+    if (auto *single_use = func->getSingleUndroppableUse()) {
+      auto *single_user = single_use->getUser();
+      if (auto *fold = into<FoldInst>(single_user)) {
+        folds_to_patch[fold] = global;
+      }
+    } else {
+      for (auto &use : func->uses()) {
+        if (auto *call = dyn_cast<llvm::CallBase>(use.getUser())) {
+          calls_to_patch[call] = global;
+        }
+      }
+    }
+  }
+
+  // Patch each of the folds by storing to the global before the operation.
+  for (const auto &[fold, global] : folds_to_patch) {
+    // Unpack.
+    auto &inst = fold->getCallInst();
+    auto *func = inst.getFunction();
+    println(func->getName());
+
+    // Create the store ahead of the fold.
+    builder.SetInsertPoint(&inst);
+
+    auto *local = local_patches[func];
+
+    MEMOIR_ASSERT(local, "Failed to find the local patch in ", func->getName());
+
+    auto *store = builder.CreateStore(local, global);
+    Metadata::get_or_add<TempArgumentMetadata>(*store);
+  }
+
+  // TODO:
+  // Patch each of the calls by storing to the global before the operation.
+  for (const auto &[call, global] : calls_to_patch) {
+    println("Need to patch ", *call);
+  }
+
+  return;
+}
+
 } // namespace detail
 
 bool ProxyInsertion::transform() {
@@ -450,6 +605,7 @@ bool ProxyInsertion::transform() {
     }
 
     auto &assoc_type = MEMOIR_SANITIZE(
+
         dyn_cast<AssocType>(type),
         "Proxy insertion for non-assoc collection is unsupported");
 
@@ -463,16 +619,22 @@ bool ProxyInsertion::transform() {
     // We will separate these into uses that need the be encoded/decoded.
     set<llvm::Use *> to_encode = {};
     set<llvm::Use *> to_decode = {};
+    set<llvm::Use *> to_addkey = {};
 
     // Iterate over all uses of redefinitions to find any uses that need
     // updated.
     for (auto *redef : redefinitions[alloc]) {
-      detail::gather_uses_to_proxy(*redef, info.offsets, to_encode, to_decode);
+      detail::gather_uses_to_proxy(*redef,
+                                   info.offsets,
+                                   to_encode,
+                                   to_decode,
+                                   to_addkey);
     }
 
     println("  before trimming:");
     println("  ", to_encode.size(), " uses to encode");
     println("  ", to_decode.size(), " uses to decode");
+    println("  ", to_addkey.size(), " uses to addkey");
 
     // Trim uses that dont need to be decoded because they are only used to
     // compare against other values that need to be decoded.
@@ -502,12 +664,14 @@ bool ProxyInsertion::transform() {
     // Trim uses that dont need to be encoded because they are produced by a use
     // that needs decoded.
     set<llvm::Use *> trim_to_encode = {};
-    for (auto *encodee : to_encode) {
-      auto found = to_decode.find(encodee);
-      if (found != to_decode.end()) {
-        auto *decodee = *found;
-        trim_to_encode.insert(encodee);
-        trim_to_decode.insert(decodee);
+    for (auto uses : { to_encode, to_addkey }) {
+      for (auto *encodee : uses) {
+        auto found = to_decode.find(encodee);
+        if (found != to_decode.end()) {
+          auto *decodee = *found;
+          trim_to_encode.insert(encodee);
+          trim_to_decode.insert(decodee);
+        }
       }
     }
 
@@ -517,6 +681,7 @@ bool ProxyInsertion::transform() {
     }
     for (auto *use_to_trim : trim_to_encode) {
       to_encode.erase(use_to_trim);
+      to_addkey.erase(use_to_trim);
     }
 
     println("  after trimming:");
@@ -530,32 +695,13 @@ bool ProxyInsertion::transform() {
       println("    ", *use->get(), " in ", *use->getUser());
     }
 
+    println("  ", to_addkey.size(), " uses to addkey");
+    for (auto *use : to_addkey) {
+      println("    ", *use->get(), " in ", *use->getUser());
+    }
+
     // Find the construction point for the encoder and decoder.
     auto *construction_point = &alloc->getCallInst();
-
-    // Iterate over the call graph, and find where we need to pass the proxy.
-    set<llvm::Function *> functions_with_uses = {};
-    for (auto uses : { to_encode, to_decode }) {
-      for (auto *use : uses) {
-        auto *user_as_inst = dyn_cast<llvm::Instruction>(use->getUser());
-        if (not user_as_inst) {
-          continue;
-        }
-
-        auto *user_function = user_as_inst->getFunction();
-        functions_with_uses.insert(user_function);
-      }
-    }
-
-    functions_with_uses.erase(construction_point->getFunction());
-
-    // Add a new argument to the function for the proxy.
-    if (not functions_with_uses.empty()) {
-      println("  Proxy is used in ");
-      for (auto *func : functions_with_uses) {
-        println("    ", func->getName());
-      }
-    }
 
     // Fetch LLVM context.
     auto &context = construction_point->getContext();
@@ -571,10 +717,10 @@ bool ProxyInsertion::transform() {
     auto size_type_bitwidth = size_type.getBitWidth();
 
     // Determine which proxies we need.
-    bool build_encoder = to_encode.size() > 0;
+    bool build_encoder = to_encode.size() > 0 or to_addkey.size() > 0;
     bool build_decoder = to_decode.size() > 0;
 
-    llvm::Value *encoder = nullptr;
+    llvm::Instruction *encoder = nullptr;
     Type *encoder_type = nullptr;
     if (build_encoder) {
       auto *encoder_alloc = builder.CreateAssocArrayAllocInst(key_type,
@@ -584,7 +730,7 @@ bool ProxyInsertion::transform() {
       encoder_type = &encoder_alloc->getType();
     }
 
-    llvm::Value *decoder = nullptr;
+    llvm::Instruction *decoder = nullptr;
     Type *decoder_type = nullptr;
     if (build_decoder) {
       auto *decoder_alloc =
@@ -594,141 +740,22 @@ bool ProxyInsertion::transform() {
     }
 
     // Make the proxy available at all uses.
-
-    // Find the set of functions that need the proxy.
-    set<llvm::Function *> to_encode_functions = {};
-    for (auto *use : to_encode) {
-      auto *user = use->getUser();
-      auto *user_as_inst = dyn_cast<llvm::Instruction>(user);
-      if (not user_as_inst) {
-        continue;
-      }
-      auto *user_bb = user_as_inst->getParent();
-      auto *user_func = user_bb->getParent();
-
-      to_encode_functions.insert(user_func);
-    }
-    to_encode_functions.erase(construction_point->getFunction());
-
-    set<llvm::Function *> to_decode_functions = {};
-    for (auto *use : to_decode) {
-      auto *user = use->getUser();
-      auto *user_as_inst = dyn_cast<llvm::Instruction>(user);
-      if (not user_as_inst) {
-        continue;
-      }
-
-      auto *user_bb = user_as_inst->getParent();
-      auto *user_func = user_bb->getParent();
-
-      to_decode_functions.insert(user_func);
-    }
-    to_decode_functions.erase(construction_point->getFunction());
-
-    // Determine the set of functions that we need to pass the proxy to.
-    set<llvm::CallBase *> calls_to_patch_with_encoder = {};
-    set<FoldInst *> folds_to_patch_with_encoder = {};
-    for (auto *to_encode_func : to_encode_functions) {
-      if (auto *single_use = to_encode_func->getSingleUndroppableUse()) {
-        auto *single_user = single_use->getUser();
-        if (auto *fold = into<FoldInst>(single_user)) {
-          folds_to_patch_with_encoder.insert(fold);
-        }
-      } else {
-        for (auto &use : to_encode_func->uses()) {
-          if (auto *call = dyn_cast<llvm::CallBase>(use.getUser())) {
-            calls_to_patch_with_encoder.insert(call);
-          }
-        }
-      }
-    }
-
-    // Determine the set of functions that we need to pass the proxy to.
-    set<llvm::CallBase *> calls_to_patch_with_decoder = {};
-    set<FoldInst *> folds_to_patch_with_decoder = {};
-    for (auto *to_decode_func : to_decode_functions) {
-      if (auto *single_use = to_decode_func->getSingleUndroppableUse()) {
-        auto *single_user = single_use->getUser();
-        if (auto *fold = into<FoldInst>(single_user)) {
-          folds_to_patch_with_decoder.insert(fold);
-        }
-      } else {
-        for (auto &use : to_decode_func->uses()) {
-          if (auto *call = dyn_cast<llvm::CallBase>(use.getUser())) {
-            calls_to_patch_with_decoder.insert(call);
-          }
-        }
-      }
-    }
-
-    // For each call/fold, we will create a temporary argument (a load/store
-    // to a global variable) that will be destructed later.
-
-    // First, construct the global variable.
-    auto *ptr_type = builder.getPtrTy(0);
-
-    // Then, construct the load/store for each call site.
     map<llvm::Function *, llvm::Instruction *> function_to_encoder = {};
-    for (auto *fold : folds_to_patch_with_encoder) {
-      // Create the store ahead of the fold.
-      builder.SetInsertPoint(&fold->getCallInst());
-
-      auto *encoder_global = new llvm::GlobalVariable(
-          module,
-          ptr_type,
-          /* isConstant? */ false,
-          llvm::GlobalValue::LinkageTypes::InternalLinkage,
-          llvm::Constant::getNullValue(ptr_type),
-          "temparg.encoder.");
-
-      auto *store = builder.CreateStore(encoder, encoder_global);
-      Metadata::get_or_add<TempArgumentMetadata>(*store);
-
-      // Create the load in the entry of the fold body.
-      auto &body = fold->getFunction();
-      builder.SetInsertPoint(body.getEntryBlock().getFirstNonPHI());
-
-      auto *load = builder.CreateLoad(ptr_type, encoder_global);
-      function_to_encoder[&body] = load;
-      Metadata::get_or_add<TempArgumentMetadata>(*load);
-      builder.CreateAssertTypeInst(load, *encoder_type);
+    if (build_encoder) {
+      detail::add_tempargs(function_to_encoder,
+                           { redefinitions[alloc] },
+                           { to_encode, to_addkey },
+                           *encoder,
+                           *encoder_type);
     }
 
     map<llvm::Function *, llvm::Instruction *> function_to_decoder = {};
-    for (auto *fold : folds_to_patch_with_decoder) {
-      // Create the store ahead of the fold.
-      builder.SetInsertPoint(&fold->getCallInst());
-
-      auto *decoder_global = new llvm::GlobalVariable(
-          module,
-          ptr_type,
-          /* isConstant? */ false,
-          llvm::GlobalValue::LinkageTypes::InternalLinkage,
-          llvm::Constant::getNullValue(ptr_type),
-          "temparg.decoder.");
-
-      auto *store = builder.CreateStore(decoder, decoder_global);
-      Metadata::get_or_add<TempArgumentMetadata>(*store);
-
-      // Create the load in the entry of the fold body.
-      auto &body = fold->getFunction();
-      builder.SetInsertPoint(body.getEntryBlock().getFirstNonPHI());
-
-      auto *load = builder.CreateLoad(ptr_type, decoder_global);
-      function_to_decoder[&body] = load;
-      Metadata::get_or_add<TempArgumentMetadata>(*load);
-      builder.CreateAssertTypeInst(load, *decoder_type);
-    }
-
-    function_to_encoder[construction_point->getFunction()] =
-        cast<llvm::Instruction>(encoder);
-
-    // TODO: do the same for calls.
-    for (auto *call : calls_to_patch_with_encoder) {
-    }
-
-    // TODO: do the same for calls.
-    for (auto *call : calls_to_patch_with_decoder) {
+    if (build_decoder) {
+      detail::add_tempargs(function_to_decoder,
+                           { redefinitions[alloc] },
+                           { to_decode, to_addkey },
+                           *decoder,
+                           *decoder_type);
     }
 
     // Create the addkey function.
@@ -772,29 +799,9 @@ bool ProxyInsertion::transform() {
 
       builder.SetInsertPoint(program_point);
 
-      // Then, we need to handle insert operations separately from access
-      // operations.
-      if (auto *insert = into<InsertInst>(user_as_inst)) {
-        if (not insert->get_keyword<InputKeyword>()) {
-          if (std::next(AccessInst::index_op_iterator(use))
-              == insert->index_operands_end()) {
-            // Construct the call to addkey.
-            vector<llvm::Value *> args = { use->get(), encoder };
-            if (decoder) {
-              args.push_back(decoder);
-            }
-            auto *encoded = builder.CreateCall(addkey_callee, args);
-            use->set(encoded);
-            // println(*encoded->getParent());
-            continue;
-          }
-        }
-      }
-
       // Handle has operations separately.
       if (auto *has = into<HasInst>(user_as_inst)) {
-        if (std::next(AccessInst::index_op_iterator(use))
-            == has->index_operands_end()) {
+        if (detail::is_last_index(use, has->index_operands_end())) {
           // Construct an if-else block.
           // if (has(encoder, key))
           //   i = read(encoder, key)
@@ -815,7 +822,9 @@ bool ProxyInsertion::transform() {
           auto *encoded =
               &builder.CreateReadInst(size_type, encoder, used)->getCallInst();
 
+          println("set ", *use->get(), " to ", *encoded);
           use->set(encoded);
+
           user_as_inst->replaceAllUsesWith(phi);
 
           auto *then_bb = then_terminator->getParent();
@@ -825,6 +834,9 @@ bool ProxyInsertion::transform() {
           auto *false_constant = llvm::ConstantInt::getFalse(context);
           phi->addIncoming(false_constant, else_bb);
 
+          println(*then_bb);
+          println(*phi->getParent());
+
           continue;
         }
       }
@@ -832,6 +844,54 @@ bool ProxyInsertion::transform() {
       // In the common case, read the encoded value and update the use with it.
       auto *encoded =
           &builder.CreateReadInst(size_type, encoder, used)->getCallInst();
+
+      println("set ", *use->get(), " to ", *encoded);
+      use->set(encoded);
+    }
+
+    // For each of the uses to encode, encode them.
+    for (auto *use : to_addkey) {
+      println("Adding key for use ", *use->getUser());
+
+      // Unpack the use.
+      auto *used = use->get();
+
+      // Find the use's program point.
+      auto *user_as_inst = dyn_cast<llvm::Instruction>(use->getUser());
+      auto *user_bb = user_as_inst->getParent();
+      auto *user_func = user_bb->getParent();
+
+      // TODO: Extend this to re-use en/decodings that dominate the given
+      // program point.
+
+      // Compute the insertion point.
+      llvm::Instruction *program_point = nullptr;
+      if (user_as_inst) {
+        if (auto *phi = dyn_cast<llvm::PHINode>(user_as_inst)) {
+          MEMOIR_UNREACHABLE("En/decoding uses by PHI is unhandled.");
+        } else {
+          program_point = user_as_inst;
+        }
+
+      } else {
+        MEMOIR_UNREACHABLE("Failed to find a point to encode the value!");
+      }
+
+      builder.SetInsertPoint(program_point);
+
+      vector<llvm::Value *> args = { use->get() };
+      if (build_encoder) {
+        auto *encoder = function_to_encoder.at(user_func);
+        args.push_back(encoder);
+      }
+      if (build_decoder) {
+        auto *decoder = function_to_decoder.at(user_func);
+        args.push_back(decoder);
+      }
+
+      auto *encoded = builder.CreateCall(addkey_callee, args);
+
+      println("set ", *use->get(), " to ", *encoded);
 
       use->set(encoded);
     }
@@ -874,6 +934,8 @@ bool ProxyInsertion::transform() {
       auto *decoded =
           &builder.CreateReadInst(key_type, decoder, { use->get() })
                ->getCallInst();
+
+      println("set ", *use->get(), " to ", *decoded);
 
       use->set(decoded);
     }
