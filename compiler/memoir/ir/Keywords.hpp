@@ -35,7 +35,7 @@ public:
     std::string name =
         std::string(Keyword::PREFIX) + std::string(KeywordTy::NAME);
 
-    auto *data = llvm::ConstantDataArray::get(C, name);
+    auto *data = llvm::ConstantDataArray::getString(C, name);
 
     return MEMOIR_SANITIZE(dyn_cast_or_null<llvm::ConstantDataArray>(data),
                            "Failed to create keyword as LLVM constant.");
