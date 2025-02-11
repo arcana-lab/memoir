@@ -1,5 +1,5 @@
-#ifndef MEMOIR_BACKEND_BOOSTFLATSET_H
-#define MEMOIR_BACKEND_BOOSTFLATSET_H
+#ifndef MEMOIR_BACKEND_BITSET_H
+#define MEMOIR_BACKEND_BITSET_H
 
 #include <cstdint>
 #include <cstdio>
@@ -89,4 +89,4 @@ struct BitSet : boost::dynamic_bitset<> {
   }
 };
 
-#endif // MEMOIR_BACKEND_BOOSTFLATSET_H
+#endif // MEMOIR_BACKEND_BITSET_H
