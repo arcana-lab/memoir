@@ -93,6 +93,21 @@ protected:
   llvm::Use *op;
 };
 
+#define CLASSOF_IMPL()                                                         \
+  static bool classof(const Keyword &kw) {                                     \
+    auto *value = kw.getAsUse().get();                                         \
+    auto *data = dyn_cast<llvm::ConstantDataSequential>(value);                \
+    if (auto *global = dyn_cast<llvm::GlobalVariable>(value)) {                \
+      auto *init = global->getInitializer();                                   \
+      data = dyn_cast<llvm::ConstantDataSequential>(init);                     \
+    }                                                                          \
+    if (not data) {                                                            \
+      return false;                                                            \
+    }                                                                          \
+    auto str = data->getAsCString();                                           \
+    return str.ends_with(NAME);                                                \
+  }
+
 struct ClosedKeyword : public Keyword {
 public:
   llvm::iterator_range<Keyword::iterator> args();
@@ -103,14 +118,7 @@ public:
   Keyword::operand_iterator arg_ops_begin();
   Keyword::operand_iterator arg_ops_end();
 
-  static bool classof(const Keyword &kw) {
-    auto *value = kw.getAsUse().get();
-    auto *global = cast<llvm::GlobalVariable>(value);
-    auto *init = global->getInitializer();
-    auto *data = cast<llvm::ConstantDataSequential>(init);
-    auto str = data->getAsCString();
-    return str.ends_with(NAME);
-  }
+  CLASSOF_IMPL()
 
   ClosedKeyword(llvm::Use &use) : Keyword(use) {}
 
@@ -133,14 +141,7 @@ public:
   Keyword::operand_iterator index_ops_begin();
   Keyword::operand_iterator index_ops_end();
 
-  static bool classof(const Keyword &kw) {
-    auto *value = kw.getAsUse().get();
-    auto *global = cast<llvm::GlobalVariable>(value);
-    auto *init = global->getInitializer();
-    auto *data = cast<llvm::ConstantDataSequential>(init);
-    auto str = data->getAsCString();
-    return str.ends_with(NAME);
-  }
+  CLASSOF_IMPL()
 
   InputKeyword(llvm::Use &use) : Keyword(use) {}
 
@@ -158,14 +159,7 @@ public:
   llvm::Value &getEnd() const;
   llvm::Use &getEndAsUse() const;
 
-  static bool classof(const Keyword &kw) {
-    auto *value = kw.getAsUse().get();
-    auto *global = cast<llvm::GlobalVariable>(value);
-    auto *init = global->getInitializer();
-    auto *data = cast<llvm::ConstantDataSequential>(init);
-    auto str = data->getAsCString();
-    return str.ends_with(NAME);
-  }
+  CLASSOF_IMPL()
 
   RangeKeyword(llvm::Use &use) : Keyword(use) {}
 
@@ -180,14 +174,7 @@ public:
   llvm::Value &getValue() const;
   llvm::Use &getValueAsUse() const;
 
-  static bool classof(const Keyword &kw) {
-    auto *value = kw.getAsUse().get();
-    auto *global = cast<llvm::GlobalVariable>(value);
-    auto *init = global->getInitializer();
-    auto *data = cast<llvm::ConstantDataSequential>(init);
-    auto str = data->getAsCString();
-    return str.ends_with(NAME);
-  }
+  CLASSOF_IMPL()
 
   ValueKeyword(llvm::Use &use) : Keyword(use) {}
 
