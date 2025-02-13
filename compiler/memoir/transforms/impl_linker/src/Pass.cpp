@@ -273,21 +273,42 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   auto other_module = std::move(other.get());
 
   // Prepare the module for linking.
-  const llvm::GlobalValue::LinkageTypes linkage =
+  const llvm::GlobalValue::LinkageTypes weak =
       llvm::GlobalValue::WeakAnyLinkage;
+  const llvm::GlobalValue::LinkageTypes external =
+      llvm::GlobalValue::ExternalLinkage;
 
   for (auto &A : other_module->aliases()) {
-    if (!A.isDeclaration()) {
-      A.setLinkage(linkage);
+    if (A.isDeclaration()) {
+      A.setLinkage(external);
+    } else {
+      A.setLinkage(weak);
+    }
+  }
+
+  for (auto &G : other_module->globals()) {
+    // Skip intrinsics.
+    if (G.hasInitializer() and G.hasName()) {
+      auto name = G.getName();
+      if (name == "llvm.used" or name == "llvm.compiler.used"
+          or name == "llvm.global_ctors" or name == "llvm.global_dtors") {
+        continue;
+      }
+    }
+
+    if (G.isDeclaration()) {
+      G.setLinkage(external);
+    } else {
+      G.setLinkage(weak);
     }
   }
 
   for (auto &F : *other_module) {
-    if (!F.isDeclaration()) {
-      F.setLinkage(linkage);
+    if (F.isDeclaration()) {
+      F.setLinkage(external);
+    } else {
+      F.setLinkage(weak);
     }
-
-    F.setLinkage(linkage);
   }
 
   // Verify both modules before linking.
