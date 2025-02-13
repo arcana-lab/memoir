@@ -476,7 +476,7 @@ ContentSummary ContentAnalysisDriver::contextualize_fold(FoldInst &I,
        ++closed_idx) {
     auto &closed_use = I.getClosedAsUse(closed_idx);
     auto &closed = *closed_use.get();
-    auto &closed_arg = I.getClosedArgument(closed_use);
+    auto &closed_arg = *I.getClosedArgument(closed_use);
 
     auto [closed_arg_domain, closed_arg_range] =
         detail::conservative(closed_arg);
@@ -885,7 +885,7 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     auto &operand_use = call->getArgOperandUse(arg_number);
 
     // Get the corresponding argument.
-    auto &closed_argument = fold->getClosedArgument(operand_use);
+    auto &closed_argument = *fold->getClosedArgument(operand_use);
 
     // Get the corresponding live-out content.
     llvm::Value *live_out = nullptr;
