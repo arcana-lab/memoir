@@ -85,6 +85,8 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
   // Insert proxies and encode uses.
   ProxyInsertion proxies(M);
 
+  MemOIRInst::invalidate();
+
   // Perform selection monomorphization.
   SelectionMonomorphization monomorph(M);
 
