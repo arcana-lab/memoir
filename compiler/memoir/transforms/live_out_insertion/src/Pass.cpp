@@ -74,6 +74,44 @@ set<llvm::Value *> gather_reaching_definitions(llvm::Value &V) {
   return reaching;
 }
 
+llvm::Value *find_single_postdominator(llvm::PostDominatorTree &PDT,
+                                       llvm::ArrayRef<llvm::Value *> values) {
+
+  // Now find the value that post dominates all other values.
+  for (auto *val : values) {
+
+    auto *inst = dyn_cast<llvm::Instruction>(val);
+    if (not inst) {
+      continue;
+    }
+
+    bool postdom_all = true;
+    for (auto *other : values) {
+      // Skip itself.
+      if (val == other) {
+        continue;
+      }
+
+      auto *other_inst = dyn_cast<llvm::Instruction>(other);
+      if (not other_inst) {
+        continue;
+      }
+
+      // Check postdominance.
+      if (not PDT.dominates(inst, other_inst)) {
+        postdom_all = false;
+        break;
+      }
+    }
+
+    if (postdom_all) {
+      return val;
+    }
+  }
+
+  return nullptr;
+}
+
 } // namespace detail
 
 llvm::PreservedAnalyses LiveOutInsertionPass::run(
@@ -148,51 +186,43 @@ llvm::PreservedAnalyses LiveOutInsertionPass::run(
         [&](llvm::Value *val) { return DT.dominates(val, single_return); });
 
     // Now find the value that post dominates all other values.
-    llvm::Instruction *postdominates = nullptr;
-    for (auto *val : dominates) {
+    auto *postdominates = detail::find_single_postdominator(PDT, dominates);
 
-      auto *inst = dyn_cast<llvm::Instruction>(val);
-      if (not inst) {
-        continue;
-      }
-
-      bool postdom_all = true;
-      for (auto *other : dominates) {
-        // Skip itself.
-        if (val == other) {
-          continue;
-        }
-
-        auto *other_inst = dyn_cast<llvm::Instruction>(other);
-        if (not other_inst) {
-          continue;
-        }
-
-        // Check postdominance.
-        if (not PDT.dominates(inst, other_inst)) {
-          postdom_all = false;
-          break;
-        }
-      }
-
-      if (postdom_all) {
-        postdominates = inst;
-      }
-    }
-
+    // If we failed to find a single instruction, we will do a small hack to
+    // handle functions that call exit().
     if (not postdominates) {
-      println(*arg->getParent());
-      MEMOIR_UNREACHABLE("Failed to find a value that dominates function exit "
-                         "and postdominates all others for argument ",
-                         *arg,
-                         " in ",
-                         arg->getParent()->getName());
+      // Find all values that are in the same basic block as the single return.
+      vector<llvm::Value *> local = {};
+      std::copy_if(dominates.begin(),
+                   dominates.end(),
+                   std::back_inserter(local),
+                   [&](llvm::Value *val) {
+                     auto *inst = dyn_cast<llvm::Instruction>(val);
+                     if (not inst) {
+                       return false;
+                     }
+                     return inst->getParent() == single_return->getParent();
+                   });
+
+      postdominates = detail::find_single_postdominator(PDT, local);
+
+      if (not postdominates) {
+        println(*arg->getParent());
+        MEMOIR_UNREACHABLE(
+            "Failed to find a value that dominates function exit "
+            "and postdominates all others for argument ",
+            *arg,
+            " in ",
+            arg->getParent()->getName());
+      }
     }
 
     // Insert the live out metadata.
-    auto live_out_metadata =
-        Metadata::get_or_add<LiveOutMetadata>(*postdominates);
-    live_out_metadata.setArgNo(arg->getArgNo());
+    if (auto *postdom_inst = dyn_cast<llvm::Instruction>(postdominates)) {
+      auto live_out_metadata =
+          Metadata::get_or_add<LiveOutMetadata>(*postdom_inst);
+      live_out_metadata.setArgNo(arg->getArgNo());
+    }
   }
 
   return llvm::PreservedAnalyses::none();
