@@ -16,15 +16,18 @@ bool Keyword::is_keyword(llvm::Value *value) {
 }
 
 bool Keyword::is_keyword(llvm::Value &V) {
-  auto *global = dyn_cast<llvm::GlobalVariable>(&V);
-  if (not global) {
-    return false;
+  llvm::ConstantDataSequential *data = nullptr;
+  if (auto *global = dyn_cast<llvm::GlobalVariable>(&V)) {
+    auto *init = global->getInitializer();
+    data = dyn_cast_or_null<llvm::ConstantDataSequential>(init);
+  } else {
+    data = dyn_cast<llvm::ConstantDataSequential>(&V);
   }
-  auto *init = global->getInitializer();
-  auto *data = dyn_cast_or_null<llvm::ConstantDataSequential>(init);
+
   if (not data) {
     return false;
   }
+
   if (not data->isCString()) {
     return false;
   }
