@@ -44,8 +44,7 @@ static const Implementation &get_implementation(
 FunctionCallee get_function_callee(llvm::Module &M, std::string name) {
   auto *function = M.getFunction(name);
   if (not function) {
-    println("Couldn't find ", name);
-    MEMOIR_UNREACHABLE("see above");
+    MEMOIR_UNREACHABLE("Couldn't find ", name);
   }
 
   return FunctionCallee(function);
@@ -78,11 +77,19 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
     auto *param_type = function_type->getParamType(param_index++);
 
     // If the argument doesn't match the parameter's type, prepare it.
-    if (arg->getType() != param_type) {
-      if (isa<llvm::IntegerType>(param_type)) {
+    auto *arg_type = arg->getType();
+    if (arg_type != param_type) {
+      if (isa<llvm::IntegerType>(param_type)
+          and isa<llvm::IntegerType>(arg_type)) {
         arg = builder.CreateZExtOrTrunc(arg, param_type);
       } else {
-        MEMOIR_UNREACHABLE("Unhandled type mismatch!");
+        println(*builder.GetInsertBlock()->getParent());
+        println();
+        println("at ", *builder.GetInsertPoint());
+        MEMOIR_UNREACHABLE("Unhandled type mismatch! ",
+                           *arg_type,
+                           " ≠ ",
+                           *param_type);
       }
     }
   }
