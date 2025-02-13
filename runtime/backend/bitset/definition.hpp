@@ -30,8 +30,7 @@ struct BitSet : boost::dynamic_bitset<> {
   }
 
   void insert_input(BitSet<Key> *other) {
-    auto size = std::min(this->size(), other->size());
-#pragma clang loop vectorize(enable)
+    auto size = std::min(this->Base::size(), other->Base::size());
     for (Size i = 0; i < size; ++i) {
       (*this)[i] |= (*other)[i];
     }
@@ -55,7 +54,10 @@ struct BitSet : boost::dynamic_bitset<> {
   }
 
   bool has(const Size &key) {
-    return this->Base::test(key);
+    if (key < this->Base::size()) {
+      return this->Base::test(key);
+    }
+    return false;
   }
 
   size_t size() {
