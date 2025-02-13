@@ -100,10 +100,6 @@ public:
           name);
     } else if (auto *struct_type = dyn_cast<StructType>(&type)) {
       auto *name_global = &struct_type->getDefinition().getNameOperand();
-      if (auto *name_as_inst = dyn_cast<llvm::Instruction>(name_global)) {
-        name_global = name_as_inst->clone();
-        this->Insert(cast<llvm::Instruction>(name_global));
-      }
       return this->CreateStructTypeInst(name_global, name);
     } else if (auto *field_array_type = dyn_cast<FieldArrayType>(&type)) {
       return this->CreateTypeInst(field_array_type->getStructType());
@@ -228,7 +224,8 @@ public:
   AllocInst *CreateSequenceAllocInst(llvm::Value *type,
                                      uint64_t size,
                                      const Twine &name = "") {
-    return this->CreateSequenceAllocInst(type, this->getInt64(size), name);
+    auto *seq_type = &this->CreateSequenceTypeInst(type)->getCallInst();
+    return this->CreateSequenceAllocInst(seq_type, this->getInt64(size), name);
   }
 
   AllocInst *CreateSequenceAllocInst(llvm::Value *type,
@@ -449,9 +446,10 @@ public:
 
   //// Fold operation
   FoldInst *CreateFoldInst(Type &type,
+                           llvm::Function *body,
                            llvm::Value *initial,
                            llvm::Value *collection,
-                           llvm::Function *body,
+                           llvm::ArrayRef<llvm::Value *> indices = {},
                            llvm::ArrayRef<llvm::Value *> closed = {},
                            const Twine &name = "") {
     // Fetch the function type.
@@ -459,24 +457,27 @@ public:
 
     // Construct the call.
     return this->CreateFoldInst(getFoldEnumForType(type),
+                                body,
                                 initial,
                                 collection,
-                                body,
+                                indices,
                                 closed,
                                 name);
   }
 
   FoldInst *CreateFoldInst(MemOIR_Func fold_enum,
+                           llvm::Function *body,
                            llvm::Value *initial,
                            llvm::Value *collection,
-                           llvm::Function *body,
+                           llvm::ArrayRef<llvm::Value *> indices = {},
                            llvm::ArrayRef<llvm::Value *> closed = {},
                            const Twine &name = "") {
     // Fetch the function type.
     auto *func_type = body->getFunctionType();
 
     // Create the argument list.
-    vector<llvm::Value *> args = { initial, collection, body };
+    vector<llvm::Value *> args = { body, initial, collection };
+    args.insert(args.end(), indices.begin(), indices.end());
     if (not closed.empty()) {
       args.push_back(&Keyword::get_llvm<ClosedKeyword>(this->getContext()));
       args.insert(args.end(), closed.begin(), closed.end());
