@@ -836,13 +836,13 @@ public:
   llvm::Argument *getElementArgument() const;
 
   /**
-   * Get the corresponding argument in the fold function for the given
-   // * closed use.
+   * Get the corresponding argument in the fold function for the given closed
+   * use.
    *
    * @param use the use of the closed value
-   * @returns the corresponding argument
+   * @returns the corresponding argument, NULL if the use is not closed on.
    */
-  llvm::Argument &getClosedArgument(llvm::Use &use) const;
+  llvm::Argument *getClosedArgument(llvm::Use &use) const;
 
   /**
    * Fetch the operand use that will be passed to the given argument.

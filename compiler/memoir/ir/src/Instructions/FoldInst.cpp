@@ -148,7 +148,7 @@ llvm::Argument *FoldInst::getElementArgument() const {
   return &arg;
 }
 
-llvm::Argument &FoldInst::getClosedArgument(llvm::Use &U) const {
+llvm::Argument *FoldInst::getClosedArgument(llvm::Use &U) const {
   // Get the collection type.
   auto &collection_type =
       MEMOIR_SANITIZE(dyn_cast<CollectionType>(&this->getElementType()),
@@ -156,9 +156,14 @@ llvm::Argument &FoldInst::getClosedArgument(llvm::Use &U) const {
 
   // Fetch the operand number of the closed keyword.
   auto closed_kw = this->getClosed();
-  MEMOIR_ASSERT(closed_kw.has_value(),
-                "Trying to get closed argument for non-existent closure");
+  if (not closed_kw) {
+    return nullptr;
+  }
+
   auto closed_kw_no = closed_kw->getAsUse().getOperandNo();
+  if (closed_kw_no >= U.getOperandNo()) {
+    return nullptr;
+  }
 
   // Compute the index of this use within the list of closed arguments.
   auto closed_index = U.getOperandNo() - closed_kw_no - 1;
@@ -170,8 +175,7 @@ llvm::Argument &FoldInst::getClosedArgument(llvm::Use &U) const {
 
   // Compute the argument number corresponding to the closed operand.
   auto arg_no = closed_index + first_closed;
-  auto &arg = MEMOIR_SANITIZE(this->getFunction().getArg(arg_no),
-                              "Failed to get function argument.");
+  auto *arg = this->getFunction().getArg(arg_no);
 
   return arg;
 }
