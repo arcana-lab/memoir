@@ -196,12 +196,11 @@ void propagate(Selections &selections,
           worklist.push_back(&argument);
         }
 
-      } else {
+      } else if (auto *argument = fold->getClosedArgument(use)) {
         // Otherwise, the collection is closed on, propagate to the
         // corresponding argument, but don't recurse.
-        auto &argument = fold->getClosedArgument(use);
-        if (selections.propagate(from, argument)) {
-          worklist.push_back(&argument);
+        if (selections.propagate(from, *argument)) {
+          worklist.push_back(argument);
         }
       }
 
