@@ -57,14 +57,8 @@ bool use_is_mutating(llvm::Use &use, bool construct_use_phis) {
     // If the value is closed on by the FoldInst, it will be redefined by
     // a RetPHI.
     if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
-      if (auto closed_kw = fold->getClosed()) {
-        // Check if the use is within the closed operand list.
-        if (use.getOperandNo() < closed_kw->getAsUse().getOperandNo()) {
-          return false;
-        }
-
-        auto &closed_arg = fold->getClosedArgument(use);
-        if (detail::value_is_mutated(closed_arg)) {
+      if (auto *closed_arg = fold->getClosedArgument(use)) {
+        if (detail::value_is_mutated(*closed_arg)) {
           return true;
         }
       }
@@ -386,7 +380,7 @@ void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
       auto *closed = closed_use.get();
 
       // Update the argument to match the function being called.
-      auto &closed_param = I.getClosedArgument(closed_use);
+      auto &closed_param = *I.getClosedArgument(closed_use);
       if (closed_param.getType() != closed->getType()) {
         auto *param_type = closed_param.getType();
         auto *val_type = closed->getType();
