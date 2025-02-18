@@ -1,3 +1,4 @@
+#include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
@@ -15,14 +16,16 @@ namespace folio {
 ProxyInsertion::ProxyInsertion(llvm::Module &M) : M(M) {
 
   // Register the bit{map,set} implementations.
-  Implementation::define(
-      { Implementation( // bitmap<T, U>
-            "bitmap",
-            AssocType::get(TypeVariable::get(), TypeVariable::get())),
+  Implementation::define({
+      Implementation( // bitset<T>
+          "bitset",
+          AssocType::get(TypeVariable::get(), VoidType::get())),
 
-        Implementation( // bitset<T>
-            "bitset",
-            AssocType::get(TypeVariable::get(), VoidType::get())) });
+      Implementation( // bitmap<T, U>
+          "bitmap",
+          AssocType::get(TypeVariable::get(), TypeVariable::get())),
+
+  });
 
   analyze();
 
@@ -51,7 +54,8 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M) : M(M) {
   println("Verified module post-temparg reify.");
 }
 
-void ProxyInsertion::gather_assoc_objects(AllocInst &alloc,
+void ProxyInsertion::gather_assoc_objects(vector<ObjectInfo> &allocations,
+                                          AllocInst &alloc,
                                           Type &type,
                                           vector<unsigned> offsets) {
 
@@ -60,7 +64,8 @@ void ProxyInsertion::gather_assoc_objects(AllocInst &alloc,
       auto new_offsets = offsets;
       new_offsets.push_back(field);
 
-      this->gather_assoc_objects(alloc,
+      this->gather_assoc_objects(allocations,
+                                 alloc,
                                  struct_type->getFieldType(field),
                                  new_offsets);
     }
@@ -69,7 +74,7 @@ void ProxyInsertion::gather_assoc_objects(AllocInst &alloc,
     auto &elem_type = collection_type->getElementType();
 
     // If this is an assoc, add the object information.
-    if (isa<AssocType>(collection_type) and isa<VoidType>(&elem_type)) {
+    if (isa<AssocType>(collection_type)) {
       allocations.push_back(ObjectInfo(&alloc, offsets));
     }
 
@@ -77,7 +82,7 @@ void ProxyInsertion::gather_assoc_objects(AllocInst &alloc,
     auto new_offsets = offsets;
     new_offsets.push_back(-1);
 
-    this->gather_assoc_objects(alloc, elem_type, new_offsets);
+    this->gather_assoc_objects(allocations, alloc, elem_type, new_offsets);
   }
 
   return;
@@ -86,17 +91,54 @@ void ProxyInsertion::gather_assoc_objects(AllocInst &alloc,
 void ProxyInsertion::analyze() {
   auto &M = this->M;
 
-  vector<ObjectInfo> objects = {};
-
+  // Gather all possible allocations.
+  vector<ObjectInfo> allocations = {};
   for (auto &F : M) {
     for (auto &BB : F) {
       for (auto &I : BB) {
         if (auto *alloc = into<AllocInst>(&I)) {
           // Gather all of the Assoc allocations.
-          this->gather_assoc_objects(*alloc, alloc->getType());
+          this->gather_assoc_objects(allocations, *alloc, alloc->getType());
         }
       }
     }
+  }
+
+  // Use a heuristic to group together allocations.
+  set<const ObjectInfo *> used = {};
+  for (auto it = allocations.begin(); it != allocations.end(); ++it) {
+    const auto &info = *it;
+
+    if (used.count(&info) > 0) {
+      continue;
+    }
+
+    auto *bb = info.allocation->getParent();
+
+    if (this->candidates.size() > 0) {
+      break;
+    }
+
+    this->candidates.push_back({ info });
+
+    // Find all other allocations that share a basic block with this one.
+    for (auto it2 = std::next(it); it2 != allocations.end(); ++it2) {
+      const auto &other = *it2;
+
+      if (used.count(&other) > 0) {
+        continue;
+      }
+
+      auto *other_bb = other.allocation->getParent();
+
+      if (bb == other_bb) {
+        this->candidates.back().push_back(other);
+
+        used.insert(&other);
+      }
+    }
+
+    used.insert(&info);
   }
 }
 
@@ -146,9 +188,9 @@ void gather_redefinitions(llvm::Value &V, set<llvm::Value *> &redefinitions) {
         } else if (use == fold->getObjectAsUse()) {
           // Do nothing.
 
-        } else {
+        } else if (auto *closed_arg = fold->getClosedArgument(use)) {
           // Gather uses of the closed argument.
-          gather_redefinitions(fold->getClosedArgument(use), redefinitions);
+          gather_redefinitions(*closed_arg, redefinitions);
         }
       }
 
@@ -171,6 +213,13 @@ void gather_redefinitions(llvm::Value &V, set<llvm::Value *> &redefinitions) {
 int32_t indices_match_offsets(AccessInst &access, vector<unsigned> &offsets) {
   auto index_it = access.index_operands_begin();
   auto index_ie = access.index_operands_end();
+
+  auto *object_type = type_of(access.getObject());
+  if (not object_type) {
+    println(*access.getParent()->getParent());
+    println("OBJ ", access.getObject());
+    MEMOIR_UNREACHABLE("Could not get type of object ", access);
+  }
 
   auto *type = &access.getObjectType();
 
@@ -268,10 +317,14 @@ void gather_uses_to_proxy(llvm::Value &V,
                           set<llvm::Use *> &to_encode,
                           set<llvm::Use *> &to_decode,
                           set<llvm::Use *> &to_addkey) {
+  debugln("REDEF ", V);
+
   // From a given collection, V, gather all uses that need to be either
   // encoded or decoded.
   for (auto &use : V.uses()) {
     auto *user = use.getUser();
+
+    debugln("  USER ", *user);
 
     if (auto *fold = into<FoldInst>(user)) {
 
@@ -279,6 +332,7 @@ void gather_uses_to_proxy(llvm::Value &V,
 
         // If we find an index use, encode it.
         if (auto *index_use = detail::get_index_use(*fold, offsets)) {
+          debugln("    ENCODING INDEX");
           to_encode.insert(index_use);
 
         } else {
@@ -286,15 +340,18 @@ void gather_uses_to_proxy(llvm::Value &V,
           // If the offset is exactly equal to the keys being folded over,
           // decode the index argument of the body.
           auto distance = detail::indices_match_offsets(*fold, offsets);
+
           if (distance == -1) {
             // Do nothing.
           }
 
-          // If the offset are fully exhausted, add uses of the index argument
+          // If the offsets are fully exhausted, add uses of the index argument
           // to the set of uses to decode.
           else if (distance == int32_t(offsets.size())) {
             auto &index_arg = fold->getIndexArgument();
+            debugln("    DECODING KEY");
             for (auto &index_use : index_arg.uses()) {
+              debugln("      USE ", *index_use.getUser());
               to_decode.insert(&index_use);
             }
           }
@@ -306,6 +363,7 @@ void gather_uses_to_proxy(llvm::Value &V,
               vector<unsigned> nested_offsets(
                   std::next(offsets.begin(), distance),
                   offsets.end());
+              debugln("    RECURSING");
               gather_uses_to_proxy(*elem_arg,
                                    nested_offsets,
                                    to_encode,
@@ -318,16 +376,21 @@ void gather_uses_to_proxy(llvm::Value &V,
 
     } else if (auto *access = into<AccessInst>(user)) {
 
-      // Find the index use for the given offset and mark it for decoding.
-      if (auto *index_use = detail::get_index_use(*access, offsets)) {
-        if (isa<InsertInst>(access)) {
-          if (detail::is_last_index(index_use, access->index_operands_end())) {
-            to_addkey.insert(index_use);
-            continue;
+      if (use == access->getObjectAsUse()) {
+        // Find the index use for the given offset and mark it for decoding.
+        if (auto *index_use = detail::get_index_use(*access, offsets)) {
+          if (isa<InsertInst>(access)) {
+            if (detail::is_last_index(index_use,
+                                      access->index_operands_end())) {
+              debugln("    ADDING KEY ", *index_use->get());
+              to_addkey.insert(index_use);
+              continue;
+            }
           }
-        }
 
-        to_encode.insert(index_use);
+          debugln("    ENCODING KEY ", *index_use->get());
+          to_encode.insert(index_use);
+        }
       }
     }
   }
@@ -412,9 +475,9 @@ llvm::FunctionCallee create_addkey_function(llvm::Module &M,
                                       phi,
                                       &then_terminator,
                                       &else_terminator);
-  // if (not has(encoder, key)) {
-  //   z1 = size(encoder)
-  //   insert(size(encoder), encoder, key)
+
+  // if (has(encoder, key)) {
+  //   z2 = read(encoder, key)
   // }
   auto *then_bb = then_terminator->getParent();
   builder.SetInsertPoint(then_terminator);
@@ -422,7 +485,9 @@ llvm::FunctionCallee create_addkey_function(llvm::Module &M,
       &builder.CreateReadInst(size_type, encoder, { key })->getCallInst();
 
   // else {
-  //   z2 = read(encoder, key)
+  //   z1 = size(encoder)
+  //   insert(size(encoder), encoder, key)
+  //   insert(key, decoder, end)
   // }
   auto *else_bb = else_terminator->getParent();
   builder.SetInsertPoint(else_terminator);
@@ -445,10 +510,10 @@ llvm::FunctionCallee create_addkey_function(llvm::Module &M,
       new_index = &builder.CreateSizeInst(decoder)->getCallInst();
     }
     auto *end = &builder.CreateEndInst()->getCallInst();
-    auto *insert = builder.CreateInsertInst(encoder, { end });
+    auto *insert = builder.CreateInsertInst(decoder, { end });
     new_decoder = &builder
-                       .CreateWriteInst(size_type,
-                                        new_index,
+                       .CreateWriteInst(key_type,
+                                        key,
                                         &insert->getCallInst(),
                                         { new_index })
                        ->getCallInst();
@@ -480,8 +545,6 @@ void add_tempargs(map<llvm::Function *, llvm::Instruction *> &local_patches,
                   llvm::ArrayRef<set<llvm::Use *>> uses_to_patch,
                   llvm::Instruction &patch_with,
                   Type &patch_type) {
-
-  println(patch_with);
 
   MemOIRBuilder builder(&patch_with);
   auto &context = builder.getContext();
@@ -518,6 +581,10 @@ void add_tempargs(map<llvm::Function *, llvm::Instruction *> &local_patches,
   map<llvm::CallBase *, llvm::GlobalVariable *> calls_to_patch = {};
   map<FoldInst *, llvm::GlobalVariable *> folds_to_patch = {};
   for (auto *func : functions) {
+    if (func == patch_func) {
+      continue;
+    }
+
     // Create the global variable.
     auto *global = new llvm::GlobalVariable(
         module,
@@ -546,7 +613,9 @@ void add_tempargs(map<llvm::Function *, llvm::Instruction *> &local_patches,
     } else {
       for (auto &use : func->uses()) {
         if (auto *call = dyn_cast<llvm::CallBase>(use.getUser())) {
-          calls_to_patch[call] = global;
+          if (call->getCalledFunction() == func) {
+            calls_to_patch[call] = global;
+          }
         }
       }
     }
@@ -557,7 +626,6 @@ void add_tempargs(map<llvm::Function *, llvm::Instruction *> &local_patches,
     // Unpack.
     auto &inst = fold->getCallInst();
     auto *func = inst.getFunction();
-    println(func->getName());
 
     // Create the store ahead of the fold.
     builder.SetInsertPoint(&inst);
@@ -573,7 +641,19 @@ void add_tempargs(map<llvm::Function *, llvm::Instruction *> &local_patches,
   // TODO:
   // Patch each of the calls by storing to the global before the operation.
   for (const auto &[call, global] : calls_to_patch) {
-    println("Need to patch ", *call);
+    warnln("Need to patch ", *call);
+    // Unpack.
+    auto *func = call->getFunction();
+
+    // Create the store ahead of the call.
+    builder.SetInsertPoint(call);
+
+    auto *local = local_patches[func];
+
+    MEMOIR_ASSERT(local, "Failed to find the local patch in ", func->getName());
+
+    auto *store = builder.CreateStore(local, global);
+    Metadata::get_or_add<TempArgumentMetadata>(*store);
   }
 
   return;
@@ -587,11 +667,20 @@ bool ProxyInsertion::transform() {
 
   // Collect the set of redefinitions for each allocation involved.
   ordered_map<AllocInst *, set<llvm::Value *>> redefinitions = {};
-  for (auto &info : this->allocations) {
+  for (auto &candidate : this->candidates) {
+    auto &info = candidate.front();
 
     // Unpack the object information.
     auto *alloc = info.allocation;
     auto *type = &alloc->getType();
+
+    debugln("Proxying:");
+    debugln("  ", *alloc);
+    print("  offsets = [");
+    for (auto offset : info.offsets) {
+      print(offset, ", ");
+    }
+    debugln("]");
 
     // Get the nested object type.
     for (auto offset : info.offsets) {
@@ -605,36 +694,40 @@ bool ProxyInsertion::transform() {
     }
 
     auto &assoc_type = MEMOIR_SANITIZE(
-
         dyn_cast<AssocType>(type),
         "Proxy insertion for non-assoc collection is unsupported");
 
     auto &key_type = assoc_type.getKeyType();
     auto &val_type = assoc_type.getValueType();
 
-    // Gather redefinitions of the allocation.
-    detail::gather_redefinitions(alloc->getCallInst(), redefinitions[alloc]);
-
     // Collect the set of uses that need to be updated to use the proxy space.
-    // We will separate these into uses that need the be encoded/decoded.
+    // We will separate these into uses that need the be encoded, decoded and
+    // added to the proxy space.
     set<llvm::Use *> to_encode = {};
     set<llvm::Use *> to_decode = {};
     set<llvm::Use *> to_addkey = {};
+    for (auto &info : candidate) {
+      auto *alloc = info.allocation;
 
-    // Iterate over all uses of redefinitions to find any uses that need
-    // updated.
-    for (auto *redef : redefinitions[alloc]) {
-      detail::gather_uses_to_proxy(*redef,
-                                   info.offsets,
-                                   to_encode,
-                                   to_decode,
-                                   to_addkey);
+      // Gather redefinitions of the allocation.
+      detail::gather_redefinitions(alloc->getCallInst(), redefinitions[alloc]);
+
+      // Iterate over all uses of redefinitions to find any uses that need
+      // updated.
+      for (auto *redef : redefinitions[alloc]) {
+        detail::gather_uses_to_proxy(*redef,
+                                     info.offsets,
+                                     to_encode,
+                                     to_decode,
+                                     to_addkey);
+      }
     }
 
-    println("  before trimming:");
-    println("  ", to_encode.size(), " uses to encode");
-    println("  ", to_decode.size(), " uses to decode");
-    println("  ", to_addkey.size(), " uses to addkey");
+    infoln();
+    infoln("  before trimming:");
+    infoln("  ", to_encode.size(), " uses to encode");
+    infoln("  ", to_decode.size(), " uses to decode");
+    infoln("  ", to_addkey.size(), " uses to addkey");
 
     // Trim uses that dont need to be decoded because they are only used to
     // compare against other values that need to be decoded.
@@ -661,8 +754,8 @@ bool ProxyInsertion::transform() {
       }
     }
 
-    // Trim uses that dont need to be encoded because they are produced by a use
-    // that needs decoded.
+    // Trim uses that dont need to be encoded because they are produced by a
+    // use that needs decoded.
     set<llvm::Use *> trim_to_encode = {};
     for (auto uses : { to_encode, to_addkey }) {
       for (auto *encodee : uses) {
@@ -684,20 +777,35 @@ bool ProxyInsertion::transform() {
       to_addkey.erase(use_to_trim);
     }
 
-    println("  after trimming:");
-    println("  ", to_encode.size(), " uses to encode");
-    for (auto *use : to_encode) {
-      println("    ", *use->get(), " in ", *use->getUser());
+    {
+      infoln("  trimmed:");
+      infoln("  ", trim_to_encode.size(), " uses to encode");
+      for (auto *use : trim_to_encode) {
+        infoln("    ", *use->get(), " in ", *use->getUser());
+      }
+
+      infoln("  ", trim_to_decode.size(), " uses to decode");
+      for (auto *use : trim_to_decode) {
+        infoln("    ", *use->get(), " in ", *use->getUser());
+      }
     }
 
-    println("  ", to_decode.size(), " uses to decode");
-    for (auto *use : to_decode) {
-      println("    ", *use->get(), " in ", *use->getUser());
-    }
+    {
+      infoln("  after trimming:");
+      infoln("  ", to_encode.size(), " uses to encode");
+      for (auto *use : to_encode) {
+        infoln("    ", *use->get(), " in ", *use->getUser());
+      }
 
-    println("  ", to_addkey.size(), " uses to addkey");
-    for (auto *use : to_addkey) {
-      println("    ", *use->get(), " in ", *use->getUser());
+      infoln("  ", to_decode.size(), " uses to decode");
+      for (auto *use : to_decode) {
+        infoln("    ", *use->get(), " in ", *use->getUser());
+      }
+
+      infoln("  ", to_addkey.size(), " uses to addkey");
+      for (auto *use : to_addkey) {
+        infoln("    ", *use->get(), " in ", *use->getUser());
+      }
     }
 
     // Find the construction point for the encoder and decoder.
@@ -723,20 +831,20 @@ bool ProxyInsertion::transform() {
     llvm::Instruction *encoder = nullptr;
     Type *encoder_type = nullptr;
     if (build_encoder) {
-      auto *encoder_alloc = builder.CreateAssocArrayAllocInst(key_type,
-                                                              size_type,
-                                                              "proxy.encode.");
+      encoder_type = &AssocType::get(key_type, size_type);
+      auto *encoder_alloc =
+          builder.CreateAllocInst(*encoder_type, {}, "proxy.encode.");
       encoder = &encoder_alloc->getCallInst();
-      encoder_type = &encoder_alloc->getType();
     }
 
     llvm::Instruction *decoder = nullptr;
     Type *decoder_type = nullptr;
     if (build_decoder) {
-      auto *decoder_alloc =
-          builder.CreateSequenceAllocInst(key_type, size_t(0), "proxy.decode.");
+      decoder_type = &SequenceType::get(key_type);
+      auto *decoder_alloc = builder.CreateAllocInst(*decoder_type,
+                                                    { builder.getInt64(0) },
+                                                    "proxy.decode.");
       decoder = &decoder_alloc->getCallInst();
-      decoder_type = &decoder_alloc->getType();
     }
 
     // Make the proxy available at all uses.
@@ -768,7 +876,6 @@ bool ProxyInsertion::transform() {
 
     // For each of the uses to encode, encode them.
     for (auto *use : to_encode) {
-      println("Encoding use ", *use->getUser());
 
       // Unpack the use.
       auto *used = use->get();
@@ -822,7 +929,6 @@ bool ProxyInsertion::transform() {
           auto *encoded =
               &builder.CreateReadInst(size_type, encoder, used)->getCallInst();
 
-          println("set ", *use->get(), " to ", *encoded);
           use->set(encoded);
 
           user_as_inst->replaceAllUsesWith(phi);
@@ -834,24 +940,20 @@ bool ProxyInsertion::transform() {
           auto *false_constant = llvm::ConstantInt::getFalse(context);
           phi->addIncoming(false_constant, else_bb);
 
-          println(*then_bb);
-          println(*phi->getParent());
-
           continue;
         }
       }
 
-      // In the common case, read the encoded value and update the use with it.
+      // In the common case, read the encoded value and update the use with
+      // it.
       auto *encoded =
           &builder.CreateReadInst(size_type, encoder, used)->getCallInst();
 
-      println("set ", *use->get(), " to ", *encoded);
       use->set(encoded);
     }
 
     // For each of the uses to encode, encode them.
     for (auto *use : to_addkey) {
-      println("Adding key for use ", *use->getUser());
 
       // Unpack the use.
       auto *used = use->get();
@@ -891,13 +993,10 @@ bool ProxyInsertion::transform() {
 
       auto *encoded = builder.CreateCall(addkey_callee, args);
 
-      println("set ", *use->get(), " to ", *encoded);
-
       use->set(encoded);
     }
 
     for (auto *use : to_decode) {
-      println("Decoding use ", *use->getUser());
 
       // Unpack the use.
       auto *used = use->get();
@@ -935,18 +1034,24 @@ bool ProxyInsertion::transform() {
           &builder.CreateReadInst(key_type, decoder, { use->get() })
                ->getCallInst();
 
-      println("set ", *use->get(), " to ", *decoded);
+      println("DECODED ", *decoded);
+      println("  DEBUG ", *program_point);
 
       use->set(decoded);
     }
 
     // Set the selection of the collection.
+    map<ObjectInfo *, vector<FoldInst *>> folds_to_mutate = {};
+    for (auto &info : candidate) {
 
-    // Determine _where_ to attach the selection.
-    auto selection = Metadata::get_or_add<SelectionMetadata>(*alloc);
-    unsigned selection_index = 0;
-    {
-      auto *type = &alloc->getType();
+      debugln("Updating selection and types");
+      debugln("  ", *info.allocation);
+
+      // Determine _where_ to attach the selection.
+      auto selection =
+          Metadata::get_or_add<SelectionMetadata>(*info.allocation);
+      unsigned selection_index = 0;
+      auto *type = &info.allocation->getType();
       for (auto offset : info.offsets) {
         if (auto *struct_type = dyn_cast<StructType>(type)) {
           auto &field_type = struct_type->getFieldType(offset);
@@ -963,54 +1068,131 @@ bool ProxyInsertion::transform() {
           ++selection_index;
         }
       }
-    }
 
-    if (isa<VoidType>(&val_type)) {
-      selection.setImplementation("bitset", selection_index);
-    } else {
-      selection.setImplementation("bitmap", selection_index);
-    }
+      // Unpack the type information.
+      if (auto *assoc_type = dyn_cast<AssocType>(type)) {
 
-    // Update the type of the allocations.
-    /*
-    for (auto *alloc : this->allocations) {
-      // Update the key type of assoc allocations.
-      if (auto *assoc_alloc = dyn_cast<AssocAllocInst>(alloc)) {
-        // Create a builder at the allocation.
-        MemOIRBuilder builder(*assoc_alloc);
+        // Set the implementation.
+        if (isa<VoidType>(&assoc_type->getValueType())) {
+          selection.setImplementation("bitset", selection_index);
+        } else {
+          selection.setImplementation("bitmap", selection_index);
+        }
 
-        println("orig alloc type: ", assoc_alloc->getCollectionType());
-
-        // Construct a memoir usize type.
-        auto *size_type_value = &builder.CreateSizeTypeInst()->getCallInst();
-
-        // Replace the key type with the size type.
-        auto &key_type_use = assoc_alloc->getKeyOperandAsUse();
-        key_type_use.set(size_type_value);
-
-        // Get the allocation type.
-        auto &alloc_type = assoc_alloc->getCollectionType();
-        println("new alloc type: ", alloc_type);
-
-        // Update any type annotations as well.
-        for (auto *redef : redefinitions[alloc]) {
+        // Update the type of the key in the fold bodies.
+        // TODO: collect folds ahead of time for all info in the candidate, it
+        // is getting invalidated right now.
+        auto &to_mutate = folds_to_mutate[&info];
+        for (auto *redef : redefinitions[info.allocation]) {
           for (auto &use : redef->uses()) {
-            auto *user = use.getUser();
-            if (auto *assert_type = into<AssertTypeInst>(user)) {
-              // Construct the allocation type.
-              builder.SetInsertPoint(&assert_type->getCallInst());
-              auto *alloc_type_value =
-                  &builder.CreateTypeInst(alloc_type)->getCallInst();
-
-              // Replace the type operand with the allocation type value.
-              auto &type_use = assert_type->getTypeOperandAsUse();
-              type_use.set(alloc_type_value);
+            if (auto *fold = into<FoldInst>(use.getUser())) {
+              if (use == fold->getObjectAsUse()) {
+                auto distance =
+                    detail::indices_match_offsets(*fold, info.offsets);
+                if (distance == int32_t(info.offsets.size())) {
+                  auto found =
+                      std::find(to_mutate.begin(), to_mutate.end(), fold);
+                  if (found == to_mutate.end()) {
+                    to_mutate.push_back(fold);
+                  }
+                }
+              }
             }
           }
         }
+
+      } else {
+        MEMOIR_UNREACHABLE("Proxying non-assoc types is not yet supported.");
       }
     }
-    */
+
+    for (auto &info : candidate) {
+
+      // For each of the folds, create a new function with the updated type.
+      set<llvm::Function *> functions_to_delete = {};
+      auto &to_mutate = folds_to_mutate[&info];
+      for (auto *fold : to_mutate) {
+
+        // Fetch the index argument.
+        auto &index_arg = fold->getIndexArgument();
+
+        // Update the type of the function to match.
+        auto *function = index_arg.getParent();
+        auto *function_type = function->getFunctionType();
+
+        if (function->hasNUsesOrMore(2)) {
+          for (auto &use : function->uses()) {
+            println("  user: ", *use.getUser());
+          }
+          MEMOIR_UNREACHABLE("Fold body has more than one use!");
+        }
+
+        // Rebuild the function type.
+        vector<llvm::Type *> params(function_type->param_begin(),
+                                    function_type->param_end());
+        params[index_arg.getArgNo()] = &llvm_size_type;
+
+        auto *new_function_type =
+            llvm::FunctionType::get(function_type->getReturnType(),
+                                    params,
+                                    function_type->isVarArg());
+
+        // Create a new function with the new function type.
+        auto *new_function = llvm::Function::Create(new_function_type,
+                                                    function->getLinkage(),
+                                                    function->getName(),
+                                                    this->M);
+
+        // Clone the function with a changed parameter type.
+        llvm::ValueToValueMapTy vmap;
+        for (auto &old_arg : function->args()) {
+          auto *new_arg = new_function->getArg(old_arg.getArgNo());
+          vmap.insert({ &old_arg, new_arg });
+        }
+        llvm::SmallVector<llvm::ReturnInst *, 8> returns;
+        llvm::CloneFunctionInto(new_function,
+                                function,
+                                vmap,
+                                llvm::CloneFunctionChangeType::LocalChangesOnly,
+                                returns);
+
+        // Remove any pointer related attributes from the argument.
+        auto attr_list = new_function->getAttributes();
+        new_function->setAttributes(
+            attr_list.removeParamAttributes(context, index_arg.getArgNo()));
+
+        // Use the vmap to update any of the folds that we are patching.
+        for (auto &other_fold : to_mutate) {
+          // Skip the fold we just updated.
+          if (other_fold == fold) {
+            continue;
+          }
+
+          // If the parent function is the same as the old function, find this
+          // fold in the vmap.
+          auto *parent_function = other_fold->getFunction();
+          if (parent_function == function) {
+            auto *new_inst = &*vmap[&other_fold->getCallInst()];
+            auto *new_fold = into<FoldInst>(new_inst);
+
+            // Update in-place.
+            other_fold = new_fold;
+          }
+        }
+
+        // Update the body of this fold.
+        auto &body_use = fold->getBodyOperandAsUse();
+        body_use.set(new_function);
+
+        new_function->takeName(function);
+
+        functions_to_delete.insert(function);
+      }
+
+      for (auto *func : functions_to_delete) {
+        func->eraseFromParent();
+      }
+    }
   }
 
   return modified;

@@ -18,12 +18,13 @@ public:
   bool transform();
 
 protected:
-  void gather_assoc_objects(llvm::memoir::AllocInst &alloc,
+  void gather_assoc_objects(llvm::memoir::vector<ObjectInfo> &allocations,
+                            llvm::memoir::AllocInst &alloc,
                             llvm::memoir::Type &type,
                             llvm::memoir::vector<unsigned> offsets = {});
 
   llvm::Module &M;
-  llvm::memoir::vector<ObjectInfo> allocations;
+  llvm::memoir::vector<llvm::memoir::list<ObjectInfo>> candidates;
 };
 
 } // namespace folio
