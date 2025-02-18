@@ -147,16 +147,10 @@ static HeaderInfo lower_fold_header(FoldInst &I,
     auto *element_gep =
         builder.CreateStructGEP(&iter_type, iter_alloca, 1, "fold.elem.ptr.");
 
-    // If the resultant is a nested, sized object, don't load it.
-    if (isa<StructType>(&element_type) or isa<ArrayType>(&element_type)) {
-      element = element_gep;
-    } else {
-      auto *llvm_element_type = iter_struct_type.getElementType(1);
-      MEMOIR_NULL_CHECK(llvm_element_type,
-                        "LLVM struct type has no type for second field!");
-      element =
-          builder.CreateLoad(llvm_element_type, element_gep, "fold.elem.");
-    }
+    auto *llvm_element_type = iter_struct_type.getElementType(1);
+    MEMOIR_NULL_CHECK(llvm_element_type,
+                      "LLVM struct type has no type for second field!");
+    element = builder.CreateLoad(llvm_element_type, element_gep, "fold.elem.");
 
     // If the resultant is a boolean, we'll need to cast it.
     if (auto *integer_type = dyn_cast<IntegerType>(&element_type)) {
@@ -375,21 +369,21 @@ bool lower_fold(FoldInst &I,
   auto &key = header_info.key;
   auto *element = header_info.element;
 
-  // Fetch information about the fold function
-  auto &function = I.getFunction();
-  auto *function_type = function.getFunctionType();
+  // Fetch information about the fold body
+  auto &body = I.getBody();
+  auto *body_type = body.getFunctionType();
 
-  // Construct the list of arguments to pass into the function.
+  // Construct the list of arguments to pass into the body.
   vector<llvm::Value *> arguments = { &accumulator, &key };
   if (element) {
     arguments.push_back(element);
   }
   arguments.insert(arguments.end(), I.closed_begin(), I.closed_end());
 
-  // Create a call to the fold function so that we can inline it.
+  // Create a call to the fold body so that we can inline it.
   auto &call = MEMOIR_SANITIZE(
-      builder.CreateCall(function_type, &function, arguments, "fold.accum."),
-      "Failed to create call to the FoldInst function!");
+      builder.CreateCall(body_type, &body, arguments, "fold.accum."),
+      "Failed to create call to the FoldInst body!");
 
   // For each predecessor of the loop header:
   //  - If it _is_ the the loop pre-header, set the incoming value of the
@@ -476,7 +470,7 @@ bool lower_fold(FoldInst &I,
       //  -- Insert a RetPHI after the call.
       builder.SetInsertPoint(call.getNextNode());
       auto *closed_ret_phi =
-          builder.CreateRetPHI(closed_phi, &function, "fold.closed.");
+          builder.CreateRetPHI(closed_phi, &body, "fold.closed.");
 
       //  -- Wire up the PHI with the original value and the RetPHI.
       for (auto *pred : llvm::predecessors(closed_phi->getParent())) {
