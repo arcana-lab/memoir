@@ -28,6 +28,22 @@ bool value_is_mutated(llvm::Value &V) {
   return false;
 }
 
+void propagate_debug_info(llvm::Instruction &from, llvm::Instruction &to) {
+  to.cloneDebugInfoFrom(&from);
+}
+
+void propagate_debug_info(MemOIRInst &from, MemOIRInst &to) {
+  propagate_debug_info(from.getCallInst(), to.getCallInst());
+}
+
+void propagate_debug_info(llvm::Instruction &from, MemOIRInst &to) {
+  propagate_debug_info(from, to.getCallInst());
+}
+
+void propagate_debug_info(MemOIRInst &from, llvm::Instruction &to) {
+  propagate_debug_info(from.getCallInst(), to);
+}
+
 } // namespace detail
 
 bool use_is_mutating(llvm::Use &use, bool construct_use_phis) {
@@ -193,7 +209,8 @@ void SSAConstructionVisitor::prepare_keywords(MemOIRBuilder &builder,
                     "Cannot prepare ValueKeyword with no element type");
       MEMOIR_ASSERT(
           Type::is_primitive_type(*element_type),
-          "Invalid use of 'value' keyword with non-primitive element type");
+          "Invalid use of 'value' keyword with non-primitive element type\n  ",
+          I);
 
       auto *llvm_type = element_type->get_llvm_type(builder.getContext());
 
@@ -292,6 +309,9 @@ void SSAConstructionVisitor::visitLLVMCallInst(llvm::CallInst &I) {
     MemOIRBuilder builder(&I, true);
     auto *ret_phi = builder.CreateRetPHI(reaching, I.getCalledOperand());
     auto *ret_phi_value = &ret_phi->getResultCollection();
+
+    // Propagate debug information.
+    detail::propagate_debug_info(I, *ret_phi);
 
     // Update the reaching definitions.
     this->set_reaching_definition(arg_value, ret_phi_value);
@@ -417,6 +437,8 @@ void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
         auto *ret_phi = builder.CreateRetPHI(reaching, function);
         auto *ret_phi_value = &ret_phi->getResultCollection();
 
+        detail::propagate_debug_info(I, *ret_phi);
+
         // Update the reaching definitions.
         this->set_reaching_definition(closed, ret_phi_value);
         this->set_reaching_definition(ret_phi_value, reaching);
@@ -463,6 +485,8 @@ void SSAConstructionVisitor::visitMutWriteInst(MutWriteInst &I) {
                                         curr,
                                         arguments);
 
+  detail::propagate_debug_info(I, *redef);
+
   // Update the reaching definitions.
   this->set_reaching_definition(orig, redef);
   this->set_reaching_definition(redef, curr);
@@ -491,6 +515,8 @@ void SSAConstructionVisitor::visitMutInsertInst(MutInsertInst &I) {
   // Create SeqInsertInst.
   auto *redef = builder.CreateInsertInst(curr, arguments);
 
+  detail::propagate_debug_info(I, *redef);
+
   // Update reaching definitions.
   this->set_reaching_definition(orig, redef);
   this->set_reaching_definition(redef, curr);
@@ -516,6 +542,8 @@ void SSAConstructionVisitor::visitMutRemoveInst(MutRemoveInst &I) {
 
   auto *redef = builder.CreateRemoveInst(curr, arguments);
 
+  detail::propagate_debug_info(I, *redef);
+
   // Update reaching definitions.
   this->set_reaching_definition(orig, redef);
   this->set_reaching_definition(redef, curr);
@@ -536,6 +564,8 @@ void SSAConstructionVisitor::visitMutClearInst(MutClearInst &I) {
   vector<llvm::Value *> arguments(I.indices_begin(), I.indices_end());
 
   auto *redef = builder.CreateClearInst(curr, arguments);
+
+  detail::propagate_debug_info(I, *redef);
 
   // Update the reaching definitions.
   this->set_reaching_definition(orig, redef);
@@ -563,6 +593,8 @@ void SSAConstructionVisitor::visitReadInst(ReadInst &I) {
     auto *use_phi = builder.CreateUsePHI(curr);
     auto *use_phi_value = &use_phi->getResultCollection();
 
+    detail::propagate_debug_info(I, *use_phi);
+
     // Update the reaching definitions.
     this->set_reaching_definition(orig, use_phi_value);
     this->set_reaching_definition(use_phi_value, curr);
@@ -586,6 +618,8 @@ void SSAConstructionVisitor::visitGetInst(GetInst &I) {
     auto *use_phi = builder.CreateUsePHI(curr);
     auto *use_phi_value = &use_phi->getResultCollection();
 
+    detail::propagate_debug_info(I, *use_phi);
+
     // Update the reaching definitions.
     this->set_reaching_definition(orig, use_phi_value);
     this->set_reaching_definition(use_phi_value, curr);
@@ -608,6 +642,8 @@ void SSAConstructionVisitor::visitHasInst(HasInst &I) {
     // Build a UsePHI for the instruction.
     auto *use_phi = builder.CreateUsePHI(curr);
     auto *use_phi_value = &use_phi->getResultCollection();
+
+    detail::propagate_debug_info(I, *use_phi);
 
     // Update the reaching definitions.
     this->set_reaching_definition(orig, use_phi_value);
