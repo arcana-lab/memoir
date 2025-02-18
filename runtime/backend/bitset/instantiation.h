@@ -16,13 +16,9 @@
 
 #define TYPE CAT(PREFIX, _t)
 #define PTR CAT(PREFIX, _p)
-typedef BitSet<KEY_TYPE> TYPE;
-typedef TYPE *PTR;
 
 #define ITER_TYPE CAT(PREFIX, _iter_t)
 #define ITER_PTR CAT(PREFIX, _iter_p)
-typedef TYPE::iterator ITER_TYPE;
-typedef ITER_TYPE *ITER_PTR;
 
 #define OP(op) CAT(CAT(PREFIX, __), op)
 
@@ -35,7 +31,7 @@ cname alwaysinline used void OP(free)(PTR set) {
 }
 
 cname alwaysinline used PTR OP(copy)(PTR set) {
-  return set->copy();
+  return PTR(set->copy());
 }
 
 cname alwaysinline used PTR OP(remove)(PTR set, SIZE_TYPE key) {

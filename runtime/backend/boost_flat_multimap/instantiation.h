@@ -15,13 +15,9 @@
 
 #define TYPE CAT(PREFIX, _t)
 #define PTR CAT(PREFIX, _p)
-typedef FlatMultiMap<KEY_TYPE, VAL_TYPE> TYPE;
-typedef TYPE *PTR;
 
 #define ITER_TYPE CAT(PREFIX, _iter_t)
 #define ITER_PTR CAT(PREFIX, _iter_p)
-typedef TYPE::iterator ITER_TYPE;
-typedef ITER_TYPE *ITER_PTR;
 
 #define OP(op) CAT(CAT(PREFIX, __), op)
 

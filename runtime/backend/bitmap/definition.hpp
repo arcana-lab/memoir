@@ -1,5 +1,5 @@
-#ifndef MEMOIR_BACKEND_BITSET_H
-#define MEMOIR_BACKEND_BITSET_H
+#ifndef MEMOIR_BACKEND_BITMAP_H
+#define MEMOIR_BACKEND_BITMAP_H
 
 #include <cstdint>
 #include <cstdio>
@@ -10,15 +10,20 @@
 
 #include <backend/stl_vector/definition.hpp>
 
-template <typename Key>
-struct BitSet : boost::dynamic_bitset<> {
+template <typename Key, typename Val>
+struct BitMap : boost::dynamic_bitset<> {
   using Base = typename boost::dynamic_bitset<>;
+  using Values = typename std::vector<Val>;
 
   using Size = size_t;
 
-  BitSet() : Base() {}
-  BitSet(const BitSet<Key> &other) : Base(other) {}
-  ~BitSet() {
+protected:
+  Values _vals;
+
+public:
+  BitMap() : Base() {}
+  BitMap(const BitMap<Key, Val> &other) : Base(other) {}
+  ~BitMap() {
     // TODO: if the element is a collection pointer, delete it too.
   }
 
@@ -26,10 +31,20 @@ struct BitSet : boost::dynamic_bitset<> {
     if (this->Base::size() <= key) {
       this->Base::resize(key + 1);
     }
+    if (this->_vals.size() <= key) {
+      this->_vals.resize(key + 1);
+    }
+
     this->Base::set(key);
   }
 
-  void insert_input(BitSet<Key> *other) {
+  void insert_value(const Size &key, const Val &val) {
+    this->insert(key);
+    this->_vals[key] = val;
+  }
+
+#if 0
+  void insert_input(BitMap<Key, Val> *other) {
     auto size = this->Base::size();
     auto other_size = other->Base::size();
     if (size < other_size) {
@@ -39,6 +54,7 @@ struct BitSet : boost::dynamic_bitset<> {
       (*this)[i] |= (*other)[i];
     }
   }
+#endif
 
   void remove(const Size &key) {
     if (key < this->Base::size()) {
@@ -46,15 +62,16 @@ struct BitSet : boost::dynamic_bitset<> {
     }
   }
 
-  BitSet<Key> *copy() {
+  BitMap<Key, Val> *copy() {
     // TODO: if Val is a collection type, we need to deep copy.
-    auto *copy = new BitSet<Key>(*this);
+    auto *copy = new BitMap<Key, Val>(*this);
 
     return copy;
   }
 
   void clear() {
     this->Base::clear();
+    this->_vals.clear();
   }
 
   bool has(const Size &key) {
@@ -62,6 +79,26 @@ struct BitSet : boost::dynamic_bitset<> {
       return this->Base::test(key);
     }
     return false;
+  }
+
+  Val read(const Size &key) {
+    return _vals[key];
+  }
+
+  template <typename T = Val,
+            typename std::enable_if_t<!std::is_same_v<T, bool>, bool> = 0>
+  Val *get(const Size &key) {
+    return &this->_vals[key];
+  }
+
+  template <typename T = Val,
+            typename std::enable_if_t<std::is_same_v<T, bool>, bool> = 0>
+  Val *get(const Size &key) {
+    return nullptr;
+  }
+
+  void write(const Size &key, Val val) {
+    this->_vals[key] = val;
   }
 
   size_t size() {
@@ -76,14 +113,16 @@ struct BitSet : boost::dynamic_bitset<> {
 
   struct iterator {
     Size _key;
+    as_primitive_t<Val> _val;
     Size _cur;
-    BitSet<Key> *_set;
+    BitMap<Key, Val> *_set;
 
     bool next() {
       if (this->_cur == Base::npos) {
         return false;
       }
       this->_key = this->_cur;
+      this->_val = into_primitive(this->_set->_vals[this->_cur]);
       this->_cur = this->_set->find_next(this->_cur);
       return true;
     }

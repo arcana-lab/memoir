@@ -16,23 +16,15 @@
 
 #define TYPE CAT(PREFIX, _t)
 #define PTR CAT(PREFIX, _p)
-typedef IndexMap<KEY_TYPE, VAL_TYPE> TYPE;
-typedef TYPE *PTR;
 
 #define ENC_TYPE CAT(PREFIX, _enc_t)
 #define ENC_PTR CAT(PREFIX, _enc_p)
-typedef TYPE::Encoder ENC_TYPE;
-typedef ENC_TYPE *ENC_PTR;
 
 #define DEC_TYPE CAT(PREFIX, _dec_t)
 #define DEC_PTR CAT(PREFIX, _dec_p)
-typedef TYPE::Decoder DEC_TYPE;
-typedef DEC_TYPE *DEC_PTR;
 
 #define ITER_TYPE CAT(PREFIX, _iter_t)
 #define ITER_PTR CAT(PREFIX, _iter_p)
-typedef TYPE::iterator ITER_TYPE;
-typedef ITER_TYPE *ITER_PTR;
 
 typedef size_t SIZE_TYPE;
 

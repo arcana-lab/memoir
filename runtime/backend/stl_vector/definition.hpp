@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <iostream>
 #include <type_traits>
 
 #include <vector>
@@ -15,6 +16,7 @@ struct Vector;
 
 template <typename Elem>
 struct Vector : std::vector<Elem> {
+  Vector() : Vector(0) {}
   Vector(size_t sz) : std::vector<Elem>(sz) {}
   Vector(std::input_iterator auto begin, std::input_iterator auto end)
     : std::vector<Elem>(begin, end) {}
@@ -77,7 +79,7 @@ struct Vector : std::vector<Elem> {
 
   struct iterator {
     size_t _idx;
-    Elem _val;
+    as_primitive_t<Elem> _val;
     std::vector<Elem>::iterator _it;
     std::vector<Elem>::iterator _ie;
 
@@ -87,7 +89,7 @@ struct Vector : std::vector<Elem> {
       }
 
       ++this->_idx;
-      this->_val = *this->_it;
+      this->_val = into_primitive(*this->_it);
       this->_it = std::next(this->_it);
 
       return true;
@@ -105,7 +107,7 @@ struct Vector : std::vector<Elem> {
 
   struct reverse_iterator {
     size_t _idx;
-    Elem _val;
+    as_primitive_t<Elem> _val;
     std::vector<Elem>::reverse_iterator _it;
     std::vector<Elem>::reverse_iterator _ie;
 
@@ -115,7 +117,7 @@ struct Vector : std::vector<Elem> {
       }
 
       --this->_idx;
-      this->_val = *this->_it;
+      this->_val = into_primitive(*this->_it);
       this->_it = std::next(this->_it);
 
       return true;

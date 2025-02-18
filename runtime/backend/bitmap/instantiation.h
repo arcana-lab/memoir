@@ -4,14 +4,16 @@
 
 #include <backend/utilities.h>
 
-#include <backend/stl_unordered_map/definition.hpp>
+#include <backend/bitmap/definition.hpp>
 
 #define KEY_CODE CODE_0
 #define KEY_TYPE TYPE_0
 #define VAL_CODE CODE_1
 #define VAL_TYPE TYPE_1
 
-#define IMPL stl_unordered_map
+#define SIZE_TYPE size_t
+
+#define IMPL bitmap
 #define PREFIX CAT(KEY_CODE, CAT(_, CAT(VAL_CODE, CAT(_, IMPL))))
 
 #define TYPE CAT(PREFIX, _t)
@@ -30,41 +32,48 @@ cname alwaysinline used void OP(free)(PTR map) {
   delete map;
 }
 
-cname alwaysinline used VAL_TYPE OP(read)(PTR map, KEY_TYPE key) {
+cname alwaysinline used VAL_TYPE OP(read)(PTR map, SIZE_TYPE key) {
   return map->read(key);
 }
 
-cname alwaysinline used PTR OP(write)(PTR map, KEY_TYPE key, VAL_TYPE value) {
-  map->write(key, value);
-  return map;
-}
-
-cname alwaysinline used VAL_TYPE *OP(get)(PTR map, KEY_TYPE key) {
+cname alwaysinline used VAL_TYPE *OP(get)(PTR map, SIZE_TYPE key) {
   return map->get(key);
 }
 
-cname alwaysinline used PTR OP(copy)(PTR map) {
-  return PTR(map->copy());
+cname alwaysinline used PTR OP(write)(PTR map, SIZE_TYPE key, VAL_TYPE val) {
+  map->write(key, val);
+  return map;
 }
 
-cname alwaysinline used PTR OP(remove)(PTR map, KEY_TYPE key) {
+cname alwaysinline used PTR OP(copy)(PTR map) {
+  return map->copy();
+}
+
+cname alwaysinline used PTR OP(remove)(PTR map, SIZE_TYPE key) {
   map->remove(key);
   return map;
 }
 
-cname alwaysinline used PTR OP(insert)(PTR map, KEY_TYPE key) {
+cname alwaysinline used PTR OP(insert)(PTR map, SIZE_TYPE key) {
   map->insert(key);
   return map;
 }
 
 cname alwaysinline used PTR OP(insert_value)(PTR map,
-                                             KEY_TYPE key,
-                                             VAL_TYPE value) {
-  map->insert(key, value);
+                                             SIZE_TYPE key,
+                                             VAL_TYPE val) {
+  map->insert_value(key, val);
   return map;
 }
 
-cname alwaysinline used bool OP(has)(PTR map, KEY_TYPE key) {
+#if 0
+cname alwaysinline used PTR OP(insert_input)(PTR map, PTR map2) {
+  map->insert_input(map2);
+  return map;
+}
+#endif
+
+cname alwaysinline used bool OP(has)(PTR map, SIZE_TYPE key) {
   return map->has(key);
 }
 
@@ -87,11 +96,8 @@ cname alwaysinline used bool OP(next)(ITER_PTR iter) {
 
 #undef KEY_CODE
 #undef KEY_TYPE
-#undef VAL_CODE
-#undef VAL_TYPE
+#undef SIZE_TYPE
 #undef IMPL
 #undef PREFIX
-#undef TYPE
-#undef PTR
 #undef ITER_TYPE
 #undef ITER_PTR

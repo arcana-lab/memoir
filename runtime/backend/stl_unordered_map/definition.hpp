@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
+#include <iostream>
 #include <type_traits>
 
 #include <unordered_map>
@@ -74,7 +75,7 @@ struct UnorderedMap : std::unordered_map<Key, Val> {
 
   struct iterator {
     Key _key;
-    Val _val;
+    as_primitive_t<Val> _val;
     Base::iterator _it;
     Base::iterator _ie;
 
@@ -82,9 +83,8 @@ struct UnorderedMap : std::unordered_map<Key, Val> {
       if (this->_it == this->_ie) {
         return false;
       }
-      auto [key, val] = *this->_it;
-      this->_key = key;
-      this->_val = val;
+      this->_key = this->_it->first;
+      this->_val = into_primitive(this->_it->second);
       this->_it = std::next(this->_it);
       return true;
     }

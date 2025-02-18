@@ -13,23 +13,17 @@
 
 #define TYPE CAT(PREFIX, _t)
 #define PTR CAT(PREFIX, _p)
-typedef Vector<TYPE_0> TYPE;
-typedef TYPE *PTR;
 
 #define ITER_TYPE CAT(PREFIX, _iter_t)
 #define ITER_PTR CAT(PREFIX, _iter_p)
-typedef Vector<TYPE_0>::iterator ITER_TYPE;
-typedef ITER_TYPE *ITER_PTR;
 
 #define RITER_TYPE CAT(PREFIX, _riter_t)
 #define RITER_PTR CAT(PREFIX, _riter_p)
-typedef Vector<TYPE_0>::reverse_iterator RITER_TYPE;
-typedef RITER_TYPE *RITER_PTR;
 
 #define OP(op) CAT(CAT(PREFIX, __), op)
 
 cname alwaysinline used PTR OP(allocate)(size_t num) {
-  return new Vector<TYPE_0>(num);
+  return new TYPE(num);
 }
 
 cname alwaysinline used void OP(free)(PTR vec) {
@@ -52,13 +46,13 @@ cname alwaysinline used TYPE_0 *OP(get)(PTR vec, size_t index) {
 }
 
 cname alwaysinline used PTR OP(copy)(PTR vec) {
-  return vec->copy();
+  return PTR(vec->copy());
 }
 
 cname alwaysinline used PTR OP(copy_range)(PTR vec,
                                            size_t begin_index,
                                            size_t end_index) {
-  return vec->copy(begin_index, end_index);
+  return PTR(vec->copy(begin_index, end_index));
 }
 
 cname alwaysinline used PTR OP(remove)(PTR vec, size_t index) {

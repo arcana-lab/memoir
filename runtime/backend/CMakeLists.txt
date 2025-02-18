@@ -13,6 +13,7 @@ function(install_impl DIR)
   install(
     FILES
     ${DIR}/definition.hpp
+    ${DIR}/declaration.h
     ${DIR}/instantiation.h
     DESTINATION
     ${BACKEND_INSTALL_INCLUDEDIR}/${DIR}
@@ -28,9 +29,9 @@ install_impl(boost_flat_multimap)
 # install_impl(deepsjeng_ttable)
 install_impl(stl_vector)
 install_impl(stl_unordered_set)
-# install_impl(bitmap)
+install_impl(bitmap)
 install_impl(bitset)
-install_impl(index_map)
+# install_impl(index_map)
 
 # install_impl(boost_dynamic_bitset)
 # install_impl(boost_bit_vector)
