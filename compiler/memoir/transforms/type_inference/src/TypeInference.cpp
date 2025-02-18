@@ -72,7 +72,7 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
       if (auto *fold = into<FoldInst>(inst)) {
 
         // If we are not the function operand, continue.
-        if (&fold->getFunction() != &F) {
+        if (&fold->getBody() != &F) {
           continue;
         }
 
@@ -83,7 +83,8 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
         // Fetch the collection type.
         auto &collection_type = MEMOIR_SANITIZE(
             dyn_cast_or_null<CollectionType>(&fold->getElementType()),
-            "Fold over non-collection type!");
+            "Fold over non-collection type!\n  ",
+            *fold);
 
         // Get the element type.
         auto &element_type = collection_type.getElementType();
@@ -273,7 +274,7 @@ bool TypeInference::infer_return_type(llvm::Function &F) {
     if (auto *inst = dyn_cast<llvm::Instruction>(user)) {
       if (auto *fold = into<FoldInst>(inst)) {
         // If we are not the function operand, continue.
-        if (&fold->getFunction() != &F) {
+        if (&fold->getBody() != &F) {
           continue;
         }
 
