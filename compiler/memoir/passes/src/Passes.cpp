@@ -21,7 +21,6 @@
 // MEMOIR
 #include "memoir/passes/Passes.hpp"
 
-#include "memoir/analysis/DefUseChain.hpp"
 #include "memoir/analysis/LiveRangeAnalysis.hpp"
 #include "memoir/analysis/Liveness.hpp"
 #include "memoir/analysis/RangeAnalysis.hpp"
@@ -116,6 +115,8 @@ void lower_memoir(llvm::ModulePassManager &MPM) {
 
   // memoir-ssa-destruction
   MPM.addPass(SSADestructionPass());
+
+  return; // TEMPORARY
 
   // always-inline
   MPM.addPass(llvm::AlwaysInlinerPass());
