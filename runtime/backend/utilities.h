@@ -94,4 +94,29 @@ struct std::hash<Bytes<N>> {
     }                                                                          \
   }
 
+template <class T>
+struct is_nested
+  : std::negation<std::integral_constant<bool,
+                                         std::is_arithmetic<T>::value
+                                             or std::is_pointer<T>::value>> {};
+
+template <class T>
+constexpr bool is_nested_v = is_nested<T>::value;
+
+template <class T>
+struct as_primitive
+  : std::conditional<is_nested_v<T>, std::add_pointer_t<T>, T> {};
+
+template <class T>
+using as_primitive_t = typename as_primitive<T>::type;
+
+template <class T>
+constexpr auto into_primitive(T &value) noexcept {
+  if constexpr (is_nested_v<T>) {
+    return &value;
+  } else {
+    return value;
+  }
+}
+
 #endif // MEMOIR_BACKEND_UTILITIES_H
