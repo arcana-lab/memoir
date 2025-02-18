@@ -182,7 +182,7 @@ bool reify_tempargs(llvm::Module &M) {
         (not fold)
             ? MEMOIR_SANITIZE(call->getCalledFunction(),
                               "Temporary argument used in indirect call!")
-            : fold->getFunction();
+            : fold->getBody();
 
     // Fetch the new function.
     auto found_clone = function_clones.find(&called_func);
