@@ -22,26 +22,7 @@ namespace llvm::memoir {
 
 namespace detail {
 
-/**
- * Fetch the Implementation from either the selection metadata or the type if no
- * metadata exists.
- */
-static const Implementation &get_implementation(
-    const std::optional<std::string> &selection,
-    CollectionType &type) {
-
-  // Lookup the selection, if we were given one.
-  if (selection.has_value()) {
-    return MEMOIR_SANITIZE(
-        Implementation::lookup(selection.value()),
-        "Requested implementation has not been registered with the compiler!");
-  }
-
-  // Otherwise, get the default implementation.
-  return ImplLinker::get_default_implementation(type);
-}
-
-FunctionCallee get_function_callee(llvm::Module &M, std::string name) {
+static FunctionCallee get_function_callee(llvm::Module &M, std::string name) {
   auto *function = M.getFunction(name);
   if (not function) {
     MEMOIR_UNREACHABLE("Couldn't find ", name);
@@ -50,20 +31,10 @@ FunctionCallee get_function_callee(llvm::Module &M, std::string name) {
   return FunctionCallee(function);
 }
 
-/**
- * @param function_name the function to find and prepare
- * @param arguments, the list of arguments to prepare for the call
- * @returns the function callee for the given function name.
- */
 static FunctionCallee prepare_call(MemOIRBuilder &builder,
-                                   const Implementation &implementation,
-                                   CollectionType &type,
+                                   const std::string &prefix,
                                    const std::string &operation,
                                    vector<llvm::Value *> &arguments) {
-
-  auto &instantiation = implementation.instantiate(type);
-
-  auto prefix = instantiation.get_prefix();
 
   auto function_name = prefix + "__" + operation;
 
@@ -97,153 +68,76 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
   return callee;
 }
 
+/**
+ * @param function_name the function to find and prepare
+ * @param arguments, the list of arguments to prepare for the call
+ * @returns the function callee for the given function name.
+ */
+static FunctionCallee prepare_call(MemOIRBuilder &builder,
+                                   const Implementation &implementation,
+                                   CollectionType &type,
+                                   const std::string &operation,
+                                   vector<llvm::Value *> &arguments) {
+
+  auto &instantiation = implementation.instantiate(type);
+
+  auto prefix = instantiation.get_prefix();
+
+  return prepare_call(builder, prefix, operation, arguments);
+}
+
 llvm::Value &construct_field_read(MemOIRBuilder &builder,
-                                  llvm::Type &result_type,
                                   StructType &type,
-                                  TypeLayout &layout,
                                   llvm::Value &object,
                                   unsigned field_index) {
 
-  // Fetch the LLVM struct type.
-  auto *llvm_type = cast<llvm::StructType>(&layout.get_llvm_type());
+  auto prefix = "impl__" + type.getName();
 
-  // Fetch the LLVM field type.
-  auto field_offset = layout.get_field_offset(field_index);
-  auto *llvm_field_type = llvm_type->getElementType(field_offset);
+  auto operation = "read_" + std::to_string(field_index);
 
-  // Construct a pointer cast to the LLVM struct type.
-  // auto *ptr =
-  // builder.CreatePointerCast(&object, llvm::PointerType::get(llvm_type, 0));
-  auto *ptr = &object;
+  vector<llvm::Value *> arguments = { &object };
 
-  // Construct the GEP for the field.
-  auto *gep = builder.CreateStructGEP(llvm_type, ptr, field_offset);
+  auto callee = prepare_call(builder, prefix, operation, arguments);
 
-  // Construct the load.
-  llvm::Value *load =
-      builder.CreateLoad(llvm_field_type, gep, /* isVolatile = */ false);
-
-  // If the field is a bit field, pay the bit twiddler their due.
-  if (layout.is_bit_field(field_index)) {
-    // Fetch the bit field range.
-    auto bit_field_range = *(layout.get_bit_field_range(field_index));
-    auto bit_field_start = bit_field_range.first;
-    auto bit_field_end = bit_field_range.second;
-    auto bit_field_width = bit_field_end - bit_field_start;
-
-    // If the field is signed, we need to become the king bit twiddler.
-    bool is_signed = false;
-    auto &field_type = type.getFieldType(field_index);
-
-    if (auto *int_field_type = dyn_cast<IntegerType>(&field_type)) {
-      if (int_field_type->isSigned()) {
-        is_signed = true;
-
-        // Get the size of the containing bit field.
-        auto *llvm_int_field_type = cast<llvm::IntegerType>(&result_type);
-        auto llvm_field_width = llvm_int_field_type->getBitWidth();
-
-        // SHIFT the bit field over to the top bits.
-        auto left_shift_distance = llvm_field_width - bit_field_end;
-        load = builder.CreateShl(load, left_shift_distance);
-
-        // ARITHMETIC SHIFT the bit field over the low bits.
-        auto right_shift_distance = llvm_field_width - bit_field_width;
-        load = builder.CreateAShr(load, right_shift_distance);
-      }
-    }
-
-    // SHIFT the values over.
-    if (!is_signed) {
-      load = builder.CreateLShr(load, bit_field_start);
-    }
-
-    // MASK the value.
-    uint64_t mask = 0;
-    for (unsigned int i = 0; i < bit_field_width; ++i) {
-      mask |= 1 << i;
-    }
-    load = builder.CreateAnd(load, mask);
-
-    // BITCAST the value, if needed.
-    load = builder.CreateIntCast(load, &result_type, is_signed);
-  }
-
-  return *load;
+  return MEMOIR_SANITIZE(builder.CreateCall(callee, arguments),
+                         "Failed to construct call for field read.");
 }
 
 void construct_field_write(MemOIRBuilder &builder,
                            StructType &type,
-                           TypeLayout &layout,
                            llvm::Value &object,
                            unsigned field_index,
                            llvm::Value &value_to_write) {
 
-  // Unpack the type layout.
-  auto field_offset = layout.get_field_offset(field_index);
+  auto prefix = "impl__" + type.getName();
 
-  auto &llvm_type = cast<llvm::StructType>(layout.get_llvm_type());
-  auto *llvm_field_type = llvm_type.getElementType(field_offset);
+  auto operation = "write_" + std::to_string(field_index);
 
-  // Construct a pointer cast to the LLVM struct type.
-  // auto *ptr =
-  // builder.CreatePointerCast(&object, llvm::PointerType::get(&llvm_type, 0));
-  auto *ptr = &object;
+  vector<llvm::Value *> arguments = { &object, &value_to_write };
 
-  // Construct the GEP for the field.
-  auto *gep = builder.CreateStructGEP(&llvm_type, ptr, field_offset);
+  auto callee = prepare_call(builder, prefix, operation, arguments);
 
-  auto *value_written = &value_to_write;
+  MEMOIR_SANITIZE(builder.CreateCall(callee, arguments),
+                  "Failed to construct call for field write.");
 
-  // If the field is a bit field, load the resident value, perform the
-  // requisite bit twiddling, and then store the value.
-  if (layout.is_bit_field(field_index)) {
-    llvm::Value *load = builder.CreateLoad(llvm_field_type, gep);
+  return;
+}
 
-    // Fetch the bit field range.
-    auto bit_field_range = *(layout.get_bit_field_range(field_index));
-    auto bit_field_start = bit_field_range.first;
-    auto bit_field_end = bit_field_range.second;
+llvm::Value &construct_field_get(MemOIRBuilder &builder,
+                                 StructType &type,
+                                 llvm::Value &object,
+                                 unsigned field_index) {
 
-    // BITCAST the value, if needed.
-    value_written =
-        builder.CreateIntCast(value_written, load->getType(), false);
+  auto prefix = "impl__" + type.getName();
 
-    // MASK the bits.
-    uint64_t mask = 0;
-    auto bit_field_width = bit_field_end - bit_field_start;
-    for (unsigned i = 0; i < bit_field_width; ++i) {
-      mask |= 1 << i;
-    }
-    value_written = builder.CreateAnd(value_written, mask);
+  auto operation = "get_" + std::to_string(field_index);
 
-    // SHIFT the bits into the correct position.
-    if (bit_field_start != 0) {
-      value_written = builder.CreateShl(value_written, bit_field_start);
-    }
+  vector<llvm::Value *> arguments = { &object };
 
-    // MASK out the bits from the loaded value.
-    mask = 0;
-    for (auto i = bit_field_start; i < bit_field_end; ++i) {
-      mask |= 1 << i;
-    }
+  auto callee = prepare_call(builder, prefix, operation, arguments);
 
-    load = builder.CreateAnd(load, ~mask);
-
-    // OR the bits with those currently in the memory location.
-    value_written = builder.CreateOr(value_written, load);
-  }
-
-  // Cast the value written to match the gep type if it's a non-integer type.
-  if (not isa<llvm::IntegerType>(llvm_field_type)) {
-    value_written =
-        builder.CreateTruncOrBitCast(value_written, llvm_field_type);
-  }
-
-  // Construct the load.
-  auto &store = MEMOIR_SANITIZE(
-      builder.CreateStore(value_written, gep, /* isVolatile = */ false),
-      "Failed to create the LLVM store for field write");
+  return MEMOIR_SANITIZE(builder.CreateCall(callee, arguments),
+                         "Failed to construct call for field read.");
 }
 
 llvm::CallBase &construct_collection_write(
@@ -320,7 +214,7 @@ llvm::Value &construct_collection_allocation(
     }
 
     const auto &dim_impl =
-        detail::get_implementation(dim_name, *collection_type);
+        ImplLinker::get_implementation(dim_name, *collection_type);
 
     // Fetch the arguments.
     vector<llvm::Value *> arguments = {};
@@ -447,62 +341,24 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
         *collection_type,
         llvm::SmallVector<llvm::Value *>(size_it, size_ie),
         selection_metadata);
+
     this->coalesce(I, result);
 
   } else if (auto *struct_type = dyn_cast<StructType>(type)) {
 
-    // Get the LLVM StructType for this struct.
-    auto &type_layout = TC.convert(*struct_type);
-    auto *llvm_struct_type =
-        dyn_cast<llvm::StructType>(&type_layout.get_llvm_type());
-    MEMOIR_NULL_CHECK(llvm_struct_type,
-                      "TypeLayout did not contain a StructType");
-    auto *llvm_ptr_type = llvm::PointerType::get(llvm_struct_type, 0);
-    MEMOIR_NULL_CHECK(llvm_ptr_type, "Could not get the LLVM PointerType");
+    auto prefix = "impl__" + struct_type->getName();
 
-    // Get the in-memory size of the given type.
-    auto &data_layout = this->M.getDataLayout();
-    auto llvm_struct_size = data_layout.getTypeAllocSize(llvm_struct_type);
+    auto operation = "allocate";
 
-    // Get the size of a pointer for the given architecture.
-    auto *int_ptr_type = builder.getIntPtrTy(data_layout);
+    vector<llvm::Value *> arguments = {};
 
-    // Get the constant for the given LLVM struct size.
-    auto *llvm_struct_size_constant =
-        llvm::ConstantInt::get(int_ptr_type, llvm_struct_size);
+    auto callee = detail::prepare_call(builder, prefix, operation, arguments);
 
-    // Create the allocation.
-    auto &call = MEMOIR_SANITIZE(builder.CreateMalloc(int_ptr_type,
-                                                      llvm_struct_type,
-                                                      llvm_struct_size_constant,
-                                                      /* ArraySize = */ nullptr,
-                                                      /* MallocF = */ nullptr,
-                                                      /* Name = */ "struct."),
-                                 "Couldn't create malloc for StructAllocInst");
+    auto &call = MEMOIR_SANITIZE(builder.CreateCall(callee, arguments),
+                                 "Couldn't create call for struct allocation!");
 
     this->coalesce(I, call);
 
-    // Initialize the inner collections, if any exist.
-    for (unsigned field = 0; field < struct_type->getNumFields(); ++field) {
-      auto &field_type = struct_type->getFieldType(field);
-
-      if (auto *collection_type = dyn_cast<CollectionType>(&field_type)) {
-        auto selection = Metadata::get<SelectionMetadata>(*struct_type, field);
-
-        auto &result = detail::construct_collection_allocation(builder,
-                                                               *collection_type,
-                                                               {},
-                                                               selection);
-
-        // Write the allocation to the field.
-        detail::construct_field_write(builder,
-                                      *struct_type,
-                                      type_layout,
-                                      call,
-                                      field,
-                                      result);
-      }
-    }
   } else {
     MEMOIR_UNREACHABLE("Unhandled type allocation.");
   }
@@ -521,12 +377,13 @@ void SSADestructionVisitor::visitDeleteInst(DeleteInst &I) {
 
     // Fetch the collection implementation.
     std::optional<std::string> impl_name = std::nullopt;
-    auto selection_metadata = I.get_keyword<SelectionMetadata>();
+    auto selection_metadata = Metadata::get<SelectionMetadata>(I);
     if (selection_metadata.has_value()) {
       impl_name = selection_metadata->getImplementation();
     }
 
-    const auto &impl = detail::get_implementation(impl_name, *collection_type);
+    const auto &impl =
+        ImplLinker::get_implementation(impl_name, *collection_type);
 
     auto callee = detail::prepare_call(builder,
                                        impl,
@@ -546,9 +403,21 @@ void SSADestructionVisitor::visitDeleteInst(DeleteInst &I) {
 }
 
 // Collect the list of indices before the given use.
-static llvm::Value &contextualize_end(AccessInst &inst,
-                                      llvm::Use &use,
-                                      bool minus_one = false) {
+static llvm::Value &contextualize_end(AccessInst &inst, llvm::Use &use) {
+
+  bool minus_one = (isa<ReadInst>(&inst) or isa<WriteInst>(&inst)
+                    or isa<GetInst>(&inst) or isa<SizeInst>(&inst));
+
+  if (std::next(&use) < inst.index_operands_end()) {
+    minus_one = true;
+  }
+
+  if (auto range_kw = inst.get_keyword<RangeKeyword>()) {
+    if (use == range_kw->getBeginAsUse() or use == range_kw->getEndAsUse()) {
+      minus_one = false;
+    }
+  }
+
   vector<llvm::Value *> indices = {};
   for (auto &index_use : inst.index_operands()) {
     if (&use == &index_use) {
@@ -595,9 +464,7 @@ void SSADestructionVisitor::visitEndInst(EndInst &I) {
     if (auto *access = into<AccessInst>(user_as_inst)) {
       // If the operation references a single element, subtract one from the
       // size so we are not off by one.
-      bool minus_one = (isa<ReadInst>(access) or isa<WriteInst>(access)
-                        or isa<GetInst>(access) or isa<SizeInst>(access));
-      auto &contextualized = contextualize_end(*access, use, minus_one);
+      auto &contextualized = contextualize_end(*access, use);
       if (auto *contextualized_inst =
               dyn_cast<llvm::Instruction>(&contextualized)) {
         this->stage(*contextualized_inst);
@@ -686,8 +553,7 @@ static NestedObjectInfo get_nested_object(
 
       // If the field type is a primitive, we have reached the innermost
       // object.
-      if (Type::is_primitive_type(field_type)
-          or isa<ReferenceType>(&field_type)) {
+      if (not isa<ObjectType>(&field_type)) {
         return NestedObjectInfo(*object, *type, it, ie);
       }
 
@@ -696,24 +562,11 @@ static NestedObjectInfo get_nested_object(
           Metadata::get<SelectionMetadata>(*struct_type, field_index);
       selection_index = 0;
 
-      // Otherwise, construct a get.
-      auto &layout = TC.convert(*struct_type);
-
-      // Fetch the LLVM struct type.
-      auto *llvm_type = cast<llvm::StructType>(&layout.get_llvm_type());
-
-      // Fetch the LLVM field type.
-      auto field_offset = layout.get_field_offset(field_index);
-      auto *llvm_field_type = llvm_type->getElementType(field_offset);
-
-      // Construct the GEP for the field.
-      object = builder.CreateStructGEP(llvm_type, object, field_offset);
-      MEMOIR_NULL_CHECK(object, "Failed to construct GEP instruction");
-
-      // If the element is unsized, load the pointer to it first.
-      if (Type::is_unsized(field_type)) {
-        object = builder.CreateLoad(llvm_field_type, object);
-      }
+      // Construct a get.
+      object = &detail::construct_field_get(builder,
+                                            *struct_type,
+                                            *object,
+                                            field_index);
 
       type = &field_type;
       it = std::next(it);
@@ -761,7 +614,7 @@ static NestedObjectInfo get_nested_object(
         dim_name = selection_metadata->getImplementation(selection_index++);
       }
       const auto &dim_impl =
-          detail::get_implementation(dim_name, *collection_type);
+          ImplLinker::get_implementation(dim_name, *collection_type);
 
       // Check if the implementation covers the remaining indices or not.
       auto num_dimensions = dim_impl.num_dimensions();
@@ -814,7 +667,8 @@ static NestedObjectInfo get_nested_object(
     if (selection_metadata.has_value()) {
       impl_name = selection_metadata->getImplementation(selection_index++);
     }
-    const auto &impl = detail::get_implementation(impl_name, *collection_type);
+    const auto &impl =
+        ImplLinker::get_implementation(impl_name, *collection_type);
 
     return NestedObjectInfo(*object,
                             *type,
@@ -824,7 +678,10 @@ static NestedObjectInfo get_nested_object(
                             selection_index);
   }
 
-  MEMOIR_UNREACHABLE("Could not get the nested object");
+  MEMOIR_UNREACHABLE("Could not get the nested object\n  ",
+                     IP,
+                     "\n   in ",
+                     IP.getFunction()->getName());
 }
 
 static NestedObjectInfo get_nested_object(AccessInst &I,
@@ -875,9 +732,7 @@ void SSADestructionVisitor::visitReadInst(ReadInst &I) {
 
     // Construct the read.
     result = &detail::construct_field_read(builder,
-                                           *I.getCallInst().getType(),
                                            *struct_type,
-                                           layout,
                                            info.object,
                                            field_index);
 
@@ -951,7 +806,6 @@ void SSADestructionVisitor::visitWriteInst(WriteInst &I) {
     // Construct the read.
     detail::construct_field_write(builder,
                                   *struct_type,
-                                  layout,
                                   info.object,
                                   field_index,
                                   I.getValueWritten());
@@ -1050,7 +904,7 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
   } else if (auto input_kw = I.get_keyword<InputKeyword>()) {
     // IDEA: extend this to support set and map unions?
     operation_name += "_input";
-    fully_qualified = true;
+    fully_qualified = isa<AssocType>(I.getObjectType());
     base_operation = false;
 
     std::optional<SelectionMetadata> input_selection = {};
@@ -1090,15 +944,17 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
                                           "Non-collection object to ",
                                           I);
 
+  auto &element_type = I.getElementType();
+
   // Fetch the function that implements this operation.
   arguments.insert(arguments.begin(), info.begin, info.end);
   arguments.insert(arguments.begin(), &info.object);
 
-  if (base_operation and depth == 0 and Type::is_unsized(I.getElementType())) {
+  if (base_operation and depth == 0 and Type::is_unsized(element_type)) {
     // If the element type is unsized, we must provide the default
     // initializer.
-    auto &nested_type = I.getElementType();
-    if (auto *nested_collection_type = dyn_cast<CollectionType>(&nested_type)) {
+    if (auto *nested_collection_type =
+            dyn_cast<CollectionType>(&element_type)) {
       // Default initialize the nested collection.
 
       vector<llvm::Value *> args = {};
@@ -1107,8 +963,7 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
       }
 
       // TODO: How do we get the nested implementation here?
-
-      auto *alloc = builder.CreateAllocInst(nested_type, args, "default");
+      auto *alloc = builder.CreateAllocInst(element_type, args, "default");
       this->stage(alloc->getCallInst());
 
       // Propagate the nested selection info here.
@@ -1294,9 +1149,12 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
   // Construct the read.
   MemOIRBuilder builder(I);
 
-  auto &collection_type = MEMOIR_SANITIZE(dyn_cast<CollectionType>(&info.type),
-                                          "Non-collection object to ",
-                                          I);
+  auto &collection_type =
+      MEMOIR_SANITIZE(dyn_cast<CollectionType>(&info.type),
+                      "Trying to get size of non-collection object\n  ",
+                      I,
+                      "\n   in ",
+                      I.getFunction()->getName());
 
   // Fetch the function that implements this operation.
   vector<llvm::Value *> arguments = { &info.object };
@@ -1574,6 +1432,12 @@ void SSADestructionVisitor::coalesce(llvm::Value &V, llvm::Value &replacement) {
   infoln("  ", V);
   infoln("  ", replacement);
   this->coalesced_values[&V] = &replacement;
+
+  if (auto *inst = dyn_cast<llvm::Instruction>(&V)) {
+    if (auto *new_inst = dyn_cast<llvm::Instruction>(&V)) {
+      new_inst->cloneDebugInfoFrom(inst);
+    }
+  }
 }
 
 llvm::Value *SSADestructionVisitor::find_replacement(llvm::Value *value) {
