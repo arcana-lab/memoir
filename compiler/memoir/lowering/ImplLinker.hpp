@@ -45,6 +45,18 @@ public:
    */
   static const Implementation &get_default_implementation(CollectionType &type);
 
+  /**
+   * Get the implementation for the given selection (default if not provided)
+   * and type.
+   *
+   * @param optional selection name
+   * @returns the selected implementation, or the default implementation if no
+   * name was provided.
+   */
+  static const Implementation &get_implementation(
+      const std::optional<std::string> &selection,
+      CollectionType &type);
+
   void implement(Type &type);
 
   void implement(Instantiation &inst);
@@ -52,7 +64,16 @@ public:
   void emit(llvm::raw_ostream &os = llvm::errs());
 
 protected:
-  ordered_set<StructType *> structs_to_emit;
+  struct StructInstantiation {
+    StructType *type;
+    vector<Instantiation *> fields;
+
+    bool operator<(const StructInstantiation &other) const {
+      return type < other.type;
+    }
+  };
+
+  ordered_set<StructInstantiation> structs_to_emit;
   ordered_set<Instantiation *> collections_to_emit;
 
   llvm::Module &M;

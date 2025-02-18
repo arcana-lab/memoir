@@ -69,9 +69,50 @@ const Implementation &ImplLinker::get_default_implementation(
   MEMOIR_UNREACHABLE("Collection type has no default implementation!");
 }
 
+const Implementation &ImplLinker::get_implementation(
+    const std::optional<std::string> &selection,
+    CollectionType &type) {
+
+  // Lookup the selection, if we were given one.
+  if (selection.has_value()) {
+    return MEMOIR_SANITIZE(
+        Implementation::lookup(selection.value()),
+        "Requested implementation has not been registered with the compiler!");
+  }
+
+  // Otherwise, get the default implementation.
+  return ImplLinker::get_default_implementation(type);
+}
+
 void ImplLinker::implement(Type &type) {
   if (auto *struct_type = dyn_cast<StructType>(&type)) {
-    this->structs_to_emit.insert(struct_type);
+    // TODO: instantitiate the fields of this struct.
+    vector<Instantiation *> fields = {};
+    for (auto field = 0; field < struct_type->getNumFields(); ++field) {
+      auto &field_type = struct_type->getFieldType(field);
+
+      if (auto *field_collection_type = dyn_cast<CollectionType>(&field_type)) {
+
+        std::optional<std::string> selection = {};
+        auto selection_metadata =
+            Metadata::get<SelectionMetadata>(*struct_type, field);
+        if (selection_metadata.has_value()) {
+          selection = selection_metadata->getImplementation(0);
+        }
+
+        const auto &impl =
+            this->get_implementation(selection, *field_collection_type);
+
+        auto &inst = impl.instantiate(*field_collection_type);
+
+        fields.push_back(&inst);
+        continue;
+      }
+
+      fields.push_back(nullptr);
+    }
+
+    this->structs_to_emit.emplace(struct_type, fields);
   }
 }
 
@@ -109,6 +150,18 @@ void ImplLinker::implement(Instantiation &inst) {
 }
 
 // Utility functions.
+static unsigned get_next_size(unsigned n) {
+  if (n < 8) {
+    return 8;
+  }
+  unsigned m = (n >> 3) - 1;
+  m |= m >> 1;
+  m |= m >> 2;
+  m |= m >> 4;
+  m++;
+  return m << 3;
+}
+
 static std::string memoir_to_c_type(Type &T) {
 
   if (auto *integer_type = dyn_cast<IntegerType>(&T)) {
@@ -121,7 +174,9 @@ static std::string memoir_to_c_type(Type &T) {
     if (!integer_type->isSigned()) {
       ss << "u";
     };
-    ss << "int" << std::to_string(integer_type->getBitWidth()) << "_t";
+
+    auto bitwidth = get_next_size(integer_type->getBitWidth());
+    ss << "int" << std::to_string(bitwidth) << "_t";
 
     return ss.str();
   } else if (isa<FloatType>(&T)) {
@@ -143,83 +198,204 @@ static std::string memoir_to_c_type(Type &T) {
   MEMOIR_UNREACHABLE("Attempting to create Impl for unknown type!");
 }
 
+static void include_collection_file(llvm::raw_ostream &os,
+                                    Instantiation &instantiation,
+                                    std::string filename) {
+
+  auto type_id = 0;
+  for (auto *type : instantiation.types()) {
+
+    // Emit the type code.
+    fprintln(os,
+             "#define CODE_",
+             std::to_string(type_id),
+             " ",
+             type->get_code().value());
+
+    // Emit the C type.
+    fprintln(os,
+             "#define TYPE_",
+             std::to_string(type_id),
+             " ",
+             memoir_to_c_type(*type));
+
+    ++type_id;
+  }
+
+  // Instantiate the collection.
+  fprintln(os,
+           "#include <backend/",
+           instantiation.get_name(),
+           "/",
+           filename,
+           ">");
+
+  // Undef
+  type_id = 0;
+  for (auto *type : instantiation.types()) {
+
+    // Emit the type code.
+    fprintln(os, "#undef CODE_", std::to_string(type_id));
+
+    // Emit the C type.
+    fprintln(os, "#undef TYPE_", std::to_string(type_id));
+
+    ++type_id;
+  }
+
+  fprintln(os);
+
+  return;
+}
+
 void ImplLinker::emit(llvm::raw_ostream &os) {
   // General include headers.
   fprintln(os, "#include <stdint.h>");
   fprintln(os, "#include <array>");
   fprintln(os, "#include <backend/utilities.h>");
 
-  // Instantiate the struct implementations.
-  for (auto *struct_type : this->structs_to_emit) {
-    // Convert the struct to a type layout.
-    auto &struct_layout = TC.convert(*struct_type);
-
-    // Get the size of the struct layout in bytes.
-    auto &data_layout = this->M.getDataLayout();
-    auto struct_size =
-        data_layout.getTypeAllocSize(&struct_layout.get_llvm_type());
-
-    // Create a C struct for it.
-    auto type_name = memoir_to_c_type(struct_layout.get_memoir_type());
-    fprintln(os,
-             "struct ",
-             type_name,
-             " : public Bytes<",
-             struct_size,
-             "> {};");
-    fprintln(os, "DEF_HASH(", type_name, ");");
+  // Create forward declarations of all struct types.
+  fprintln(os);
+  fprintln(os);
+  fprintln(os, "// Forward declarations for struct types");
+  for (const auto &[struct_type, _fields] : this->structs_to_emit) {
+    auto type_name = memoir_to_c_type(*struct_type);
+    fprintln(os, "struct ", type_name, ";");
   }
 
-  // Instantiate all of the collection implementations.
+  // Create forward declarations of all collection implementations.
+  fprintln(os);
+  fprintln(os);
+  fprintln(os, "// Forward declarations for collection types");
   for (auto *instantiation : this->collections_to_emit) {
-    auto name = instantiation->get_name();
+    include_collection_file(os, *instantiation, "declaration.h");
+  }
 
-    fprintln(os, "");
+  // Emit the struct access functions.
+  fprintln(os);
+  fprintln(os);
+  fprintln(os, "// Definition of struct types.");
+  for (const auto &[struct_type, fields] : this->structs_to_emit) {
 
-    auto type_id = 0;
-    for (auto *type : instantiation->types()) {
+    // Create a C struct for it.
+    auto type_name = "impl__" + struct_type->getName();
 
-      // Emit the type code.
-      fprintln(os,
-               "#define CODE_",
-               std::to_string(type_id),
-               " ",
-               type->get_code().value());
+    fprintln(os, "#pragma pack(1)");
+    fprintln(os, "struct ", type_name, " { ");
+    for (auto field = 0; field < struct_type->getNumFields(); ++field) {
+      auto *field_inst = fields[field];
+      if (field_inst) {
+        fprintln(os,
+                 "  ",
+                 field_inst->get_typename(),
+                 " f_",
+                 std::to_string(field),
+                 ";");
+      } else {
+        auto &field_type = struct_type->getFieldType(field);
 
-      // Convert the type.
-      auto &layout = TC.convert(*type);
+        fprint(os, "  ");
 
-      // Emit the C type.
-      fprintln(os,
-               "#define TYPE_",
-               std::to_string(type_id),
-               " ",
-               memoir_to_c_type(*type));
+        // Print the type.
+        fprint(os, memoir_to_c_type(field_type));
 
-      ++type_id;
+        // Print the field name.
+        fprint(os, " f_", std::to_string(field));
+
+        // If this is a bitfield, print its width.
+        if (auto *field_int_type = dyn_cast<IntegerType>(&field_type)) {
+          auto bitwidth = field_int_type->getBitWidth();
+          fprint(os, " : ", bitwidth);
+        }
+
+        fprintln(os, ";");
+      }
     }
 
-    // Instantiate the collection.
+    fprintln(os, " };");
+  }
+
+  // Instantiate the collections.
+  fprintln(os);
+  fprintln(os);
+  fprintln(os, "// Collection access functions.");
+  for (auto *instantiation : this->collections_to_emit) {
+    include_collection_file(os, *instantiation, "instantiation.h");
+  }
+
+  // Emit the struct access functions.
+  fprintln(os);
+  fprintln(os);
+  fprintln(os, "// Struct access functions.");
+  for (const auto &[struct_type, fields] : this->structs_to_emit) {
+
+    // Create a C struct for it.
+    auto type_name = "impl__" + struct_type->getName();
+
+    // Emit the allocation function for this struct.
     fprintln(os,
-             "#include <backend/",
-             instantiation->get_name(),
-             "/instantiation.h>");
+             "cname alwaysinline used ",
+             type_name,
+             "* ",
+             type_name,
+             "__allocate(void)",
+             " { return new ",
+             type_name,
+             "(); }");
 
-    // Undef
-    type_id = 0;
-    for (auto *type : instantiation->types()) {
+    // Create functions for each operation.
+    for (auto field = 0; field < struct_type->getNumFields(); ++field) {
+      auto &field_type = struct_type->getFieldType(field);
+      auto c_field_type = memoir_to_c_type(field_type);
 
-      // Emit the type code.
-      fprintln(os, "#undef CODE_", std::to_string(type_id));
+      auto *field_inst = fields[field];
 
-      // Convert the type.
-      auto &layout = TC.convert(*type);
-
-      // Emit the C type.
-      fprintln(os, "#undef TYPE_", std::to_string(type_id));
-
-      ++type_id;
+      if (isa<ObjectType>(&field_type)) {
+        fprintln(os,
+                 "cname alwaysinline used ",
+                 "char * ",
+                 type_name,
+                 "__get_",
+                 field,
+                 "(",
+                 type_name,
+                 "* x",
+                 ") { return (char *)&x->f_",
+                 field,
+                 "; }");
+      } else {
+        fprintln(os,
+                 "cname alwaysinline used ",
+                 c_field_type,
+                 " ",
+                 type_name,
+                 "__read_",
+                 std::to_string(field),
+                 "(",
+                 type_name,
+                 "* x",
+                 ") { return x->f_",
+                 std::to_string(field),
+                 "; }");
+        fprintln(os,
+                 "cname alwaysinline used ",
+                 "void ",
+                 type_name,
+                 "__write_",
+                 field,
+                 "(",
+                 type_name,
+                 "* obj",
+                 ", ",
+                 c_field_type,
+                 " val",
+                 ") { obj->f_",
+                 field,
+                 " = val; }");
+      }
     }
+
+    fprintln(os);
   }
 }
 
