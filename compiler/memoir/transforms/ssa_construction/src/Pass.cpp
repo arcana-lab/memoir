@@ -260,7 +260,8 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     infoln("=========================");
   }
 
-  // Finally, we will create unique functions for each fold instruction.
+  // Transform the program so that each static fold body has at most one use.
+  vector<FoldInst *> worklist = {};
   for (auto &F : M) {
     for (auto &BB : F) {
       for (auto &I : BB) {
@@ -271,24 +272,40 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
           continue;
         }
 
-        // Create a unique copy of the called function, if necessary.
-        auto &function = fold->getFunction();
+        worklist.push_back(fold);
+      }
+    }
+  }
 
-        // If the function is internal and this is the only user, we don't need
-        // to create a copy of it.
-        if (function.hasOneUse() /* and function.hasInternalLinkage() */) {
-          continue;
+  while (not worklist.empty()) {
+    // Pop.
+    auto *fold = worklist.back();
+    worklist.pop_back();
+
+    // Unpack.
+    auto &body = fold->getBody();
+    auto *func = fold->getFunction();
+
+    // Check if we are the last remaining user of this function, if so, skip it.
+    if (body.hasOneUse()) {
+      continue;
+    }
+
+    // Clone the function.
+    llvm::ValueToValueMapTy vmap;
+    llvm::ClonedCodeInfo clone_info;
+    auto *cloned_body = llvm::CloneFunction(&body, vmap, &clone_info);
+    MEMOIR_ASSERT(cloned_body, "Failed to clone function for FoldInst");
+
+    // Set the function for the fold.
+    fold->getBodyOperandAsUse().set(cloned_body);
+
+    // Add any new folds that were introduced by cloning.
+    for (auto &BB : *cloned_body) {
+      for (auto &I : BB) {
+        if (auto *other_fold = into<FoldInst>(I)) {
+          worklist.push_back(other_fold);
         }
-
-        // Clone the function.
-        llvm::ValueToValueMapTy vmap;
-        llvm::ClonedCodeInfo clone_info;
-        auto &clone =
-            MEMOIR_SANITIZE(llvm::CloneFunction(&function, vmap, &clone_info),
-                            "Failed to clone function for FoldInst");
-
-        // Set the function for the fold.
-        fold->getFunctionOperandAsUse().set(&clone);
       }
     }
   }
@@ -301,6 +318,6 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
   MemOIRInst::invalidate();
 
   return llvm::PreservedAnalyses::none();
-} // namespace detail
+}
 
 } // namespace llvm::memoir
