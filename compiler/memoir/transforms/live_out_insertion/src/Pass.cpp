@@ -44,8 +44,14 @@ void _gather_reaching_definitions(llvm::Value &V,
 
     if (auto *memoir_inst = into<MemOIRInst>(user)) {
 
-      if (isa<UpdateInst>(memoir_inst) or isa<RetPHIInst>(memoir_inst)
-          or isa<UsePHIInst>(memoir_inst)) {
+      if (auto *update = dyn_cast<UpdateInst>(memoir_inst)) {
+
+        // If the use is the updated object, propagate it.
+        if (use == update->getObjectAsUse()) {
+          _gather_reaching_definitions(*user, reaching);
+        }
+
+      } else if (isa<RetPHIInst>(memoir_inst) or isa<UsePHIInst>(memoir_inst)) {
 
         // Merge the user with the reaching definitions of the value.
         _gather_reaching_definitions(*user, reaching);
@@ -77,8 +83,17 @@ set<llvm::Value *> gather_reaching_definitions(llvm::Value &V) {
 llvm::Value *find_single_postdominator(llvm::PostDominatorTree &PDT,
                                        llvm::ArrayRef<llvm::Value *> values) {
 
+  // If we only have a single value, return it.
+  if (values.size() == 1) {
+    return values.front();
+  }
+
+  println();
+
   // Now find the value that post dominates all other values.
   for (auto *val : values) {
+
+    println("VAL ", *val);
 
     auto *inst = dyn_cast<llvm::Instruction>(val);
     if (not inst) {
@@ -99,12 +114,14 @@ llvm::Value *find_single_postdominator(llvm::PostDominatorTree &PDT,
 
       // Check postdominance.
       if (not PDT.dominates(inst, other_inst)) {
+        println("  FAILED ", *other_inst);
         postdom_all = false;
         break;
       }
     }
 
     if (postdom_all) {
+      println("  POSTDOM ALL");
       return val;
     }
   }
