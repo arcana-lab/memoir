@@ -102,6 +102,11 @@ struct Instantiation : public Implementation {
    */
   std::string get_prefix() const;
 
+  /**
+   * @returns the C type for this instantiation.
+   */
+  std::string get_typename() const;
+
   vector<Type *> &types() {
     return this->_types;
   }

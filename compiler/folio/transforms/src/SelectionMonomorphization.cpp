@@ -19,6 +19,7 @@ using namespace llvm::memoir;
 namespace folio {
 
 using ImplList = vector<std::optional<std::string>>;
+
 struct Selections {
 
   using ID = uint32_t;
@@ -72,7 +73,7 @@ struct Selections {
     return changed;
   }
 
-  const ImplList &from_id(const ID &id) {
+  const ImplList &from_id(const ID &id) const {
     for (const auto &[sel, sel_id] : this->implementations) {
       if (id == sel_id) {
         return sel;
@@ -99,6 +100,15 @@ struct Selections {
 
   decltype(auto) find(llvm::Value *value) const {
     return this->selections.find(value);
+  }
+
+  const ImplList &selection(llvm::Value &value) const {
+    auto found = this->selections.find(&value);
+    if (found == this->selections.end()) {
+      MEMOIR_UNREACHABLE("Could not find selection for ", value);
+    }
+
+    return this->from_id(found->second);
   }
 
   decltype(auto) clear() {
@@ -177,7 +187,19 @@ void propagate(Selections &selections,
         // corresponding argument.
         if (Type::is_unsized(fold->getElementType())) {
           if (auto *argument = fold->getElementArgument()) {
-            selections.propagate(from, *argument);
+
+            // Propagate the nested selection to the argument.
+            const auto &impl = selections.selection(from);
+            auto distance = std::distance(fold->index_operands_begin(),
+                                          fold->index_operands_end())
+                            + 1;
+
+            ImplList nested_impls(std::next(impl.begin(), distance),
+                                  impl.end());
+
+            selections.insert(*argument, nested_impls);
+
+            worklist.push_back(argument);
           }
         }
 

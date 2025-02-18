@@ -151,6 +151,10 @@ std::string Instantiation::get_prefix() const {
   return prefix;
 }
 
+std::string Instantiation::get_typename() const {
+  return this->get_prefix() + "_t";
+}
+
 ordered_multimap<std::string, Instantiation *> *Instantiation::instantiations =
     nullptr;
 
