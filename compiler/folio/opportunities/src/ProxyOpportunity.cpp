@@ -615,13 +615,13 @@ bool ProxyOpportunity::exploit(
 
       if (decoder) {
         auto *decoder_ret_phi =
-            builder.CreateRetPHI(decoder, &outer_fold_inst->getLLVMFunction());
+            builder.CreateRetPHI(decoder, &outer_fold_inst->getBody());
         decoder = &decoder_ret_phi->getCallInst();
       }
 
       if (encoder) {
         auto *encoder_ret_phi =
-            builder.CreateRetPHI(encoder, &outer_fold_inst->getLLVMFunction());
+            builder.CreateRetPHI(encoder, &outer_fold_inst->getBody());
         encoder = &encoder_ret_phi->getCallInst();
       }
 
@@ -907,7 +907,7 @@ bool ProxyOpportunity::exploit(
       Metadata::get_or_add<TempArgumentMetadata>(*store);
 
       // Create the load in the entry of the fold body.
-      auto &body = fold->getFunction();
+      auto &body = fold->getBody();
       builder.SetInsertPoint(body.getEntryBlock().getFirstNonPHI());
 
       auto *load = builder.CreateLoad(ptr_type, encoder_global);
@@ -932,7 +932,7 @@ bool ProxyOpportunity::exploit(
       Metadata::get_or_add<TempArgumentMetadata>(*store);
 
       // Create the load in the entry of the fold body.
-      auto &body = fold->getFunction();
+      auto &body = fold->getBody();
       builder.SetInsertPoint(body.getEntryBlock().getFirstNonPHI());
 
       auto *load = builder.CreateLoad(ptr_type, decoder_global);

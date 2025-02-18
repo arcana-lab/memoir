@@ -20,12 +20,11 @@ bool FoldInst::isReverse() const {
   }
 }
 
-OPERAND(FoldInst, FunctionOperand, 0)
+OPERAND(FoldInst, BodyOperand, 0)
 
-llvm::Function &FoldInst::getFunction() const {
-  auto &F =
-      MEMOIR_SANITIZE(dyn_cast<llvm::Function>(&this->getFunctionOperand()),
-                      "FoldInst passed an indirect function to call!");
+llvm::Function &FoldInst::getBody() const {
+  auto &F = MEMOIR_SANITIZE(dyn_cast<llvm::Function>(&this->getBodyOperand()),
+                            "FoldInst passed an indirect function to call!");
 
   MEMOIR_ASSERT(not F.empty(), "FoldInst passed an empty function to call!");
 
@@ -104,13 +103,11 @@ FoldInst::const_operand_iterator FoldInst::closed_ops_end() const {
 }
 
 llvm::Argument &FoldInst::getAccumulatorArgument() const {
-  return MEMOIR_SANITIZE(this->getFunction().getArg(0),
-                         "Malformed fold function!");
+  return MEMOIR_SANITIZE(this->getBody().getArg(0), "Malformed fold function!");
 }
 
 llvm::Argument &FoldInst::getIndexArgument() const {
-  return MEMOIR_SANITIZE(this->getFunction().getArg(1),
-                         "Malformed fold function!");
+  return MEMOIR_SANITIZE(this->getBody().getArg(1), "Malformed fold function!");
 }
 
 llvm::Argument *FoldInst::getElementArgument() const {
@@ -142,8 +139,8 @@ llvm::Argument *FoldInst::getElementArgument() const {
     return nullptr;
   }
 
-  auto &arg = MEMOIR_SANITIZE(this->getFunction().getArg(2),
-                              "Malformed fold function!");
+  auto &arg =
+      MEMOIR_SANITIZE(this->getBody().getArg(2), "Malformed fold function!");
 
   return &arg;
 }
@@ -175,7 +172,7 @@ llvm::Argument *FoldInst::getClosedArgument(llvm::Use &U) const {
 
   // Compute the argument number corresponding to the closed operand.
   auto arg_no = closed_index + first_closed;
-  auto *arg = this->getFunction().getArg(arg_no);
+  auto *arg = this->getBody().getArg(arg_no);
 
   return arg;
 }

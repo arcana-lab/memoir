@@ -67,22 +67,22 @@ void MemOIRInst::invalidate() {
 /*
  * Top-level methods
  */
-llvm::Function &MemOIRInst::getFunction() const {
-  return this->getLLVMFunction();
-}
-
 llvm::CallInst &MemOIRInst::getCallInst() const {
   return this->call_inst;
 }
 
-llvm::Function &MemOIRInst::getLLVMFunction() const {
+llvm::Function &MemOIRInst::getCalledFunction() const {
   return MEMOIR_SANITIZE(
       this->getCallInst().getCalledFunction(),
-      "MemOIRInst has been corrupted, CallInst is no longer direct!");
+      "MemOIRInst has been corrupted, CallInst is indirect!");
 }
 
 llvm::Module *MemOIRInst::getModule() const {
   return this->getCallInst().getModule();
+}
+
+llvm::Function *MemOIRInst::getFunction() const {
+  return this->getCallInst().getFunction();
 }
 
 llvm::BasicBlock *MemOIRInst::getParent() const {
@@ -94,7 +94,7 @@ MemOIR_Func MemOIRInst::getKind() const {
 }
 
 bool MemOIRInst::is_mutator(MemOIRInst &I) {
-  return FunctionNames::is_mutator(I.getLLVMFunction());
+  return FunctionNames::is_mutator(I.getCalledFunction());
 }
 
 std::ostream &operator<<(std::ostream &os, const MemOIRInst &I) {

@@ -8,8 +8,21 @@ namespace llvm::memoir {
 
 // AccessInst implementation
 Type &AccessInst::getObjectType() const {
-  return MEMOIR_SANITIZE(type_of(this->getObject()),
-                         "Could not determine type of collection being read");
+  auto *type = type_of(this->getObject());
+
+  if (not type) {
+    if (const auto &debug_loc = this->getCallInst().getDebugLoc()) {
+      print("DEBUG INFO: ");
+      debug_loc.print(llvm::errs());
+    }
+
+    MEMOIR_UNREACHABLE("Could not determine type of object being accessed!\n  ",
+                       *this,
+                       "\n  in ",
+                       this->getFunction()->getName());
+  }
+
+  return *type;
 }
 
 Type &AccessInst::getElementType() const {
@@ -62,7 +75,10 @@ Type &AccessInst::getElementType() const {
         if (auto *struct_type = dyn_cast<StructType>(type)) {
           auto &index_constant =
               MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
-                              "Struct field index is not constant.");
+                              "Struct field index is not constant.\n  ",
+                              *index,
+                              " in ",
+                              *this);
           auto index_value = index_constant.getZExtValue();
           type = &struct_type->getFieldType(index_value);
 

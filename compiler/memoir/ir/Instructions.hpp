@@ -35,11 +35,13 @@ public:
   static bool is_mutator(MemOIRInst &I);
   static void invalidate();
 
-  llvm::Function &getFunction() const;
-  llvm::CallInst &getCallInst() const;
-  llvm::Function &getLLVMFunction() const;
+  llvm::Function &getCalledFunction() const;
+
   llvm::Module *getModule() const;
+  llvm::Function *getFunction() const;
   llvm::BasicBlock *getParent() const;
+  llvm::CallInst &getCallInst() const;
+
   MemOIR_Func getKind() const;
 
   bool has_keywords() const;
@@ -790,9 +792,9 @@ public:
   llvm::Value &getObject() const override;
   llvm::Use &getObjectAsUse() const override;
 
-  llvm::Function &getFunction() const;
-  llvm::Value &getFunctionOperand() const;
-  llvm::Use &getFunctionOperandAsUse() const;
+  llvm::Function &getBody() const;
+  llvm::Value &getBodyOperand() const;
+  llvm::Use &getBodyOperandAsUse() const;
 
   std::optional<ClosedKeyword> getClosed() const;
 
