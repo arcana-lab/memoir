@@ -10,11 +10,21 @@ using namespace llvm::memoir;
 
 namespace folio {
 
+llvm::Use &get_called_use(llvm::CallBase &call) {
+  auto *fold = into<FoldInst>(call);
+
+  return fold ? fold->getBodyOperandAsUse() : call.getCalledOperandUse();
+}
+
 LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
 
   // Identify functions that have more than one callers.
-  ordered_map<llvm::Function *, ordered_set<llvm::CallBase *>> callers = {};
+  set<llvm::Function *> memoir_functions = {};
   for (auto &F : M) {
+
+    if (F.empty()) {
+      continue;
+    }
 
     // Check if any of the arguments are memoir collections.
     bool has_memoir = false;
@@ -35,73 +45,111 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
       continue;
     }
 
-    // Save each of the function callers.
-    for (auto &use : F.uses()) {
-      auto *user = use.getUser();
-
-      if (auto *call = dyn_cast<llvm::CallBase>(user)) {
-        // Skip memoir instructions.
-        if (into<MemOIRInst>(call)) {
-          continue;
-        }
-
-        // Skip self-recursive calls.
-        if (call->getFunction() == &F) {
-          continue;
-        }
-
-        // Ensure the use is the called operand.
-        if (&use == &call->getCalledOperandUse()) {
-          // Insert the caller.
-          callers[&F].insert(call);
-          continue;
-        }
-      }
-
-      // If the use didn't fit into the above cases, we will warn the user that
-      // their memoir collections are being passed into a function that _may_ be
-      // indirectly called.
-      warnln("Function ", F.getName(), " may be indirectly called.");
-    }
+    // Save the function.
+    memoir_functions.insert(&F);
   }
 
-  // Erase all functions in the mapping with zero or one callers.
-  std::erase_if(callers, [](const auto &item) {
-    const auto &[func, calls] = item;
-    return calls.size() <= 1;
-  });
+  // Collect all the calls to this function.
+  set<llvm::CallBase *> calls = {};
+  for (auto *func : memoir_functions) {
+    for (auto &use : func->uses()) {
 
-  // For each function, create a unique clone of it for each call site.
-  for (auto [func, calls] : callers) {
-    bool first = true;
-    for (auto *call : calls) {
-      // Skip the first call.
-      if (first) {
-        first = false;
+      // Only handle call users.
+      auto *call = dyn_cast<llvm::CallBase>(use.getUser());
+      if (not call) {
         continue;
       }
 
-      // Create the function clone.
-      llvm::ValueToValueMapTy vmap;
-      auto *clone = llvm::CloneFunction(func, vmap);
+      // Skip non-fold memoir instructions.
+      auto *fold = into<FoldInst>(call);
+      if (not fold and into<MemOIRInst>(call)) {
+        continue;
+      }
 
-      // Replace the called operand with the clone function.
-      call->getCalledOperandUse().set(clone);
+      // Ensure that the use is the called operand.
+      if (fold and use != fold->getBodyOperandAsUse()) {
+        continue;
+      } else if (use != call->getCalledOperandUse()) {
+        continue;
+      }
 
-      // Patch up the following RetPHIs.
-      auto *next = call->getNextNode();
-      while (next) {
+      calls.insert(call);
+    }
+  }
 
-        if (auto *ret_phi = into<RetPHIInst>(next)) {
-          ret_phi->getCalledOperandAsUse().set(clone);
-        } else {
-          // Stop once we see a non-RetPHI.
-          break;
+  // For each function, create a unique clone of it for each call site.
+  vector<llvm::CallBase *> worklist(calls.begin(), calls.end());
+  while (not worklist.empty()) {
+    // Pop a call off the worklist.
+    auto *call = worklist.back();
+    worklist.pop_back();
+
+    // Try to cast the call to a fold.
+    auto *fold = into<FoldInst>(call);
+
+    // Fetch the callee information.
+    auto &use = get_called_use(*call);
+    auto *func = dyn_cast<llvm::Function>(use.get());
+
+    // If this is the sole user of the function, we are all good.
+    if (func->hasOneUse()) {
+      continue;
+    }
+
+    // If this is a self-recursive function, skip it.
+    // TODO: Convert self-recursive functions into two mutually recursive
+    // functions.
+    if (call->getFunction() == func) {
+      continue;
+    }
+
+    // Clone the function for this call site.
+    llvm::ValueToValueMapTy vmap;
+    auto *clone = llvm::CloneFunction(func, vmap);
+
+    // Replace the called operand with the clone function.
+    use.set(clone);
+
+    // Patch up the following RetPHIs.
+    auto *next = call->getNextNode();
+    while (next) {
+
+      if (auto *ret_phi = into<RetPHIInst>(next)) {
+        ret_phi->getCalledOperandAsUse().set(clone);
+      } else {
+        // Stop once we see a non-RetPHI.
+        break;
+      }
+
+      next = next->getNextNode();
+    }
+
+    // If we have created a call to any function with memoir collections, add it
+    // to the worklist.
+    for (auto &BB : *clone) {
+      for (auto &I : BB) {
+        auto *new_call = dyn_cast<llvm::CallBase>(&I);
+        if (not new_call) {
+          continue;
         }
 
-        next = next->getNextNode();
+        auto &new_use = get_called_use(*new_call);
+        auto *new_func = dyn_cast<llvm::Function>(new_use.get());
+        if (not new_func) {
+          continue;
+        }
+
+        if (memoir_functions.count(new_func) > 0) {
+
+          // Rectify recursive calls.
+          if (new_func != func) {
+            worklist.push_back(new_call);
+          }
+        }
       }
     }
+
+    memoir_functions.insert(clone);
   }
 }
 
