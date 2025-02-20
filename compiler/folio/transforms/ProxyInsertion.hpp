@@ -11,6 +11,25 @@ public:
   struct ObjectInfo {
     llvm::memoir::AllocInst *allocation;
     llvm::memoir::vector<unsigned> offsets;
+
+    ObjectInfo(llvm::memoir::AllocInst &alloc, llvm::ArrayRef<unsigned> offsets)
+      : allocation(&alloc),
+        offsets(offsets.begin(), offsets.end()) {}
+    ObjectInfo(llvm::memoir::AllocInst &alloc) : ObjectInfo(alloc, {}) {}
+
+    friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                         const ObjectInfo &info) {
+      os << "(" << *info.allocation << ")";
+      for (auto offset : info.offsets) {
+        if (offset == -1) {
+          os << "[*]";
+        } else {
+          os << "." << std::to_string(offset);
+        }
+      }
+
+      return os;
+    }
   };
 
   void analyze();
