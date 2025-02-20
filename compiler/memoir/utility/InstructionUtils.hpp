@@ -22,7 +22,7 @@
   }
 
 #define TO_STRING(CLASS)                                                       \
-  std::string CLASS::toString(std::string indent) const {                      \
+  std::string CLASS::toString() const {                                        \
     std::string str, llvm_str;                                                 \
     llvm::raw_string_ostream llvm_ss(llvm_str);                                \
     llvm_ss << this->getCallInst();                                            \
