@@ -75,7 +75,7 @@ void ProxyInsertion::gather_assoc_objects(vector<ObjectInfo> &allocations,
 
     // If this is an assoc, add the object information.
     if (isa<AssocType>(collection_type)) {
-      allocations.push_back(ObjectInfo(&alloc, offsets));
+      allocations.push_back(ObjectInfo(alloc, offsets));
     }
 
     // Recurse on the element.
@@ -104,6 +104,8 @@ void ProxyInsertion::analyze() {
     }
   }
 
+  println("Found ", allocations.size(), " allocations.");
+
   // Use a heuristic to group together allocations.
   set<const ObjectInfo *> used = {};
   for (auto it = allocations.begin(); it != allocations.end(); ++it) {
@@ -114,10 +116,6 @@ void ProxyInsertion::analyze() {
     }
 
     auto *bb = info.allocation->getParent();
-
-    if (this->candidates.size() > 0) {
-      break;
-    }
 
     this->candidates.push_back({ info });
 
@@ -138,8 +136,24 @@ void ProxyInsertion::analyze() {
       }
     }
 
+    println("CANDIDATE:");
+    for (const auto &info : candidates.back()) {
+      println("  ", info);
+    }
+
     used.insert(&info);
   }
+
+  // Only proxy the largest candidate.
+  size_t largest = 0;
+  for (size_t i = 1; i < candidates.size(); ++i) {
+    if (candidates[i].size() > candidates[largest].size()) {
+      largest = i;
+    }
+  }
+  candidates.erase(std::next(candidates.begin(), largest + 1),
+                   candidates.end());
+  candidates.erase(candidates.begin(), std::next(candidates.begin(), largest));
 }
 
 namespace detail {
@@ -668,22 +682,19 @@ bool ProxyInsertion::transform() {
   // Collect the set of redefinitions for each allocation involved.
   ordered_map<AllocInst *, set<llvm::Value *>> redefinitions = {};
   for (auto &candidate : this->candidates) {
-    auto &info = candidate.front();
+    auto &first_info = candidate.front();
 
-    // Unpack the object information.
-    auto *alloc = info.allocation;
+    // Unpack the first object information.
+    auto *alloc = first_info.allocation;
     auto *type = &alloc->getType();
 
-    debugln("Proxying:");
-    debugln("  ", *alloc);
-    print("  offsets = [");
-    for (auto offset : info.offsets) {
-      print(offset, ", ");
+    println("PROXYING CANDIDATE:");
+    for (const auto &candidate_info : candidate) {
+      println("  ", candidate_info);
     }
-    debugln("]");
 
     // Get the nested object type.
-    for (auto offset : info.offsets) {
+    for (auto offset : first_info.offsets) {
       if (auto *struct_type = dyn_cast<StructType>(type)) {
         type = &struct_type->getFieldType(offset);
       } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
@@ -723,11 +734,11 @@ bool ProxyInsertion::transform() {
       }
     }
 
-    infoln();
-    infoln("  before trimming:");
-    infoln("  ", to_encode.size(), " uses to encode");
-    infoln("  ", to_decode.size(), " uses to decode");
-    infoln("  ", to_addkey.size(), " uses to addkey");
+    println();
+    println("  before trimming:");
+    println("  ", to_encode.size(), " uses to encode");
+    println("  ", to_decode.size(), " uses to decode");
+    println("  ", to_addkey.size(), " uses to addkey");
 
     // Trim uses that dont need to be decoded because they are only used to
     // compare against other values that need to be decoded.
@@ -758,12 +769,10 @@ bool ProxyInsertion::transform() {
     // use that needs decoded.
     set<llvm::Use *> trim_to_encode = {};
     for (auto uses : { to_encode, to_addkey }) {
-      for (auto *encodee : uses) {
-        auto found = to_decode.find(encodee);
-        if (found != to_decode.end()) {
-          auto *decodee = *found;
-          trim_to_encode.insert(encodee);
-          trim_to_decode.insert(decodee);
+      for (auto *use : uses) {
+        if (to_decode.count(use) > 0) {
+          trim_to_encode.insert(use);
+          trim_to_decode.insert(use);
         }
       }
     }
@@ -778,31 +787,35 @@ bool ProxyInsertion::transform() {
     }
 
     {
-      infoln("  trimmed:");
-      infoln("  ", trim_to_encode.size(), " uses to encode");
+      println("  trimmed:");
+      println("  ", trim_to_encode.size(), " uses to encode");
       for (auto *use : trim_to_encode) {
         infoln("    ", *use->get(), " in ", *use->getUser());
       }
 
-      infoln("  ", trim_to_decode.size(), " uses to decode");
+      println("  ", trim_to_decode.size(), " uses to decode");
+      for (auto *use : trim_to_decode) {
+        infoln("    ", *use->get(), " in ", *use->getUser());
+      }
+      println("  ", trim_to_decode.size(), " uses to decode");
       for (auto *use : trim_to_decode) {
         infoln("    ", *use->get(), " in ", *use->getUser());
       }
     }
 
     {
-      infoln("  after trimming:");
-      infoln("  ", to_encode.size(), " uses to encode");
+      println("  after trimming:");
+      println("  ", to_encode.size(), " uses to encode");
       for (auto *use : to_encode) {
         infoln("    ", *use->get(), " in ", *use->getUser());
       }
 
-      infoln("  ", to_decode.size(), " uses to decode");
+      println("  ", to_decode.size(), " uses to decode");
       for (auto *use : to_decode) {
         infoln("    ", *use->get(), " in ", *use->getUser());
       }
 
-      infoln("  ", to_addkey.size(), " uses to addkey");
+      println("  ", to_addkey.size(), " uses to addkey");
       for (auto *use : to_addkey) {
         infoln("    ", *use->get(), " in ", *use->getUser());
       }
