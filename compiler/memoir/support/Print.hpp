@@ -116,11 +116,11 @@ inline void debug(Ts const &...args) {
 }
 
 // Helper to print value names.
-inline std::string value_name(llvm::Value &V) {
+inline std::string value_name(const llvm::Value &V) {
   std::string str;
   llvm::raw_string_ostream os(str);
   V.printAsOperand(os, /* print type = */ false);
-  os << ":" << uint64_t(&V);
+  // os << ":" << uint64_t(&V);
 
   return str;
 }
