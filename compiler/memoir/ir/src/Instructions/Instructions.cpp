@@ -98,12 +98,12 @@ bool MemOIRInst::is_mutator(MemOIRInst &I) {
 }
 
 std::ostream &operator<<(std::ostream &os, const MemOIRInst &I) {
-  os << I.toString("");
+  os << I.toString();
   return os;
 }
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const MemOIRInst &I) {
-  os << I.toString("");
+  os << I.toString();
   return os;
 }
 

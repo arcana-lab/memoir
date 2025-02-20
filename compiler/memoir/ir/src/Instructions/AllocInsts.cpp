@@ -66,6 +66,25 @@ AllocInst::const_size_op_iterator AllocInst::size_ops_end() const {
   return const_size_op_iterator(this->kw_begin().asUse());
 }
 
-TO_STRING(AllocInst)
+std::string AllocInst::toString() const {
+  auto &call = this->getCallInst();
+  std::string str =
+      value_name(call) + " = new " + this->getType().toString() + "(";
+
+  bool first = true;
+  for (auto *size : this->sizes()) {
+    if (first) {
+      first = false;
+    } else {
+      str += ", ";
+    }
+
+    str += value_name(*size);
+  }
+
+  str += ")";
+
+  return str;
+}
 
 } // namespace llvm::memoir

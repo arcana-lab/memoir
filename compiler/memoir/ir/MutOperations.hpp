@@ -52,7 +52,7 @@ struct MutWriteInst : public MutInst {
         false;
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   MutWriteInst(llvm::CallInst &call_inst) : MutInst(call_inst) {}
@@ -69,7 +69,7 @@ public:
     return (I->getKind() == MemOIR_Func::MUT_INSERT);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   MutInsertInst(llvm::CallInst &call_inst) : MutInst(call_inst) {}
@@ -86,7 +86,7 @@ public:
     return (I->getKind() == MemOIR_Func::MUT_REMOVE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   MutRemoveInst(llvm::CallInst &call_inst) : MutInst(call_inst) {}
@@ -103,7 +103,7 @@ public:
     return (I->getKind() == MemOIR_Func::MUT_CLEAR);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   MutClearInst(llvm::CallInst &call_inst) : MutInst(call_inst) {}

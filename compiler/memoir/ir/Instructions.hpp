@@ -69,7 +69,7 @@ public:
   friend std::ostream &operator<<(std::ostream &os, const MemOIRInst &I);
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const MemOIRInst &I);
-  virtual std::string toString(std::string indent = "") const = 0;
+  virtual std::string toString() const = 0;
 
   virtual ~MemOIRInst() = default;
 
@@ -108,7 +108,7 @@ public:
     return (I->getKind() == MemOIR_Func::UINT64_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   UInt64TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -124,7 +124,7 @@ public:
     return (I->getKind() == MemOIR_Func::UINT32_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   UInt32TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -140,7 +140,7 @@ public:
     return (I->getKind() == MemOIR_Func::UINT16_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   UInt16TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -156,7 +156,7 @@ public:
     return (I->getKind() == MemOIR_Func::UINT8_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   UInt8TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -172,7 +172,7 @@ public:
     return (I->getKind() == MemOIR_Func::UINT2_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   UInt2TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -188,7 +188,7 @@ public:
     return (I->getKind() == MemOIR_Func::INT64_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   Int64TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -204,7 +204,7 @@ public:
     return (I->getKind() == MemOIR_Func::INT32_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   Int32TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -220,7 +220,7 @@ public:
     return (I->getKind() == MemOIR_Func::INT16_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   Int16TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -236,7 +236,7 @@ public:
     return (I->getKind() == MemOIR_Func::INT8_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   Int8TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -252,7 +252,7 @@ public:
     return (I->getKind() == MemOIR_Func::INT2_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   Int2TypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -268,7 +268,7 @@ public:
     return (I->getKind() == MemOIR_Func::BOOL_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   BoolTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -284,7 +284,7 @@ public:
     return (I->getKind() == MemOIR_Func::FLOAT_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   FloatTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -300,7 +300,7 @@ public:
     return (I->getKind() == MemOIR_Func::DOUBLE_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   DoubleTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -316,7 +316,7 @@ public:
     return (I->getKind() == MemOIR_Func::POINTER_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   PointerTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -332,7 +332,7 @@ public:
     return (I->getKind() == MemOIR_Func::VOID_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   VoidTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -351,7 +351,7 @@ public:
     return (I->getKind() == MemOIR_Func::REFERENCE_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   ReferenceTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -380,7 +380,7 @@ public:
     return (I->getKind() == MemOIR_Func::DEFINE_STRUCT_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   DefineStructTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -399,7 +399,7 @@ public:
     return (I->getKind() == MemOIR_Func::STRUCT_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   StructTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -423,7 +423,7 @@ public:
     return (I->getKind() == MemOIR_Func::ARRAY_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   ArrayTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -445,7 +445,7 @@ public:
     return (I->getKind() == MemOIR_Func::ASSOC_ARRAY_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   AssocTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -465,7 +465,7 @@ public:
     return (I->getKind() == MemOIR_Func::SEQUENCE_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   SequenceTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
@@ -510,7 +510,7 @@ public:
         false;
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   AllocInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
@@ -576,7 +576,7 @@ public:
         false;
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   ReadInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
@@ -598,7 +598,7 @@ public:
     return I->getKind() == MemOIR_Func::GET;
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   GetInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
@@ -616,7 +616,7 @@ struct CopyInst : public AccessInst {
     return I->getKind() == MemOIR_Func::COPY;
   }
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   CopyInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
@@ -635,7 +635,7 @@ public:
     return I->getKind() == MemOIR_Func::SIZE;
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   SizeInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
@@ -680,7 +680,7 @@ public:
         false;
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   WriteInst(llvm::CallInst &call_inst) : UpdateInst(call_inst) {}
@@ -697,7 +697,7 @@ public:
     return I->getKind() == MemOIR_Func::INSERT;
   }
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   InsertInst(llvm::CallInst &call_inst) : UpdateInst(call_inst) {}
@@ -714,7 +714,7 @@ public:
     return I->getKind() == MemOIR_Func::REMOVE;
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   RemoveInst(llvm::CallInst &call_inst) : UpdateInst(call_inst) {}
@@ -731,7 +731,7 @@ public:
     return (I->getKind() == MemOIR_Func::CLEAR);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   ClearInst(llvm::CallInst &call_inst) : UpdateInst(call_inst) {}
@@ -752,7 +752,7 @@ public:
     return (I->getKind() == MemOIR_Func::HAS);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   HasInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
@@ -771,7 +771,7 @@ public:
     return (I->getKind() == MemOIR_Func::KEYS);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   KeysInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
@@ -853,7 +853,7 @@ public:
    */
   // llvm::Use &getOperandForArgument(llvm::Argument &arg) const;
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
   static bool classof(const MemOIRInst *I) {
     return
@@ -897,7 +897,7 @@ public:
     return (I->getKind() == MemOIR_Func::USE_PHI);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   UsePHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
@@ -913,7 +913,7 @@ public:
     return (I->getKind() == MemOIR_Func::END);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   EndInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
@@ -934,7 +934,7 @@ public:
     return (I->getKind() == MemOIR_Func::ARG_PHI);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   ArgPHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
@@ -963,7 +963,7 @@ public:
     return (I->getKind() == MemOIR_Func::RET_PHI);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   RetPHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
@@ -981,7 +981,7 @@ public:
     return (I->getKind() == MemOIR_Func::DELETE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   DeleteInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
@@ -1003,7 +1003,7 @@ public:
     return (I->getKind() == MemOIR_Func::ASSERT_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   AssertTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
@@ -1021,7 +1021,7 @@ public:
     return (I->getKind() == MemOIR_Func::SET_RETURN_TYPE);
   };
 
-  std::string toString(std::string indent = "") const override;
+  std::string toString() const override;
 
 protected:
   ReturnTypeInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
