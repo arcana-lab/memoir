@@ -583,7 +583,7 @@ Type &ReferenceType::getReferencedType() const {
 std::string ReferenceType::toString(std::string indent) const {
   std::string str;
 
-  str = "(ref " + this->getReferencedType().toString("     ") + ")";
+  str = "&" + this->getReferencedType().toString();
 
   return str;
 }
@@ -649,7 +649,7 @@ std::string StructType::toString(std::string indent) const {
     } else {
       first = false;
     }
-    str += field_type->toString(indent + " ");
+    str += field_type->toString();
   }
   str += ")";
 
@@ -706,7 +706,7 @@ std::string FieldArrayType::toString(std::string indent) const {
 
   str += "(type: field array\n";
   str += indent + "  struct type: \n";
-  str += indent + "    " + this->getStructType().toString(indent + "    ");
+  str += indent + "    " + this->getStructType().toString();
   str += "\n";
   str += indent + "  field index: \n";
   str += indent + "    " + std::to_string(this->getFieldIndex());
@@ -735,8 +735,8 @@ size_t ArrayType::getLength() const {
 std::string ArrayType::toString(std::string indent) const {
   std::string str;
 
-  str = "(" + this->element_type.toString(indent) + "x"
-        + std::to_string(this->length) + ")";
+  str = "[" + this->element_type.toString(indent) + ";"
+        + std::to_string(this->length) + "]";
 
   return str;
 }
@@ -793,8 +793,8 @@ Type &AssocArrayType::getElementType() const {
 std::string AssocArrayType::toString(std::string indent) const {
   std::string str;
 
-  str = "(assoc " + this->key_type.toString(indent) + " "
-        + this->value_type.toString(indent) + ")";
+  str = "Assoc<" + this->key_type.toString(indent) + ", "
+        + this->value_type.toString(indent) + ">";
 
   return str;
 }
@@ -815,7 +815,7 @@ Type &SequenceType::getElementType() const {
 std::string SequenceType::toString(std::string indent) const {
   std::string str;
 
-  str = "(sequence " + this->element_type.toString(indent) + ")";
+  str = "Seq<" + this->element_type.toString() + ">";
 
   return str;
 }
