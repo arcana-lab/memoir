@@ -13,6 +13,33 @@ using namespace llvm::memoir;
 
 namespace folio {
 
+Type &ProxyInsertion::ObjectInfo::get_type() const {
+  auto *type = &this->allocation->getType();
+  for (auto offset : this->offsets) {
+    if (auto *struct_type = dyn_cast<StructType>(type)) {
+      type = &struct_type->getFieldType(offset);
+    } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+      type = &collection_type->getElementType();
+    }
+  }
+
+  return *type;
+}
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                              const ProxyInsertion::ObjectInfo &info) {
+  os << "(" << *info.allocation << ")";
+  for (auto offset : info.offsets) {
+    if (offset == -1) {
+      os << "[*]";
+    } else {
+      os << "." << std::to_string(offset);
+    }
+  }
+
+  return os;
+}
+
 ProxyInsertion::ProxyInsertion(llvm::Module &M) : M(M) {
 
   // Register the bit{map,set} implementations.
@@ -115,7 +142,11 @@ void ProxyInsertion::analyze() {
       continue;
     }
 
-    auto *bb = info.allocation->getParent();
+    auto *alloc = info.allocation;
+    auto *bb = alloc->getParent();
+
+    auto &type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&info.get_type()),
+                                 "Non-assoc type, unhandled.");
 
     this->candidates.push_back({ info });
 
@@ -127,6 +158,17 @@ void ProxyInsertion::analyze() {
         continue;
       }
 
+      // Check that the key types match.
+      auto *other_alloc = other.allocation;
+      auto &other_type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&other.get_type()),
+                                         "Non-assoc type, unhandled.");
+
+      if (&type.getKeyType() != &other_type.getKeyType()) {
+        continue;
+      }
+
+      // Check that they share a parent basic block.
+      // NOTE: this is overly conservative
       auto *other_bb = other.allocation->getParent();
 
       if (bb == other_bb) {

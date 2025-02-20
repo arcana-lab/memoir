@@ -1,4 +1,5 @@
 #include "memoir/ir/Instructions.hpp"
+#include "memoir/ir/Types.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
 
@@ -17,19 +18,10 @@ public:
         offsets(offsets.begin(), offsets.end()) {}
     ObjectInfo(llvm::memoir::AllocInst &alloc) : ObjectInfo(alloc, {}) {}
 
-    friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                         const ObjectInfo &info) {
-      os << "(" << *info.allocation << ")";
-      for (auto offset : info.offsets) {
-        if (offset == -1) {
-          os << "[*]";
-        } else {
-          os << "." << std::to_string(offset);
-        }
-      }
+    llvm::memoir::Type &get_type() const;
 
-      return os;
-    }
+    friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                         const ObjectInfo &info);
   };
 
   void analyze();
