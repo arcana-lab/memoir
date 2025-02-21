@@ -30,7 +30,7 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                               const ProxyInsertion::ObjectInfo &info) {
   os << "(" << *info.allocation << ")";
   for (auto offset : info.offsets) {
-    if (offset == -1) {
+    if (offset == unsigned(-1)) {
       os << "[*]";
     } else {
       os << "." << std::to_string(offset);
@@ -81,20 +81,29 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M) : M(M) {
   println("Verified module post-temparg reify.");
 }
 
-void ProxyInsertion::gather_assoc_objects(vector<ObjectInfo> &allocations,
-                                          AllocInst &alloc,
-                                          Type &type,
-                                          vector<unsigned> offsets) {
+void ProxyInsertion::gather_assoc_objects(
+    vector<ObjectInfo> &allocations,
+    AllocInst &alloc,
+    Type &type,
+    vector<unsigned> offsets,
+    std::optional<SelectionMetadata> selection,
+    unsigned selection_index) {
+
+  if (not selection) {
+    selection = Metadata::get<SelectionMetadata>(alloc);
+  }
 
   if (auto *struct_type = dyn_cast<StructType>(&type)) {
     for (unsigned field = 0; field < struct_type->getNumFields(); ++field) {
       auto new_offsets = offsets;
       new_offsets.push_back(field);
 
-      this->gather_assoc_objects(allocations,
-                                 alloc,
-                                 struct_type->getFieldType(field),
-                                 new_offsets);
+      this->gather_assoc_objects(
+          allocations,
+          alloc,
+          struct_type->getFieldType(field),
+          new_offsets,
+          Metadata::get<SelectionMetadata>(*struct_type, field));
     }
 
   } else if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
@@ -102,6 +111,7 @@ void ProxyInsertion::gather_assoc_objects(vector<ObjectInfo> &allocations,
 
     // If this is an assoc, add the object information.
     if (isa<AssocType>(collection_type)) {
+      // TODO: ensure that this nested collection has no selection.
       allocations.push_back(ObjectInfo(alloc, offsets));
     }
 
@@ -109,7 +119,12 @@ void ProxyInsertion::gather_assoc_objects(vector<ObjectInfo> &allocations,
     auto new_offsets = offsets;
     new_offsets.push_back(-1);
 
-    this->gather_assoc_objects(allocations, alloc, elem_type, new_offsets);
+    this->gather_assoc_objects(allocations,
+                               alloc,
+                               elem_type,
+                               new_offsets,
+                               selection,
+                               ++selection_index);
   }
 
   return;
@@ -125,7 +140,7 @@ void ProxyInsertion::analyze() {
       for (auto &I : BB) {
         if (auto *alloc = into<AllocInst>(&I)) {
           // Gather all of the Assoc allocations.
-          this->gather_assoc_objects(allocations, *alloc, alloc->getType());
+          this->gather_assoc_objects(allocations, *alloc, alloc->getType(), {});
         }
       }
     }
@@ -186,7 +201,8 @@ void ProxyInsertion::analyze() {
     used.insert(&info);
   }
 
-  // Only proxy the largest candidate.
+// Only proxy the largest candidate.
+#if 0
   size_t largest = 0;
   for (size_t i = 1; i < candidates.size(); ++i) {
     if (candidates[i].size() > candidates[largest].size()) {
@@ -196,6 +212,7 @@ void ProxyInsertion::analyze() {
   candidates.erase(std::next(candidates.begin(), largest + 1),
                    candidates.end());
   candidates.erase(candidates.begin(), std::next(candidates.begin(), largest));
+#endif
 }
 
 namespace detail {
@@ -470,6 +487,10 @@ llvm::FunctionCallee create_addkey_function(llvm::Module &M,
   auto *llvm_ptr_type = llvm::PointerType::get(context, 0);
   auto *llvm_key_type = key_type.get_llvm_type(context);
 
+  println("Creating addkey.");
+  println("  MEMOIR key type ", key_type);
+  println("    LLVM key type ", *llvm_key_type);
+
   // Create the addkey functions for this proxy.
   vector<llvm::Type *> addkey_params = { llvm_key_type };
   if (build_encoder) {
@@ -706,7 +727,10 @@ void add_tempargs(map<llvm::Function *, llvm::Instruction *> &local_patches,
 
     auto *local = local_patches[func];
 
-    MEMOIR_ASSERT(local, "Failed to find the local patch in ", func->getName());
+    if (not local) {
+      println(*func->getParent());
+      MEMOIR_UNREACHABLE("Failed to find the local patch in ", func->getName());
+    }
 
     auto *store = builder.CreateStore(local, global);
     Metadata::get_or_add<TempArgumentMetadata>(*store);
@@ -723,17 +747,24 @@ bool ProxyInsertion::transform() {
 
   // Collect the set of redefinitions for each allocation involved.
   ordered_map<AllocInst *, set<llvm::Value *>> redefinitions = {};
-  for (auto &candidate : this->candidates) {
-    auto &first_info = candidate.front();
+  for (auto candidates_it = this->candidates.begin();
+       candidates_it != this->candidates.end();
+       ++candidates_it) {
 
-    // Unpack the first object information.
-    auto *alloc = first_info.allocation;
-    auto *type = &alloc->getType();
+    modified |= true;
 
+    auto &candidate = *candidates_it;
+
+    println();
     println("PROXYING CANDIDATE:");
     for (const auto &candidate_info : candidate) {
       println("  ", candidate_info);
     }
+
+    // Unpack the first object information.
+    auto &first_info = candidate.front();
+    auto *alloc = first_info.allocation;
+    auto *type = &alloc->getType();
 
     // Get the nested object type.
     for (auto offset : first_info.offsets) {
@@ -1161,6 +1192,7 @@ bool ProxyInsertion::transform() {
       }
     }
 
+    // Mutate types in the program.
     for (auto &info : candidate) {
 
       // For each of the folds, create a new function with the updated type.
@@ -1175,11 +1207,15 @@ bool ProxyInsertion::transform() {
         auto *function = index_arg.getParent();
         auto *function_type = function->getFunctionType();
 
+        bool found_real_use = false;
         if (function->hasNUsesOrMore(2)) {
           for (auto &use : function->uses()) {
-            println("  user: ", *use.getUser());
+            if (not into<RetPHIInst>(use.getUser())) {
+              MEMOIR_ASSERT(not found_real_use,
+                            "Fold body has more than one use!");
+              found_real_use = true;
+            }
           }
-          MEMOIR_UNREACHABLE("Fold body has more than one use!");
         }
 
         // Rebuild the function type.
@@ -1232,6 +1268,27 @@ bool ProxyInsertion::transform() {
 
             // Update in-place.
             other_fold = new_fold;
+          }
+        }
+
+        // Remap any of the candidates that have been cloned.
+        for (auto remaining_it = std::next(candidates_it);
+             remaining_it != this->candidates.end();
+             ++remaining_it) {
+          for (auto &remaining_info : *remaining_it) {
+            auto *alloc = remaining_info.allocation;
+            auto &inst = alloc->getCallInst();
+            auto *parent_function = inst.getFunction();
+
+            // If this allocations parent is the function being cloned, we need
+            // to update it.
+            if (parent_function == function) {
+              auto *new_inst = &*vmap[&inst];
+              auto *new_alloc = into<AllocInst>(new_inst);
+
+              // Update in-place.
+              remaining_info.allocation = new_alloc;
+            }
           }
         }
 
