@@ -50,7 +50,8 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
   }
 
   // Collect all the calls to this function.
-  set<llvm::CallBase *> calls = {};
+  map<llvm::Function *, vector<llvm::CallBase *>> recursive = {};
+  vector<llvm::CallBase *> calls = {};
   for (auto *func : memoir_functions) {
     for (auto &use : func->uses()) {
 
@@ -73,16 +74,53 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
         continue;
       }
 
-      calls.insert(call);
+      if (call->getFunction() == func) {
+        recursive[func].push_back(call);
+      }
+
+      calls.push_back(call);
+    }
+  }
+
+  // First, convert any self-recursive function into two mutually recursive
+  // functions.
+  for (const auto &[func, recursive_calls] : recursive) {
+
+    // Create a clone of the function.
+    llvm::ValueToValueMapTy vmap;
+    auto *clone = llvm::CloneFunction(func, vmap);
+
+    // Update the recursive calls in the original function to call the clone
+    // (the cloned calls already call the original).
+    for (auto *call : recursive_calls) {
+      auto &use = get_called_use(*call);
+      use.set(clone);
+
+      // Patch up the following RetPHIs.
+      auto *next = call->getNextNode();
+      while (next) {
+
+        if (auto *ret_phi = into<RetPHIInst>(next)) {
+          ret_phi->getCalledOperandAsUse().set(clone);
+        } else {
+          // Stop once we see a non-RetPHI.
+          break;
+        }
+
+        next = next->getNextNode();
+      }
+
+      auto *cloned_call = dyn_cast<llvm::CallBase>(&*vmap[call]);
+
+      calls.push_back(cloned_call);
     }
   }
 
   // For each function, create a unique clone of it for each call site.
-  vector<llvm::CallBase *> worklist(calls.begin(), calls.end());
-  while (not worklist.empty()) {
+  while (not calls.empty()) {
     // Pop a call off the worklist.
-    auto *call = worklist.back();
-    worklist.pop_back();
+    auto *call = calls.back();
+    calls.pop_back();
 
     // Try to cast the call to a fold.
     auto *fold = into<FoldInst>(call);
@@ -143,7 +181,7 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
 
           // Rectify recursive calls.
           if (new_func != func) {
-            worklist.push_back(new_call);
+            calls.push_back(new_call);
           }
         }
       }
