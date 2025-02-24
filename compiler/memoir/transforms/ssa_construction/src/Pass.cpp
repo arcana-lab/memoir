@@ -47,6 +47,24 @@ llvm::cl::opt<bool> construct_use_phis(
     "memoir-enable-use-phis",
     llvm::cl::desc("Enable construction of Use PHIs."));
 
+static unsigned count_real_uses(llvm::Function &F) {
+  unsigned count = 0;
+  for (auto &use : F.uses()) {
+    auto *user = use.getUser();
+    auto *call = dyn_cast<llvm::CallBase>(user);
+    if (not call) {
+      continue;
+    }
+    auto *memoir = into<MemOIRInst>(call);
+    auto *fold = dyn_cast<FoldInst>(memoir);
+    if (memoir and not fold) {
+      continue;
+    }
+    ++count;
+  }
+  return count;
+}
+
 llvm::PreservedAnalyses SSAConstructionPass::run(
     llvm::Module &M,
     llvm::ModuleAnalysisManager &MAM) {
@@ -287,7 +305,8 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     auto *func = fold->getFunction();
 
     // Check if we are the last remaining user of this function, if so, skip it.
-    if (body.hasOneUse()) {
+    auto real_uses = count_real_uses(body);
+    if (real_uses == 1) {
       continue;
     }
 
