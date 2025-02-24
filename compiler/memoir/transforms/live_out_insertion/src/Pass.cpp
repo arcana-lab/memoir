@@ -88,12 +88,12 @@ llvm::Value *find_single_postdominator(llvm::PostDominatorTree &PDT,
     return values.front();
   }
 
-  println();
+  debugln();
 
   // Now find the value that post dominates all other values.
   for (auto *val : values) {
 
-    println("VAL ", *val);
+    debugln("VAL ", *val);
 
     auto *inst = dyn_cast<llvm::Instruction>(val);
     if (not inst) {
@@ -114,14 +114,14 @@ llvm::Value *find_single_postdominator(llvm::PostDominatorTree &PDT,
 
       // Check postdominance.
       if (not PDT.dominates(inst, other_inst)) {
-        println("  FAILED ", *other_inst);
+        debugln("  FAILED ", *other_inst);
         postdom_all = false;
         break;
       }
     }
 
     if (postdom_all) {
-      println("  POSTDOM ALL");
+      debugln("  POSTDOM ALL");
       return val;
     }
   }
