@@ -10,10 +10,63 @@ using namespace llvm::memoir;
 
 namespace folio {
 
-llvm::Use &get_called_use(llvm::CallBase &call) {
+static llvm::Use &get_called_use(llvm::CallBase &call) {
   auto *fold = into<FoldInst>(call);
 
   return fold ? fold->getBodyOperandAsUse() : call.getCalledOperandUse();
+}
+
+/**
+ * Get the number of 'real' uses of the function, not including RetPHIs.
+ */
+static unsigned num_real_uses(llvm::Function &func) {
+  unsigned count = 0;
+  for (auto &use : func.uses()) {
+    auto *user = use.getUser();
+    if (not into<RetPHIInst>(user)) {
+      ++count;
+    }
+  }
+  return count;
+}
+
+static void patch_ret_phis(llvm::Instruction &I, llvm::Function &F) {
+  auto *next = I.getNextNode();
+  while (next) {
+
+    if (auto *ret_phi = into<RetPHIInst>(next)) {
+      ret_phi->getCalledOperandAsUse().set(&F);
+    } else {
+      // Stop once we see a non-RetPHI.
+      break;
+    }
+
+    next = next->getNextNode();
+  }
+  return;
+}
+
+static void queue_new_calls(llvm::Function &F,
+                            vector<llvm::CallBase *> &calls,
+                            const set<llvm::Function *> &memoir_functions) {
+  for (auto &BB : F) {
+    for (auto &I : BB) {
+      auto *new_call = dyn_cast<llvm::CallBase>(&I);
+      if (not new_call) {
+        continue;
+      }
+
+      auto &new_use = get_called_use(*new_call);
+      auto *new_func = dyn_cast<llvm::Function>(new_use.get());
+      if (not new_func) {
+        continue;
+      }
+
+      if (memoir_functions.count(new_func) > 0) {
+        calls.push_back(new_call);
+      }
+    }
+  }
 }
 
 LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
@@ -76,9 +129,24 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
 
       if (call->getFunction() == func) {
         recursive[func].push_back(call);
+      } else {
+        calls.push_back(call);
       }
+    }
+  }
 
-      calls.push_back(call);
+  for (auto &F : M) {
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        auto *fold = into<FoldInst>(I);
+        if (not fold) {
+          continue;
+        }
+
+        if (num_real_uses(fold->getBody()) > 1) {
+          MEMOIR_UNREACHABLE("Fold with non-unique body!");
+        }
+      }
     }
   }
 
@@ -90,6 +158,9 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
     llvm::ValueToValueMapTy vmap;
     auto *clone = llvm::CloneFunction(func, vmap);
 
+    debugln("CREATED  ", clone->getName());
+    debugln("  CALLER ", func->getName());
+
     // Update the recursive calls in the original function to call the clone
     // (the cloned calls already call the original).
     for (auto *call : recursive_calls) {
@@ -97,22 +168,49 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
       use.set(clone);
 
       // Patch up the following RetPHIs.
-      auto *next = call->getNextNode();
-      while (next) {
-
-        if (auto *ret_phi = into<RetPHIInst>(next)) {
-          ret_phi->getCalledOperandAsUse().set(clone);
-        } else {
-          // Stop once we see a non-RetPHI.
-          break;
-        }
-
-        next = next->getNextNode();
-      }
+      patch_ret_phis(*call, *clone);
 
       auto *cloned_call = dyn_cast<llvm::CallBase>(&*vmap[call]);
 
-      calls.push_back(cloned_call);
+      // calls.push_back(cloned_call);
+    }
+  }
+
+  // Convert all folds to have unique bodies.
+  for (auto &F : M) {
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        auto *fold = into<FoldInst>(I);
+        if (not fold) {
+          continue;
+        }
+
+        auto &body = fold->getBody();
+        if (num_real_uses(body) == 1) {
+          continue;
+        }
+
+        // Clone the fold body.
+        llvm::ValueToValueMapTy vmap;
+        auto *clone = llvm::CloneFunction(&body, vmap);
+
+        debugln("CREATED  ", clone->getName());
+        debugln("  CALLER ", F.getName());
+
+        // Set the fold's body to the clone.
+        fold->getBodyOperandAsUse().set(clone);
+
+        // Patch up the following RetPHIs.
+        patch_ret_phis(I, *clone);
+
+        // If we have created a call to any function with memoir collections,
+        // add it to the worklist.
+        queue_new_calls(*clone, calls, memoir_functions);
+
+        if (memoir_functions.count(&body)) {
+          memoir_functions.insert(clone);
+        }
+      }
     }
   }
 
@@ -130,13 +228,11 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
     auto *func = dyn_cast<llvm::Function>(use.get());
 
     // If this is the sole user of the function, we are all good.
-    if (func->hasOneUse()) {
+    if (num_real_uses(*func) == 1) {
       continue;
     }
 
     // If this is a self-recursive function, skip it.
-    // TODO: Convert self-recursive functions into two mutually recursive
-    // functions.
     if (call->getFunction() == func) {
       continue;
     }
@@ -145,49 +241,35 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
     llvm::ValueToValueMapTy vmap;
     auto *clone = llvm::CloneFunction(func, vmap);
 
+    debugln("CREATED  ", clone->getName());
+    debugln("  CALLER ", call->getCaller()->getName());
+
     // Replace the called operand with the clone function.
     use.set(clone);
 
     // Patch up the following RetPHIs.
-    auto *next = call->getNextNode();
-    while (next) {
-
-      if (auto *ret_phi = into<RetPHIInst>(next)) {
-        ret_phi->getCalledOperandAsUse().set(clone);
-      } else {
-        // Stop once we see a non-RetPHI.
-        break;
-      }
-
-      next = next->getNextNode();
-    }
+    patch_ret_phis(*call, *clone);
 
     // If we have created a call to any function with memoir collections, add it
     // to the worklist.
-    for (auto &BB : *clone) {
+    queue_new_calls(*clone, calls, memoir_functions);
+
+    memoir_functions.insert(clone);
+  }
+
+  for (auto &F : M) {
+    for (auto &BB : F) {
       for (auto &I : BB) {
-        auto *new_call = dyn_cast<llvm::CallBase>(&I);
-        if (not new_call) {
+        auto *fold = into<FoldInst>(I);
+        if (not fold) {
           continue;
         }
 
-        auto &new_use = get_called_use(*new_call);
-        auto *new_func = dyn_cast<llvm::Function>(new_use.get());
-        if (not new_func) {
-          continue;
-        }
-
-        if (memoir_functions.count(new_func) > 0) {
-
-          // Rectify recursive calls.
-          if (new_func != func) {
-            calls.push_back(new_call);
-          }
+        if (num_real_uses(fold->getBody()) > 1) {
+          MEMOIR_UNREACHABLE("Fold with non-unique body!");
         }
       }
     }
-
-    memoir_functions.insert(clone);
   }
 }
 
