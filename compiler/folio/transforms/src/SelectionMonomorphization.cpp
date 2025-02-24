@@ -140,14 +140,29 @@ void collect_declarations(Selections &selections, llvm::Module &M) {
           continue;
         }
 
+        // Initialize the selection list.
+        CollectionType *type = nullptr;
+        if (auto *access = dyn_cast<AccessInst>(memoir_inst)) {
+          type = dyn_cast<CollectionType>(&access->getObjectType());
+        } else if (auto *alloc = dyn_cast<AllocInst>(memoir_inst)) {
+          type = dyn_cast<CollectionType>(&alloc->getType());
+        }
+
+        size_t length = 0;
+        while (type) {
+          type = dyn_cast<CollectionType>(&type->getElementType());
+          ++length;
+        }
+
+        ImplList selection(length, std::nullopt);
+
         // Store the selection for this declaration.
-        ImplList selection = {};
+        size_t i = 0;
         for (auto impl : metadata->implementations()) {
           if (impl.has_value()) {
-            selection.push_back(impl);
-          } else {
-            selection.push_back({});
+            selection[i] = impl;
           }
+          ++i;
         }
 
         selections.insert(I, selection);
@@ -185,7 +200,8 @@ void propagate(Selections &selections,
 
         // If the element type of the fold is a collection, propagate to the
         // corresponding argument.
-        if (Type::is_unsized(fold->getElementType())) {
+        auto &element_type = fold->getElementType();
+        if (Type::is_unsized(element_type)) {
           if (auto *argument = fold->getElementArgument()) {
 
             // Propagate the nested selection to the argument.
