@@ -80,7 +80,7 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
 
   // First, we will normalize the code such that memoir functions are called at
   // most once.
-  LambdaLifting lifter(M);
+  // LambdaLifting lifter(M);
 
   // Insert proxies and encode uses.
   ProxyInsertion proxies(M);
