@@ -256,7 +256,7 @@ static llvm::Use *get_index_use(AccessInst &access, vector<unsigned> &offsets) {
 }
 
 static int32_t indices_match_offsets(AccessInst &access,
-                                     vector<unsigned> &offsets) {
+                                     llvm::ArrayRef<unsigned> offsets) {
   auto index_it = access.index_operands_begin();
   auto index_ie = access.index_operands_end();
 
@@ -316,7 +316,7 @@ static void gather_uses_to_proxy(
     map<llvm::Function *, set<llvm::Use *>> &to_decode,
     map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
 
-  debugln("REDEF ", V);
+  infoln("REDEF ", V);
 
   llvm::Function *function = nullptr;
 
@@ -333,7 +333,7 @@ static void gather_uses_to_proxy(
   for (auto &use : V.uses()) {
     auto *user = use.getUser();
 
-    debugln("  USER ", *user);
+    infoln("  USER ", *user);
 
     if (auto *fold = into<FoldInst>(user)) {
 
@@ -341,7 +341,7 @@ static void gather_uses_to_proxy(
 
         // If we find an index use, encode it.
         if (auto *index_use = detail::get_index_use(*fold, offsets)) {
-          debugln("    ENCODING INDEX");
+          infoln("    ENCODING INDEX");
           to_encode[function].insert(index_use);
 
         } else {
@@ -358,21 +358,21 @@ static void gather_uses_to_proxy(
           // argument to the set of uses to decode.
           else if (distance == int32_t(offsets.size())) {
             auto &index_arg = fold->getIndexArgument();
-            debugln("    DECODING KEY");
+            infoln("    DECODING KEY");
             for (auto &index_use : index_arg.uses()) {
-              debugln("      USE ", *index_use.getUser());
+              infoln("      USE ", *index_use.getUser());
               to_decode[&fold->getBody()].insert(&index_use);
             }
           }
 
           // If the offsets are not fully exhausted, recurse on the value
           // argument.
-          else if (distance > 0) {
+          else if (distance < int32_t(offsets.size())) {
             if (auto *elem_arg = fold->getElementArgument()) {
               vector<unsigned> nested_offsets(
-                  std::next(offsets.begin(), distance),
+                  std::next(offsets.begin(), distance + 1),
                   offsets.end());
-              debugln("    RECURSING");
+              infoln("    RECURSING");
               gather_uses_to_proxy(*elem_arg,
                                    nested_offsets,
                                    to_encode,
@@ -391,13 +391,13 @@ static void gather_uses_to_proxy(
           if (isa<InsertInst>(access)) {
             if (detail::is_last_index(index_use,
                                       access->index_operands_end())) {
-              debugln("    ADDING KEY ", *index_use->get());
+              infoln("    ADDING KEY ", *index_use->get());
               to_addkey[function].insert(index_use);
               continue;
             }
           }
 
-          debugln("    ENCODING KEY ", *index_use->get());
+          infoln("    ENCODING KEY ", *index_use->get());
           to_encode[function].insert(index_use);
         }
       }
@@ -618,12 +618,6 @@ void ProxyInsertion::analyze() {
         continue;
       }
 
-      // auto *other_bb = other.allocation->getParent();
-      // if (bb != other_bb) {
-      // continue;
-      // }
-
-      // Check that there is a benefit to sharing.
       candidate.push_back(&other);
     }
 
@@ -1032,6 +1026,40 @@ void update_candidates(std::forward_iterator auto candidates_begin,
   }
 }
 
+static void find_fold_users(llvm::Value &V,
+                            llvm::ArrayRef<unsigned> offsets,
+                            vector<FoldInst *> &folds) {
+  println("  REDEF ", V);
+  for (auto &use : V.uses()) {
+    if (auto *fold = into<FoldInst>(use.getUser())) {
+      if (use == fold->getObjectAsUse()) {
+        auto distance = detail::indices_match_offsets(*fold, offsets);
+        if (distance == -1) {
+          // Mismatch.
+        } else if (distance == int32_t(offsets.size())) {
+          auto found = std::find(folds.begin(), folds.end(), fold);
+          if (found == folds.end()) {
+            println("    TO MUTATE ", *fold);
+            folds.push_back(fold);
+          }
+        } else if (distance < int32_t(offsets.size())) {
+          if (auto *elem_arg = fold->getElementArgument()) {
+            find_fold_users(*elem_arg,
+                            llvm::ArrayRef<unsigned>(
+                                std::next(offsets.begin(), distance + 1),
+                                offsets.end()),
+                            folds);
+          }
+          // TODO: this check is not enough for everything that could happen, we
+          // need to move this recursion case into the redefinitions computation
+        }
+      }
+    }
+  }
+
+  return;
+}
+
 } // namespace detail
 
 bool ProxyInsertion::transform() {
@@ -1158,10 +1186,6 @@ bool ProxyInsertion::transform() {
       for (auto *use : trim_to_decode) {
         infoln("    ", *use->get(), " in ", *use->getUser());
       }
-      println("  ", trim_to_decode.size(), " uses to decode");
-      for (auto *use : trim_to_decode) {
-        infoln("    ", *use->get(), " in ", *use->getUser());
-      }
     }
 
     {
@@ -1181,6 +1205,8 @@ bool ProxyInsertion::transform() {
         infoln("    ", *use->get(), " in ", *use->getUser());
       }
     }
+
+    // TODO: Find a point that dominates all of the object allocations.
 
     // Find the construction point for the encoder and decoder.
     auto *construction_point = &alloc->getCallInst();
@@ -1432,7 +1458,7 @@ bool ProxyInsertion::transform() {
     for (auto *info : candidate) {
 
       println("Updating selection and types");
-      println("  ", *info->allocation);
+      println("  ", *info);
 
       // Determine _where_ to attach the selection.
       auto selection =
@@ -1474,23 +1500,7 @@ bool ProxyInsertion::transform() {
         auto &to_mutate = folds_to_mutate[info];
         for (auto [func, redefs] : info->redefinitions) {
           for (auto *redef : redefs) {
-            println("  REDEF ", *redef);
-            for (auto &use : redef->uses()) {
-              if (auto *fold = into<FoldInst>(use.getUser())) {
-                if (use == fold->getObjectAsUse()) {
-                  auto distance =
-                      detail::indices_match_offsets(*fold, info->offsets);
-                  if (distance == int32_t(info->offsets.size())) {
-                    auto found =
-                        std::find(to_mutate.begin(), to_mutate.end(), fold);
-                    if (found == to_mutate.end()) {
-                      println("    TO MUTATE ", *fold);
-                      to_mutate.push_back(fold);
-                    }
-                  }
-                }
-              }
-            }
+            detail::find_fold_users(*redef, info->offsets, to_mutate);
           }
         }
 
@@ -1564,21 +1574,23 @@ bool ProxyInsertion::transform() {
             attr_list.removeParamAttributes(context, index_arg.getArgNo()));
 
         // Use the vmap to update any of the folds that we are patching.
-        for (auto &other_fold : to_mutate) {
-          // Skip the fold we just updated.
-          if (other_fold == fold) {
-            continue;
-          }
+        for (auto &[_, other_to_mutate] : folds_to_mutate) {
+          for (auto &other_fold : other_to_mutate) {
+            // Skip the fold we just updated.
+            if (other_fold == fold) {
+              continue;
+            }
 
-          // If the parent function is the same as the old function, find this
-          // fold in the vmap.
-          auto *parent_function = other_fold->getFunction();
-          if (parent_function == function) {
-            auto *new_inst = &*vmap[&other_fold->getCallInst()];
-            auto *new_fold = into<FoldInst>(new_inst);
+            // If the parent function is the same as the old function, find this
+            // fold in the vmap.
+            auto *parent_function = other_fold->getFunction();
+            if (parent_function == function) {
+              auto *new_inst = &*vmap[&other_fold->getCallInst()];
+              auto *new_fold = into<FoldInst>(new_inst);
 
-            // Update in-place.
-            other_fold = new_fold;
+              // Update in-place.
+              other_fold = new_fold;
+            }
           }
         }
 
