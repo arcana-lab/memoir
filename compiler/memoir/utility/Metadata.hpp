@@ -126,6 +126,14 @@ public:
   llvm::Metadata &getImplementationMD(unsigned i = 0) const;
   const llvm::MDOperand &getImplementationMDOperand(unsigned i = 0) const;
 
+  /**
+   * Set the selected implementation.
+   *
+   * @param ID the selection identifier
+   * @param i the index of the dimension
+   */
+  void setImplementation(std::string id, unsigned i = 0);
+
   struct iterator {
   public:
     using iterator_category = std::input_iterator_tag;
@@ -159,14 +167,6 @@ public:
   llvm::iterator_range<iterator> implementations();
   iterator impl_begin();
   iterator impl_end();
-
-  /**
-   * Set the selected implementation.
-   *
-   * @param ID the selection identifier
-   * @param i the index of the dimension
-   */
-  void setImplementation(std::string id, unsigned i = 0);
 };
 
 struct TempArgumentMetadata : public Metadata {
