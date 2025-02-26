@@ -514,6 +514,7 @@ void ProxyInsertion::gather_assoc_objects(
 
   if (auto *struct_type = dyn_cast<StructType>(&type)) {
     for (unsigned field = 0; field < struct_type->getNumFields(); ++field) {
+
       auto new_offsets = offsets;
       new_offsets.push_back(field);
 
@@ -531,7 +532,11 @@ void ProxyInsertion::gather_assoc_objects(
     // If this is an assoc, add the object information.
     if (isa<AssocType>(collection_type)) {
       // TODO: ensure that this nested collection has no selection.
-      allocations.push_back(ObjectInfo(alloc, offsets));
+      if (not selection or not selection->getImplementation(offsets.size())) {
+        allocations.push_back(ObjectInfo(alloc, offsets));
+      } else {
+        println("FOUND EXISTING SELECTION FOR ", alloc);
+      }
     }
 
     // Recurse on the element.
