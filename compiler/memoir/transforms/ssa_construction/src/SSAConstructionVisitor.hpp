@@ -45,7 +45,6 @@ public:
   void visitArgPHIInst(ArgPHIInst &I);
   void visitRetPHIInst(RetPHIInst &I);
   void visitFoldInst(FoldInst &I);
-  void visitClearInst(ClearInst &I);
 
   // MUT Operations
 
