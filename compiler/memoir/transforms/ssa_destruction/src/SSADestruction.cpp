@@ -474,7 +474,9 @@ void SSADestructionVisitor::visitEndInst(EndInst &I) {
           "Contextualizing EndInst at a PHINode is not yet supported!");
     } else if (auto *call = dyn_cast<llvm::CallBase>(user_as_inst)) {
       MEMOIR_UNREACHABLE(
-          "Contextualizing EndInst intraprocedurally is not yet supported!");
+          "Contextualizing EndInst intraprocedurally is not yet supported!\n",
+          "  in ",
+          *call);
     } else {
       MEMOIR_UNREACHABLE("Unknown user of EndInst: ", *user_as_inst);
     }
@@ -655,7 +657,7 @@ static NestedObjectInfo get_nested_object(
       type = &element_type;
 
     } else {
-      MEMOIR_UNREACHABLE("Dimension mismatch!");
+      MEMOIR_UNREACHABLE("Dimension mismatch!\n", "  ", IP);
     }
   }
 
