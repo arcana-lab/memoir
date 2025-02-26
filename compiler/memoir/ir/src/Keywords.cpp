@@ -204,3 +204,51 @@ llvm::Value &ValueKeyword::getValue() const {
 llvm::Use &ValueKeyword::getValueAsUse() const {
   return *std::next(&this->getAsUse());
 }
+
+// SelectionKeyword implementation
+unsigned SelectionKeyword::getNumSelections() const {
+  return std::distance(std::next(this->op_begin()), this->op_end()) / 2;
+}
+
+unsigned SelectionKeyword::getOffset(unsigned idx) const {
+  auto &offset =
+      MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(&this->getOffsetOperand(idx)),
+                      "Offset of SelectionKeyword not a constant integer!");
+  return offset.getZExtValue();
+}
+
+llvm::Value &SelectionKeyword::getOffsetOperand(unsigned idx) const {
+  return *this->getOffsetOperandAsUse(idx).get();
+}
+
+llvm::Use &SelectionKeyword::getOffsetOperandAsUse(unsigned idx) const {
+  return *std::next(&this->getAsUse(), 2 * idx + 1);
+}
+
+std::string SelectionKeyword::getSelection(unsigned idx) const {
+  auto &V = this->getSelectionOperand(idx);
+
+  auto *data = dyn_cast<llvm::ConstantDataSequential>(&V);
+
+  if (not data) {
+    if (auto *global = dyn_cast<llvm::GlobalVariable>(&V)) {
+      auto *init = global->getInitializer();
+      data = dyn_cast_or_null<llvm::ConstantDataSequential>(init);
+    }
+  }
+
+  if (not data or not data->isCString()) {
+    MEMOIR_UNREACHABLE(
+        "Unhandled LLVM value for selection in SelectionKeyword");
+  }
+
+  return data->getAsCString().str();
+}
+
+llvm::Value &SelectionKeyword::getSelectionOperand(unsigned idx) const {
+  return *this->getSelectionOperandAsUse(idx).get();
+}
+
+llvm::Use &SelectionKeyword::getSelectionOperandAsUse(unsigned idx) const {
+  return *std::next(&this->getOffsetOperandAsUse(idx));
+}

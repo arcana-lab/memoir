@@ -102,6 +102,14 @@ struct Selections {
     return this->selections.find(value);
   }
 
+  decltype(auto) upper_bound(llvm::Value *value) const {
+    return this->selections.upper_bound(value);
+  }
+
+  decltype(auto) lower_bound(llvm::Value *value) const {
+    return this->selections.lower_bound(value);
+  }
+
   const ImplList &selection(llvm::Value &value) const {
     auto found = this->selections.find(&value);
     if (found == this->selections.end()) {
@@ -113,6 +121,14 @@ struct Selections {
 
   decltype(auto) clear() {
     return this->selections.clear();
+  }
+
+  decltype(auto) erase(ordered_multimap<llvm::Value *, ID>::iterator it) {
+    return this->selections.erase(it);
+  }
+
+  decltype(auto) erase(ordered_multimap<llvm::Value *, ID>::const_iterator it) {
+    return this->selections.erase(it);
   }
 };
 
@@ -127,11 +143,31 @@ void collect_declarations(Selections &selections, llvm::Module &M) {
 
     for (auto &BB : F) {
       for (auto &I : BB) {
-        auto *memoir_inst = into<MemOIRInst>(&I);
 
         // Skip non-memoir instructions.
+        auto *memoir_inst = into<MemOIRInst>(&I);
         if (not memoir_inst) {
           continue;
+        }
+
+        // Convert selection keywords to selection metadata.
+        if (auto keyword = memoir_inst->get_keyword<SelectionKeyword>()) {
+          auto metadata = Metadata::get_or_add<SelectionMetadata>(I);
+          for (unsigned idx = 0; idx < keyword->getNumSelections(); ++idx) {
+            auto offset = keyword->getOffset(idx);
+            auto selection = keyword->getSelection(idx);
+
+            // Set the implementation, and resolve selection clashes.
+            auto existing = metadata.getImplementation(offset);
+            if (not existing) {
+              metadata.setImplementation(selection, offset);
+            } else {
+              MEMOIR_ASSERT(
+                  existing.value() == selection,
+                  "User-define selection and internal selection do not match!\n  ",
+                  I);
+            }
+          }
         }
 
         // Check if the instruction has a selection attached to it.
@@ -146,6 +182,10 @@ void collect_declarations(Selections &selections, llvm::Module &M) {
           type = dyn_cast<CollectionType>(&access->getObjectType());
         } else if (auto *alloc = dyn_cast<AllocInst>(memoir_inst)) {
           type = dyn_cast<CollectionType>(&alloc->getType());
+        }
+
+        if (not type) {
+          continue;
         }
 
         size_t length = 0;
@@ -477,6 +517,70 @@ void annotate(const map<MemOIRInst *, const ImplList *> &selections) {
   return;
 }
 
+void unify_declarations(Selections &selections) {
+  // Unify selections.
+  for (auto it = selections.begin(); it != selections.end();) {
+    auto *value = it->first;
+
+    // If the selection is already monomorphic, continue.
+    if (selections.count(value) <= 1) {
+      ++it;
+      continue;
+    }
+
+    // Try to unify the selections for this value.
+    for (; it != selections.upper_bound(value);) {
+
+      // Create a new unified list.
+      const auto &list = selections.from_id(it->second);
+
+      // Try to merge this list with the others.
+      bool matches = false;
+      for (auto it2 = selections.lower_bound(value);
+           it2 != selections.upper_bound(value);
+           ++it2) {
+
+        const auto &other_list = selections.from_id(it2->second);
+
+        if (it == it2) {
+          continue;
+        }
+
+        // See if the other list is a parent of this list.
+        matches = true;
+        for (auto i = 0; i < list.size(); ++i) {
+          const auto &item = list[i];
+          const auto &other_item = other_list[i];
+
+          if (item) {
+            if (other_item) {
+              if (item != other_item) {
+                matches = false;
+              }
+            } else {
+              // This is too conservative.
+              matches = false;
+            }
+          }
+        }
+
+        if (matches) {
+          break;
+        }
+      }
+
+      // If the lists match, delete this list.
+      if (matches) {
+        it = selections.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+
+  return;
+}
+
 } // namespace detail
 
 SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
@@ -493,6 +597,9 @@ SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
     // Propagate the declaration selections to all users.
     detail::propagate_declarations(selections, M);
 
+    // Unify equivalent declarations together.
+    detail::unify_declarations(selections);
+
     // Transform the program to ensure that each selection is monomorphized.
     // Continue until we don't transform the program.
   } while (detail::transform(selections));
@@ -508,7 +615,20 @@ SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
 
     // If the instruction has a polymorphic selection, error!
     if (selections.count(value) > 1) {
-      MEMOIR_UNREACHABLE("Failed to monomorphize selections in the program!");
+
+      println("SELECTIONS:");
+      for (auto it = selections.lower_bound(value);
+           it != selections.upper_bound(value);
+           ++it) {
+        for (auto sel : selections.from_id(it->second)) {
+          print(sel, ", ");
+        }
+        println();
+      }
+
+      MEMOIR_UNREACHABLE(
+          "Failed to monomorphize selections in the program!\n  ",
+          *value);
     }
 
     // Set the selection for the instruction.

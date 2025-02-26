@@ -184,6 +184,28 @@ protected:
   friend struct Keyword;
 };
 
+struct SelectionKeyword : public Keyword {
+public:
+  unsigned getNumSelections() const;
+
+  unsigned getOffset(unsigned idx) const;
+  llvm::Value &getOffsetOperand(unsigned idx) const;
+  llvm::Use &getOffsetOperandAsUse(unsigned idx) const;
+
+  std::string getSelection(unsigned idx) const;
+  llvm::Value &getSelectionOperand(unsigned idx) const;
+  llvm::Use &getSelectionOperandAsUse(unsigned idx) const;
+
+  CLASSOF_IMPL()
+
+  SelectionKeyword(llvm::Use &use) : Keyword(use) {}
+
+protected:
+  static const char *NAME;
+
+  friend struct Keyword;
+};
+
 } // namespace llvm::memoir
 
 #endif // MEMOIR_KEYWORDS_H
