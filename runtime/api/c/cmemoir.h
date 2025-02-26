@@ -86,6 +86,8 @@ namespace memoir {
 #define memoir_allocate_set(key_type)                                          \
   memoir_allocate_assoc(key_type, memoir_void_t)
 
+#define memoir_selection(_idx, _sel) MEMOIR_KEYWORD(selection), _idx, _sel
+
 #define memoir_delete(collection) MEMOIR_FUNC(delete)(collection)
 
 #define memoir_delete_struct(strct) memoir_delete(strct)
