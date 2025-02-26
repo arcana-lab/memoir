@@ -13,7 +13,7 @@
 template <typename Key, typename Val>
 struct BitMap : boost::dynamic_bitset<> {
   using Base = typename boost::dynamic_bitset<>;
-  using Values = typename std::vector<Val>;
+  using Values = Vector<Val>;
 
   using Size = size_t;
 
@@ -21,8 +21,8 @@ protected:
   Values _vals;
 
 public:
-  BitMap() : Base() {}
-  BitMap(const BitMap<Key, Val> &other) : Base(other) {}
+  BitMap() : Base(), _vals{} {}
+  BitMap(const BitMap<Key, Val> &other) : Base(other), _vals(other._vals) {}
   ~BitMap() {
     // TODO: if the element is a collection pointer, delete it too.
   }
@@ -122,7 +122,11 @@ public:
         return false;
       }
       this->_key = this->_cur;
-      this->_val = into_primitive(this->_set->_vals[this->_cur]);
+      if constexpr (std::is_same_v<Val, bool>) {
+        this->_val = this->_set->read(this->_cur);
+      } else {
+        this->_val = into_primitive(this->_set->_vals[this->_cur]);
+      }
       this->_cur = this->_set->find_next(this->_cur);
       return true;
     }
