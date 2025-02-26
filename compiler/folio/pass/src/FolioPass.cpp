@@ -82,13 +82,16 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
   // most once.
   // LambdaLifting lifter(M);
 
+  // Perform selection monomorphization.
+  { SelectionMonomorphization monomorph(M); }
+
   // Insert proxies and encode uses.
-  ProxyInsertion proxies(M);
+  { ProxyInsertion proxies(M); }
 
   MemOIRInst::invalidate();
 
   // Perform selection monomorphization.
-  SelectionMonomorphization monomorph(M);
+  { SelectionMonomorphization monomorph(M); }
 
   return llvm::PreservedAnalyses::none();
 
