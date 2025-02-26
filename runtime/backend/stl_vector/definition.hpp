@@ -136,9 +136,12 @@ struct Vector : std::vector<Elem> {
 
 template <>
 struct Vector<bool> : boost::dynamic_bitset<> {
-  Vector(size_t sz) : boost::dynamic_bitset<>(sz) {}
+  using Base = typename boost::dynamic_bitset<>;
+
+  Vector() : Base(0) {}
+  Vector(size_t sz) : Base(sz) {}
   Vector(std::input_iterator auto begin, std::input_iterator auto end)
-    : boost::dynamic_bitset<>(begin, end) {}
+    : Base(begin, end) {}
   ~Vector() {
     // TODO: if the element is a collection pointer, delete it too
   }
@@ -151,7 +154,7 @@ struct Vector<bool> : boost::dynamic_bitset<> {
     this->set(i, v);
   }
 
-  using boost::dynamic_bitset<>::clear;
+  using Base::clear;
 
 #if 0 // TODO
   void remove(size_t i) {
@@ -162,7 +165,7 @@ struct Vector<bool> : boost::dynamic_bitset<> {
     this->erase(std::next(this->begin(), begin), std::next(this->begin(), end));
   }
 
-  using boost::dynamic_bitset<>::insert;
+  using Base::insert;
 
   void insert(size_t i) {
     this->insert(std::next(this->begin(), i), bool());
