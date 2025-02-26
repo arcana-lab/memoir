@@ -96,9 +96,9 @@ struct std::hash<Bytes<N>> {
 
 template <class T>
 struct is_nested
-  : std::negation<std::integral_constant<bool,
-                                         std::is_arithmetic<T>::value
-                                             or std::is_pointer<T>::value>> {};
+  : std::integral_constant<
+        bool,
+        not std::is_arithmetic_v<T> and not std::is_pointer_v<T>> {};
 
 template <class T>
 constexpr bool is_nested_v = is_nested<T>::value;
