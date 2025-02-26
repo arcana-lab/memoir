@@ -1,6 +1,5 @@
-#ifndef COMMON_INSTRUCTIONS_H
-#define COMMON_INSTRUCTIONS_H
-#pragma once
+#ifndef MEMOIR_INSTRUCTIONS_H
+#define MEMOIR_INSTRUCTIONS_H
 
 #include <cstddef>
 
