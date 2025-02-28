@@ -6,29 +6,46 @@
 
 namespace llvm::memoir {
 
+std::string default_seq_impl;
+static llvm::cl::opt<std::string, true> DefaultSeqImpl(
+    "default-seq-impl",
+    llvm::cl::desc("Default implementation of Seq<T> collections."),
+    llvm::cl::value_desc("typename"),
+    llvm::cl::location(default_seq_impl),
+    llvm::cl::init("stl_vector"));
+
+std::string default_map_impl;
+static llvm::cl::opt<std::string, true> DefaultMapImpl(
+    "default-map-impl",
+    llvm::cl::desc("Default implementation of Assoc<K,V> collections."),
+    llvm::cl::value_desc("typename"),
+    llvm::cl::location(default_map_impl),
+    llvm::cl::init("stl_unordered_map"));
+
+std::string default_set_impl;
+static llvm::cl::opt<std::string, true> DefaultSetImpl(
+    "default-set-impl",
+    llvm::cl::desc("Default implementation of Assoc<K, void> collections."),
+    llvm::cl::value_desc("typename"),
+    llvm::cl::location(default_set_impl),
+    llvm::cl::init("stl_unordered_set"));
+
 namespace detail {
 void register_default_implementations() {
-  Implementation::define({
-#if ENABLE_MULTIMAP
-      Implementation( // std::multimap<T, U>
-          ASSOC_SEQ_IMPL,
-          AssocType::get(TypeVariable::get(),
-                         SequenceType::get(TypeVariable::get()))),
-#endif
+  Implementation::define(
+      { Implementation( // std::vector<T>
+            default_seq_impl,
+            SequenceType::get(TypeVariable::get())),
 
-      Implementation( // std::vector<T>
-          SEQ_IMPL,
-          SequenceType::get(TypeVariable::get())),
+        Implementation( // std::unordered_map<T, U>
+            default_map_impl,
+            AssocType::get(TypeVariable::get(), TypeVariable::get())),
 
-      Implementation( // std::unordered_map<T, U>
-          ASSOC_IMPL,
-          AssocType::get(TypeVariable::get(), TypeVariable::get())),
+        Implementation( // std::unordered_set<T>
+            default_set_impl,
+            AssocType::get(TypeVariable::get(), VoidType::get()))
 
-      Implementation( // std::unordered_set<T>
-          SET_IMPL,
-          AssocType::get(TypeVariable::get(), VoidType::get()))
-
-  });
+      });
 }
 } // namespace detail
 
@@ -41,27 +58,22 @@ const Implementation &ImplLinker::get_default_implementation(
     CollectionType &type) {
 
   if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
-    return MEMOIR_SANITIZE(
-        Implementation::lookup(SEQ_IMPL),
-        "Failed to find the default implementation (" SEQ_IMPL ")");
+    return MEMOIR_SANITIZE(Implementation::lookup(default_seq_impl),
+                           "Failed to find the default implementation (",
+                           default_seq_impl,
+                           ")");
   } else if (auto *assoc_type = dyn_cast<AssocType>(&type)) {
     auto &element_type = assoc_type->getElementType();
     if (isa<VoidType>(&element_type)) {
-      return MEMOIR_SANITIZE(
-          Implementation::lookup(SET_IMPL),
-          "Failed to find the default implementation (" SET_IMPL ")");
-    }
-#if ENABLE_MULTIMAP
-    else if (isa<SequenceType>(&element_type)) {
-      return MEMOIR_SANITIZE(
-          Implementation::lookup(ASSOC_SEQ_IMPL),
-          "Failed to find the default implementation (" ASSOC_SEQ_IMPL ")");
-    }
-#endif
-    else {
-      return MEMOIR_SANITIZE(
-          Implementation::lookup(ASSOC_IMPL),
-          "Failed to find the default implementation (" ASSOC_IMPL ")");
+      return MEMOIR_SANITIZE(Implementation::lookup(default_set_impl),
+                             "Failed to find the default implementation (",
+                             default_set_impl,
+                             ")");
+    } else {
+      return MEMOIR_SANITIZE(Implementation::lookup(default_map_impl),
+                             "Failed to find the default implementation (",
+                             default_map_impl,
+                             ")");
     }
   }
 

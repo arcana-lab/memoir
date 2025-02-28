@@ -1,22 +1,12 @@
 #ifndef MEMOIR_IMPLLINKER_H
 #define MEMOIR_IMPLLINKER_H
 
+#include "llvm/Support/CommandLine.h"
+
 #include "memoir/support/InternalDatatypes.hpp"
 
 #include "memoir/lowering/Implementation.hpp"
 #include "memoir/lowering/TypeLayout.hpp"
-
-// Default implementations
-#define ASSOC_IMPL "stl_unordered_map"
-#ifdef BOOST_INCLUDE_DIR
-#  define SET_IMPL "boost_flat_set"
-#else
-#  define SET_IMPL "stl_unordered_set"
-#endif
-#define SEQ_IMPL "stl_vector"
-#define ASSOC_SEQ_IMPL "boost_flat_multimap"
-
-#define ENABLE_MULTIMAP 0
 
 /*
  * This file provides a utility which instantiates the necessary collection
@@ -28,6 +18,11 @@
  */
 
 namespace llvm::memoir {
+
+// Default implementations
+extern std::string default_seq_impl;
+extern std::string default_map_impl;
+extern std::string default_set_impl;
 
 class ImplLinker {
 public:
