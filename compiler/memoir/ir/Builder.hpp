@@ -622,7 +622,8 @@ protected:
             return MemOIR_Func::ENUM_PREFIX##_BOOL;                            \
           default:                                                             \
             MEMOIR_UNREACHABLE(                                                \
-                "Attempt to create unknown unsigned integer type!");           \
+                "Attempt to create unknown unsigned integer type: ",           \
+                type);                                                         \
         }                                                                      \
       } else {                                                                 \
         switch (integer_type->getBitWidth()) {                                 \
@@ -640,11 +641,13 @@ protected:
             return MemOIR_Func::ENUM_PREFIX##_BOOL;                            \
           default:                                                             \
             MEMOIR_UNREACHABLE(                                                \
-                "Attempt to create unknown signed integer type!");             \
+                "Attempt to create unknown signed integer type: ",             \
+                type);                                                         \
         }                                                                      \
       }                                                                        \
     }                                                                          \
-    MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");      \
+    MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type: ",     \
+                       type);                                                  \
   };
 
   ENUM_FOR_PRIMITIVE_TYPE(READ, Read)
@@ -677,7 +680,8 @@ protected:
             return MemOIR_Func::ENUM_PREFIX##_BOOL;                            \
           default:                                                             \
             MEMOIR_UNREACHABLE(                                                \
-                "Attempt to create unknown unsigned integer type!");           \
+                "Attempt to create unknown unsigned integer type: ",           \
+                type);                                                         \
         }                                                                      \
       } else {                                                                 \
         switch (integer_type->getBitWidth()) {                                 \
@@ -695,11 +699,13 @@ protected:
             return MemOIR_Func::ENUM_PREFIX##_BOOL;                            \
           default:                                                             \
             MEMOIR_UNREACHABLE(                                                \
-                "Attempt to create unknown signed integer type!");             \
+                "Attempt to create unknown signed integer type: ",             \
+                type);                                                         \
         }                                                                      \
       }                                                                        \
     }                                                                          \
-    MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");      \
+    MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type: ",     \
+                       type);                                                  \
   }
 
   ENUM_FOR_TYPE(FOLD, Fold)
