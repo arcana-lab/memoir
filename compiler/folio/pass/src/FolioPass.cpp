@@ -2,6 +2,7 @@
 
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/PassUtils.hpp"
 #include "memoir/support/Print.hpp"
 
 #include "folio/transforms/LambdaLifting.hpp"
@@ -86,7 +87,14 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
   { SelectionMonomorphization monomorph(M); }
 
   // Insert proxies and encode uses.
-  { ProxyInsertion proxies(M); }
+  {
+    std::function<llvm::DominatorTree(llvm::Function &)> get_dominator_tree =
+        [&](llvm::Function &F) {
+          auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(MAM, M);
+          return std::move(FAM.getResult<llvm::DominatorTreeAnalysis>(F));
+        };
+    ProxyInsertion proxies(M, get_dominator_tree);
+  }
 
   MemOIRInst::invalidate();
 

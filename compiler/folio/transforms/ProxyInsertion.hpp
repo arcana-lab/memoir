@@ -1,4 +1,5 @@
 #include "llvm/Analysis/CallGraph.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 
 #include "memoir/ir/Instructions.hpp"
@@ -58,7 +59,9 @@ using Candidate = llvm::memoir::vector<ObjectInfo *>;
 
 struct ProxyInsertion {
 public:
-  ProxyInsertion(llvm::Module &M);
+  ProxyInsertion(
+      llvm::Module &M,
+      std::function<llvm::DominatorTree(llvm::Function &)> get_dominator_tree);
 
   void analyze();
 
@@ -73,9 +76,21 @@ protected:
       std::optional<llvm::memoir::SelectionMetadata> selection = {},
       unsigned selection_index = 0);
 
+  ObjectInfo *find_base_object(llvm::Value &V,
+                               llvm::memoir::AccessInst &access);
+
+  void gather_propagators(
+      llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Value *>>
+          encoded,
+      llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Use *>>
+          to_decode);
+
   llvm::Module &M;
   llvm::memoir::vector<ObjectInfo> objects;
+  llvm::memoir::vector<ObjectInfo> propagators;
   llvm::memoir::vector<Candidate> candidates;
+
+  std::function<llvm::DominatorTree(llvm::Function &)> get_dominator_tree;
 };
 
 } // namespace folio
