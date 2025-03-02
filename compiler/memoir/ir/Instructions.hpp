@@ -781,6 +781,13 @@ protected:
 // Fold operations.
 struct FoldInst : public AccessInst {
 public:
+  /**
+   * Finds the single fold user of this function, if it exists.
+   * @param func the LLVM function
+   * @returns the single fold, or NULL if none was found.
+   */
+  static FoldInst *get_single_fold(llvm::Function &func);
+
   llvm::Value &getResult() const;
 
   bool isReverse() const;
@@ -850,7 +857,7 @@ public:
    * @param arg the argument
    * @returns the operand use corresponding to the argument
    */
-  // llvm::Use &getOperandForArgument(llvm::Argument &arg) const;
+  llvm::Use *getOperandForArgument(llvm::Argument &arg) const;
 
   std::string toString() const override;
 

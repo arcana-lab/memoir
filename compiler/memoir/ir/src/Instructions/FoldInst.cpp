@@ -7,6 +7,36 @@
 namespace llvm::memoir {
 
 // FoldInst implementation.
+
+FoldInst *FoldInst::get_single_fold(llvm::Function &F) {
+  FoldInst *fold = nullptr;
+  for (auto &use : F.uses()) {
+    auto *user = use.getUser();
+    auto *call = dyn_cast_or_null<llvm::Instruction>(user);
+
+    // The function may be called indirectly!
+    if (not call) {
+      return nullptr;
+    }
+
+    auto *memoir = into<MemOIRInst>(call);
+
+    // Skip 'fake' uses of the function by RetPHI.
+    if (isa<RetPHIInst>(memoir)) {
+      continue;
+    }
+
+    fold = dyn_cast_or_null<FoldInst>(memoir);
+
+    // Found a non-fold user!
+    if (not fold) {
+      return nullptr;
+    }
+  }
+
+  return fold;
+}
+
 RESULTANT(FoldInst, Result)
 
 bool FoldInst::isReverse() const {
@@ -177,39 +207,28 @@ llvm::Argument *FoldInst::getClosedArgument(llvm::Use &U) const {
   return arg;
 }
 
-// llvm::Use &FoldInst::getOperandForArgument(llvm::Argument &A) const {
-//   // Get the collection type.
-//   auto &collection_type =
-//       MEMOIR_SANITIZE(dyn_cast<CollectionType>(&this->getObjectType()),
-//                       "FoldInst over a non-collection");
-//   auto &element_type = collection_type.getElementType();
+llvm::Use *FoldInst::getOperandForArgument(llvm::Argument &A) const {
+  // Get the collection type.
+  auto &collection_type =
+      MEMOIR_SANITIZE(dyn_cast<CollectionType>(&this->getObjectType()),
+                      "FoldInst over a non-collection");
+  auto &element_type = collection_type.getElementType();
 
-//   // If the element type is void, the first closed argument
-//   // is at operand 2, otherwise operand 3.
-//   auto first_closed =
-//       (isa<VoidType>(&collection_type.getElementType())) ? 2 : 3;
+  if (&A == &this->getAccumulatorArgument()) {
+    return &this->getInitialAsUse();
+  }
 
-//   // Get the argument number.
-//   auto arg_no = A.getArgNo();
+  // Fetch the operand number of the closed keyword.
+  if (auto closed_kw = this->getClosed()) {
+    for (auto &closed_op : closed_kw->arg_operands()) {
+      if (&A == this->getClosedArgument(closed_op)) {
+        return &closed_op;
+      }
+    }
+  }
 
-//   switch (arg_no) {
-//     case 0:
-//       return this->getInitialAsUse();
-//     case 1:
-//       return this->getObjectAsUse();
-//     case 2:
-//       if (not isa<VoidType>(&element_type)) {
-//         return this->getObjectAsUse();
-//       }
-//     default:
-//       break;
-//   }
-
-//   // Calculate the corresponding operand number.
-//   auto closed_no = arg_no - first_closed;
-
-//   return this->getClosedAsUse(closed_no);
-// }
+  return nullptr;
+}
 
 TO_STRING(FoldInst)
 
