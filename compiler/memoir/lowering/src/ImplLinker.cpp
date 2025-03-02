@@ -45,6 +45,12 @@ void register_default_implementations() {
             default_set_impl,
             AssocType::get(TypeVariable::get(), VoidType::get()))
 
+#ifdef BOOST_INCLUDE_DIR
+            ,
+        Implementation( // boost::flat_set<T>
+            "boost_flat_set",
+            AssocType::get(TypeVariable::get(), VoidType::get()))
+#endif
       });
 }
 } // namespace detail
