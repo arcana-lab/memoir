@@ -974,8 +974,10 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
         auto alloc_selection = Metadata::get_or_add<SelectionMetadata>(*alloc);
 
         auto sel_it = selection->impl_begin();
-        for (unsigned i = 0; i < info.selection_index; ++i, ++sel_it) {
-          // Do nothing.
+        for (unsigned i = 0; i < info.selection_index; ++i) {
+          if (sel_it != selection->impl_end()) {
+            ++sel_it;
+          }
         }
 
         unsigned alloc_index = 0;
