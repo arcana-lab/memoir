@@ -2,6 +2,7 @@
 
 #include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include "memoir/ir/Builder.hpp"
@@ -14,6 +15,11 @@
 using namespace llvm::memoir;
 
 namespace folio {
+
+static llvm::cl::opt<bool> disable_proxy_propagation(
+    "disable-proxy-propagation",
+    llvm::cl::desc("Disable proxy propagation"),
+    llvm::cl::init(false));
 
 static void update_values(llvm::ValueToValueMapTy &vmap,
                           set<llvm::Value *> &input,
@@ -922,14 +928,16 @@ void ProxyInsertion::analyze() {
 
   // With the set of values that need to be encoded/decoded, we will find
   // collections that can be used to propagate proxied values.
-  this->gather_propagators(values_encoded, to_decode);
+  if (not disable_proxy_propagation) {
+    this->gather_propagators(values_encoded, to_decode);
 
-  println();
-  println("FOUND PROPAGATORS:");
-  for (auto &info : this->propagators) {
-    println("  ", info);
+    println();
+    println("FOUND PROPAGATORS:");
+    for (auto &info : this->propagators) {
+      println("  ", info);
+    }
+    println();
   }
-  println();
 
   // Use a heuristic to group together objects.
   set<const ObjectInfo *> used = {};
