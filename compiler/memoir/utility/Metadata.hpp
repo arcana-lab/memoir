@@ -146,7 +146,8 @@ public:
     }
 
     std::optional<std::string> operator*() {
-      if (isa_and_nonnull<llvm::ConstantAsMetadata>(this->op->get())) {
+      if (this->op
+          and isa_and_nonnull<llvm::ConstantAsMetadata>(this->op->get())) {
         return { Metadata::to_string(*this->op->get()) };
       } else {
         return {};
