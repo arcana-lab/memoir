@@ -16,13 +16,17 @@ struct Vector;
 
 template <typename Elem>
 struct Vector : std::vector<Elem> {
+  using Base = std::vector<Elem>;
+
   Vector() : Vector(0) {}
-  Vector(size_t sz) : std::vector<Elem>(sz) {}
+  Vector(size_t sz) : Base(sz) {}
   Vector(std::input_iterator auto begin, std::input_iterator auto end)
-    : std::vector<Elem>(begin, end) {}
+    : Base(begin, end) {}
   ~Vector() {
     // TODO: if the element is a collection pointer, delete it too
   }
+
+  using Base::resize;
 
   Elem *get(size_t i) {
     return &*std::next(this->begin(), i);
@@ -44,9 +48,9 @@ struct Vector : std::vector<Elem> {
     this->erase(std::next(this->begin(), begin), std::next(this->begin(), end));
   }
 
-  using std::vector<Elem>::clear;
+  using Base::clear;
 
-  using std::vector<Elem>::insert;
+  using Base::insert;
 
   void insert(size_t i) {
     this->insert(std::next(this->begin(), i), Elem());
@@ -66,7 +70,7 @@ struct Vector : std::vector<Elem> {
                  std::next(other->cbegin(), end));
   }
 
-  using std::vector<Elem>::size;
+  using Base::size;
 
   Vector<Elem> *copy() {
     return new Vector<Elem>(this->cbegin(), this->cend());
@@ -80,8 +84,8 @@ struct Vector : std::vector<Elem> {
   struct iterator {
     size_t _idx;
     as_primitive_t<Elem> _val;
-    std::vector<Elem>::iterator _it;
-    std::vector<Elem>::iterator _ie;
+    Base::iterator _it;
+    Base::iterator _ie;
 
     bool next() {
       if (this->_it == this->_ie) {
@@ -96,8 +100,8 @@ struct Vector : std::vector<Elem> {
     }
   };
 
-  using std::vector<Elem>::begin;
-  using std::vector<Elem>::end;
+  using Base::begin;
+  using Base::end;
 
   void begin(iterator *iter) {
     iter->_idx = -1;
@@ -108,8 +112,8 @@ struct Vector : std::vector<Elem> {
   struct reverse_iterator {
     size_t _idx;
     as_primitive_t<Elem> _val;
-    std::vector<Elem>::reverse_iterator _it;
-    std::vector<Elem>::reverse_iterator _ie;
+    Base::reverse_iterator _it;
+    Base::reverse_iterator _ie;
 
     bool next() {
       if (this->_it == this->_ie) {
@@ -124,8 +128,8 @@ struct Vector : std::vector<Elem> {
     }
   };
 
-  using std::vector<Elem>::rbegin;
-  using std::vector<Elem>::rend;
+  using Base::rbegin;
+  using Base::rend;
 
   void rbegin(reverse_iterator *iter) {
     iter->_idx = this->size();
@@ -155,6 +159,7 @@ struct Vector<bool> : boost::dynamic_bitset<> {
   }
 
   using Base::clear;
+  using Base::resize;
 
 #if 0 // TODO
   void remove(size_t i) {
@@ -198,7 +203,7 @@ struct Vector<bool> : boost::dynamic_bitset<> {
 #endif
 
   size_t size() {
-    return this->count();
+    return this->Base::size();
   }
 
   struct iterator {
