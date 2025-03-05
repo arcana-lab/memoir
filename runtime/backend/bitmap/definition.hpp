@@ -82,13 +82,13 @@ public:
   }
 
   Val read(const Size &key) {
-    return _vals[key];
+    return _vals.read(key);
   }
 
   template <typename T = Val,
             typename std::enable_if_t<!std::is_same_v<T, bool>, bool> = 0>
   Val *get(const Size &key) {
-    return &this->_vals[key];
+    return this->_vals.get(key);
   }
 
   template <typename T = Val,
@@ -98,7 +98,7 @@ public:
   }
 
   void write(const Size &key, Val val) {
-    this->_vals[key] = val;
+    this->_vals.write(key, val);
   }
 
   size_t size() {
@@ -123,9 +123,9 @@ public:
       }
       this->_key = this->_cur;
       if constexpr (std::is_same_v<Val, bool>) {
-        this->_val = this->_set->read(this->_cur);
+        this->_val = this->_set->read(this->_key);
       } else {
-        this->_val = into_primitive(this->_set->_vals[this->_cur]);
+        this->_val = into_primitive(this->_set->_vals[this->_key]);
       }
       this->_cur = this->_set->find_next(this->_cur);
       return true;
