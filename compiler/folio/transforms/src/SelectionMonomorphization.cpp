@@ -240,18 +240,58 @@ void propagate(Selections &selections,
 
         // If the element type of the fold is a collection, propagate to the
         // corresponding argument.
+
         auto &element_type = fold->getElementType();
         if (Type::is_unsized(element_type)) {
           if (auto *argument = fold->getElementArgument()) {
 
-            // Propagate the nested selection to the argument.
-            const auto &impl = selections.selection(from);
-            auto distance = std::distance(fold->index_operands_begin(),
-                                          fold->index_operands_end())
-                            + 1;
+            auto nested_impls = selections.selection(from);
 
-            ImplList nested_impls(std::next(impl.begin(), distance),
-                                  impl.end());
+            // TODO: if the collection is in a struct type, look it up.
+            auto *type = &fold->getObjectType();
+            auto nested_impl_it = nested_impls.begin();
+            for (auto index_it = fold->index_operands_begin();
+                 index_it != fold->index_operands_end();
+                 ++index_it, ++nested_impl_it) {
+              if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+                type = &collection_type->getElementType();
+              } else if (auto *struct_type = dyn_cast<StructType>(type)) {
+                auto *index_const =
+                    dyn_cast<llvm::ConstantInt>(index_it->get());
+                MEMOIR_ASSERT(index_const,
+                              "Struct field access is not a static int!");
+                auto field = index_const->getZExtValue();
+                type = &struct_type->getFieldType(field);
+
+                // Fetch the selection metadata.
+                auto metadata =
+                    Metadata::get<SelectionMetadata>(*struct_type, field);
+
+                auto *nested_type = type;
+                auto sel_idx = 0;
+                nested_impls.clear();
+                while (nested_type) {
+                  if (auto *nested_collection_type =
+                          dyn_cast<CollectionType>(nested_type)) {
+                    nested_type = &nested_collection_type->getElementType();
+                    if (metadata) {
+                      nested_impls.push_back(
+                          metadata->getImplementation(sel_idx));
+                    } else {
+                      nested_impls.push_back({});
+                    }
+                  }
+                  ++sel_idx;
+                  break;
+                }
+
+                nested_impl_it = nested_impls.begin();
+              }
+            }
+
+            // Propagate the nested selection to the argument.
+            nested_impls.erase(nested_impls.begin(), std::next(nested_impl_it));
+            // ImplList nested_impls(nested_impl_it, selection.end());
 
             selections.insert(*argument, nested_impls);
 
@@ -275,6 +315,7 @@ void propagate(Selections &selections,
         }
 
       } else if (auto *argument = fold->getClosedArgument(use)) {
+
         // Otherwise, the collection is closed on, propagate to the
         // corresponding argument, but don't recurse.
         if (selections.propagate(from, *argument)) {
@@ -302,7 +343,15 @@ void propagate(Selections &selections,
         worklist.push_back(user);
       }
 
-    } else if (isa<AccessInst>(memoir_inst) or isa<DeleteInst>(memoir_inst)) {
+    } else if (auto *access = dyn_cast<AccessInst>(memoir_inst)) {
+
+      if (&use == &access->getObjectAsUse()) {
+        if (selections.propagate(from, *user)) {
+          worklist.push_back(user);
+        }
+      }
+
+    } else if (isa<DeleteInst>(memoir_inst)) {
 
       // If the memoir operation is an access to the input collection,
       // propagate, but don't recurse.
@@ -546,6 +595,10 @@ void unify_declarations(Selections &selections) {
           continue;
         }
 
+        if (list.size() != other_list.size()) {
+          continue;
+        }
+
         // See if the other list is a parent of this list.
         matches = true;
         for (auto i = 0; i < list.size(); ++i) {
@@ -620,8 +673,13 @@ SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
       for (auto it = selections.lower_bound(value);
            it != selections.upper_bound(value);
            ++it) {
+        print(" SEL: ");
         for (auto sel : selections.from_id(it->second)) {
-          print(sel, ", ");
+          if (sel.has_value()) {
+            print(sel, ", ");
+          } else {
+            print("NONE, ");
+          }
         }
         println();
       }
