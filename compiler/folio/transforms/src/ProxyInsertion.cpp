@@ -439,7 +439,7 @@ static void gather_uses_to_propagate(
     map<llvm::Function *, set<llvm::Use *>> &to_decode,
     map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
 
-  println("REDEF ", V);
+  infoln("REDEF ", V);
 
   llvm::Function *function = nullptr;
 
@@ -459,7 +459,7 @@ static void gather_uses_to_propagate(
       continue;
     }
 
-    println("  USER ", *user);
+    infoln("  USER ", *user);
 
     if (auto *fold = into<FoldInst>(user)) {
 
@@ -469,7 +469,7 @@ static void gather_uses_to_propagate(
         // decode the index argument of the body.
         auto distance = detail::indices_match_offsets(*fold, offsets);
 
-        println("  distance=", distance, "  |offsets|=", offsets.size());
+        infoln("  distance=", distance, "  |offsets|=", offsets.size());
 
         if (distance == -1) {
           // Do nothing.
@@ -478,11 +478,11 @@ static void gather_uses_to_propagate(
         // If the offsets are fully exhausted, add uses of the index
         // argument to the set of uses to decode.
         // TODO: may need to do size+1
-        else if (distance == int32_t(offsets.size())) {
+        else if ((distance + 1) == int32_t(offsets.size())) {
           if (auto *elem_arg = fold->getElementArgument()) {
-            println("    DECODING ELEM");
+            infoln("    DECODING ELEM");
             for (auto &elem_use : elem_arg->uses()) {
-              println("      USE ", *elem_use.getUser());
+              infoln("      USE ", *elem_use.getUser());
               to_decode[&fold->getBody()].insert(&elem_use);
             }
           }
@@ -495,7 +495,7 @@ static void gather_uses_to_propagate(
             vector<unsigned> nested_offsets(
                 std::next(offsets.begin(), distance + 1),
                 offsets.end());
-            println("    RECURSING");
+            infoln("    RECURSING");
             gather_uses_to_propagate(*elem_arg,
                                      nested_offsets,
                                      to_encode,
@@ -510,9 +510,9 @@ static void gather_uses_to_propagate(
       if (distance == -1) {
         continue;
       } else if (distance == int32_t(offsets.size())) {
-        println("    DECODING ELEM ");
+        infoln("    DECODING ELEM ");
         for (auto &read_use : user->uses()) {
-          println("      USE ", *read_use.getUser());
+          infoln("      USE ", *read_use.getUser());
           to_decode[function].insert(&read_use);
         }
       }
@@ -522,7 +522,7 @@ static void gather_uses_to_propagate(
       if (distance == -1) {
         continue;
       } else if (distance == int32_t(offsets.size())) {
-        println("    ADDKEY ");
+        infoln("    ADDKEY ");
         to_addkey[function].insert(&write->getValueWrittenAsUse());
       }
 
@@ -532,7 +532,7 @@ static void gather_uses_to_propagate(
         if (distance == -1) {
           continue;
         } else if (distance == int32_t(offsets.size())) {
-          println("    ADDKEY ");
+          infoln("    ADDKEY ");
           to_addkey[function].insert(&value_kw->getValueAsUse());
         }
       }
@@ -543,7 +543,7 @@ static void gather_uses_to_propagate(
 }
 
 void ObjectInfo::analyze() {
-  println("ANALYZING ", *this);
+  infoln("ANALYZING ", *this);
 
   gather_redefinitions(this->allocation->getCallInst(), this->redefinitions);
 
@@ -569,9 +569,9 @@ void ObjectInfo::analyze() {
 
 #if 0
   for (const auto &[func, redefs] : this->redefinitions) {
-    println("IN ", func->getName());
+    infoln("IN ", func->getName());
     for (auto *redef : redefs) {
-      println("  REDEF ", *redef);
+      infoln("  REDEF ", *redef);
     }
   }
 #endif
@@ -638,7 +638,7 @@ void ProxyInsertion::gather_assoc_objects(
       if (not selection or not selection->getImplementation(offsets.size())) {
         allocations.push_back(ObjectInfo(alloc, offsets));
       } else {
-        println("FOUND EXISTING SELECTION FOR ", alloc);
+        infoln("FOUND EXISTING SELECTION FOR ", alloc);
       }
     }
 
@@ -683,14 +683,14 @@ static void gather_values_to_propagate(
         if (auto fold = FoldInst::get_single_fold(*parent)) {
           // If we found a single fold and this is the element arg, mark it.
           if (arg == fold->getElementArgument()) {
-            println("FOLD ELEM ", *value);
+            infoln("FOLD ELEM ", *value);
             encoded[func].insert(value);
           }
         }
 
       } else if (auto *read = into<ReadInst>(value)) {
         // If this is the result of a read, mark it.
-        println("READ ELEM ", *value);
+        infoln("READ ELEM ", *value);
         encoded[func].insert(value);
       }
     }
@@ -706,13 +706,13 @@ static void gather_values_to_propagate(
 
       if (auto *write = into<WriteInst>(user)) {
         if (use == &write->getValueWrittenAsUse()) {
-          println("WRITE ELEM ", *user);
+          infoln("WRITE ELEM ", *user);
           to_decode[func].insert(use);
         }
       } else if (auto *insert = into<InsertInst>(user)) {
         if (auto value_keyword = insert->get_keyword<ValueKeyword>()) {
           if (use == &value_keyword->getValueAsUse()) {
-            println("INSERT ELEM ", *user);
+            infoln("INSERT ELEM ", *user);
 
             to_decode[func].insert(use);
           }
@@ -783,7 +783,7 @@ AllocInst *_find_base_object(llvm::Value &V,
 ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
                                              AccessInst &access) {
 
-  println("FINDING BASE OF ", access);
+  infoln("FINDING BASE OF ", access);
 
   auto *type = type_of(V);
 
@@ -817,7 +817,7 @@ ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
   this->propagators.emplace_back(*alloc, offsets);
   auto &info = this->propagators.back();
 
-  println("FOUND PROPAGATOR ", info);
+  infoln("FOUND PROPAGATOR ", info);
 
   return &info;
 }
@@ -828,7 +828,7 @@ void ProxyInsertion::gather_propagators(
 
   for (const auto &[func, values] : encoded) {
     for (auto *value : values) {
-      println("GATHER ", *value);
+      infoln("GATHER ", *value);
 
       if (auto *arg = dyn_cast<llvm::Argument>(value)) {
         auto &parent = MEMOIR_SANITIZE(arg->getParent(),
@@ -851,7 +851,7 @@ void ProxyInsertion::gather_propagators(
         continue;
       }
 
-      println("GATHER ", *user);
+      infoln("GATHER ", *user);
 
       if (auto *write = into<WriteInst>(user)) {
         this->find_base_object(write->getObject(), *write);
@@ -912,7 +912,12 @@ void ProxyInsertion::analyze() {
     }
   }
 
-  println("Found ", this->objects.size(), " objects.");
+  println();
+  println("FOUND OBJECTS ", this->objects.size());
+  for (auto &info : this->objects) {
+    println("  ", info);
+  }
+  println();
 
   // Gather statistics about each of the objects.
   map<llvm::Function *, set<llvm::Value *>> values_encoded = {};
@@ -932,7 +937,7 @@ void ProxyInsertion::analyze() {
     this->gather_propagators(values_encoded, to_decode);
 
     println();
-    println("FOUND PROPAGATORS:");
+    println("FOUND PROPAGATORS ", this->propagators.size());
     for (auto &info : this->propagators) {
       println("  ", info);
     }
@@ -1333,12 +1338,10 @@ void add_tempargs(map<llvm::Function *, llvm::Instruction *> &local_patches,
 
       if (auto *fold = into<FoldInst>(call)) {
         if (&fold->getBody() == func) {
-          println("  USER ", *fold);
           folds_to_patch[fold] = global;
         }
       } else if (not into<MemOIRInst>(call)) {
         if (call->getCalledFunction() == func) {
-          println("  USER ", *call);
           calls_to_patch[call] = global;
         }
       }
@@ -1408,7 +1411,7 @@ void update_candidates(std::forward_iterator auto candidates_begin,
 static void find_fold_users(llvm::Value &V,
                             llvm::ArrayRef<unsigned> offsets,
                             vector<FoldInst *> &folds) {
-  println("  REDEF ", V);
+  infoln("  REDEF ", V);
   for (auto &use : V.uses()) {
     if (auto *fold = into<FoldInst>(use.getUser())) {
       if (use == fold->getObjectAsUse()) {
@@ -1418,7 +1421,7 @@ static void find_fold_users(llvm::Value &V,
         } else if (distance == int32_t(offsets.size())) {
           auto found = std::find(folds.begin(), folds.end(), fold);
           if (found == folds.end()) {
-            println("    TO MUTATE ", *fold);
+            infoln("    TO MUTATE ", *fold);
             folds.push_back(fold);
           }
         } else if (distance < int32_t(offsets.size())) {
@@ -1494,10 +1497,10 @@ bool ProxyInsertion::transform() {
 
     auto &candidate = *candidates_it;
 
-    println();
-    println("PROXYING CANDIDATE:");
+    infoln();
+    infoln("PROXYING CANDIDATE:");
     for (const auto *candidate_info : candidate) {
-      println("  ", *candidate_info);
+      infoln("  ", *candidate_info);
     }
 
     // Unpack the first object information.
@@ -1884,8 +1887,8 @@ bool ProxyInsertion::transform() {
           &builder.CreateReadInst(key_type, decoder, { use->get() })
                ->getCallInst();
 
-      println("DECODED ", *decoded);
-      println("  DEBUG ", *program_point);
+      infoln("DECODED ", *decoded);
+      infoln("  DEBUG ", *program_point);
 
       use->set(decoded);
     }
@@ -1929,6 +1932,7 @@ bool ProxyInsertion::transform() {
         } else {
           selection.setImplementation("bitmap", selection_index);
         }
+        println(selection.getMetadata());
 
         // Update the type of the key in the fold bodies.
         // TODO: collect folds ahead of time for all info in the candidate, it
@@ -1968,7 +1972,6 @@ bool ProxyInsertion::transform() {
           for (auto &use : function->uses()) {
             auto *user = use.getUser();
             if (not into<RetPHIInst>(*user)) {
-              println("  REAL ", *use.getUser());
               MEMOIR_ASSERT(not found_real_use,
                             "Fold body has more than one use!");
               found_real_use = true;
