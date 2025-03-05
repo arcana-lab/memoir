@@ -20,6 +20,9 @@ FoldInst *FoldInst::get_single_fold(llvm::Function &F) {
     }
 
     auto *memoir = into<MemOIRInst>(call);
+    if (not memoir) {
+      return nullptr;
+    }
 
     // Skip 'fake' uses of the function by RetPHI.
     if (isa<RetPHIInst>(memoir)) {
