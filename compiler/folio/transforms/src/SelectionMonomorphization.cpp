@@ -233,15 +233,18 @@ void propagate(Selections &selections,
     if (auto *fold = dyn_cast<FoldInst>(memoir_inst)) {
 
       // If the use is the collection being folded over.
-      if (&fold->getObjectAsUse() == &use) {
+      if (&use == &fold->getObjectAsUse()) {
 
         // Propagate to the instruction, don't recurse.
         selections.propagate(from, fold->getResult());
 
         // If the element type of the fold is a collection, propagate to the
         // corresponding argument.
+        auto &collection_type =
+            MEMOIR_SANITIZE(dyn_cast<CollectionType>(&fold->getElementType()),
+                            "Fold over non-collection type.");
+        auto &element_type = collection_type.getElementType();
 
-        auto &element_type = fold->getElementType();
         if (Type::is_unsized(element_type)) {
           if (auto *argument = fold->getElementArgument()) {
 
@@ -377,7 +380,10 @@ void propagate(Selections &selections,
     // If this is a direct call, propagate to it.
     if (auto *called_function = call->getCalledFunction()) {
       auto &argument = MEMOIR_SANITIZE(called_function->getArg(operand_no),
-                                       "Argument out of range.");
+                                       "Argument out of range ",
+                                       operand_no,
+                                       " in ",
+                                       *call);
       if (selections.propagate(from, argument)) {
         worklist.push_back(&argument);
       }
