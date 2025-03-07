@@ -6,6 +6,7 @@
 
 // MemOIR
 #include "memoir/passes/Passes.hpp"
+#include "memoir/support/Print.hpp"
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
 
 using namespace llvm::memoir;
