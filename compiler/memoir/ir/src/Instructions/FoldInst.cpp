@@ -213,8 +213,9 @@ llvm::Argument *FoldInst::getClosedArgument(llvm::Use &U) const {
 llvm::Use *FoldInst::getOperandForArgument(llvm::Argument &A) const {
   // Get the collection type.
   auto &collection_type =
-      MEMOIR_SANITIZE(dyn_cast<CollectionType>(&this->getObjectType()),
-                      "FoldInst over a non-collection");
+      MEMOIR_SANITIZE(dyn_cast<CollectionType>(&this->getElementType()),
+                      "FoldInst over a non-collection\n",
+                      *this);
   auto &element_type = collection_type.getElementType();
 
   if (&A == &this->getAccumulatorArgument()) {
