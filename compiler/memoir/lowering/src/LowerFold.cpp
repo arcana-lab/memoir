@@ -392,6 +392,9 @@ bool lower_fold(FoldInst &I,
   //    accumulator to be the result of the call.
   for (auto *pred : llvm::predecessors(&loop_header)) {
     auto *incoming = (pred == &loop_preheader) ? &I.getInitial() : &call;
+    MEMOIR_ASSERT(accumulator.getType() == incoming->getType(),
+                  "Mismatched PHI type for accumulator of ",
+                  I);
     accumulator.addIncoming(incoming, pred);
   }
 
