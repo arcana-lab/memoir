@@ -14,6 +14,24 @@ bool TypeInference::run() {
   return false;
 }
 
+void TypeInference::type(llvm::Argument &A, Type *type) {
+  if (type) {
+    debugln(A, " : ", *type);
+  } else {
+    debugln(A, " : ?");
+  }
+  this->argument_types_to_annotate[&A] = type;
+}
+
+void TypeInference::type(llvm::Function &F, Type *type) {
+  if (type) {
+    debugln(F.getName(), " -> ", *type);
+  } else {
+    debugln(F.getName(), " -> ?");
+  }
+  this->return_types_to_annotate[&F] = type;
+}
+
 // Inferred type
 using inferred_type = tuple<bool, Type *>;
 
@@ -30,7 +48,7 @@ static inferred_type argument_has_type_annotation(llvm::Argument &A) {
     auto *user_as_inst = dyn_cast<llvm::Instruction>(user);
 
     // If the user isn't an instruction, continue.
-    if (user_as_inst == nullptr) {
+    if (not user_as_inst) {
       continue;
     }
 
@@ -45,10 +63,24 @@ static inferred_type argument_has_type_annotation(llvm::Argument &A) {
 }
 
 bool TypeInference::infer_argument_type(llvm::Argument &A) {
+
+  if (this->argument_types_to_annotate.count(&A) > 0) {
+    return true;
+  }
+
+  auto &F = MEMOIR_SANITIZE(A.getParent(), "Argument has NULL parent!");
+
+  if (F.getName() == "main") {
+    return true;
+  }
+
+  debugln("INFER ", A, " IN ", A.getParent()->getName());
+
   // See if the argument has a type annotation.
   // If it does, continue.
   auto [annotated, annotated_type] = argument_has_type_annotation(A);
   if (annotated) {
+    this->type(A, annotated_type);
     return true;
   }
 
@@ -57,7 +89,7 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
   // See if the type checker can get the type for us.
   if (auto *type = type_of(A)) {
     // It worked! Mark the argument type to be annotated and continue.
-    this->argument_types_to_annotate[&A] = type;
+    this->type(A, type);
     return true;
   }
 
@@ -65,8 +97,6 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
 
   // First, check to see if the function is in a fold instruction, if so, we can
   // use type information there.
-  auto &F = MEMOIR_SANITIZE(A.getParent(), "Argument has NULL parent!");
-
   if (auto *fold = FoldInst::get_single_fold(F)) {
 
     // Determine the type of the value based on the operand(s) to the fold.
@@ -127,62 +157,55 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
       // If it's a collection or struct type, mark it for annotation.
       if (isa_and_nonnull<CollectionType>(type)
           || isa_and_nonnull<StructType>(type)) {
-        this->argument_types_to_annotate[&A] = type;
+        this->type(A, type);
         return true;
       }
 
       // Otherwise, we succeed, but return NULL because it is an LLVM type.
+      this->argument_types_to_annotate[&A] = nullptr;
       return true;
     }
   }
 
+  // Second, let's check the callers.
   for (auto &use : F.uses()) {
+    // Get the user information.
     auto *user = use.getUser();
-    if (auto *inst = dyn_cast<llvm::Instruction>(user)) {
-      if (auto *fold = into<FoldInst>(inst)) {
+    auto *user_as_call = dyn_cast_or_null<llvm::CallBase>(user);
+    if (not user_as_call) {
+      continue;
+    }
+
+    // If the user is a memoir instruction, skip it.
+    if (into<MemOIRInst>(user_as_call)) {
+      continue;
+    }
+
+    // Recurse on the caller function.
+    if (auto *caller_bb = user_as_call->getParent()) {
+      if (auto *caller_function = caller_bb->getParent()) {
+
+        // Only recurse if we are looking at a different function.
+        if (caller_function != &F) {
+          // TODO: replace this with type unification.
+          this->infer(*caller_function);
+        }
       }
     }
 
-    // Second, let's check the callers.
-    for (auto &use : F.uses()) {
-      // Get the user information.
-      auto *user = use.getUser();
-      auto *user_as_inst = dyn_cast_or_null<llvm::Instruction>(user);
-
-      // If the user is a memoir instruction, skip it.
-      if (into<MemOIRInst>(user_as_inst)) {
-        continue;
-      }
-
-      // If the user is a call instruction, recurse on it's parent function.
-      if (auto *user_as_call = dyn_cast_or_null<llvm::CallBase>(user_as_inst)) {
-        // Recurse on the caller function.
-        if (auto *caller_bb = user_as_call->getParent()) {
-          if (auto *caller_function = caller_bb->getParent()) {
-
-            // Only recurse if we are looking at a different function.
-            if (caller_function != &F) {
-              // TODO: replace this with type unification.
-              this->infer(*caller_function);
-            }
-          }
-        }
-
-        // Then, see if we can type the operand being passed into the call
-        // for this argument.
-        auto arg_index = A.getArgNo();
-        auto &call_operand =
-            MEMOIR_SANITIZE(user_as_call->getArgOperand(arg_index),
-                            "Operand of call is NULL!");
-        if (auto *call_operand_type = type_of(call_operand)) {
-          // It worked! Mark the argument type to be annotated and continue;
-          this->argument_types_to_annotate[&A] = call_operand_type;
-          return true;
-        }
-      }
+    // Then, see if we can type the operand being passed into the call
+    // for this argument.
+    auto arg_index = A.getArgNo();
+    auto &call_operand = MEMOIR_SANITIZE(user_as_call->getArgOperand(arg_index),
+                                         "Operand of call is NULL!");
+    if (auto *call_operand_type = type_of(call_operand)) {
+      // It worked! Mark the argument type to be annotated and continue;
+      this->type(A, call_operand_type);
+      return true;
     }
   }
 
+  this->type(A, nullptr);
   return false;
 }
 
@@ -212,10 +235,23 @@ static inferred_type function_has_return_type_annotation(llvm::Function &F) {
 }
 
 bool TypeInference::infer_return_type(llvm::Function &F) {
+
+  if (this->return_types_to_annotate.count(&F) > 0) {
+    return true;
+  }
+
+  // Don't try to perform type inference in the main function.
+  if (F.getName() == "main") {
+    return true;
+  }
+
+  debugln("INFER RET ", F.getName());
+
   // See if the argument has a type annotation.
   // If it does, continue.
   auto [annotated, annotated_type] = function_has_return_type_annotation(F);
   if (annotated) {
+    this->type(F, annotated_type);
     return true;
   }
 
@@ -254,38 +290,30 @@ bool TypeInference::infer_return_type(llvm::Function &F) {
 
   // If we were able to unify the type, mark the return type to annotate.
   if (unified_type != nullptr) {
-    this->return_types_to_annotate[&F] = unified_type;
+    this->type(F, unified_type);
     return true;
   }
 
   // Check to see if the function is in a fold instruction, if so, we can use
   // type information there.
-  for (auto &use : F.uses()) {
-    auto *user = use.getUser();
-    if (auto *inst = dyn_cast<llvm::Instruction>(user)) {
-      if (auto *fold = into<FoldInst>(inst)) {
-        // If we are not the function operand, continue.
-        if (&fold->getBody() != &F) {
-          continue;
-        }
+  if (auto *fold = FoldInst::get_single_fold(F)) {
+    // Otherwise, get the type of the initial accumulator value.
+    auto *accumulator_type = type_of(fold->getInitial());
 
-        // Otherwise, get the type of the initial accumulator value.
-        auto *accumulator_type = type_of(fold->getInitial());
-
-        // If the accumulator type is a collection or struct type, return it.
-        if (isa<CollectionType>(accumulator_type)
-            || isa<StructType>(accumulator_type)) {
-          this->return_types_to_annotate[&F] = accumulator_type;
-          return true;
-        }
-
-        // Otherwise, we succeeded, but the return type is an LLVM type.
-        return true;
-      }
+    // If the accumulator type is a collection or struct type, return it.
+    if (isa<CollectionType>(accumulator_type)
+        || isa<StructType>(accumulator_type)) {
+      this->type(F, accumulator_type);
+      return true;
     }
+
+    // Otherwise, we succeeded, but the return type is an LLVM type.
+    this->type(F, nullptr);
+    return true;
   }
 
   // Otherwise, we did not infer a memoir type for the return.
+  this->type(F, nullptr);
   return false;
 }
 
@@ -303,6 +331,11 @@ bool TypeInference::infer(llvm::Function &F) {
 
 bool TypeInference::infer(llvm::Module &M) {
   for (auto &F : M) {
+    // Don't type check main, it has free variables.
+    if (F.getName() == "main") {
+      continue;
+    }
+
     // Analyze the function.
     this->infer(F);
   }
@@ -350,18 +383,28 @@ bool TypeInference::annotate(llvm::Module &M) {
 
   // Annotate each of the argument types.
   for (auto const [argument, type] : argument_types_to_annotate) {
+    if (not type) {
+      continue;
+    }
+
     debugln("Annotating ",
             *argument,
             " in ",
             argument->getParent()->getName(),
             " of type ",
             *type);
+
     annotate_argument_type(*argument, *type);
   }
 
   // Annotate each of the return types.
   for (auto const [function, type] : return_types_to_annotate) {
+    if (not type) {
+      continue;
+    }
+
     debugln("Annotating ", function->getName(), " return of type ", *type);
+
     annotate_return_type(*function, *type);
   }
 

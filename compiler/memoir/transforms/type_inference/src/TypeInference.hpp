@@ -50,6 +50,16 @@ protected:
   bool infer_return_type(llvm::Function &F);
 
   /**
+   * Assign type to the given argument.
+   */
+  void type(llvm::Argument &A, Type *type);
+
+  /**
+   * Assign type to the given function return.
+   */
+  void type(llvm::Function &F, Type *return_type);
+
+  /**
    * Annotates the given module with type information.
    */
   bool annotate(llvm::Module &M);
@@ -70,8 +80,8 @@ protected:
 
   // Borrowed state.
   llvm::Module &M;
-  map<llvm::Argument *, memoir::Type *> argument_types_to_annotate;
-  map<llvm::Function *, memoir::Type *> return_types_to_annotate;
+  map<llvm::Argument *, Type *> argument_types_to_annotate;
+  map<llvm::Function *, Type *> return_types_to_annotate;
 };
 
 } // namespace llvm::memoir
