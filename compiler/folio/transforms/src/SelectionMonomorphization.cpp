@@ -348,16 +348,14 @@ void propagate(Selections &selections,
 
     } else if (auto *access = dyn_cast<AccessInst>(memoir_inst)) {
 
+      // If the memoir operation is an access to the input collection,
+      // propagate, but don't recurse.
       if (&use == &access->getObjectAsUse()) {
-        if (selections.propagate(from, *user)) {
-          worklist.push_back(user);
-        }
+        selections.propagate(from, *user);
       }
 
     } else if (isa<DeleteInst>(memoir_inst)) {
 
-      // If the memoir operation is an access to the input collection,
-      // propagate, but don't recurse.
       selections.propagate(from, *user);
     }
 
