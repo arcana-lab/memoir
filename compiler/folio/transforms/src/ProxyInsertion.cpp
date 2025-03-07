@@ -230,6 +230,7 @@ static bool is_last_index(llvm::Use *use,
 }
 
 static llvm::Use *get_index_use(AccessInst &access, vector<unsigned> &offsets) {
+
   auto offset_it = offsets.begin();
   auto offset_ie = offsets.end();
 
@@ -255,7 +256,7 @@ static llvm::Use *get_index_use(AccessInst &access, vector<unsigned> &offsets) {
 
       // If the offset doesn't match the field index, there is no index use.
       if (offset != index_const.getZExtValue()) {
-        return index_ie;
+        return nullptr;
       }
 
       // Get the inner type.
@@ -1774,8 +1775,11 @@ bool ProxyInsertion::transform() {
           user_as_inst->replaceAllUsesWith(phi);
 
           if (auto *call = dyn_cast<llvm::CallBase>(user_as_inst)) {
-            call->removeParamAttr(use->getOperandNo(),
-                                  llvm::Attribute::AttrKind::NonNull);
+            auto operand_no = use->getOperandNo();
+            if (operand_no < call->arg_size()) {
+              call->removeParamAttr(operand_no,
+                                    llvm::Attribute::AttrKind::NonNull);
+            }
           }
 
           auto *then_bb = then_terminator->getParent();
@@ -1797,8 +1801,10 @@ bool ProxyInsertion::transform() {
       use->set(encoded);
 
       if (auto *call = dyn_cast<llvm::CallBase>(user_as_inst)) {
-        call->removeParamAttr(use->getOperandNo(),
-                              llvm::Attribute::AttrKind::NonNull);
+        auto operand_no = use->getOperandNo();
+        if (operand_no < call->arg_size()) {
+          call->removeParamAttr(operand_no, llvm::Attribute::AttrKind::NonNull);
+        }
       }
     }
 
@@ -1932,7 +1938,6 @@ bool ProxyInsertion::transform() {
         } else {
           selection.setImplementation("bitmap", selection_index);
         }
-        println(selection.getMetadata());
 
         // Update the type of the key in the fold bodies.
         // TODO: collect folds ahead of time for all info in the candidate, it
