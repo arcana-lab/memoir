@@ -30,42 +30,55 @@ Type &AccessInst::getElementType() const {
   switch (this->getKind()) {
     case MemOIR_Func::READ_UINT64:
     case MemOIR_Func::WRITE_UINT64:
+    case MemOIR_Func::MUT_WRITE_UINT64:
       return Type::get_u64_type();
     case MemOIR_Func::READ_UINT32:
     case MemOIR_Func::WRITE_UINT32:
+    case MemOIR_Func::MUT_WRITE_UINT32:
       return Type::get_u32_type();
     case MemOIR_Func::READ_UINT16:
     case MemOIR_Func::WRITE_UINT16:
+    case MemOIR_Func::MUT_WRITE_UINT16:
       return Type::get_u16_type();
     case MemOIR_Func::READ_UINT8:
     case MemOIR_Func::WRITE_UINT8:
+    case MemOIR_Func::MUT_WRITE_UINT8:
       return Type::get_u8_type();
     case MemOIR_Func::READ_INT64:
     case MemOIR_Func::WRITE_INT64:
-      return Type::get_u64_type();
+    case MemOIR_Func::MUT_WRITE_INT64:
+      return Type::get_i64_type();
     case MemOIR_Func::READ_INT32:
     case MemOIR_Func::WRITE_INT32:
-      return Type::get_u32_type();
+    case MemOIR_Func::MUT_WRITE_INT32:
+      return Type::get_i32_type();
     case MemOIR_Func::READ_INT16:
     case MemOIR_Func::WRITE_INT16:
-      return Type::get_u16_type();
+    case MemOIR_Func::MUT_WRITE_INT16:
+      return Type::get_i16_type();
     case MemOIR_Func::READ_INT8:
     case MemOIR_Func::WRITE_INT8:
-      return Type::get_u8_type();
+    case MemOIR_Func::MUT_WRITE_INT8:
+      return Type::get_i8_type();
     case MemOIR_Func::READ_INT2:
     case MemOIR_Func::WRITE_INT2:
-      return Type::get_u2_type();
+    case MemOIR_Func::MUT_WRITE_INT2:
+      return Type::get_i2_type();
     case MemOIR_Func::READ_BOOL:
     case MemOIR_Func::WRITE_BOOL:
+    case MemOIR_Func::MUT_WRITE_BOOL:
       return Type::get_bool_type();
     case MemOIR_Func::READ_DOUBLE:
     case MemOIR_Func::WRITE_DOUBLE:
+    case MemOIR_Func::MUT_WRITE_DOUBLE:
       return Type::get_f64_type();
     case MemOIR_Func::READ_FLOAT:
     case MemOIR_Func::WRITE_FLOAT:
+    case MemOIR_Func::MUT_WRITE_FLOAT:
       return Type::get_f32_type();
     case MemOIR_Func::READ_PTR:
     case MemOIR_Func::WRITE_PTR:
+    case MemOIR_Func::MUT_WRITE_PTR:
       return Type::get_ptr_type();
     default: { // Otherwise, analyze the function to determine the type.
       // Get the collection type.
