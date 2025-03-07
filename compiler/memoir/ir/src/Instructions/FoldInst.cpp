@@ -59,8 +59,6 @@ llvm::Function &FoldInst::getBody() const {
   auto &F = MEMOIR_SANITIZE(dyn_cast<llvm::Function>(&this->getBodyOperand()),
                             "FoldInst passed an indirect function to call!");
 
-  MEMOIR_ASSERT(not F.empty(), "FoldInst passed an empty function to call!");
-
   return F;
 }
 
