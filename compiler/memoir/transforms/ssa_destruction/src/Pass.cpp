@@ -8,6 +8,7 @@
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
 
 #include "llvm/Analysis/DominanceFrontier.h"
 
@@ -191,6 +192,17 @@ PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
 
   infoln("Cleaning up dead instructions.");
   SSADV.cleanup();
+
+  // Verify each function.
+  for (auto &F : M) {
+    if (not F.empty()) {
+      if (llvm::verifyFunction(F, &llvm::errs())) {
+        println(F);
+        MEMOIR_UNREACHABLE("Failed to verify ", F.getName());
+      }
+    }
+  }
+  println("Verified module post-SSA destruction.");
 
   infoln("=========================");
   infoln("DONE SSA Destruction pass");
