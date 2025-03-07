@@ -405,8 +405,9 @@ void SSADestructionVisitor::visitDeleteInst(DeleteInst &I) {
 // Collect the list of indices before the given use.
 static llvm::Value &contextualize_end(AccessInst &inst, llvm::Use &use) {
 
-  bool minus_one = (isa<ReadInst>(&inst) or isa<WriteInst>(&inst)
-                    or isa<GetInst>(&inst) or isa<SizeInst>(&inst));
+  bool minus_one =
+      (isa<ReadInst>(&inst) or isa<WriteInst>(&inst) or isa<GetInst>(&inst)
+       or isa<SizeInst>(&inst) or isa<RemoveInst>(&inst));
 
   if (std::next(&use) < inst.index_operands_end()) {
     minus_one = true;
