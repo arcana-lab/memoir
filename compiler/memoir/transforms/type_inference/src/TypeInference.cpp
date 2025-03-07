@@ -66,128 +66,119 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
   // First, check to see if the function is in a fold instruction, if so, we can
   // use type information there.
   auto &F = MEMOIR_SANITIZE(A.getParent(), "Argument has NULL parent!");
+
+  if (auto *fold = FoldInst::get_single_fold(F)) {
+
+    // Determine the type of the value based on the operand(s) to the fold.
+    Type *type = nullptr;
+    bool found_type = false;
+
+    // Fetch the collection type.
+    auto &collection_type = MEMOIR_SANITIZE(
+        dyn_cast_or_null<CollectionType>(&fold->getElementType()),
+        "Fold over non-collection type!\n  ",
+        *fold);
+
+    // Get the element type.
+    auto &element_type = collection_type.getElementType();
+
+    // If we are the accumulator argument, we are the initial value's type.
+    if (&A == &fold->getAccumulatorArgument()) {
+      type = type_of(fold->getInitial());
+      found_type = true;
+    }
+
+    // If we are the key argument, we are the key type.
+    else if (&A == &fold->getIndexArgument()) {
+
+      // If the collection is an assoc type, get the key type.
+      if (auto *assoc_type = dyn_cast<AssocArrayType>(&collection_type)) {
+        auto &key_type = assoc_type->getKeyType();
+
+        type = &key_type;
+        found_type = true;
+      }
+      // Otherwise, it's an index type, and therefore an LLVM type.
+      else {
+        type = nullptr;
+        found_type = true;
+      }
+    }
+
+    // If the element type is non-void, and we are the value argument, we
+    // are the element type.
+    else if (&A == fold->getElementArgument()) {
+      type = &element_type;
+      found_type = true;
+    }
+
+    // Otherwise, get the closure argument that we match with.
+    else if (auto *closed_use = fold->getOperandForArgument(A)) {
+      auto &closed_value =
+          MEMOIR_SANITIZE(closed_use->get(),
+                          "Fold operand for argument is NULL!");
+      type = type_of(closed_value);
+      found_type = true;
+    }
+
+    // If we found a type:
+    if (found_type) {
+
+      // If it's a collection or struct type, mark it for annotation.
+      if (isa_and_nonnull<CollectionType>(type)
+          || isa_and_nonnull<StructType>(type)) {
+        this->argument_types_to_annotate[&A] = type;
+        return true;
+      }
+
+      // Otherwise, we succeed, but return NULL because it is an LLVM type.
+      return true;
+    }
+  }
+
   for (auto &use : F.uses()) {
     auto *user = use.getUser();
     if (auto *inst = dyn_cast<llvm::Instruction>(user)) {
       if (auto *fold = into<FoldInst>(inst)) {
+      }
+    }
 
-        // If we are not the function operand, continue.
-        if (&fold->getBody() != &F) {
-          continue;
-        }
+    // Second, let's check the callers.
+    for (auto &use : F.uses()) {
+      // Get the user information.
+      auto *user = use.getUser();
+      auto *user_as_inst = dyn_cast_or_null<llvm::Instruction>(user);
 
-        // Determine the type of the value based on the operand(s) to the fold.
-        Type *type = nullptr;
-        bool found_type = false;
+      // If the user is a memoir instruction, skip it.
+      if (into<MemOIRInst>(user_as_inst)) {
+        continue;
+      }
 
-        // Fetch the collection type.
-        auto &collection_type = MEMOIR_SANITIZE(
-            dyn_cast_or_null<CollectionType>(&fold->getElementType()),
-            "Fold over non-collection type!\n  ",
-            *fold);
+      // If the user is a call instruction, recurse on it's parent function.
+      if (auto *user_as_call = dyn_cast_or_null<llvm::CallBase>(user_as_inst)) {
+        // Recurse on the caller function.
+        if (auto *caller_bb = user_as_call->getParent()) {
+          if (auto *caller_function = caller_bb->getParent()) {
 
-        // Get the element type.
-        auto &element_type = collection_type.getElementType();
-
-        // If we are the accumulator argument, we are the initial value's type.
-        if (A.getArgNo() == 0) {
-
-          // Otherwise, get the type of the initial accumulator value.
-          type = type_of(fold->getInitial());
-          found_type = true;
-        }
-
-        // If we are the key argument, we are the key type.
-        else if (A.getArgNo() == 1) {
-
-          // If the collection is an assoc type, get the key type.
-          if (auto *assoc_type = dyn_cast<AssocArrayType>(&collection_type)) {
-            auto &key_type = assoc_type->getKeyType();
-
-            type = &key_type;
-            found_type = true;
-          }
-          // Otherwise, it's an index type, and therefore an LLVM type.
-          else {
-            type = nullptr;
-            found_type = true;
+            // Only recurse if we are looking at a different function.
+            if (caller_function != &F) {
+              // TODO: replace this with type unification.
+              this->infer(*caller_function);
+            }
           }
         }
 
-        // If the element type is non-void, and we are the value argument, we
-        // are the element type.
-        else if (not isa<VoidType>(&element_type) and A.getArgNo() == 2) {
-          type = &element_type;
-          found_type = true;
-        }
-
-        // Otherwise, get the closure argument that we match with.
-        else if (auto closed_kw = fold->get_keyword<ClosedKeyword>()) {
-
-          auto first_closed_argument = isa<VoidType>(&element_type) ? 2 : 3;
-
-          auto index = A.getArgNo() - first_closed_argument;
-
-          auto &closed_value = MEMOIR_SANITIZE(
-              *std::next(closed_kw->args_begin(), index),
-              "Failed to fetch the closed value for fold function argument");
-
-          type = type_of(closed_value);
-          found_type = true;
-        }
-
-        // If we found a type:
-        if (found_type) {
-
-          // If it's a collection or struct type, mark it for annotation.
-          if (isa_and_nonnull<CollectionType>(type)
-              || isa_and_nonnull<StructType>(type)) {
-            this->argument_types_to_annotate[&A] = type;
-            return true;
-          }
-
-          // Otherwise, we succeed, but return NULL because it is an LLVM type.
+        // Then, see if we can type the operand being passed into the call
+        // for this argument.
+        auto arg_index = A.getArgNo();
+        auto &call_operand =
+            MEMOIR_SANITIZE(user_as_call->getArgOperand(arg_index),
+                            "Operand of call is NULL!");
+        if (auto *call_operand_type = type_of(call_operand)) {
+          // It worked! Mark the argument type to be annotated and continue;
+          this->argument_types_to_annotate[&A] = call_operand_type;
           return true;
         }
-      }
-    }
-  }
-
-  // Second, let's check the callers.
-  for (auto &use : F.uses()) {
-    // Get the user information.
-    auto *user = use.getUser();
-    auto *user_as_inst = dyn_cast_or_null<llvm::Instruction>(user);
-
-    // If the user is a memoir instruction, skip it.
-    if (into<MemOIRInst>(user_as_inst)) {
-      continue;
-    }
-
-    // If the user is a call instruction, recurse on it's parent function.
-    if (auto *user_as_call = dyn_cast_or_null<llvm::CallBase>(user_as_inst)) {
-      // Recurse on the caller function.
-      if (auto *caller_bb = user_as_call->getParent()) {
-        if (auto *caller_function = caller_bb->getParent()) {
-
-          // Only recurse if we are looking at a different function.
-          if (caller_function != &F) {
-            // TODO: replace this with type unification.
-            this->infer(*caller_function);
-          }
-        }
-      }
-
-      // Then, see if we can type the operand being passed into the call
-      // for this argument.
-      auto arg_index = A.getArgNo();
-      auto &call_operand =
-          MEMOIR_SANITIZE(user_as_call->getArgOperand(arg_index),
-                          "Operand of call is NULL!");
-      if (auto *call_operand_type = type_of(call_operand)) {
-        // It worked! Mark the argument type to be annotated and continue;
-        this->argument_types_to_annotate[&A] = call_operand_type;
-        return true;
       }
     }
   }
