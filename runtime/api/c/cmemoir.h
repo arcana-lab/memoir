@@ -22,7 +22,7 @@ namespace memoir {
  * Type definitions
  */
 #define memoir_define_struct_type(name, ...)                                   \
-  MEMOIR_FUNC(define_struct_type)(name, MEMOIR_NARGS(__VA_ARGS__), __VA_ARGS__)
+  MEMOIR_FUNC(define_struct_type)(name, __VA_ARGS__)
 
 #define memoir_struct_type(name) MEMOIR_FUNC(struct_type)(name)
 

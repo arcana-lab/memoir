@@ -166,21 +166,9 @@ std::string DefineStructTypeInst::getName() const {
 OPERAND(DefineStructTypeInst, NameOperand, 0)
 
 unsigned DefineStructTypeInst::getNumberOfFields() const {
-  auto &num_fields_value = this->getNumberOfFieldsOperand();
-
-  auto num_fields_const = dyn_cast<llvm::ConstantInt>(&num_fields_value);
-  MEMOIR_NULL_CHECK(num_fields_const,
-                    "DefineStructTypeInst with a non-static number of fields");
-
-  auto num_fields = num_fields_const->getZExtValue();
-  MEMOIR_ASSERT(
-      (num_fields <= std::numeric_limits<unsigned>::max()),
-      "DefineStructTypeInst has more field than the max value of unsigned type");
-
-  return num_fields;
+  return std::distance(&this->getNameOperandAsUse(), this->kw_begin().asUse())
+         - 1;
 }
-
-OPERAND(DefineStructTypeInst, NumberOfFieldsOperand, 1)
 
 Type &DefineStructTypeInst::getFieldType(unsigned field_index) const {
   auto type = type_of(this->getFieldTypeOperand(field_index));
@@ -189,7 +177,7 @@ Type &DefineStructTypeInst::getFieldType(unsigned field_index) const {
   return *type;
 }
 
-VAR_OPERAND(DefineStructTypeInst, FieldTypeOperand, 2)
+VAR_OPERAND(DefineStructTypeInst, FieldTypeOperand, 1)
 
 TO_STRING(DefineStructTypeInst)
 

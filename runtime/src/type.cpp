@@ -8,25 +8,9 @@ extern "C" {
 
 // User-defined types.
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(define_struct_type)(const char *name,
-                                         int num_fields,
-                                         ...) {
-  std::vector<Type *> fields;
+type_ref MEMOIR_FUNC(define_struct_type)(const char *name, ...) {
 
-  va_list args;
-
-  va_start(args, num_fields);
-
-  for (int i = 0; i < num_fields; i++) {
-    auto arg = va_arg(args, Type *);
-    fields.push_back(arg);
-  }
-
-  va_end(args);
-
-  auto type = StructType::define(name, fields);
-
-  return type;
+  return nullptr;
 }
 
 __RUNTIME_ATTR

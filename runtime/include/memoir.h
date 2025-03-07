@@ -37,9 +37,7 @@ typedef Collection *__restrict__ collection_ref;
 #define MUT_FUNC(name) mut__##name
 
 // Struct Types
-__RUNTIME_ATTR type_ref MEMOIR_FUNC(define_struct_type)(const char *name,
-                                                        int num_fields,
-                                                        ...);
+__RUNTIME_ATTR type_ref MEMOIR_FUNC(define_struct_type)(const char *name, ...);
 
 __RUNTIME_ATTR
 type_ref MEMOIR_FUNC(struct_type)(const char *name);
