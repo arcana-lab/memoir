@@ -45,6 +45,11 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
   for (auto &arg : arguments) {
 
     // Prepare the argument.
+    MEMOIR_ASSERT(param_index < function_type->getNumParams(),
+                  "Parameter ",
+                  param_index,
+                  " out of bounds in ",
+                  function_name);
     auto *param_type = function_type->getParamType(param_index++);
 
     // If the argument doesn't match the parameter's type, prepare it.
@@ -60,7 +65,9 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
         MEMOIR_UNREACHABLE("Unhandled type mismatch! ",
                            *arg_type,
                            " ≠ ",
-                           *param_type);
+                           *param_type,
+                           " for param ",
+                           param_index);
       }
     }
   }
