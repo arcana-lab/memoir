@@ -21,14 +21,17 @@ namespace memoir {
 /*
  * Type definitions
  */
-#define memoir_define_struct_type(name, ...)                                   \
-  MEMOIR_FUNC(define_struct_type)(name, __VA_ARGS__)
+#if 0
+#  define memoir_define_type(name, type) MEMOIR_FUNC(define_type)(name, type)
 
-#define memoir_struct_type(name) MEMOIR_FUNC(struct_type)(name)
+#  define memoir_lookup_type(name) MEMOIR_FUNC(lookup_type)(name)
+#endif
 
 /*
  * Derived types
  */
+#define memoir_tuple_type(types...) MEMOIR_FUNC(tuple_type)(types)
+
 #define memoir_static_tensor_type(element_type, length)                        \
   MEMOIR_FUNC(array_type)(element_type, (size_t)length)
 
