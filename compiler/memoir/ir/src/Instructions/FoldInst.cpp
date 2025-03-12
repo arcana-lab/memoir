@@ -203,6 +203,13 @@ llvm::Argument *FoldInst::getClosedArgument(llvm::Use &U) const {
 
   // Compute the argument number corresponding to the closed operand.
   auto arg_no = closed_index + first_closed;
+
+  MEMOIR_ASSERT(arg_no < this->getBody().arg_size(),
+                "Argument out of bounds: ",
+                arg_no,
+                " in ",
+                this->getBody().getName());
+
   auto *arg = this->getBody().getArg(arg_no);
 
   return arg;
