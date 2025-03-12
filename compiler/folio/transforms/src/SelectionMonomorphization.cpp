@@ -178,9 +178,7 @@ void collect_declarations(Selections &selections, llvm::Module &M) {
 
         // Initialize the selection list.
         CollectionType *type = nullptr;
-        if (auto *access = dyn_cast<AccessInst>(memoir_inst)) {
-          type = dyn_cast<CollectionType>(&access->getObjectType());
-        } else if (auto *alloc = dyn_cast<AllocInst>(memoir_inst)) {
+        if (auto *alloc = dyn_cast<AllocInst>(memoir_inst)) {
           type = dyn_cast<CollectionType>(&alloc->getType());
         }
 
@@ -355,7 +353,6 @@ void propagate(Selections &selections,
       }
 
     } else if (isa<DeleteInst>(memoir_inst)) {
-
       selections.propagate(from, *user);
     }
 
@@ -377,11 +374,13 @@ void propagate(Selections &selections,
 
     // If this is a direct call, propagate to it.
     if (auto *called_function = call->getCalledFunction()) {
+      MEMOIR_ASSERT(operand_no < called_function->arg_size(),
+                    "Argument out of range ",
+                    operand_no,
+                    " in ",
+                    *call);
       auto &argument = MEMOIR_SANITIZE(called_function->getArg(operand_no),
-                                       "Argument out of range ",
-                                       operand_no,
-                                       " in ",
-                                       *call);
+                                       "Argument is NULL!");
       if (selections.propagate(from, argument)) {
         worklist.push_back(&argument);
       }
@@ -645,6 +644,7 @@ SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
   Selections selections = {};
 
   do {
+
     // Clear the last round of selection that we had.
     selections.clear();
 
