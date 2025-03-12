@@ -258,10 +258,6 @@ protected:
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
 
-  TypeLayout &visitTensorType(TensorType &T) {
-    MEMOIR_UNREACHABLE("TensorType lowering is unimplemented.");
-  }
-
   TypeLayout &visitStructType(StructType &T) {
     CHECK_MEMOIZED(T);
 

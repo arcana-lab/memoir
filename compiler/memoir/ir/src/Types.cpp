@@ -196,32 +196,6 @@ ArrayType &ArrayType::get(Type &element_type, size_t length) {
 
 ordered_multimap<Type *, ArrayType *> *ArrayType::array_types = nullptr;
 
-// TensorType getter.
-TensorType &Type::get_tensor_type(Type &element_type, unsigned num_dimensions) {
-  return TensorType::get(element_type, num_dimensions);
-}
-
-TensorType &TensorType::get(Type &element_type, unsigned num_dimensions) {
-  if (TensorType::tensor_types == nullptr) {
-    TensorType::tensor_types = new map<Type *, map<unsigned, TensorType *>>();
-  }
-  auto found_element = TensorType::tensor_types->find(&element_type);
-  if (found_element != TensorType::tensor_types->end()) {
-    auto &dimensions_to_type_map = found_element->second;
-    auto found_dimension = dimensions_to_type_map.find(num_dimensions);
-    if (found_dimension != dimensions_to_type_map.end()) {
-      return *(found_dimension->second);
-    }
-  }
-
-  auto type = new TensorType(element_type, num_dimensions);
-  (*TensorType::tensor_types)[&element_type][num_dimensions] = type;
-
-  return *type;
-}
-
-map<Type *, map<unsigned, TensorType *>> *TensorType::tensor_types = nullptr;
-
 /*
  * AssocArrayType getter
  */
@@ -312,7 +286,6 @@ bool Type::is_struct_type(Type &type) {
 bool Type::is_collection_type(Type &type) {
   switch (type.getKind()) {
     case TypeKind::ARRAY:
-    case TypeKind::TENSOR:
     case TypeKind::ASSOC_ARRAY:
     case TypeKind::SEQUENCE:
       return true;
@@ -671,33 +644,6 @@ std::string ArrayType::toString(std::string indent) const {
 
   str = "[" + this->element_type.toString(indent) + ";"
         + std::to_string(this->length) + "]";
-
-  return str;
-}
-
-/*
- * TensorType implementation
- */
-TensorType::TensorType(Type &element_type, unsigned number_of_dimensions)
-  : CollectionType(TypeKind::TENSOR),
-    element_type(element_type),
-    number_of_dimensions(number_of_dimensions) {
-  // Do nothing.
-}
-
-Type &TensorType::getElementType() const {
-  return this->element_type;
-}
-
-unsigned TensorType::getNumberOfDimensions() const {
-  return this->number_of_dimensions;
-}
-
-std::string TensorType::toString(std::string indent) const {
-  std::string str;
-
-  str = "(tensor " + this->element_type.toString(indent);
-  str += "(#dim " + std::to_string(this->getNumberOfDimensions()) + "))";
 
   return str;
 }

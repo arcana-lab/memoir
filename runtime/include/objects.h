@@ -25,7 +25,6 @@ namespace memoir {
 
 struct Type;
 struct StructType;
-struct TensorType;
 struct AssocArrayType;
 struct SequenceType;
 struct IntegerType;

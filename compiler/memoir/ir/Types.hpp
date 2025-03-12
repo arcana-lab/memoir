@@ -28,7 +28,6 @@ enum class TypeKind {
   REFERENCE,
   STRUCT,
   ARRAY,
-  TENSOR,
   ASSOC_ARRAY,
   SEQUENCE,
   VARIABLE,
@@ -43,7 +42,6 @@ struct VoidType;
 struct ReferenceType;
 struct StructType;
 struct ArrayType;
-struct TensorType;
 struct AssocArrayType;
 struct SequenceType;
 
@@ -73,8 +71,6 @@ public:
                                         vector<Type *> field_types);
   static StructType &get_struct_type(std::string name);
   static ArrayType &get_array_type(Type &element_type, size_t length);
-  static TensorType &get_tensor_type(Type &element_type,
-                                     unsigned num_dimensions);
   static AssocArrayType &get_assoc_array_type(Type &key_type, Type &value_type);
   static SequenceType &get_sequence_type(Type &element_type);
 
@@ -238,7 +234,6 @@ public:
         return false;
       case TypeKind::STRUCT:
       case TypeKind::ARRAY:
-      case TypeKind::TENSOR:
       case TypeKind::SEQUENCE:
       case TypeKind::ASSOC_ARRAY:
         return true;
@@ -294,9 +289,7 @@ public:
     switch (T->getKind()) {
       default:
         return false;
-      case TypeKind::FIELD_ARRAY:
       case TypeKind::ARRAY:
-      case TypeKind::TENSOR:
       case TypeKind::SEQUENCE:
       case TypeKind::ASSOC_ARRAY:
         return true;
@@ -331,28 +324,6 @@ protected:
   ArrayType(Type &element_type, size_t length);
 
   static ordered_multimap<Type *, ArrayType *> *array_types;
-};
-
-struct TensorType : public CollectionType {
-public:
-  static TensorType &get(Type &element_type, unsigned num_dimensions);
-
-  Type &getElementType() const override;
-  unsigned getNumberOfDimensions() const;
-
-  static bool classof(const Type *T) {
-    return (T->getKind() == TypeKind::TENSOR);
-  }
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  Type &element_type;
-  unsigned number_of_dimensions;
-
-  TensorType(Type &element_type, unsigned number_of_dimensions);
-
-  static map<Type *, map<unsigned, TensorType *>> *tensor_types;
 };
 
 struct AssocArrayType : public CollectionType {

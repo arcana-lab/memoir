@@ -103,8 +103,6 @@ public:
       return this->CreateStructTypeInst(name_global, name);
     } else if (auto *array_type = dyn_cast<ArrayType>(&type)) {
       MEMOIR_UNREACHABLE("CreateArrayType is unimplemented!");
-    } else if (auto *tensor_type = dyn_cast<TensorType>(&type)) {
-      MEMOIR_UNREACHABLE("CreateTensorType is unimplemented!");
     } else if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {
       return this->CreateAssocArrayTypeInst(
           &this->CreateTypeInst(assoc_type->getKeyType())->getCallInst(),
