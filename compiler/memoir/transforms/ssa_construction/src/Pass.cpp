@@ -8,6 +8,7 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/IR/Verifier.h"
 
 #include "llvm/Transforms/Utils/Cloning.h"
 
@@ -331,8 +332,14 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
 
   infoln("=========================");
   infoln("DONE SSA construction pass");
-
   infoln();
+
+  for (auto &F : M) {
+    if (llvm::verifyFunction(F, &llvm::errs())) {
+      println(F);
+      MEMOIR_UNREACHABLE("Failed to verify ", F.getName());
+    }
+  }
 
   MemOIRInst::invalidate();
 
