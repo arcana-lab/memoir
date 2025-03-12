@@ -169,35 +169,6 @@ StructType &StructType::get(std::string name) {
   MEMOIR_UNREACHABLE("Could not find a StructType of the given name");
 }
 
-FieldArrayType &Type::get_field_array_type(StructType &struct_type,
-                                           unsigned field_index) {
-  return FieldArrayType::get(struct_type, field_index);
-}
-
-FieldArrayType &FieldArrayType::get(StructType &struct_type,
-                                    unsigned field_index) {
-  if (FieldArrayType::struct_to_field_array == nullptr) {
-    FieldArrayType::struct_to_field_array =
-        new map<StructType *, map<unsigned, FieldArrayType *>>();
-  }
-  auto found_struct = FieldArrayType::struct_to_field_array->find(&struct_type);
-  if (found_struct != FieldArrayType::struct_to_field_array->end()) {
-    auto &index_to_field_array = found_struct->second;
-    auto found_index = index_to_field_array.find(field_index);
-    if (found_index != index_to_field_array.end()) {
-      return *(found_index->second);
-    }
-  }
-
-  auto type = new FieldArrayType(struct_type, field_index);
-  (*FieldArrayType::struct_to_field_array)[&struct_type][field_index] = type;
-
-  return *type;
-}
-
-map<StructType *, map<unsigned, FieldArrayType *>>
-    *FieldArrayType::struct_to_field_array = nullptr;
-
 // ArrayType getter.
 ArrayType &Type::get_array_type(Type &element_type, size_t length) {
   return ArrayType::get(element_type, length);
@@ -677,43 +648,6 @@ opt<std::string> CollectionType::get_code() const {
 
 llvm::Type *CollectionType::get_llvm_type(llvm::LLVMContext &C) const {
   return llvm::PointerType::get(C, 0);
-}
-
-/*
- * FieldArrayType implementation
- */
-FieldArrayType::FieldArrayType(StructType &struct_type, unsigned field_index)
-  : CollectionType(TypeKind::FIELD_ARRAY),
-    struct_type(struct_type),
-    field_index(field_index) {
-  // Do nothing.
-}
-
-Type &FieldArrayType::getElementType() const {
-  return this->getStructType().getFieldType(this->getFieldIndex());
-}
-
-StructType &FieldArrayType::getStructType() const {
-  return this->struct_type;
-}
-
-unsigned FieldArrayType::getFieldIndex() const {
-  return this->field_index;
-}
-
-std::string FieldArrayType::toString(std::string indent) const {
-  std::string str = "";
-
-  str += "(type: field array\n";
-  str += indent + "  struct type: \n";
-  str += indent + "    " + this->getStructType().toString();
-  str += "\n";
-  str += indent + "  field index: \n";
-  str += indent + "    " + std::to_string(this->getFieldIndex());
-  str += "\n";
-  str += indent + ")\n";
-
-  return str;
 }
 
 /*

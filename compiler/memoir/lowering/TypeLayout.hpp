@@ -262,10 +262,6 @@ protected:
     MEMOIR_UNREACHABLE("TensorType lowering is unimplemented.");
   }
 
-  TypeLayout &visitFieldArrayType(FieldArrayType &T) {
-    MEMOIR_UNREACHABLE("FieldArrayType lowering is unimplemented.");
-  }
-
   TypeLayout &visitStructType(StructType &T) {
     CHECK_MEMOIZED(T);
 

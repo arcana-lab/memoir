@@ -35,7 +35,6 @@ public:
     CHECK_AND_DELEGATE_TYPE(VoidType)
     CHECK_AND_DELEGATE_TYPE(ReferenceType)
     CHECK_AND_DELEGATE_TYPE(StructType)
-    CHECK_AND_DELEGATE_TYPE(FieldArrayType)
     CHECK_AND_DELEGATE_TYPE(ArrayType)
     CHECK_AND_DELEGATE_TYPE(TensorType)
     CHECK_AND_DELEGATE_TYPE(SequenceType)
@@ -75,10 +74,6 @@ public:
   RetTy visitCollectionType(CollectionType &T) {
     DELEGATE_TYPE(Type);
   }
-
-  RetTy visitFieldArrayType(FieldArrayType &T) {
-    DELEGATE_TYPE(CollectionType);
-  };
 
   RetTy visitArrayType(ArrayType &T) {
     DELEGATE_TYPE(CollectionType);

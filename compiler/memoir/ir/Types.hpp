@@ -27,7 +27,6 @@ enum class TypeKind {
   VOID,
   REFERENCE,
   STRUCT,
-  FIELD_ARRAY,
   ARRAY,
   TENSOR,
   ASSOC_ARRAY,
@@ -43,7 +42,6 @@ struct PointerType;
 struct VoidType;
 struct ReferenceType;
 struct StructType;
-struct FieldArrayType;
 struct ArrayType;
 struct TensorType;
 struct AssocArrayType;
@@ -74,8 +72,6 @@ public:
                                         std::string name,
                                         vector<Type *> field_types);
   static StructType &get_struct_type(std::string name);
-  static FieldArrayType &get_field_array_type(StructType &type,
-                                              unsigned field_index);
   static ArrayType &get_array_type(Type &element_type, size_t length);
   static TensorType &get_tensor_type(Type &element_type,
                                      unsigned num_dimensions);
@@ -313,31 +309,6 @@ public:
 
 protected:
   CollectionType(TypeKind code);
-};
-
-struct FieldArrayType : public CollectionType {
-public:
-  static FieldArrayType &get(StructType &struct_type, unsigned field_index);
-
-  Type &getElementType() const override;
-
-  StructType &getStructType() const;
-  unsigned getFieldIndex() const;
-
-  static bool classof(const Type *T) {
-    return (T->getKind() == TypeKind::FIELD_ARRAY);
-  }
-
-  std::string toString(std::string indent = "") const override;
-
-protected:
-  StructType &struct_type;
-  unsigned field_index;
-
-  static map<StructType *, map<unsigned, FieldArrayType *>>
-      *struct_to_field_array;
-
-  FieldArrayType(StructType &struct_type, unsigned field_index);
 };
 
 struct ArrayType : public CollectionType {

@@ -101,8 +101,6 @@ public:
     } else if (auto *struct_type = dyn_cast<StructType>(&type)) {
       auto *name_global = &struct_type->getDefinition().getNameOperand();
       return this->CreateStructTypeInst(name_global, name);
-    } else if (auto *field_array_type = dyn_cast<FieldArrayType>(&type)) {
-      return this->CreateTypeInst(field_array_type->getStructType());
     } else if (auto *array_type = dyn_cast<ArrayType>(&type)) {
       MEMOIR_UNREACHABLE("CreateArrayType is unimplemented!");
     } else if (auto *tensor_type = dyn_cast<TensorType>(&type)) {
