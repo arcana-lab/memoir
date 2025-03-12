@@ -635,12 +635,16 @@ void ProxyInsertion::gather_assoc_objects(
 
     // If this is an assoc, add the object information.
     if (isa<AssocType>(collection_type)) {
-      // TODO: ensure that this nested collection has no selection.
+      allocations.push_back(ObjectInfo(alloc, offsets));
+
+#if 0
+      // Check that this collection does not already have a selection.
       if (not selection or not selection->getImplementation(offsets.size())) {
         allocations.push_back(ObjectInfo(alloc, offsets));
       } else {
         infoln("FOUND EXISTING SELECTION FOR ", alloc);
       }
+#endif
     }
 
     // Recurse on the element.
@@ -1932,11 +1936,12 @@ bool ProxyInsertion::transform() {
       // Unpack the type information.
       if (auto *assoc_type = dyn_cast<AssocType>(type)) {
 
-        // Set the implementation.
-        if (isa<VoidType>(&assoc_type->getValueType())) {
-          selection.setImplementation("bitset", selection_index);
-        } else {
-          selection.setImplementation("bitmap", selection_index);
+        if (not selection.getImplementation(selection_index)) {
+          if (isa<VoidType>(&assoc_type->getValueType())) {
+            selection.setImplementation("bitset", selection_index);
+          } else {
+            selection.setImplementation("bitmap", selection_index);
+          }
         }
 
         // Update the type of the key in the fold bodies.
@@ -1963,7 +1968,7 @@ bool ProxyInsertion::transform() {
       auto &to_mutate = folds_to_mutate[info];
       for (auto *fold : to_mutate) {
 
-        println("MUTATE ", *fold);
+        infoln("MUTATE ", *fold);
 
         // Fetch the index argument.
         auto &index_arg = fold->getIndexArgument();
@@ -2099,6 +2104,8 @@ ProxyInsertion::ProxyInsertion(
     }
   }
   println("Verified module post-proxy insertion.");
+
+  MemOIRInst::invalidate();
 
   reify_tempargs(M);
 
