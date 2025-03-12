@@ -124,9 +124,6 @@ static llvm::Function &clone_function(
     to_cleanup.insert(new_load);
   }
 
-  // Clean up the old function.
-  F.deleteBody();
-
   to_cleanup.insert(&F);
 
   return new_func;
@@ -152,6 +149,11 @@ static void reify_function(llvm::Function &function,
       // Filter out irrelevant instruction types.
       auto *store = dyn_cast<llvm::StoreInst>(use.getUser());
       if (not store) {
+        continue;
+      }
+
+      // Filter out instructions in the original function.
+      if (store->getFunction() == &function) {
         continue;
       }
 
@@ -184,12 +186,9 @@ static void reify_function(llvm::Function &function,
   // Patch each call with the new arguments.
   for (auto &[call, stores] : temp_stores) {
 
-    // Check if the call is a fold.
-    auto *fold = into<FoldInst>(call);
-
     // Fetch the new function.
     auto *cloned_func = &new_func;
-    if (fold) {
+    if (auto *fold = into<FoldInst>(call)) {
 
       // Construct the list of arguments, initialize with the current closed
       // arguments.
@@ -311,6 +310,7 @@ static void reify_function(llvm::Function &function,
     if (auto *inst = dyn_cast<llvm::Instruction>(val)) {
       inst->eraseFromParent();
     } else if (auto *func = dyn_cast<llvm::Function>(val)) {
+      func->deleteBody();
       func->eraseFromParent();
     }
   }
