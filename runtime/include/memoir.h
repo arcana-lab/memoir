@@ -56,10 +56,11 @@ type_ref MEMOIR_FUNC(array_type)(const type_ref element_type, size_t length);
 // Collection Types
 __RUNTIME_ATTR
 type_ref MEMOIR_FUNC(assoc_type)(const type_ref key_type,
-                                 const type_ref value_type);
+                                 const type_ref value_type,
+                                 ...);
 
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(sequence_type)(const type_ref element_type);
+type_ref MEMOIR_FUNC(sequence_type)(const type_ref element_type, ...);
 
 // Reference Type
 __RUNTIME_ATTR
