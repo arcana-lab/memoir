@@ -103,42 +103,6 @@ public:
   Collection(Type *type);
 };
 
-struct Tensor : public detail::Collection {
-public:
-  // Owned state
-  std::vector<uint64_t> tensor;
-  std::vector<uint64_t> length_of_dimensions;
-
-  // Borrowed state
-
-  // Construction
-  Tensor(Type *type);
-  Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions);
-  ~Tensor() = default;
-  void free() override;
-
-  // Operations
-  Collection *get_slice(va_list args) override;
-  Collection *join(va_list args, uint8_t num_args) override;
-  uint64_t size() const override;
-  void clear() override;
-
-  // Access
-  uint64_t get_tensor_element(std::vector<uint64_t> &indices) const;
-  uint64_t get_element(va_list args) override;
-  void set_tensor_element(uint64_t value, std::vector<uint64_t> &indices);
-  void set_element(uint64_t value, va_list args) override;
-  bool has_tensor_element(std::vector<uint64_t> &indices) const;
-  bool has_element(va_list args) override;
-  void remove_element(va_list args) override;
-  Type *get_element_type() const override;
-
-  bool equals(const Object *other) const override;
-
-  // Debug
-  std::string to_string() override;
-};
-
 struct AssocArray : public detail::Collection {
 public:
   using key_t = uint64_t;

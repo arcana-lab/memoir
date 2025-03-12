@@ -35,9 +35,6 @@ namespace memoir {
 #define memoir_static_tensor_type(element_type, length)                        \
   MEMOIR_FUNC(array_type)(element_type, (size_t)length)
 
-#define memoir_tensor_type(element_type, num_dimensions)                       \
-  MEMOIR_FUNC(tensor_type)(element_type, num_dimensions)
-
 #define memoir_assoc_type(key_type, value_type)                                \
   MEMOIR_FUNC(assoc_type)(key_type, value_type)
 
