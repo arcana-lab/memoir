@@ -36,11 +36,18 @@ typedef Collection *__restrict__ collection_ref;
 #define MEMOIR_FUNC(name) memoir__##name
 #define MUT_FUNC(name) mut__##name
 
-// Struct Types
-__RUNTIME_ATTR type_ref MEMOIR_FUNC(define_struct_type)(const char *name, ...);
+// Named Type
+#if 0
+__RUNTIME_ATTR
+type_ref MEMOIR_FUNC(define_type)(const char *name, const type_ref type);
 
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(struct_type)(const char *name);
+type_ref MEMOIR_FUNC(lookup_type)(const char *name);
+#endif
+
+// Tuple Types
+__RUNTIME_ATTR
+type_ref MEMOIR_FUNC(tuple_type)(const type_ref first, ...);
 
 // Static-length Array Type
 __RUNTIME_ATTR

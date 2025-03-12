@@ -34,7 +34,7 @@ public:
     CHECK_AND_DELEGATE_TYPE(PointerType)
     CHECK_AND_DELEGATE_TYPE(VoidType)
     CHECK_AND_DELEGATE_TYPE(ReferenceType)
-    CHECK_AND_DELEGATE_TYPE(StructType)
+    CHECK_AND_DELEGATE_TYPE(TupleType)
     CHECK_AND_DELEGATE_TYPE(ArrayType)
     CHECK_AND_DELEGATE_TYPE(SequenceType)
     CHECK_AND_DELEGATE_TYPE(AssocArrayType)
@@ -66,7 +66,7 @@ public:
     DELEGATE_TYPE(Type);
   };
 
-  RetTy visitStructType(StructType &T) {
+  RetTy visitTupleType(TupleType &T) {
     DELEGATE_TYPE(Type);
   };
 

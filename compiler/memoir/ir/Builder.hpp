@@ -98,9 +98,8 @@ public:
           &this->CreateTypeInst(ref_type->getReferencedType(), name)
                ->getCallInst(),
           name);
-    } else if (auto *struct_type = dyn_cast<StructType>(&type)) {
-      auto *name_global = &struct_type->getDefinition().getNameOperand();
-      return this->CreateStructTypeInst(name_global, name);
+    } else if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
+      return this->CreateTupleTypeInst(tuple_type->fields());
     } else if (auto *array_type = dyn_cast<ArrayType>(&type)) {
       MEMOIR_UNREACHABLE("CreateArrayType is unimplemented!");
     } else if (auto *assoc_type = dyn_cast<AssocArrayType>(&type)) {
@@ -130,34 +129,52 @@ public:
   }
 #include "memoir/ir/Instructions.def"
 
-  // Derived Type Instructions
-  DefineStructTypeInst *CreateDefineStructTypeInst(
-      const char *type_name,
-      int num_fields,
-      vector<llvm::Value *> field_types,
-      const Twine &name = "") {
+#if 0
+  // Named Type Instructions
+  DefineTypeInst *CreateDefineTypeInst(const char *type_name,
+                                       Type &type,
+                                       const Twine &name = "") {
     // Create the LLVM type name and number of fields constant.
-    auto llvm_type_name = this->CreateGlobalString(type_name, "type.struct.");
-    auto llvm_num_fields = this->getInt64(num_fields);
+    auto llvm_type_name = this->CreateGlobalString(type_name, "type.name.");
 
-    // Build the list of arguments.
-    auto llvm_args = vector<llvm::Value *>({ llvm_type_name, llvm_num_fields });
-    for (auto field_type : field_types) {
-      llvm_args.push_back(field_type);
-    }
+    // Create the type.
+    auto *llvm_type = &this->CreateTypeInst(type)->getCallInst();
 
     // Create the call.
-    return this->create<DefineStructTypeInst>(MemOIR_Func::DEFINE_STRUCT_TYPE,
-                                              llvm::ArrayRef(llvm_args),
-                                              name);
+    return this->create<DefineTypeInst>(MemOIR_Func::DEFINE_TYPE,
+                                        { llvm_type_name, llvm_type },
+                                        name);
   }
 
-  StructTypeInst *CreateStructTypeInst(llvm::Value *llvm_type_name,
+  LookupTypeInst *CreateLookupTypeInst(const char *type_name,
                                        const Twine &name = "") {
-
-    return this->create<StructTypeInst>(MemOIR_Func::STRUCT_TYPE,
+    // Create the LLVM type name and number of fields constant.
+    auto llvm_type_name = this->CreateGlobalString(type_name, "type.name.");
+    // Create the call.
+    return this->create<LookupTypeInst>(MemOIR_Func::LOOKUP_TYPE,
                                         { llvm_type_name },
                                         name);
+  }
+#endif
+
+  // Derived Type Instructions
+  TupleTypeInst *CreateTupleTypeInst(llvm::ArrayRef<Type *> fields,
+                                     const Twine &name = "") {
+
+    vector<llvm::Value *> llvm_fields = {};
+    llvm_fields.reserve(fields.size());
+    for (auto *field : fields) {
+      auto *llvm_field = &this->CreateTypeInst(*field)->getCallInst();
+      llvm_fields.push_back(llvm_field);
+    }
+
+    return this->CreateTupleTypeInst(llvm_fields, name);
+  }
+
+  TupleTypeInst *CreateTupleTypeInst(llvm::ArrayRef<llvm::Value *> fields,
+                                     const Twine &name = "") {
+
+    return this->create<TupleTypeInst>(MemOIR_Func::TUPLE_TYPE, fields, name);
   }
 
   ReferenceTypeInst *CreateReferenceTypeInst(llvm::Value *referenced_type,

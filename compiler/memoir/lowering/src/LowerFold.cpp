@@ -301,7 +301,7 @@ static HeaderInfo lower_fold_header(
   auto &element_type = collection_type.getElementType();
   if (isa<VoidType>(&element_type)) {
     // Do nothing.
-  } else if (isa<StructType>(&element_type)) {
+  } else if (isa<TupleType>(&element_type)) {
     // Read the value from the collection.
     auto &read_value =
         MEMOIR_SANITIZE(builder.CreateGetInst(&collection, { key }),

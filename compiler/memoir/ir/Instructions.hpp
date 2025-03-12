@@ -358,14 +358,54 @@ protected:
   friend struct MemOIRInst;
 };
 
-struct DefineStructTypeInst : public TypeInst {
+#if 0
+struct DefineTypeInst : public TypeInst {
 public:
   Type &getType() const override;
-  StructType &getStructType() const;
 
   std::string getName() const;
   llvm::Value &getNameOperand() const;
   llvm::Use &getNameOperandAsUse() const;
+
+  llvm::Value &getTypeOperand() const;
+  llvm::Use &getTypeOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::DEFINE_TYPE);
+  };
+
+  std::string toString() const override;
+
+protected:
+  DefineTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
+
+  friend struct MemOIRInst;
+};
+
+struct LookupTypeInst : public TypeInst {
+public:
+  Type &getType() const override;
+
+  std::string getName() const;
+  llvm::Value &getNameOperand() const;
+  llvm::Use &getNameOperandAsUse() const;
+
+  static bool classof(const MemOIRInst *I) {
+    return (I->getKind() == MemOIR_Func::LOOKUP_TYPE);
+  };
+
+  std::string toString() const override;
+
+protected:
+  LookupTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
+
+  friend struct MemOIRInst;
+};
+#endif
+
+struct TupleTypeInst : public TypeInst {
+public:
+  Type &getType() const override;
 
   unsigned getNumberOfFields() const;
   llvm::Value &getNumberOfFieldsOperand() const;
@@ -376,32 +416,13 @@ public:
   llvm::Use &getFieldTypeOperandAsUse(unsigned field_index) const;
 
   static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::DEFINE_STRUCT_TYPE);
+    return (I->getKind() == MemOIR_Func::TUPLE_TYPE);
   };
 
   std::string toString() const override;
 
 protected:
-  DefineStructTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct StructTypeInst : public TypeInst {
-public:
-  Type &getType() const override;
-  std::string getName() const;
-  llvm::Value &getNameOperand() const;
-  llvm::Use &getNameOperandAsUse() const;
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::STRUCT_TYPE);
-  };
-
-  std::string toString() const override;
-
-protected:
-  StructTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
+  TupleTypeInst(llvm::CallInst &call_inst) : TypeInst(call_inst) {}
 
   friend struct MemOIRInst;
 };

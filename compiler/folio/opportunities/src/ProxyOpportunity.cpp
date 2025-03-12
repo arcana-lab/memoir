@@ -657,17 +657,17 @@ bool ProxyOpportunity::exploit(
 
       if (auto *src_seq_type = dyn_cast<SequenceType>(&src_type)) {
         auto &elem_type = src_seq_type->getElementType();
-        if (isa<StructType>(&elem_type)) {
+        if (isa<TupleType>(&elem_type)) {
           builder.CreateAssertTypeInst(outer_val_arg, elem_type);
         }
       } else if (auto *src_assoc_type = dyn_cast<AssocArrayType>(&src_type)) {
         auto &key_type = src_assoc_type->getKeyType();
-        if (isa<StructType>(&key_type)) {
+        if (isa<TupleType>(&key_type)) {
           builder.CreateAssertTypeInst(outer_key_arg, key_type);
         }
 
         auto &val_type = src_assoc_type->getValueType();
-        if (isa<StructType>(&val_type)) {
+        if (isa<TupleType>(&val_type)) {
           builder.CreateAssertTypeInst(outer_val_arg, val_type);
         }
       }

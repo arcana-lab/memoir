@@ -130,16 +130,11 @@ OPERAND(ReferenceTypeInst, ReferencedTypeOperand, 0)
 
 TO_STRING(ReferenceTypeInst)
 
+#if 0
 /*
- * DefineStructType implementation
+ * DefineType implementation
  */
-GET_TYPE_IMPL(DefineStructTypeInst)
-
-StructType &DefineStructTypeInst::getStructType() const {
-  return *cast<StructType>(&this->getType());
-}
-
-std::string DefineStructTypeInst::getName() const {
+std::string DefineTypeInst::getName() const {
   auto &name_value = this->getNameOperand();
 
   GlobalVariable *name_global = nullptr;
@@ -153,40 +148,34 @@ std::string DefineStructTypeInst::getName() const {
     name_global = dyn_cast<GlobalVariable>(&name_value);
   }
 
-  MEMOIR_NULL_CHECK(name_global, "DefineStructTypeInst has NULL name");
+  MEMOIR_NULL_CHECK(name_global, "DefineTypeInst has NULL name");
 
   auto name_init = name_global->getInitializer();
   auto name_constant = dyn_cast<ConstantDataArray>(name_init);
   MEMOIR_NULL_CHECK(name_constant,
-                    "DefineStructTypeInst name is not a constant data array");
+                    "DefineTypeInst name is not a constant data array");
 
   return name_constant->getAsCString().str();
 }
 
-OPERAND(DefineStructTypeInst, NameOperand, 0)
+OPERAND(DefineTypeInst, NameOperand, 0)
 
-unsigned DefineStructTypeInst::getNumberOfFields() const {
-  return std::distance(&this->getNameOperandAsUse(), this->kw_begin().asUse())
-         - 1;
-}
-
-Type &DefineStructTypeInst::getFieldType(unsigned field_index) const {
-  auto type = type_of(this->getFieldTypeOperand(field_index));
-  MEMOIR_NULL_CHECK(type,
-                    "Could not determine field type of DefineStructTypeInst");
+Type &DefineTypeInst::getType() const {
+  auto type = type_of(this->getTypeOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the type being defined");
   return *type;
 }
 
-VAR_OPERAND(DefineStructTypeInst, FieldTypeOperand, 1)
+OPERAND(DefineTypeInst, TypeOperand, 1)
 
-TO_STRING(DefineStructTypeInst)
+TO_STRING(DefineTypeInst)
 
 /*
- * StructType implementation
+ * LookupType implementation
  */
-GET_TYPE_IMPL(StructTypeInst)
+GET_TYPE_IMPL(LookupTypeInst)
 
-std::string StructTypeInst::getName() const {
+std::string LookupTypeInst::getName() const {
   auto &name_value = this->getNameOperand();
 
   GlobalVariable *name_global;
@@ -198,19 +187,41 @@ std::string StructTypeInst::getName() const {
     name_global = dyn_cast<GlobalVariable>(&name_value);
   }
 
-  MEMOIR_NULL_CHECK(name_global, "DefineStructTypeInst has NULL name");
+  MEMOIR_NULL_CHECK(name_global, "LookupTypeInst has NULL name");
 
   auto name_init = name_global->getInitializer();
   auto name_constant = dyn_cast<ConstantDataArray>(name_init);
   MEMOIR_NULL_CHECK(name_constant,
-                    "DefineStructTypeInst name is not a constant data array");
+                    "DefineTypeInst name is not a constant data array");
 
   return name_constant->getAsCString().str();
 }
 
-OPERAND(StructTypeInst, NameOperand, 0)
+OPERAND(LookupTypeInst, NameOperand, 0)
 
-TO_STRING(StructTypeInst)
+TO_STRING(LookupTypeInst)
+
+#endif
+
+/*
+ * TupleType implementation
+ */
+GET_TYPE_IMPL(TupleTypeInst)
+
+unsigned TupleTypeInst::getNumberOfFields() const {
+  return std::distance(this->getCallInst().arg_begin(),
+                       this->kw_begin().asUse());
+}
+
+Type &TupleTypeInst::getFieldType(unsigned field_index) const {
+  auto type = type_of(this->getFieldTypeOperand(field_index));
+  MEMOIR_NULL_CHECK(type, "Could not determine field type of DefineTypeInst");
+  return *type;
+}
+
+VAR_OPERAND(TupleTypeInst, FieldTypeOperand, 0)
+
+TO_STRING(TupleTypeInst)
 
 /*
  * ArrayType implementation

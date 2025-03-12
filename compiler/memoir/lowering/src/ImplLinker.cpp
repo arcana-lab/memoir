@@ -103,20 +103,22 @@ const Implementation &ImplLinker::get_implementation(
 }
 
 void ImplLinker::implement(Type &type) {
-  if (auto *struct_type = dyn_cast<StructType>(&type)) {
+  if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
     // TODO: instantitiate the fields of this struct.
     vector<Instantiation *> fields = {};
-    for (auto field = 0; field < struct_type->getNumFields(); ++field) {
-      auto &field_type = struct_type->getFieldType(field);
+    for (auto field = 0; field < tuple_type->getNumFields(); ++field) {
+      auto &field_type = tuple_type->getFieldType(field);
 
       if (auto *field_collection_type = dyn_cast<CollectionType>(&field_type)) {
 
         std::optional<std::string> selection = {};
+#if 0 // TODO: update me when we move selections into the type definition.
         auto selection_metadata =
-            Metadata::get<SelectionMetadata>(*struct_type, field);
+            Metadata::get<SelectionMetadata>(*tuple_type, field);
         if (selection_metadata.has_value()) {
           selection = selection_metadata->getImplementation(0);
         }
+#endif
 
         const auto &impl =
             this->get_implementation(selection, *field_collection_type);
@@ -130,7 +132,7 @@ void ImplLinker::implement(Type &type) {
       fields.push_back(nullptr);
     }
 
-    this->structs_to_emit.emplace(struct_type, fields);
+    this->structs_to_emit.emplace(tuple_type, fields);
   }
 }
 
@@ -207,8 +209,8 @@ static std::string memoir_to_c_type(Type &T) {
     return "void";
   } else if (auto *ref_type = dyn_cast<ReferenceType>(&T)) {
     return memoir_to_c_type(ref_type->getReferencedType()) + " *";
-  } else if (auto *struct_type = dyn_cast<StructType>(&T)) {
-    return "impl__" + struct_type->getName();
+  } else if (auto *tuple_type = dyn_cast<TupleType>(&T)) {
+    return tuple_type->get_code().value();
   } else if (auto *collection_type = dyn_cast<CollectionType>(&T)) {
     return "char *"; // TODO: attach attributes here: restrict, etc
   }
@@ -276,8 +278,8 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
   fprintln(os);
   fprintln(os);
   fprintln(os, "// Forward declarations for struct types");
-  for (const auto &[struct_type, _fields] : this->structs_to_emit) {
-    auto type_name = memoir_to_c_type(*struct_type);
+  for (const auto &[tuple_type, _fields] : this->structs_to_emit) {
+    auto type_name = memoir_to_c_type(*tuple_type);
     fprintln(os, "struct ", type_name, ";");
   }
 
@@ -293,14 +295,14 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
   fprintln(os);
   fprintln(os);
   fprintln(os, "// Definition of struct types.");
-  for (const auto &[struct_type, fields] : this->structs_to_emit) {
+  for (const auto &[tuple_type, fields] : this->structs_to_emit) {
 
     // Create a C struct for it.
-    auto type_name = "impl__" + struct_type->getName();
+    auto type_name = tuple_type->get_code().value();
 
     fprintln(os, "#pragma pack(1)");
     fprintln(os, "struct ", type_name, " { ");
-    for (auto field = 0; field < struct_type->getNumFields(); ++field) {
+    for (auto field = 0; field < tuple_type->getNumFields(); ++field) {
       auto *field_inst = fields[field];
       if (field_inst) {
         fprintln(os,
@@ -310,7 +312,7 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
                  std::to_string(field),
                  ";");
       } else {
-        auto &field_type = struct_type->getFieldType(field);
+        auto &field_type = tuple_type->getFieldType(field);
 
         fprint(os, "  ");
 
@@ -345,10 +347,10 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
   fprintln(os);
   fprintln(os);
   fprintln(os, "// Struct access functions.");
-  for (const auto &[struct_type, fields] : this->structs_to_emit) {
+  for (const auto &[tuple_type, fields] : this->structs_to_emit) {
 
     // Create a C struct for it.
-    auto type_name = "impl__" + struct_type->getName();
+    auto type_name = tuple_type->get_code().value();
 
     // Emit the allocation function for this struct.
     fprintln(os,
@@ -362,8 +364,8 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
              "(); }");
 
     // Create functions for each operation.
-    for (auto field = 0; field < struct_type->getNumFields(); ++field) {
-      auto &field_type = struct_type->getFieldType(field);
+    for (auto field = 0; field < tuple_type->getNumFields(); ++field) {
+      auto &field_type = tuple_type->getFieldType(field);
       auto c_field_type = memoir_to_c_type(field_type);
 
       auto *field_inst = fields[field];

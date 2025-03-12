@@ -7,15 +7,20 @@ namespace memoir {
 extern "C" {
 
 // User-defined types.
+#if 0
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(define_struct_type)(const char *name, ...) {
-
+type_ref MEMOIR_FUNC(define_type)(const char *name, const type_ref type) {
   return nullptr;
 }
 
+type_ref MEMOIR_FUNC(lookup_type)(const char *name) {
+  return nullptr;
+}
+#endif
+
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(struct_type)(const char *name) {
-  return StructType::get(name);
+type_ref MEMOIR_FUNC(tuple_type)(const type_ref first, ...) {
+  return nullptr;
 }
 
 // Collection types.

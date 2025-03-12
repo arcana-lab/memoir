@@ -44,17 +44,16 @@ class FieldElision {
   using InstSetTy = set<llvm::Instruction *>;
   using ArgSetTy = set<llvm::Argument *>;
   using AccessSetTy = set<AccessInst *>;
-  using StructTypeSetTy = set<StructType *>;
-  using TypeToStructsMapTy = map<StructType *, ValueSetTy>;
-  using FieldsToInstsMapTy = map<StructType *, InstSetTy>;
-  using FieldsToArgsMapTy = map<StructType *, ArgSetTy>;
-  using TypeToFieldAccessesMapTy =
-      map<StructType *, map<unsigned, AccessSetTy>>;
+  using TupleTypeSetTy = set<TupleType *>;
+  using TypeToStructsMapTy = map<TupleType *, ValueSetTy>;
+  using FieldsToInstsMapTy = map<TupleType *, InstSetTy>;
+  using FieldsToArgsMapTy = map<TupleType *, ArgSetTy>;
+  using TypeToFieldAccessesMapTy = map<TupleType *, map<unsigned, AccessSetTy>>;
   using FieldsToAccessesMapTy = map<llvm::Function *, TypeToFieldAccessesMapTy>;
 
 public:
   using IndexSetTy = set<unsigned>;
-  using FieldsToElideMapTy = map<StructType *, list<IndexSetTy>>;
+  using FieldsToElideMapTy = map<TupleType *, list<IndexSetTy>>;
 
   bool transformed;
 
@@ -107,12 +106,12 @@ protected:
   static inline void analyze_value(llvm::Value &V,
                                    FieldsToElideMapTy &fields_to_elide,
                                    TypeToStructsMapTy &structs_of_type,
-                                   StructTypeSetTy &escaped_types) {
+                                   TupleTypeSetTy &escaped_types) {
     infoln("Found struct: ", V);
 
     // Get the type of this struct.
     auto *type = type_of(V);
-    auto *struct_type = dyn_cast_or_null<StructType>(type);
+    auto *struct_type = dyn_cast_or_null<TupleType>(type);
 
     // Check if this value is a struct type.
     if (struct_type == nullptr) {
@@ -164,7 +163,7 @@ protected:
 
     // Find all structs.
     map<llvm::Function *, TypeToStructsMapTy> structs_of_type = {};
-    StructTypeSetTy escaped_types = {};
+    TupleTypeSetTy escaped_types = {};
 
     // For each function:
     for (auto &F : M) {
@@ -280,7 +279,7 @@ protected:
   }
 
   // Transformation
-  static Type &construct_elided_type(const StructType &struct_type,
+  static Type &construct_elided_type(const TupleType &struct_type,
                                      const IndexSetTy &indices_to_elide) {
 
     // If this is a single field, return the field's type.
@@ -312,7 +311,7 @@ protected:
     return M.getFunction(replacement);
   }
 
-  using UsedFieldsSetTy = multimap<StructType *, unsigned>;
+  using UsedFieldsSetTy = multimap<TupleType *, unsigned>;
   UsedFieldsSetTy &traverse_call_graph_node(
       map<llvm::Function *, UsedFieldsSetTy> &function_to_used_fields,
       FieldsToAccessesMapTy &fields_to_accesses,
@@ -434,7 +433,7 @@ protected:
     // Collect the elided fields that will be added to each function's
     // list of parameters.
     // Map from function to a (struct_type, candidates[i])
-    map<llvm::Function *, ordered_multimap<StructType *, size_t>>
+    map<llvm::Function *, ordered_multimap<TupleType *, size_t>>
         function_to_argument_order = {};
     for (auto const &[function, used_fields] : function_to_used_fields) {
       // Skip this if there are no used fields.
@@ -476,7 +475,7 @@ protected:
 
     // For each function that has a used type, we need to change its function
     // type to include the replaced assoc as arguments.
-    map<llvm::Function *, map<StructType *, map<size_t, llvm::Value *>>>
+    map<llvm::Function *, map<TupleType *, map<size_t, llvm::Value *>>>
         function_to_elision_values = {};
     map<llvm::Function *, llvm::Function *> function_clones = {};
     for (auto const &[function, elision_parameters] :
@@ -720,7 +719,7 @@ protected:
 
         // Get the struct type.
         auto *accessed_type = type_of(*object_value);
-        auto *accessed_struct_type = cast<StructType>(accessed_type);
+        auto *accessed_struct_type = cast<TupleType>(accessed_type);
 
         // Check if this field index is elided.
         size_t elision_group_index = (size_t)-1;

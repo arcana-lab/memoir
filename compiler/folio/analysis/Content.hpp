@@ -413,7 +413,7 @@ struct FieldContent : public Content {
 
   llvm::memoir::Type *type() override {
     auto *parent_type =
-        llvm::memoir::cast<llvm::memoir::StructType>(this->parent().type());
+        llvm::memoir::cast<llvm::memoir::TupleType>(this->parent().type());
     return &parent_type->getFieldType(this->field_index());
   }
 

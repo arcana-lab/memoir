@@ -41,7 +41,7 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
   auto callee = detail::get_function_callee(builder.getModule(), function_name);
   auto *function_type = callee.getFunctionType();
 
-  auto param_index = 0;
+  unsigned param_index = 0;
   for (auto &arg : arguments) {
 
     // Prepare the argument.
@@ -94,11 +94,11 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
 }
 
 llvm::Value &construct_field_read(MemOIRBuilder &builder,
-                                  StructType &type,
+                                  TupleType &type,
                                   llvm::Value &object,
                                   unsigned field_index) {
 
-  auto prefix = "impl__" + type.getName();
+  auto prefix = type.get_code().value();
 
   auto operation = "read_" + std::to_string(field_index);
 
@@ -111,12 +111,12 @@ llvm::Value &construct_field_read(MemOIRBuilder &builder,
 }
 
 void construct_field_write(MemOIRBuilder &builder,
-                           StructType &type,
+                           TupleType &type,
                            llvm::Value &object,
                            unsigned field_index,
                            llvm::Value &value_to_write) {
 
-  auto prefix = "impl__" + type.getName();
+  auto prefix = type.get_code().value();
 
   auto operation = "write_" + std::to_string(field_index);
 
@@ -131,11 +131,11 @@ void construct_field_write(MemOIRBuilder &builder,
 }
 
 llvm::Value &construct_field_get(MemOIRBuilder &builder,
-                                 StructType &type,
+                                 TupleType &type,
                                  llvm::Value &object,
                                  unsigned field_index) {
 
-  auto prefix = "impl__" + type.getName();
+  auto prefix = type.get_code().value();
 
   auto operation = "get_" + std::to_string(field_index);
 
@@ -351,9 +351,9 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
 
     this->coalesce(I, result);
 
-  } else if (auto *struct_type = dyn_cast<StructType>(type)) {
+  } else if (auto *tuple_type = dyn_cast<TupleType>(type)) {
 
-    auto prefix = "impl__" + struct_type->getName();
+    auto prefix = type->get_code().value();
 
     auto operation = "allocate";
 
@@ -551,7 +551,7 @@ static NestedObjectInfo get_nested_object(
   // Construct nested access.
   for (auto it = indices_begin, ie = indices_end; it != ie;) {
 
-    if (auto *struct_type = dyn_cast<StructType>(type)) {
+    if (auto *tuple_type = dyn_cast<TupleType>(type)) {
 
       // Determine the field being accessed.
       auto *index = *it;
@@ -559,7 +559,7 @@ static NestedObjectInfo get_nested_object(
           MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
                           "Field index is not a constant integer.");
       auto field_index = index_constant.getZExtValue();
-      auto &field_type = struct_type->getFieldType(field_index);
+      auto &field_type = tuple_type->getFieldType(field_index);
 
       // If the field type is a primitive, we have reached the innermost
       // object.
@@ -568,13 +568,17 @@ static NestedObjectInfo get_nested_object(
       }
 
       // Fetch the field's selection metadata.
+#if 0 // TODO: fix me after we move selections into types
       selection_metadata =
-          Metadata::get<SelectionMetadata>(*struct_type, field_index);
+          Metadata::get<SelectionMetadata>(*tuple_type, field_index);
+#else
+      selection_metadata = {};
+#endif
       selection_index = 0;
 
       // Construct a get.
       object = &detail::construct_field_get(builder,
-                                            *struct_type,
+                                            *tuple_type,
                                             *object,
                                             field_index);
 
@@ -669,7 +673,7 @@ static NestedObjectInfo get_nested_object(
     }
   }
 
-  if (isa<StructType>(type) or isa<ArrayType>(type)) {
+  if (isa<TupleType>(type) or isa<ArrayType>(type)) {
     return NestedObjectInfo(*object, *type, indices_end, indices_end);
 
   } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
@@ -728,7 +732,7 @@ void SSADestructionVisitor::visitReadInst(ReadInst &I) {
   MemOIRBuilder builder(I);
 
   llvm::Value *result = nullptr;
-  if (auto *struct_type = dyn_cast<StructType>(&info.type)) {
+  if (auto *tuple_type = dyn_cast<TupleType>(&info.type)) {
     // There will only ever be a single index for an innermost struct
     // access.
     auto &field_value = MEMOIR_SANITIZE(*info.begin, "Field index is NULL!");
@@ -738,11 +742,11 @@ void SSADestructionVisitor::visitReadInst(ReadInst &I) {
     auto field_index = field_const.getZExtValue();
 
     // Fetch the type layout for the struct.
-    auto &layout = TC.convert(*struct_type);
+    auto &layout = TC.convert(*tuple_type);
 
     // Construct the read.
     result = &detail::construct_field_read(builder,
-                                           *struct_type,
+                                           *tuple_type,
                                            info.object,
                                            field_index);
 
@@ -801,7 +805,7 @@ void SSADestructionVisitor::visitWriteInst(WriteInst &I) {
   // Construct the read.
   MemOIRBuilder builder(I);
 
-  if (auto *struct_type = dyn_cast<StructType>(&info.type)) {
+  if (auto *tuple_type = dyn_cast<TupleType>(&info.type)) {
     // There will only ever be a single index for an innermost struct
     // access.
     auto &field_value = MEMOIR_SANITIZE(*info.begin, "Field index is NULL!");
@@ -811,11 +815,11 @@ void SSADestructionVisitor::visitWriteInst(WriteInst &I) {
     auto field_index = field_const.getZExtValue();
 
     // Fetch the type layout for the struct.
-    auto &layout = TC.convert(*struct_type);
+    auto &layout = TC.convert(*tuple_type);
 
     // Construct the read.
     detail::construct_field_write(builder,
-                                  *struct_type,
+                                  *tuple_type,
                                   info.object,
                                   field_index,
                                   I.getValueWritten());

@@ -60,7 +60,7 @@ public:
 
 protected:
   struct StructInstantiation {
-    StructType *type;
+    TupleType *type;
     vector<Instantiation *> fields;
 
     bool operator<(const StructInstantiation &other) const {

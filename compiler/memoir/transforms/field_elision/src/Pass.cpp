@@ -57,13 +57,13 @@ llvm::PreservedAnalyses FieldElisionPass::run(
   FieldElision::FieldsToElideMapTy fields_to_elide = {};
 
   // Find all user type definitions in the program.
-  map<std::string, DefineStructTypeInst *> type_definitions = {};
+  map<std::string, DefineTupleTypeInst *> type_definitions = {};
   auto *define_struct_type_func =
       FunctionNames::get_memoir_function(M, MemOIR_Func::DEFINE_STRUCT_TYPE);
   for (auto &func_use : define_struct_type_func->uses()) {
     auto *func_user = func_use.getUser();
     auto *func_user_as_inst = dyn_cast_or_null<llvm::Instruction>(func_user);
-    if (auto *define_inst = into<DefineStructTypeInst>(func_user_as_inst)) {
+    if (auto *define_inst = into<DefineTupleTypeInst>(func_user_as_inst)) {
       auto type_name = define_inst->getName();
       type_definitions[type_name] = define_inst;
     }
@@ -90,7 +90,7 @@ llvm::PreservedAnalyses FieldElisionPass::run(
     auto *type_definition = found_type->second;
     auto &elide_type = type_definition->getType();
     auto &elide_struct_type =
-        MEMOIR_SANITIZE(dyn_cast<StructType>(&elide_type),
+        MEMOIR_SANITIZE(dyn_cast<TupleType>(&elide_type),
                         "Elided type is not a struct type!");
 
     memoir::info("elision candidate: ", type_name, ".");

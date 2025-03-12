@@ -7,7 +7,7 @@ namespace llvm::memoir {
 // AssertTypeInst implementation
 Type &AssertTypeInst::getType() const {
   return MEMOIR_SANITIZE(type_of(this->getTypeOperand()),
-                         "Failed to get type used by AssertStructType!");
+                         "Failed to get type used by AssertTupleType!");
 }
 
 OPERAND(AssertTypeInst, TypeOperand, 0)

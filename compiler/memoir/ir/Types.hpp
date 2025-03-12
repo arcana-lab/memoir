@@ -4,6 +4,7 @@
 
 #include <cstdio>
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -26,7 +27,7 @@ enum class TypeKind {
   POINTER,
   VOID,
   REFERENCE,
-  STRUCT,
+  TUPLE,
   ARRAY,
   ASSOC_ARRAY,
   SEQUENCE,
@@ -40,12 +41,12 @@ struct DoubleType;
 struct PointerType;
 struct VoidType;
 struct ReferenceType;
-struct StructType;
+struct TupleType;
 struct ArrayType;
 struct AssocArrayType;
 struct SequenceType;
 
-struct DefineStructTypeInst;
+struct DefineTupleTypeInst;
 
 struct Type {
 public:
@@ -66,10 +67,9 @@ public:
   static PointerType &get_ptr_type();
   static VoidType &get_void_type();
   static ReferenceType &get_ref_type(Type &referenced_type);
-  static StructType &define_struct_type(DefineStructTypeInst &definition,
-                                        std::string name,
-                                        vector<Type *> field_types);
-  static StructType &get_struct_type(std::string name);
+  static Type &define_type(std::string name, Type &type);
+  static Type &lookup_type(std::string name);
+  static TupleType &get_tuple_type(llvm::ArrayRef<Type *> fields);
   static ArrayType &get_array_type(Type &element_type, size_t length);
   static AssocArrayType &get_assoc_array_type(Type &key_type, Type &value_type);
   static SequenceType &get_sequence_type(Type &element_type);
@@ -232,7 +232,7 @@ public:
     switch (T->getKind()) {
       default:
         return false;
-      case TypeKind::STRUCT:
+      case TypeKind::TUPLE:
       case TypeKind::ARRAY:
       case TypeKind::SEQUENCE:
       case TypeKind::ASSOC_ARRAY:
@@ -244,25 +244,21 @@ protected:
   ObjectType(TypeKind code);
 };
 
-struct StructType : public ObjectType {
+struct TupleType : public ObjectType {
 public:
   // Creation.
-  static StructType &define(DefineStructTypeInst &definition,
-                            std::string name,
-                            vector<Type *> field_types);
-  static StructType &get(std::string name);
+  static TupleType &get(llvm::ArrayRef<Type *> field_types);
 
   // Access.
-  DefineStructTypeInst &getDefinition() const;
-  std::string getName() const;
   unsigned getNumFields() const;
-  Type &getFieldType(unsigned field_index) const;
+  Type &getFieldType(unsigned field) const;
+  llvm::ArrayRef<Type *> fields() const;
 
   llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
   // RTTI.
   static bool classof(const Type *T) {
-    return (T->getKind() == TypeKind::STRUCT);
+    return (T->getKind() == TypeKind::TUPLE);
   }
 
   // Debug.
@@ -270,15 +266,11 @@ public:
   opt<std::string> get_code() const override;
 
 protected:
-  DefineStructTypeInst &definition;
-  std::string name;
   vector<Type *> field_types;
 
-  static map<std::string, StructType *> *defined_types;
+  static ordered_multimap<unsigned, TupleType *> *tuple_types;
 
-  StructType(DefineStructTypeInst &definition,
-             std::string name,
-             vector<Type *> field_types);
+  TupleType(llvm::ArrayRef<Type *> fields);
 };
 
 struct CollectionType : public ObjectType {

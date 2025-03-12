@@ -33,10 +33,10 @@ class DeadFieldElimination
   friend class llvm::InstVisitor<DeadFieldElimination, set<llvm::Value *>>;
 
   using FieldToAccessMapTy = map<unsigned, set<AccessInst *>>;
-  using LiveFieldMapTy = map<StructType *, FieldToAccessMapTy>;
-  using StructTypeSetTy = set<StructType *>;
+  using LiveFieldMapTy = map<TupleType *, FieldToAccessMapTy>;
+  using TupleTypeSetTy = set<TupleType *>;
   using StructSetTy = set<llvm::Value *>;
-  using StructToTypeMapTy = map<StructType *, StructSetTy>;
+  using StructToTypeMapTy = map<TupleType *, StructSetTy>;
 
 public:
   bool transformed;
@@ -82,10 +82,10 @@ protected:
 
   static inline void analyze_value(llvm::Value &V,
                                    StructToTypeMapTy &structs_of_type,
-                                   StructTypeSetTy &escaped_types) {
+                                   TupleTypeSetTy &escaped_types) {
     // Get the type of this struct.
     auto *type = type_of(V);
-    auto *struct_type = dyn_cast_or_null<StructType>(type);
+    auto *struct_type = dyn_cast_or_null<TupleType>(type);
 
     if (struct_type == nullptr) {
       return;
@@ -112,7 +112,7 @@ protected:
 
     // Find all structs.
     StructToTypeMapTy structs_of_type = {};
-    StructTypeSetTy escaped_types = {};
+    TupleTypeSetTy escaped_types = {};
 
     // For each function:
     for (auto &F : M) {

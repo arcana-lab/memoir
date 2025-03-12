@@ -148,7 +148,7 @@ llvm::Argument *FoldInst::getElementArgument() const {
   MEMOIR_ASSERT(type, "Failed to get type of object being folded over.")
 
   for (auto *index : this->indices()) {
-    if (auto *struct_type = dyn_cast<StructType>(type)) {
+    if (auto *struct_type = dyn_cast<TupleType>(type)) {
       auto &index_constant =
           MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
                           "Struct field index is not constant.");

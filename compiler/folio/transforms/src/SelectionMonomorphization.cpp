@@ -256,7 +256,7 @@ void propagate(Selections &selections,
                  ++index_it, ++nested_impl_it) {
               if (auto *collection_type = dyn_cast<CollectionType>(type)) {
                 type = &collection_type->getElementType();
-              } else if (auto *struct_type = dyn_cast<StructType>(type)) {
+              } else if (auto *struct_type = dyn_cast<TupleType>(type)) {
                 auto *index_const =
                     dyn_cast<llvm::ConstantInt>(index_it->get());
                 MEMOIR_ASSERT(index_const,
@@ -265,8 +265,13 @@ void propagate(Selections &selections,
                 type = &struct_type->getFieldType(field);
 
                 // Fetch the selection metadata.
-                auto metadata =
+
+                std::optional<SelectionMetadata> metadata =
+#if 0
                     Metadata::get<SelectionMetadata>(*struct_type, field);
+#else
+                    std::nullopt;
+#endif
 
                 auto *nested_type = type;
                 auto sel_idx = 0;

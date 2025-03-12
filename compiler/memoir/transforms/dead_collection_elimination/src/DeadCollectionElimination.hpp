@@ -122,7 +122,7 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitDefineStructTypeInst(DefineStructTypeInst &I) {
+  set<llvm::Value *> visitDefineTupleTypeInst(DefineTupleTypeInst &I) {
     return {};
   }
 
@@ -137,7 +137,7 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitAssertStructTypeInst(AssertStructTypeInst &I) {
+  set<llvm::Value *> visitAssertTupleTypeInst(AssertTupleTypeInst &I) {
     set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();

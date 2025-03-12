@@ -40,8 +40,8 @@ static void type_differences(vector<vector<unsigned>> &differences,
   // If these are the same type kind, recurse on their inner types.
   if (base.getKind() == other.getKind()) {
 
-    if (auto *base_struct = dyn_cast<StructType>(&base)) {
-      auto *other_struct = cast<StructType>(&other);
+    if (auto *base_struct = dyn_cast<TupleType>(&base)) {
+      auto *other_struct = cast<TupleType>(&other);
 
       auto base_fields = base_struct->getNumFields();
       auto other_fields = other_struct->getNumFields();

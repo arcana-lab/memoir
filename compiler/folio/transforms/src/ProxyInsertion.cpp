@@ -7,6 +7,7 @@
 
 #include "memoir/ir/Builder.hpp"
 #include "memoir/lowering/Implementation.hpp"
+#include "memoir/transforms/utilities/MutateType.hpp"
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
 #include "memoir/utility/Metadata.hpp"
 
@@ -247,7 +248,7 @@ static llvm::Use *get_index_use(AccessInst &access, vector<unsigned> &offsets) {
       return nullptr;
     }
 
-    if (auto *struct_type = dyn_cast<StructType>(type)) {
+    if (auto *struct_type = dyn_cast<TupleType>(type)) {
 
       auto &index_use = *index_it;
       auto &index_const =
@@ -306,7 +307,7 @@ static int32_t indices_match_offsets(AccessInst &access,
       break;
     }
 
-    if (auto *struct_type = dyn_cast<StructType>(type)) {
+    if (auto *struct_type = dyn_cast<TupleType>(type)) {
 
       auto &index_use = *index_it;
       auto &index_const =
@@ -581,7 +582,7 @@ void ObjectInfo::analyze() {
 Type &ObjectInfo::get_type() const {
   auto *type = &this->allocation->getType();
   for (auto offset : this->offsets) {
-    if (auto *struct_type = dyn_cast<StructType>(type)) {
+    if (auto *struct_type = dyn_cast<TupleType>(type)) {
       type = &struct_type->getFieldType(offset);
     } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
       type = &collection_type->getElementType();
@@ -616,18 +617,22 @@ void ProxyInsertion::gather_assoc_objects(
     selection = Metadata::get<SelectionMetadata>(alloc);
   }
 
-  if (auto *struct_type = dyn_cast<StructType>(&type)) {
+  if (auto *struct_type = dyn_cast<TupleType>(&type)) {
     for (unsigned field = 0; field < struct_type->getNumFields(); ++field) {
 
       auto new_offsets = offsets;
       new_offsets.push_back(field);
 
-      this->gather_assoc_objects(
-          allocations,
-          alloc,
-          struct_type->getFieldType(field),
-          new_offsets,
-          Metadata::get<SelectionMetadata>(*struct_type, field));
+      this->gather_assoc_objects(allocations,
+                                 alloc,
+                                 struct_type->getFieldType(field),
+                                 new_offsets,
+#if 0
+          Metadata::get<SelectionMetadata>(*struct_type, field)
+#else
+                                 {}
+#endif
+      );
     }
 
   } else if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
@@ -794,7 +799,7 @@ ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
 
   vector<unsigned> offsets = {};
   for (auto *index : access.indices()) {
-    if (auto *struct_type = dyn_cast<StructType>(type)) {
+    if (auto *struct_type = dyn_cast<TupleType>(type)) {
       auto index_const = dyn_cast<llvm::ConstantInt>(index);
       auto field = index_const->getZExtValue();
       type = &struct_type->getFieldType(field);
@@ -1487,6 +1492,38 @@ bool used_value_will_be_decoded(llvm::Use &use,
   return _used_value_will_be_decoded(use, to_decode, visited);
 }
 
+Type &convert_type(Type &base,
+                   llvm::ArrayRef<unsigned> offsets,
+                   Type &new_type) {
+
+  if (auto *struct_type = dyn_cast<TupleType>(&base)) {
+
+    MEMOIR_UNREACHABLE("Cannot convert the type of a struct, do it yourself!");
+
+  } else if (auto *seq_type = dyn_cast<SequenceType>(&base)) {
+
+    return SequenceType::get(convert_type(seq_type->getElementType(),
+                                          offsets.drop_front(),
+                                          new_type));
+
+  } else if (auto *assoc_type = dyn_cast<AssocType>(&base)) {
+
+    // If the offsets are empty, replace the keys.
+    if (offsets.empty()) {
+      return AssocType::get(new_type, assoc_type->getValueType());
+    }
+
+    return AssocType::get(assoc_type->getKeyType(),
+                          convert_type(assoc_type->getValueType(),
+                                       offsets.drop_front(),
+                                       new_type));
+  } else if (offsets.empty()) {
+    return new_type;
+  }
+
+  MEMOIR_UNREACHABLE("Failed to convert type!");
+}
+
 } // namespace detail
 
 bool ProxyInsertion::transform() {
@@ -1515,7 +1552,7 @@ bool ProxyInsertion::transform() {
 
     // Get the nested object type.
     for (auto offset : first_info->offsets) {
-      if (auto *struct_type = dyn_cast<StructType>(type)) {
+      if (auto *struct_type = dyn_cast<TupleType>(type)) {
         type = &struct_type->getFieldType(offset);
       } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
         type = &collection_type->getElementType();
@@ -1915,12 +1952,13 @@ bool ProxyInsertion::transform() {
       unsigned selection_index = 0;
       auto *type = &info->allocation->getType();
       for (auto offset : info->offsets) {
-        if (auto *struct_type = dyn_cast<StructType>(type)) {
+        if (auto *struct_type = dyn_cast<TupleType>(type)) {
           auto &field_type = struct_type->getFieldType(offset);
           type = &field_type;
 
-          selection =
-              Metadata::get_or_add<SelectionMetadata>(*struct_type, offset);
+          // FIXME after we update selections to be in the type
+          // selection = Metadata::get_or_add<SelectionMetadata>(*struct_type,
+          // offset);
           selection_index = 0;
 
         } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
@@ -1959,6 +1997,36 @@ bool ProxyInsertion::transform() {
       } else {
         MEMOIR_UNREACHABLE("Proxying non-assoc types is not yet supported.");
       }
+    }
+
+    // Collect the types that each candidate needs to be mutated to.
+    map<AllocInst *, Type *> types_to_mutate;
+    for (auto *info : candidate) {
+      auto *alloc = info->allocation;
+
+      // Initialize the type to mutate if it doesnt exist already.
+      if (types_to_mutate.count(alloc) == 0) {
+        types_to_mutate[alloc] = &alloc->getType();
+      }
+      auto &type = *types_to_mutate[alloc];
+
+      // Convert the type at the given offset to the size type.
+      auto &module =
+          MEMOIR_SANITIZE(alloc->getModule(),
+                          "AllocInst does not belong to an LLVM module!");
+      const auto &data_layout = module.getDataLayout();
+      auto &size_type = Type::get_size_type(data_layout);
+
+      detail::convert_type(type, info->offsets, size_type);
+    }
+
+    // Mutate the types in the program.
+    for (const auto &[alloc, type] : types_to_mutate) {
+      // Mutate the type.
+      auto changes = mutate_type(*alloc, *type);
+
+      // Remap any allocations that have been changed.
+      // TODO
     }
 
     // Mutate types in the program.

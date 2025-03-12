@@ -127,7 +127,7 @@ static void add_index_uses(
 
       type = &collection_type->getElementType();
 
-    } else if (auto *struct_type = dyn_cast<StructType>(type)) {
+    } else if (auto *struct_type = dyn_cast<TupleType>(type)) {
       auto &index_const =
           MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index.get()),
                           "Access with non-static field index");

@@ -33,7 +33,7 @@ ContentSummary conservative(llvm::Value &V) {
       or isa_and_nonnull<AssocArrayType>(type)) {
     return { &Content::create<KeysContent>(V),
              &Content::create<ElementsContent>(V) };
-  } else if (isa_and_nonnull<StructType>(type)) {
+  } else if (isa_and_nonnull<TupleType>(type)) {
     return { &Content::create<UnderdefinedContent>(),
              &Content::create<StructContent>(V) };
   } else {
@@ -238,7 +238,7 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertInst(SeqInsertInst &I) {
   auto &collection_type =
       MEMOIR_SANITIZE(dyn_cast<CollectionType>(type),
                       "SeqInsertInst on non-collection type");
-  auto *struct_type = dyn_cast<StructType>(&collection_type.getElementType());
+  auto *struct_type = dyn_cast<TupleType>(&collection_type.getElementType());
 
   // If the element type is a struct, create a TupleContent with empty fields.
   if (struct_type) {
@@ -284,7 +284,7 @@ ContentSummary ContentAnalysisDriver::visitIndexWriteInst(IndexWriteInst &I) {
   for (unsigned sub_dim = 0; sub_dim < I.getNumberOfSubIndices(); ++sub_dim) {
 
     // Get the struct type.
-    auto &struct_type = MEMOIR_SANITIZE(dyn_cast<StructType>(element_type),
+    auto &struct_type = MEMOIR_SANITIZE(dyn_cast<TupleType>(element_type),
                                         "Subindex access to non-struct type.");
 
     // Create a TupleContent and union it with the input.
@@ -362,7 +362,7 @@ ContentSummary ContentAnalysisDriver::visitAssocInsertInst(AssocInsertInst &I) {
 
   // If the element is a struct type, create an empty TupleContent.
   Content *empty_content = &Content::create<EmptyContent>();
-  if (auto *struct_type = dyn_cast<StructType>(element_type)) {
+  if (auto *struct_type = dyn_cast<TupleType>(element_type)) {
     // TODO: handle nested structs.
     vector<Content *> fields(struct_type->getNumFields(), empty_content);
 

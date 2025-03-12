@@ -173,58 +173,68 @@ Type *TypeChecker::visitReferenceTypeInst(ReferenceTypeInst &I) {
   return &type;
 }
 
-Type *TypeChecker::visitDefineStructTypeInst(DefineStructTypeInst &I) {
+Type *TypeChecker::visitTupleTypeInst(TupleTypeInst &I) {
   // Get the types of each field.
   vector<Type *> field_types;
-  for (unsigned field_idx = 0; field_idx < I.getNumberOfFields(); field_idx++) {
+  for (unsigned field_idx = 0; field_idx < I.getNumberOfFields(); ++field_idx) {
     auto &field_type_value = I.getFieldTypeOperand(field_idx);
     auto *field_type = this->analyze(field_type_value);
     field_types.push_back(field_type);
   }
 
-  // Build the StructType
-  auto &type = StructType::define(I, I.getName(), field_types);
+  // Build the TupleType
+  auto &type = TupleType::get(field_types);
 
   return &type;
 }
 
-Type *TypeChecker::visitStructTypeInst(StructTypeInst &I) {
-  // Get all users of the given name.
-  auto &name_value = MEMOIR_SANITIZE(
-      I.getNameOperand().stripPointerCasts(),
-      "Could not get the name operand stripped of pointer casts");
+// Type *TypeChecker::visitDefineTypeInst(DefineTypeInst &I) {
+//   // Get the type being defined.
+//   auto &type = this->analyze(this->getTypeOperand());
 
-  set<DefineStructTypeInst *> call_inst_users = {};
-  for (auto *user : name_value.users()) {
+//   // Define the TupleType
+//   TupleType::define(I, I.getName(), type);
 
-    if (auto *type_def = into<DefineStructTypeInst>(user)) {
-      call_inst_users.insert(type_def);
-    } else if (auto *user_as_gep = dyn_cast<llvm::GetElementPtrInst>(user)) {
-      for (auto *gep_user : user_as_gep->users()) {
-        if (auto *type_def = into<DefineStructTypeInst>(gep_user)) {
-          call_inst_users.insert(type_def);
-        }
-      }
-    } else if (auto *user_as_gep = dyn_cast<llvm::ConstantExpr>(user)) {
-      for (auto *gep_user : user_as_gep->users()) {
-        if (auto *type_def = into<DefineStructTypeInst>(gep_user)) {
-          call_inst_users.insert(type_def);
-        }
-      }
-    }
-  }
+//   return &type;
+// }
 
-  // For each user, find the call to define the struct type.
-  for (auto *call : call_inst_users) {
-    auto *defined_type = this->visitDefineStructTypeInst(*call);
-    MEMOIR_NULL_CHECK(defined_type,
-                      "Could not determine the defined struct type");
-    return defined_type;
-  }
+// Type *TypeChecker::visitTupleTypeInst(TupleTypeInst &I) {
+//   // Get all users of the given name.
+//   auto &name_value = MEMOIR_SANITIZE(
+//       I.getNameOperand().stripPointerCasts(),
+//       "Could not get the name operand stripped of pointer casts");
 
-  MEMOIR_UNREACHABLE(
-      "Could not find a definition for the given struct type name");
-}
+//   set<DefineTupleTypeInst *> call_inst_users = {};
+//   for (auto *user : name_value.users()) {
+
+//     if (auto *type_def = into<DefineTupleTypeInst>(user)) {
+//       call_inst_users.insert(type_def);
+//     } else if (auto *user_as_gep = dyn_cast<llvm::GetElementPtrInst>(user)) {
+//       for (auto *gep_user : user_as_gep->users()) {
+//         if (auto *type_def = into<DefineTupleTypeInst>(gep_user)) {
+//           call_inst_users.insert(type_def);
+//         }
+//       }
+//     } else if (auto *user_as_gep = dyn_cast<llvm::ConstantExpr>(user)) {
+//       for (auto *gep_user : user_as_gep->users()) {
+//         if (auto *type_def = into<DefineTupleTypeInst>(gep_user)) {
+//           call_inst_users.insert(type_def);
+//         }
+//       }
+//     }
+//   }
+
+//   // For each user, find the call to define the struct type.
+//   for (auto *call : call_inst_users) {
+//     auto *defined_type = this->visitDefineTupleTypeInst(*call);
+//     MEMOIR_NULL_CHECK(defined_type,
+//                       "Could not determine the defined struct type");
+//     return defined_type;
+//   }
+
+//   MEMOIR_UNREACHABLE(
+//       "Could not find a definition for the given struct type name");
+// }
 
 Type *TypeChecker::visitArrayTypeInst(ArrayTypeInst &I) {
   // Get the element type.

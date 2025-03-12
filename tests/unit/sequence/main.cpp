@@ -22,7 +22,7 @@ using namespace memoir;
 #define VAL3_0 4
 #define VAL3_1 40
 
-auto type = memoir_define_struct_type("Foo", memoir_u32_t, memoir_u32_t);
+auto type = memoir_tuple_type(memoir_u32_t, memoir_u32_t);
 
 collection_ref qsort(collection_ref seq, size_t start, size_t end) {
   memoir_assert_collection_type(memoir_sequence_type(memoir_u32_t), seq);

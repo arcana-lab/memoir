@@ -134,25 +134,29 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
           // Link the selection.
           detail::link_implementation(IL, *collection_type, selection);
 
-        } else if (auto *define_type = into<DefineStructTypeInst>(&I)) {
+        } else if (auto *tuple_inst = into<TupleTypeInst>(&I)) {
           // Get the struct type.
-          auto &struct_type = define_type->getStructType();
+          auto &tuple_type = cast<TupleType>(tuple_inst->getType());
 
           // Implement the struct.
-          IL.implement(struct_type);
+          IL.implement(tuple_type);
 
           // For each collection-typed field, fetch the selection, if it exists.
           for (unsigned field_index = 0;
-               field_index < struct_type.getNumFields();
+               field_index < tuple_type.getNumFields();
                ++field_index) {
-            auto &field_type = struct_type.getFieldType(field_index);
+            auto &field_type = tuple_type.getFieldType(field_index);
 
             // If the field is a collection, implement it.
             if (auto *collection_type = dyn_cast<CollectionType>(&field_type)) {
 
-              // Fetch the selection for the given field.
-              auto selection =
-                  Metadata::get<SelectionMetadata>(struct_type, field_index);
+              // FIXMEFetch the selection for the given field.
+              std::optional<SelectionMetadata> selection =
+#if 0
+                Metadata::get<SelectionMetadata>(tuple_type, field_index);
+#else
+                  std::nullopt;
+#endif
 
               detail::link_implementation(IL, *collection_type, selection);
             }

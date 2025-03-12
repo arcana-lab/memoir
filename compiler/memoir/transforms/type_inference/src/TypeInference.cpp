@@ -156,7 +156,7 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
 
       // If it's a collection or struct type, mark it for annotation.
       if (isa_and_nonnull<CollectionType>(type)
-          || isa_and_nonnull<StructType>(type)) {
+          || isa_and_nonnull<TupleType>(type)) {
         this->type(A, type);
         return true;
       }
@@ -302,7 +302,7 @@ bool TypeInference::infer_return_type(llvm::Function &F) {
 
     // If the accumulator type is a collection or struct type, return it.
     if (isa<CollectionType>(accumulator_type)
-        || isa<StructType>(accumulator_type)) {
+        || isa<TupleType>(accumulator_type)) {
       this->type(F, accumulator_type);
       return true;
     }

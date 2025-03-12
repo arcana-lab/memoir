@@ -100,11 +100,12 @@ protected:
   Type *visitPointerTypeInst(PointerTypeInst &I);
   Type *visitVoidTypeInst(VoidTypeInst &I);
   Type *visitReferenceTypeInst(ReferenceTypeInst &I);
-  Type *visitDefineStructTypeInst(DefineStructTypeInst &I);
-  Type *visitStructTypeInst(StructTypeInst &I);
+  Type *visitTupleTypeInst(TupleTypeInst &I);
   Type *visitArrayTypeInst(ArrayTypeInst &I);
   Type *visitAssocArrayTypeInst(AssocArrayTypeInst &I);
   Type *visitSequenceTypeInst(SequenceTypeInst &I);
+  // Type *visitDefineTypeInst(DefineTypeInst &I);
+  // Type *visitLookupTypeInst(LookupTypeInst &I);
   //// Allocation instructions
   Type *visitAllocInst(AllocInst &I);
   //// Access instructions

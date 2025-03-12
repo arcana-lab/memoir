@@ -280,7 +280,7 @@ std::string Solver::formulate() {
 
       // If we have a derived type or a user-defined type, store it so that we
       // can formulate it later.
-      if (isa<ReferenceType>(&val_type) or isa<StructType>(&val_type)) {
+      if (isa<ReferenceType>(&val_type) or isa<TupleType>(&val_type)) {
         derived_types.insert(&val_type);
         val_str = "ty__" + val_str;
       }
@@ -294,7 +294,7 @@ std::string Solver::formulate() {
       // Unpack the key type.
       auto &key_type = assoc_type->getKeyType();
       auto key_str = key_type.get_code().value_or("INVALID_TYPE_ERROR");
-      if (isa<ReferenceType>(&key_type) or isa<StructType>(&key_type)) {
+      if (isa<ReferenceType>(&key_type) or isa<TupleType>(&key_type)) {
         derived_types.insert(&key_type);
         key_str = "ty__" + key_str;
       }
@@ -302,7 +302,7 @@ std::string Solver::formulate() {
       // Unpack the value type.
       auto &val_type = assoc_type->getValueType();
       auto val_str = val_type.get_code().value_or("INVALID_TYPE_ERROR");
-      if (isa<ReferenceType>(&val_type) or isa<StructType>(&val_type)) {
+      if (isa<ReferenceType>(&val_type) or isa<TupleType>(&val_type)) {
         derived_types.insert(&val_type);
         val_str = "ty__" + val_str;
       }

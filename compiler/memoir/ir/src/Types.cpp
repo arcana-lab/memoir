@@ -1,5 +1,7 @@
-#include "memoir/ir/Types.hpp"
+#include <algorithm>
+
 #include "memoir/ir/Instructions.hpp"
+#include "memoir/ir/Types.hpp"
 #include "memoir/support/Assert.hpp"
 
 #include "memoir/ir/TypeCheck.hpp"
@@ -130,44 +132,66 @@ ReferenceType &ReferenceType::get(Type &referenced_type) {
 
 map<Type *, ReferenceType *> *ReferenceType::reference_types = nullptr;
 
-StructType &Type::define_struct_type(DefineStructTypeInst &definition,
-                                     std::string name,
-                                     vector<Type *> field_types) {
-  return StructType::define(definition, name, field_types);
-}
-
-StructType &Type::get_struct_type(std::string name) {
-  return StructType::get(name);
-}
-
-StructType &StructType::define(DefineStructTypeInst &definition,
-                               std::string name,
-                               vector<Type *> field_types) {
-  if (StructType::defined_types == nullptr) {
-    StructType::defined_types = new map<std::string, StructType *>();
+#if 0
+Type &Type::define(DefineTypeInst &definition, std::string name, Type &type) {
+  if (ReferenceType::reference_types == nullptr) {
+    ReferenceType::reference_types = new map<Type *, ReferenceType *>();
   }
-  auto found_type = StructType::defined_types->find(name);
-  if (found_type != StructType::defined_types->end()) {
+
+  auto found_type = ReferenceType::reference_types->find(&referenced_type);
+  if (found_type != ReferenceType::reference_types->end()) {
     return *(found_type->second);
   }
 
-  auto new_type = new StructType(definition, name, field_types);
-  (*StructType::defined_types)[name] = new_type;
+  auto new_type = new ReferenceType(referenced_type);
+  (*ReferenceType::reference_types)[&referenced_type] = new_type;
 
   return *new_type;
 }
 
-map<std::string, StructType *> *StructType::defined_types = nullptr;
-
-StructType &StructType::get(std::string name) {
-  auto found_type = StructType::defined_types->find(name);
-  if (found_type != StructType::defined_types->end()) {
+Type &Type::lookup(std::string name) {
+  auto found_type = TupleType::defined_types->find(name);
+  if (found_type != TupleType::defined_types->end()) {
     return *(found_type->second);
   }
 
   warnln("No struct definition with name ", name);
-  MEMOIR_UNREACHABLE("Could not find a StructType of the given name");
+  MEMOIR_UNREACHABLE("Could not find a TupleType of the given name");
 }
+
+map<std::string, Type *> *Type::defined_types = nullptr;
+#endif
+
+// TupleType getter.
+TupleType &Type::get_tuple_type(llvm::ArrayRef<Type *> fields) {
+  return TupleType::get(fields);
+}
+
+TupleType &TupleType::get(llvm::ArrayRef<Type *> fields) {
+
+  if (TupleType::tuple_types == nullptr) {
+    TupleType::tuple_types = new ordered_multimap<unsigned, TupleType *>();
+  }
+  auto &tuple_types = *TupleType::tuple_types;
+
+  auto range = tuple_types.equal_range(fields.size());
+  for (auto it = range.first; it != range.second; ++it) {
+    auto *type = it->second;
+    if (std::equal(type->field_types.begin(),
+                   type->field_types.end(),
+                   fields.begin(),
+                   fields.end())) {
+      return *type;
+    }
+  }
+
+  auto *new_type = new TupleType(fields);
+  tuple_types.insert({ fields.size(), new_type });
+
+  return *new_type;
+}
+
+ordered_multimap<unsigned, TupleType *> *TupleType::tuple_types = nullptr;
 
 // ArrayType getter.
 ArrayType &Type::get_array_type(Type &element_type, size_t length) {
@@ -276,7 +300,7 @@ bool Type::is_reference_type(Type &type) {
 
 bool Type::is_struct_type(Type &type) {
   switch (type.getKind()) {
-    case TypeKind::STRUCT:
+    case TypeKind::TUPLE:
       return true;
     default:
       return false;
@@ -337,7 +361,7 @@ bool Type::value_is_struct_type(llvm::Value &value) {
     return false;
   }
 
-  return isa_and_nonnull<StructType>(type_of(value));
+  return isa_and_nonnull<TupleType>(type_of(value));
 }
 
 /*
@@ -550,31 +574,19 @@ llvm::Type *ReferenceType::get_llvm_type(llvm::LLVMContext &C) const {
 ObjectType::ObjectType(TypeKind kind) : Type(kind) {}
 
 /*
- * StructType implementation
+ * TupleType implementation
  */
-StructType::StructType(DefineStructTypeInst &definition,
-                       std::string name,
-                       vector<Type *> field_types)
-  : ObjectType(TypeKind::STRUCT),
-    definition(definition),
-    name(name),
-    field_types(field_types) {
+TupleType::TupleType(llvm::ArrayRef<Type *> fields)
+  : ObjectType(TypeKind::TUPLE),
+    field_types(fields) {
   // Do nothing.
 }
 
-DefineStructTypeInst &StructType::getDefinition() const {
-  return this->definition;
-}
-
-std::string StructType::getName() const {
-  return this->name;
-}
-
-unsigned StructType::getNumFields() const {
+unsigned TupleType::getNumFields() const {
   return this->field_types.size();
 }
 
-Type &StructType::getFieldType(unsigned field_index) const {
+Type &TupleType::getFieldType(unsigned field_index) const {
   MEMOIR_ASSERT(
       (field_index < this->getNumFields()),
       "Attempt to get length of out-of-range field index for struct type");
@@ -582,12 +594,16 @@ Type &StructType::getFieldType(unsigned field_index) const {
   return *(this->field_types[field_index]);
 }
 
-std::string StructType::toString(std::string indent) const {
+llvm::ArrayRef<Type *> TupleType::fields() const {
+  return this->field_types;
+}
+
+std::string TupleType::toString(std::string indent) const {
   std::string str = "";
 
   str += "(";
   bool first = true;
-  for (auto field_type : this->field_types) {
+  for (auto *field_type : this->fields()) {
     if (not first) {
       str += " ";
     } else {
@@ -600,11 +616,22 @@ std::string StructType::toString(std::string indent) const {
   return str;
 }
 
-opt<std::string> StructType::get_code() const {
-  return this->getName();
+opt<std::string> TupleType::get_code() const {
+  std::string str = "T" + std::to_string(this->getNumFields());
+
+  for (auto *field_type : this->fields()) {
+    str += "_";
+    if (auto field_code = field_type->get_code()) {
+      str += field_code.value();
+    } else {
+      MEMOIR_UNREACHABLE("Unknown field code for type ", *field_type);
+    }
+  }
+
+  return str;
 }
 
-llvm::Type *StructType::get_llvm_type(llvm::LLVMContext &C) const {
+llvm::Type *TupleType::get_llvm_type(llvm::LLVMContext &C) const {
   return llvm::PointerType::get(C, 0);
 }
 
@@ -749,8 +776,7 @@ Type &Type::from_code(std::string code) {
     return ReferenceType::get(Type::from_code(referenced_code));
   }
 
-  // Handle user-defined types.
-  return StructType::get(code);
+  // TODO: Handle tuple types.
 
   // TODO: Handle collection types.
 

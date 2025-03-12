@@ -1,23 +1,25 @@
 ifndef TESTS
 # TESTS := $(filter-out c++,$(patsubst %/, %, $(sort $(wildcard */))))
 # TESTS := $(patsubst %/, %, $(sort $(wildcard */)))
-TESTS := assoc sequence struct nested fold
+TESTS := assoc sequence tuple
 endif
 
 TEST_MAKEFILES=$(patsubst %,%/Makefile,$(TESTS))
 
-all: clean $(TEST_MAKEFILES) $(TESTS)
+all: $(TEST_MAKEFILES) clean $(TESTS)
 
 $(TESTS): %: %/Makefile
 	@printf "\e[1;2mRunning %s tests\e[0m\n" $@
 	@make --no-print-directory -C $@
 
+makefiles: $(TEST_MAKEFILES)
+.PHONY: makefiles
+
 %/Makefile:
 	[ ! -f $@ ] && cp ../Makefile.template $@
 
 clean: 
-	find $(TESTS) -type d -maxdepth 0 -exec make -C {} clean \;
-	find $(TESTS) -name "Makefile" -exec rm {} \;
+	find $(TESTS) -maxdepth 0 -type d -exec make -C {} clean \;
 
 .PHONY: all clean $(TESTS) $(CLEAN_TESTS)
 

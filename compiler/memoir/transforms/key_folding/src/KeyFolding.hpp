@@ -201,7 +201,7 @@ protected:
         continue;
       }
       auto &referenced_type = key_ref_type->getReferencedType();
-      auto *referenced_struct_type = dyn_cast<StructType>(&referenced_type);
+      auto *referenced_struct_type = dyn_cast<TupleType>(&referenced_type);
       if (referenced_struct_type == nullptr) {
         debugln("  key is not a struct reference");
         continue;

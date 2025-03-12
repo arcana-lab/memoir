@@ -205,8 +205,7 @@ bool FunctionNames::is_primitive_type(MemOIR_Func function_enum) {
 // Instructions.def
 bool FunctionNames::is_object_type(MemOIR_Func function_enum) {
   switch (function_enum) {
-    case MemOIR_Func::DEFINE_STRUCT_TYPE:
-    case MemOIR_Func::STRUCT_TYPE:
+    case MemOIR_Func::TUPLE_TYPE:
     case MemOIR_Func::ASSOC_ARRAY_TYPE:
     case MemOIR_Func::SEQUENCE_TYPE:
       return true;

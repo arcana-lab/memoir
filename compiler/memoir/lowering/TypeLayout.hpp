@@ -43,13 +43,13 @@ public:
     : memoir_type(memoir_integer_type),
       llvm_type(llvm_integer_type),
       bit_field_ranges(bit_field_ranges) {}
-  TypeLayout(StructType &memoir_struct_type,
+  TypeLayout(TupleType &memoir_struct_type,
              llvm::StructType &llvm_struct_type,
              vector<unsigned> field_offsets)
     : memoir_type(memoir_struct_type),
       llvm_type(llvm_struct_type),
       field_offsets(field_offsets) {}
-  TypeLayout(StructType &memoir_struct_type,
+  TypeLayout(TupleType &memoir_struct_type,
              llvm::StructType &llvm_struct_type,
              vector<unsigned> field_offsets,
              map<unsigned, pair<unsigned, unsigned>> bit_field_ranges)
@@ -258,17 +258,17 @@ protected:
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
 
-  TypeLayout &visitStructType(StructType &T) {
+  TypeLayout &visitTupleType(TupleType &T) {
     CHECK_MEMOIZED(T);
 
     // Check if we already created the named type.
-    auto type_name = T.getName();
+    auto type_name = *T.get_code();
     auto llvm_struct_type_name = "memoir." + type_name;
 
     // Collection information about the struct type.
     auto num_fields = T.getNumFields();
 
-    // Construct the llvm StructType for the given type.
+    // Construct the llvm TupleType for the given type.
     vector<unsigned> field_offsets;
     field_offsets.resize(num_fields);
     vector<llvm::Type *> llvm_field_types;
@@ -375,7 +375,7 @@ protected:
         llvm::StructType::create(llvm::ArrayRef(llvm_field_types),
                                  llvm_struct_type_name,
                                  /* is packed? */ true),
-        "Could not create the LLVM StructType!");
+        "Could not create the LLVM TupleType!");
 
     // Create the type layout.
     auto *type_layout =
