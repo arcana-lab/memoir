@@ -64,8 +64,13 @@ IntegerType &Type::get_bool_type() {
 
 IntegerType &Type::get_size_type(const llvm::DataLayout &DL) {
   auto bitwidth = 8 * DL.getPointerSize(0);
-  static IntegerType size_type(bitwidth, false);
-  return size_type;
+  switch (bitwidth) {
+    case 64:
+      return IntegerType::get<64, false>();
+    case 32:
+      return IntegerType::get<32, false>();
+  }
+  MEMOIR_UNREACHABLE("Unhandled size type bitwidth ", bitwidth);
 }
 
 template <unsigned BW, bool S>
@@ -223,56 +228,49 @@ ordered_multimap<Type *, ArrayType *> *ArrayType::array_types = nullptr;
 /*
  * AssocArrayType getter
  */
-AssocArrayType &Type::get_assoc_array_type(Type &key_type, Type &value_type) {
-  return AssocArrayType::get(key_type, value_type);
-}
-
-AssocArrayType &AssocArrayType::get(Type &key_type, Type &value_type) {
+AssocArrayType &AssocArrayType::get(Type &key_type,
+                                    Type &value_type,
+                                    std::optional<std::string> selection) {
   if (AssocArrayType::assoc_array_types == nullptr) {
-    AssocArrayType::assoc_array_types =
-        new map<Type *, map<Type *, AssocArrayType *>>();
+    AssocArrayType::assoc_array_types = new AssocArrayType::Types();
+  }
+  auto &types = *AssocArrayType::assoc_array_types;
+
+  auto &type = types[&key_type][&value_type][selection];
+
+  if (type != nullptr) {
+    return *type;
   }
 
-  auto found_key = AssocArrayType::assoc_array_types->find(&key_type);
-  if (found_key != AssocArrayType::assoc_array_types->end()) {
-    auto &key_to_value_map = found_key->second;
-    auto found_value = key_to_value_map.find(&value_type);
-    if (found_value != key_to_value_map.end()) {
-      return *(found_value->second);
-    }
-  }
-
-  auto type = new AssocArrayType(key_type, value_type);
-  (*AssocArrayType::assoc_array_types)[&key_type][&value_type] = type;
+  type = new AssocArrayType(key_type, value_type, selection);
 
   return *type;
 }
 
-map<Type *, map<Type *, AssocArrayType *>> *AssocArrayType::assoc_array_types =
-    nullptr;
+AssocArrayType::Types *AssocArrayType::assoc_array_types = nullptr;
 
 /*
  * SequenceType getter
  */
-SequenceType &Type::get_sequence_type(Type &element_type) {
-  return SequenceType::get(element_type);
-}
-
-SequenceType &SequenceType::get(Type &element_type) {
+SequenceType &SequenceType::get(Type &element_type,
+                                std::optional<std::string> selection) {
   if (SequenceType::sequence_types == nullptr) {
-    SequenceType::sequence_types = new map<Type *, SequenceType *>();
+    SequenceType::sequence_types = new SequenceType::Types();
   }
-  auto found_element = SequenceType::sequence_types->find(&element_type);
-  if (found_element != SequenceType::sequence_types->end()) {
-    return *(found_element->second);
+  auto &types = *SequenceType::sequence_types;
+
+  auto &type = types[&element_type][selection];
+
+  if (type != nullptr) {
+    return *type;
   }
 
-  auto type = new SequenceType(element_type);
-  (*SequenceType::sequence_types)[&element_type] = type;
+  type = new SequenceType(element_type, selection);
+
   return *type;
 }
 
-map<Type *, SequenceType *> *SequenceType::sequence_types = nullptr;
+SequenceType::Types *SequenceType::sequence_types = nullptr;
 
 /*
  * Static checker methods
@@ -389,9 +387,16 @@ TypeKind Type::getKind() const {
   return this->code;
 }
 
-// Type implementation
 llvm::Type *Type::get_llvm_type(llvm::LLVMContext &C) const {
   return nullptr;
+}
+
+bool Type::operator==(const Type &other) const {
+  return this == &other;
+}
+
+bool Type::operator<(const Type &other) const {
+  return this == &other;
 }
 
 /*
@@ -646,6 +651,14 @@ opt<std::string> CollectionType::get_code() const {
   return "collection";
 }
 
+opt<std::string> CollectionType::get_selection() const {
+  return {};
+}
+
+CollectionType &CollectionType::set_selection(opt<std::string> selection) {
+  return *this;
+}
+
 llvm::Type *CollectionType::get_llvm_type(llvm::LLVMContext &C) const {
   return llvm::PointerType::get(C, 0);
 }
@@ -678,10 +691,13 @@ std::string ArrayType::toString(std::string indent) const {
 /*
  * AssocArrayType implementation
  */
-AssocArrayType::AssocArrayType(Type &key_type, Type &value_type)
+AssocArrayType::AssocArrayType(Type &key_type,
+                               Type &value_type,
+                               opt<std::string> selection)
   : CollectionType(TypeKind::ASSOC_ARRAY),
     key_type(key_type),
-    value_type(value_type) {
+    value_type(value_type),
+    selection(selection) {
   // Do nothing.
 }
 
@@ -698,20 +714,49 @@ Type &AssocArrayType::getElementType() const {
 }
 
 std::string AssocArrayType::toString(std::string indent) const {
-  std::string str;
+  std::string str = "Assoc";
 
-  str = "Assoc<" + this->key_type.toString(indent) + ", "
-        + this->value_type.toString(indent) + ">";
+  if (auto selection = this->get_selection()) {
+    str += "::" + selection.value();
+  }
+
+  str += "<" + this->key_type.toString(indent) + ", "
+         + this->value_type.toString(indent) + ">";
 
   return str;
+}
+
+opt<std::string> AssocArrayType::get_selection() const {
+  return this->selection;
+}
+
+CollectionType &AssocArrayType::set_selection(opt<std::string> selection) {
+  return AssocArrayType::get(this->getKeyType(),
+                             this->getValueType(),
+                             selection);
+}
+
+bool AssocArrayType::operator<(const Type &other) const {
+  if (this == &other) {
+    return true;
+  }
+
+  const auto *other_assoc = dyn_cast<AssocArrayType>(&other);
+  if (not other_assoc) {
+    return false;
+  }
+
+  return this->getKeyType() < other_assoc->getKeyType()
+         and this->getValueType() < other_assoc->getValueType();
 }
 
 /*
  * SequenceType implementation
  */
-SequenceType::SequenceType(Type &element_type)
+SequenceType::SequenceType(Type &element_type, opt<std::string> selection)
   : CollectionType(TypeKind::SEQUENCE),
-    element_type(element_type) {
+    element_type(element_type),
+    selection(selection) {
   // Do nothing.
 }
 
@@ -720,13 +765,39 @@ Type &SequenceType::getElementType() const {
 }
 
 std::string SequenceType::toString(std::string indent) const {
-  std::string str;
+  std::string str = "Seq";
 
-  str = "Seq<" + this->element_type.toString() + ">";
+  if (auto selection = this->get_selection()) {
+    str += "::" + selection.value();
+  }
+
+  str += "<" + this->element_type.toString() + ">";
 
   return str;
 }
 
+opt<std::string> SequenceType::get_selection() const {
+  return this->selection;
+}
+
+CollectionType &SequenceType::set_selection(opt<std::string> selection) {
+  return SequenceType::get(this->getElementType(), selection);
+}
+
+bool SequenceType::operator<(const Type &other) const {
+  if (this == &other) {
+    return true;
+  }
+
+  const auto *other_seq = dyn_cast<SequenceType>(&other);
+  if (not other_seq) {
+    return false;
+  }
+
+  return this->getElementType() < other_seq->getElementType();
+}
+
+// Decoding.
 Type &Type::from_code(std::string code) {
   if (code[0] == 'u') {
     auto bitwidth = std::atoi(&code.c_str()[1]);

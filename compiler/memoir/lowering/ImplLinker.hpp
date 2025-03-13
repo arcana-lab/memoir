@@ -48,9 +48,7 @@ public:
    * @returns the selected implementation, or the default implementation if no
    * name was provided.
    */
-  static const Implementation &get_implementation(
-      const std::optional<std::string> &selection,
-      CollectionType &type);
+  static const Implementation &get_implementation(CollectionType &type);
 
   void implement(Type &type);
 

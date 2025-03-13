@@ -195,9 +195,7 @@ namespace detail {
 llvm::Value &construct_collection_allocation(
     MemOIRBuilder &builder,
     CollectionType &type,
-    llvm::ArrayRef<llvm::Value *> sizes,
-    std::optional<SelectionMetadata> selection,
-    unsigned selection_index = 0) {
+    llvm::ArrayRef<llvm::Value *> sizes) {
 
   auto *collection_type = &type;
 
@@ -215,13 +213,7 @@ llvm::Value &construct_collection_allocation(
     }
 
     // Fetch the collection implementation.
-    std::optional<std::string> dim_name = std::nullopt;
-    if (selection.has_value()) {
-      dim_name = selection->getImplementation(selection_index++);
-    }
-
-    const auto &dim_impl =
-        ImplLinker::get_implementation(dim_name, *collection_type);
+    const auto &dim_impl = ImplLinker::get_implementation(*collection_type);
 
     // Fetch the arguments.
     vector<llvm::Value *> arguments = {};
@@ -335,10 +327,6 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
 
   if (auto *collection_type = dyn_cast<CollectionType>(type)) {
 
-    // Fetch the selection from the instruction metadata, if it exists.
-    unsigned selection_index = 0;
-    auto selection_metadata = Metadata::get<SelectionMetadata>(I);
-
     // Track where we are in the size list.
     auto size_it = I.sizes_begin(), size_ie = I.sizes_end();
 
@@ -346,8 +334,7 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
     auto &result = detail::construct_collection_allocation(
         builder,
         *collection_type,
-        llvm::SmallVector<llvm::Value *>(size_it, size_ie),
-        selection_metadata);
+        llvm::SmallVector<llvm::Value *>(size_it, size_ie));
 
     this->coalesce(I, result);
 
@@ -383,14 +370,7 @@ void SSADestructionVisitor::visitDeleteInst(DeleteInst &I) {
     vector<llvm::Value *> arguments = { &I.getObject() };
 
     // Fetch the collection implementation.
-    std::optional<std::string> impl_name = std::nullopt;
-    auto selection_metadata = Metadata::get<SelectionMetadata>(I);
-    if (selection_metadata.has_value()) {
-      impl_name = selection_metadata->getImplementation();
-    }
-
-    const auto &impl =
-        ImplLinker::get_implementation(impl_name, *collection_type);
+    const auto &impl = ImplLinker::get_implementation(*collection_type);
 
     auto callee = detail::prepare_call(builder,
                                        impl,
@@ -437,15 +417,6 @@ static llvm::Value &contextualize_end(AccessInst &inst, llvm::Use &use) {
   MemOIRBuilder builder(inst);
 
   auto *size_inst = builder.CreateSizeInst(&inst.getObject(), indices);
-
-  // Propagate the selection metadata.
-  if (auto selection = Metadata::get<SelectionMetadata>(inst)) {
-    auto &metadata = selection->getMetadata();
-    auto *clone = llvm::MDNode::replaceWithDistinct(metadata.clone());
-    size_inst->getCallInst().setMetadata(
-        Metadata::get_kind<SelectionMetadata>(),
-        clone);
-  }
 
   llvm::Value *size = &size_inst->getSize();
   if (minus_one) {
@@ -502,14 +473,12 @@ struct NestedObjectInfo {
                    Type &type,
                    AccessInst::index_iterator begin,
                    AccessInst::index_iterator end,
-                   const Implementation &impl,
-                   unsigned selection_index)
+                   const Implementation &impl)
     : object(object),
       type(type),
       begin(begin),
       end(end),
-      implementation(&impl),
-      selection_index(selection_index) {}
+      implementation(&impl) {}
 
   NestedObjectInfo(llvm::Value &object,
                    Type &type,
@@ -519,14 +488,12 @@ struct NestedObjectInfo {
       type(type),
       begin(begin),
       end(end),
-      implementation(nullptr),
-      selection_index(0) {}
+      implementation(nullptr) {}
 
   llvm::Value &object;
   Type &type;
   AccessInst::index_iterator begin, end;
   const Implementation *implementation;
-  unsigned selection_index;
 };
 static NestedObjectInfo get_nested_object(
     llvm::Instruction &IP,
@@ -535,9 +502,7 @@ static NestedObjectInfo get_nested_object(
     std::input_iterator auto indices_begin,
     std::input_iterator auto indices_end,
     TypeConverter &TC,
-    bool fully_qualified = false,
-    std::optional<SelectionMetadata> selection_metadata = {},
-    unsigned selection_index = 0) {
+    bool fully_qualified = false) {
 
   MemOIRBuilder builder(&IP);
 
@@ -566,15 +531,6 @@ static NestedObjectInfo get_nested_object(
       if (not isa<ObjectType>(&field_type)) {
         return NestedObjectInfo(*object, *type, it, ie);
       }
-
-      // Fetch the field's selection metadata.
-#if 0 // TODO: fix me after we move selections into types
-      selection_metadata =
-          Metadata::get<SelectionMetadata>(*tuple_type, field_index);
-#else
-      selection_metadata = {};
-#endif
-      selection_index = 0;
 
       // Construct a get.
       object = &detail::construct_field_get(builder,
@@ -622,25 +578,16 @@ static NestedObjectInfo get_nested_object(
       type = &element_type;
 
     } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+
       // Fetch the collection implementation.
-      std::optional<std::string> dim_name = std::nullopt;
-      if (selection_metadata.has_value()) {
-        dim_name = selection_metadata->getImplementation(selection_index++);
-      }
-      const auto &dim_impl =
-          ImplLinker::get_implementation(dim_name, *collection_type);
+      const auto &dim_impl = ImplLinker::get_implementation(*collection_type);
 
       // Check if the implementation covers the remaining indices or not.
       auto num_dimensions = dim_impl.num_dimensions();
       auto remaining = std::distance(it, ie);
       if ((fully_qualified and (num_dimensions > remaining))
           or (not fully_qualified and (num_dimensions >= remaining))) {
-        return NestedObjectInfo(*object,
-                                *type,
-                                it,
-                                ie,
-                                dim_impl,
-                                selection_index);
+        return NestedObjectInfo(*object, *type, it, ie, dim_impl);
       }
 
       // Otherwise, we will construct the get operation for the nested
@@ -677,19 +624,9 @@ static NestedObjectInfo get_nested_object(
     return NestedObjectInfo(*object, *type, indices_end, indices_end);
 
   } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
-    std::optional<std::string> impl_name = std::nullopt;
-    if (selection_metadata.has_value()) {
-      impl_name = selection_metadata->getImplementation(selection_index++);
-    }
-    const auto &impl =
-        ImplLinker::get_implementation(impl_name, *collection_type);
+    const auto &impl = ImplLinker::get_implementation(*collection_type);
 
-    return NestedObjectInfo(*object,
-                            *type,
-                            indices_end,
-                            indices_end,
-                            impl,
-                            selection_index);
+    return NestedObjectInfo(*object, *type, indices_end, indices_end, impl);
   }
 
   MEMOIR_UNREACHABLE("Could not get the nested object\n  ",
@@ -707,9 +644,7 @@ static NestedObjectInfo get_nested_object(AccessInst &I,
                            I.indices_begin(),
                            I.indices_end(),
                            TC,
-                           fully_qualified,
-                           Metadata::get<SelectionMetadata>(I),
-                           0);
+                           fully_qualified);
 }
 
 unsigned compute_depth(NestedObjectInfo &info) {
@@ -921,11 +856,6 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
     fully_qualified = isa<AssocType>(I.getObjectType());
     base_operation = false;
 
-    std::optional<SelectionMetadata> input_selection = {};
-    if (auto *input_inst = dyn_cast<llvm::Instruction>(&input_kw->getInput())) {
-      input_selection = Metadata::get<SelectionMetadata>(*input_inst);
-    }
-
     auto &input_type =
         MEMOIR_SANITIZE(type_of(input_kw->getInput()),
                         "Failed to get type of InputKeyword object");
@@ -936,8 +866,7 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
                                                 input_kw->indices_begin(),
                                                 input_kw->indices_end(),
                                                 this->TC,
-                                                /* fully qualified? */ true,
-                                                input_selection);
+                                                /* fully qualified? */ true);
 
     arguments.push_back(&input_info.object);
 
@@ -979,27 +908,6 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
       // TODO: How do we get the nested implementation here?
       auto *alloc = builder.CreateAllocInst(element_type, args, "default");
       this->stage(alloc->getCallInst());
-
-      // Propagate the nested selection info here.
-      auto selection = Metadata::get<SelectionMetadata>(I);
-      if (selection.has_value()) {
-        auto alloc_selection = Metadata::get_or_add<SelectionMetadata>(*alloc);
-
-        auto sel_it = selection->impl_begin();
-        for (unsigned i = 0; i < info.selection_index; ++i) {
-          if (sel_it != selection->impl_end()) {
-            ++sel_it;
-          }
-        }
-
-        unsigned alloc_index = 0;
-        for (; sel_it != selection->impl_end(); ++sel_it, ++alloc_index) {
-          auto sel = *sel_it;
-          if (sel.has_value()) {
-            alloc_selection.setImplementation(sel.value(), alloc_index);
-          }
-        }
-      }
 
       operation_name += "_value";
       arguments.push_back(&alloc->getCallInst());

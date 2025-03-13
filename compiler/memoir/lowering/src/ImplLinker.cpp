@@ -87,11 +87,10 @@ const Implementation &ImplLinker::get_default_implementation(
   MEMOIR_UNREACHABLE("Collection type has no default implementation!");
 }
 
-const Implementation &ImplLinker::get_implementation(
-    const std::optional<std::string> &selection,
-    CollectionType &type) {
+const Implementation &ImplLinker::get_implementation(CollectionType &type) {
 
   // Lookup the selection, if we were given one.
+  auto selection = type.get_selection();
   if (selection.has_value()) {
     return MEMOIR_SANITIZE(
         Implementation::lookup(selection.value()),
@@ -111,17 +110,7 @@ void ImplLinker::implement(Type &type) {
 
       if (auto *field_collection_type = dyn_cast<CollectionType>(&field_type)) {
 
-        std::optional<std::string> selection = {};
-#if 0 // TODO: update me when we move selections into the type definition.
-        auto selection_metadata =
-            Metadata::get<SelectionMetadata>(*tuple_type, field);
-        if (selection_metadata.has_value()) {
-          selection = selection_metadata->getImplementation(0);
-        }
-#endif
-
-        const auto &impl =
-            this->get_implementation(selection, *field_collection_type);
+        const auto &impl = this->get_implementation(*field_collection_type);
 
         auto &inst = impl.instantiate(*field_collection_type);
 

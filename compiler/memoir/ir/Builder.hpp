@@ -106,10 +106,13 @@ public:
       return this->CreateAssocArrayTypeInst(
           &this->CreateTypeInst(assoc_type->getKeyType())->getCallInst(),
           &this->CreateTypeInst(assoc_type->getValueType())->getCallInst(),
+          assoc_type->get_selection(),
           name);
     } else if (auto *seq_type = dyn_cast<SequenceType>(&type)) {
       return this->CreateSequenceTypeInst(
-          &this->CreateTypeInst(seq_type->getElementType())->getCallInst());
+          &this->CreateTypeInst(seq_type->getElementType())->getCallInst(),
+          seq_type->get_selection(),
+          name);
     }
     MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");
   }
@@ -185,17 +188,39 @@ public:
   }
 
   SequenceTypeInst *CreateSequenceTypeInst(llvm::Value *element_type,
+                                           opt<std::string> selection = {},
                                            const Twine &name = "") {
+
+    vector<llvm::Value *> args = { element_type };
+
+    if (selection) {
+      auto &context = this->getContext();
+      args.push_back(&Keyword::get_llvm<SelectionKeyword>(context));
+      args.push_back(
+          llvm::ConstantDataArray::getString(context, selection.value()));
+    }
+
     return this->create<SequenceTypeInst>(MemOIR_Func::SEQUENCE_TYPE,
-                                          { element_type },
+                                          args,
                                           name);
   }
 
   AssocArrayTypeInst *CreateAssocArrayTypeInst(llvm::Value *key_type,
                                                llvm::Value *value_type,
+                                               opt<std::string> selection = {},
                                                const Twine &name = "") {
+
+    vector<llvm::Value *> args = { key_type, value_type };
+
+    if (selection) {
+      auto &context = this->getContext();
+      args.push_back(&Keyword::get_llvm<SelectionKeyword>(context));
+      args.push_back(
+          llvm::ConstantDataArray::getString(context, selection.value()));
+    }
+
     return this->create<AssocArrayTypeInst>(MemOIR_Func::ASSOC_ARRAY_TYPE,
-                                            { key_type, value_type },
+                                            args,
                                             name);
   }
 

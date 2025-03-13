@@ -71,8 +71,6 @@ public:
   static Type &lookup_type(std::string name);
   static TupleType &get_tuple_type(llvm::ArrayRef<Type *> fields);
   static ArrayType &get_array_type(Type &element_type, size_t length);
-  static AssocArrayType &get_assoc_array_type(Type &key_type, Type &value_type);
-  static SequenceType &get_sequence_type(Type &element_type);
 
   static Type &from_code(std::string code);
 
@@ -95,7 +93,9 @@ public:
 
   friend std::ostream &operator<<(std::ostream &os, const Type &T);
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Type &T);
-  friend bool operator<(const Type &L, const Type &R);
+
+  virtual bool operator==(const Type &other) const;
+  virtual bool operator<(const Type &other) const;
 
   virtual ~Type() = default;
 
@@ -290,6 +290,9 @@ public:
 
   opt<std::string> get_code() const override;
 
+  virtual opt<std::string> get_selection() const;
+  virtual CollectionType &set_selection(opt<std::string> selection);
+
   llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
 protected:
@@ -320,11 +323,16 @@ protected:
 
 struct AssocArrayType : public CollectionType {
 public:
-  static AssocArrayType &get(Type &key_type, Type &value_type);
+  static AssocArrayType &get(Type &key_type,
+                             Type &value_type,
+                             std::optional<std::string> selection = {});
 
   Type &getKeyType() const;
   Type &getValueType() const;
   Type &getElementType() const override;
+
+  opt<std::string> get_selection() const override;
+  CollectionType &set_selection(opt<std::string> selection) override;
 
   static bool classof(const Type *T) {
     return (T->getKind() == TypeKind::ASSOC_ARRAY);
@@ -332,19 +340,30 @@ public:
 
   std::string toString(std::string indent = "") const override;
 
+  bool operator<(const Type &other) const override;
+
 protected:
   Type &key_type;
   Type &value_type;
+  opt<std::string> selection;
 
-  static map<Type *, map<Type *, AssocArrayType *>> *assoc_array_types;
+  typedef ordered_map<
+      Type *,
+      ordered_map<Type *,
+                  ordered_map<std::optional<std::string>, AssocArrayType *>>>
+      Types;
+  static Types *assoc_array_types;
 
-  AssocArrayType(Type &key_type, Type &value_type);
+  AssocArrayType(Type &key_type,
+                 Type &value_type,
+                 opt<std::string> selection = {});
 };
 using AssocType = struct AssocArrayType;
 
 struct SequenceType : public CollectionType {
 public:
-  static SequenceType &get(Type &element_type);
+  static SequenceType &get(Type &element_type,
+                           std::optional<std::string> selection = {});
 
   Type &getElementType() const override;
 
@@ -354,12 +373,21 @@ public:
 
   std::string toString(std::string indent = "") const override;
 
+  opt<std::string> get_selection() const override;
+  CollectionType &set_selection(opt<std::string> selection) override;
+
+  bool operator<(const Type &other) const override;
+
 protected:
   Type &element_type;
+  opt<std::string> selection;
 
-  static map<Type *, SequenceType *> *sequence_types;
+  typedef ordered_map<Type *,
+                      ordered_map<std::optional<std::string>, SequenceType *>>
+      Types;
+  static Types *sequence_types;
 
-  SequenceType(Type &element_type);
+  SequenceType(Type &element_type, opt<std::string> selection = {});
 };
 
 /**
