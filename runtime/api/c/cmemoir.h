@@ -35,16 +35,17 @@ namespace memoir {
 #define memoir_static_tensor_type(element_type, length)                        \
   MEMOIR_FUNC(array_type)(element_type, (size_t)length)
 
-#define memoir_assoc_type(key_type, value_type)                                \
-  MEMOIR_FUNC(assoc_type)(key_type, value_type)
+#define memoir_assoc_type(key_type, value_type, selection...)                  \
+  MEMOIR_FUNC(assoc_type)(key_type, value_type, ##selection)
 
-#define memoir_assoc_array_type(key_type, value_type)                          \
-  memoir_assoc_type(key_type, value_type)
+#define memoir_assoc_array_type(key_type, value_type, selection...)            \
+  memoir_assoc_type(key_type, value_type, ##selection)
 
-#define memoir_set_type(key_type) memoir_assoc_type(key_type, memoir_void_t)
+#define memoir_set_type(key_type, selection...)                                \
+  memoir_assoc_type(key_type, memoir_void_t, ##selection)
 
-#define memoir_sequence_type(element_type)                                     \
-  MEMOIR_FUNC(sequence_type)(element_type)
+#define memoir_sequence_type(element_type, selection...)                       \
+  MEMOIR_FUNC(sequence_type)(element_type, ##selection)
 
 #define memoir_ref_t(referenced_type) MEMOIR_FUNC(ref_type)(referenced_type)
 
