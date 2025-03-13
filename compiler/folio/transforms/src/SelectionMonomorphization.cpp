@@ -150,26 +150,6 @@ void collect_declarations(Selections &selections, llvm::Module &M) {
           continue;
         }
 
-        // Convert selection keywords to selection metadata.
-        if (auto keyword = memoir_inst->get_keyword<SelectionKeyword>()) {
-          auto metadata = Metadata::get_or_add<SelectionMetadata>(I);
-          for (unsigned idx = 0; idx < keyword->getNumSelections(); ++idx) {
-            auto offset = keyword->getOffset(idx);
-            auto selection = keyword->getSelection(idx);
-
-            // Set the implementation, and resolve selection clashes.
-            auto existing = metadata.getImplementation(offset);
-            if (not existing) {
-              metadata.setImplementation(selection, offset);
-            } else {
-              MEMOIR_ASSERT(
-                  existing.value() == selection,
-                  "User-define selection and internal selection do not match!\n  ",
-                  I);
-            }
-          }
-        }
-
         // Check if the instruction has a selection attached to it.
         auto metadata = Metadata::get<SelectionMetadata>(I);
         if (not metadata.has_value()) {
@@ -645,6 +625,7 @@ void unify_declarations(Selections &selections) {
 } // namespace detail
 
 SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
+#if 0  
   // Initialize an empty mapping for selections.
   Selections selections = {};
 
@@ -704,6 +685,7 @@ SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
 
   // Annotate instructions with their selection.
   detail::annotate(selections_to_annotate);
+#endif
 }
 
 } // namespace folio
