@@ -12,7 +12,7 @@ Type *TypeChecker::type_of(MemOIRInst &I) {
 }
 
 Type *TypeChecker::type_of(llvm::Value &V) {
-  TypeChecker TA;
+  TypeChecker checker;
 
   // Only type check LLVM pointers.
   if (not isa<llvm::PointerType>(V.getType())) {
@@ -20,7 +20,7 @@ Type *TypeChecker::type_of(llvm::Value &V) {
   }
 
   // Get the type of this value.
-  auto *type = TA.analyze(V);
+  auto *type = checker.analyze(V);
 
   // If the resulting type is NULL, return it.
   if (type == nullptr) {
@@ -255,20 +255,26 @@ Type *TypeChecker::visitAssocArrayTypeInst(AssocArrayTypeInst &I) {
   auto &value_type = MEMOIR_SANITIZE(this->analyze(I.getValueOperand()),
                                      "Could not determine value of AssocType");
 
-  // Build the AssocArrayType.
-  auto &type = AssocArrayType::get(key_type, value_type);
+  if (auto selection_kw = I.get_keyword<SelectionKeyword>()) {
+    return &AssocArrayType::get(key_type,
+                                value_type,
+                                selection_kw->getSelection());
+  }
 
-  return &type;
+  return &AssocArrayType::get(key_type, value_type);
 }
 
 Type *TypeChecker::visitSequenceTypeInst(SequenceTypeInst &I) {
   auto &elem_type =
       MEMOIR_SANITIZE(this->analyze(I.getElementOperand()),
-                      "Could not determine element of SequenceType");
+                      "Could not determine element of SequenceType ",
+                      I.getElementOperand());
 
-  auto &type = SequenceType::get(elem_type);
+  if (auto selection_kw = I.get_keyword<SelectionKeyword>()) {
+    return &SequenceType::get(elem_type, selection_kw->getSelection());
+  }
 
-  return &type;
+  return &SequenceType::get(elem_type);
 }
 
 // Allocation instructions.
