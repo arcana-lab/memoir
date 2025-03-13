@@ -3,12 +3,14 @@ project(memoir-cpp C CXX ASM)
 set(HEADER_FILES
   # Objects
   object.hh
-
+  element.hh
+  
   # Base collections
   collection.hh
   sequence.hh
   assoc.hh
   set.hh
+
 
   # Sequential collections
   

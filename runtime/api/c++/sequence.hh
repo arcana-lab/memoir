@@ -8,6 +8,7 @@
 #include "memoir.h"
 
 #include "memoir++/collection.hh"
+#include "memoir++/element.hh"
 #include "memoir++/object.hh"
 
 namespace memoir {
@@ -24,274 +25,8 @@ public:
   using difference_type = std::ptrdiff_t;
 
 protected:
-  class object_sequence_element : public T {
-  public:
-    // using inner_type = typename std::remove_pointer_t<T>;
-
-    // object_sequence_element &operator=(object_sequence_element &&other) {
-    //   this->target_object = std::move(other.target_object);
-    //   this->idx = std::move(other.idx);
-    //   return *this;
-    // }
-
-    // object_sequence_element &operator=(object_sequence_element other) {
-    //   this->target_object = std::swap(this->target_object,
-    //   other.target_object); this->idx = std::swap(this->idx, other.idx);
-    //   return *this;
-    // }
-
-    always_inline T &operator=(T &&val) const {
-      if constexpr (std::is_base_of_v<memoir::object, T>) {
-        // TODO: copy construct the incoming struct
-        return val;
-      } else if constexpr (std::is_pointer_v<T>) {
-        using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
-          MUT_FUNC(index_write_struct_ref)
-          (val->target_object, this->target_object, this->idx);
-          return val;
-        }
-      }
-    } // T &operator=(T &&)
-
-    always_inline operator T() const {
-      MEMOIR_FUNC(assert_collection_type)
-      (memoir_type<Seq<T>>, this->target_object);
-      if constexpr (std::is_pointer_v<T>) {
-        using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
-          return T(MEMOIR_FUNC(index_read_struct_ref)(this->target_object,
-                                                      this->idx));
-        }
-      } else if constexpr (std::is_base_of_v<memoir::object, T>) {
-        return T(MEMOIR_FUNC(index_get_struct)(this->target_object, this->idx));
-      }
-    } // operator T()
-
-    always_inline T operator*() const {
-      MEMOIR_FUNC(assert_collection_type)
-      (memoir_type<Seq<T>>, this->target_object);
-      if constexpr (std::is_pointer_v<T>) {
-        using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (std::is_base_of_v<memoir::object, inner_type>) {
-          return T(MEMOIR_FUNC(index_read_struct_ref)(this->target_object,
-                                                      this->idx));
-        }
-      } else if constexpr (std::is_base_of_v<memoir::object, T>) {
-        return T(MEMOIR_FUNC(index_get_struct)(this->target_object, this->idx));
-      }
-    } // operator T()
-
-    // TODO: make this construct the underlying object with a get_struct
-    always_inline object_sequence_element(memoir::Collection *target_object,
-                                          size_type idx)
-      : T(MEMOIR_FUNC(index_get_struct)(target_object, idx)),
-        target_object(target_object),
-        idx(idx) {
-      // Do nothing.
-    }
-
-    memoir::Collection *const target_object;
-    const size_type idx;
-  }; // class object_sequence_element
-
-  class collection_sequence_element : public T {
-  public:
-    // using inner_type = typename std::remove_pointer_t<T>;
-
-    // collection_sequence_element &operator=(
-    //     collection_sequence_element &&other) {
-    //   this->target_object = std::move(other.target_object);
-    //   this->idx = std::move(other.idx);
-    //   return *this;
-    // }
-
-    // collection_sequence_element &operator=(collection_sequence_element
-    // other)
-    // {
-    //   this->target_object = std::swap(this->target_object,
-    //   other.target_object); this->idx = std::swap(this->idx, other.idx);
-    //   return *this;
-    // }
-
-    always_inline T &operator=(T &&val) const {
-      if constexpr (std::is_base_of_v<memoir::collection, T>) {
-        // TODO: copy construct the incoming collection
-        return val;
-      } else if constexpr (std::is_pointer_v<T>) {
-        using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (std::is_base_of_v<memoir::collection, inner_type>) {
-          MUT_FUNC(index_write_collection_ref)
-          (val->target_object, this->target_object, this->idx);
-          return val;
-        }
-      }
-    } // T &operator=(T &&)
-
-    always_inline operator T() const {
-      MEMOIR_FUNC(assert_collection_type)
-      (memoir_type<Seq<T>>, this->target_object);
-
-      if constexpr (std::is_pointer_v<T>) {
-        using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (std::is_base_of_v<memoir::collection, inner_type>) {
-          return T(MEMOIR_FUNC(index_read_collection_ref)(this->target_object,
-                                                          this->idx));
-        }
-      } else if constexpr (std::is_base_of_v<memoir::collection, T>) {
-        return T(
-            MEMOIR_FUNC(index_get_collection)(this->target_object, this->idx));
-      }
-    } // operator T()
-
-    always_inline T operator*() const {
-      MEMOIR_FUNC(assert_collection_type)
-      (memoir_type<Seq<T>>, this->target_object);
-
-      if constexpr (std::is_pointer_v<T>) {
-        using inner_type = typename std::remove_pointer_t<T>;
-        if constexpr (std::is_base_of_v<memoir::collection, inner_type>) {
-          return T(MEMOIR_FUNC(index_read_collection_ref)(this->target_object,
-                                                          this->idx));
-        }
-      } else if constexpr (std::is_base_of_v<memoir::collection, T>) {
-        return T(
-            MEMOIR_FUNC(index_get_collection)(this->target_object, this->idx));
-      } else {
-#if __cpp_extensions
-        throw std::runtime_error(
-            "element is not a collection or a collection reference");
-#else
-        abort();
-#endif
-      }
-    } // operator*()
-
-    always_inline collection_sequence_element(memoir::Collection *target_object,
-                                              size_type idx)
-      : T(MEMOIR_FUNC(index_get_collection)(target_object, idx)),
-        target_object(target_object),
-        idx(idx) {
-      // Do nothing.
-    }
-
-    memoir::Collection *const target_object;
-    const size_type idx;
-  }; // class collection_sequence_element
-
-  class primitive_sequence_element {
-  public:
-    // using inner_type = typename std::remove_pointer_t<T>;
-
-    // primitive_sequence_element &operator=(primitive_sequence_element
-    // &&other)
-    // {
-    //   this->target_object = std::move(other.target_object);
-    //   this->idx = std::move(other.idx);
-    //   return *this;
-    // }
-
-    // primitive_sequence_element &operator=(primitive_sequence_element other)
-    // {
-    //   this->target_object = std::swap(this->target_object,
-    //   other.target_object); this->idx = std::swap(this->idx, other.idx);
-    //   return *this;
-    // }
-
-    always_inline T operator=(T val) const {
-      MEMOIR_FUNC(assert_collection_type)
-      (memoir_type<Seq<T>>, this->target_object);
-
-      if constexpr (std::is_pointer_v<T>) {
-        MUT_FUNC(index_write_ptr)
-        (val, this->target_object, this->idx);
-        return val;
-      }
-#define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
-  else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
-    MUT_FUNC(index_write_##TYPE_NAME)                                          \
-    (val, this->target_object, this->idx);                                     \
-    return val;                                                                \
-  }
-#define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
-  HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)
-#include <types.def>
-#undef HANDLE_PRIMITIVE_TYPE
-#undef HANDLE_INTEGER_TYPE
-    } // T &operator=(T &&)
-
-    always_inline operator T() const {
-      MEMOIR_FUNC(assert_collection_type)
-      (memoir_type<Seq<T>>, this->target_object);
-
-      if constexpr (std::is_pointer_v<T>) {
-        return MEMOIR_FUNC(index_read_ptr)(this->target_object, this->idx);
-      }
-#define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
-  else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
-    return MEMOIR_FUNC(index_read_##TYPE_NAME)(this->target_object,            \
-                                               this->idx);                     \
-  }
-#define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
-  HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)
-#include <types.def>
-#undef HANDLE_PRIMITIVE_TYPE
-#undef HANDLE_INTEGER_TYPE
-    } // operator T()
-
-    always_inline T operator*() const {
-      MEMOIR_FUNC(assert_collection_type)
-      (memoir_type<Seq<T>>, this->target_object);
-
-      if constexpr (std::is_pointer_v<T>) {
-        return MEMOIR_FUNC(index_read_ptr)(this->target_object, this->idx);
-      }
-#define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
-  else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
-    return MEMOIR_FUNC(index_read_##TYPE_NAME)(this->target_object,            \
-                                               this->idx);                     \
-  }
-#define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
-  else if constexpr (std::is_same_v<T, C_TYPE>) {                              \
-    return MEMOIR_FUNC(index_read_##TYPE_NAME)(this->target_object,            \
-                                               this->idx);                     \
-  }
-#include <types.def>
-#undef HANDLE_PRIMITIVE_TYPE
-#undef HANDLE_INTEGER_TYPE
-      else {
-#if __cpp_extensions
-        throw std::runtime_error("unknown Seq element type");
-#else
-        abort();
-#endif
-      }
-    } // operator T()
-
-    always_inline friend void swap(primitive_sequence_element a,
-                                   primitive_sequence_element b) {
-      T tmp = *a;
-      a = *b;
-      b = tmp;
-    }
-
-    always_inline primitive_sequence_element(memoir::Collection *target_object,
-                                             size_type idx)
-      : target_object(target_object),
-        idx(idx) {}
-
-    memoir::Collection *target_object;
-    size_type idx;
-  }; // class primitive_sequence_element
-
 public:
-  using sequence_element = std::conditional_t<
-      std::is_base_of_v<memoir::object, std::remove_pointer_t<T>>,
-      object_sequence_element,
-      std::conditional_t<
-          std::is_base_of_v<memoir::collection, std::remove_pointer_t<T>>,
-          collection_sequence_element,
-          primitive_sequence_element>>;
+  using sequence_element = Element<T, size_t>;
 
   class iterator {
   public:
@@ -459,12 +194,12 @@ public:
   using const_reverse_iterator = const reverse_iterator;
 
   always_inline Seq(size_type n = 0)
-    : Seq(memoir::MEMOIR_FUNC(allocate_sequence)(memoir_type<T>, n)) {
+    : Seq(memoir::MEMOIR_FUNC(allocate)(memoir_type<Seq<T>>, n)) {
     // Do nothing.
   }
 
   always_inline Seq(Ref<Seq<T>> seq) : collection(seq) {
-    MEMOIR_FUNC(assert_collection_type)
+    MEMOIR_FUNC(assert_type)
     (memoir_type<Seq<T>>, seq);
   }
 
@@ -480,7 +215,7 @@ public:
   always_inline void assign(size_type count, const T &value) {
     if (this->size() != count) {
       MEMOIR_FUNC(delete_collection)(this->_storage);
-      this->_storage = MEMOIR_FUNC(allocate_sequence)(memoir_type<T>, count);
+      this->_storage = MEMOIR_FUNC(allocate)(memoir_type<Seq<T>>, count);
     }
     for (std::size_t i = 0; i < count; ++i) {
       this[i] = value;
@@ -488,12 +223,12 @@ public:
   }
 
   // Element access.
-  always_inline sequence_element operator[](size_type idx) {
-    return sequence_element(this->_storage, idx);
+  always_inline Element<T, size_type> operator[](size_type idx) {
+    return Element<T, size_type>(this->_storage, idx);
   }
 
-  always_inline sequence_element operator[](size_type idx) const {
-    return sequence_element(this->_storage, idx);
+  always_inline const Element<T, size_type> operator[](size_type idx) const {
+    return Element<T, size_type>(this->_storage, idx);
   }
 
   always_inline sequence_element at(size_type idx) const {
@@ -562,7 +297,7 @@ public:
     if constexpr (std::is_pointer_v<T>) {
       using inner_type = typename std::remove_pointer_t<T>;
       if constexpr (std::is_base_of_v<inner_type, memoir::object>) {
-        MUT_FUNC(sequence_insert_struct_ref)(value, this->_storage, index);
+        MUT_FUNC(sequence_insert_ref)(value, this->_storage, index);
       } else {
         MUT_FUNC(sequence_insert_ptr)(value, this->_storage, index);
       }
@@ -582,7 +317,7 @@ public:
     if constexpr (std::is_pointer_v<T>) {
       using inner_type = typename std::remove_pointer_t<T>;
       if constexpr (std::is_base_of_v<inner_type, memoir::object>) {
-        MUT_FUNC(sequence_insert_struct_ref)
+        MUT_FUNC(sequence_insert_ref)
         (value, this->_storage, MEMOIR_FUNC(end)());
       } else {
         MUT_FUNC(sequence_insert_ptr)
