@@ -102,65 +102,6 @@ public:
   void setArgNo(unsigned argument_number);
 };
 
-struct SelectionMetadata : public Metadata {
-public:
-  // Constructor.
-  SelectionMetadata(llvm::MDTuple &md) : Metadata(md) {}
-
-  /**
-   * Get the identifier for the selection.
-   *
-   * @param i the index of the dimension
-   * @return the selection identifier as a string
-   */
-  std::optional<std::string> getImplementation(unsigned i = 0) const;
-  llvm::Metadata &getImplementationMD(unsigned i = 0) const;
-  const llvm::MDOperand &getImplementationMDOperand(unsigned i = 0) const;
-
-  /**
-   * Set the selected implementation.
-   *
-   * @param ID the selection identifier
-   * @param i the index of the dimension
-   */
-  void setImplementation(std::string id, unsigned i = 0);
-
-  struct iterator {
-  public:
-    using iterator_category = std::input_iterator_tag;
-
-    iterator(const llvm::MDOperand *op) : op(op) {}
-
-    iterator &operator++() {
-      op = std::next(op);
-      return *this;
-    }
-
-    std::optional<std::string> operator*() {
-      if (this->op
-          and isa_and_nonnull<llvm::ConstantAsMetadata>(this->op->get())) {
-        return { Metadata::to_string(*this->op->get()) };
-      } else {
-        return {};
-      }
-    }
-
-    friend bool operator==(const iterator &lhs, const iterator &rhs) {
-      return lhs.op == rhs.op;
-    }
-
-  protected:
-    const llvm::MDOperand *op;
-  };
-
-  /**
-   * @return an iterator over the selected implementations.
-   */
-  llvm::iterator_range<iterator> implementations();
-  iterator impl_begin();
-  iterator impl_end();
-};
-
 struct TempArgumentMetadata : public Metadata {
 public:
   // Constructor.

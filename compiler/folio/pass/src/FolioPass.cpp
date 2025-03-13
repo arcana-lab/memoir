@@ -31,27 +31,6 @@ void transform(llvm::Module &M,
                llvm::ModuleAnalysisManager &MAM,
                Candidate &candidate) {
 
-  // First, annotate the selections while the LLVM Values are valid.
-  for (const auto &[value, selection] : candidate.selections()) {
-    // Unpack the selection.
-    auto &impl = selection->implementation();
-
-    println(*value, " --> ", impl.name());
-
-    // Get the value as an instruction.
-    auto *inst = dyn_cast<llvm::Instruction>(value);
-    if (not inst) {
-      warnln("Cannot annotate an argument with a selection.");
-      continue;
-    }
-
-    // Attach the SelectionMetadata to the instruction.
-    auto metadata = Metadata::get_or_add<SelectionMetadata>(*inst);
-
-    // Set the implementation to that selected.
-    metadata.setImplementation(impl.name());
-  }
-
   // Closure to fetch the Selection for a given value.
   auto get_selection = [&](llvm::Value &V) -> Selection & {
     auto &selections = candidate.selections();

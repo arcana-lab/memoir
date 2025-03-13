@@ -18,6 +18,8 @@ using namespace llvm::memoir;
 
 namespace folio {
 
+#if 0
+  
 using ImplList = vector<std::optional<std::string>>;
 
 struct Selections {
@@ -247,11 +249,11 @@ void propagate(Selections &selections,
                 // Fetch the selection metadata.
 
                 std::optional<SelectionMetadata> metadata =
-#if 0
+#  if 0
                     Metadata::get<SelectionMetadata>(*struct_type, field);
-#else
+#  else
                     std::nullopt;
-#endif
+#  endif
 
                 auto *nested_type = type;
                 auto sel_idx = 0;
@@ -625,7 +627,7 @@ void unify_declarations(Selections &selections) {
 } // namespace detail
 
 SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
-#if 0  
+#  if 0  
   // Initialize an empty mapping for selections.
   Selections selections = {};
 
@@ -685,7 +687,9 @@ SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
 
   // Annotate instructions with their selection.
   detail::annotate(selections_to_annotate);
-#endif
+#  endif
 }
+
+#endif
 
 } // namespace folio

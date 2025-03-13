@@ -7,7 +7,7 @@ std::string Metadata::to_string(llvm::Metadata &metadata) {
     auto *constant = md_constant->getValue();
     auto &constant_as_data_array = MEMOIR_SANITIZE(
         dyn_cast_or_null<llvm::ConstantDataArray>(constant),
-        "Malformed SelectionMetadata, expected an llvm::ConstantDataArray");
+        "Malformed metadata, expected an llvm::ConstantDataArray");
 
     return constant_as_data_array.getAsString().str();
 
