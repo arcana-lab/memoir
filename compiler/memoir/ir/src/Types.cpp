@@ -395,7 +395,7 @@ bool Type::operator==(const Type &other) const {
   return this == &other;
 }
 
-bool Type::operator<(const Type &other) const {
+bool Type::operator<=(const Type &other) const {
   return this == &other;
 }
 
@@ -717,13 +717,19 @@ std::string AssocArrayType::toString(std::string indent) const {
   std::string str = "Assoc";
 
   if (auto selection = this->get_selection()) {
-    str += "::" + selection.value();
+    str += "{" + selection.value() + "}";
   }
 
   str += "<" + this->key_type.toString(indent) + ", "
          + this->value_type.toString(indent) + ">";
 
   return str;
+}
+
+opt<std::string> AssocArrayType::get_code() const {
+  return this->get_selection().value_or("Assoc") + "_"
+         + this->getKeyType().get_code().value() + "_"
+         + this->getValueType().get_code().value();
 }
 
 opt<std::string> AssocArrayType::get_selection() const {
@@ -736,7 +742,7 @@ CollectionType &AssocArrayType::set_selection(opt<std::string> selection) {
                              selection);
 }
 
-bool AssocArrayType::operator<(const Type &other) const {
+bool AssocArrayType::operator<=(const Type &other) const {
   if (this == &other) {
     return true;
   }
@@ -746,8 +752,8 @@ bool AssocArrayType::operator<(const Type &other) const {
     return false;
   }
 
-  return this->getKeyType() < other_assoc->getKeyType()
-         and this->getValueType() < other_assoc->getValueType();
+  return this->getKeyType() <= other_assoc->getKeyType()
+         and this->getValueType() <= other_assoc->getValueType();
 }
 
 /*
@@ -768,12 +774,17 @@ std::string SequenceType::toString(std::string indent) const {
   std::string str = "Seq";
 
   if (auto selection = this->get_selection()) {
-    str += "::" + selection.value();
+    str += "{" + selection.value() + "}";
   }
 
   str += "<" + this->element_type.toString() + ">";
 
   return str;
+}
+
+opt<std::string> SequenceType::get_code() const {
+  return this->get_selection().value_or("Seq") + "_"
+         + this->getElementType().get_code().value();
 }
 
 opt<std::string> SequenceType::get_selection() const {
@@ -784,7 +795,7 @@ CollectionType &SequenceType::set_selection(opt<std::string> selection) {
   return SequenceType::get(this->getElementType(), selection);
 }
 
-bool SequenceType::operator<(const Type &other) const {
+bool SequenceType::operator<=(const Type &other) const {
   if (this == &other) {
     return true;
   }
@@ -794,7 +805,7 @@ bool SequenceType::operator<(const Type &other) const {
     return false;
   }
 
-  return this->getElementType() < other_seq->getElementType();
+  return this->getElementType() <= other_seq->getElementType();
 }
 
 // Decoding.

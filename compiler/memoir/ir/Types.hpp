@@ -95,7 +95,7 @@ public:
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Type &T);
 
   virtual bool operator==(const Type &other) const;
-  virtual bool operator<(const Type &other) const;
+  virtual bool operator<=(const Type &other) const;
 
   virtual ~Type() = default;
 
@@ -340,7 +340,9 @@ public:
 
   std::string toString(std::string indent = "") const override;
 
-  bool operator<(const Type &other) const override;
+  opt<std::string> get_code() const override;
+
+  bool operator<=(const Type &other) const override;
 
 protected:
   Type &key_type;
@@ -373,10 +375,12 @@ public:
 
   std::string toString(std::string indent = "") const override;
 
+  opt<std::string> get_code() const override;
+
   opt<std::string> get_selection() const override;
   CollectionType &set_selection(opt<std::string> selection) override;
 
-  bool operator<(const Type &other) const override;
+  bool operator<=(const Type &other) const override;
 
 protected:
   Type &element_type;
