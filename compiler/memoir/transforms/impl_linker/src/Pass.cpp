@@ -60,10 +60,7 @@ llvm::cl::opt<std::string> impl_file_output(
     llvm::cl::init("/tmp/XXXXXX.cpp"));
 
 namespace detail {
-void link_implementation(ImplLinker &IL,
-                         CollectionType &type,
-                         std::optional<SelectionMetadata> selection,
-                         unsigned selection_index = 0) {
+static void link_implementation(ImplLinker &IL, CollectionType &type) {
 
   // Implement each of the required collection types.
   auto *collection_type = &type;
@@ -71,11 +68,11 @@ void link_implementation(ImplLinker &IL,
 
     // Get the implementation.
     const Implementation *impl = nullptr;
-    if (selection.has_value()) {
-      auto selected_name = selection->getImplementation(selection_index++);
-      if (selected_name.has_value()) {
-        impl = Implementation::lookup(selected_name.value());
-      }
+
+    // Check if there is an explicit selection.
+    auto selection = collection_type->get_selection();
+    if (selection) {
+      impl = Implementation::lookup(selection.value());
     }
 
     // Get the default implementation if none was selected.
@@ -128,11 +125,8 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
             continue;
           }
 
-          // Fetch the selection from the instruction metadata, if it exists.
-          auto selection = Metadata::get<SelectionMetadata>(I);
-
           // Link the selection.
-          detail::link_implementation(IL, *collection_type, selection);
+          detail::link_implementation(IL, *collection_type);
 
         } else if (auto *tuple_inst = into<TupleTypeInst>(&I)) {
           // Get the struct type.
@@ -149,27 +143,13 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
 
             // If the field is a collection, implement it.
             if (auto *collection_type = dyn_cast<CollectionType>(&field_type)) {
-
-              // FIXMEFetch the selection for the given field.
-              std::optional<SelectionMetadata> selection =
-#if 0
-                Metadata::get<SelectionMetadata>(tuple_type, field_index);
-#else
-                  std::nullopt;
-#endif
-
-              detail::link_implementation(IL, *collection_type, selection);
+              detail::link_implementation(IL, *collection_type);
             }
           }
         }
 
         // Also handle instructions that don't have selections.
         else {
-          // Check that the instruction doesnt already have a selection
-          // metadata.
-          if (Metadata::get<SelectionMetadata>(I)) {
-            continue;
-          }
 
           // Only handle memoir instructions.
           auto *inst = into<MemOIRInst>(&I);
