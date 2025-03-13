@@ -12,6 +12,10 @@ Type &AssertTypeInst::getType() const {
 
 OPERAND(AssertTypeInst, TypeOperand, 0)
 OPERAND(AssertTypeInst, Object, 1)
-TO_STRING(AssertTypeInst)
+
+std::string AssertTypeInst::toString() const {
+  return "assert " + value_name(this->getObject()) + " isa "
+         + this->getType().toString();
+}
 
 } // namespace llvm::memoir
