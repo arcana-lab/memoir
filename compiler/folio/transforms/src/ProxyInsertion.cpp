@@ -1495,7 +1495,7 @@ Type &convert_type(Type &base,
 
       auto selection = assoc_type->get_selection();
       if (not selection) {
-        if (isa<VoidType>(&assoc_type->getKeyType())) {
+        if (isa<VoidType>(&assoc_type->getValueType())) {
           selection = "bitset";
         } else {
           selection = "bitmap";
