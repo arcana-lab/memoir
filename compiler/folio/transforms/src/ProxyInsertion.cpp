@@ -605,17 +605,10 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const ObjectInfo &info) {
   return os;
 }
 
-void ProxyInsertion::gather_assoc_objects(
-    vector<ObjectInfo> &allocations,
-    AllocInst &alloc,
-    Type &type,
-    vector<unsigned> offsets,
-    std::optional<SelectionMetadata> selection,
-    unsigned selection_index) {
-
-  if (not selection) {
-    selection = Metadata::get<SelectionMetadata>(alloc);
-  }
+void ProxyInsertion::gather_assoc_objects(vector<ObjectInfo> &allocations,
+                                          AllocInst &alloc,
+                                          Type &type,
+                                          vector<unsigned> offsets) {
 
   if (auto *struct_type = dyn_cast<TupleType>(&type)) {
     for (unsigned field = 0; field < struct_type->getNumFields(); ++field) {
@@ -626,13 +619,7 @@ void ProxyInsertion::gather_assoc_objects(
       this->gather_assoc_objects(allocations,
                                  alloc,
                                  struct_type->getFieldType(field),
-                                 new_offsets,
-#if 0
-          Metadata::get<SelectionMetadata>(*struct_type, field)
-#else
-                                 {}
-#endif
-      );
+                                 new_offsets);
     }
 
   } else if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
@@ -641,27 +628,13 @@ void ProxyInsertion::gather_assoc_objects(
     // If this is an assoc, add the object information.
     if (isa<AssocType>(collection_type)) {
       allocations.push_back(ObjectInfo(alloc, offsets));
-
-#if 0
-      // Check that this collection does not already have a selection.
-      if (not selection or not selection->getImplementation(offsets.size())) {
-        allocations.push_back(ObjectInfo(alloc, offsets));
-      } else {
-        infoln("FOUND EXISTING SELECTION FOR ", alloc);
-      }
-#endif
     }
 
     // Recurse on the element.
     auto new_offsets = offsets;
     new_offsets.push_back(-1);
 
-    this->gather_assoc_objects(allocations,
-                               alloc,
-                               elem_type,
-                               new_offsets,
-                               selection,
-                               ++selection_index);
+    this->gather_assoc_objects(allocations, alloc, elem_type, new_offsets);
   }
 
   return;
@@ -1496,27 +1469,48 @@ Type &convert_type(Type &base,
                    llvm::ArrayRef<unsigned> offsets,
                    Type &new_type) {
 
-  if (auto *struct_type = dyn_cast<TupleType>(&base)) {
+  if (auto *tuple_type = dyn_cast<TupleType>(&base)) {
 
-    MEMOIR_UNREACHABLE("Cannot convert the type of a struct, do it yourself!");
+    vector<Type *> fields = tuple_type->fields();
+
+    auto field = offsets[0];
+
+    fields[field] = &convert_type(tuple_type->getFieldType(field),
+                                  offsets.drop_front(),
+                                  new_type);
+
+    return TupleType::get(fields);
 
   } else if (auto *seq_type = dyn_cast<SequenceType>(&base)) {
 
     return SequenceType::get(convert_type(seq_type->getElementType(),
                                           offsets.drop_front(),
-                                          new_type));
+                                          new_type),
+                             seq_type->get_selection());
 
   } else if (auto *assoc_type = dyn_cast<AssocType>(&base)) {
 
     // If the offsets are empty, replace the keys.
     if (offsets.empty()) {
-      return AssocType::get(new_type, assoc_type->getValueType());
+
+      auto selection = assoc_type->get_selection();
+      if (not selection) {
+        if (isa<VoidType>(&assoc_type->getKeyType())) {
+          selection = "bitset";
+        } else {
+          selection = "bitmap";
+        }
+      }
+
+      return AssocType::get(new_type, assoc_type->getValueType(), selection);
     }
 
     return AssocType::get(assoc_type->getKeyType(),
                           convert_type(assoc_type->getValueType(),
                                        offsets.drop_front(),
-                                       new_type));
+                                       new_type),
+                          assoc_type->get_selection());
+
   } else if (offsets.empty()) {
     return new_type;
   }
@@ -1947,25 +1941,15 @@ bool ProxyInsertion::transform() {
       println("  ", *info);
 
       // Determine _where_ to attach the selection.
-      auto selection =
-          Metadata::get_or_add<SelectionMetadata>(*info->allocation);
-      unsigned selection_index = 0;
       auto *type = &info->allocation->getType();
       for (auto offset : info->offsets) {
         if (auto *struct_type = dyn_cast<TupleType>(type)) {
           auto &field_type = struct_type->getFieldType(offset);
           type = &field_type;
 
-          // FIXME after we update selections to be in the type
-          // selection = Metadata::get_or_add<SelectionMetadata>(*struct_type,
-          // offset);
-          selection_index = 0;
-
         } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
           auto &elem_type = collection_type->getElementType();
           type = &elem_type;
-
-          ++selection_index;
         }
       }
 
@@ -1973,14 +1957,6 @@ bool ProxyInsertion::transform() {
 
       // Unpack the type information.
       if (auto *assoc_type = dyn_cast<AssocType>(type)) {
-
-        if (not selection.getImplementation(selection_index)) {
-          if (isa<VoidType>(&assoc_type->getValueType())) {
-            selection.setImplementation("bitset", selection_index);
-          } else {
-            selection.setImplementation("bitmap", selection_index);
-          }
-        }
 
         // Update the type of the key in the fold bodies.
         // TODO: collect folds ahead of time for all info in the candidate, it
@@ -2010,6 +1986,9 @@ bool ProxyInsertion::transform() {
       }
       auto &type = *types_to_mutate[alloc];
 
+      println("MERGE TYPE");
+      println("  ", type);
+
       // Convert the type at the given offset to the size type.
       auto &module =
           MEMOIR_SANITIZE(alloc->getModule(),
@@ -2017,7 +1996,11 @@ bool ProxyInsertion::transform() {
       const auto &data_layout = module.getDataLayout();
       auto &size_type = Type::get_size_type(data_layout);
 
-      detail::convert_type(type, info->offsets, size_type);
+      auto &new_type = detail::convert_type(type, info->offsets, size_type);
+
+      println("  ", new_type);
+
+      types_to_mutate[alloc] = &new_type;
     }
 
     // Mutate the types in the program.

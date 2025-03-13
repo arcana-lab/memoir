@@ -68,13 +68,10 @@ public:
   bool transform();
 
 protected:
-  void gather_assoc_objects(
-      llvm::memoir::vector<ObjectInfo> &allocations,
-      llvm::memoir::AllocInst &alloc,
-      llvm::memoir::Type &type,
-      llvm::memoir::vector<unsigned> offsets = {},
-      std::optional<llvm::memoir::SelectionMetadata> selection = {},
-      unsigned selection_index = 0);
+  void gather_assoc_objects(llvm::memoir::vector<ObjectInfo> &allocations,
+                            llvm::memoir::AllocInst &alloc,
+                            llvm::memoir::Type &type,
+                            llvm::memoir::vector<unsigned> offsets = {});
 
   ObjectInfo *find_base_object(llvm::Value &V,
                                llvm::memoir::AccessInst &access);

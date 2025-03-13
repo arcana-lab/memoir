@@ -16,7 +16,7 @@ static void type_differences(vector<vector<unsigned>> &differences,
                              Type &other) {
 
   // If the types are the same, continue.
-  if (&base == &other) {
+  if (base == other) {
     return;
   }
 
@@ -40,12 +40,12 @@ static void type_differences(vector<vector<unsigned>> &differences,
   // If these are the same type kind, recurse on their inner types.
   if (base.getKind() == other.getKind()) {
 
-    if (auto *base_struct = dyn_cast<TupleType>(&base)) {
-      auto *other_struct = cast<TupleType>(&other);
+    if (auto *base_tuple = dyn_cast<TupleType>(&base)) {
+      auto *other_tuple = cast<TupleType>(&other);
 
-      auto base_fields = base_struct->getNumFields();
-      auto other_fields = other_struct->getNumFields();
-      MEMOIR_ASSERT(base_fields != other_fields,
+      auto base_fields = base_tuple->getNumFields();
+      auto other_fields = other_tuple->getNumFields();
+      MEMOIR_ASSERT(base_fields == other_fields,
                     "Non-isomorphic type mutation! ",
                     base,
                     " => ",
@@ -57,11 +57,13 @@ static void type_differences(vector<vector<unsigned>> &differences,
 
         type_differences(differences,
                          nested_offsets,
-                         base_struct->getFieldType(field),
-                         other_struct->getFieldType(field));
+                         base_tuple->getFieldType(field),
+                         other_tuple->getFieldType(field));
 
         nested_offsets.pop_back();
       }
+
+      return;
 
     } else if (auto *base_assoc = dyn_cast<AssocType>(&base)) {
       auto *other_assoc = cast<AssocType>(&other);
@@ -83,6 +85,8 @@ static void type_differences(vector<vector<unsigned>> &differences,
       nested_offsets.push_back(-1);
       type_differences(differences, nested_offsets, base_elem, other_elem);
       nested_offsets.pop_back();
+
+      return;
 
     } else if (auto *base_seq = dyn_cast<SequenceType>(&base)) {
       auto *other_seq = cast<SequenceType>(&other);
@@ -126,6 +130,10 @@ static vector<vector<unsigned>> type_differences(Type &base, Type &other) {
 
 map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
   map<llvm::Value *, llvm::Value *> mapping = {};
+
+  println("MUTATE");
+  println("  ", alloc);
+  println("  ", type);
 
   // Get the original type.
   auto &orig_type = alloc.getType();
