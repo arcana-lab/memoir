@@ -61,6 +61,10 @@ protected:
     TupleType *type;
     vector<Instantiation *> fields;
 
+    StructInstantiation(TupleType *type, llvm::ArrayRef<Instantiation *> fields)
+      : type(type),
+        fields(fields.begin(), fields.end()) {}
+
     bool operator<(const StructInstantiation &other) const {
       return type < other.type;
     }
