@@ -460,10 +460,6 @@ void SSAConstructionVisitor::visitUsePHIInst(UsePHIInst &I) {
   return;
 }
 
-void SSAConstructionVisitor::visitArgPHIInst(ArgPHIInst &I) {
-  return;
-}
-
 void SSAConstructionVisitor::visitRetPHIInst(RetPHIInst &I) {
   return;
 }

@@ -42,8 +42,8 @@ public:
 
   // SSA operations
   void visitUsePHIInst(UsePHIInst &I);
-  void visitArgPHIInst(ArgPHIInst &I);
   void visitRetPHIInst(RetPHIInst &I);
+
   void visitFoldInst(FoldInst &I);
 
   // MUT Operations

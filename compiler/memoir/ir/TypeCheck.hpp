@@ -119,7 +119,6 @@ protected:
   Type *visitUpdateInst(UpdateInst &I);
   //// SSA operations
   Type *visitUsePHIInst(UsePHIInst &I);
-  Type *visitArgPHIInst(ArgPHIInst &I);
   Type *visitRetPHIInst(RetPHIInst &I);
 
   // Constructor.

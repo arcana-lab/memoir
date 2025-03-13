@@ -84,7 +84,6 @@ public:
 
   // SSA collection operations
   void visitUsePHIInst(UsePHIInst &I);
-  void visitArgPHIInst(ArgPHIInst &I);
   void visitRetPHIInst(RetPHIInst &I);
 
   // Other operations

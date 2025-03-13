@@ -13,12 +13,6 @@ OPERAND(UsePHIInst, UsedCollection, 0)
 
 TO_STRING(UsePHIInst)
 
-// ArgPHIInst implementation
-RESULTANT(ArgPHIInst, ResultCollection)
-OPERAND(ArgPHIInst, InputCollection, 0)
-// TODO: implement metadata for storing the incoming collections.
-TO_STRING(ArgPHIInst)
-
 // RetPHIInst implementation
 RESULTANT(RetPHIInst, ResultCollection)
 OPERAND(RetPHIInst, InputCollection, 0)

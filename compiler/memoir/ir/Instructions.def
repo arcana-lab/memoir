@@ -125,7 +125,6 @@ HANDLE_INST_(KEYS, MEMOIR_FUNC(keys), KeysInst)
 
 /* SSA/readonce operations. */
 HANDLE_INST_(USE_PHI, MEMOIR_FUNC(usePHI), UsePHIInst)
-HANDLE_INST_(ARG_PHI, MEMOIR_FUNC(argPHI), ArgPHIInst)
 HANDLE_INST_(RET_PHI, MEMOIR_FUNC(retPHI), RetPHIInst)
 
 /* Type Assertion */

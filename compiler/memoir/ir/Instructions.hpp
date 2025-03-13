@@ -948,27 +948,6 @@ protected:
   friend struct MemOIRInst;
 };
 
-struct ArgPHIInst : public MemOIRInst {
-public:
-  llvm::Value &getResultCollection() const;
-
-  llvm::Value &getInputCollection() const;
-  llvm::Use &getInputCollectionAsUse() const;
-
-  // TODO: add methods for decoding the metadata
-
-  static bool classof(const MemOIRInst *I) {
-    return (I->getKind() == MemOIR_Func::ARG_PHI);
-  };
-
-  std::string toString() const override;
-
-protected:
-  ArgPHIInst(llvm::CallInst &call_inst) : MemOIRInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
 struct RetPHIInst : public MemOIRInst {
 public:
   llvm::Value &getResultCollection() const;

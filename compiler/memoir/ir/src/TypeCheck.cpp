@@ -331,10 +331,6 @@ Type *TypeChecker::visitUsePHIInst(UsePHIInst &I) {
   return this->analyze(I.getUsedCollection());
 }
 
-Type *TypeChecker::visitArgPHIInst(ArgPHIInst &I) {
-  return this->analyze(I.getInputCollection());
-}
-
 Type *TypeChecker::visitRetPHIInst(RetPHIInst &I) {
   return this->analyze(I.getInputCollection());
 }

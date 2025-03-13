@@ -24,13 +24,6 @@ collection_ref MEMOIR_FUNC(usePHI)(const collection_ref in) {
 __IMMUT_ATTR
 __ALLOC_ATTR
 __RUNTIME_ATTR
-collection_ref MEMOIR_FUNC(argPHI)(const collection_ref in) {
-  return in;
-}
-
-__IMMUT_ATTR
-__ALLOC_ATTR
-__RUNTIME_ATTR
 collection_ref MEMOIR_FUNC(retPHI)(const collection_ref in, void *function) {
   return in;
 }

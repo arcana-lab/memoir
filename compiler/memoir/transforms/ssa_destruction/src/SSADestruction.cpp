@@ -1233,18 +1233,6 @@ void SSADestructionVisitor::visitUsePHIInst(UsePHIInst &I) {
   return;
 }
 
-void SSADestructionVisitor::visitArgPHIInst(ArgPHIInst &I) {
-
-  auto &input_collection = I.getInputCollection();
-  auto &collection = I.getResultCollection();
-
-  this->coalesce(collection, input_collection);
-
-  this->markForCleanup(I);
-
-  return;
-}
-
 void SSADestructionVisitor::visitRetPHIInst(RetPHIInst &I) {
 
   // If the called instruction is a fold, skip the ret phi!

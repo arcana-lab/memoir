@@ -86,10 +86,6 @@ public:
     stats.inc_trivial_ssa();
   }
 
-  void visitArgPHIInst(ArgPHIInst &I) {
-    stats.inc_trivial_ssa();
-  }
-
   void visitRetPHIInst(RetPHIInst &I) {
     stats.inc_trivial_ssa();
   }
