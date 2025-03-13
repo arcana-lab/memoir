@@ -328,11 +328,11 @@ Type *TypeChecker::visitKeysInst(KeysInst &I) {
 
 // SSA Instructions
 Type *TypeChecker::visitUsePHIInst(UsePHIInst &I) {
-  return this->analyze(I.getUsedCollection());
+  return this->analyze(I.getUsed());
 }
 
 Type *TypeChecker::visitRetPHIInst(RetPHIInst &I) {
-  return this->analyze(I.getInputCollection());
+  return this->analyze(I.getInput());
 }
 
 // LLVM Instructions.

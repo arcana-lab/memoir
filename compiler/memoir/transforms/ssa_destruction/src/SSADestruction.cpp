@@ -1223,8 +1223,8 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
 // General-purpose SSA lowering.
 void SSADestructionVisitor::visitUsePHIInst(UsePHIInst &I) {
 
-  auto &used_collection = I.getUsedCollection();
-  auto &collection = I.getResultCollection();
+  auto &used_collection = I.getUsed();
+  auto &collection = I.getResult();
 
   this->coalesce(collection, used_collection);
 
@@ -1241,8 +1241,8 @@ void SSADestructionVisitor::visitRetPHIInst(RetPHIInst &I) {
     return;
   }
 
-  auto &input_collection = I.getInputCollection();
-  auto &collection = I.getResultCollection();
+  auto &input_collection = I.getInput();
+  auto &collection = I.getResult();
 
   this->coalesce(collection, input_collection);
 

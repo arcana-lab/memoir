@@ -274,7 +274,7 @@ void ConstraintInferenceDriver::infer() {
         // NOTE: we do not currently support nested collections, if that
         // assumption changes additional handling needs to be added here.
       } else if (auto *ret_phi = dyn_cast<RetPHIInst>(memoir_inst)) {
-        auto &collection = ret_phi->getInputCollection();
+        auto &collection = ret_phi->getInput();
 
         if (propagate(collection, current_constraints)) {
           worklist.push_back(&collection);

@@ -8,14 +8,14 @@
 namespace llvm::memoir {
 
 // UsePHIInst implementation
-RESULTANT(UsePHIInst, ResultCollection)
-OPERAND(UsePHIInst, UsedCollection, 0)
+RESULTANT(UsePHIInst, Result)
+OPERAND(UsePHIInst, Used, 0)
 
 TO_STRING(UsePHIInst)
 
 // RetPHIInst implementation
-RESULTANT(RetPHIInst, ResultCollection)
-OPERAND(RetPHIInst, InputCollection, 0)
+RESULTANT(RetPHIInst, Result)
+OPERAND(RetPHIInst, Input, 0)
 
 llvm::Function *RetPHIInst::getCalledFunction() const {
   return dyn_cast<llvm::Function>(&this->getCalledOperand());

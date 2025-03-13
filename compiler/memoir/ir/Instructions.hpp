@@ -915,10 +915,10 @@ protected:
 // SSA/readonce operations.
 struct UsePHIInst : public MemOIRInst {
 public:
-  llvm::Value &getResultCollection() const;
+  llvm::Value &getResult() const;
 
-  llvm::Value &getUsedCollection() const;
-  llvm::Use &getUsedCollectionAsUse() const;
+  llvm::Value &getUsed() const;
+  llvm::Use &getUsedAsUse() const;
 
   static bool classof(const MemOIRInst *I) {
     return (I->getKind() == MemOIR_Func::USE_PHI);
@@ -950,10 +950,10 @@ protected:
 
 struct RetPHIInst : public MemOIRInst {
 public:
-  llvm::Value &getResultCollection() const;
+  llvm::Value &getResult() const;
 
-  llvm::Value &getInputCollection() const;
-  llvm::Use &getInputCollectionAsUse() const;
+  llvm::Value &getInput() const;
+  llvm::Use &getInputAsUse() const;
 
   /**
    * @return the function called, or NULL if it was an indirect function

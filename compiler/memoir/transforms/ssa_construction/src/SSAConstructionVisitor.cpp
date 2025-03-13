@@ -308,7 +308,7 @@ void SSAConstructionVisitor::visitLLVMCallInst(llvm::CallInst &I) {
     // Build a RetPHI for the call.
     MemOIRBuilder builder(&I, true);
     auto *ret_phi = builder.CreateRetPHI(reaching, I.getCalledOperand());
-    auto *ret_phi_value = &ret_phi->getResultCollection();
+    auto *ret_phi_value = &ret_phi->getResult();
 
     // Propagate debug information.
     detail::propagate_debug_info(I, *ret_phi);
@@ -435,7 +435,7 @@ void SSAConstructionVisitor::visitFoldInst(FoldInst &I) {
         MemOIRBuilder builder(I, true);
         auto *function = I.getCallInst().getCalledFunction();
         auto *ret_phi = builder.CreateRetPHI(reaching, function);
-        auto *ret_phi_value = &ret_phi->getResultCollection();
+        auto *ret_phi_value = &ret_phi->getResult();
 
         detail::propagate_debug_info(I, *ret_phi);
 
@@ -587,7 +587,7 @@ void SSAConstructionVisitor::visitReadInst(ReadInst &I) {
 
     // Build a UsePHI for the instruction.
     auto *use_phi = builder.CreateUsePHI(curr);
-    auto *use_phi_value = &use_phi->getResultCollection();
+    auto *use_phi_value = &use_phi->getResult();
 
     detail::propagate_debug_info(I, *use_phi);
 
@@ -612,7 +612,7 @@ void SSAConstructionVisitor::visitGetInst(GetInst &I) {
 
     // Build a UsePHI for the instruction.
     auto *use_phi = builder.CreateUsePHI(curr);
-    auto *use_phi_value = &use_phi->getResultCollection();
+    auto *use_phi_value = &use_phi->getResult();
 
     detail::propagate_debug_info(I, *use_phi);
 
@@ -637,7 +637,7 @@ void SSAConstructionVisitor::visitHasInst(HasInst &I) {
 
     // Build a UsePHI for the instruction.
     auto *use_phi = builder.CreateUsePHI(curr);
-    auto *use_phi_value = &use_phi->getResultCollection();
+    auto *use_phi_value = &use_phi->getResult();
 
     detail::propagate_debug_info(I, *use_phi);
 

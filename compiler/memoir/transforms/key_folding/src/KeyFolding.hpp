@@ -395,7 +395,7 @@ protected:
                            dyn_cast<AssocArrayAllocInst>(memoir_inst)) {
               collections_referenced.insert(assoc_alloc);
             } else if (auto *use_phi = dyn_cast<UsePHIInst>(memoir_inst)) {
-              worklist.push_back(&use_phi->getUsedCollection());
+              worklist.push_back(&use_phi->getUsed());
             } else if (auto *def_phi = dyn_cast<DefPHIInst>(memoir_inst)) {
               worklist.push_back(&def_phi->getDefinedCollection());
             } else if (auto *seq_write_inst =

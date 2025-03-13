@@ -486,7 +486,7 @@ bool lower_fold(FoldInst &I,
       closed_result = closed_phi;
 
     } else {
-      closed_result = &found_ret_phi->getInputCollection();
+      closed_result = &found_ret_phi->getInput();
     }
 
     //  -- Replace uses of the original RetPHI with the continuation PHI.

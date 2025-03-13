@@ -100,7 +100,7 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
 
     } else if (auto *use_phi = dyn_cast<UsePHIInst>(memoir_inst)) {
       // Add an edge from this value to its sequence operand.
-      this->add_use_to_graph(use_phi->getUsedCollectionAsUse(),
+      this->add_use_to_graph(use_phi->getUsedAsUse(),
                              propagate_range);
 
     } else if (auto *write_inst = dyn_cast<IndexWriteInst>(memoir_inst)) {
@@ -217,7 +217,7 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
     } else if (auto *clear_inst = dyn_cast<ClearInst>(memoir_inst)) {
       // Add edge for collection used.
       this->add_use_to_graph(
-          clear_inst->getInputCollectionAsUse(),
+          clear_inst->getObjectAsUse(),
           [](ValueRange *in) -> ValueRange * {
             MEMOIR_UNREACHABLE("Clear constraint unimplemented!");
           });

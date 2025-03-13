@@ -197,10 +197,10 @@ llvm::InlineResult InlineFunction(llvm::CallBase &CB,
         }
 
         // Get the input collection.
-        auto &input = ret_phi->getInputCollection();
+        auto &input = ret_phi->getInput();
 
         // Replace uses of the RetPHI with the patch.
-        ret_phi->getResultCollection().replaceAllUsesWith(patch);
+        ret_phi->getResult().replaceAllUsesWith(patch);
 
         // Mark the RetPHI for cleanup.
         to_cleanup.insert(&ret_phi->getCallInst());

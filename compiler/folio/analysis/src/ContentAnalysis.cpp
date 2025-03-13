@@ -234,7 +234,7 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertInst(SeqInsertInst &I) {
   auto &domain = Content::create<UnionContent>(*value_range, *base_domain);
 
   // Analyze the collection type.
-  auto *type = type_of(I.getResultCollection());
+  auto *type = type_of(I.getResult());
   auto &collection_type =
       MEMOIR_SANITIZE(dyn_cast<CollectionType>(type),
                       "SeqInsertInst on non-collection type");
@@ -541,7 +541,7 @@ ContentSummary ContentAnalysisDriver::visitClearInst(ClearInst &I) {
 
 ContentSummary ContentAnalysisDriver::visitUsePHIInst(UsePHIInst &I) {
   // Propagate the used collection.
-  return this->analyze(I.getUsedCollection());
+  return this->analyze(I.getUsed());
 }
 
 ContentSummary ContentAnalysisDriver::visitPHINode(llvm::PHINode &I) {
@@ -776,7 +776,7 @@ ContentSummary ContentAnalysisDriver::contextualize_call(
 
     if (auto *ret_phi = into<RetPHIInst>(inst)) {
       // Determine which argument this ret phi corresponds to.
-      auto &input = ret_phi->getInputCollection();
+      auto &input = ret_phi->getInput();
       bool found = false;
       unsigned operand_no = 0;
       for (auto &operand_use : call.args()) {
@@ -871,7 +871,7 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     bool found_arg = false;
     unsigned arg_number = -1;
     for (auto &use : call->args()) {
-      if (use.get() == &I.getInputCollection()) {
+      if (use.get() == &I.getInput()) {
         arg_number = use.getOperandNo();
         found_arg = true;
         break;
@@ -904,7 +904,7 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     // If we did not find a live out, then the contents are the same
     // as the input.
     if (not live_out) {
-      return this->analyze(I.getInputCollection());
+      return this->analyze(I.getInput());
     }
 
     // Analyze the live out
@@ -929,7 +929,7 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     bool found_arg = false;
     unsigned arg_number = -1;
     for (auto &use : call->args()) {
-      if (use.get() == &I.getInputCollection()) {
+      if (use.get() == &I.getInput()) {
         arg_number = use.getOperandNo();
         found_arg = true;
         break;
@@ -958,7 +958,7 @@ ContentSummary ContentAnalysisDriver::visitRetPHIInst(RetPHIInst &I) {
     if (not live_out) {
       debugln("No live out: ", I);
       debugln("Argument #: ", arg_number);
-      return this->analyze(I.getInputCollection());
+      return this->analyze(I.getInput());
     }
 
     // Analyze the live out.

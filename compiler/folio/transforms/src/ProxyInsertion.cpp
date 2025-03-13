@@ -751,7 +751,7 @@ AllocInst *_find_base_object(llvm::Value &V,
     return _find_base_object(update->getObject(), offsets, visited);
 
   } else if (auto *ret_phi = into<RetPHIInst>(&V)) {
-    return _find_base_object(ret_phi->getInputCollection(), offsets, visited);
+    return _find_base_object(ret_phi->getInput(), offsets, visited);
 
   } else if (auto *call = dyn_cast<llvm::CallBase>(&V)) {
     // TODO
