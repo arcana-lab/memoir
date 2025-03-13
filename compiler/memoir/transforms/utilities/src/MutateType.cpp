@@ -7,10 +7,88 @@ namespace llvm::memoir {
 
 // We will use two special offset values to represent either the keys or
 // elements at a given offset.
-#define ELEMS -1
-#define KEYS -2
+#define ELEMS unsigned(-1)
+#define KEYS unsigned(-2)
 
-static void type_differences(vector<vector<unsigned>> &differences,
+enum DifferenceKind : uint8_t {
+  NoDifference = 0,
+  TypeDiffers = 1 << 0,
+  SelectionDiffers = 1 << 1,
+};
+
+inline DifferenceKind operator|(DifferenceKind lhs, DifferenceKind rhs) {
+  return static_cast<DifferenceKind>(static_cast<uint8_t>(lhs)
+                                     | static_cast<uint8_t>(rhs));
+}
+
+inline DifferenceKind operator&(DifferenceKind lhs, DifferenceKind rhs) {
+  return static_cast<DifferenceKind>(static_cast<uint8_t>(lhs)
+                                     & static_cast<uint8_t>(rhs));
+}
+
+inline DifferenceKind &operator|=(DifferenceKind &lhs, DifferenceKind rhs) {
+  return (DifferenceKind &)((uint8_t &)(lhs) |= static_cast<uint8_t>(rhs));
+}
+
+inline DifferenceKind &operator&=(DifferenceKind &lhs, DifferenceKind rhs) {
+  return (DifferenceKind &)((uint8_t &)(lhs) &= static_cast<uint8_t>(rhs));
+}
+
+struct Difference {
+public:
+  Difference(DifferenceKind kind, llvm::ArrayRef<unsigned> offsets)
+    : _kind(kind),
+      _offsets(offsets.begin(), offsets.end()) {}
+
+  bool type_differs() const {
+    return (this->_kind & DifferenceKind::TypeDiffers)
+           != DifferenceKind::NoDifference;
+  }
+
+  bool selection_differs() const {
+    return (this->_kind & DifferenceKind::SelectionDiffers)
+           != DifferenceKind::NoDifference;
+  }
+
+  llvm::ArrayRef<unsigned> offsets() const {
+    return this->_offsets;
+  }
+
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                       const Difference &diff) {
+    os << "DIFFERS:";
+    if (diff.type_differs()) {
+      os << " type";
+    }
+    if (diff.selection_differs()) {
+      os << " selection";
+    }
+    os << "\n";
+
+    os << "  ";
+    for (auto offset : diff.offsets()) {
+      switch (offset) {
+        case KEYS:
+          os << ".keys";
+          break;
+        case ELEMS:
+          os << "[*]";
+          break;
+        default:
+          os << "." << std::to_string(offset);
+          break;
+      }
+    }
+
+    return os;
+  }
+
+protected:
+  DifferenceKind _kind;
+  vector<unsigned> _offsets;
+};
+
+static void type_differences(vector<Difference> &differences,
                              llvm::ArrayRef<unsigned> offsets,
                              Type &base,
                              Type &other) {
@@ -28,13 +106,7 @@ static void type_differences(vector<vector<unsigned>> &differences,
                   " => ",
                   other);
 
-    differences.emplace_back(offsets.begin(), offsets.end());
-
-    print("DIFFERENCE: ");
-    for (const auto &offset : differences.back()) {
-      print(offset, ", ");
-    }
-    println();
+    differences.emplace_back(DifferenceKind::TypeDiffers, offsets);
   }
 
   // If these are the same type kind, recurse on their inner types.
@@ -86,6 +158,11 @@ static void type_differences(vector<vector<unsigned>> &differences,
       type_differences(differences, nested_offsets, base_elem, other_elem);
       nested_offsets.pop_back();
 
+      // Check differences on the selection.
+      if (base_assoc->get_selection() != other_assoc->get_selection()) {
+        differences.emplace_back(DifferenceKind::SelectionDiffers, offsets);
+      }
+
       return;
 
     } else if (auto *base_seq = dyn_cast<SequenceType>(&base)) {
@@ -99,6 +176,11 @@ static void type_differences(vector<vector<unsigned>> &differences,
       nested_offsets.push_back(-1);
       type_differences(differences, nested_offsets, base_elem, other_elem);
       nested_offsets.pop_back();
+
+      // Check differences on the selection.
+      if (base_seq->get_selection() != other_seq->get_selection()) {
+        differences.emplace_back(DifferenceKind::SelectionDiffers, offsets);
+      }
 
       return;
     }
@@ -115,20 +197,243 @@ static void type_differences(vector<vector<unsigned>> &differences,
   return;
 }
 
-static vector<vector<unsigned>> type_differences(Type &base, Type &other) {
-  vector<vector<unsigned>> differences = {};
+static vector<Difference> type_differences(Type &base, Type &other) {
+  vector<Difference> differences = {};
   vector<unsigned> offsets = {};
-
-  println("TYPE DIFFERENCES");
-  println("  ", base);
-  println("  ", other);
 
   type_differences(differences, offsets, base, other);
 
   return differences;
 }
 
+static void gather_redefinitions(set<llvm::Value *> &redefs, llvm::Value &V) {
+
+  if (redefs.count(&V) > 0) {
+    return;
+  }
+
+  redefs.insert(&V);
+
+  for (auto &use : V.uses()) {
+    auto *user = dyn_cast<llvm::Instruction>(use.getUser());
+    if (not user) {
+      continue;
+    }
+
+    if (auto *memoir = into<MemOIRInst>(user)) {
+
+      if (auto *update = dyn_cast<UpdateInst>(memoir)) {
+        if (update->getObjectAsUse() == use) {
+          gather_redefinitions(redefs, update->getResult());
+        }
+
+      } else if (auto *fold = dyn_cast<FoldInst>(memoir)) {
+        if (auto *closed = fold->getClosedArgument(use)) {
+          gather_redefinitions(redefs, *closed);
+        }
+
+      } else if (auto *ret_phi = dyn_cast<RetPHIInst>(memoir)) {
+        gather_redefinitions(redefs, ret_phi->getResult());
+      }
+
+    } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+      gather_redefinitions(redefs, *phi);
+    } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
+      auto *callee = call->getCalledFunction();
+      MEMOIR_ASSERT(callee,
+                    "Object passed into indirect call! ",
+                    value_name(V),
+                    " in ",
+                    *call);
+
+      auto operand_no = use.getOperandNo();
+      MEMOIR_ASSERT(operand_no < callee->arg_size(),
+                    "Object passed to argument out of range! ",
+                    value_name(V),
+                    " in ",
+                    *call);
+
+      auto &arg = MEMOIR_SANITIZE(callee->getArg(operand_no),
+                                  "Argument ",
+                                  operand_no,
+                                  " in ",
+                                  callee->getName(),
+                                  " is NULL!");
+
+      gather_redefinitions(redefs, arg);
+    }
+  }
+}
+
+static set<llvm::Value *> gather_redefinitions(llvm::Value &V) {
+  set<llvm::Value *> redefs = {};
+
+  gather_redefinitions(redefs, V);
+
+  return redefs;
+}
+
+static set<llvm::Value *> gather_redefinitions(MemOIRInst &I) {
+  return gather_redefinitions(I.getCallInst());
+}
+
+static void update_assertions(llvm::Value &V, Type &type) {
+  for (auto &use : V.uses()) {
+    if (auto *assertion = into<AssertTypeInst>(use.getUser())) {
+      MemOIRBuilder builder(*assertion);
+
+      auto *type_value = &builder.CreateTypeInst(type)->getCallInst();
+
+      assertion->getTypeOperandAsUse().set(type_value);
+    }
+  }
+
+  return;
+}
+
+struct NestedInfo {
+  NestedInfo(llvm::Value &value, llvm::ArrayRef<unsigned> offsets)
+    : _value(&value),
+      _offsets(offsets) {}
+
+  llvm::Value &value() const {
+    return *this->_value;
+  }
+
+  llvm::ArrayRef<unsigned> offsets() const {
+    return this->_offsets;
+  }
+
+  friend bool operator<(const NestedInfo &lhs, const NestedInfo &rhs) {
+    if (lhs._value < rhs._value) {
+      return true;
+    }
+
+    if (lhs.offsets().size() < rhs.offsets().size()) {
+      return true;
+    }
+
+    auto lit = lhs.offsets().begin();
+    auto rit = rhs.offsets().begin();
+    auto lie = lhs.offsets().end();
+    for (; lit != lie; ++lit, ++rit) {
+      if (*lit < *rit) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+protected:
+  llvm::Value *_value;
+  vector<unsigned> _offsets;
+};
+
+static void gather_nested_redefinitions(ordered_set<NestedInfo> &redefs,
+                                        llvm::Value &V,
+                                        llvm::ArrayRef<unsigned> offsets) {
+
+  if (not offsets.empty()) {
+    redefs.emplace(V, offsets);
+  }
+
+  for (auto &use : V.uses()) {
+    auto *user = dyn_cast<llvm::Instruction>(use.getUser());
+
+    if (auto *memoir = into<MemOIRInst>(user)) {
+      if (auto *fold = dyn_cast<FoldInst>(memoir)) {
+        if (fold->getObjectAsUse() == use) {
+
+          // Fetch the element argument of the fold.
+          // If it doesn't exist, then we have nothing to propagate.
+          auto *arg = fold->getElementArgument();
+          if (not arg) {
+            continue;
+          }
+
+          // Get the type of the value so we can gather the correct offsets.
+          auto *type = type_of(V);
+
+          // Construct the nested offsets.
+          vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
+          for (auto *index : fold->indices()) {
+            if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+
+              nested_offsets.push_back(ELEMS);
+
+              type = &collection_type->getElementType();
+
+            } else if (auto *tuple_type = dyn_cast<TupleType>(type)) {
+              // Unpack the field index.
+              auto &field_constant =
+                  MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
+                                  "Field index is non-constant!");
+              auto field = field_constant.getZExtValue();
+
+              nested_offsets.push_back(field);
+
+              type = &tuple_type->getFieldType(field);
+            }
+          }
+
+          nested_offsets.push_back(ELEMS);
+
+          auto &collection_type =
+              MEMOIR_SANITIZE(dyn_cast<CollectionType>(type),
+                              "Fold over non-collection type!");
+
+          auto &elem_type = collection_type.getElementType();
+
+          if (not Type::is_primitive_type(elem_type)) {
+            gather_nested_redefinitions(redefs, *arg, nested_offsets);
+          }
+        }
+      }
+    } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
+      auto *callee = call->getCalledFunction();
+      MEMOIR_ASSERT(callee,
+                    "Object passed into indirect call! ",
+                    value_name(V),
+                    " in ",
+                    *call);
+
+      auto operand_no = use.getOperandNo();
+      MEMOIR_ASSERT(operand_no < callee->arg_size(),
+                    "Object passed to argument out of range! ",
+                    value_name(V),
+                    " in ",
+                    *call);
+
+      auto &arg = MEMOIR_SANITIZE(callee->getArg(operand_no),
+                                  "Argument ",
+                                  operand_no,
+                                  " in ",
+                                  callee->getName(),
+                                  " is NULL!");
+
+      gather_nested_redefinitions(redefs, arg, offsets);
+    }
+  }
+
+  return;
+}
+
+static ordered_set<NestedInfo> gather_nested_redefinitions(
+    set<llvm::Value *> base_redefs) {
+
+  ordered_set<NestedInfo> redefs = {};
+
+  for (auto *base : base_redefs) {
+    gather_nested_redefinitions(redefs, *base, {});
+  }
+
+  return redefs;
+}
+
 map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
+
+  // Create a mapping for all variables that have been remapped.
   map<llvm::Value *, llvm::Value *> mapping = {};
 
   println("MUTATE");
@@ -141,11 +446,65 @@ map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
   // Find all the paths that needs to be updated in the type.
   auto differences = type_differences(orig_type, type);
 
-  // MemOIRBuilder builder(alloc);
+  // If there are no differences, then there is nothing to do!
+  if (differences.empty()) {
+    println("No differences found, continuing...");
+    return mapping;
+  }
 
-  // Change the type operand of the allocation.
-  // auto *type_inst = builder.CreateTypeInst(type);
-  // alloc.getTypeOperandAsUse().set(&type_inst->getCallInst());
+  // Aggregate all of the differences that we have.
+  bool type_differs = false;
+  bool selection_differs = false;
+  for (auto &diff : differences) {
+
+    type_differs |= diff.type_differs();
+    selection_differs |= diff.selection_differs();
+
+    println(diff);
+  }
+
+  // Change the type operand of the allocation
+  {
+    MemOIRBuilder builder(alloc);
+
+    auto *type_inst = builder.CreateTypeInst(type);
+
+    alloc.getTypeOperandAsUse().set(&type_inst->getCallInst());
+  }
+
+  // Collect all redefinitions of the allocation.
+  auto redefs = gather_redefinitions(alloc);
+
+  // Update any type assertions.
+  for (auto *redef : redefs) {
+    update_assertions(*redef, type);
+  }
+
+  // Update any type differences for accesses.
+  if (type_differs) {
+  }
+
+  // TODO: handle collections passed as argument.
+
+  // Collect all nested redefinitions.
+  auto nested_redefs = gather_nested_redefinitions(redefs);
+
+  // Update any nested type assertions.
+  for (auto &info : nested_redefs) {
+    // Get the nested type.
+    auto *nested_type = &type;
+    for (const auto offset : info.offsets()) {
+      if (auto *collection_type = dyn_cast<CollectionType>(nested_type)) {
+        nested_type = &collection_type->getElementType();
+      } else if (auto *tuple_type = dyn_cast<TupleType>(nested_type)) {
+        nested_type = &tuple_type->getFieldType(offset);
+      }
+    }
+    MEMOIR_ASSERT(nested_type, "Nested type is NULL!");
+
+    // Update the type assertions for the nested object.
+    update_assertions(info.value(), *nested_type);
+  }
 
   return mapping;
 }
