@@ -106,13 +106,15 @@ namespace memoir {
 
 #define memoir_closed(_closed...) MEMOIR_KEYWORD(closed), ##_closed
 
+#define memoir_reverse() MEMOIR_KEYWORD(reverse)
+
 #define memoir_fold(_ty, _f, _accum, _collection, _args...)                    \
   MEMOIR_FUNC(fold_##_ty)                                                      \
   ((void *)_f, _accum, _collection, ##_args)
 
 #define memoir_rfold(_ty, _f, _accum, _collection, _args...)                   \
-  MEMOIR_FUNC(rfold_##_ty)                                                     \
-  ((void *)_f, _accum, _collection, ##_args)
+  MEMOIR_FUNC(fold_##_ty)                                                      \
+  ((void *)_f, _accum, _collection, memoir_reverse(), ##_args)
 
 // Immutable sequence operations.
 #define memoir_copy(object, _args...) MEMOIR_FUNC(copy)(object, ##_args)

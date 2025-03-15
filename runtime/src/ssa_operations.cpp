@@ -53,16 +53,6 @@ size_t MEMOIR_FUNC(end)() {
         false,                                                                 \
         "Fold is unimplemented in the library! Please use the compiler");      \
     return initial_value;                                                      \
-  }                                                                            \
-  __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(rfold_##TYPE_NAME)(void *fold_function,                   \
-                                        C_TYPE initial_value,                  \
-                                        const collection_ref collection,       \
-                                        ...) {                                 \
-    MEMOIR_ASSERT(                                                             \
-        false,                                                                 \
-        "Fold is unimplemented in the library! Please use the compiler");      \
-    return initial_value;                                                      \
   }
 #include "types.def"
 

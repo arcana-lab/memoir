@@ -107,12 +107,6 @@ collection_ref MEMOIR_FUNC(clear)(const collection_ref collection, ...);
       void *fold_function, /*C_TYPE (*f)(C_TYPE, ...),*/                       \
       C_TYPE initial_value,                                                    \
       const collection_ref collection,                                         \
-      ...);                                                                    \
-  __RUNTIME_ATTR                                                               \
-  C_TYPE MEMOIR_FUNC(rfold_##TYPE_NAME)(                                       \
-      void *fold_function, /*C_TYPE (*f)(C_TYPE, ...),*/                       \
-      C_TYPE initial_value,                                                    \
-      const collection_ref collection,                                         \
       ...);
 #include "types.def"
 
@@ -199,12 +193,10 @@ void MEMOIR_FUNC(return_type)(const type_ref type);
 
 // MEMOIR Keyword arguments.
 #define MEMOIR_KEYWORD(NAME) "memoir." #NAME
-__attribute__((used, weak))
-const char *MEMOIR_FUNC(keywords)[] = { MEMOIR_KEYWORD(closed),
-                                        MEMOIR_KEYWORD(range),
-                                        MEMOIR_KEYWORD(input),
-                                        MEMOIR_KEYWORD(value),
-                                        MEMOIR_KEYWORD(selection) };
+__attribute__((used, weak)) const char *MEMOIR_FUNC(keywords)[] = {
+  MEMOIR_KEYWORD(closed), MEMOIR_KEYWORD(range),     MEMOIR_KEYWORD(input),
+  MEMOIR_KEYWORD(value),  MEMOIR_KEYWORD(selection), MEMOIR_KEYWORD(reverse)
+};
 
 } // namespace memoir
 
