@@ -1,4 +1,6 @@
 #include "memoir/utility/FunctionNames.hpp"
+#include "memoir/ir/Types.hpp"
+#include "memoir/support/Assert.hpp"
 #include "memoir/support/Print.hpp"
 
 namespace llvm::memoir {
@@ -114,6 +116,45 @@ Function *FunctionNames::get_memoir_function(llvm::Module &M,
     return M.getFunction(#MUT_STR);
 #include "memoir/ir/MutOperations.def"
   }
+}
+
+llvm::Function &FunctionNames::convert_typed_function(llvm::Function &F,
+                                                      Type &type) {
+  auto &M = MEMOIR_SANITIZE(F.getParent(), "Function has no parent module!");
+
+  auto func_enum = FunctionNames::get_memoir_enum(F);
+  switch (func_enum) {
+#define HANDLE_WRITE_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
+#include "memoir/ir/Instructions.def"
+    return MEMOIR_SANITIZE(
+        M.getFunction(MEMOIR_PREFIX "write_" + type.get_code().value()),
+        "Failed to get function ",
+        "write_",
+        type.get_code().value());
+#define HANDLE_READ_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
+#include "memoir/ir/Instructions.def"
+    return MEMOIR_SANITIZE(
+        M.getFunction(MEMOIR_PREFIX "read_" + type.get_code().value()),
+        "Failed to get function ",
+        "read_",
+        type.get_code().value());
+#define HANDLE_FFOLD_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
+#include "memoir/ir/Instructions.def"
+    return MEMOIR_SANITIZE(
+        M.getFunction(MEMOIR_PREFIX "fold_" + type.get_code().value()),
+        "Failed to get function ",
+        "fold_",
+        type.get_code().value());
+#define HANDLE_RFOLD_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
+#include "memoir/ir/Instructions.def"
+    return MEMOIR_SANITIZE(
+        M.getFunction(MEMOIR_PREFIX "rfold_" + type.get_code().value()),
+        "Failed to get function ",
+        "rfold_",
+        type.get_code().value());
+  }
+
+  return F;
 }
 
 bool FunctionNames::is_allocation(MemOIR_Func function_enum) {
