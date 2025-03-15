@@ -209,7 +209,8 @@ static vector<Difference> type_differences(Type &base, Type &other) {
   return differences;
 }
 
-static void gather_redefinitions(set<llvm::Value *> &redefs, llvm::Value &V) {
+static void gather_base_redefinitions(set<llvm::Value *> &redefs,
+                                      llvm::Value &V) {
 
   if (redefs.count(&V) > 0) {
     return;
@@ -227,24 +228,24 @@ static void gather_redefinitions(set<llvm::Value *> &redefs, llvm::Value &V) {
 
       if (auto *update = dyn_cast<UpdateInst>(memoir)) {
         if (update->getObjectAsUse() == use) {
-          gather_redefinitions(redefs, update->getResult());
+          gather_base_redefinitions(redefs, update->getResult());
         }
 
       } else if (auto *fold = dyn_cast<FoldInst>(memoir)) {
         if (use == fold->getInitialAsUse()) {
-          gather_redefinitions(redefs, fold->getAccumulatorArgument());
-          gather_redefinitions(redefs, fold->getResult());
+          gather_base_redefinitions(redefs, fold->getAccumulatorArgument());
+          gather_base_redefinitions(redefs, fold->getResult());
 
         } else if (auto *closed = fold->getClosedArgument(use)) {
-          gather_redefinitions(redefs, *closed);
+          gather_base_redefinitions(redefs, *closed);
         }
 
       } else if (auto *ret_phi = dyn_cast<RetPHIInst>(memoir)) {
-        gather_redefinitions(redefs, ret_phi->getResult());
+        gather_base_redefinitions(redefs, ret_phi->getResult());
       }
 
     } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-      gather_redefinitions(redefs, *phi);
+      gather_base_redefinitions(redefs, *phi);
     } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
       auto *callee = call->getCalledFunction();
       MEMOIR_ASSERT(callee,
@@ -267,21 +268,9 @@ static void gather_redefinitions(set<llvm::Value *> &redefs, llvm::Value &V) {
                                   callee->getName(),
                                   " is NULL!");
 
-      gather_redefinitions(redefs, arg);
+      gather_base_redefinitions(redefs, arg);
     }
   }
-}
-
-static set<llvm::Value *> gather_redefinitions(llvm::Value &V) {
-  set<llvm::Value *> redefs = {};
-
-  gather_redefinitions(redefs, V);
-
-  return redefs;
-}
-
-static set<llvm::Value *> gather_redefinitions(MemOIRInst &I) {
-  return gather_redefinitions(I.getCallInst());
 }
 
 static void update_assertions(llvm::Value &V, Type &type) {
@@ -497,17 +486,56 @@ static void gather_nested_redefinitions(ordered_set<NestedInfo> &redefs,
   return;
 }
 
-static ordered_set<NestedInfo> gather_nested_redefinitions(
-    set<llvm::Value *> base_redefs) {
+static ordered_set<NestedInfo> gather_redefinitions(llvm::Value &V) {
 
+  // Initialize the redefinitions.
   ordered_set<NestedInfo> redefs = {};
-  set<llvm::Value *> visited = {};
 
+  // Gather base redefinitions.
+  set<llvm::Value *> base_redefs = {};
+  gather_base_redefinitions(base_redefs, V);
+
+  // Gather nested redefinitions.
+  set<llvm::Value *> visited = {};
   for (auto *base : base_redefs) {
     gather_nested_redefinitions(redefs, visited, *base, {});
   }
 
+  // Insert the base redefinitions.
+  for (auto *base : base_redefs) {
+    redefs.emplace(*base, {});
+  }
+
   return redefs;
+}
+
+static ordered_map<NestedInfo *, FoldInst *> gather_fold_arguments() {
+  map<AllocInst *, Type *> types_to_mutate;
+  for (auto *info : candidate) {
+    auto *alloc = info->allocation;
+
+    // Initialize the type to mutate if it doesnt exist already.
+    if (types_to_mutate.count(alloc) == 0) {
+      types_to_mutate[alloc] = &alloc->getType();
+    }
+    auto &type = *types_to_mutate[alloc];
+
+    println("MERGE TYPE");
+    println("  ", type);
+
+    // Convert the type at the given offset to the size type.
+    auto &module =
+        MEMOIR_SANITIZE(alloc->getModule(),
+                        "AllocInst does not belong to an LLVM module!");
+    const auto &data_layout = module.getDataLayout();
+    auto &size_type = Type::get_size_type(data_layout);
+
+    auto &new_type = detail::convert_type(type, info->offsets, size_type);
+
+    println("  ", new_type);
+
+    types_to_mutate[alloc] = &new_type;
+  }
 }
 
 map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
@@ -551,25 +579,10 @@ map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
     alloc.getTypeOperandAsUse().set(&type_inst->getCallInst());
   }
 
-  // Collect all redefinitions of the allocation.
+  // Collect all nested redefinitions, merging the base redefinitions.
   auto redefs = gather_redefinitions(alloc);
 
-  // Update any type assertions.
-  for (auto *redef : redefs) {
-    update_assertions(*redef, type);
-  }
-
-  // Update any type differences for accesses.
-  if (type_differs) {
-    for (auto *redef : redefs) {
-      update_accesses(*redef, type);
-    }
-  }
-
   // TODO: handle collections passed as argument.
-
-  // Collect all nested redefinitions.
-  auto nested_redefs = gather_nested_redefinitions(redefs);
 
   // Update any nested type assertions.
   for (auto &info : nested_redefs) {
@@ -582,6 +595,10 @@ map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
       update_accesses(info.value(), info.nested_type(type));
     }
   }
+
+  // Gather all fold arguments that need to be mutated.
+
+  // Update the arguments for fold bodies.
 
   return mapping;
 }
