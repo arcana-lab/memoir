@@ -2,6 +2,7 @@
 
 #include "memoir/ir/Builder.hpp"
 #include "memoir/transforms/utilities/MutateType.hpp"
+#include "memoir/utility/FunctionNames.hpp"
 
 namespace llvm::memoir {
 
@@ -107,6 +108,8 @@ static void type_differences(vector<Difference> &differences,
                   other);
 
     differences.emplace_back(DifferenceKind::TypeDiffers, offsets);
+
+    return;
   }
 
   // If these are the same type kind, recurse on their inner types.
@@ -228,7 +231,11 @@ static void gather_redefinitions(set<llvm::Value *> &redefs, llvm::Value &V) {
         }
 
       } else if (auto *fold = dyn_cast<FoldInst>(memoir)) {
-        if (auto *closed = fold->getClosedArgument(use)) {
+        if (use == fold->getInitialAsUse()) {
+          gather_redefinitions(redefs, fold->getAccumulatorArgument());
+          gather_redefinitions(redefs, fold->getResult());
+
+        } else if (auto *closed = fold->getClosedArgument(use)) {
           gather_redefinitions(redefs, *closed);
         }
 
@@ -285,6 +292,57 @@ static void update_assertions(llvm::Value &V, Type &type) {
       auto *type_value = &builder.CreateTypeInst(type)->getCallInst();
 
       assertion->getTypeOperandAsUse().set(type_value);
+
+      println("Updated assertion for ",
+              V,
+              " in ",
+              assertion->getFunction()->getName());
+    }
+  }
+
+  return;
+}
+
+static void update_accesses(llvm::Value &V, Type &type) {
+  for (auto &use : V.uses()) {
+    if (auto *access = into<AccessInst>(use.getUser())) {
+
+      // We only need to update read/write since they are typed.
+      auto *read = dyn_cast<ReadInst>(access);
+      auto *write = dyn_cast<WriteInst>(access);
+      if (not(read or write)) {
+        continue;
+      }
+
+      println("MUTATE ", *access);
+
+      // Fetch the type of the new access.
+      auto *elem_type = &type;
+      for (auto *index : access->indices()) {
+        if (auto *collection_type = dyn_cast<CollectionType>(elem_type)) {
+          elem_type = &collection_type->getElementType();
+
+        } else if (auto *tuple_type = dyn_cast<TupleType>(elem_type)) {
+          auto &field_const =
+              MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
+                              "Index to tuple is not a constant!");
+          auto field = field_const.getZExtValue();
+
+          elem_type = &tuple_type->getFieldType(field);
+        }
+      }
+
+      // Fetch the converted type instruction.
+      auto &orig_func = access->getCalledFunction();
+      auto &new_func =
+          FunctionNames::convert_typed_function(orig_func, *elem_type);
+
+      println("  NEW ", new_func.getName());
+
+      // Update the called function.
+      auto &call = access->getCallInst();
+
+      call.setCalledFunction(&new_func);
     }
   }
 
@@ -302,6 +360,19 @@ struct NestedInfo {
 
   llvm::ArrayRef<unsigned> offsets() const {
     return this->_offsets;
+  }
+
+  Type &nested_type(Type &base_type) const {
+    auto *type = &base_type;
+    for (const auto offset : this->offsets()) {
+      if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+        type = &collection_type->getElementType();
+      } else if (auto *tuple_type = dyn_cast<TupleType>(type)) {
+        type = &tuple_type->getFieldType(offset);
+      }
+    }
+
+    return MEMOIR_SANITIZE(type, "Nested type is NULL!");
   }
 
   friend bool operator<(const NestedInfo &lhs, const NestedInfo &rhs) {
@@ -331,8 +402,15 @@ protected:
 };
 
 static void gather_nested_redefinitions(ordered_set<NestedInfo> &redefs,
+                                        set<llvm::Value *> &visited,
                                         llvm::Value &V,
                                         llvm::ArrayRef<unsigned> offsets) {
+
+  if (visited.count(&V) > 0) {
+    return;
+  } else {
+    visited.insert(&V);
+  }
 
   if (not offsets.empty()) {
     redefs.emplace(V, offsets);
@@ -386,7 +464,7 @@ static void gather_nested_redefinitions(ordered_set<NestedInfo> &redefs,
           auto &elem_type = collection_type.getElementType();
 
           if (not Type::is_primitive_type(elem_type)) {
-            gather_nested_redefinitions(redefs, *arg, nested_offsets);
+            gather_nested_redefinitions(redefs, visited, *arg, nested_offsets);
           }
         }
       }
@@ -412,7 +490,7 @@ static void gather_nested_redefinitions(ordered_set<NestedInfo> &redefs,
                                   callee->getName(),
                                   " is NULL!");
 
-      gather_nested_redefinitions(redefs, arg, offsets);
+      gather_nested_redefinitions(redefs, visited, arg, offsets);
     }
   }
 
@@ -423,9 +501,10 @@ static ordered_set<NestedInfo> gather_nested_redefinitions(
     set<llvm::Value *> base_redefs) {
 
   ordered_set<NestedInfo> redefs = {};
+  set<llvm::Value *> visited = {};
 
   for (auto *base : base_redefs) {
-    gather_nested_redefinitions(redefs, *base, {});
+    gather_nested_redefinitions(redefs, visited, *base, {});
   }
 
   return redefs;
@@ -482,6 +561,9 @@ map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
 
   // Update any type differences for accesses.
   if (type_differs) {
+    for (auto *redef : redefs) {
+      update_accesses(*redef, type);
+    }
   }
 
   // TODO: handle collections passed as argument.
@@ -491,19 +573,14 @@ map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
 
   // Update any nested type assertions.
   for (auto &info : nested_redefs) {
-    // Get the nested type.
-    auto *nested_type = &type;
-    for (const auto offset : info.offsets()) {
-      if (auto *collection_type = dyn_cast<CollectionType>(nested_type)) {
-        nested_type = &collection_type->getElementType();
-      } else if (auto *tuple_type = dyn_cast<TupleType>(nested_type)) {
-        nested_type = &tuple_type->getFieldType(offset);
-      }
-    }
-    MEMOIR_ASSERT(nested_type, "Nested type is NULL!");
+    update_assertions(info.value(), info.nested_type(type));
+  }
 
-    // Update the type assertions for the nested object.
-    update_assertions(info.value(), *nested_type);
+  // Update any type differences for accesses.
+  if (type_differs) {
+    for (auto &info : nested_redefs) {
+      update_accesses(info.value(), info.nested_type(type));
+    }
   }
 
   return mapping;
