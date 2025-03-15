@@ -138,19 +138,12 @@ llvm::Function &FunctionNames::convert_typed_function(llvm::Function &F,
         "Failed to get function ",
         "read_",
         type.get_code().value());
-#define HANDLE_FFOLD_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
+#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
 #include "memoir/ir/Instructions.def"
     return MEMOIR_SANITIZE(
         M.getFunction(MEMOIR_PREFIX "fold_" + type.get_code().value()),
         "Failed to get function ",
         "fold_",
-        type.get_code().value());
-#define HANDLE_RFOLD_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
-#include "memoir/ir/Instructions.def"
-    return MEMOIR_SANITIZE(
-        M.getFunction(MEMOIR_PREFIX "rfold_" + type.get_code().value()),
-        "Failed to get function ",
-        "rfold_",
         type.get_code().value());
   }
 

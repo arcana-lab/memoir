@@ -200,6 +200,18 @@ protected:
   friend struct Keyword;
 };
 
+struct ReverseKeyword : public Keyword {
+public:
+  CLASSOF_IMPL()
+
+  ReverseKeyword(llvm::Use &use) : Keyword(use) {}
+
+protected:
+  static const char *NAME;
+
+  friend struct Keyword;
+};
+
 } // namespace llvm::memoir
 
 #endif // MEMOIR_KEYWORDS_H

@@ -110,7 +110,7 @@ public:
   RetTy visitFoldInst(FoldInst &I) {
     DELEGATE_INST(AccessInst);
   };
-#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS, REVERSE) /* No handling */
+#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS) /* No handling */
 #include "memoir/ir/Instructions.def"
 
   // Mut instruction hierarchy.

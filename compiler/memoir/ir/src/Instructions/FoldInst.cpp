@@ -43,14 +43,10 @@ FoldInst *FoldInst::get_single_fold(llvm::Function &F) {
 RESULTANT(FoldInst, Result)
 
 bool FoldInst::isReverse() const {
-  switch (this->getKind()) {
-#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS, REVERSE)                           \
-  case MemOIR_Func::ENUM:                                                      \
-    return REVERSE;
-#include "memoir/ir/Instructions.def"
-    default:
-      MEMOIR_UNREACHABLE("Unknown FoldInst enum.");
+  if (this->get_keyword<ReverseKeyword>()) {
+    return true;
   }
+  return false;
 }
 
 OPERAND(FoldInst, BodyOperand, 0)

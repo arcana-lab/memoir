@@ -8,6 +8,7 @@ KEYWORD_(range, RangeKeyword)
 KEYWORD_(input, InputKeyword)
 KEYWORD_(value, ValueKeyword)
 KEYWORD_(selection, SelectionKeyword)
+KEYWORD_(reverse, ReverseKeyword) 
 
 #undef KEYWORD
 #undef KEYWORD_

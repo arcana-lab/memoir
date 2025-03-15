@@ -747,7 +747,6 @@ protected:
   }
 
   ENUM_FOR_TYPE(FOLD, Fold)
-  ENUM_FOR_TYPE(RFOLD, ReverseFold)
 #undef ENUM_FOR_TYPE
 
 }; // namespace llvm::memoir

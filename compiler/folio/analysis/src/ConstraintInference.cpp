@@ -77,15 +77,6 @@ void ConstraintInferenceDriver::init() {
             this->constraints.add(collection,
                                   FastOperationConstraint<FoldInst>());
           }
-        } else if (auto *rfold = into<ReverseFoldInst>(&I)) {
-          auto &collection = rfold->getCollection();
-
-          this->constraints.add(collection,
-                                OperationConstraint<ReverseFoldInst>());
-          if (is_hot) {
-            this->constraints.add(collection,
-                                  FastOperationConstraint<ReverseFoldInst>());
-          }
         }
 
         // TODO: check if we have references live across operations that impact

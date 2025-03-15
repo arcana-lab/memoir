@@ -27,7 +27,6 @@ OP_CONSTRAINT_(opswap, OperationConstraint, SwapInst, false)
 OP_CONSTRAINT_(ophas, OperationConstraint, AssocHasInst, false)
 OP_CONSTRAINT_(opsize, OperationConstraint, SizeInst, false)
 OP_CONSTRAINT_(opfold, OperationConstraint, FoldInst, false)
-OP_CONSTRAINT_(oprfold, OperationConstraint, ReverseFoldInst, false)
 
 // =====================================
 // FASTOP_CONSTRAINT(NAME, CLASS, INST, SOFT?)
@@ -47,7 +46,6 @@ FASTOP_CONSTRAINT_(fastswap, FastOperationConstraint, SwapInst, true)
 FASTOP_CONSTRAINT_(fasthas, FastOperationConstraint, AssocHasInst, true)
 FASTOP_CONSTRAINT_(fastsize, FastOperationConstraint, SizeInst, true)
 FASTOP_CONSTRAINT_(fastfold, FastOperationConstraint, FoldInst, true)
-FASTOP_CONSTRAINT_(fastrfold, FastOperationConstraint, ReverseFoldInst, true)
 
 // =====================================
 #undef CONSTRAINT

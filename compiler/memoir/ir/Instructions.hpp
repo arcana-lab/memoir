@@ -884,7 +884,7 @@ public:
 
   static bool classof(const MemOIRInst *I) {
     return
-#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS, REVERSE)                           \
+#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS)                                    \
   (I->getKind() == MemOIR_Func::ENUM) ||
 #include "memoir/ir/Instructions.def"
         false;
@@ -892,22 +892,6 @@ public:
 
 protected:
   FoldInst(llvm::CallInst &call_inst) : AccessInst(call_inst) {}
-
-  friend struct MemOIRInst;
-};
-
-struct ReverseFoldInst : public FoldInst {
-public:
-  static bool classof(const MemOIRInst *I) {
-    return
-#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS, REVERSE)                           \
-  (REVERSE && (I->getKind() == MemOIR_Func::ENUM)) ||
-#include "memoir/ir/Instructions.def"
-        false;
-  };
-
-protected:
-  ReverseFoldInst(llvm::CallInst &call_inst) : FoldInst(call_inst) {}
 
   friend struct MemOIRInst;
 };
