@@ -7,6 +7,8 @@
 
 namespace llvm::memoir {
 
+#if 0
+
 /**
  * Mutates the type of the given allocation.
  * @param alloc the allocation to mutate.
@@ -14,6 +16,8 @@ namespace llvm::memoir {
  * @returns a vmap of all new values.
  */
 map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type);
+
+#endif
 
 } // namespace llvm::memoir
 

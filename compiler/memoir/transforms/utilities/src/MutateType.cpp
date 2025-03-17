@@ -6,10 +6,12 @@
 
 namespace llvm::memoir {
 
+#if 0
+  
 // We will use two special offset values to represent either the keys or
 // elements at a given offset.
-#define ELEMS unsigned(-1)
-#define KEYS unsigned(-2)
+#  define ELEMS unsigned(-1)
+#  define KEYS unsigned(-2)
 
 enum DifferenceKind : uint8_t {
   NoDifference = 0,
@@ -89,7 +91,15 @@ protected:
   vector<unsigned> _offsets;
 };
 
-static void type_differences(vector<Difference> &differences,
+struct Differences : public vector<Difference> {
+  Differences() {}
+
+  void add(DifferenceKind kind, llvm::ArrayRef<unsigned> offsets) {
+    this->emplace_back(kind, offsets);
+  }
+};
+
+static void type_differences(Differences &differences,
                              llvm::ArrayRef<unsigned> offsets,
                              Type &base,
                              Type &other) {
@@ -163,7 +173,7 @@ static void type_differences(vector<Difference> &differences,
 
       // Check differences on the selection.
       if (base_assoc->get_selection() != other_assoc->get_selection()) {
-        differences.emplace_back(DifferenceKind::SelectionDiffers, offsets);
+        differences.add(DifferenceKind::SelectionDiffers, offsets);
       }
 
       return;
@@ -182,7 +192,7 @@ static void type_differences(vector<Difference> &differences,
 
       // Check differences on the selection.
       if (base_seq->get_selection() != other_seq->get_selection()) {
-        differences.emplace_back(DifferenceKind::SelectionDiffers, offsets);
+        differences.add(DifferenceKind::SelectionDiffers, offsets);
       }
 
       return;
@@ -201,10 +211,9 @@ static void type_differences(vector<Difference> &differences,
 }
 
 static vector<Difference> type_differences(Type &base, Type &other) {
-  vector<Difference> differences = {};
-  vector<unsigned> offsets = {};
+  Differences differences = {};
 
-  type_differences(differences, offsets, base, other);
+  type_differences(differences, {}, base, other);
 
   return differences;
 }
@@ -343,8 +352,14 @@ struct NestedInfo {
     : _value(&value),
       _offsets(offsets) {}
 
+  NestedInfo(llvm::Value &value) : NestedInfo(value, {}) {}
+
   llvm::Value &value() const {
     return *this->_value;
+  }
+
+  void value(llvm::Value &V) {
+    this->_value = &V;
   }
 
   llvm::ArrayRef<unsigned> offsets() const {
@@ -503,12 +518,17 @@ static ordered_set<NestedInfo> gather_redefinitions(llvm::Value &V) {
 
   // Insert the base redefinitions.
   for (auto *base : base_redefs) {
-    redefs.emplace(*base, {});
+    redefs.emplace(*base, llvm::ArrayRef<unsigned>());
   }
 
   return redefs;
 }
 
+static ordered_set<NestedInfo> gather_redefinitions(MemOIRInst &I) {
+  return gather_redefinitions(I.getCallInst());
+}
+
+#  if 0
 static ordered_map<NestedInfo *, FoldInst *> gather_fold_arguments() {
   map<AllocInst *, Type *> types_to_mutate;
   for (auto *info : candidate) {
@@ -537,9 +557,157 @@ static ordered_map<NestedInfo *, FoldInst *> gather_fold_arguments() {
     types_to_mutate[alloc] = &new_type;
   }
 }
+#  endif
+
+static void find_arguments(NestedInfo &info, vector<FoldInst *> &folds) {
+  auto offsets = info.offsets();
+
+  for (auto &use : info.value().uses()) {
+    if (auto *fold = into<FoldInst>(use.getUser())) {
+      if (use == fold->getObjectAsUse()) {
+
+        // Try to match the indices.
+        auto maybe_distance = fold->match_offsets(offsets);
+        if (not maybe_distance) {
+          // Mismatch.
+        }
+
+        auto distance = maybe_distance.value();
+
+        if (distance == offsets.size()) {
+          auto found = std::find(folds.begin(), folds.end(), fold);
+          if (found == folds.end()) {
+            folds.push_back(fold);
+          }
+
+        } else if (distance < offsets.size()) {
+          // NOTE: this case may be unnecessary, the set of nested redefs will
+          // already contain the argument.
+          if (auto *elem_arg = fold->getElementArgument()) {
+            NestedInfo nested(*elem_arg, offsets.drop_front(1 + distance));
+            find_arguments(info, folds);
+          }
+        }
+      }
+    }
+  }
+
+  return;
+}
+
+#  if 0
+static void update_fold_users(
+    NestedInfo &info,
+    map<NestedInfo *, vector<FoldInst *>> &folds_to_mutate,
+    Type &type) {
+
+  // For each of the folds, create a new function with the updated type.
+  set<llvm::Function *> functions_to_delete = {};
+  auto &to_mutate = folds_to_mutate[info];
+  for (auto *fold : to_mutate) {
+
+    // Fetch the index argument.
+    auto &index_arg = fold->getIndexArgument();
+
+    // Update the type of the function to match.
+    auto *function = index_arg.getParent();
+    auto *function_type = function->getFunctionType();
+
+    bool found_real_use = false;
+    if (function->hasNUsesOrMore(2)) {
+      for (auto &use : function->uses()) {
+        auto *user = use.getUser();
+        if (not into<RetPHIInst>(*user)) {
+          MEMOIR_ASSERT(not found_real_use, "Fold body has more than one use!");
+          found_real_use = true;
+        }
+      }
+    }
+
+    // Rebuild the function type.
+    vector<llvm::Type *> params(function_type->param_begin(),
+                                function_type->param_end());
+    params[index_arg.getArgNo()] = &llvm_size_type;
+
+    auto *new_function_type =
+        llvm::FunctionType::get(function_type->getReturnType(),
+                                params,
+                                function_type->isVarArg());
+
+    // Create a new function with the new function type.
+    auto *new_function = llvm::Function::Create(new_function_type,
+                                                function->getLinkage(),
+                                                function->getName(),
+                                                this->M);
+
+    // Clone the function with a changed parameter type.
+    llvm::ValueToValueMapTy vmap;
+    for (auto &old_arg : function->args()) {
+      auto *new_arg = new_function->getArg(old_arg.getArgNo());
+      vmap.insert({ &old_arg, new_arg });
+    }
+    llvm::SmallVector<llvm::ReturnInst *, 8> returns;
+    llvm::CloneFunctionInto(new_function,
+                            function,
+                            vmap,
+                            llvm::CloneFunctionChangeType::LocalChangesOnly,
+                            returns);
+
+    // Remove any pointer related attributes from the argument.
+    auto attr_list = new_function->getAttributes();
+    new_function->setAttributes(
+        attr_list.removeParamAttributes(context, index_arg.getArgNo()));
+
+    // Use the vmap to update any of the folds that we are patching.
+    for (auto &[_, other_to_mutate] : folds_to_mutate) {
+      for (auto &other_fold : other_to_mutate) {
+        // Skip the fold we just updated.
+        if (other_fold == fold) {
+          continue;
+        }
+
+        // If the parent function is the same as the old function, find
+        // this fold in the vmap.
+        auto *parent_function = other_fold->getFunction();
+        if (parent_function == function) {
+          auto *new_inst = &*vmap[&other_fold->getCallInst()];
+          auto *new_fold = into<FoldInst>(new_inst);
+
+          // Update in-place.
+          other_fold = new_fold;
+        }
+      }
+    }
+
+    // Remap any of the candidates that have been cloned.
+    detail::update_candidates(std::next(candidates_it),
+                              this->candidates.end(),
+                              *function,
+                              *new_function,
+                              vmap);
+
+    // Update the body of this fold.
+    auto &body_use = fold->getBodyOperandAsUse();
+    body_use.set(new_function);
+
+    function->replaceAllUsesWith(new_function);
+
+    new_function->takeName(function);
+
+    function->deleteBody();
+
+    functions_to_delete.insert(function);
+  }
+
+  for (auto *func : functions_to_delete) {
+    func->eraseFromParent();
+  }
+
+  return;
+}
+#  endif
 
 map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
-
   // Create a mapping for all variables that have been remapped.
   map<llvm::Value *, llvm::Value *> mapping = {};
 
@@ -585,22 +753,34 @@ map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
   // TODO: handle collections passed as argument.
 
   // Update any nested type assertions.
-  for (auto &info : nested_redefs) {
+  for (auto &info : redefs) {
     update_assertions(info.value(), info.nested_type(type));
   }
 
   // Update any type differences for accesses.
   if (type_differs) {
-    for (auto &info : nested_redefs) {
+    for (auto &info : redefs) {
       update_accesses(info.value(), info.nested_type(type));
     }
   }
 
-  // Gather all fold arguments that need to be mutated.
+  // Update any type differences for function arguments.
+  if (type_differs) {
 
-  // Update the arguments for fold bodies.
+    // Gather all fold arguments that need to be mutated.
+    map<NestedInfo *, vector<>> for (auto &info : redefs) {
+      auto args_to_mutate = find_arguments(info, type_differences);
+    }
+
+    // Update the arguments for fold bodies.
+    for (auto &info : redefs) {
+      update_fold_users(info, args_to_mutate, type);
+    }
+  }
 
   return mapping;
 }
+
+#endif
 
 } // namespace llvm::memoir
