@@ -1,4 +1,5 @@
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 
 #include "memoir/ir/Builder.hpp"
 #include "memoir/transforms/utilities/MutateType.hpp"
@@ -9,7 +10,6 @@ namespace llvm::memoir {
 // We will use two special offset values to represent either the keys or
 // elements at a given offset.
 #define ELEMS unsigned(-1)
-#define KEYS unsigned(-2)
 
 enum DifferenceKind : uint8_t {
   NoDifference = 0,
@@ -55,6 +55,20 @@ public:
     return this->_offsets;
   }
 
+  Type &convert_type(Type &new_type) const {
+    auto *type = &new_type;
+
+    for (auto offset : this->offsets()) {
+      if (auto *collection = dyn_cast<CollectionType>(type)) {
+        type = &collection->getElementType();
+      } else if (auto *tuple = dyn_cast<TupleType>(type)) {
+        type = &tuple->getFieldType(offset);
+      }
+    }
+
+    return MEMOIR_SANITIZE(type, "Converted type is NULL!");
+  }
+
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const Difference &diff) {
     os << "DIFFERS:";
@@ -69,9 +83,6 @@ public:
     os << "  ";
     for (auto offset : diff.offsets()) {
       switch (offset) {
-        case KEYS:
-          os << ".keys";
-          break;
         case ELEMS:
           os << "[*]";
           break;
@@ -92,8 +103,35 @@ protected:
 struct Differences : public vector<Difference> {
   Differences() {}
 
+  llvm::ArrayRef<Difference> diffs() const {
+    return *this;
+  }
+
   void add(DifferenceKind kind, llvm::ArrayRef<unsigned> offsets) {
     this->emplace_back(kind, offsets);
+  }
+
+  const Difference *find(llvm::ArrayRef<unsigned> offsets) {
+    for (const auto &diff : this->diffs()) {
+
+      bool matches = true;
+      auto offset_it = offsets.begin(), offset_ie = offsets.end();
+      auto diff_it = diff.offsets().begin(), diff_ie = diff.offsets().end();
+
+      for (; offset_it != offset_ie and diff_it != diff_ie;
+           ++offset_it, ++diff_it) {
+        if (*offset_it != *diff_it) {
+          matches = false;
+          break;
+        }
+      }
+
+      if (matches and offset_it == offset_ie and diff_it == diff_ie) {
+        return &diff;
+      }
+    }
+
+    return nullptr;
   }
 };
 
@@ -157,15 +195,13 @@ static void type_differences(Differences &differences,
 
       vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
 
-      nested_offsets.push_back(-2);
-      type_differences(differences, nested_offsets, base_key, other_key);
-      nested_offsets.pop_back();
+      type_differences(differences, offsets, base_key, other_key);
 
       // Check differences on the element.
       auto &base_elem = base_assoc->getElementType();
       auto &other_elem = other_assoc->getElementType();
 
-      nested_offsets.push_back(-1);
+      nested_offsets.push_back(ELEMS);
       type_differences(differences, nested_offsets, base_elem, other_elem);
       nested_offsets.pop_back();
 
@@ -184,7 +220,7 @@ static void type_differences(Differences &differences,
 
       vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
 
-      nested_offsets.push_back(-1);
+      nested_offsets.push_back(ELEMS);
       type_differences(differences, nested_offsets, base_elem, other_elem);
       nested_offsets.pop_back();
 
@@ -208,7 +244,7 @@ static void type_differences(Differences &differences,
   return;
 }
 
-static vector<Difference> type_differences(Type &base, Type &other) {
+static Differences type_differences(Type &base, Type &other) {
   Differences differences = {};
 
   type_differences(differences, {}, base, other);
@@ -232,7 +268,6 @@ static void gather_base_redefinitions(set<llvm::Value *> &redefs,
     }
 
     if (auto *memoir = into<MemOIRInst>(user)) {
-
       if (auto *update = dyn_cast<UpdateInst>(memoir)) {
         if (update->getObjectAsUse() == use) {
           gather_base_redefinitions(redefs, update->getResult());
@@ -278,71 +313,6 @@ static void gather_base_redefinitions(set<llvm::Value *> &redefs,
       gather_base_redefinitions(redefs, arg);
     }
   }
-}
-
-static void update_assertions(llvm::Value &V, Type &type) {
-  for (auto &use : V.uses()) {
-    if (auto *assertion = into<AssertTypeInst>(use.getUser())) {
-      MemOIRBuilder builder(*assertion);
-
-      auto *type_value = &builder.CreateTypeInst(type)->getCallInst();
-
-      assertion->getTypeOperandAsUse().set(type_value);
-
-      println("Updated assertion for ",
-              V,
-              " in ",
-              assertion->getFunction()->getName());
-    }
-  }
-
-  return;
-}
-
-static void update_accesses(llvm::Value &V, Type &type) {
-  for (auto &use : V.uses()) {
-    if (auto *access = into<AccessInst>(use.getUser())) {
-
-      // We only need to update read/write since they are typed.
-      auto *read = dyn_cast<ReadInst>(access);
-      auto *write = dyn_cast<WriteInst>(access);
-      if (not(read or write)) {
-        continue;
-      }
-
-      println("MUTATE ", *access);
-
-      // Fetch the type of the new access.
-      auto *elem_type = &type;
-      for (auto *index : access->indices()) {
-        if (auto *collection_type = dyn_cast<CollectionType>(elem_type)) {
-          elem_type = &collection_type->getElementType();
-
-        } else if (auto *tuple_type = dyn_cast<TupleType>(elem_type)) {
-          auto &field_const =
-              MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
-                              "Index to tuple is not a constant!");
-          auto field = field_const.getZExtValue();
-
-          elem_type = &tuple_type->getFieldType(field);
-        }
-      }
-
-      // Fetch the converted type instruction.
-      auto &orig_func = access->getCalledFunction();
-      auto &new_func =
-          FunctionNames::convert_typed_function(orig_func, *elem_type);
-
-      println("  NEW ", new_func.getName());
-
-      // Update the called function.
-      auto &call = access->getCallInst();
-
-      call.setCalledFunction(&new_func);
-    }
-  }
-
-  return;
 }
 
 struct NestedInfo {
@@ -499,6 +469,25 @@ static void gather_nested_redefinitions(ordered_set<NestedInfo> &redefs,
   return;
 }
 
+static void gather_offsets(vector<unsigned> &offsets, AccessInst &access) {
+
+  auto *type = &access.getObjectType();
+
+  for (auto *index : access.indices()) {
+    if (auto *tuple = dyn_cast<TupleType>(type)) {
+      auto &index_const = MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
+                                          "Field index is not a constant!");
+      auto field = index_const.getZExtValue();
+      offsets.push_back(field);
+
+    } else if (auto *collection = dyn_cast<CollectionType>(type)) {
+      offsets.push_back(ELEMS);
+    }
+  }
+
+  return;
+}
+
 static ordered_set<NestedInfo> gather_redefinitions(llvm::Value &V) {
 
   // Initialize the redefinitions.
@@ -526,64 +515,99 @@ static ordered_set<NestedInfo> gather_redefinitions(MemOIRInst &I) {
   return gather_redefinitions(I.getCallInst());
 }
 
-#if 0
-static ordered_map<NestedInfo *, FoldInst *> gather_fold_arguments() {
-  map<AllocInst *, Type *> types_to_mutate;
-  for (auto *info : candidate) {
-    auto *alloc = info->allocation;
+static void update_assertions(llvm::Value &V, Type &type) {
+  for (auto &use : V.uses()) {
+    if (auto *assertion = into<AssertTypeInst>(use.getUser())) {
+      MemOIRBuilder builder(*assertion);
 
-    // Initialize the type to mutate if it doesnt exist already.
-    if (types_to_mutate.count(alloc) == 0) {
-      types_to_mutate[alloc] = &alloc->getType();
+      auto *type_value = &builder.CreateTypeInst(type)->getCallInst();
+
+      assertion->getTypeOperandAsUse().set(type_value);
+
+      debugln("Updated assertion for ",
+              V,
+              " in ",
+              assertion->getFunction()->getName());
     }
-    auto &type = *types_to_mutate[alloc];
-
-    println("MERGE TYPE");
-    println("  ", type);
-
-    // Convert the type at the given offset to the size type.
-    auto &module =
-        MEMOIR_SANITIZE(alloc->getModule(),
-                        "AllocInst does not belong to an LLVM module!");
-    const auto &data_layout = module.getDataLayout();
-    auto &size_type = Type::get_size_type(data_layout);
-
-    auto &new_type = detail::convert_type(type, info->offsets, size_type);
-
-    println("  ", new_type);
-
-    types_to_mutate[alloc] = &new_type;
   }
+
+  return;
 }
-#endif
 
-static void find_arguments(NestedInfo &info, vector<FoldInst *> &folds) {
-  auto offsets = info.offsets();
+static void update_accesses(llvm::Value &V, Type &type) {
+  for (auto &use : V.uses()) {
+    if (auto *access = into<AccessInst>(use.getUser())) {
 
+      // We only need to update read/write since they are typed.
+      auto *read = dyn_cast<ReadInst>(access);
+      auto *write = dyn_cast<WriteInst>(access);
+      if (not(read or write)) {
+        continue;
+      }
+
+      // Fetch the type of the new access.
+      auto *elem_type = &type;
+      for (auto *index : access->indices()) {
+        if (auto *collection_type = dyn_cast<CollectionType>(elem_type)) {
+          elem_type = &collection_type->getElementType();
+
+        } else if (auto *tuple_type = dyn_cast<TupleType>(elem_type)) {
+          auto &field_const =
+              MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
+                              "Index to tuple is not a constant!");
+          auto field = field_const.getZExtValue();
+
+          elem_type = &tuple_type->getFieldType(field);
+        }
+      }
+
+      // Fetch the converted type instruction.
+      auto &orig_func = access->getCalledFunction();
+      auto &new_func =
+          FunctionNames::convert_typed_function(orig_func, *elem_type);
+
+      // Update the called function.
+      auto &call = access->getCallInst();
+
+      call.setCalledFunction(&new_func);
+    }
+  }
+
+  return;
+}
+
+static void find_arguments(map<llvm::Argument *, Type *> &args_to_mutate,
+                           const NestedInfo &info,
+                           Differences &diffs,
+                           Type &type) {
+
+  auto &nested_type = info.nested_type(type);
+
+  // Find fold operations on this collection.
   for (auto &use : info.value().uses()) {
     if (auto *fold = into<FoldInst>(use.getUser())) {
       if (use == fold->getObjectAsUse()) {
 
-        // Try to match the indices.
-        auto maybe_distance = fold->match_offsets(offsets);
-        if (not maybe_distance) {
-          // Mismatch.
+        // Gather the offsets for the fold.
+        vector<unsigned> offsets(info.offsets().begin(), info.offsets().end());
+        gather_offsets(offsets, *fold);
+
+        // Check for key type differences.
+        auto *key_diff = diffs.find(offsets);
+        if (key_diff and key_diff->type_differs()) {
+          auto &key_arg = fold->getIndexArgument();
+          auto &assoc_type = MEMOIR_SANITIZE(
+              dyn_cast<AssocType>(&key_diff->convert_type(nested_type)),
+              "Key difference in non-assoc collection!");
+          args_to_mutate[&key_arg] = &assoc_type.getKeyType();
         }
 
-        auto distance = maybe_distance.value();
-
-        if (distance == offsets.size()) {
-          auto found = std::find(folds.begin(), folds.end(), fold);
-          if (found == folds.end()) {
-            folds.push_back(fold);
-          }
-
-        } else if (distance < offsets.size()) {
-          // NOTE: this case may be unnecessary, the set of nested redefs will
-          // already contain the argument.
-          if (auto *elem_arg = fold->getElementArgument()) {
-            NestedInfo nested(*elem_arg, offsets.drop_front(1 + distance));
-            find_arguments(info, folds);
+        // Check for value type differences.
+        if (auto *elem_arg = fold->getElementArgument()) {
+          offsets.push_back(ELEMS);
+          auto *elem_diff = diffs.find(offsets);
+          if (elem_diff and elem_diff->type_differs()) {
+            args_to_mutate[elem_arg] = &elem_diff->convert_type(nested_type);
           }
         }
       }
@@ -593,108 +617,84 @@ static void find_arguments(NestedInfo &info, vector<FoldInst *> &folds) {
   return;
 }
 
-#if 0
-static void update_fold_users(
-    NestedInfo &info,
-    map<NestedInfo *, vector<FoldInst *>> &folds_to_mutate,
-    Type &type) {
+static void update_arguments(ordered_set<NestedInfo> &redefs,
+                             Differences &diffs,
+                             Type &type,
+                             OnFuncClone on_func_clone) {
 
-  // For each of the folds, create a new function with the updated type.
+  map<llvm::Argument *, Type *> to_mutate = {};
+
+  // Find all arguments to mutate.
+  for (auto &info : redefs) {
+    find_arguments(to_mutate, info, diffs, type);
+  }
+
+  // Gather the set of functions to update.
+  map<llvm::Function *, vector<llvm::Argument *>> functions = {};
+  for (const auto &[arg, _type] : to_mutate) {
+    functions[arg->getParent()].push_back(arg);
+  }
+
+  // Create a clone of each function with the new argument types.
   set<llvm::Function *> functions_to_delete = {};
-  auto &to_mutate = folds_to_mutate[info];
-  for (auto *fold : to_mutate) {
+  for (const auto &[func, args] : functions) {
+    auto &context = func->getContext();
+    auto &module = MEMOIR_SANITIZE(func->getParent(),
+                                   "Function has no parent module: ",
+                                   func->getName());
 
-    // Fetch the index argument.
-    auto &index_arg = fold->getIndexArgument();
-
-    // Update the type of the function to match.
-    auto *function = index_arg.getParent();
-    auto *function_type = function->getFunctionType();
-
-    bool found_real_use = false;
-    if (function->hasNUsesOrMore(2)) {
-      for (auto &use : function->uses()) {
-        auto *user = use.getUser();
-        if (not into<RetPHIInst>(*user)) {
-          MEMOIR_ASSERT(not found_real_use, "Fold body has more than one use!");
-          found_real_use = true;
-        }
-      }
-    }
+    auto *func_type = func->getFunctionType();
 
     // Rebuild the function type.
-    vector<llvm::Type *> params(function_type->param_begin(),
-                                function_type->param_end());
-    params[index_arg.getArgNo()] = &llvm_size_type;
+    vector<llvm::Type *> params(func_type->param_begin(),
+                                func_type->param_end());
 
-    auto *new_function_type =
-        llvm::FunctionType::get(function_type->getReturnType(),
-                                params,
-                                function_type->isVarArg());
+    for (auto *arg : args) {
+      auto *arg_type = to_mutate[arg];
+      auto *arg_llvm_type = arg_type->get_llvm_type(context);
+      params[arg->getArgNo()] = arg_llvm_type;
+    }
+
+    auto *new_func_type = llvm::FunctionType::get(func_type->getReturnType(),
+                                                  params,
+                                                  func_type->isVarArg());
 
     // Create a new function with the new function type.
-    auto *new_function = llvm::Function::Create(new_function_type,
-                                                function->getLinkage(),
-                                                function->getName(),
-                                                this->M);
+    auto *new_func = llvm::Function::Create(new_func_type,
+                                            func->getLinkage(),
+                                            func->getName(),
+                                            module);
 
     // Clone the function with a changed parameter type.
     llvm::ValueToValueMapTy vmap;
-    for (auto &old_arg : function->args()) {
-      auto *new_arg = new_function->getArg(old_arg.getArgNo());
+    for (auto &old_arg : func->args()) {
+      auto *new_arg = new_func->getArg(old_arg.getArgNo());
       vmap.insert({ &old_arg, new_arg });
     }
     llvm::SmallVector<llvm::ReturnInst *, 8> returns;
-    llvm::CloneFunctionInto(new_function,
-                            function,
+    llvm::CloneFunctionInto(new_func,
+                            func,
                             vmap,
                             llvm::CloneFunctionChangeType::LocalChangesOnly,
                             returns);
 
-    // Remove any pointer related attributes from the argument.
-    auto attr_list = new_function->getAttributes();
-    new_function->setAttributes(
-        attr_list.removeParamAttributes(context, index_arg.getArgNo()));
+    // Invoke the callback.
+    on_func_clone(*func, *new_func, vmap);
 
-    // Use the vmap to update any of the folds that we are patching.
-    for (auto &[_, other_to_mutate] : folds_to_mutate) {
-      for (auto &other_fold : other_to_mutate) {
-        // Skip the fold we just updated.
-        if (other_fold == fold) {
-          continue;
-        }
-
-        // If the parent function is the same as the old function, find
-        // this fold in the vmap.
-        auto *parent_function = other_fold->getFunction();
-        if (parent_function == function) {
-          auto *new_inst = &*vmap[&other_fold->getCallInst()];
-          auto *new_fold = into<FoldInst>(new_inst);
-
-          // Update in-place.
-          other_fold = new_fold;
-        }
-      }
+    // Remove any pointer related attributes from the updated arguments.
+    auto attr_list = new_func->getAttributes();
+    for (auto *arg : args) {
+      attr_list = attr_list.removeParamAttributes(context, arg->getArgNo());
     }
+    new_func->setAttributes(attr_list);
 
-    // Remap any of the candidates that have been cloned.
-    detail::update_candidates(std::next(candidates_it),
-                              this->candidates.end(),
-                              *function,
-                              *new_function,
-                              vmap);
+    func->replaceAllUsesWith(new_func);
 
-    // Update the body of this fold.
-    auto &body_use = fold->getBodyOperandAsUse();
-    body_use.set(new_function);
+    new_func->takeName(func);
 
-    function->replaceAllUsesWith(new_function);
+    func->deleteBody();
 
-    new_function->takeName(function);
-
-    function->deleteBody();
-
-    functions_to_delete.insert(function);
+    functions_to_delete.insert(func);
   }
 
   for (auto *func : functions_to_delete) {
@@ -703,15 +703,12 @@ static void update_fold_users(
 
   return;
 }
-#endif
 
-map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
-  // Create a mapping for all variables that have been remapped.
-  map<llvm::Value *, llvm::Value *> mapping = {};
+void mutate_type(AllocInst &alloc, Type &type, OnFuncClone on_func_clone) {
 
-  println("MUTATE");
-  println("  ", alloc);
-  println("  ", type);
+  debugln("MUTATE");
+  debugln("  ", alloc, " in ", alloc.getFunction()->getName());
+  debugln("  ", type);
 
   // Get the original type.
   auto &orig_type = alloc.getType();
@@ -721,8 +718,8 @@ map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
 
   // If there are no differences, then there is nothing to do!
   if (differences.empty()) {
-    println("No differences found, continuing...");
-    return mapping;
+    debugln("No differences found, continuing...");
+    return;
   }
 
   // Aggregate all of the differences that we have.
@@ -733,50 +730,57 @@ map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
     type_differs |= diff.type_differs();
     selection_differs |= diff.selection_differs();
 
-    println(diff);
+    debugln(diff);
   }
 
   // Change the type operand of the allocation
   {
+    debugln("Updating allocation type...");
+
     MemOIRBuilder builder(alloc);
 
     auto *type_inst = builder.CreateTypeInst(type);
 
     alloc.getTypeOperandAsUse().set(&type_inst->getCallInst());
+
+    debugln("Done updating allocation type...");
   }
 
   // Collect all nested redefinitions, merging the base redefinitions.
+  debugln("Gathering redefinitions...");
   auto redefs = gather_redefinitions(alloc);
+  debugln("Done gathering redefinitions.");
 
   // TODO: handle collections passed as argument.
 
   // Update any nested type assertions.
+  debugln("Updating assertions...");
   for (auto &info : redefs) {
     update_assertions(info.value(), info.nested_type(type));
   }
+  debugln("Done updating assertions.");
 
   // Update any type differences for accesses.
+  debugln("Updating accesses...");
   if (type_differs) {
     for (auto &info : redefs) {
       update_accesses(info.value(), info.nested_type(type));
     }
+    debugln("Done updating accesses.");
+  } else {
+    debugln("No accesses to update.");
   }
 
   // Update any type differences for function arguments.
+  debugln("Updating arguments...");
   if (type_differs) {
-
-    // Gather all fold arguments that need to be mutated.
-    map<NestedInfo *, vector<>> for (auto &info : redefs) {
-      auto args_to_mutate = find_arguments(info, type_differences);
-    }
-
-    // Update the arguments for fold bodies.
-    for (auto &info : redefs) {
-      update_fold_users(info, args_to_mutate, type);
-    }
+    update_arguments(redefs, differences, type, on_func_clone);
+    debugln("Done updating arguments.");
+  } else {
+    debugln("No arguments to update.");
   }
 
-  return mapping;
+  return;
 }
 
 } // namespace llvm::memoir

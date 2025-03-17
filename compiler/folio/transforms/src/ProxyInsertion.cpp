@@ -282,58 +282,6 @@ static llvm::Use *get_index_use(AccessInst &access, vector<unsigned> &offsets) {
   return index_it;
 }
 
-static int32_t indices_match_offsets(AccessInst &access,
-                                     llvm::ArrayRef<unsigned> offsets) {
-  auto index_it = access.index_operands_begin();
-  auto index_ie = access.index_operands_end();
-
-  auto *object_type = type_of(access.getObject());
-  if (not object_type) {
-    println(*access.getParent()->getParent());
-    println("OBJ ", access.getObject());
-    MEMOIR_UNREACHABLE("Could not get type of object ", access);
-  }
-
-  auto *type = &access.getObjectType();
-
-  auto offset_it = offsets.begin();
-  for (; offset_it != offsets.end(); ++offset_it) {
-
-    auto offset = *offset_it;
-
-    // If we have reached the end of the index operands, there is no index
-    // use.
-    if (index_it == index_ie) {
-      break;
-    }
-
-    if (auto *struct_type = dyn_cast<TupleType>(type)) {
-
-      auto &index_use = *index_it;
-      auto &index_const =
-          MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index_use.get()),
-                          "Field index is not statically known!");
-
-      // If the offset doesn't match the field index, there is no index use.
-      if (offset != index_const.getZExtValue()) {
-        return -1;
-      }
-
-      // Get the inner type.
-      type = &struct_type->getFieldType(offset);
-
-    } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
-      // Get the inner type.
-      type = &collection_type->getElementType();
-    }
-
-    ++index_it;
-  }
-
-  // Return the number of offsets we matched.
-  return std::distance(offsets.begin(), offset_it);
-}
-
 } // namespace detail
 
 static void gather_uses_to_proxy(
@@ -377,13 +325,13 @@ static void gather_uses_to_proxy(
           // decode the index argument of the body.
           auto distance = fold->match_offsets(offsets);
 
-          if (distance == -1) {
+          if (not distance) {
             // Do nothing.
           }
 
           // If the offsets are fully exhausted, add uses of the index
           // argument to the set of uses to decode.
-          else if (distance == int32_t(offsets.size())) {
+          else if (distance.value() == offsets.size()) {
             auto &index_arg = fold->getIndexArgument();
             infoln("    DECODING KEY");
             for (auto &index_use : index_arg.uses()) {
@@ -394,10 +342,10 @@ static void gather_uses_to_proxy(
 
           // If the offsets are not fully exhausted, recurse on the value
           // argument.
-          else if (distance < int32_t(offsets.size())) {
+          else if (distance.value() < offsets.size()) {
             if (auto *elem_arg = fold->getElementArgument()) {
               vector<unsigned> nested_offsets(
-                  std::next(offsets.begin(), distance + 1),
+                  std::next(offsets.begin(), distance.value() + 1),
                   offsets.end());
               infoln("    RECURSING");
               gather_uses_to_proxy(*elem_arg,
@@ -485,7 +433,7 @@ static void gather_uses_to_propagate(
         // If the offsets are fully exhausted, add uses of the index
         // argument to the set of uses to decode.
         // TODO: may need to do size+1
-        else if ((distance + 1) == int32_t(offsets.size())) {
+        if ((distance + 1) == offsets.size()) {
           if (auto *elem_arg = fold->getElementArgument()) {
             infoln("    DECODING ELEM");
             for (auto &elem_use : elem_arg->uses()) {
@@ -497,7 +445,7 @@ static void gather_uses_to_propagate(
 
         // If the offsets are not fully exhausted, recurse on the value
         // argument.
-        else if (distance < int32_t(offsets.size())) {
+        else if (distance < offsets.size()) {
           if (auto *elem_arg = fold->getElementArgument()) {
             vector<unsigned> nested_offsets(
                 std::next(offsets.begin(), distance + 1),
@@ -511,7 +459,7 @@ static void gather_uses_to_propagate(
           }
         }
       } else if (auto *read = dyn_cast<ReadInst>(access)) {
-        if (distance == int32_t(offsets.size())) {
+        if (distance == offsets.size()) {
           infoln("    DECODING ELEM ");
           for (auto &read_use : user->uses()) {
             infoln("      USE ", *read_use.getUser());
@@ -519,13 +467,13 @@ static void gather_uses_to_propagate(
           }
         }
       } else if (auto *write = dyn_cast<WriteInst>(access)) {
-        if (distance == int32_t(offsets.size())) {
+        if (distance == offsets.size()) {
           infoln("    ADDKEY ");
           to_addkey[function].insert(&write->getValueWrittenAsUse());
         }
       } else if (auto *insert = dyn_cast<InsertInst>(access)) {
         if (auto value_kw = insert->get_keyword<ValueKeyword>()) {
-          if (distance == int32_t(offsets.size())) {
+          if (distance == offsets.size()) {
             infoln("    ADDKEY ");
             to_addkey[function].insert(&value_kw->getValueAsUse());
           }
@@ -1384,47 +1332,9 @@ void update_candidates(std::forward_iterator auto candidates_begin,
   }
 }
 
-static void find_fold_users(llvm::Value &V,
-                            llvm::ArrayRef<unsigned> offsets,
-                            vector<FoldInst *> &folds) {
-  infoln("  REDEF ", V);
-  for (auto &use : V.uses()) {
-    if (auto *fold = into<FoldInst>(use.getUser())) {
-      if (use == fold->getObjectAsUse()) {
-        auto maybe_distance = fold->match_offsets(offsets);
-        if (not distance) {
-          // Mismatch.
-        }
-        auto distance = maybe_distance.value();
-
-        if (distance == offsets.size()) {
-          auto found = std::find(folds.begin(), folds.end(), fold);
-          if (found == folds.end()) {
-            infoln("    TO MUTATE ", *fold);
-            folds.push_back(fold);
-          }
-        } else if (distance < int32_t(offsets.size())) {
-          if (auto *elem_arg = fold->getElementArgument()) {
-            find_fold_users(*elem_arg,
-                            llvm::ArrayRef<unsigned>(
-                                std::next(offsets.begin(), distance + 1),
-                                offsets.end()),
-                            folds);
-          }
-          // TODO: this check is not enough for everything that could happen,
-          // we need to move this recursion case into the redefinitions
-          // computation
-        }
-      }
-    }
-  }
-
-  return;
-}
-
-bool _used_value_will_be_decoded(llvm::Use &use,
-                                 const set<llvm::Use *> &to_decode,
-                                 set<llvm::Use *> &visited) {
+bool used_value_will_be_decoded(llvm::Use &use,
+                                const set<llvm::Use *> &to_decode,
+                                set<llvm::Use *> &visited) {
 
   if (to_decode.count(&use) > 0) {
     return true;
@@ -1440,16 +1350,16 @@ bool _used_value_will_be_decoded(llvm::Use &use,
   if (auto *phi = dyn_cast<llvm::PHINode>(value)) {
     bool all_decoded = true;
     for (auto &incoming : phi->incoming_values()) {
-      all_decoded &= _used_value_will_be_decoded(incoming, to_decode, visited);
+      all_decoded &= used_value_will_be_decoded(incoming, to_decode, visited);
     }
     return all_decoded;
   } else if (auto *select = dyn_cast<llvm::SelectInst>(value)) {
-    return _used_value_will_be_decoded(select->getOperandUse(1),
-                                       to_decode,
-                                       visited)
-           and _used_value_will_be_decoded(select->getOperandUse(2),
-                                           to_decode,
-                                           visited);
+    return used_value_will_be_decoded(select->getOperandUse(1),
+                                      to_decode,
+                                      visited)
+           and used_value_will_be_decoded(select->getOperandUse(2),
+                                          to_decode,
+                                          visited);
   }
 
   return false;
@@ -1458,7 +1368,7 @@ bool _used_value_will_be_decoded(llvm::Use &use,
 bool used_value_will_be_decoded(llvm::Use &use,
                                 const set<llvm::Use *> &to_decode) {
   set<llvm::Use *> visited = {};
-  return _used_value_will_be_decoded(use, to_decode, visited);
+  return used_value_will_be_decoded(use, to_decode, visited);
 }
 
 Type &convert_type(Type &base,
@@ -1930,60 +1840,17 @@ bool ProxyInsertion::transform() {
       use->set(decoded);
     }
 
-    // Set the selection of the collection.
-    map<ObjectInfo *, vector<FoldInst *>> folds_to_mutate = {};
-    for (auto *info : candidate) {
-      println("Updating selection and types");
-      println("  ", *info);
-
-      // Determine _where_ to attach the selection.
-      auto *type = &info->allocation->getType();
-      for (auto offset : info->offsets) {
-        if (auto *struct_type = dyn_cast<TupleType>(type)) {
-          auto &field_type = struct_type->getFieldType(offset);
-          type = &field_type;
-
-        } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
-          auto &elem_type = collection_type->getElementType();
-          type = &elem_type;
-        }
-      }
-
-      println("  TYPE ", *type);
-
-      // Unpack the type information.
-      if (auto *assoc_type = dyn_cast<AssocType>(type)) {
-
-        // Update the type of the key in the fold bodies.
-        // TODO: collect folds ahead of time for all info in the candidate, it
-        // is getting invalidated right now.
-        auto &to_mutate = folds_to_mutate[info];
-        for (auto [func, redefs] : info->redefinitions) {
-          for (auto *redef : redefs) {
-            detail::find_fold_users(*redef, info->offsets, to_mutate);
-          }
-        }
-
-      } else if (type == &key_type) {
-        // TODO
-      } else {
-        MEMOIR_UNREACHABLE("Proxying non-assoc types is not yet supported.");
-      }
-    }
-
     // Collect the types that each candidate needs to be mutated to.
-    map<AllocInst *, Type *> types_to_mutate;
+    AssocList<AllocInst *, Type *> types_to_mutate;
     for (auto *info : candidate) {
       auto *alloc = info->allocation;
 
       // Initialize the type to mutate if it doesnt exist already.
-      if (types_to_mutate.count(alloc) == 0) {
+      auto found = types_to_mutate.find(alloc);
+      if (found == types_to_mutate.end()) {
         types_to_mutate[alloc] = &alloc->getType();
       }
-      auto &type = *types_to_mutate[alloc];
-
-      println("MERGE TYPE");
-      println("  ", type);
+      auto &type = types_to_mutate[alloc];
 
       // Convert the type at the given offset to the size type.
       auto &module =
@@ -1992,128 +1859,46 @@ bool ProxyInsertion::transform() {
       const auto &data_layout = module.getDataLayout();
       auto &size_type = Type::get_size_type(data_layout);
 
-      auto &new_type = detail::convert_type(type, info->offsets, size_type);
+      auto &new_type = detail::convert_type(*type, info->offsets, size_type);
 
-      println("  ", new_type);
-
-      types_to_mutate[alloc] = &new_type;
+      type = &new_type;
     }
 
     // Mutate the types in the program.
-    for (const auto &[alloc, type] : types_to_mutate) {
+    auto mutate_it = types_to_mutate.begin(), mutate_ie = types_to_mutate.end();
+    for (; mutate_it != mutate_ie; ++mutate_it) {
+      auto *alloc = mutate_it->first;
+      auto *type = mutate_it->second;
+
       // Mutate the type.
-      auto changes = mutate_type(*alloc, *type);
-
-      // Remap any allocations that have been changed.
-      // TODO
-    }
-
-    // Mutate types in the program.
-    for (auto *info : candidate) {
-      // For each of the folds, create a new function with the updated type.
-      set<llvm::Function *> functions_to_delete = {};
-      auto &to_mutate = folds_to_mutate[info];
-      for (auto *fold : to_mutate) {
-
-        infoln("MUTATE ", *fold);
-
-        // Fetch the index argument.
-        auto &index_arg = fold->getIndexArgument();
-
-        // Update the type of the function to match.
-        auto *function = index_arg.getParent();
-        auto *function_type = function->getFunctionType();
-
-        bool found_real_use = false;
-        if (function->hasNUsesOrMore(2)) {
-          for (auto &use : function->uses()) {
-            auto *user = use.getUser();
-            if (not into<RetPHIInst>(*user)) {
-              MEMOIR_ASSERT(not found_real_use,
-                            "Fold body has more than one use!");
-              found_real_use = true;
-            }
-          }
-        }
-
-        // Rebuild the function type.
-        vector<llvm::Type *> params(function_type->param_begin(),
-                                    function_type->param_end());
-        params[index_arg.getArgNo()] = &llvm_size_type;
-
-        auto *new_function_type =
-            llvm::FunctionType::get(function_type->getReturnType(),
-                                    params,
-                                    function_type->isVarArg());
-
-        // Create a new function with the new function type.
-        auto *new_function = llvm::Function::Create(new_function_type,
-                                                    function->getLinkage(),
-                                                    function->getName(),
-                                                    this->M);
-
-        // Clone the function with a changed parameter type.
-        llvm::ValueToValueMapTy vmap;
-        for (auto &old_arg : function->args()) {
-          auto *new_arg = new_function->getArg(old_arg.getArgNo());
-          vmap.insert({ &old_arg, new_arg });
-        }
-        llvm::SmallVector<llvm::ReturnInst *, 8> returns;
-        llvm::CloneFunctionInto(new_function,
-                                function,
-                                vmap,
-                                llvm::CloneFunctionChangeType::LocalChangesOnly,
-                                returns);
-
-        // Remove any pointer related attributes from the argument.
-        auto attr_list = new_function->getAttributes();
-        new_function->setAttributes(
-            attr_list.removeParamAttributes(context, index_arg.getArgNo()));
-
-        // Use the vmap to update any of the folds that we are patching.
-        for (auto &[_, other_to_mutate] : folds_to_mutate) {
-          for (auto &other_fold : other_to_mutate) {
-            // Skip the fold we just updated.
-            if (other_fold == fold) {
-              continue;
+      mutate_type(
+          *alloc,
+          *type,
+          [&](llvm::Function &old_func,
+              llvm::Function &new_func,
+              llvm::ValueToValueMapTy &vmap) {
+            // Update the remaining candidate.
+            for (auto it = std::next(candidates_it); it != candidates.end();
+                 ++it) {
+              for (auto &info : *it) {
+                info->update(old_func, new_func, vmap, /* delete old? */ true);
+              }
             }
 
-            // If the parent function is the same as the old function, find
-            // this fold in the vmap.
-            auto *parent_function = other_fold->getFunction();
-            if (parent_function == function) {
-              auto *new_inst = &*vmap[&other_fold->getCallInst()];
-              auto *new_fold = into<FoldInst>(new_inst);
+            // Update allocations marked for mutation.
+            for (auto it = std::next(mutate_it); it != mutate_ie; ++it) {
+              auto *alloc = it->first;
+              auto &inst = alloc->getCallInst();
 
-              // Update in-place.
-              other_fold = new_fold;
+              if (inst.getFunction() == &old_func) {
+                auto *new_inst = &*vmap[&inst];
+                auto *new_alloc = into<AllocInst>(new_inst);
+
+                // Update in-place.
+                it->first = new_alloc;
+              }
             }
-          }
-        }
-
-        // Remap any of the candidates that have been cloned.
-        detail::update_candidates(std::next(candidates_it),
-                                  this->candidates.end(),
-                                  *function,
-                                  *new_function,
-                                  vmap);
-
-        // Update the body of this fold.
-        auto &body_use = fold->getBodyOperandAsUse();
-        body_use.set(new_function);
-
-        function->replaceAllUsesWith(new_function);
-
-        new_function->takeName(function);
-
-        function->deleteBody();
-
-        functions_to_delete.insert(function);
-      }
-
-      for (auto *func : functions_to_delete) {
-        func->eraseFromParent();
-      }
+          });
     }
   }
 
