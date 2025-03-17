@@ -24,15 +24,13 @@ MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
 
   auto memoir_enum = FunctionNames::get_memoir_enum(*call_inst);
 
-  /*
-   * Check if there is an existing MemOIRInst.
-   */
+  MemOIRInst *base = nullptr;
+
+  // Check if there is an existing MemOIRInst.
   auto found = llvm_to_memoir.find(&I);
   if (found != llvm_to_memoir.end()) {
     auto &found_inst = *(found->second);
-    if (found_inst.getKind() == memoir_enum) {
-      return &found_inst;
-    }
+    base = &found_inst;
   }
 
   // If the enums don't match, construct a new one in place.
@@ -41,15 +39,21 @@ MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
       MEMOIR_UNREACHABLE("Unknown MemOIR instruction encountered");
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   case MemOIR_Func::ENUM: {                                                    \
-    auto memoir_inst = new CLASS(*call_inst);                                  \
-    llvm_to_memoir[&I] = memoir_inst;                                          \
+    auto memoir_inst =                                                         \
+        base ? new (base) CLASS(*call_inst) : new CLASS(*call_inst);           \
+    if (not base) {                                                            \
+      llvm_to_memoir[&I] = memoir_inst;                                        \
+    }                                                                          \
     return memoir_inst;                                                        \
   }
 #include "memoir/ir/Instructions.def"
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   case MemOIR_Func::ENUM: {                                                    \
-    auto memoir_inst = new CLASS(*call_inst);                                  \
-    llvm_to_memoir[&I] = memoir_inst;                                          \
+    auto memoir_inst =                                                         \
+        base ? new (base) CLASS(*call_inst) : new CLASS(*call_inst);           \
+    if (not base) {                                                            \
+      llvm_to_memoir[&I] = memoir_inst;                                        \
+    }                                                                          \
     return memoir_inst;                                                        \
   }
 #include "memoir/ir/MutOperations.def"
