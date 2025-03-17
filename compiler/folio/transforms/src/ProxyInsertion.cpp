@@ -375,7 +375,7 @@ static void gather_uses_to_proxy(
 
           // If the offset is exactly equal to the keys being folded over,
           // decode the index argument of the body.
-          auto distance = detail::indices_match_offsets(*fold, offsets);
+          auto distance = fold->match_offsets(offsets);
 
           if (distance == -1) {
             // Do nothing.
@@ -463,19 +463,24 @@ static void gather_uses_to_propagate(
 
     infoln("  USER ", *user);
 
-    if (auto *fold = into<FoldInst>(user)) {
+    if (auto *access = into<AccessInst>(user)) {
 
-      if (use == fold->getObjectAsUse()) {
+      // Ensure that the use is the object being accessed.
+      if (use != access->getObjectAsUse()) {
+        continue;
+      }
 
-        // If the offset is exactly equal to the keys being folded over,
-        // decode the index argument of the body.
-        auto distance = detail::indices_match_offsets(*fold, offsets);
+      // Try to match the access indices against the offsets.
+      auto maybe_distance = access->match_offsets(offsets);
 
-        infoln("  distance=", distance, "  |offsets|=", offsets.size());
+      // If the indices don't match, skip.
+      if (not maybe_distance) {
+        continue;
+      }
 
-        if (distance == -1) {
-          // Do nothing.
-        }
+      auto distance = maybe_distance.value();
+
+      if (auto *fold = dyn_cast<FoldInst>(access)) {
 
         // If the offsets are fully exhausted, add uses of the index
         // argument to the set of uses to decode.
@@ -505,37 +510,25 @@ static void gather_uses_to_propagate(
                                      to_addkey);
           }
         }
-      }
-
-    } else if (auto *read = into<ReadInst>(user)) {
-      auto distance = detail::indices_match_offsets(*read, offsets);
-      if (distance == -1) {
-        continue;
-      } else if (distance == int32_t(offsets.size())) {
-        infoln("    DECODING ELEM ");
-        for (auto &read_use : user->uses()) {
-          infoln("      USE ", *read_use.getUser());
-          to_decode[function].insert(&read_use);
+      } else if (auto *read = dyn_cast<ReadInst>(access)) {
+        if (distance == int32_t(offsets.size())) {
+          infoln("    DECODING ELEM ");
+          for (auto &read_use : user->uses()) {
+            infoln("      USE ", *read_use.getUser());
+            to_decode[function].insert(&read_use);
+          }
         }
-      }
-
-    } else if (auto *write = into<WriteInst>(user)) {
-      auto distance = detail::indices_match_offsets(*write, offsets);
-      if (distance == -1) {
-        continue;
-      } else if (distance == int32_t(offsets.size())) {
-        infoln("    ADDKEY ");
-        to_addkey[function].insert(&write->getValueWrittenAsUse());
-      }
-
-    } else if (auto *insert = into<InsertInst>(user)) {
-      if (auto value_kw = insert->get_keyword<ValueKeyword>()) {
-        auto distance = detail::indices_match_offsets(*insert, offsets);
-        if (distance == -1) {
-          continue;
-        } else if (distance == int32_t(offsets.size())) {
+      } else if (auto *write = dyn_cast<WriteInst>(access)) {
+        if (distance == int32_t(offsets.size())) {
           infoln("    ADDKEY ");
-          to_addkey[function].insert(&value_kw->getValueAsUse());
+          to_addkey[function].insert(&write->getValueWrittenAsUse());
+        }
+      } else if (auto *insert = dyn_cast<InsertInst>(access)) {
+        if (auto value_kw = insert->get_keyword<ValueKeyword>()) {
+          if (distance == int32_t(offsets.size())) {
+            infoln("    ADDKEY ");
+            to_addkey[function].insert(&value_kw->getValueAsUse());
+          }
         }
       }
     }
@@ -1398,10 +1391,13 @@ static void find_fold_users(llvm::Value &V,
   for (auto &use : V.uses()) {
     if (auto *fold = into<FoldInst>(use.getUser())) {
       if (use == fold->getObjectAsUse()) {
-        auto distance = detail::indices_match_offsets(*fold, offsets);
-        if (distance == -1) {
+        auto maybe_distance = fold->match_offsets(offsets);
+        if (not distance) {
           // Mismatch.
-        } else if (distance == int32_t(offsets.size())) {
+        }
+        auto distance = maybe_distance.value();
+
+        if (distance == offsets.size()) {
           auto found = std::find(folds.begin(), folds.end(), fold);
           if (found == folds.end()) {
             infoln("    TO MUTATE ", *fold);
