@@ -567,6 +567,14 @@ public:
   const_index_op_iterator index_operands_begin() const;
   const_index_op_iterator index_operands_end() const;
 
+  /**
+   * Determine if the given offsets match this access's indices.
+   *
+   * @param offsets the offsets to match
+   * @returns the number of indices matched, or NONE if failed to match.
+   */
+  opt<size_t> match_offsets(llvm::ArrayRef<unsigned> offsets) const;
+
   static bool classof(const MemOIRInst *I) {
     return (
 #define HANDLE_ACCESS_INST(ENUM, FUNC, CLASS)                                  \

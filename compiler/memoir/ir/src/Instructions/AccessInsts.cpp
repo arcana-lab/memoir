@@ -159,6 +159,48 @@ AccessInst::const_index_op_iterator AccessInst::index_operands_end() const {
   return const_index_op_iterator(this->kw_begin().asUse());
 }
 
+opt<size_t> AccessInst::match_offsets(llvm::ArrayRef<unsigned> offsets) const {
+  auto index_it = this->index_operands_begin();
+  auto index_ie = this->index_operands_end();
+
+  auto *type = &this->getObjectType();
+
+  auto offset_it = offsets.begin();
+  for (; offset_it != offsets.end(); ++offset_it) {
+
+    auto offset = *offset_it;
+
+    // Check if we have reached the end of the index operands.
+    if (index_it == index_ie) {
+      break;
+    }
+    if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+      // Get the inner type.
+      type = &collection_type->getElementType();
+
+    } else if (auto *struct_type = dyn_cast<TupleType>(type)) {
+
+      auto &index_use = *index_it;
+      auto &index_const =
+          MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index_use.get()),
+                          "Field index is not statically known!");
+
+      // If the offset doesn't match the field index, there is no index use.
+      if (offset != index_const.getZExtValue()) {
+        return {};
+      }
+
+      // Get the inner type.
+      type = &struct_type->getFieldType(offset);
+    }
+
+    ++index_it;
+  }
+
+  // Return the number of offsets we matched.
+  return std::distance(offsets.begin(), offset_it);
+}
+
 // ReadInst implementation
 RESULTANT(ReadInst, ValueRead)
 OPERAND(ReadInst, Object, 0)
