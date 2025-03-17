@@ -6,12 +6,10 @@
 
 namespace llvm::memoir {
 
-#if 0
-  
 // We will use two special offset values to represent either the keys or
 // elements at a given offset.
-#  define ELEMS unsigned(-1)
-#  define KEYS unsigned(-2)
+#define ELEMS unsigned(-1)
+#define KEYS unsigned(-2)
 
 enum DifferenceKind : uint8_t {
   NoDifference = 0,
@@ -528,7 +526,7 @@ static ordered_set<NestedInfo> gather_redefinitions(MemOIRInst &I) {
   return gather_redefinitions(I.getCallInst());
 }
 
-#  if 0
+#if 0
 static ordered_map<NestedInfo *, FoldInst *> gather_fold_arguments() {
   map<AllocInst *, Type *> types_to_mutate;
   for (auto *info : candidate) {
@@ -557,7 +555,7 @@ static ordered_map<NestedInfo *, FoldInst *> gather_fold_arguments() {
     types_to_mutate[alloc] = &new_type;
   }
 }
-#  endif
+#endif
 
 static void find_arguments(NestedInfo &info, vector<FoldInst *> &folds) {
   auto offsets = info.offsets();
@@ -595,7 +593,7 @@ static void find_arguments(NestedInfo &info, vector<FoldInst *> &folds) {
   return;
 }
 
-#  if 0
+#if 0
 static void update_fold_users(
     NestedInfo &info,
     map<NestedInfo *, vector<FoldInst *>> &folds_to_mutate,
@@ -705,7 +703,7 @@ static void update_fold_users(
 
   return;
 }
-#  endif
+#endif
 
 map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
   // Create a mapping for all variables that have been remapped.
@@ -780,7 +778,5 @@ map<llvm::Value *, llvm::Value *> mutate_type(AllocInst &alloc, Type &type) {
 
   return mapping;
 }
-
-#endif
 
 } // namespace llvm::memoir
