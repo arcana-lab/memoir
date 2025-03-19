@@ -22,6 +22,15 @@ static llvm::cl::opt<bool> disable_proxy_propagation(
     llvm::cl::desc("Disable proxy propagation"),
     llvm::cl::init(false));
 
+static llvm::Function *parent_function(llvm::Value &V) {
+  if (auto *arg = dyn_cast<llvm::Argument>(&V)) {
+    return arg->getParent();
+  } else if (auto *inst = dyn_cast<llvm::Instruction>(&V)) {
+    return inst->getFunction();
+  }
+  return nullptr;
+}
+
 static void update_values(llvm::ValueToValueMapTy &vmap,
                           set<llvm::Value *> &input,
                           set<llvm::Value *> &output) {
@@ -149,18 +158,20 @@ uint32_t ObjectInfo::compute_heuristic(const ObjectInfo &other) const {
   return benefit;
 }
 
+bool ObjectInfo::is_redefinition(llvm::Value &V) const {
+  for (const auto &[func, redefs] : this->redefinitions) {
+    if (redefs.count(&V) > 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static void gather_redefinitions(
     llvm::Value &V,
     map<llvm::Function *, set<llvm::Value *>> &redefinitions) {
 
-  llvm::Function *function = nullptr;
-
-  if (auto *inst = dyn_cast<llvm::Instruction>(&V)) {
-    function = inst->getFunction();
-  } else if (auto *arg = dyn_cast<llvm::Argument>(&V)) {
-    function = arg->getParent();
-  }
-
+  auto *function = parent_function(V);
   MEMOIR_ASSERT(function, "Unknown parent function for redefinition.");
 
   if (redefinitions[function].count(&V) > 0) {
@@ -223,8 +234,6 @@ static void gather_redefinitions(
   return;
 }
 
-namespace detail {
-
 static bool is_last_index(llvm::Use *use,
                           AccessInst::index_op_iterator index_end) {
   return std::next(AccessInst::index_op_iterator(use)) == index_end;
@@ -282,8 +291,6 @@ static llvm::Use *get_index_use(AccessInst &access, vector<unsigned> &offsets) {
   return index_it;
 }
 
-} // namespace detail
-
 static void gather_uses_to_proxy(
     llvm::Value &V,
     vector<unsigned> &offsets,
@@ -293,14 +300,7 @@ static void gather_uses_to_proxy(
 
   infoln("REDEF ", V);
 
-  llvm::Function *function = nullptr;
-
-  if (auto *inst = dyn_cast<llvm::Instruction>(&V)) {
-    function = inst->getFunction();
-  } else if (auto *arg = dyn_cast<llvm::Argument>(&V)) {
-    function = arg->getParent();
-  }
-
+  auto *function = parent_function(V);
   MEMOIR_ASSERT(function, "Gathering uses of value with no parent function!");
 
   // From a given collection, V, gather all uses that need to be either
@@ -315,7 +315,7 @@ static void gather_uses_to_proxy(
       if (use == fold->getObjectAsUse()) {
 
         // If we find an index use, encode it.
-        if (auto *index_use = detail::get_index_use(*fold, offsets)) {
+        if (auto *index_use = get_index_use(*fold, offsets)) {
           infoln("    ENCODING INDEX");
           to_encode[function].insert(index_use);
 
@@ -362,10 +362,9 @@ static void gather_uses_to_proxy(
 
       if (use == access->getObjectAsUse()) {
         // Find the index use for the given offset and mark it for decoding.
-        if (auto *index_use = detail::get_index_use(*access, offsets)) {
+        if (auto *index_use = get_index_use(*access, offsets)) {
           if (isa<InsertInst>(access)) {
-            if (detail::is_last_index(index_use,
-                                      access->index_operands_end())) {
+            if (is_last_index(index_use, access->index_operands_end())) {
               infoln("    ADDING KEY ", *index_use->get());
               to_addkey[function].insert(index_use);
               continue;
@@ -391,14 +390,7 @@ static void gather_uses_to_propagate(
 
   infoln("REDEF ", V);
 
-  llvm::Function *function = nullptr;
-
-  if (auto *inst = dyn_cast<llvm::Instruction>(&V)) {
-    function = inst->getFunction();
-  } else if (auto *arg = dyn_cast<llvm::Argument>(&V)) {
-    function = arg->getParent();
-  }
-
+  auto *function = parent_function(V);
   MEMOIR_ASSERT(function, "Gathering uses of value with no parent function!");
 
   // From a given collection, V, gather all uses that need to be either
@@ -581,8 +573,6 @@ void ProxyInsertion::gather_assoc_objects(vector<ObjectInfo> &allocations,
   return;
 }
 
-namespace detail {
-
 static void gather_values_to_propagate(
     const ObjectInfo &info,
     map<llvm::Function *, set<llvm::Value *>> &encoded,
@@ -648,9 +638,9 @@ static void gather_values_to_propagate(
   return;
 }
 
-AllocInst *_find_base_object(llvm::Value &V,
-                             vector<unsigned> &offsets,
-                             set<llvm::Value *> &visited) {
+static AllocInst *_find_base_object(llvm::Value &V,
+                                    vector<unsigned> &offsets,
+                                    set<llvm::Value *> &visited) {
   if (visited.count(&V) > 0) {
     return nullptr;
   } else {
@@ -702,8 +692,6 @@ AllocInst *_find_base_object(llvm::Value &V,
   return nullptr;
 }
 
-} // namespace detail
-
 ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
                                              AccessInst &access) {
 
@@ -732,7 +720,7 @@ ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
 
   set<llvm::Value *> visited = {};
 
-  auto *alloc = detail::_find_base_object(V, offsets, visited);
+  auto *alloc = _find_base_object(V, offsets, visited);
 
   if (not alloc) {
     return nullptr;
@@ -852,7 +840,7 @@ void ProxyInsertion::analyze() {
 
     // From the use information, find any collection elements that _could_
     // propagate the proxy.
-    detail::gather_values_to_propagate(info, values_encoded, to_decode);
+    gather_values_to_propagate(info, values_encoded, to_decode);
   }
 
   // With the set of values that need to be encoded/decoded, we will find
@@ -978,14 +966,12 @@ void ProxyInsertion::analyze() {
   }
 }
 
-namespace detail {
-
-llvm::FunctionCallee create_addkey_function(llvm::Module &M,
-                                            Type &key_type,
-                                            bool build_encoder,
-                                            Type *encoder_type,
-                                            bool build_decoder,
-                                            Type *decoder_type) {
+static llvm::FunctionCallee create_addkey_function(llvm::Module &M,
+                                                   Type &key_type,
+                                                   bool build_encoder,
+                                                   Type *encoder_type,
+                                                   bool build_decoder,
+                                                   Type *decoder_type) {
 
   auto &context = M.getContext();
   auto &data_layout = M.getDataLayout();
@@ -1185,10 +1171,12 @@ static void collect_callees(llvm::Function &from,
   }
 }
 
-void add_tempargs(map<llvm::Function *, llvm::Instruction *> &local_patches,
-                  llvm::ArrayRef<set<llvm::Use *>> uses_to_patch,
-                  llvm::Instruction &patch_with,
-                  Type &patch_type) {
+static void add_tempargs(
+    map<llvm::Function *, llvm::Instruction *> &local_patches,
+    llvm::ArrayRef<set<llvm::Use *>> uses_to_patch,
+    llvm::Instruction &patch_with,
+    Type &patch_type,
+    const llvm::Twine &name) {
 
   MemOIRBuilder builder(&patch_with);
   auto &context = builder.getContext();
@@ -1248,6 +1236,8 @@ void add_tempargs(map<llvm::Function *, llvm::Instruction *> &local_patches,
 
     auto *load = builder.CreateLoad(llvm_patch_type, global);
     Metadata::get_or_add<TempArgumentMetadata>(*load);
+
+    load->setName(name);
 
     // Annotate the loaded value with type information.
     builder.CreateAssertTypeInst(load, patch_type);
@@ -1318,11 +1308,11 @@ void add_tempargs(map<llvm::Function *, llvm::Instruction *> &local_patches,
  * Following a function clone--where the old function will be deleted--update
  * any candidate information to point to the cloned function.
  */
-void update_candidates(std::forward_iterator auto candidates_begin,
-                       std::forward_iterator auto candidates_end,
-                       llvm::Function &old_func,
-                       llvm::Function &new_func,
-                       llvm::ValueToValueMapTy &vmap) {
+static void update_candidates(std::forward_iterator auto candidates_begin,
+                              std::forward_iterator auto candidates_end,
+                              llvm::Function &old_func,
+                              llvm::Function &new_func,
+                              llvm::ValueToValueMapTy &vmap) {
   for (auto it = candidates_begin; it != candidates_end; ++it) {
     auto &candidate = *it;
     for (auto *info : candidate) {
@@ -1332,15 +1322,19 @@ void update_candidates(std::forward_iterator auto candidates_begin,
   }
 }
 
-bool used_value_will_be_decoded(llvm::Use &use,
-                                const set<llvm::Use *> &to_decode,
-                                set<llvm::Use *> &visited) {
+static bool used_value_will_be_decoded(llvm::Use &use,
+                                       const set<llvm::Use *> &to_decode,
+                                       set<llvm::Use *> &visited) {
+
+  println("DECODED? ", *use.get());
 
   if (to_decode.count(&use) > 0) {
+    println("  YES");
     return true;
   }
 
   if (visited.count(&use) > 0) {
+    println("  YES");
     return true;
   } else {
     visited.insert(&use);
@@ -1348,32 +1342,465 @@ bool used_value_will_be_decoded(llvm::Use &use,
 
   auto *value = use.get();
   if (auto *phi = dyn_cast<llvm::PHINode>(value)) {
+    println("  RECURSE");
     bool all_decoded = true;
     for (auto &incoming : phi->incoming_values()) {
       all_decoded &= used_value_will_be_decoded(incoming, to_decode, visited);
     }
     return all_decoded;
   } else if (auto *select = dyn_cast<llvm::SelectInst>(value)) {
+    println("  RECURSE");
     return used_value_will_be_decoded(select->getOperandUse(1),
                                       to_decode,
                                       visited)
            and used_value_will_be_decoded(select->getOperandUse(2),
                                           to_decode,
                                           visited);
+  } else if (auto *arg = dyn_cast<llvm::Argument>(value)) {
+    auto &func =
+        MEMOIR_SANITIZE(arg->getParent(), "Argument has no parent function!");
+    if (auto *fold = FoldInst::get_single_fold(func)) {
+      if (auto *operand_use = fold->getOperandForArgument(*arg)) {
+        println("  RECURSE");
+        return used_value_will_be_decoded(*operand_use, to_decode, visited);
+      }
+    }
   }
 
+  println("  NO");
   return false;
 }
 
-bool used_value_will_be_decoded(llvm::Use &use,
-                                const set<llvm::Use *> &to_decode) {
+static bool used_value_will_be_decoded(llvm::Use &use,
+                                       const set<llvm::Use *> &to_decode) {
   set<llvm::Use *> visited = {};
   return used_value_will_be_decoded(use, to_decode, visited);
 }
 
-Type &convert_type(Type &base,
-                   llvm::ArrayRef<unsigned> offsets,
-                   Type &new_type) {
+using GroupedUses =
+    map<llvm::Function *, map<llvm::Value *, vector<llvm::Use *>>>;
+static GroupedUses groupby_function_and_used(const set<llvm::Use *> &uses) {
+
+  GroupedUses local;
+
+  for (auto *use : uses) {
+    auto *user = dyn_cast<llvm::Instruction>(use->getUser());
+    if (not user) {
+      warnln("Non-instruction user found during ProxyInsertion, unexpected.");
+      continue;
+    }
+
+    auto *func = user->getFunction();
+
+    auto *used = use->get();
+
+    local[func][used].push_back(use);
+  }
+
+  return local;
+}
+
+struct CoalescedUses : public vector<llvm::Use *> {
+protected:
+  using Base = vector<llvm::Use *>;
+
+  llvm::Value *_value;
+
+public:
+  CoalescedUses(llvm::Use *use) : Base{ use }, _value(use->get()) {}
+  CoalescedUses(llvm::ArrayRef<llvm::Use *> uses)
+    : Base(uses.begin(), uses.end()),
+      _value(uses[0]->get()) {}
+
+  llvm::Value &value() const {
+    return *this->_value;
+  }
+
+  void value(llvm::Value &value) {
+    this->_value = &value;
+  }
+
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                       const CoalescedUses &uses) {
+
+    auto &value = uses.value();
+
+    os << value << " IN " << parent_function(value)->getName() << "\n";
+
+    for (auto *use : uses) {
+      os << "  " << *use->getUser() << "\n";
+    }
+
+    return os;
+  }
+};
+
+static void sort_in_level_order(vector<llvm::Use *> &uses,
+                                llvm::DominatorTree &DT) {
+
+  // Sort the uses in level order of the dominator tree, this will
+  // ensure that we don't miss opportunities later on.
+  std::sort(uses.begin(), uses.end(), [&DT](llvm::Use *lhs, llvm::Use *rhs) {
+    // Get the user instructions.
+    auto *lhs_inst = cast<llvm::Instruction>(lhs->getUser());
+    auto *rhs_inst = cast<llvm::Instruction>(rhs->getUser());
+
+    // Get the parent basic blocks.
+    auto *lhs_block = lhs_inst->getParent();
+    auto *rhs_block = rhs_inst->getParent();
+
+    // Total order within a basic block.
+    if (lhs_block == rhs_block) {
+      return DT.dominates(lhs_inst, rhs_inst);
+    }
+
+    // Partial domtree level order between basic block.
+    auto *lhs_node = DT[lhs_block];
+    auto *rhs_node = DT[rhs_block];
+
+    MEMOIR_ASSERT(lhs_node, "LHS NODE = NULL");
+    MEMOIR_ASSERT(rhs_node, "RHS NODE = NULL");
+
+    return lhs_node->getLevel() < rhs_node->getLevel();
+  });
+
+  return;
+}
+
+static void coalesce_by_dominance(
+    vector<CoalescedUses> &coalesced,
+    GroupedUses &grouped,
+    ProxyInsertion::GetDominatorTree get_dominator_tree) {
+
+  for (auto &[func, locals] : grouped) {
+
+    // Fetch the dominators for this function.
+    auto &DT = get_dominator_tree(*func);
+
+    MEMOIR_ASSERT(DT.verify(), "Failed to verify dominator tree!");
+
+    // For each of the local values being decoded:
+    for (auto &[val, uses] : locals) {
+
+      // Special handling for values with single uses.
+      if (uses.size() == 1) {
+        coalesced.emplace_back(uses);
+        continue;
+      }
+
+      // Sort the uses in level order of the dominator tree.
+      sort_in_level_order(uses, DT);
+
+      // Group together uses that are dominated by one another.
+      set<llvm::Use *> visited = {};
+      for (auto it = uses.begin(); it != uses.end(); ++it) {
+        auto *use = *it;
+
+        if (visited.count(use) > 0) {
+          continue;
+        } else {
+          visited.insert(use);
+        }
+
+        // Unpack the use.
+        auto *user = cast<llvm::Instruction>(use->getUser());
+
+        // Add a new coalesced use.
+        coalesced.emplace_back(use);
+        auto &current = coalesced.back();
+        current.value(*user);
+
+        // Don't coalesce has operations.
+        if (into<HasInst>(user)) {
+          continue;
+        } else {
+          continue;
+        }
+
+        // Try to coalesce the remaining uses.
+        for (auto it2 = std::next(it); it2 != uses.end(); ++it2) {
+          auto *other_use = *it2;
+          auto *other_user = cast<llvm::Instruction>(other_use->getUser());
+
+          if (DT.dominates(user, *other_use)) {
+            current.push_back(other_use);
+            visited.insert(other_use);
+
+          } else if (DT.dominates(other_user, *use)) {
+            MEMOIR_UNREACHABLE("Level order is incorrect!\n",
+                               "      ",
+                               *other_user,
+                               " doms ",
+                               *user);
+          }
+        }
+      }
+    }
+  }
+
+  for (auto &uses : coalesced) {
+    println("COALESCED ", uses);
+  }
+
+  return;
+}
+
+static void coalesce(vector<CoalescedUses> &decoded,
+                     vector<CoalescedUses> &encoded,
+                     vector<CoalescedUses> &added,
+                     const set<llvm::Use *> &to_decode,
+                     const set<llvm::Use *> &to_encode,
+                     const set<llvm::Use *> &to_addkey,
+                     ProxyInsertion::GetDominatorTree get_dominator_tree) {
+
+  // Group uses by their parent function and the value being used..
+  auto grouped_to_decode = groupby_function_and_used(to_decode);
+  auto grouped_to_encode = groupby_function_and_used(to_encode);
+  auto grouped_to_addkey = groupby_function_and_used(to_addkey);
+
+  // For each function with a use that needs decoding:
+  println("COALESCE TO DECODE");
+  coalesce_by_dominance(decoded, grouped_to_decode, get_dominator_tree);
+  println();
+
+  println("COALESCE TO ENCODE");
+  coalesce_by_dominance(encoded, grouped_to_encode, get_dominator_tree);
+  println();
+
+  println("COALESCE TO ADDKEY");
+  coalesce_by_dominance(added, grouped_to_addkey, get_dominator_tree);
+  println();
+
+  // Further coalesce addkey and encoded uses.
+  // TODO
+
+  return;
+}
+
+static void update_use(llvm::Use &use, llvm::Value &value) {
+
+  use.set(&value);
+
+  if (auto *call = dyn_cast<llvm::CallBase>(use.getUser())) {
+    auto operand_no = use.getOperandNo();
+    if (operand_no < call->arg_size()) {
+      call->removeParamAttr(operand_no, llvm::Attribute::AttrKind::NonNull);
+    }
+  }
+
+  return;
+}
+
+static llvm::Value &encode_use(
+    MemOIRBuilder &builder,
+    llvm::Use &use,
+    std::function<llvm::Value &(llvm::Value &)> get_encoder,
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> encode_value) {
+
+  auto *user = cast<llvm::Instruction>(use.getUser());
+  auto *used = use.get();
+
+  auto &module = MEMOIR_SANITIZE(user->getModule(), "User has no module.");
+  auto &data_layout = module.getDataLayout();
+  auto &context = user->getContext();
+
+  auto &size_type = Type::get_size_type(data_layout);
+  auto &llvm_size_type = *size_type.get_llvm_type(context);
+
+  auto &encoder = get_encoder(*user);
+
+  // Handle has operations separately.
+  if (auto *has = into<HasInst>(user)) {
+    if (is_last_index(&use, has->index_operands_end())) {
+      // Construct an if-else block.
+      // if (has(encoder, key))
+      //   i = read(encoder, key)
+      //   h = has(collection, i)
+      // h' = PHI(h, false)
+
+      auto *cond = &builder.CreateHasInst(&encoder, used)->getCallInst();
+      auto *phi = builder.CreatePHI(cond->getType(), 2);
+
+      // i' = PHI(i, undef)
+      auto *index_phi = builder.CreatePHI(&llvm_size_type, 2);
+
+      auto *then_terminator =
+          llvm::SplitBlockAndInsertIfThen(cond,
+                                          phi,
+                                          /* unreachable? */ false);
+
+      user->moveBefore(then_terminator);
+
+      builder.SetInsertPoint(user);
+
+      auto &encoded = encode_value(builder, *used);
+
+      update_use(use, encoded);
+
+      user->replaceAllUsesWith(phi);
+
+      auto *then_bb = then_terminator->getParent();
+      auto *else_bb = cond->getParent();
+
+      phi->addIncoming(user, then_bb);
+      phi->addIncoming(llvm::ConstantInt::getFalse(context), else_bb);
+
+      index_phi->addIncoming(&encoded, then_bb);
+      index_phi->addIncoming(llvm::UndefValue::get(&llvm_size_type), else_bb);
+
+      return *index_phi;
+    }
+  }
+
+  // In the common case, read the encoded value and update the use with
+  // it.
+  auto &encoded = encode_value(builder, *used);
+
+  update_use(use, encoded);
+
+  return encoded;
+}
+
+static void inject(
+    llvm::LLVMContext &context,
+    vector<CoalescedUses> &decoded,
+    vector<CoalescedUses> &encoded,
+    vector<CoalescedUses> &added,
+    std::function<llvm::Value &(llvm::Value &)> get_encoder,
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> decode_value,
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> encode_value,
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> add_value) {
+
+  for (auto &uses : encoded) {
+
+    // Unpack the use.
+    auto *use = uses.front();
+    auto *used = use->get();
+    auto *user = dyn_cast<llvm::Instruction>(use->getUser());
+
+    // Compute the insertion point.
+    llvm::Instruction *program_point = nullptr;
+    if (user) {
+      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+        MEMOIR_UNREACHABLE("En/decoding uses by PHI is unhandled.");
+      } else {
+        program_point = user;
+      }
+
+    } else {
+      MEMOIR_UNREACHABLE("Failed to find a point to encode the value!");
+    }
+
+    // Create the builder.
+    MemOIRBuilder builder(program_point);
+
+    auto &encoded = encode_use(builder, *use, get_encoder, encode_value);
+
+    uses.value(encoded);
+
+    // Update the coalesced uses.
+    for (auto *other_use : uses) {
+      if (other_use == use) {
+        continue;
+      }
+
+      update_use(*other_use, encoded);
+    }
+  }
+
+  for (auto &uses : added) {
+
+    // Unpack the use.
+    auto *use = uses.front();
+    auto *used = use->get();
+    auto *user = dyn_cast<llvm::Instruction>(use->getUser());
+
+    // Compute the insertion point.
+    llvm::Instruction *program_point = nullptr;
+    if (user) {
+      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+        MEMOIR_UNREACHABLE("En/decoding uses by PHI is unhandled.");
+      } else {
+        program_point = user;
+      }
+
+    } else {
+      MEMOIR_UNREACHABLE("Failed to find a point to encode the value!");
+    }
+
+    MemOIRBuilder builder(program_point);
+
+    auto &encoded = add_value(builder, *used);
+
+    uses.value(encoded);
+
+    for (auto *use : uses) {
+      update_use(*use, encoded);
+    }
+  }
+
+  for (auto &uses : decoded) {
+
+    // Unpack the use.
+    auto *use = uses.front();
+    auto *used = use->get();
+    auto *user = dyn_cast<llvm::Instruction>(use->getUser());
+
+    // Compute the insertion point.
+    llvm::Instruction *program_point = nullptr;
+    if (user) {
+      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+        auto *incoming_block = phi->getIncomingBlock(*use);
+        // TODO: this may be unsound if the terminator is conditional.
+        program_point = incoming_block->getTerminator();
+      } else {
+        program_point = user;
+      }
+
+    } else {
+      MEMOIR_UNREACHABLE("Failed to find a point to decode the value!");
+    }
+
+    MemOIRBuilder builder(program_point);
+
+    auto &decoded = decode_value(builder, *used);
+
+    uses.value(decoded);
+
+    for (auto *use : uses) {
+      use->set(&decoded);
+    }
+  }
+
+  return;
+}
+
+bool is_total_proxy(ObjectInfo &info, const set<llvm::Use *> &to_addkey) {
+
+  return false;
+
+  for (auto *use : to_addkey) {
+    auto *value = use->get();
+    auto *user = use->getUser();
+
+    if (not info.is_redefinition(*value)) {
+      return false;
+    }
+
+    if (auto *insert = into<InsertInst>(user)) {
+
+      auto distance = insert->match_offsets(info.offsets);
+      if (not distance or distance.value() < info.offsets.size()) {
+        return false;
+      }
+    } else {
+    }
+  }
+
+  return true;
+}
+
+Type &convert_to_sequence_type(Type &base, llvm::ArrayRef<unsigned> offsets) {
 
   if (auto *tuple_type = dyn_cast<TupleType>(&base)) {
 
@@ -1381,17 +1808,58 @@ Type &convert_type(Type &base,
 
     auto field = offsets[0];
 
-    fields[field] = &convert_type(tuple_type->getFieldType(field),
-                                  offsets.drop_front(),
-                                  new_type);
+    fields[field] = &convert_to_sequence_type(tuple_type->getFieldType(field),
+                                              offsets.drop_front());
 
     return TupleType::get(fields);
 
   } else if (auto *seq_type = dyn_cast<SequenceType>(&base)) {
 
-    return SequenceType::get(convert_type(seq_type->getElementType(),
+    return SequenceType::get(
+        convert_to_sequence_type(seq_type->getElementType(),
+                                 offsets.drop_front()),
+        seq_type->get_selection());
+
+  } else if (auto *assoc_type = dyn_cast<AssocType>(&base)) {
+
+    // If the offsets are empty, replace the keys.
+    if (offsets.empty()) {
+      return SequenceType::get(assoc_type->getValueType());
+    }
+
+    return AssocType::get(assoc_type->getKeyType(),
+                          convert_to_sequence_type(assoc_type->getValueType(),
+                                                   offsets.drop_front()),
+                          assoc_type->get_selection());
+
+  } else if (offsets.empty()) {
+    return base;
+  }
+
+  MEMOIR_UNREACHABLE("Failed to convert type!");
+}
+
+Type &convert_element_type(Type &base,
+                           llvm::ArrayRef<unsigned> offsets,
+                           Type &new_type) {
+
+  if (auto *tuple_type = dyn_cast<TupleType>(&base)) {
+
+    vector<Type *> fields = tuple_type->fields();
+
+    auto field = offsets[0];
+
+    fields[field] = &convert_element_type(tuple_type->getFieldType(field),
                                           offsets.drop_front(),
-                                          new_type),
+                                          new_type);
+
+    return TupleType::get(fields);
+
+  } else if (auto *seq_type = dyn_cast<SequenceType>(&base)) {
+
+    return SequenceType::get(convert_element_type(seq_type->getElementType(),
+                                                  offsets.drop_front(),
+                                                  new_type),
                              seq_type->get_selection());
 
   } else if (auto *assoc_type = dyn_cast<AssocType>(&base)) {
@@ -1412,9 +1880,9 @@ Type &convert_type(Type &base,
     }
 
     return AssocType::get(assoc_type->getKeyType(),
-                          convert_type(assoc_type->getValueType(),
-                                       offsets.drop_front(),
-                                       new_type),
+                          convert_element_type(assoc_type->getValueType(),
+                                               offsets.drop_front(),
+                                               new_type),
                           assoc_type->get_selection());
 
   } else if (offsets.empty()) {
@@ -1423,8 +1891,6 @@ Type &convert_type(Type &base,
 
   MEMOIR_UNREACHABLE("Failed to convert type!");
 }
-
-} // namespace detail
 
 bool ProxyInsertion::transform() {
 
@@ -1491,6 +1957,9 @@ bool ProxyInsertion::transform() {
     println("  before trimming:");
     println("  ", to_encode.size(), " uses to encode");
     println("  ", to_decode.size(), " uses to decode");
+    for (auto *use : to_decode) {
+      println("    use of ", value_name(*use->get()), " in ", *use->getUser());
+    }
     println("  ", to_addkey.size(), " uses to addkey");
 
     // Trim uses that dont need to be decoded because they are only used to
@@ -1499,32 +1968,27 @@ bool ProxyInsertion::transform() {
     for (auto *use : to_decode) {
       auto *user = use->getUser();
 
-      for (auto *other_use : to_decode) {
-        if (use == other_use) {
-          continue;
-        }
-
-        auto *other_user = other_use->getUser();
-        if (user != other_user) {
-          continue;
-        }
-
-        if (auto *cmp = dyn_cast<llvm::CmpInst>(user)) {
-          if (cmp->isEquality()) {
-            trim_to_decode.insert(use);
-            trim_to_decode.insert(other_use);
+      if (auto *cmp = dyn_cast<llvm::CmpInst>(user)) {
+        if (cmp->isEquality()) {
+          auto &lhs = cmp->getOperandUse(0);
+          auto &rhs = cmp->getOperandUse(1);
+          if (used_value_will_be_decoded(lhs, to_decode)
+              and used_value_will_be_decoded(rhs, to_decode)) {
+            trim_to_decode.insert(&lhs);
+            trim_to_decode.insert(&rhs);
           }
-        } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-          bool all_decode = true;
+        }
+      } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+        bool all_decode = true;
+        for (auto &incoming : phi->incoming_values()) {
+          if (not used_value_will_be_decoded(incoming, to_decode)) {
+            all_decode = false;
+            break;
+          }
+        }
+        if (all_decode) {
           for (auto &incoming : phi->incoming_values()) {
-            if (to_decode.count(&incoming) == 0) {
-              all_decode = false;
-            }
-          }
-          if (all_decode) {
-            for (auto &incoming : phi->incoming_values()) {
-              trim_to_decode.insert(&incoming);
-            }
+            trim_to_decode.insert(&incoming);
           }
         }
       }
@@ -1535,7 +1999,7 @@ bool ProxyInsertion::transform() {
     set<llvm::Use *> trim_to_encode = {};
     for (auto uses : { to_encode, to_addkey }) {
       for (auto *use : uses) {
-        if (detail::used_value_will_be_decoded(*use, to_decode)) {
+        if (used_value_will_be_decoded(*use, to_decode)) {
           trim_to_encode.insert(use);
           trim_to_decode.insert(use);
         }
@@ -1587,7 +2051,7 @@ bool ProxyInsertion::transform() {
 
     // Find a point that dominates all of the object allocations.
     auto *construction_function = construction_point->getFunction();
-    auto DT = this->get_dominator_tree(*construction_function);
+    auto &DT = this->get_dominator_tree(*construction_function);
     for (const auto *other : candidate) {
       auto *other_alloc = other->allocation;
       auto &other_inst = other_alloc->getCallInst();
@@ -1635,210 +2099,103 @@ bool ProxyInsertion::transform() {
     // Make the proxy available at all uses.
     map<llvm::Function *, llvm::Instruction *> function_to_encoder = {};
     if (build_encoder) {
-      detail::add_tempargs(function_to_encoder,
-                           { to_encode, to_addkey },
-                           *encoder,
-                           *encoder_type);
+      add_tempargs(function_to_encoder,
+                   { to_encode, to_addkey },
+                   *encoder,
+                   *encoder_type,
+                   "encoder.");
     }
 
     map<llvm::Function *, llvm::Instruction *> function_to_decoder = {};
     if (build_decoder) {
-      detail::add_tempargs(function_to_decoder,
-                           { to_decode, to_addkey },
-                           *decoder,
-                           *decoder_type);
+      add_tempargs(function_to_decoder,
+                   { to_decode, to_addkey },
+                   *decoder,
+                   *decoder_type,
+                   "decoder.");
     }
 
     // Create the addkey function.
-    auto addkey_callee = detail::create_addkey_function(this->M,
-                                                        key_type,
-                                                        build_encoder,
-                                                        encoder_type,
-                                                        build_decoder,
-                                                        decoder_type);
+    auto addkey_callee = create_addkey_function(this->M,
+                                                key_type,
+                                                build_encoder,
+                                                encoder_type,
+                                                build_decoder,
+                                                decoder_type);
 
-    // For each of the uses to encode, encode them.
-    for (auto *use : to_encode) {
-      // Unpack the use.
-      auto *used = use->get();
+    // Coalesce the values that have been encoded/decoded.
+    vector<CoalescedUses> decoded = {};
+    vector<CoalescedUses> encoded = {};
+    vector<CoalescedUses> added = {};
+    coalesce(decoded,
+             encoded,
+             added,
+             to_decode,
+             to_encode,
+             to_addkey,
+             this->get_dominator_tree);
 
-      // Find the use's program point.
-      auto *user_as_inst = dyn_cast<llvm::Instruction>(use->getUser());
-      auto *user_bb = user_as_inst->getParent();
-      auto *user_func = user_bb->getParent();
+    // Report the coalescing.
+    println("AFTER COALESCING:");
+    println(encoded.size(), " uses to encode");
+    println(decoded.size(), " uses to decode");
+    println(added.size(), " uses to addkey");
 
-      // TODO: Extend this to re-use en/decodings that dominate the given
-      // program point.
+    // Create anon functions to encode/decode a value
+    std::function<llvm::Value &(llvm::Value &)> get_encoder =
+        [&](llvm::Value &value) -> llvm::Value & {
+      auto *function = parent_function(value);
+      MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
+      return MEMOIR_SANITIZE(function_to_encoder[function],
+                             "Failed to find encoder in ",
+                             function->getName());
+    };
 
-      // Fetch the encoder for this function.
-      auto *encoder = function_to_encoder.at(user_func);
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> decode_value =
+        [&](MemOIRBuilder &builder, llvm::Value &value) -> llvm::Value & {
+      auto *function = parent_function(value);
+      MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
+      auto *decoder = function_to_decoder.at(function);
+      return builder.CreateReadInst(key_type, decoder, { &value })->asValue();
+    };
 
-      // Compute the insertion point.
-      llvm::Instruction *program_point = nullptr;
-      if (user_as_inst) {
-        if (auto *phi = dyn_cast<llvm::PHINode>(user_as_inst)) {
-          MEMOIR_UNREACHABLE("En/decoding uses by PHI is unhandled.");
-        } else {
-          program_point = user_as_inst;
-        }
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> encode_value =
+        [&](MemOIRBuilder &builder, llvm::Value &value) -> llvm::Value & {
+      auto *function = parent_function(value);
+      MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
+      auto *encoder = function_to_encoder.at(function);
+      return builder.CreateReadInst(size_type, encoder, &value)->asValue();
+    };
 
-      } else {
-        MEMOIR_UNREACHABLE("Failed to find a point to encode the value!");
-      }
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> add_value =
+        [&](MemOIRBuilder &builder, llvm::Value &value) -> llvm::Value & {
+      auto *function = parent_function(value);
+      MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
 
-      builder.SetInsertPoint(program_point);
-
-      // Handle has operations separately.
-      if (auto *has = into<HasInst>(user_as_inst)) {
-        if (detail::is_last_index(use, has->index_operands_end())) {
-          // Construct an if-else block.
-          // if (has(encoder, key))
-          //   i = read(encoder, key)
-          //   h = has(collection, i)
-          // h' = PHI(h, false)
-          auto *cond = &builder.CreateHasInst(encoder, used)->getCallInst();
-          auto *phi = builder.CreatePHI(cond->getType(), 2);
-
-          auto *then_terminator =
-              llvm::SplitBlockAndInsertIfThen(cond,
-                                              phi,
-                                              /* unreachable? */ false);
-
-          user_as_inst->moveBefore(then_terminator);
-
-          builder.SetInsertPoint(user_as_inst);
-
-          auto *encoded =
-              &builder.CreateReadInst(size_type, encoder, used)->getCallInst();
-
-          use->set(encoded);
-
-          user_as_inst->replaceAllUsesWith(phi);
-
-          if (auto *call = dyn_cast<llvm::CallBase>(user_as_inst)) {
-            auto operand_no = use->getOperandNo();
-            if (operand_no < call->arg_size()) {
-              call->removeParamAttr(operand_no,
-                                    llvm::Attribute::AttrKind::NonNull);
-            }
-          }
-
-          auto *then_bb = then_terminator->getParent();
-          phi->addIncoming(user_as_inst, then_bb);
-
-          auto *else_bb = cond->getParent();
-          auto *false_constant = llvm::ConstantInt::getFalse(context);
-          phi->addIncoming(false_constant, else_bb);
-
-          continue;
-        }
-      }
-
-      // In the common case, read the encoded value and update the use with
-      // it.
-      auto *encoded =
-          &builder.CreateReadInst(size_type, encoder, used)->getCallInst();
-
-      use->set(encoded);
-
-      if (auto *call = dyn_cast<llvm::CallBase>(user_as_inst)) {
-        auto operand_no = use->getOperandNo();
-        if (operand_no < call->arg_size()) {
-          call->removeParamAttr(operand_no, llvm::Attribute::AttrKind::NonNull);
-        }
-      }
-    }
-
-    // For each of the uses to encode, encode them.
-    for (auto *use : to_addkey) {
-      // Unpack the use.
-      auto *used = use->get();
-
-      // Find the use's program point.
-      auto *user_as_inst = dyn_cast<llvm::Instruction>(use->getUser());
-      auto *user_bb = user_as_inst->getParent();
-      auto *user_func = user_bb->getParent();
-
-      // TODO: Extend this to re-use en/decodings that dominate the given
-      // program point.
-
-      // Compute the insertion point.
-      llvm::Instruction *program_point = nullptr;
-      if (user_as_inst) {
-        if (auto *phi = dyn_cast<llvm::PHINode>(user_as_inst)) {
-          MEMOIR_UNREACHABLE("En/decoding uses by PHI is unhandled.");
-        } else {
-          program_point = user_as_inst;
-        }
-
-      } else {
-        MEMOIR_UNREACHABLE("Failed to find a point to encode the value!");
-      }
-
-      builder.SetInsertPoint(program_point);
-
-      vector<llvm::Value *> args = { use->get() };
+      vector<llvm::Value *> args = { &value };
       if (build_encoder) {
-        auto *encoder = function_to_encoder.at(user_func);
+        auto *encoder = function_to_encoder.at(function);
         args.push_back(encoder);
       }
       if (build_decoder) {
-        auto *decoder = function_to_decoder.at(user_func);
+        auto *decoder = function_to_decoder.at(function);
         args.push_back(decoder);
       }
 
-      auto *encoded = builder.CreateCall(addkey_callee, args);
+      return MEMOIR_SANITIZE(builder.CreateCall(addkey_callee, args),
+                             "Failed to create call to addkey!");
+    };
 
-      use->set(encoded);
-
-      if (auto *call = dyn_cast<llvm::CallBase>(user_as_inst)) {
-        call->removeParamAttr(use->getOperandNo(),
-                              llvm::Attribute::AttrKind::NonNull);
-      }
-    }
-
-    for (auto *use : to_decode) {
-      // Unpack the use.
-      auto *used = use->get();
-
-      // Find the use's program point.
-      auto *user_as_inst = dyn_cast<llvm::Instruction>(use->getUser());
-      auto *user_bb = user_as_inst->getParent();
-      auto *user_func = user_bb->getParent();
-
-      // TODO: Extend this to re-use en/decodings that dominate the given
-      // program point.
-
-      // Fetch the decoder for this function.
-      auto *decoder = function_to_decoder.at(user_func);
-
-      // Compute the insertion point.
-      llvm::Instruction *program_point = nullptr;
-      if (user_as_inst) {
-        if (auto *phi = dyn_cast<llvm::PHINode>(user_as_inst)) {
-          auto *incoming_block = phi->getIncomingBlock(*use);
-          // TODO: this may be unsound if the terminator is conditional.
-          program_point = incoming_block->getTerminator();
-        } else {
-          program_point = user_as_inst;
-        }
-
-      } else {
-        MEMOIR_UNREACHABLE("Failed to find a point to decode the value!");
-      }
-
-      builder.SetInsertPoint(program_point);
-
-      // Then, read the value from the decoder.
-      auto *decoded =
-          &builder.CreateReadInst(key_type, decoder, { use->get() })
-               ->getCallInst();
-
-      infoln("DECODED ", *decoded);
-      infoln("  DEBUG ", *program_point);
-
-      use->set(decoded);
-    }
+    // Inject instructions to handle each use.
+    // TODO: update to use coalesced uses.
+    inject(context,
+           decoded,
+           encoded,
+           added,
+           get_encoder,
+           decode_value,
+           encode_value,
+           add_value);
 
     // Collect the types that each candidate needs to be mutated to.
     AssocList<AllocInst *, Type *> types_to_mutate;
@@ -1852,16 +2209,19 @@ bool ProxyInsertion::transform() {
       }
       auto &type = types_to_mutate[alloc];
 
-      // Convert the type at the given offset to the size type.
-      auto &module =
-          MEMOIR_SANITIZE(alloc->getModule(),
-                          "AllocInst does not belong to an LLVM module!");
-      const auto &data_layout = module.getDataLayout();
-      auto &size_type = Type::get_size_type(data_layout);
+      // Fetch the size type.
 
-      auto &new_type = detail::convert_type(*type, info->offsets, size_type);
+      // If the object is a total proxy, update it to be a sequence.
+      if (false and is_total_proxy(*info, to_addkey)) {
+        type = &convert_to_sequence_type(*type, info->offsets);
 
-      type = &new_type;
+      } else {
+        // Convert the type at the given offset to the size type.
+        auto &size_type =
+            Type::get_size_type(alloc->getModule()->getDataLayout());
+
+        type = &convert_element_type(*type, info->offsets, size_type);
+      }
     }
 
     // Mutate the types in the program.
@@ -1881,7 +2241,10 @@ bool ProxyInsertion::transform() {
             for (auto it = std::next(candidates_it); it != candidates.end();
                  ++it) {
               for (auto &info : *it) {
-                info->update(old_func, new_func, vmap, /* delete old? */ true);
+                info->update(old_func,
+                             new_func,
+                             vmap,
+                             /* delete old? */ true);
               }
             }
 
@@ -1905,9 +2268,8 @@ bool ProxyInsertion::transform() {
   return modified;
 }
 
-ProxyInsertion::ProxyInsertion(
-    llvm::Module &M,
-    std::function<llvm::DominatorTree(llvm::Function &)> get_dominator_tree)
+ProxyInsertion::ProxyInsertion(llvm::Module &M,
+                               GetDominatorTree get_dominator_tree)
   : M(M),
     get_dominator_tree(get_dominator_tree) {
 

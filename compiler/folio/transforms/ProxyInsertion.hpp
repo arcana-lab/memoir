@@ -51,6 +51,11 @@ struct ObjectInfo {
    */
   uint32_t compute_heuristic(const ObjectInfo &other) const;
 
+  /**
+   * Check if the given value is a redefinition of the object.
+   */
+  bool is_redefinition(llvm::Value &V) const;
+
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const ObjectInfo &info);
 };
@@ -59,9 +64,10 @@ using Candidate = llvm::memoir::vector<ObjectInfo *>;
 
 struct ProxyInsertion {
 public:
-  ProxyInsertion(
-      llvm::Module &M,
-      std::function<llvm::DominatorTree(llvm::Function &)> get_dominator_tree);
+  using GetDominatorTree =
+      std::function<llvm::DominatorTree &(llvm::Function &)>;
+
+  ProxyInsertion(llvm::Module &M, GetDominatorTree get_dominator_tree);
 
   void analyze();
 
@@ -87,7 +93,7 @@ protected:
   llvm::memoir::vector<ObjectInfo> propagators;
   llvm::memoir::vector<Candidate> candidates;
 
-  std::function<llvm::DominatorTree(llvm::Function &)> get_dominator_tree;
+  GetDominatorTree get_dominator_tree;
 };
 
 } // namespace folio
