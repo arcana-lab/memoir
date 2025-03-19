@@ -40,6 +40,7 @@ public:
   llvm::Function *getFunction() const;
   llvm::BasicBlock *getParent() const;
   llvm::CallInst &getCallInst() const;
+  llvm::Value &asValue() const;
 
   MemOIR_Func getKind() const;
 

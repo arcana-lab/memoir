@@ -75,6 +75,10 @@ llvm::CallInst &MemOIRInst::getCallInst() const {
   return this->call_inst;
 }
 
+llvm::Value &MemOIRInst::asValue() const {
+  return this->call_inst;
+}
+
 llvm::Function &MemOIRInst::getCalledFunction() const {
   return MEMOIR_SANITIZE(
       this->getCallInst().getCalledFunction(),
