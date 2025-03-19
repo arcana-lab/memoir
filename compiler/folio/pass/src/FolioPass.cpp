@@ -67,11 +67,11 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
 
   // Insert proxies and encode uses.
   {
-    std::function<llvm::DominatorTree(llvm::Function &)> get_dominator_tree =
-        [&](llvm::Function &F) {
-          auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(MAM, M);
-          return std::move(FAM.getResult<llvm::DominatorTreeAnalysis>(F));
-        };
+    ProxyInsertion::GetDominatorTree get_dominator_tree =
+        [&](llvm::Function &F) -> llvm::DominatorTree & {
+      auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(MAM, M);
+      return FAM.getResult<llvm::DominatorTreeAnalysis>(F);
+    };
     ProxyInsertion proxies(M, get_dominator_tree);
   }
 
