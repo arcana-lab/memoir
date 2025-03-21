@@ -18,8 +18,29 @@ namespace llvm::memoir {
 enum Verbosity { noverbosity, quick, detailed };
 extern Verbosity VerboseLevel;
 
+using Colors = llvm::raw_ostream::Colors;
+enum class Style { NORMAL = 0, BOLD, RESET };
+
+inline llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                     const Style &style) {
+  switch (style) {
+    case Style::NORMAL:
+      os.changeColor(Colors::SAVEDCOLOR, false);
+      break;
+    case Style::BOLD:
+      os.changeColor(Colors::SAVEDCOLOR, true);
+      break;
+    case Style::RESET:
+      os.resetColor();
+      break;
+  }
+
+  return os;
+}
+
 // Printing.
 inline void fprint(llvm::raw_ostream &out) {}
+
 template <class T, class... Ts>
 inline void fprint(llvm::raw_ostream &out, T const &first, Ts const &...rest) {
   out << first;
@@ -45,7 +66,7 @@ inline void print(Ts const &...args) {
 template <class... Ts>
 inline void fwarn(llvm::raw_ostream &out, Ts const &...args) {
   if (out.has_colors()) {
-    out.changeColor(llvm::raw_ostream::Colors::YELLOW, /*bold=*/true);
+    out.changeColor(Colors::YELLOW, /*bold=*/true);
   }
 
   fprint(out, "WARNING: ");
