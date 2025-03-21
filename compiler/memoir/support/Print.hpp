@@ -1,6 +1,8 @@
 #ifndef MEMOIR_PRINT_H
 #define MEMOIR_PRINT_H
 
+#include "llvm/IR/Use.h"
+#include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
 
 #include "llvm/Support/raw_ostream.h"
@@ -123,6 +125,13 @@ inline std::string value_name(const llvm::Value &V) {
   // os << ":" << uint64_t(&V);
 
   return str;
+}
+
+// Print functions.
+inline llvm::raw_ostream &operator<<(llvm::raw_ostream &os, llvm::Use &use) {
+  os << "OP " << use.getOperandNo() << " (" << value_name(*use.get()) << ") IN "
+     << *use.getUser();
+  return os;
 }
 
 } // namespace llvm::memoir
