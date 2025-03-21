@@ -56,6 +56,11 @@ struct ObjectInfo {
    */
   bool is_redefinition(llvm::Value &V) const;
 
+  /**
+   * Check if this nested object is a propagator.
+   */
+  bool is_propagator() const;
+
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const ObjectInfo &info);
 };

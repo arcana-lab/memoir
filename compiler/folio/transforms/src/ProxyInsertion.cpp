@@ -314,7 +314,7 @@ static void gather_uses_to_proxy(
     map<llvm::Function *, set<llvm::Use *>> &to_encode,
     map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
 
-  println("REDEF ", V);
+  infoln("REDEF ", V);
 
   auto *function = parent_function(V);
   MEMOIR_ASSERT(function, "Gathering uses of value with no parent function!");
@@ -324,7 +324,7 @@ static void gather_uses_to_proxy(
   for (auto &use : V.uses()) {
     auto *user = use.getUser();
 
-    println("  USER ", *user);
+    infoln("  USER ", *user);
 
     if (auto *fold = into<FoldInst>(user)) {
 
@@ -332,7 +332,7 @@ static void gather_uses_to_proxy(
 
         // If we find an index use, encode it.
         if (auto *index_use = get_index_use(*fold, offsets)) {
-          println("    ENCODING INDEX");
+          infoln("    ENCODING INDEX");
           to_encode[function].insert(index_use);
 
         } else {
@@ -349,7 +349,7 @@ static void gather_uses_to_proxy(
           // argument to the set of uses to decode.
           else if (distance.value() == offsets.size()) {
             auto &index_arg = fold->getIndexArgument();
-            println("    DECODING KEY");
+            infoln("    DECODING KEY");
             encoded[&fold->getBody()].insert(&index_arg);
           }
 
@@ -357,7 +357,7 @@ static void gather_uses_to_proxy(
           // argument.
           else if (distance.value() < offsets.size()) {
             if (auto *elem_arg = fold->getElementArgument()) {
-              println("    RECURSING");
+              infoln("    RECURSING");
               gather_uses_to_proxy(*elem_arg,
                                    offsets.drop_front(distance.value() + 1),
                                    encoded,
@@ -375,13 +375,13 @@ static void gather_uses_to_proxy(
         if (auto *index_use = get_index_use(*access, offsets)) {
           if (isa<InsertInst>(access)) {
             if (is_last_index(index_use, access->index_operands_end())) {
-              println("    ADDING KEY ", *index_use->get());
+              infoln("    ADDING KEY ", *index_use->get());
               to_addkey[function].insert(index_use);
               continue;
             }
           }
 
-          println("    ENCODING KEY ", *index_use->get());
+          infoln("    ENCODING KEY ", *index_use->get());
           to_encode[function].insert(index_use);
         }
       }
@@ -398,7 +398,7 @@ static void gather_uses_to_propagate(
     map<llvm::Function *, set<llvm::Use *>> &to_encode,
     map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
 
-  println("REDEF ", V, " IN ", parent_function(V)->getName());
+  infoln("REDEF ", V, " IN ", parent_function(V)->getName());
 
   auto *function = parent_function(V);
   MEMOIR_ASSERT(function, "Gathering uses of value with no parent function!");
@@ -411,7 +411,7 @@ static void gather_uses_to_propagate(
       continue;
     }
 
-    println("  USER ", *user);
+    infoln("  USER ", *user);
 
     if (auto *access = into<AccessInst>(user)) {
 
@@ -437,7 +437,7 @@ static void gather_uses_to_propagate(
           // TODO: may need to do size+1
           if ((distance + 1) == offsets.size()) {
             if (auto *elem_arg = fold->getElementArgument()) {
-              println("    DECODING ELEM");
+              infoln("    DECODING ELEM");
               encoded[&fold->getBody()].insert(elem_arg);
             }
           }
@@ -446,7 +446,7 @@ static void gather_uses_to_propagate(
           // argument.
           else if (distance < offsets.size()) {
             if (auto *elem_arg = fold->getElementArgument()) {
-              println("    RECURSING");
+              infoln("    RECURSING");
               gather_uses_to_propagate(*elem_arg,
                                        offsets.drop_front(distance + 1),
                                        encoded,
@@ -458,20 +458,20 @@ static void gather_uses_to_propagate(
 
       } else if (auto *read = dyn_cast<ReadInst>(access)) {
         if (distance == offsets.size()) {
-          println("    DECODING ELEM ");
+          infoln("    DECODING ELEM ");
           encoded[function].insert(&read->asValue());
         }
 
       } else if (auto *write = dyn_cast<WriteInst>(access)) {
         if (distance == offsets.size()) {
-          println("    ADDKEY ");
+          infoln("    ADDKEY ");
           to_addkey[function].insert(&write->getValueWrittenAsUse());
         }
 
       } else if (auto *insert = dyn_cast<InsertInst>(access)) {
         if (auto value_kw = insert->get_keyword<ValueKeyword>()) {
           if (distance == offsets.size()) {
-            println("    ADDKEY ");
+            infoln("    ADDKEY ");
             to_addkey[function].insert(&value_kw->getValueAsUse());
           }
         }
@@ -482,13 +482,17 @@ static void gather_uses_to_propagate(
   return;
 }
 
+bool ObjectInfo::is_propagator() const {
+  return not isa<CollectionType>(&this->get_type());
+}
+
 void ObjectInfo::analyze() {
-  println();
-  println("ANALYZING ", *this);
+  infoln();
+  infoln("ANALYZING ", *this);
 
   gather_redefinitions(this->allocation->getCallInst(), this->redefinitions);
 
-  bool is_propagator = not isa<CollectionType>(&this->get_type());
+  bool is_propagator = this->is_propagator();
 
   for (const auto &[func, redefs] : this->redefinitions) {
     for (auto *redef : redefs) {
@@ -517,7 +521,7 @@ void ObjectInfo::analyze() {
   }
 #endif
 
-  println();
+  infoln();
 }
 
 Type &ObjectInfo::get_type() const {
@@ -1547,8 +1551,6 @@ static void coalesce_by_dominance(
     // Fetch the dominators for this function.
     auto &DT = get_dominator_tree(*func);
 
-    MEMOIR_ASSERT(DT.verify(), "Failed to verify dominator tree!");
-
     // For each of the local values being decoded:
     for (auto &[val, uses] : locals) {
 
@@ -1560,15 +1562,6 @@ static void coalesce_by_dominance(
 
       // Sort the uses in level order of the dominator tree.
       sort_in_level_order(uses, DT);
-
-      println("SORTED");
-      for (auto *use : uses) {
-        auto *user = cast<llvm::Instruction>(use->getUser());
-        println("  LEVEL=",
-                DT[user->getParent()]->getLevel(),
-                " : ",
-                pretty_use(*use));
-      }
 
       // Group together uses that are dominated by one another.
       set<llvm::Use *> visited = {};
@@ -1609,6 +1602,7 @@ static void coalesce_by_dominance(
             visited.insert(other_use);
 
           } else if (DT.dominates(other_user, *use)) {
+            // This check is unnecessary, it's here as a sanity check.
             MEMOIR_UNREACHABLE("Level order is incorrect!\n",
                                "      ",
                                *other_user,
@@ -1857,28 +1851,93 @@ static void inject(
   return;
 }
 
-bool is_total_proxy(ObjectInfo &info, const set<llvm::Use *> &to_addkey) {
+bool is_total_proxy(ObjectInfo &info, const vector<CoalescedUses> &added) {
 
-  return false;
+  println();
+  println("TOTAL PROXY? ", info);
 
-  for (auto *use : to_addkey) {
-    auto *value = use->get();
-    auto *user = use->getUser();
+  // Check that the object is not a propagator.
+  // NOTE: this is conservative, but the check for a propagator to be a total
+  // proxt is difficult.
+  if (info.is_propagator()) {
+    println("NO, propagator");
+    return false;
+  }
 
-    if (not info.is_redefinition(*value)) {
+  // Check that there is guaranteed to be one of these objects for each
+  // allocation.
+  for (auto offset : info.offsets) {
+    if (offset == unsigned(-1)) {
+      println("NO, not singular");
       return false;
-    }
-
-    if (auto *insert = into<InsertInst>(user)) {
-
-      auto distance = insert->match_offsets(info.offsets);
-      if (not distance or distance.value() < info.offsets.size()) {
-        return false;
-      }
-    } else {
     }
   }
 
+  // Check that for each addkey use, this object is inserted into.
+  // Also, ensure that the encoded value is in a control flow equivalent block
+  // to the uses.
+  for (auto &uses : added) {
+    auto &value = uses.value();
+    auto &encoded =
+        MEMOIR_SANITIZE(dyn_cast<llvm::Instruction>(&value),
+                        "Encoded value ",
+                        value,
+                        " is not an instruction! Something went wrong.");
+
+    bool found_use = false;
+    for (auto *use : uses) {
+      auto *user = use->getUser();
+
+      // In combination with the singular check, this is a sufficient check.
+      if (not info.is_redefinition(value)) {
+        continue;
+      }
+
+      if (auto *access = into<AccessInst>(user)) {
+
+        // Skip irrelevant accesses.
+        if (not info.is_redefinition(access->getObject())) {
+          continue;
+        }
+
+        // Check that this access is at the correct offset.
+        auto distance = access->match_offsets(info.offsets);
+        if (not distance) {
+          continue;
+        }
+
+        if (distance.value() < info.offsets.size()) {
+          println("NO, wrong offset in ", *access);
+          return false;
+        }
+
+        // Ensure that this access is control equivalent to the encoded value.
+        // NOTE: we will be conservative here and just check that they are in
+        // the same basic block.
+        if (encoded.getParent() != access->getParent()) {
+          println("NO, not control equivalent");
+          return false;
+        }
+
+        // Otherwise, we found a valid use.
+        found_use = true;
+
+      } else {
+        // Skip non-accesses.
+        continue;
+      }
+    }
+
+    // If we failed to find a use, then the check fails.
+    if (not found_use) {
+      println("NO, failed to find use of addkey for: ");
+      println("  ", value);
+      return false;
+    }
+  }
+
+  // If we got this far, then we're good to go!
+  println("YES!");
   return true;
 }
 
@@ -2319,7 +2378,6 @@ bool ProxyInsertion::transform() {
     };
 
     // Inject instructions to handle each use.
-    // TODO: update to use coalesced uses.
     inject(context,
            decoded,
            encoded,
@@ -2341,10 +2399,13 @@ bool ProxyInsertion::transform() {
       }
       auto &type = types_to_mutate[alloc];
 
-      // Fetch the size type.
+      if (is_total_proxy(*info, added)) {
+        println(Style::BOLD, Colors::GREEN, "FOUND TOTAL PROXY");
+      }
 
       // If the object is a total proxy, update it to be a sequence.
-      if (false and is_total_proxy(*info, to_addkey)) {
+      if (false and is_total_proxy(*info, added)) {
+
         type = &convert_to_sequence_type(*type, info->offsets);
 
       } else {
