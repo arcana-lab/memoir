@@ -7,6 +7,7 @@
 
 #include "memoir/ir/Builder.hpp"
 #include "memoir/lowering/Implementation.hpp"
+#include "memoir/support/WorkList.hpp"
 #include "memoir/transforms/utilities/MutateType.hpp"
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
 #include "memoir/utility/Metadata.hpp"
@@ -99,56 +100,65 @@ void ObjectInfo::update(llvm::Function &old_func,
 
   // Update the uses.
   update_uses(this->to_encode, old_func, new_func, vmap, delete_old);
-  update_uses(this->to_decode, old_func, new_func, vmap, delete_old);
   update_uses(this->to_addkey, old_func, new_func, vmap, delete_old);
+
+  // Update the set of encoded values.
+  update_values(vmap, this->encoded[&old_func], this->encoded[&new_func]);
+
+  if (delete_old) {
+    this->encoded[&old_func].clear();
+  }
 
   return;
 }
 
 uint32_t ObjectInfo::compute_heuristic(const ObjectInfo &other) const {
   uint32_t benefit = 0;
-  for (const auto &[func, decode_uses] : this->to_decode) {
-    for (const auto *use_to_decode : decode_uses) {
+  for (const auto &[func, encoded] : this->encoded) {
+    for (const auto *value : encoded) {
 
-      auto *user = use_to_decode->getUser();
+      for (auto &use_to_decode : value->uses()) {
 
-      if (other.to_encode.count(func) > 0) {
-        for (const auto *use_to_encode : other.to_encode.at(func)) {
-          if (use_to_decode == use_to_encode) {
-            ++benefit;
-          }
-        }
-      }
+        auto *user = use_to_decode.getUser();
 
-      if (other.to_addkey.count(func) > 0) {
-        for (const auto *use_to_addkey : other.to_addkey.at(func)) {
-          if (use_to_decode == use_to_addkey) {
-            ++benefit;
-          }
-        }
-      }
-
-      if (other.to_decode.count(func) > 0) {
-        auto *cmp = dyn_cast<llvm::CmpInst>(user);
-        if (cmp and cmp->isEquality()) {
-          if (other.to_decode.at(func).count(&cmp->getOperandUse(0))) {
-            ++benefit;
-          } else if (other.to_decode.at(func).count(&cmp->getOperandUse(1))) {
-            ++benefit;
-          }
-        } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-          bool all_decode = true;
-          for (auto &incoming : phi->incoming_values()) {
-            if (&incoming == use_to_decode) {
-              continue;
-            }
-            if (other.to_decode.at(func).count(&incoming) == 0) {
-              all_decode = false;
+        if (other.to_encode.count(func) > 0) {
+          for (const auto *use_to_encode : other.to_encode.at(func)) {
+            if (&use_to_decode == use_to_encode) {
+              ++benefit;
             }
           }
+        }
 
-          if (all_decode) {
-            ++benefit;
+        if (other.to_addkey.count(func) > 0) {
+          for (const auto *use_to_addkey : other.to_addkey.at(func)) {
+            if (&use_to_decode == use_to_addkey) {
+              ++benefit;
+            }
+          }
+        }
+
+        if (other.encoded.count(func) > 0) {
+          auto *cmp = dyn_cast<llvm::CmpInst>(user);
+          if (cmp and cmp->isEquality()) {
+            if (other.encoded.at(func).count(cmp->getOperand(0))) {
+              ++benefit;
+            } else if (other.encoded.at(func).count(cmp->getOperand(1))) {
+              ++benefit;
+            }
+          } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+            bool all_decode = true;
+            for (auto &incoming : phi->incoming_values()) {
+              if (incoming == use_to_decode) {
+                continue;
+              }
+              if (other.encoded.at(func).count(incoming.get()) == 0) {
+                all_decode = false;
+              }
+            }
+
+            if (all_decode) {
+              ++benefit;
+            }
           }
         }
       }
@@ -294,8 +304,8 @@ static llvm::Use *get_index_use(AccessInst &access, vector<unsigned> &offsets) {
 static void gather_uses_to_proxy(
     llvm::Value &V,
     vector<unsigned> &offsets,
+    map<llvm::Function *, set<llvm::Value *>> &encoded,
     map<llvm::Function *, set<llvm::Use *>> &to_encode,
-    map<llvm::Function *, set<llvm::Use *>> &to_decode,
     map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
 
   infoln("REDEF ", V);
@@ -334,10 +344,7 @@ static void gather_uses_to_proxy(
           else if (distance.value() == offsets.size()) {
             auto &index_arg = fold->getIndexArgument();
             infoln("    DECODING KEY");
-            for (auto &index_use : index_arg.uses()) {
-              infoln("      USE ", *index_use.getUser());
-              to_decode[&fold->getBody()].insert(&index_use);
-            }
+            encoded[&fold->getBody()].insert(&index_arg);
           }
 
           // If the offsets are not fully exhausted, recurse on the value
@@ -350,8 +357,8 @@ static void gather_uses_to_proxy(
               infoln("    RECURSING");
               gather_uses_to_proxy(*elem_arg,
                                    nested_offsets,
+                                   encoded,
                                    to_encode,
-                                   to_decode,
                                    to_addkey);
             }
           }
@@ -384,8 +391,8 @@ static void gather_uses_to_proxy(
 static void gather_uses_to_propagate(
     llvm::Value &V,
     vector<unsigned> &offsets,
+    map<llvm::Function *, set<llvm::Value *>> &encoded,
     map<llvm::Function *, set<llvm::Use *>> &to_encode,
-    map<llvm::Function *, set<llvm::Use *>> &to_decode,
     map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
 
   infoln("REDEF ", V);
@@ -428,10 +435,7 @@ static void gather_uses_to_propagate(
         if ((distance + 1) == offsets.size()) {
           if (auto *elem_arg = fold->getElementArgument()) {
             infoln("    DECODING ELEM");
-            for (auto &elem_use : elem_arg->uses()) {
-              infoln("      USE ", *elem_use.getUser());
-              to_decode[&fold->getBody()].insert(&elem_use);
-            }
+            encoded[&fold->getBody()].insert(elem_arg);
           }
         }
 
@@ -445,18 +449,15 @@ static void gather_uses_to_propagate(
             infoln("    RECURSING");
             gather_uses_to_propagate(*elem_arg,
                                      nested_offsets,
+                                     encoded,
                                      to_encode,
-                                     to_decode,
                                      to_addkey);
           }
         }
       } else if (auto *read = dyn_cast<ReadInst>(access)) {
         if (distance == offsets.size()) {
           infoln("    DECODING ELEM ");
-          for (auto &read_use : user->uses()) {
-            infoln("      USE ", *read_use.getUser());
-            to_decode[function].insert(&read_use);
-          }
+          encoded[function].insert(&read->asValue());
         }
       } else if (auto *write = dyn_cast<WriteInst>(access)) {
         if (distance == offsets.size()) {
@@ -489,14 +490,14 @@ void ObjectInfo::analyze() {
       if (is_propagator) {
         gather_uses_to_propagate(*redef,
                                  this->offsets,
+                                 this->encoded,
                                  this->to_encode,
-                                 this->to_decode,
                                  this->to_addkey);
       } else {
         gather_uses_to_proxy(*redef,
                              this->offsets,
+                             this->encoded,
                              this->to_encode,
-                             this->to_decode,
                              this->to_addkey);
       }
     }
@@ -568,71 +569,6 @@ void ProxyInsertion::gather_assoc_objects(vector<ObjectInfo> &allocations,
     new_offsets.push_back(-1);
 
     this->gather_assoc_objects(allocations, alloc, elem_type, new_offsets);
-  }
-
-  return;
-}
-
-static void gather_values_to_propagate(
-    const ObjectInfo &info,
-    map<llvm::Function *, set<llvm::Value *>> &encoded,
-    map<llvm::Function *, set<llvm::Use *>> &to_decode) {
-
-  // Gather all the values that need to be encoded.
-  for (const auto &[func, uses] : info.to_encode) {
-    for (auto *use : uses) {
-      auto *value = use->get();
-      auto *user = dyn_cast<llvm::Instruction>(use->getUser());
-      if (not user) {
-        continue;
-      }
-
-      if (auto *arg = dyn_cast<llvm::Argument>(value)) {
-        auto *parent = arg->getParent();
-        if (not parent) {
-          continue;
-        }
-
-        // Try to find a single fold user for this function.
-        if (auto fold = FoldInst::get_single_fold(*parent)) {
-          // If we found a single fold and this is the element arg, mark it.
-          if (arg == fold->getElementArgument()) {
-            infoln("FOLD ELEM ", *value);
-            encoded[func].insert(value);
-          }
-        }
-
-      } else if (auto *read = into<ReadInst>(value)) {
-        // If this is the result of a read, mark it.
-        infoln("READ ELEM ", *value);
-        encoded[func].insert(value);
-      }
-    }
-  }
-
-  // Gather all the use sites that need decoding.
-  for (const auto &[func, uses] : info.to_decode) {
-    for (auto *use : uses) {
-      auto *user = dyn_cast<llvm::Instruction>(use->getUser());
-      if (not user) {
-        continue;
-      }
-
-      if (auto *write = into<WriteInst>(user)) {
-        if (use == &write->getValueWrittenAsUse()) {
-          infoln("WRITE ELEM ", *user);
-          to_decode[func].insert(use);
-        }
-      } else if (auto *insert = into<InsertInst>(user)) {
-        if (auto value_keyword = insert->get_keyword<ValueKeyword>()) {
-          if (use == &value_keyword->getValueAsUse()) {
-            infoln("INSERT ELEM ", *user);
-
-            to_decode[func].insert(use);
-          }
-        }
-      }
-    }
   }
 
   return;
@@ -736,42 +672,53 @@ ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
 
 void ProxyInsertion::gather_propagators(
     map<llvm::Function *, set<llvm::Value *>> encoded,
-    map<llvm::Function *, set<llvm::Use *>> to_decode) {
+    map<llvm::Function *, set<llvm::Use *>> to_encode) {
 
   for (const auto &[func, values] : encoded) {
-    for (auto *value : values) {
-      infoln("GATHER ", *value);
-
-      if (auto *arg = dyn_cast<llvm::Argument>(value)) {
-        auto &parent = MEMOIR_SANITIZE(arg->getParent(),
-                                       "Argument has no parent function.");
-
-        if (auto *fold = FoldInst::get_single_fold(parent)) {
-          this->find_base_object(fold->getObject(), *fold);
+    for (auto *val : values) {
+      for (auto &use : val->uses()) {
+        auto *user = dyn_cast<llvm::Instruction>(use.getUser());
+        if (not user) {
+          continue;
         }
 
-      } else if (auto *read = into<ReadInst>(value)) {
-        this->find_base_object(read->getObject(), *read);
+        infoln("GATHER ", *user);
+
+        if (auto *write = into<WriteInst>(user)) {
+          this->find_base_object(write->getObject(), *write);
+
+        } else if (auto *insert = into<InsertInst>(user)) {
+          if (auto value_keyword = insert->get_keyword<ValueKeyword>()) {
+            this->find_base_object(insert->getObject(), *insert);
+          }
+        }
       }
     }
   }
 
-  for (const auto &[func, uses] : to_decode) {
+  for (const auto &[func, uses] : to_encode) {
     for (auto *use : uses) {
       auto *user = dyn_cast<llvm::Instruction>(use->getUser());
       if (not user) {
         continue;
       }
 
+      auto *used = use->get();
+
       infoln("GATHER ", *user);
 
-      if (auto *write = into<WriteInst>(user)) {
-        this->find_base_object(write->getObject(), *write);
+      if (auto *arg = dyn_cast<llvm::Argument>(used)) {
+        auto &parent = MEMOIR_SANITIZE(arg->getParent(),
+                                       "Argument has no parent function.");
 
-      } else if (auto *insert = into<InsertInst>(user)) {
-        if (auto value_keyword = insert->get_keyword<ValueKeyword>()) {
-          this->find_base_object(insert->getObject(), *insert);
+        if (auto *fold = FoldInst::get_single_fold(parent)) {
+          if (arg == fold->getElementArgument()) {
+            this->find_base_object(fold->getObject(), *fold);
+          }
         }
+
+      } else if (auto *read = into<ReadInst>(used)) {
+        this->find_base_object(read->getObject(), *read);
       }
     }
   }
@@ -806,6 +753,99 @@ void ProxyInsertion::gather_propagators(
   return;
 }
 
+static uint32_t forward_analysis(
+    map<llvm::Function *, set<llvm::Value *>> &encoded) {
+
+  uint32_t count = 0;
+
+  WorkList<llvm::Value *> worklist;
+
+  for (auto &[func, values] : encoded) {
+    worklist.push(values.begin(), values.end());
+  }
+
+  while (not worklist.empty()) {
+    auto *val = worklist.pop();
+
+    auto *func = parent_function(*val);
+    auto &local_encoded = encoded[func];
+
+    for (auto &use : val->uses()) {
+      auto *user = use.getUser();
+
+      if (local_encoded.count(user) > 0) {
+        continue;
+      }
+
+      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+        bool all_encoded = true;
+        for (auto &incoming : phi->incoming_values()) {
+          if (local_encoded.count(incoming.get()) == 0) {
+            all_encoded = false;
+            break;
+          }
+        }
+
+        if (all_encoded) {
+          local_encoded.insert(phi);
+          worklist.push(phi);
+          ++count;
+        }
+
+      } else if (auto *select = dyn_cast<llvm::SelectInst>(user)) {
+        auto *lhs = select->getOperand(0);
+        auto *rhs = select->getOperand(1);
+
+        if (local_encoded.count(lhs) and local_encoded.count(rhs)) {
+          local_encoded.insert(select);
+          worklist.push(select);
+          ++count;
+        }
+
+      } else if (auto *fold = into<FoldInst>(user)) {
+        auto &body = fold->getBody();
+        auto &body_encoded = encoded[&body];
+
+        if (use == fold->getInitialAsUse()) {
+          auto &accum_arg = fold->getAccumulatorArgument();
+
+          if (body_encoded.count(&accum_arg) > 0) {
+            continue;
+          }
+
+          // Check if the return value of the fold is encoded.
+          bool return_encoded = true;
+          for (auto &BB : body) {
+            if (auto *ret = dyn_cast<llvm::ReturnInst>(BB.getTerminator())) {
+              auto *ret_val = ret->getReturnValue();
+              if (local_encoded.count(ret_val) == 0) {
+                return_encoded = false;
+              }
+            }
+          }
+
+          if (return_encoded) {
+            body_encoded.insert(&accum_arg);
+            worklist.push(&accum_arg);
+            ++count;
+          }
+
+        } else if (auto *closed_arg = fold->getClosedArgument(use)) {
+          if (body_encoded.count(closed_arg) > 0) {
+            continue;
+          }
+
+          body_encoded.insert(closed_arg);
+          worklist.push(closed_arg);
+          ++count;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
 void ProxyInsertion::analyze() {
   auto &M = this->M;
 
@@ -831,22 +871,34 @@ void ProxyInsertion::analyze() {
   }
   println();
 
-  // Gather statistics about each of the objects.
-  map<llvm::Function *, set<llvm::Value *>> values_encoded = {};
-  map<llvm::Function *, set<llvm::Use *>> to_decode = {};
+  // Analyze each of the objects.
   for (auto &info : this->objects) {
-    // Analyze the object.
     info.analyze();
 
-    // From the use information, find any collection elements that _could_
-    // propagate the proxy.
-    gather_values_to_propagate(info, values_encoded, to_decode);
+    forward_analysis(info.encoded);
   }
 
   // With the set of values that need to be encoded/decoded, we will find
   // collections that can be used to propagate proxied values.
   if (not disable_proxy_propagation) {
-    this->gather_propagators(values_encoded, to_decode);
+
+    // From the use information, find any collection elements that _could_
+    // propagate the proxy.
+    map<llvm::Function *, set<llvm::Value *>> encoded = {};
+    map<llvm::Function *, set<llvm::Use *>> to_encode = {};
+    for (auto &info : this->objects) {
+      for (const auto &[func, locals] : info.encoded) {
+        encoded[func].insert(locals.begin(), locals.end());
+      }
+      for (const auto &uses : { info.to_encode, info.to_addkey }) {
+        for (const auto &[func, locals] : uses) {
+          to_encode[func].insert(locals.begin(), locals.end());
+        }
+      }
+    }
+
+    // Gather the propagators from the encoded values.
+    this->gather_propagators(encoded, to_encode);
 
     println();
     println("FOUND PROPAGATORS ", this->propagators.size());
@@ -893,7 +945,7 @@ void ProxyInsertion::analyze() {
         continue;
       }
 
-      // Check that they share a parent basic block.
+      // Check that they share a parent function.
       // NOTE: this is overly conservative
       auto *other_func = other.allocation->getFunction();
       if (func != other_func) {
@@ -1513,8 +1565,6 @@ static void coalesce_by_dominance(
         // Don't coalesce has operations.
         if (into<HasInst>(user)) {
           continue;
-        } else {
-          continue;
         }
 
         // Try to coalesce the remaining uses.
@@ -1892,6 +1942,41 @@ Type &convert_element_type(Type &base,
   MEMOIR_UNREACHABLE("Failed to convert type!");
 }
 
+static void gather_candidate_uses(Candidate &candidate,
+                                  set<llvm::Use *> &to_decode,
+                                  set<llvm::Use *> &to_encode,
+                                  set<llvm::Use *> &to_addkey) {
+
+  map<llvm::Function *, set<llvm::Value *>> encoded = {};
+  for (auto *info : candidate) {
+    for (const auto &[func, values] : info->encoded) {
+      encoded[func].insert(values.begin(), values.end());
+    }
+
+    for (const auto &[func, uses] : info->to_encode) {
+      to_encode.insert(uses.begin(), uses.end());
+    }
+
+    for (const auto &[func, uses] : info->to_addkey) {
+      to_addkey.insert(uses.begin(), uses.end());
+    }
+  }
+
+  // Perform a forward analysis on the encoded values.
+  forward_analysis(encoded);
+
+  // Collect the set of uses to decode.
+  for (const auto &[func, values] : encoded) {
+    for (auto *val : values) {
+      for (auto &use : val->uses()) {
+        to_decode.insert(&use);
+      }
+    }
+  }
+
+  return;
+}
+
 bool ProxyInsertion::transform() {
 
   bool modified = false;
@@ -1934,24 +2019,11 @@ bool ProxyInsertion::transform() {
     auto &key_type = assoc_type.getKeyType();
     auto &val_type = assoc_type.getValueType();
 
-    // Union together all of the uses that need to be encoded, decoded or
-    // added into the proxy space.
-    set<llvm::Use *> to_encode = {};
+    // Collect all of the uses that need to be handled.
     set<llvm::Use *> to_decode = {};
+    set<llvm::Use *> to_encode = {};
     set<llvm::Use *> to_addkey = {};
-    for (auto *info : candidate) {
-      for (const auto &[func, uses] : info->to_encode) {
-        to_encode.insert(uses.begin(), uses.end());
-      }
-
-      for (const auto &[func, uses] : info->to_decode) {
-        to_decode.insert(uses.begin(), uses.end());
-      }
-
-      for (const auto &[func, uses] : info->to_addkey) {
-        to_addkey.insert(uses.begin(), uses.end());
-      }
-    }
+    gather_candidate_uses(candidate, to_decode, to_encode, to_addkey);
 
     println();
     println("  before trimming:");

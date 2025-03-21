@@ -14,16 +14,16 @@ struct ObjectInfo {
   llvm::memoir::vector<unsigned> offsets;
   llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Value *>>
       redefinitions;
+  llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Value *>> encoded;
   llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Use *>> to_encode;
-  llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Use *>> to_decode;
   llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Use *>> to_addkey;
 
   ObjectInfo(llvm::memoir::AllocInst &alloc, llvm::ArrayRef<unsigned> offsets)
     : allocation(&alloc),
       offsets(offsets.begin(), offsets.end()),
       redefinitions{},
+      encoded{},
       to_encode{},
-      to_decode{},
       to_addkey{} {}
   ObjectInfo(llvm::memoir::AllocInst &alloc) : ObjectInfo(alloc, {}) {}
 
