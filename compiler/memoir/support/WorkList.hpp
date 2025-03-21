@@ -47,7 +47,7 @@ public:
     return pushed;
   }
 
-  const T &pop() {
+  T pop() {
     if constexpr (PopFront) {
       const auto &val = this->_items.front();
       this->_items.pop_front();
