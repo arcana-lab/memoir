@@ -127,12 +127,5 @@ inline std::string value_name(const llvm::Value &V) {
   return str;
 }
 
-// Print functions.
-inline llvm::raw_ostream &operator<<(llvm::raw_ostream &os, llvm::Use &use) {
-  os << "OP " << use.getOperandNo() << " (" << value_name(*use.get()) << ") IN "
-     << *use.getUser();
-  return os;
-}
-
 } // namespace llvm::memoir
 #endif
