@@ -23,6 +23,11 @@ static llvm::cl::opt<bool> disable_proxy_propagation(
     llvm::cl::desc("Disable proxy propagation"),
     llvm::cl::init(false));
 
+static llvm::cl::opt<bool> disable_use_coalescing(
+    "disable-proxy-use-coalescing",
+    llvm::cl::desc("Disable coalescing proxy uses"),
+    llvm::cl::init(false));
+
 static llvm::Function *parent_function(llvm::Value &V) {
   if (auto *arg = dyn_cast<llvm::Argument>(&V)) {
     return arg->getParent();
@@ -249,7 +254,8 @@ static bool is_last_index(llvm::Use *use,
   return std::next(AccessInst::index_op_iterator(use)) == index_end;
 }
 
-static llvm::Use *get_index_use(AccessInst &access, vector<unsigned> &offsets) {
+static llvm::Use *get_index_use(AccessInst &access,
+                                llvm::ArrayRef<unsigned> offsets) {
 
   auto offset_it = offsets.begin();
   auto offset_ie = offsets.end();
@@ -303,12 +309,12 @@ static llvm::Use *get_index_use(AccessInst &access, vector<unsigned> &offsets) {
 
 static void gather_uses_to_proxy(
     llvm::Value &V,
-    vector<unsigned> &offsets,
+    llvm::ArrayRef<unsigned> offsets,
     map<llvm::Function *, set<llvm::Value *>> &encoded,
     map<llvm::Function *, set<llvm::Use *>> &to_encode,
     map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
 
-  infoln("REDEF ", V);
+  println("REDEF ", V);
 
   auto *function = parent_function(V);
   MEMOIR_ASSERT(function, "Gathering uses of value with no parent function!");
@@ -318,7 +324,7 @@ static void gather_uses_to_proxy(
   for (auto &use : V.uses()) {
     auto *user = use.getUser();
 
-    infoln("  USER ", *user);
+    println("  USER ", *user);
 
     if (auto *fold = into<FoldInst>(user)) {
 
@@ -326,7 +332,7 @@ static void gather_uses_to_proxy(
 
         // If we find an index use, encode it.
         if (auto *index_use = get_index_use(*fold, offsets)) {
-          infoln("    ENCODING INDEX");
+          println("    ENCODING INDEX");
           to_encode[function].insert(index_use);
 
         } else {
@@ -343,7 +349,7 @@ static void gather_uses_to_proxy(
           // argument to the set of uses to decode.
           else if (distance.value() == offsets.size()) {
             auto &index_arg = fold->getIndexArgument();
-            infoln("    DECODING KEY");
+            println("    DECODING KEY");
             encoded[&fold->getBody()].insert(&index_arg);
           }
 
@@ -351,12 +357,9 @@ static void gather_uses_to_proxy(
           // argument.
           else if (distance.value() < offsets.size()) {
             if (auto *elem_arg = fold->getElementArgument()) {
-              vector<unsigned> nested_offsets(
-                  std::next(offsets.begin(), distance.value() + 1),
-                  offsets.end());
-              infoln("    RECURSING");
+              println("    RECURSING");
               gather_uses_to_proxy(*elem_arg,
-                                   nested_offsets,
+                                   offsets.drop_front(distance.value() + 1),
                                    encoded,
                                    to_encode,
                                    to_addkey);
@@ -372,13 +375,13 @@ static void gather_uses_to_proxy(
         if (auto *index_use = get_index_use(*access, offsets)) {
           if (isa<InsertInst>(access)) {
             if (is_last_index(index_use, access->index_operands_end())) {
-              infoln("    ADDING KEY ", *index_use->get());
+              println("    ADDING KEY ", *index_use->get());
               to_addkey[function].insert(index_use);
               continue;
             }
           }
 
-          infoln("    ENCODING KEY ", *index_use->get());
+          println("    ENCODING KEY ", *index_use->get());
           to_encode[function].insert(index_use);
         }
       }
@@ -390,12 +393,12 @@ static void gather_uses_to_proxy(
 
 static void gather_uses_to_propagate(
     llvm::Value &V,
-    vector<unsigned> &offsets,
+    llvm::ArrayRef<unsigned> offsets,
     map<llvm::Function *, set<llvm::Value *>> &encoded,
     map<llvm::Function *, set<llvm::Use *>> &to_encode,
     map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
 
-  infoln("REDEF ", V);
+  println("REDEF ", V, " IN ", parent_function(V)->getName());
 
   auto *function = parent_function(V);
   MEMOIR_ASSERT(function, "Gathering uses of value with no parent function!");
@@ -408,7 +411,7 @@ static void gather_uses_to_propagate(
       continue;
     }
 
-    infoln("  USER ", *user);
+    println("  USER ", *user);
 
     if (auto *access = into<AccessInst>(user)) {
 
@@ -428,46 +431,47 @@ static void gather_uses_to_propagate(
       auto distance = maybe_distance.value();
 
       if (auto *fold = dyn_cast<FoldInst>(access)) {
+        if (use == fold->getObjectAsUse()) {
+          // If the offsets are fully exhausted, add uses of the index
+          // argument to the set of uses to decode.
+          // TODO: may need to do size+1
+          if ((distance + 1) == offsets.size()) {
+            if (auto *elem_arg = fold->getElementArgument()) {
+              println("    DECODING ELEM");
+              encoded[&fold->getBody()].insert(elem_arg);
+            }
+          }
 
-        // If the offsets are fully exhausted, add uses of the index
-        // argument to the set of uses to decode.
-        // TODO: may need to do size+1
-        if ((distance + 1) == offsets.size()) {
-          if (auto *elem_arg = fold->getElementArgument()) {
-            infoln("    DECODING ELEM");
-            encoded[&fold->getBody()].insert(elem_arg);
+          // If the offsets are not fully exhausted, recurse on the value
+          // argument.
+          else if (distance < offsets.size()) {
+            if (auto *elem_arg = fold->getElementArgument()) {
+              println("    RECURSING");
+              gather_uses_to_propagate(*elem_arg,
+                                       offsets.drop_front(distance + 1),
+                                       encoded,
+                                       to_encode,
+                                       to_addkey);
+            }
           }
         }
 
-        // If the offsets are not fully exhausted, recurse on the value
-        // argument.
-        else if (distance < offsets.size()) {
-          if (auto *elem_arg = fold->getElementArgument()) {
-            vector<unsigned> nested_offsets(
-                std::next(offsets.begin(), distance + 1),
-                offsets.end());
-            infoln("    RECURSING");
-            gather_uses_to_propagate(*elem_arg,
-                                     nested_offsets,
-                                     encoded,
-                                     to_encode,
-                                     to_addkey);
-          }
-        }
       } else if (auto *read = dyn_cast<ReadInst>(access)) {
         if (distance == offsets.size()) {
-          infoln("    DECODING ELEM ");
+          println("    DECODING ELEM ");
           encoded[function].insert(&read->asValue());
         }
+
       } else if (auto *write = dyn_cast<WriteInst>(access)) {
         if (distance == offsets.size()) {
-          infoln("    ADDKEY ");
+          println("    ADDKEY ");
           to_addkey[function].insert(&write->getValueWrittenAsUse());
         }
+
       } else if (auto *insert = dyn_cast<InsertInst>(access)) {
         if (auto value_kw = insert->get_keyword<ValueKeyword>()) {
           if (distance == offsets.size()) {
-            infoln("    ADDKEY ");
+            println("    ADDKEY ");
             to_addkey[function].insert(&value_kw->getValueAsUse());
           }
         }
@@ -479,7 +483,8 @@ static void gather_uses_to_propagate(
 }
 
 void ObjectInfo::analyze() {
-  infoln("ANALYZING ", *this);
+  println();
+  println("ANALYZING ", *this);
 
   gather_redefinitions(this->allocation->getCallInst(), this->redefinitions);
 
@@ -511,6 +516,8 @@ void ObjectInfo::analyze() {
     }
   }
 #endif
+
+  println();
 }
 
 Type &ObjectInfo::get_type() const {
@@ -685,11 +692,15 @@ void ProxyInsertion::gather_propagators(
         infoln("GATHER ", *user);
 
         if (auto *write = into<WriteInst>(user)) {
-          this->find_base_object(write->getObject(), *write);
+          if (use == write->getValueWrittenAsUse()) {
+            this->find_base_object(write->getObject(), *write);
+          }
 
         } else if (auto *insert = into<InsertInst>(user)) {
           if (auto value_keyword = insert->get_keyword<ValueKeyword>()) {
-            this->find_base_object(insert->getObject(), *insert);
+            if (use == value_keyword->getValueAsUse()) {
+              this->find_base_object(insert->getObject(), *insert);
+            }
           }
         }
       }
@@ -793,8 +804,8 @@ static uint32_t forward_analysis(
         }
 
       } else if (auto *select = dyn_cast<llvm::SelectInst>(user)) {
-        auto *lhs = select->getOperand(0);
-        auto *rhs = select->getOperand(1);
+        auto *lhs = select->getTrueValue();
+        auto *rhs = select->getFalseValue();
 
         if (local_encoded.count(lhs) and local_encoded.count(rhs)) {
           local_encoded.insert(select);
@@ -1378,15 +1389,15 @@ static bool used_value_will_be_decoded(llvm::Use &use,
                                        const set<llvm::Use *> &to_decode,
                                        set<llvm::Use *> &visited) {
 
-  println("DECODED? ", *use.get());
+  debugln("DECODED? ", *use.get());
 
   if (to_decode.count(&use) > 0) {
-    println("  YES");
+    debugln("  YES");
     return true;
   }
 
   if (visited.count(&use) > 0) {
-    println("  YES");
+    debugln("  YES");
     return true;
   } else {
     visited.insert(&use);
@@ -1394,14 +1405,14 @@ static bool used_value_will_be_decoded(llvm::Use &use,
 
   auto *value = use.get();
   if (auto *phi = dyn_cast<llvm::PHINode>(value)) {
-    println("  RECURSE");
+    debugln("  RECURSE");
     bool all_decoded = true;
     for (auto &incoming : phi->incoming_values()) {
       all_decoded &= used_value_will_be_decoded(incoming, to_decode, visited);
     }
     return all_decoded;
   } else if (auto *select = dyn_cast<llvm::SelectInst>(value)) {
-    println("  RECURSE");
+    debugln("  RECURSE");
     return used_value_will_be_decoded(select->getOperandUse(1),
                                       to_decode,
                                       visited)
@@ -1413,13 +1424,13 @@ static bool used_value_will_be_decoded(llvm::Use &use,
         MEMOIR_SANITIZE(arg->getParent(), "Argument has no parent function!");
     if (auto *fold = FoldInst::get_single_fold(func)) {
       if (auto *operand_use = fold->getOperandForArgument(*arg)) {
-        println("  RECURSE");
+        debugln("  RECURSE");
         return used_value_will_be_decoded(*operand_use, to_decode, visited);
       }
     }
   }
 
-  println("  NO");
+  debugln("  NO");
   return false;
 }
 
@@ -1480,7 +1491,7 @@ public:
     os << value << " IN " << parent_function(value)->getName() << "\n";
 
     for (auto *use : uses) {
-      os << "  " << *use->getUser() << "\n";
+      os << "  OP" << use->getOperandNo() << " IN " << *use->getUser() << "\n";
     }
 
     return os;
@@ -1490,8 +1501,7 @@ public:
 static void sort_in_level_order(vector<llvm::Use *> &uses,
                                 llvm::DominatorTree &DT) {
 
-  // Sort the uses in level order of the dominator tree, this will
-  // ensure that we don't miss opportunities later on.
+  // First, sort the uses in level order of the dominator tree.
   std::sort(uses.begin(), uses.end(), [&DT](llvm::Use *lhs, llvm::Use *rhs) {
     // Get the user instructions.
     auto *lhs_inst = cast<llvm::Instruction>(lhs->getUser());
@@ -1501,11 +1511,6 @@ static void sort_in_level_order(vector<llvm::Use *> &uses,
     auto *lhs_block = lhs_inst->getParent();
     auto *rhs_block = rhs_inst->getParent();
 
-    // Total order within a basic block.
-    if (lhs_block == rhs_block) {
-      return DT.dominates(lhs_inst, rhs_inst);
-    }
-
     // Partial domtree level order between basic block.
     auto *lhs_node = DT[lhs_block];
     auto *rhs_node = DT[rhs_block];
@@ -1513,7 +1518,20 @@ static void sort_in_level_order(vector<llvm::Use *> &uses,
     MEMOIR_ASSERT(lhs_node, "LHS NODE = NULL");
     MEMOIR_ASSERT(rhs_node, "RHS NODE = NULL");
 
-    return lhs_node->getLevel() < rhs_node->getLevel();
+    auto lhs_level = lhs_node->getLevel();
+    auto rhs_level = rhs_node->getLevel();
+
+    if (lhs_level < rhs_level) {
+      return true;
+    } else if (rhs_level < lhs_level) {
+      return false;
+    }
+
+    if (lhs_block == rhs_block) {
+      return lhs_inst->comesBefore(rhs_inst);
+    }
+
+    return lhs_block < rhs_block;
   });
 
   return;
@@ -1543,6 +1561,15 @@ static void coalesce_by_dominance(
       // Sort the uses in level order of the dominator tree.
       sort_in_level_order(uses, DT);
 
+      println("SORTED");
+      for (auto *use : uses) {
+        auto *user = cast<llvm::Instruction>(use->getUser());
+        println("  LEVEL=",
+                DT[user->getParent()]->getLevel(),
+                " : ",
+                pretty_use(*use));
+      }
+
       // Group together uses that are dominated by one another.
       set<llvm::Use *> visited = {};
       for (auto it = uses.begin(); it != uses.end(); ++it) {
@@ -1561,6 +1588,11 @@ static void coalesce_by_dominance(
         coalesced.emplace_back(use);
         auto &current = coalesced.back();
         current.value(*user);
+
+        // If coalescing is disabled, then don't!
+        if (disable_use_coalescing) {
+          continue;
+        }
 
         // Don't coalesce has operations.
         if (into<HasInst>(user)) {
@@ -1969,6 +2001,26 @@ static void gather_candidate_uses(Candidate &candidate,
   for (const auto &[func, values] : encoded) {
     for (auto *val : values) {
       for (auto &use : val->uses()) {
+        auto *user = use.getUser();
+
+        // If the user is a PHI/Select/Fold _and_ is also encoded, we don't
+        // need to decode it.
+        if (isa<llvm::PHINode>(user) or isa<llvm::SelectInst>(user)) {
+          if (encoded[func].count(user) > 0) {
+            continue;
+          }
+        } else if (auto *fold = into<FoldInst>(user)) {
+          auto *arg = (use == fold->getInitialAsUse())
+                          ? &fold->getAccumulatorArgument()
+                          : fold->getClosedArgument(use);
+          if (encoded[&fold->getBody()].count(arg)) {
+            continue;
+          }
+        } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
+          // TODO
+        }
+
+        // If the user is not an encoded propagator, we need to decode this use.
         to_decode.insert(&use);
       }
     }
@@ -2028,11 +2080,19 @@ bool ProxyInsertion::transform() {
     println();
     println("  before trimming:");
     println("  ", to_encode.size(), " uses to encode");
+    for (auto *use : to_encode) {
+      infoln(pretty_use(*use));
+    }
+    println();
     println("  ", to_decode.size(), " uses to decode");
     for (auto *use : to_decode) {
-      println("    use of ", value_name(*use->get()), " in ", *use->getUser());
+      infoln(pretty_use(*use));
     }
+    println();
     println("  ", to_addkey.size(), " uses to addkey");
+    for (auto *use : to_addkey) {
+      infoln(pretty_use(*use));
+    }
 
     // Trim uses that dont need to be decoded because they are only used to
     // compare against other values that need to be decoded.
@@ -2091,12 +2151,12 @@ bool ProxyInsertion::transform() {
       println("  trimmed:");
       println("  ", trim_to_encode.size(), " uses to encode");
       for (auto *use : trim_to_encode) {
-        infoln("    ", *use->get(), " in ", *use->getUser());
+        infoln(pretty_use(*use));
       }
 
       println("  ", trim_to_decode.size(), " uses to decode");
       for (auto *use : trim_to_decode) {
-        infoln("    ", *use->get(), " in ", *use->getUser());
+        infoln(pretty_use(*use));
       }
     }
 
@@ -2104,17 +2164,17 @@ bool ProxyInsertion::transform() {
       println("  after trimming:");
       println("  ", to_encode.size(), " uses to encode");
       for (auto *use : to_encode) {
-        infoln("    ", *use->get(), " in ", *use->getUser());
+        infoln(pretty_use(*use));
       }
 
       println("  ", to_decode.size(), " uses to decode");
       for (auto *use : to_decode) {
-        infoln("    ", *use->get(), " in ", *use->getUser());
+        infoln(pretty_use(*use));
       }
 
       println("  ", to_addkey.size(), " uses to addkey");
       for (auto *use : to_addkey) {
-        infoln("    ", *use->get(), " in ", *use->getUser());
+        infoln(pretty_use(*use));
       }
     }
 
