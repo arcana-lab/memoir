@@ -127,5 +127,14 @@ inline std::string value_name(const llvm::Value &V) {
   return str;
 }
 
+inline std::string pretty_use(const llvm::Use &use) {
+  std::string str;
+  llvm::raw_string_ostream os(str);
+  os << "OP " << use.getOperandNo() << " ";
+  os << "(" << value_name(*use.get()) << ") ";
+  os << "IN " << *use.getUser();
+  return str;
+}
+
 } // namespace llvm::memoir
 #endif
