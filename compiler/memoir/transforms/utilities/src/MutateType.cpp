@@ -14,7 +14,8 @@ namespace llvm::memoir {
 enum DifferenceKind : uint8_t {
   NoDifference = 0,
   TypeDiffers = 1 << 0,
-  SelectionDiffers = 1 << 1,
+  CollectionDiffers = 1 << 1,
+  SelectionDiffers = 1 << 2,
 };
 
 inline DifferenceKind operator|(DifferenceKind lhs, DifferenceKind rhs) {
@@ -46,6 +47,11 @@ public:
            != DifferenceKind::NoDifference;
   }
 
+  bool collection_differs() const {
+    return (this->_kind & DifferenceKind::CollectionDiffers)
+           != DifferenceKind::NoDifference;
+  }
+
   bool selection_differs() const {
     return (this->_kind & DifferenceKind::SelectionDiffers)
            != DifferenceKind::NoDifference;
@@ -74,6 +80,9 @@ public:
     os << "DIFFERS:";
     if (diff.type_differs()) {
       os << " type";
+    }
+    if (diff.collection_differs()) {
+      os << " collection";
     }
     if (diff.selection_differs()) {
       os << " selection";
@@ -234,6 +243,22 @@ static void type_differences(Differences &differences,
   }
 
   // If we are switching from assoc -> sequence
+  if (auto *base_assoc = dyn_cast<AssocType>(&base)) {
+    if (auto *other_seq = dyn_cast<SequenceType>(&other)) {
+      auto &base_elem = base_assoc->getElementType();
+      auto &other_elem = other_seq->getElementType();
+
+      vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
+
+      nested_offsets.push_back(ELEMS);
+      type_differences(differences, nested_offsets, base_elem, other_elem);
+      nested_offsets.pop_back();
+
+      differences.emplace_back(DifferenceKind::CollectionDiffers, offsets);
+
+      return;
+    }
+  }
 
   // Or from sequence -> assoc
 
@@ -538,7 +563,7 @@ static void update_accesses(llvm::Value &V, Type &type) {
   for (auto &use : V.uses()) {
     if (auto *access = into<AccessInst>(use.getUser())) {
 
-      // We only need to update read/write since they are typed.
+      // Handle read/write accesses together.
       auto *read = dyn_cast<ReadInst>(access);
       auto *write = dyn_cast<WriteInst>(access);
       if (not(read or write)) {
@@ -576,6 +601,67 @@ static void update_accesses(llvm::Value &V, Type &type) {
   return;
 }
 
+static void update_has(const NestedInfo &info,
+                       llvm::ArrayRef<unsigned> diff_offsets) {
+  auto &value = info.value();
+
+  set<llvm::Instruction *> to_cleanup = {};
+
+  for (auto &use : value.uses()) {
+    auto *user = dyn_cast<llvm::Instruction>(use.getUser());
+    if (not user) {
+      continue;
+    }
+
+    if (auto *has = into<HasInst>(user)) {
+
+      // Check that the operation is at the correct offset.
+      bool matches = true;
+      auto remaining_offsets = diff_offsets;
+      for (auto offset : info.offsets()) {
+        if (offset == remaining_offsets.front()) {
+          matches = false;
+          break;
+        }
+        remaining_offsets = remaining_offsets.drop_front();
+      }
+
+      if (not matches) {
+        continue;
+      }
+
+      // Check if the indices match the difference offset.
+      // If they don't, SKIP.
+      auto distance = has->match_offsets(remaining_offsets);
+      if (not distance and distance.value() < remaining_offsets.size()) {
+        continue;
+      }
+
+      // REWRITE has(c, k) => k < size(c)
+      MemOIRBuilder builder(*has);
+
+      auto &object = has->getObject();
+      vector<llvm::Value *> indices(has->indices_begin(), has->indices_end());
+      auto *last_index = indices.back();
+      indices.pop_back();
+
+      auto *size =
+          &builder.CreateSizeInst(&object, indices, "has.")->getCallInst();
+
+      auto *cmp = builder.CreateICmpULT(last_index, size, "has.");
+
+      has->asValue().replaceAllUsesWith(cmp);
+
+      to_cleanup.insert(user);
+    }
+  }
+
+  for (auto *inst : to_cleanup) {
+    inst->removeFromParent();
+    inst->dropAllReferences();
+  }
+}
+
 static void find_arguments(map<llvm::Argument *, Type *> &args_to_mutate,
                            const NestedInfo &info,
                            Differences &diffs,
@@ -596,10 +682,18 @@ static void find_arguments(map<llvm::Argument *, Type *> &args_to_mutate,
         auto *key_diff = diffs.find(offsets);
         if (key_diff and key_diff->type_differs()) {
           auto &key_arg = fold->getIndexArgument();
-          auto &assoc_type = MEMOIR_SANITIZE(
-              dyn_cast<AssocType>(&key_diff->convert_type(nested_type)),
-              "Key difference in non-assoc collection!");
-          args_to_mutate[&key_arg] = &assoc_type.getKeyType();
+
+          Type *converted_key_type = nullptr;
+          auto &converted_type = key_diff->convert_type(nested_type);
+          if (auto *assoc_type = dyn_cast<AssocType>(&converted_type)) {
+            converted_key_type = &assoc_type->getKeyType();
+          } else if (auto *seq_type = dyn_cast<SequenceType>(&converted_type)) {
+            auto &module = MEMOIR_SANITIZE(fold->getModule(),
+                                           "FoldInst has no parent module!");
+            converted_key_type = &Type::get_size_type(module.getDataLayout());
+          }
+
+          args_to_mutate[&key_arg] = converted_key_type;
         }
 
         // Check for value type differences.
@@ -724,10 +818,12 @@ void mutate_type(AllocInst &alloc, Type &type, OnFuncClone on_func_clone) {
 
   // Aggregate all of the differences that we have.
   bool type_differs = false;
+  bool collection_differs = false;
   bool selection_differs = false;
   for (auto &diff : differences) {
 
     type_differs |= diff.type_differs();
+    collection_differs |= diff.collection_differs();
     selection_differs |= diff.selection_differs();
 
     debugln(diff);
@@ -769,6 +865,20 @@ void mutate_type(AllocInst &alloc, Type &type, OnFuncClone on_func_clone) {
     debugln("Done updating accesses.");
   } else {
     debugln("No accesses to update.");
+  }
+
+  if (collection_differs) {
+
+    // Update the allocation to take a size.
+
+    for (auto &diff : differences) {
+      if (diff.collection_differs()) {
+        // Update any has operations to be bounds checks.
+        for (auto &info : redefs) {
+          update_has(info, diff.offsets());
+        }
+      }
+    }
   }
 
   // Update any type differences for function arguments.
