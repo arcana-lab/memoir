@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <numeric>
 
 #include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/Verifier.h"
@@ -1477,7 +1478,7 @@ public:
   CoalescedUses(llvm::Use *use) : Base{ use }, _value(use->get()) {}
   CoalescedUses(llvm::ArrayRef<llvm::Use *> uses)
     : Base(uses.begin(), uses.end()),
-      _value(uses[0]->get()) {}
+      _value(uses.front()->get()) {}
 
   llvm::Value &value() const {
     return *this->_value;
@@ -1580,7 +1581,6 @@ static void coalesce_by_dominance(
         // Add a new coalesced use.
         coalesced.emplace_back(use);
         auto &current = coalesced.back();
-        current.value(*user);
 
         // If coalescing is disabled, then don't!
         if (disable_use_coalescing) {
@@ -1851,6 +1851,82 @@ static void inject(
   return;
 }
 
+bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {
+
+  auto *inst = dyn_cast<llvm::Instruction>(&value);
+  llvm::BasicBlock *value_bb = nullptr;
+  if (inst) {
+    value_bb = inst->getParent();
+  } else if (auto *arg = dyn_cast<llvm::Argument>(&value)) {
+    auto *func = arg->getParent();
+    value_bb = &func->getEntryBlock();
+  } else {
+    MEMOIR_UNREACHABLE("Unhandled value: ", value);
+  }
+
+  auto *user_bb = insert.getParent();
+
+  // If the value and user are in the same basic block, then it will definitely
+  // be used.
+  if (value_bb == user_bb) {
+    return true;
+  }
+
+  // If the use postdominates the value definition.
+  auto *func = user_bb->getParent();
+
+  // Check if the every path from the value must include the insert instruction,
+  // a has instruction equivalent to the inserted key, or is unreachable.
+  bool will_be_inserted = true;
+  WorkList<llvm::BasicBlock *> worklist = { value_bb };
+  while (not worklist.empty()) {
+    auto *bb = worklist.pop();
+
+    // If we hit the insert, then this path hits the insert.
+    if (bb == user_bb) {
+      continue;
+    }
+
+    auto *terminator = bb->getTerminator();
+    if (isa<llvm::UnreachableInst>(terminator)) {
+      // If this path is unreachable, then yippee!
+      continue;
+    } else if (isa<llvm::ReturnInst>(terminator)) {
+      // If we found a return, then we didn't insert along this path!
+      will_be_inserted = false;
+      break;
+    } else if (auto *branch = dyn_cast<llvm::BranchInst>(terminator)) {
+      // Check if this branch checks if we have already inserted this value.
+      if (auto *cond = branch->getCondition()) {
+        if (auto *has = into<HasInst>(cond)) {
+          // Check if the offsets match.
+          if (&insert.getObject() == &has->getObject()
+              and std::equal(insert.indices_begin(),
+                             insert.indices_end(),
+                             has->indices_begin(),
+                             has->indices_end())) {
+            // Enqueue the false branch.
+            worklist.push(branch->getSuccessor(1));
+            continue;
+          }
+        }
+      }
+
+      // Enqueue all successors.
+      for (auto *succ : branch->successors()) {
+        worklist.push(succ);
+      }
+    }
+  }
+
+  if (will_be_inserted) {
+    return true;
+  }
+
+  // Otherwise, we can't guarantee the value will be present.
+  return false;
+}
+
 bool is_total_proxy(ObjectInfo &info, const vector<CoalescedUses> &added) {
 
   println();
@@ -1876,6 +1952,8 @@ bool is_total_proxy(ObjectInfo &info, const vector<CoalescedUses> &added) {
   // Check that for each addkey use, this object is inserted into.
   // Also, ensure that the encoded value is in a control flow equivalent block
   // to the uses.
+  set<llvm::Value *> values_added = {};
+  set<llvm::Value *> values_needed = {};
   for (auto &uses : added) {
     auto &value = uses.value();
     auto &encoded =
@@ -1884,14 +1962,11 @@ bool is_total_proxy(ObjectInfo &info, const vector<CoalescedUses> &added) {
                         value,
                         " is not an instruction! Something went wrong.");
 
+    values_needed.insert(&value);
+
     bool found_use = false;
     for (auto *use : uses) {
       auto *user = use->getUser();
-
-      // In combination with the singular check, this is a sufficient check.
-      if (not info.is_redefinition(value)) {
-        continue;
-      }
 
       if (auto *access = into<AccessInst>(user)) {
 
@@ -1912,15 +1987,17 @@ bool is_total_proxy(ObjectInfo &info, const vector<CoalescedUses> &added) {
         }
 
         // Ensure that this access is control equivalent to the encoded value.
-        // NOTE: we will be conservative here and just check that they are in
-        // the same basic block.
-        if (encoded.getParent() != access->getParent()) {
-          println("NO, not control equivalent");
-          return false;
+        if (auto *insert = dyn_cast<InsertInst>(access)) {
+          if (not value_will_be_inserted(value, *insert)) {
+            println("NO, not control equivalent");
+            return false;
+          }
         }
 
         // Otherwise, we found a valid use.
         found_use = true;
+
+        values_added.insert(&value);
 
       } else {
         // Skip non-accesses.
@@ -1929,11 +2006,25 @@ bool is_total_proxy(ObjectInfo &info, const vector<CoalescedUses> &added) {
     }
 
     // If we failed to find a use, then the check fails.
+#if 0
     if (not found_use) {
       println("NO, failed to find use of addkey for: ");
       println("  ", value);
-      return false;
     }
+#endif
+  }
+
+  // Check if we have added all needed values.
+  auto added_all_needed =
+      std::accumulate(values_needed.begin(),
+                      values_needed.end(),
+                      true,
+                      [&](bool needed, llvm::Value *val) {
+                        return needed and values_added.count(val);
+                      });
+  if (not added_all_needed) {
+    println("NO, did not add all needed values.");
+    return false;
   }
 
   // If we got this far, then we're good to go!
@@ -1942,6 +2033,13 @@ bool is_total_proxy(ObjectInfo &info, const vector<CoalescedUses> &added) {
 }
 
 Type &convert_to_sequence_type(Type &base, llvm::ArrayRef<unsigned> offsets) {
+
+  println("CONVERT TO SEQUENCE:");
+  println(base);
+  for (auto offset : offsets) {
+    print(offset, ", ");
+  }
+  println();
 
   if (auto *tuple_type = dyn_cast<TupleType>(&base)) {
 
@@ -1965,7 +2063,9 @@ Type &convert_to_sequence_type(Type &base, llvm::ArrayRef<unsigned> offsets) {
 
     // If the offsets are empty, replace the keys.
     if (offsets.empty()) {
-      return SequenceType::get(assoc_type->getValueType());
+      auto &converted = SequenceType::get(assoc_type->getValueType());
+      println("CONVERTED: ", converted);
+      return converted;
     }
 
     return AssocType::get(assoc_type->getKeyType(),
@@ -2399,12 +2499,10 @@ bool ProxyInsertion::transform() {
       }
       auto &type = types_to_mutate[alloc];
 
-      if (is_total_proxy(*info, added)) {
-        println(Style::BOLD, Colors::GREEN, "FOUND TOTAL PROXY");
-      }
-
       // If the object is a total proxy, update it to be a sequence.
-      if (false and is_total_proxy(*info, added)) {
+      if (is_total_proxy(*info, added)) {
+
+        println(Style::BOLD, Colors::GREEN, "FOUND TOTAL PROXY", Style::RESET);
 
         type = &convert_to_sequence_type(*type, info->offsets);
 
