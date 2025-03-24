@@ -50,7 +50,7 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
                   param_index,
                   " out of bounds in ",
                   function_name);
-    auto *param_type = function_type->getParamType(param_index++);
+    auto *param_type = function_type->getParamType(param_index);
 
     // If the argument doesn't match the parameter's type, prepare it.
     auto *arg_type = arg->getType();
@@ -70,6 +70,8 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
                            param_index);
       }
     }
+
+    ++param_index;
   }
 
   return callee;
@@ -246,7 +248,8 @@ llvm::Value &construct_collection_allocation(
 
     // If the nested element is a collection and this collection is a
     // sequence, construct a for loop to initialize its elements.
-    if (nested_type and isa<SequenceType>(collection_type)) {
+    if (nested_type and isa<SequenceType>(collection_type)
+        and size_it != dim_size_it) {
 
       // For:
       // A = alloc(N, M)
