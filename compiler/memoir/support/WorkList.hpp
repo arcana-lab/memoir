@@ -18,6 +18,11 @@ protected:
 
 public:
   WorkList() : _items{}, _present{} {}
+  WorkList(std::initializer_list<T> init) : WorkList() {
+    for (const auto &val : init) {
+      this->push(val);
+    }
+  }
 
   bool present(const T &val) {
     return this->_present.count(val) > 0;
