@@ -294,12 +294,12 @@ static void gather_base_redefinitions(set<llvm::Value *> &redefs,
 
     if (auto *memoir = into<MemOIRInst>(user)) {
       if (auto *update = dyn_cast<UpdateInst>(memoir)) {
-        if (update->getObjectAsUse() == use) {
+        if (&use == &update->getObjectAsUse()) {
           gather_base_redefinitions(redefs, update->getResult());
         }
 
       } else if (auto *fold = dyn_cast<FoldInst>(memoir)) {
-        if (use == fold->getInitialAsUse()) {
+        if (&use == &fold->getInitialAsUse()) {
           gather_base_redefinitions(redefs, fold->getAccumulatorArgument());
           gather_base_redefinitions(redefs, fold->getResult());
 
@@ -418,7 +418,7 @@ static void gather_nested_redefinitions(ordered_set<NestedInfo> &redefs,
 
     if (auto *memoir = into<MemOIRInst>(user)) {
       if (auto *fold = dyn_cast<FoldInst>(memoir)) {
-        if (fold->getObjectAsUse() == use) {
+        if (&fold->getObjectAsUse() == &use) {
 
           // Fetch the element argument of the fold.
           // If it doesn't exist, then we have nothing to propagate.
@@ -463,6 +463,8 @@ static void gather_nested_redefinitions(ordered_set<NestedInfo> &redefs,
           if (not Type::is_primitive_type(elem_type)) {
             gather_nested_redefinitions(redefs, visited, *arg, nested_offsets);
           }
+        } else if (auto *closed_arg = fold->getClosedArgument(use)) {
+          gather_nested_redefinitions(redefs, visited, *closed_arg, offsets);
         }
       }
     } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
@@ -549,7 +551,7 @@ static void update_assertions(llvm::Value &V, Type &type) {
 
       assertion->getTypeOperandAsUse().set(type_value);
 
-      debugln("Updated assertion for ",
+      println("Updated assertion for ",
               V,
               " in ",
               assertion->getFunction()->getName());
@@ -615,7 +617,13 @@ static void update_has(const NestedInfo &info,
 
     if (auto *has = into<HasInst>(user)) {
 
+      println(*has);
+
       // Check that the operation is at the correct offset.
+      if (info.offsets().size() != diff_offsets.size()) {
+        continue;
+      }
+
       bool matches = true;
       auto remaining_offsets = diff_offsets;
       for (auto offset : info.offsets()) {
@@ -672,7 +680,7 @@ static void find_arguments(map<llvm::Argument *, Type *> &args_to_mutate,
   // Find fold operations on this collection.
   for (auto &use : info.value().uses()) {
     if (auto *fold = into<FoldInst>(use.getUser())) {
-      if (use == fold->getObjectAsUse()) {
+      if (&use == &fold->getObjectAsUse()) {
 
         // Gather the offsets for the fold.
         vector<unsigned> offsets(info.offsets().begin(), info.offsets().end());
