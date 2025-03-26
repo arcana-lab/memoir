@@ -420,7 +420,7 @@ static void gather_uses_to_proxy(
     map<llvm::Function *, set<llvm::Use *>> &to_encode,
     map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
 
-  infoln("REDEF ", V);
+  println("REDEF ", V);
 
   auto *function = parent_function(V);
   MEMOIR_ASSERT(function, "Gathering uses of value with no parent function!");
@@ -430,68 +430,66 @@ static void gather_uses_to_proxy(
   for (auto &use : V.uses()) {
     auto *user = use.getUser();
 
-    infoln("  USER ", *user);
+    println("  USER ", *user);
 
-    if (auto *fold = into<FoldInst>(user)) {
+    if (auto *access = into<AccessInst>(user)) {
 
-      if (use == fold->getObjectAsUse()) {
-
-        // If we find an index use, encode it.
-        if (auto *index_use = get_index_use(*fold, offsets)) {
-          infoln("    ENCODING INDEX");
-          to_encode[function].insert(index_use);
-
-        } else {
-
-          // If the offset is exactly equal to the keys being folded over,
-          // decode the index argument of the body.
-          auto distance = fold->match_offsets(offsets);
-
-          if (not distance) {
-            // Do nothing.
-          }
-
-          // If the offsets are fully exhausted, add uses of the index
-          // argument to the set of uses to decode.
-          else if (distance.value() == offsets.size()) {
-            auto &index_arg = fold->getIndexArgument();
-            infoln("    DECODING KEY ",
-                   index_arg,
-                   " IN ",
-                   fold->getBody().getName());
-            encoded[&fold->getBody()].insert(&index_arg);
-          }
-
-          // If the offsets are not fully exhausted, recurse on the value
-          // argument.
-          else if (distance.value() < offsets.size()) {
-            if (auto *elem_arg = fold->getElementArgument()) {
-              infoln("    RECURSING");
-              gather_uses_to_proxy(*elem_arg,
-                                   offsets.drop_front(distance.value() + 1),
-                                   encoded,
-                                   to_encode,
-                                   to_addkey);
-            }
-          }
-        }
+      if (use != access->getObjectAsUse()) {
+        continue;
       }
 
-    } else if (auto *access = into<AccessInst>(user)) {
+      // Check that the access matches the offsets.
+      auto maybe_distance = access->match_offsets(offsets);
+      if (not maybe_distance) {
+        continue; // Do nothing.
+      }
+      auto distance = maybe_distance.value();
 
-      if (use == access->getObjectAsUse()) {
-        // Find the index use for the given offset and mark it for decoding.
-        if (auto *index_use = get_index_use(*access, offsets)) {
-          if (isa<InsertInst>(access)) {
-            if (is_last_index(index_use, access->index_operands_end())) {
-              infoln("    ADDING KEY ", *index_use->get());
-              to_addkey[function].insert(index_use);
-              continue;
-            }
+      println("DISTANCE = ", distance, " |OFFSETS| = ", offsets.size());
+
+      // If we find the index to handle in the indices list, then mark it for
+      // encoding and continue;.
+      if (auto *index_use = get_index_use(*access, offsets)) {
+        if (isa<InsertInst>(access)) {
+          if (is_last_index(index_use, access->index_operands_end())) {
+            println("    ADDING KEY ", *index_use->get());
+            to_addkey[function].insert(index_use);
+            continue;
           }
+        }
 
-          infoln("    ENCODING KEY ", *index_use->get());
-          to_encode[function].insert(index_use);
+        println("    ENCODING KEY ", *index_use->get());
+        to_encode[function].insert(index_use);
+        continue;
+      }
+
+      // Handle fold instructions especial.
+      if (auto *fold = dyn_cast<FoldInst>(access)) {
+
+        // If the offset is exactly equal to the keys being folded over,
+        // decode the index argument of the body.
+        // If the offsets are fully exhausted, add uses of the index
+        // argument to the set of uses to decode.
+        if (distance == offsets.size()) {
+          auto &index_arg = fold->getIndexArgument();
+          println("    DECODING KEY ",
+                  index_arg,
+                  " IN ",
+                  fold->getBody().getName());
+          encoded[&fold->getBody()].insert(&index_arg);
+        }
+
+        // If the offsets are not fully exhausted, recurse on the value
+        // argument.
+        else if (distance < offsets.size()) {
+          if (auto *elem_arg = fold->getElementArgument()) {
+            println("    RECURSING");
+            gather_uses_to_proxy(*elem_arg,
+                                 offsets.drop_front(distance + 1),
+                                 encoded,
+                                 to_encode,
+                                 to_addkey);
+          }
         }
       }
     }
@@ -600,12 +598,14 @@ bool ObjectInfo::is_propagator() const {
 }
 
 void ObjectInfo::analyze() {
-  infoln();
-  infoln("ANALYZING ", *this);
+  println();
+  println("ANALYZING ", *this);
 
-  gather_redefinitions(this->allocation->getCallInst(), this->redefinitions);
+  gather_redefinitions(this->allocation->asValue(), this->redefinitions);
 
   bool is_propagator = this->is_propagator();
+
+  println("PROPAGATOR? ", is_propagator ? "YES" : "NO");
 
   for (const auto &[func, redefs] : this->redefinitions) {
     for (auto *redef : redefs) {
@@ -625,20 +625,19 @@ void ObjectInfo::analyze() {
     }
   }
 
-#if 0
   for (const auto &[func, redefs] : this->redefinitions) {
-  infoln("IN ", func->getName());
+    println("IN ", func->getName());
     for (auto *redef : redefs) {
-      infoln("  REDEF ", *redef);
+      println("  REDEF ", *redef);
     }
   }
-#endif
 
-  infoln();
+  println();
 }
 
 Type &ObjectInfo::get_type() const {
   auto *type = &this->allocation->getType();
+
   for (auto offset : this->offsets) {
     if (auto *tuple_type = dyn_cast<TupleType>(type)) {
       type = &tuple_type->getFieldType(offset);
