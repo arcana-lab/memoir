@@ -118,16 +118,121 @@ void ObjectInfo::update(llvm::Function &old_func,
   return;
 }
 
+static uint32_t forward_analysis(
+    map<llvm::Function *, set<llvm::Value *>> &encoded) {
+
+  uint32_t count = 0;
+
+  WorkList<llvm::Value *> worklist;
+
+  for (auto &[func, values] : encoded) {
+    worklist.push(values.begin(), values.end());
+  }
+
+  while (not worklist.empty()) {
+    auto *val = worklist.pop();
+
+    auto *func = parent_function(*val);
+    auto &local_encoded = encoded[func];
+
+    for (auto &use : val->uses()) {
+      auto *user = use.getUser();
+
+      if (local_encoded.count(user)) {
+        continue;
+      }
+
+      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+        bool all_encoded = true;
+        for (auto &incoming : phi->incoming_values()) {
+          if (local_encoded.count(incoming.get()) == 0) {
+            all_encoded = false;
+            break;
+          }
+        }
+
+        if (all_encoded) {
+          local_encoded.insert(phi);
+          worklist.push(phi);
+          ++count;
+        }
+
+      } else if (auto *select = dyn_cast<llvm::SelectInst>(user)) {
+        auto *lhs = select->getTrueValue();
+        auto *rhs = select->getFalseValue();
+
+        if (local_encoded.count(lhs) and local_encoded.count(rhs)) {
+          local_encoded.insert(select);
+          worklist.push(select);
+          ++count;
+        }
+
+      } else if (auto *fold = into<FoldInst>(user)) {
+        auto &body = fold->getBody();
+        auto &body_encoded = encoded[&body];
+
+        if (use == fold->getInitialAsUse()) {
+          auto &accum_arg = fold->getAccumulatorArgument();
+
+          if (body_encoded.count(&accum_arg) > 0) {
+            continue;
+          }
+
+          // Check if the return value of the fold is encoded.
+          bool return_encoded = true;
+          for (auto &BB : body) {
+            if (auto *ret = dyn_cast<llvm::ReturnInst>(BB.getTerminator())) {
+              auto *ret_val = ret->getReturnValue();
+              if (local_encoded.count(ret_val) == 0) {
+                return_encoded = false;
+              }
+            }
+          }
+
+          if (return_encoded) {
+            body_encoded.insert(&accum_arg);
+            worklist.push(&accum_arg);
+            ++count;
+          }
+
+        } else if (auto *closed_arg = fold->getClosedArgument(use)) {
+          if (body_encoded.count(closed_arg) > 0) {
+            continue;
+          }
+
+          body_encoded.insert(closed_arg);
+          worklist.push(closed_arg);
+          ++count;
+        }
+      }
+    }
+  }
+
+  return count;
+}
+
 uint32_t ObjectInfo::compute_heuristic(const ObjectInfo &other) const {
   uint32_t benefit = 0;
-  for (const auto &[func, encoded] : this->encoded) {
+
+  // Merge the encoded values of both and perform a forward analysis.
+  map<llvm::Function *, set<llvm::Value *>> merged = {};
+  for (const auto &[func, values] : this->encoded) {
+    merged[func].insert(values.begin(), values.end());
+  }
+  for (const auto &[func, values] : other.encoded) {
+    merged[func].insert(values.begin(), values.end());
+  }
+
+  forward_analysis(merged);
+
+  for (const auto &[func, encoded] : merged) {
     for (const auto *value : encoded) {
 
       for (auto &use_to_decode : value->uses()) {
 
         auto *user = use_to_decode.getUser();
 
-        if (other.to_encode.count(func) > 0) {
+        if (other.to_encode.count(func)) {
           for (const auto *use_to_encode : other.to_encode.at(func)) {
             if (&use_to_decode == use_to_encode) {
               ++benefit;
@@ -135,7 +240,7 @@ uint32_t ObjectInfo::compute_heuristic(const ObjectInfo &other) const {
           }
         }
 
-        if (other.to_addkey.count(func) > 0) {
+        if (other.to_addkey.count(func)) {
           for (const auto *use_to_addkey : other.to_addkey.at(func)) {
             if (&use_to_decode == use_to_addkey) {
               ++benefit;
@@ -143,7 +248,7 @@ uint32_t ObjectInfo::compute_heuristic(const ObjectInfo &other) const {
           }
         }
 
-        if (other.encoded.count(func) > 0) {
+        if (other.encoded.count(func)) {
           auto *cmp = dyn_cast<llvm::CmpInst>(user);
           if (cmp and cmp->isEquality()) {
             if (other.encoded.at(func).count(cmp->getOperand(0))) {
@@ -274,7 +379,7 @@ static llvm::Use *get_index_use(AccessInst &access,
       return nullptr;
     }
 
-    if (auto *struct_type = dyn_cast<TupleType>(type)) {
+    if (auto *tuple_type = dyn_cast<TupleType>(type)) {
 
       auto &index_use = *index_it;
       auto &index_const =
@@ -287,7 +392,7 @@ static llvm::Use *get_index_use(AccessInst &access,
       }
 
       // Get the inner type.
-      type = &struct_type->getFieldType(offset);
+      type = &tuple_type->getFieldType(offset);
 
     } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
       // Get the inner type.
@@ -350,7 +455,10 @@ static void gather_uses_to_proxy(
           // argument to the set of uses to decode.
           else if (distance.value() == offsets.size()) {
             auto &index_arg = fold->getIndexArgument();
-            infoln("    DECODING KEY");
+            infoln("    DECODING KEY ",
+                   index_arg,
+                   " IN ",
+                   fold->getBody().getName());
             encoded[&fold->getBody()].insert(&index_arg);
           }
 
@@ -416,8 +524,11 @@ static void gather_uses_to_propagate(
 
     if (auto *access = into<AccessInst>(user)) {
 
+      infoln("    ACCESS");
+
       // Ensure that the use is the object being accessed.
       if (use != access->getObjectAsUse()) {
+        infoln("    Not object use");
         continue;
       }
 
@@ -426,34 +537,35 @@ static void gather_uses_to_propagate(
 
       // If the indices don't match, skip.
       if (not maybe_distance) {
+        infoln("    Offsets don't match");
         continue;
       }
 
       auto distance = maybe_distance.value();
 
-      if (auto *fold = dyn_cast<FoldInst>(access)) {
-        if (use == fold->getObjectAsUse()) {
-          // If the offsets are fully exhausted, add uses of the index
-          // argument to the set of uses to decode.
-          // TODO: may need to do size+1
-          if ((distance + 1) == offsets.size()) {
-            if (auto *elem_arg = fold->getElementArgument()) {
-              infoln("    DECODING ELEM");
-              encoded[&fold->getBody()].insert(elem_arg);
-            }
-          }
+      infoln("  DIST = ", distance, "  OFFSETS = ", offsets.size());
 
-          // If the offsets are not fully exhausted, recurse on the value
-          // argument.
-          else if (distance < offsets.size()) {
-            if (auto *elem_arg = fold->getElementArgument()) {
-              infoln("    RECURSING");
-              gather_uses_to_propagate(*elem_arg,
-                                       offsets.drop_front(distance + 1),
-                                       encoded,
-                                       to_encode,
-                                       to_addkey);
-            }
+      if (auto *fold = dyn_cast<FoldInst>(access)) {
+        // If the offsets are fully exhausted, add uses of the index
+        // argument to the set of uses to decode.
+        // TODO: may need to do size+1
+        if ((distance + 1) == offsets.size()) {
+          if (auto *elem_arg = fold->getElementArgument()) {
+            infoln("    DECODING ELEM");
+            encoded[&fold->getBody()].insert(elem_arg);
+          }
+        }
+
+        // If the offsets are not fully exhausted, recurse on the value
+        // argument.
+        else if ((distance + 1) < offsets.size()) {
+          if (auto *elem_arg = fold->getElementArgument()) {
+            infoln("    RECURSING");
+            gather_uses_to_propagate(*elem_arg,
+                                     offsets.drop_front(distance + 1),
+                                     encoded,
+                                     to_encode,
+                                     to_addkey);
           }
         }
 
@@ -515,7 +627,7 @@ void ObjectInfo::analyze() {
 
 #if 0
   for (const auto &[func, redefs] : this->redefinitions) {
-    infoln("IN ", func->getName());
+  infoln("IN ", func->getName());
     for (auto *redef : redefs) {
       infoln("  REDEF ", *redef);
     }
@@ -528,8 +640,8 @@ void ObjectInfo::analyze() {
 Type &ObjectInfo::get_type() const {
   auto *type = &this->allocation->getType();
   for (auto offset : this->offsets) {
-    if (auto *struct_type = dyn_cast<TupleType>(type)) {
-      type = &struct_type->getFieldType(offset);
+    if (auto *tuple_type = dyn_cast<TupleType>(type)) {
+      type = &tuple_type->getFieldType(offset);
     } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
       type = &collection_type->getElementType();
     }
@@ -556,15 +668,15 @@ void ProxyInsertion::gather_assoc_objects(vector<ObjectInfo> &allocations,
                                           Type &type,
                                           vector<unsigned> offsets) {
 
-  if (auto *struct_type = dyn_cast<TupleType>(&type)) {
-    for (unsigned field = 0; field < struct_type->getNumFields(); ++field) {
+  if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
+    for (unsigned field = 0; field < tuple_type->getNumFields(); ++field) {
 
       auto new_offsets = offsets;
       new_offsets.push_back(field);
 
       this->gather_assoc_objects(allocations,
                                  alloc,
-                                 struct_type->getFieldType(field),
+                                 tuple_type->getFieldType(field),
                                  new_offsets);
     }
 
@@ -649,10 +761,10 @@ ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
 
   vector<unsigned> offsets = {};
   for (auto *index : access.indices()) {
-    if (auto *struct_type = dyn_cast<TupleType>(type)) {
+    if (auto *tuple_type = dyn_cast<TupleType>(type)) {
       auto index_const = dyn_cast<llvm::ConstantInt>(index);
       auto field = index_const->getZExtValue();
-      type = &struct_type->getFieldType(field);
+      type = &tuple_type->getFieldType(field);
 
       offsets.push_back(field);
 
@@ -767,99 +879,6 @@ void ProxyInsertion::gather_propagators(
   }
 
   return;
-}
-
-static uint32_t forward_analysis(
-    map<llvm::Function *, set<llvm::Value *>> &encoded) {
-
-  uint32_t count = 0;
-
-  WorkList<llvm::Value *> worklist;
-
-  for (auto &[func, values] : encoded) {
-    worklist.push(values.begin(), values.end());
-  }
-
-  while (not worklist.empty()) {
-    auto *val = worklist.pop();
-
-    auto *func = parent_function(*val);
-    auto &local_encoded = encoded[func];
-
-    for (auto &use : val->uses()) {
-      auto *user = use.getUser();
-
-      if (local_encoded.count(user) > 0) {
-        continue;
-      }
-
-      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-        bool all_encoded = true;
-        for (auto &incoming : phi->incoming_values()) {
-          if (local_encoded.count(incoming.get()) == 0) {
-            all_encoded = false;
-            break;
-          }
-        }
-
-        if (all_encoded) {
-          local_encoded.insert(phi);
-          worklist.push(phi);
-          ++count;
-        }
-
-      } else if (auto *select = dyn_cast<llvm::SelectInst>(user)) {
-        auto *lhs = select->getTrueValue();
-        auto *rhs = select->getFalseValue();
-
-        if (local_encoded.count(lhs) and local_encoded.count(rhs)) {
-          local_encoded.insert(select);
-          worklist.push(select);
-          ++count;
-        }
-
-      } else if (auto *fold = into<FoldInst>(user)) {
-        auto &body = fold->getBody();
-        auto &body_encoded = encoded[&body];
-
-        if (use == fold->getInitialAsUse()) {
-          auto &accum_arg = fold->getAccumulatorArgument();
-
-          if (body_encoded.count(&accum_arg) > 0) {
-            continue;
-          }
-
-          // Check if the return value of the fold is encoded.
-          bool return_encoded = true;
-          for (auto &BB : body) {
-            if (auto *ret = dyn_cast<llvm::ReturnInst>(BB.getTerminator())) {
-              auto *ret_val = ret->getReturnValue();
-              if (local_encoded.count(ret_val) == 0) {
-                return_encoded = false;
-              }
-            }
-          }
-
-          if (return_encoded) {
-            body_encoded.insert(&accum_arg);
-            worklist.push(&accum_arg);
-            ++count;
-          }
-
-        } else if (auto *closed_arg = fold->getClosedArgument(use)) {
-          if (body_encoded.count(closed_arg) > 0) {
-            continue;
-          }
-
-          body_encoded.insert(closed_arg);
-          worklist.push(closed_arg);
-          ++count;
-        }
-      }
-    }
-  }
-
-  return count;
 }
 
 void ProxyInsertion::analyze() {
@@ -1493,7 +1512,13 @@ public:
 
     auto &value = uses.value();
 
-    os << value << " IN " << parent_function(value)->getName() << "\n";
+    os << value;
+
+    if (auto *func = parent_function(value)) {
+      os << " IN " << func->getName();
+    }
+
+    os << "\n";
 
     for (auto *use : uses) {
       os << "  OP" << use->getOperandNo() << " IN " << *use->getUser() << "\n";
@@ -2034,12 +2059,12 @@ bool is_total_proxy(ObjectInfo &info, const vector<CoalescedUses> &added) {
 
 Type &convert_to_sequence_type(Type &base, llvm::ArrayRef<unsigned> offsets) {
 
-  println("CONVERT TO SEQUENCE:");
-  println(base);
+  infoln("CONVERT TO SEQUENCE:");
+  infoln(base);
   for (auto offset : offsets) {
-    print(offset, ", ");
+    info(offset, ", ");
   }
-  println();
+  infoln();
 
   if (auto *tuple_type = dyn_cast<TupleType>(&base)) {
 
@@ -2064,7 +2089,7 @@ Type &convert_to_sequence_type(Type &base, llvm::ArrayRef<unsigned> offsets) {
     // If the offsets are empty, replace the keys.
     if (offsets.empty()) {
       auto &converted = SequenceType::get(assoc_type->getValueType());
-      println("CONVERTED: ", converted);
+      infoln("CONVERTED: ", converted);
       return converted;
     }
 
@@ -2214,8 +2239,8 @@ bool ProxyInsertion::transform() {
 
     // Get the nested object type.
     for (auto offset : first_info->offsets) {
-      if (auto *struct_type = dyn_cast<TupleType>(type)) {
-        type = &struct_type->getFieldType(offset);
+      if (auto *tuple_type = dyn_cast<TupleType>(type)) {
+        type = &tuple_type->getFieldType(offset);
       } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
         type = &collection_type->getElementType();
       } else {
@@ -2245,7 +2270,7 @@ bool ProxyInsertion::transform() {
     println();
     println("  ", to_decode.size(), " uses to decode");
     for (auto *use : to_decode) {
-      infoln(pretty_use(*use));
+      println(pretty_use(*use));
     }
     println();
     println("  ", to_addkey.size(), " uses to addkey");
