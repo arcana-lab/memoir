@@ -550,11 +550,6 @@ static void update_assertions(llvm::Value &V, Type &type) {
       auto *type_value = &builder.CreateTypeInst(type)->getCallInst();
 
       assertion->getTypeOperandAsUse().set(type_value);
-
-      println("Updated assertion for ",
-              V,
-              " in ",
-              assertion->getFunction()->getName());
     }
   }
 
