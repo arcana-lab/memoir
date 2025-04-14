@@ -101,6 +101,8 @@ void lower_memoir(llvm::ModulePassManager &MPM) {
   // memoir-impl-linker
   MPM.addPass(ImplLinkerPass());
 
+  MPM.addPass(ProfileAccessesPass());
+
   // memoir-ssa-destruction
   MPM.addPass(SSADestructionPass());
 

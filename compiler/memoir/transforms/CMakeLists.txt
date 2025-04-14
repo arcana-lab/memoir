@@ -24,6 +24,7 @@ add_subdirectory(type_inference)
 
 # Utility passes.
 add_subdirectory(statistics)
+add_subdirectory(profile_accesses)
 
 # Transformation passes.
 # add_subdirectory(dead_collection_elimination)
