@@ -57,7 +57,7 @@ set_property(TARGET libreify PROPERTY
 ExternalProject_Add(
     noelle
     GIT_REPOSITORY  "https://github.com/arcana-lab/noelle.git"
-    GIT_TAG         v18
+    GIT_TAG         b6b3dda
     LOG_CONFIGURE ON
     LOG_INSTALL ON
     BUILD_COMMAND   ${CMAKE_COMMAND} --build . -j16
