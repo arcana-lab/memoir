@@ -694,8 +694,16 @@ static void find_arguments(map<llvm::Argument *, Type *> &args_to_mutate,
             auto &module = MEMOIR_SANITIZE(fold->getModule(),
                                            "FoldInst has no parent module!");
             converted_key_type = &Type::get_size_type(module.getDataLayout());
+          } else {
+            println("UNHANDLED PARENT TYPE ", converted_type);
           }
 
+          println("KEY  DIFF: ",
+                  key_arg,
+                  " : ",
+                  converted_key_type,
+                  " IN ",
+                  fold->getBody().getName());
           args_to_mutate[&key_arg] = converted_key_type;
         }
 
@@ -704,7 +712,14 @@ static void find_arguments(map<llvm::Argument *, Type *> &args_to_mutate,
           offsets.push_back(ELEMS);
           auto *elem_diff = diffs.find(offsets);
           if (elem_diff and elem_diff->type_differs()) {
-            args_to_mutate[elem_arg] = &elem_diff->convert_type(nested_type);
+            auto &converted_type = elem_diff->convert_type(nested_type);
+            println("ELEM DIFF: ",
+                    *elem_arg,
+                    " : ",
+                    converted_type,
+                    " IN ",
+                    fold->getBody().getName());
+            args_to_mutate[elem_arg] = &converted_type;
           }
         }
       }
@@ -747,9 +762,24 @@ static void update_arguments(ordered_set<NestedInfo> &redefs,
                                 func_type->param_end());
 
     for (auto *arg : args) {
-      auto *arg_type = to_mutate[arg];
-      auto *arg_llvm_type = arg_type->get_llvm_type(context);
-      params[arg->getArgNo()] = arg_llvm_type;
+      auto arg_no = arg->getArgNo();
+      if (arg_no < params.size()) {
+        auto *arg_type = to_mutate[arg];
+        if (not arg_type) {
+          println(*arg,
+                  " in ",
+                  func->getName(),
+                  " is missing type information!");
+        }
+        auto *arg_llvm_type = arg_type->get_llvm_type(context);
+        params[arg_no] = arg_llvm_type;
+      } else {
+        MEMOIR_ASSERT(func_type->isVarArg(),
+                      "Arg ",
+                      arg_no,
+                      " is out of bounds in non-variadic function ",
+                      func->getName());
+      }
     }
 
     auto *new_func_type = llvm::FunctionType::get(func_type->getReturnType(),
