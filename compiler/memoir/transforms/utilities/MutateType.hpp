@@ -6,7 +6,7 @@
 
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/Types.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 namespace llvm::memoir {
 

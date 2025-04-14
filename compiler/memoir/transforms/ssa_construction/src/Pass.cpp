@@ -23,7 +23,7 @@
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/passes/Passes.hpp"
 #include "memoir/support/Assert.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 #include "memoir/support/Timer.hpp"
 #include "memoir/utility/CFGUtils.hpp"

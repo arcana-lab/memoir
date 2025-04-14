@@ -9,7 +9,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"
 

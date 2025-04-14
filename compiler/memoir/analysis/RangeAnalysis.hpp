@@ -15,7 +15,7 @@
 
 #include "memoir/analysis/ValueExpression.hpp"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 /*
  * This file contains a Symbolic, Intraprocedural Range Analysis.

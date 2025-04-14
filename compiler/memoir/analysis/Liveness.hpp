@@ -9,7 +9,7 @@
 
 #include "memoir/passes/Passes.hpp"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"

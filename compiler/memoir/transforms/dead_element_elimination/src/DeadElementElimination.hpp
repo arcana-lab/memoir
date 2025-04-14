@@ -23,7 +23,7 @@
 #include "memoir/analysis/LiveRangeAnalysis.hpp"
 
 #include "memoir/support/Assert.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"

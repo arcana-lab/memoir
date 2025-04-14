@@ -3,7 +3,7 @@
 
 #include "llvm/ADT/ArrayRef.h"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 namespace llvm::memoir {
 

@@ -10,7 +10,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 /*
  * This file provides general utilities for determining if a function is a

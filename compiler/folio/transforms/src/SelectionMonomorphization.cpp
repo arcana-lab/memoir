@@ -6,7 +6,7 @@
 #include "memoir/ir/Instructions.hpp"
 
 #include "memoir/support/Casting.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
 #include "memoir/utility/Metadata.hpp"

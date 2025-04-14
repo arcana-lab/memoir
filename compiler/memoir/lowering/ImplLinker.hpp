@@ -3,7 +3,7 @@
 
 #include "llvm/Support/CommandLine.h"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 #include "memoir/lowering/Implementation.hpp"
 #include "memoir/lowering/TypeLayout.hpp"

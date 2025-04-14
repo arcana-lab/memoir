@@ -2,7 +2,7 @@
 #define FOLIO_PROXYOPPORTUNITY_H
 
 #include "memoir/ir/Instructions.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 #include "folio/opportunities/Opportunity.hpp"
 #include "folio/transforms/Proxy.hpp"

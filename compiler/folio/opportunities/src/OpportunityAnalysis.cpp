@@ -2,7 +2,7 @@
 
 #include "folio/opportunities/Analysis.hpp"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 using namespace llvm::memoir;
 

@@ -14,7 +14,7 @@
 #include "memoir/ir/Builder.hpp"
 
 #include "memoir/support/Casting.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 /*
  * This file contains the Expression class for use in ValueNumbering as an

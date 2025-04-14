@@ -3,7 +3,7 @@
 
 #include "llvm/IR/PassManager.h"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 #include "folio/solver/FormulaEnvironment.hpp"
 #include "folio/solver/Selection.hpp"

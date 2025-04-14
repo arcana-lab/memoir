@@ -16,7 +16,7 @@
 // MEMOIR
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 #include "memoir/support/TypeTraits.hpp"
 
 // Folio

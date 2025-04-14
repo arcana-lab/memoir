@@ -3,7 +3,7 @@
 
 #include <optional>
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 #include "folio/analysis/Content.hpp"
 #include "folio/transforms/Proxy.hpp"

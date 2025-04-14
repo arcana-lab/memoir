@@ -7,7 +7,7 @@
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/Casting.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 #include "folio/transforms/AccessCounter.hpp"
 

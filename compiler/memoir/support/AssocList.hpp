@@ -1,7 +1,7 @@
 #ifndef MEMOIR_SUPPORT_ASSOCLIST_H
 #define MEMOIR_SUPPORT_ASSOCLIST_H
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 namespace llvm::memoir {
 

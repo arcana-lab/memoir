@@ -1,6 +1,6 @@
 #include "llvm/IR/Value.h"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 namespace folio {
 

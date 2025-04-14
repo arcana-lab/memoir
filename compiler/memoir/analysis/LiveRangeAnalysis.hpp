@@ -14,8 +14,8 @@
 
 #include "memoir/analysis/RangeAnalysis.hpp"
 
+#include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Graph.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
 
 namespace llvm::memoir {
 

@@ -5,7 +5,7 @@
 #include <clingo.h>
 
 // MEMOIR
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 // Folio
 #include "folio/analysis/ConstraintInference.hpp"
