@@ -21,9 +21,9 @@ namespace llvm::memoir {
 struct LivenessResult {
   bool is_live(llvm::Value &V, MemOIRInst &I, bool after = true);
   bool is_live(llvm::Value &V, llvm::Instruction &I, bool after = true);
-  set<llvm::Value *> live_values(MemOIRInst &I, bool after = true);
-  set<llvm::Value *> live_values(llvm::Instruction &I, bool after = true);
-  set<llvm::Value *> live_values(llvm::BasicBlock &From, llvm::BasicBlock &To);
+  Set<llvm::Value *> live_values(MemOIRInst &I, bool after = true);
+  Set<llvm::Value *> live_values(llvm::Instruction &I, bool after = true);
+  Set<llvm::Value *> live_values(llvm::BasicBlock &From, llvm::BasicBlock &To);
 };
 
 void gather_variables(UnionFind<llvm::Value *> &reaching_definition,
@@ -40,8 +40,8 @@ void gather_variables(UnionFind<llvm::Value *> &reaching_definition,
 }
 
 bool check_live_set(
-    const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
-    const set<llvm::Value *> &live_set) {
+    const OrderedMultiMap<llvm::Value *, llvm::Value *> &partition,
+    const Set<llvm::Value *> &live_set) {
 
   // If there is no more than one live variable, we don't need to do any further
   // checks.
@@ -79,7 +79,7 @@ bool check_live_set(
 
 bool check_basic_block_edge(
     LivenessResult &LR,
-    const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
+    const OrderedMultiMap<llvm::Value *, llvm::Value *> &partition,
     llvm::BasicBlock &from,
     llvm::BasicBlock &to) {
 
@@ -92,7 +92,7 @@ bool check_basic_block_edge(
 
 bool check_instruction(
     LivenessResult &LR,
-    const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
+    const OrderedMultiMap<llvm::Value *, llvm::Value *> &partition,
     llvm::Instruction &I) {
 
   // Get the set of live values before this instruction.
@@ -102,13 +102,13 @@ bool check_instruction(
   return check_live_set(partition, live_set);
 }
 
-bool check_call(const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
+bool check_call(const OrderedMultiMap<llvm::Value *, llvm::Value *> &partition,
                 llvm::CallBase &call) {
   // Check that, no two collection operands are the same.
 
   // We will store the set of collection arguments we have already found in
   // collection_arguments.
-  set<llvm::Value *> collection_arguments = {};
+  Set<llvm::Value *> collection_arguments = {};
 
   // For each argument of the call.
   for (auto &argument : call.data_ops()) {
@@ -210,7 +210,7 @@ bool verify_linearity(llvm::Function &F, LivenessResult &LR) {
 
   // Now, partition the UnionFind by inverting the mapping from variable to
   // parent definition.
-  ordered_multimap<llvm::Value *, llvm::Value *> partition = {};
+  OrderedMultiMap<llvm::Value *, llvm::Value *> partition = {};
   for (const auto &[var, def] : reaching_definition) {
     // If var == def, add it to the roots.
     partition.insert({ def, var });

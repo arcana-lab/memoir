@@ -100,7 +100,7 @@ std::pair<std::string, std::string> ProxyOpportunity::formulate(
 
 namespace detail {
 
-void gather_redefinitions(llvm::Value &V, set<llvm::Value *> &redefinitions) {
+void gather_redefinitions(llvm::Value &V, Set<llvm::Value *> &redefinitions) {
 
   if (redefinitions.count(&V) > 0) {
     return;
@@ -146,8 +146,8 @@ void gather_redefinitions(llvm::Value &V, set<llvm::Value *> &redefinitions) {
 }
 
 void gather_uses_to_proxy(llvm::Value &V,
-                          set<llvm::Use *> &to_encode,
-                          set<llvm::Use *> &to_decode) {
+                          Set<llvm::Use *> &to_encode,
+                          Set<llvm::Use *> &to_decode) {
   // From a given collection, V, gather all uses that need to be either encoded
   // or decoded.
   for (auto &use : V.uses()) {
@@ -189,9 +189,9 @@ void gather_uses_to_proxy(llvm::Value &V,
   return;
 }
 
-ordered_map<llvm::Value *, set<Content *>> gather_content_sources(Content &C) {
+OrderedMap<llvm::Value *, Set<Content *>> gather_content_sources(Content &C) {
 
-  ordered_map<llvm::Value *, set<Content *>> sources = {};
+  OrderedMap<llvm::Value *, Set<Content *>> sources = {};
 
   println("Gathering ", C);
 
@@ -248,7 +248,7 @@ bool ProxyOpportunity::exploit(
   bool modified = false;
 
   // Collect the set of redefinitions of each allocation involved.
-  ordered_map<AllocInst *, set<llvm::Value *>> redefinitions = {};
+  OrderedMap<AllocInst *, Set<llvm::Value *>> redefinitions = {};
   for (auto *alloc : this->allocations) {
     detail::gather_redefinitions(alloc->getCallInst(), redefinitions[alloc]);
   }
@@ -256,8 +256,8 @@ bool ProxyOpportunity::exploit(
 
   // Collect the set of uses that need to be updated to use the proxy space.
   // We will separate these into uses that need the be encoded/decoded.
-  set<llvm::Use *> to_encode = {};
-  set<llvm::Use *> to_decode = {};
+  Set<llvm::Use *> to_encode = {};
+  Set<llvm::Use *> to_decode = {};
   for (auto *alloc : this->allocations) {
     // Fetch the selection, its type may impact the uses to consider.
     auto &selection = get_selection(alloc->getCallInst());
@@ -275,7 +275,7 @@ bool ProxyOpportunity::exploit(
 
   // Trim uses that dont need to be decoded because they are only used to
   // compare against other values that need to be decoded.
-  set<llvm::Use *> trim_to_decode = {};
+  Set<llvm::Use *> trim_to_decode = {};
   for (auto *use : to_decode) {
     auto *user = use->getUser();
 
@@ -300,7 +300,7 @@ bool ProxyOpportunity::exploit(
 
   // Trim uses that dont need to be encoded because they are produced by a use
   // that needs decoded.
-  set<llvm::Use *> trim_to_encode = {};
+  Set<llvm::Use *> trim_to_encode = {};
   for (auto *encodee : to_encode) {
     auto found = to_decode.find(encodee);
     if (found != to_decode.end()) {
@@ -464,7 +464,7 @@ bool ProxyOpportunity::exploit(
     // following logic would need to change.
 
     // Iterate over the call graph, and find where we need to pass the proxy.
-    set<llvm::Function *> functions_with_uses = {};
+    Set<llvm::Function *> functions_with_uses = {};
     for (auto uses : { to_encode, to_decode }) {
       for (auto *use : uses) {
         auto *user_as_inst = dyn_cast<llvm::Instruction>(use->getUser());
@@ -570,7 +570,7 @@ bool ProxyOpportunity::exploit(
 
       // Create the function type for the fold body.
       auto *ptr_type = builder.getPtrTy(0);
-      vector<llvm::Type *> arg_types = { &llvm_size_type, key_type, val_type };
+      Vector<llvm::Type *> arg_types = { &llvm_size_type, key_type, val_type };
       if (encoder) {
         arg_types.push_back(ptr_type);
       }
@@ -590,7 +590,7 @@ bool ProxyOpportunity::exploit(
           module);
 
       // Create the fold instruction.
-      vector<llvm::Value *> closed = {};
+      Vector<llvm::Value *> closed = {};
       if (encoder) {
         closed.push_back(encoder);
       }
@@ -818,7 +818,7 @@ bool ProxyOpportunity::exploit(
     // Make the proxy available at all uses.
 
     // Find the set of functions that need the proxy.
-    set<llvm::Function *> to_encode_functions = {};
+    Set<llvm::Function *> to_encode_functions = {};
     for (auto *use : to_encode) {
       auto *user = use->getUser();
       auto *user_as_inst = dyn_cast<llvm::Instruction>(user);
@@ -832,7 +832,7 @@ bool ProxyOpportunity::exploit(
     }
     to_encode_functions.erase(construction_point->getFunction());
 
-    set<llvm::Function *> to_decode_functions = {};
+    Set<llvm::Function *> to_decode_functions = {};
     for (auto *use : to_decode) {
       auto *user = use->getUser();
       auto *user_as_inst = dyn_cast<llvm::Instruction>(user);
@@ -848,8 +848,8 @@ bool ProxyOpportunity::exploit(
     to_decode_functions.erase(construction_point->getFunction());
 
     // Determine the set of functions that we need to pass the proxy to.
-    set<llvm::CallBase *> calls_to_patch_with_encoder = {};
-    set<FoldInst *> folds_to_patch_with_encoder = {};
+    Set<llvm::CallBase *> calls_to_patch_with_encoder = {};
+    Set<FoldInst *> folds_to_patch_with_encoder = {};
     for (auto *to_encode_func : to_encode_functions) {
       if (auto *single_use = to_encode_func->getSingleUndroppableUse()) {
         auto *single_user = single_use->getUser();
@@ -866,8 +866,8 @@ bool ProxyOpportunity::exploit(
     }
 
     // Determine the set of functions that we need to pass the proxy to.
-    set<llvm::CallBase *> calls_to_patch_with_decoder = {};
-    set<FoldInst *> folds_to_patch_with_decoder = {};
+    Set<llvm::CallBase *> calls_to_patch_with_decoder = {};
+    Set<FoldInst *> folds_to_patch_with_decoder = {};
     for (auto *to_decode_func : to_decode_functions) {
       if (auto *single_use = to_decode_func->getSingleUndroppableUse()) {
         auto *single_user = single_use->getUser();
@@ -890,7 +890,7 @@ bool ProxyOpportunity::exploit(
     auto *ptr_type = builder.getPtrTy(0);
 
     // Then, construct the load/store for each call site.
-    map<llvm::Function *, llvm::Instruction *> function_to_encoder = {};
+    Map<llvm::Function *, llvm::Instruction *> function_to_encoder = {};
     for (auto *fold : folds_to_patch_with_encoder) {
       // Create the store ahead of the fold.
       builder.SetInsertPoint(&fold->getCallInst());
@@ -915,7 +915,7 @@ bool ProxyOpportunity::exploit(
       Metadata::get_or_add<TempArgumentMetadata>(*load);
       builder.CreateAssertTypeInst(load, *encoder_type);
     }
-    map<llvm::Function *, llvm::Instruction *> function_to_decoder = {};
+    Map<llvm::Function *, llvm::Instruction *> function_to_decoder = {};
     for (auto *fold : folds_to_patch_with_decoder) {
       // Create the store ahead of the fold.
       builder.SetInsertPoint(&fold->getCallInst());

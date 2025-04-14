@@ -80,38 +80,37 @@ using unwrap_ref_type = typename unwrap_ref<T>::type;
  *   they are faster.
  */
 
+template <typename T, typename U>
 #if DEBUG
-template <typename T, typename U>
-using map = std::map<T, U, std::less<unwrap_ref_type<T>>>;
+using Map = std::map<T, U, std::less<unwrap_ref_type<T>>>;
 #else
-template <typename T, typename U>
-using map = std::unordered_map<T, U, std::hash<unwrap_ref_type<T>>>;
+using Map = std::unordered_map<T, U, std::hash<unwrap_ref_type<T>>>;
 #endif
 
 template <typename T, typename U>
-using ordered_map = std::map<T, U, std::less<unwrap_ref_type<T>>>;
+using OrderedMap = std::map<T, U, std::less<unwrap_ref_type<T>>>;
 
 #if DEBUG
 template <typename T>
-using set = std::set<T, std::less<unwrap_ref_type<T>>>;
+using Set = std::set<T, std::less<unwrap_ref_type<T>>>;
 #else
 template <typename T>
-using set = std::unordered_set<T, std::hash<unwrap_ref_type<T>>>;
+using Set = std::unordered_set<T, std::hash<unwrap_ref_type<T>>>;
 #endif
 
 template <typename T>
-using ordered_set = std::set<T, std::less<unwrap_ref_type<T>>>;
+using OrderedSet = std::set<T, std::less<unwrap_ref_type<T>>>;
 
 #if DEBUG
 template <typename T, typename U>
-using multimap = std::multimap<T, U>;
+using MultiMap = std::multimap<T, U>;
 #else
 template <typename T, typename U>
-using multimap = std::unordered_multimap<T, U>;
+using MultiMap = std::unordered_multimap<T, U>;
 #endif
 
 template <typename T, typename U>
-using ordered_multimap = std::multimap<T, U>;
+using OrderedMultiMap = std::multimap<T, U>;
 
 template <typename T, typename TT, typename U, typename UU>
 inline typename std::multimap<T, U>::iterator insert_unique(
@@ -143,26 +142,26 @@ inline typename std::unordered_multimap<T, U>::iterator insert_unique(
 
 #if DEBUG
 template <typename T>
-using multiset = std::multiset<T, std::less<unwrap_ref_type<T>>>;
+using MultiSet = std::multiset<T, std::less<unwrap_ref_type<T>>>;
 #else
 template <typename T>
-using multiset = std::unordered_multiset<T, std::hash<unwrap_ref_type<T>>>;
+using MultiSet = std::unordered_multiset<T, std::hash<unwrap_ref_type<T>>>;
 #endif
 
 template <typename T>
-using ordered_multiset = std::multiset<T, std::less<unwrap_ref_type<T>>>;
+using OrderedMultiSet = std::multiset<T, std::less<unwrap_ref_type<T>>>;
 
 template <typename T>
-using vector = std::vector<T>;
+using Vector = std::vector<T>;
 
 template <typename T>
-using list = std::list<T>;
+using List = std::list<T>;
 
 template <typename T>
-using stack = std::stack<T>;
+using Stack = std::stack<T>;
 
 template <typename T>
-using queue = std::queue<T>;
+using Queue = std::queue<T>;
 
 // Pair.
 template <typename T1, typename T2>

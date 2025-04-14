@@ -221,7 +221,7 @@ public:
 protected:
   Type &referenced_type;
 
-  static map<Type *, ReferenceType *> *reference_types;
+  static Map<Type *, ReferenceType *> *reference_types;
 
   ReferenceType(Type &referenced_type);
 };
@@ -266,9 +266,9 @@ public:
   opt<std::string> get_code() const override;
 
 protected:
-  vector<Type *> field_types;
+  Vector<Type *> field_types;
 
-  static ordered_multimap<unsigned, TupleType *> *tuple_types;
+  static OrderedMultiMap<unsigned, TupleType *> *tuple_types;
 
   TupleType(llvm::ArrayRef<Type *> fields);
 };
@@ -318,7 +318,7 @@ protected:
 
   ArrayType(Type &element_type, size_t length);
 
-  static ordered_multimap<Type *, ArrayType *> *array_types;
+  static OrderedMultiMap<Type *, ArrayType *> *array_types;
 };
 
 struct AssocArrayType : public CollectionType {
@@ -349,10 +349,10 @@ protected:
   Type &value_type;
   opt<std::string> selection;
 
-  typedef ordered_map<
+  typedef OrderedMap<
       Type *,
-      ordered_map<Type *,
-                  ordered_map<std::optional<std::string>, AssocArrayType *>>>
+      OrderedMap<Type *,
+                 OrderedMap<std::optional<std::string>, AssocArrayType *>>>
       Types;
   static Types *assoc_array_types;
 
@@ -386,8 +386,8 @@ protected:
   Type &element_type;
   opt<std::string> selection;
 
-  typedef ordered_map<Type *,
-                      ordered_map<std::optional<std::string>, SequenceType *>>
+  typedef OrderedMap<Type *,
+                     OrderedMap<std::optional<std::string>, SequenceType *>>
       Types;
   static Types *sequence_types;
 

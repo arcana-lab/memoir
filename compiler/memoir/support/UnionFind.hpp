@@ -63,11 +63,11 @@ public:
     return t;
   }
 
-  typename map<T, T>::iterator begin() {
+  typename Map<T, T>::iterator begin() {
     this->reify();
     return this->_parent.begin();
   }
-  typename map<T, T>::iterator end() {
+  typename Map<T, T>::iterator end() {
     return this->_parent.end();
   }
 
@@ -87,8 +87,8 @@ public:
   }
 
 protected:
-  map<T, T> _parent;
-  map<T, size_t> _size;
+  Map<T, T> _parent;
+  Map<T, size_t> _size;
 };
 
 } // namespace llvm::memoir

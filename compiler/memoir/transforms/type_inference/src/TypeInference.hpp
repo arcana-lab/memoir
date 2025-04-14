@@ -75,13 +75,13 @@ protected:
   void annotate_return_type(llvm::Function &F, Type &type);
 
   // Owned state.
-  set<llvm::Function *> visited; // CURRENTLY UNUSED
-  set<llvm::Function *> typed;   // CURRENTLY UNUSED
+  Set<llvm::Function *> visited; // CURRENTLY UNUSED
+  Set<llvm::Function *> typed;   // CURRENTLY UNUSED
 
   // Borrowed state.
   llvm::Module &M;
-  map<llvm::Argument *, Type *> argument_types_to_annotate;
-  map<llvm::Function *, Type *> return_types_to_annotate;
+  Map<llvm::Argument *, Type *> argument_types_to_annotate;
+  Map<llvm::Function *, Type *> return_types_to_annotate;
 };
 
 } // namespace llvm::memoir

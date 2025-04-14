@@ -11,12 +11,12 @@ namespace folio {
 
 struct ObjectInfo {
   llvm::memoir::AllocInst *allocation;
-  llvm::memoir::vector<unsigned> offsets;
-  llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Value *>>
+  llvm::memoir::Vector<unsigned> offsets;
+  llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>>
       redefinitions;
-  llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Value *>> encoded;
-  llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Use *>> to_encode;
-  llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Use *>> to_addkey;
+  llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>> encoded;
+  llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>> to_encode;
+  llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>> to_addkey;
 
   ObjectInfo(llvm::memoir::AllocInst &alloc, llvm::ArrayRef<unsigned> offsets)
     : allocation(&alloc),
@@ -65,7 +65,7 @@ struct ObjectInfo {
                                        const ObjectInfo &info);
 };
 
-using Candidate = llvm::memoir::vector<ObjectInfo *>;
+using Candidate = llvm::memoir::Vector<ObjectInfo *>;
 
 struct ProxyInsertion {
 public:
@@ -79,24 +79,24 @@ public:
   bool transform();
 
 protected:
-  void gather_assoc_objects(llvm::memoir::vector<ObjectInfo> &allocations,
+  void gather_assoc_objects(llvm::memoir::Vector<ObjectInfo> &allocations,
                             llvm::memoir::AllocInst &alloc,
                             llvm::memoir::Type &type,
-                            llvm::memoir::vector<unsigned> offsets = {});
+                            llvm::memoir::Vector<unsigned> offsets = {});
 
   ObjectInfo *find_base_object(llvm::Value &V,
                                llvm::memoir::AccessInst &access);
 
   void gather_propagators(
-      llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Value *>>
+      llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>>
           encoded,
-      llvm::memoir::map<llvm::Function *, llvm::memoir::set<llvm::Use *>>
+      llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>>
           to_decode);
 
   llvm::Module &M;
-  llvm::memoir::vector<ObjectInfo> objects;
-  llvm::memoir::vector<ObjectInfo> propagators;
-  llvm::memoir::vector<Candidate> candidates;
+  llvm::memoir::Vector<ObjectInfo> objects;
+  llvm::memoir::Vector<ObjectInfo> propagators;
+  llvm::memoir::Vector<Candidate> candidates;
 
   GetDominatorTree get_dominator_tree;
 };

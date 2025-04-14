@@ -39,8 +39,8 @@ static llvm::Function *parent_function(llvm::Value &V) {
 }
 
 static void update_values(llvm::ValueToValueMapTy &vmap,
-                          set<llvm::Value *> &input,
-                          set<llvm::Value *> &output) {
+                          Set<llvm::Value *> &input,
+                          Set<llvm::Value *> &output) {
   for (auto *val : input) {
     auto *clone = &*vmap[val];
 
@@ -48,7 +48,7 @@ static void update_values(llvm::ValueToValueMapTy &vmap,
   }
 }
 
-static void update_uses(map<llvm::Function *, set<llvm::Use *>> &uses,
+static void update_uses(Map<llvm::Function *, Set<llvm::Use *>> &uses,
                         llvm::Function &old_func,
                         llvm::Function &new_func,
                         llvm::ValueToValueMapTy &vmap,
@@ -119,7 +119,7 @@ void ObjectInfo::update(llvm::Function &old_func,
 }
 
 static uint32_t forward_analysis(
-    map<llvm::Function *, set<llvm::Value *>> &encoded) {
+    Map<llvm::Function *, Set<llvm::Value *>> &encoded) {
 
   uint32_t count = 0;
 
@@ -225,7 +225,7 @@ uint32_t ObjectInfo::compute_heuristic(const ObjectInfo &other) const {
   uint32_t benefit = 0;
 
   // Merge the encoded values of both and perform a forward analysis.
-  map<llvm::Function *, set<llvm::Value *>> merged = {};
+  Map<llvm::Function *, Set<llvm::Value *>> merged = {};
   for (const auto &[func, values] : this->encoded) {
     merged[func].insert(values.begin(), values.end());
   }
@@ -300,7 +300,7 @@ bool ObjectInfo::is_redefinition(llvm::Value &V) const {
 
 static void gather_redefinitions(
     llvm::Value &V,
-    map<llvm::Function *, set<llvm::Value *>> &redefinitions) {
+    Map<llvm::Function *, Set<llvm::Value *>> &redefinitions) {
 
   auto *function = parent_function(V);
   MEMOIR_ASSERT(function, "Unknown parent function for redefinition.");
@@ -426,9 +426,9 @@ static llvm::Use *get_index_use(AccessInst &access,
 static void gather_uses_to_proxy(
     llvm::Value &V,
     llvm::ArrayRef<unsigned> offsets,
-    map<llvm::Function *, set<llvm::Value *>> &encoded,
-    map<llvm::Function *, set<llvm::Use *>> &to_encode,
-    map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
+    Map<llvm::Function *, Set<llvm::Value *>> &encoded,
+    Map<llvm::Function *, Set<llvm::Use *>> &to_encode,
+    Map<llvm::Function *, Set<llvm::Use *>> &to_addkey) {
 
   infoln("REDEF ", V, " IN ", parent_function(V)->getName());
 
@@ -520,9 +520,9 @@ static void gather_uses_to_proxy(
 static void gather_uses_to_propagate(
     llvm::Value &V,
     llvm::ArrayRef<unsigned> offsets,
-    map<llvm::Function *, set<llvm::Value *>> &encoded,
-    map<llvm::Function *, set<llvm::Use *>> &to_encode,
-    map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
+    Map<llvm::Function *, Set<llvm::Value *>> &encoded,
+    Map<llvm::Function *, Set<llvm::Use *>> &to_encode,
+    Map<llvm::Function *, Set<llvm::Use *>> &to_addkey) {
 
   infoln("REDEF ", V, " IN ", parent_function(V)->getName());
 
@@ -681,10 +681,10 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const ObjectInfo &info) {
   return os;
 }
 
-void ProxyInsertion::gather_assoc_objects(vector<ObjectInfo> &allocations,
+void ProxyInsertion::gather_assoc_objects(Vector<ObjectInfo> &allocations,
                                           AllocInst &alloc,
                                           Type &type,
-                                          vector<unsigned> offsets) {
+                                          Vector<unsigned> offsets) {
 
   if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
     for (unsigned field = 0; field < tuple_type->getNumFields(); ++field) {
@@ -717,8 +717,8 @@ void ProxyInsertion::gather_assoc_objects(vector<ObjectInfo> &allocations,
 }
 
 static AllocInst *_find_base_object(llvm::Value &V,
-                                    vector<unsigned> &offsets,
-                                    set<llvm::Value *> &visited) {
+                                    Vector<unsigned> &offsets,
+                                    Set<llvm::Value *> &visited) {
   if (visited.count(&V) > 0) {
     return nullptr;
   } else {
@@ -777,7 +777,7 @@ ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
 
   auto *type = type_of(V);
 
-  vector<unsigned> offsets = {};
+  Vector<unsigned> offsets = {};
   for (auto *index : access.indices()) {
     if (auto *tuple_type = dyn_cast<TupleType>(type)) {
       auto index_const = dyn_cast<llvm::ConstantInt>(index);
@@ -796,7 +796,7 @@ ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
     offsets.push_back(-1);
   }
 
-  set<llvm::Value *> visited = {};
+  Set<llvm::Value *> visited = {};
 
   auto *alloc = _find_base_object(V, offsets, visited);
 
@@ -813,8 +813,8 @@ ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
 }
 
 void ProxyInsertion::gather_propagators(
-    map<llvm::Function *, set<llvm::Value *>> encoded,
-    map<llvm::Function *, set<llvm::Use *>> to_encode) {
+    Map<llvm::Function *, Set<llvm::Value *>> encoded,
+    Map<llvm::Function *, Set<llvm::Use *>> to_encode) {
 
   for (const auto &[func, values] : encoded) {
     for (auto *val : values) {
@@ -936,8 +936,8 @@ void ProxyInsertion::analyze() {
 
     // From the use information, find any collection elements that _could_
     // propagate the proxy.
-    map<llvm::Function *, set<llvm::Value *>> encoded = {};
-    map<llvm::Function *, set<llvm::Use *>> to_encode = {};
+    Map<llvm::Function *, Set<llvm::Value *>> encoded = {};
+    Map<llvm::Function *, Set<llvm::Use *>> to_encode = {};
     for (auto &info : this->objects) {
       for (const auto &[func, locals] : info.encoded) {
         encoded[func].insert(locals.begin(), locals.end());
@@ -961,7 +961,7 @@ void ProxyInsertion::analyze() {
   }
 
   // Use a heuristic to group together objects.
-  set<const ObjectInfo *> used = {};
+  Set<const ObjectInfo *> used = {};
   for (auto it = this->objects.begin(); it != this->objects.end(); ++it) {
     auto &info = *it;
 
@@ -1031,7 +1031,7 @@ void ProxyInsertion::analyze() {
 
     // Compute the benefit of each object in the candidate.
     uint32_t candidate_benefit = 0;
-    set<const ObjectInfo *> has_benefit = {};
+    Set<const ObjectInfo *> has_benefit = {};
     for (const auto *info : candidate) {
       for (const auto *other : candidate) {
         if (info == other) {
@@ -1087,7 +1087,7 @@ static llvm::FunctionCallee create_addkey_function(llvm::Module &M,
   auto *llvm_key_type = key_type.get_llvm_type(context);
 
   // Create the addkey functions for this proxy.
-  vector<llvm::Type *> addkey_params = { llvm_key_type };
+  Vector<llvm::Type *> addkey_params = { llvm_key_type };
   if (build_encoder) {
     addkey_params.push_back(llvm_ptr_type);
   }
@@ -1213,7 +1213,7 @@ static llvm::FunctionCallee create_addkey_function(llvm::Module &M,
 }
 
 static void collect_callers(llvm::Function &to,
-                            set<llvm::Function *> &functions) {
+                            Set<llvm::Function *> &functions) {
 
   if (functions.count(&to) > 0) {
     return;
@@ -1245,7 +1245,7 @@ static void collect_callers(llvm::Function &to,
 }
 
 static void collect_callees(llvm::Function &from,
-                            set<llvm::Function *> &functions) {
+                            Set<llvm::Function *> &functions) {
   if (functions.count(&from) > 0) {
     return;
   }
@@ -1276,8 +1276,8 @@ static void collect_callees(llvm::Function &from,
 }
 
 static void add_tempargs(
-    map<llvm::Function *, llvm::Instruction *> &local_patches,
-    llvm::ArrayRef<set<llvm::Use *>> uses_to_patch,
+    Map<llvm::Function *, llvm::Instruction *> &local_patches,
+    llvm::ArrayRef<Set<llvm::Use *>> uses_to_patch,
     llvm::Instruction &patch_with,
     Type &patch_type,
     const llvm::Twine &name) {
@@ -1294,7 +1294,7 @@ static void add_tempargs(
   local_patches[patch_func] = &patch_with;
 
   // Find the set of functions that need the patch.
-  set<llvm::Function *> functions = { patch_func };
+  Set<llvm::Function *> functions = { patch_func };
   for (auto &uses : uses_to_patch) {
     for (auto *use : uses) {
       if (auto *inst = dyn_cast<llvm::Instruction>(use->getUser())) {
@@ -1304,8 +1304,8 @@ static void add_tempargs(
   }
 
   // Close the set of functions.
-  set<llvm::Function *> forward = {};
-  set<llvm::Function *> backward = {};
+  Set<llvm::Function *> forward = {};
+  Set<llvm::Function *> backward = {};
   for (auto *func : functions) {
     collect_callers(*func, forward);
     collect_callees(*func, backward);
@@ -1318,8 +1318,8 @@ static void add_tempargs(
   }
 
   // Determine the set of functions that we need to pass the proxy to.
-  map<llvm::CallBase *, llvm::GlobalVariable *> calls_to_patch = {};
-  map<FoldInst *, llvm::GlobalVariable *> folds_to_patch = {};
+  Map<llvm::CallBase *, llvm::GlobalVariable *> calls_to_patch = {};
+  Map<FoldInst *, llvm::GlobalVariable *> folds_to_patch = {};
   for (auto *func : functions) {
 
     if (func == patch_func) {
@@ -1427,8 +1427,8 @@ static void update_candidates(std::forward_iterator auto candidates_begin,
 }
 
 static bool used_value_will_be_decoded(llvm::Use &use,
-                                       const set<llvm::Use *> &to_decode,
-                                       set<llvm::Use *> &visited) {
+                                       const Set<llvm::Use *> &to_decode,
+                                       Set<llvm::Use *> &visited) {
 
   debugln("DECODED? ", *use.get());
 
@@ -1476,14 +1476,14 @@ static bool used_value_will_be_decoded(llvm::Use &use,
 }
 
 static bool used_value_will_be_decoded(llvm::Use &use,
-                                       const set<llvm::Use *> &to_decode) {
-  set<llvm::Use *> visited = {};
+                                       const Set<llvm::Use *> &to_decode) {
+  Set<llvm::Use *> visited = {};
   return used_value_will_be_decoded(use, to_decode, visited);
 }
 
 using GroupedUses =
-    map<llvm::Function *, map<llvm::Value *, vector<llvm::Use *>>>;
-static GroupedUses groupby_function_and_used(const set<llvm::Use *> &uses) {
+    Map<llvm::Function *, Map<llvm::Value *, Vector<llvm::Use *>>>;
+static GroupedUses groupby_function_and_used(const Set<llvm::Use *> &uses) {
 
   GroupedUses local;
 
@@ -1504,9 +1504,9 @@ static GroupedUses groupby_function_and_used(const set<llvm::Use *> &uses) {
   return local;
 }
 
-struct CoalescedUses : public vector<llvm::Use *> {
+struct CoalescedUses : public Vector<llvm::Use *> {
 protected:
-  using Base = vector<llvm::Use *>;
+  using Base = Vector<llvm::Use *>;
 
   llvm::Value *_value;
 
@@ -1545,7 +1545,7 @@ public:
   }
 };
 
-static void sort_in_level_order(vector<llvm::Use *> &uses,
+static void sort_in_level_order(Vector<llvm::Use *> &uses,
                                 llvm::DominatorTree &DT) {
 
   // First, sort the uses in level order of the dominator tree.
@@ -1585,7 +1585,7 @@ static void sort_in_level_order(vector<llvm::Use *> &uses,
 }
 
 static void coalesce_by_dominance(
-    vector<CoalescedUses> &coalesced,
+    Vector<CoalescedUses> &coalesced,
     GroupedUses &grouped,
     ProxyInsertion::GetDominatorTree get_dominator_tree) {
 
@@ -1607,7 +1607,7 @@ static void coalesce_by_dominance(
       sort_in_level_order(uses, DT);
 
       // Group together uses that are dominated by one another.
-      set<llvm::Use *> visited = {};
+      Set<llvm::Use *> visited = {};
       for (auto it = uses.begin(); it != uses.end(); ++it) {
         auto *use = *it;
 
@@ -1663,12 +1663,12 @@ static void coalesce_by_dominance(
   return;
 }
 
-static void coalesce(vector<CoalescedUses> &decoded,
-                     vector<CoalescedUses> &encoded,
-                     vector<CoalescedUses> &added,
-                     const set<llvm::Use *> &to_decode,
-                     const set<llvm::Use *> &to_encode,
-                     const set<llvm::Use *> &to_addkey,
+static void coalesce(Vector<CoalescedUses> &decoded,
+                     Vector<CoalescedUses> &encoded,
+                     Vector<CoalescedUses> &added,
+                     const Set<llvm::Use *> &to_decode,
+                     const Set<llvm::Use *> &to_encode,
+                     const Set<llvm::Use *> &to_addkey,
                      ProxyInsertion::GetDominatorTree get_dominator_tree) {
 
   // Group uses by their parent function and the value being used..
@@ -1781,9 +1781,9 @@ static llvm::Value &encode_use(
 
 static void inject(
     llvm::LLVMContext &context,
-    vector<CoalescedUses> &decoded,
-    vector<CoalescedUses> &encoded,
-    vector<CoalescedUses> &added,
+    Vector<CoalescedUses> &decoded,
+    Vector<CoalescedUses> &encoded,
+    Vector<CoalescedUses> &added,
     std::function<llvm::Value &(llvm::Value &)> get_encoder,
     std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> decode_value,
     std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> encode_value,
@@ -1972,7 +1972,7 @@ bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {
   return false;
 }
 
-bool is_total_proxy(ObjectInfo &info, const vector<CoalescedUses> &added) {
+bool is_total_proxy(ObjectInfo &info, const Vector<CoalescedUses> &added) {
 
   println();
   println("TOTAL PROXY? ", info);
@@ -1997,8 +1997,8 @@ bool is_total_proxy(ObjectInfo &info, const vector<CoalescedUses> &added) {
   // Check that for each addkey use, this object is inserted into.
   // Also, ensure that the encoded value is in a control flow equivalent block
   // to the uses.
-  set<llvm::Value *> values_added = {};
-  set<llvm::Value *> values_needed = {};
+  Set<llvm::Value *> values_added = {};
+  Set<llvm::Value *> values_needed = {};
   for (auto &uses : added) {
     auto &value = uses.value();
     auto &encoded =
@@ -2088,7 +2088,7 @@ Type &convert_to_sequence_type(Type &base, llvm::ArrayRef<unsigned> offsets) {
 
   if (auto *tuple_type = dyn_cast<TupleType>(&base)) {
 
-    vector<Type *> fields = tuple_type->fields();
+    Vector<Type *> fields = tuple_type->fields();
 
     auto field = offsets[0];
 
@@ -2131,7 +2131,7 @@ Type &convert_element_type(Type &base,
 
   if (auto *tuple_type = dyn_cast<TupleType>(&base)) {
 
-    vector<Type *> fields = tuple_type->fields();
+    Vector<Type *> fields = tuple_type->fields();
 
     auto field = offsets[0];
 
@@ -2178,13 +2178,13 @@ Type &convert_element_type(Type &base,
   MEMOIR_UNREACHABLE("Failed to convert type!");
 }
 
-static map<llvm::Function *, set<llvm::Value *>> gather_candidate_uses(
+static Map<llvm::Function *, Set<llvm::Value *>> gather_candidate_uses(
     Candidate &candidate,
-    set<llvm::Use *> &to_decode,
-    set<llvm::Use *> &to_encode,
-    set<llvm::Use *> &to_addkey) {
+    Set<llvm::Use *> &to_decode,
+    Set<llvm::Use *> &to_encode,
+    Set<llvm::Use *> &to_addkey) {
 
-  map<llvm::Function *, set<llvm::Value *>> encoded = {};
+  Map<llvm::Function *, Set<llvm::Value *>> encoded = {};
   for (auto *info : candidate) {
     for (const auto &[func, values] : info->encoded) {
       encoded[func].insert(values.begin(), values.end());
@@ -2289,9 +2289,9 @@ bool ProxyInsertion::transform() {
     auto &val_type = assoc_type.getValueType();
 
     // Collect all of the uses that need to be handled.
-    set<llvm::Use *> to_decode = {};
-    set<llvm::Use *> to_encode = {};
-    set<llvm::Use *> to_addkey = {};
+    Set<llvm::Use *> to_decode = {};
+    Set<llvm::Use *> to_encode = {};
+    Set<llvm::Use *> to_addkey = {};
     auto encoded_values =
         gather_candidate_uses(candidate, to_decode, to_encode, to_addkey);
 
@@ -2314,7 +2314,7 @@ bool ProxyInsertion::transform() {
 
     // Trim uses that dont need to be decoded because they are only used to
     // compare against other values that need to be decoded.
-    set<llvm::Use *> trim_to_decode = {};
+    Set<llvm::Use *> trim_to_decode = {};
     for (auto *use : to_decode) {
       auto *user = use->getUser();
 
@@ -2349,7 +2349,7 @@ bool ProxyInsertion::transform() {
 
     // Trim uses that dont need to be encoded because they are produced by a
     // use that needs decoded.
-    set<llvm::Use *> trim_to_encode = {};
+    Set<llvm::Use *> trim_to_encode = {};
     for (auto uses : { to_encode, to_addkey }) {
       for (auto *use : uses) {
         if (used_value_will_be_decoded(*use, to_decode)) {
@@ -2450,7 +2450,7 @@ bool ProxyInsertion::transform() {
     }
 
     // Make the proxy available at all uses.
-    map<llvm::Function *, llvm::Instruction *> function_to_encoder = {};
+    Map<llvm::Function *, llvm::Instruction *> function_to_encoder = {};
     if (build_encoder) {
       add_tempargs(function_to_encoder,
                    { to_encode, to_addkey },
@@ -2459,7 +2459,7 @@ bool ProxyInsertion::transform() {
                    "encoder.");
     }
 
-    map<llvm::Function *, llvm::Instruction *> function_to_decoder = {};
+    Map<llvm::Function *, llvm::Instruction *> function_to_decoder = {};
     if (build_decoder) {
       add_tempargs(function_to_decoder,
                    { to_decode, to_addkey },
@@ -2477,9 +2477,9 @@ bool ProxyInsertion::transform() {
                                                 decoder_type);
 
     // Coalesce the values that have been encoded/decoded.
-    vector<CoalescedUses> decoded = {};
-    vector<CoalescedUses> encoded = {};
-    vector<CoalescedUses> added = {};
+    Vector<CoalescedUses> decoded = {};
+    Vector<CoalescedUses> encoded = {};
+    Vector<CoalescedUses> added = {};
     coalesce(decoded,
              encoded,
              added,
@@ -2539,7 +2539,7 @@ bool ProxyInsertion::transform() {
         }
       }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
-      vector<llvm::Value *> args = { &value };
+      Vector<llvm::Value *> args = { &value };
       if (build_encoder) {
         auto *encoder = function_to_encoder.at(function);
         args.push_back(encoder);
@@ -2565,7 +2565,7 @@ bool ProxyInsertion::transform() {
     // Collect any function parameters whose type has changed because the
     // argument propagates an encoded value.
     // TODO: make this monomorphize the functions as well.
-    ordered_multimap<llvm::Function *, llvm::Argument *> params_to_mutate = {};
+    OrderedMultiMap<llvm::Function *, llvm::Argument *> params_to_mutate = {};
     for (const auto &[func, values] : encoded_values) {
       for (auto *val : values) {
         if (auto *arg = dyn_cast<llvm::Argument>(val)) {
@@ -2577,7 +2577,7 @@ bool ProxyInsertion::transform() {
     }
 
     // Mutate the type of function parameters in the program.
-    set<llvm::Function *> to_cleanup = {};
+    Set<llvm::Function *> to_cleanup = {};
     for (auto it = params_to_mutate.begin(); it != params_to_mutate.end();) {
       auto *func = it->first;
 
@@ -2587,7 +2587,7 @@ bool ProxyInsertion::transform() {
       auto *func_type = func->getFunctionType();
 
       // Collect the original parameter types.
-      vector<llvm::Type *> param_types(func_type->param_begin(),
+      Vector<llvm::Type *> param_types(func_type->param_begin(),
                                        func_type->param_end());
 
       // Update the parameter types that are encoded.
@@ -2729,11 +2729,11 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M,
 
   // Register the bit{map,set} implementations.
   Implementation::define({
-      Implementation( // bitset<T>
+      Implementation( // bitSet<T>
           "bitset",
           AssocType::get(TypeVariable::get(), VoidType::get())),
 
-      Implementation( // bitmap<T, U>
+      Implementation( // bitMap<T, U>
           "bitmap",
           AssocType::get(TypeVariable::get(), TypeVariable::get())),
 

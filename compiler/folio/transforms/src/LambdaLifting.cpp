@@ -47,8 +47,8 @@ static void patch_ret_phis(llvm::Instruction &I, llvm::Function &F) {
 }
 
 static void queue_new_calls(llvm::Function &F,
-                            vector<llvm::CallBase *> &calls,
-                            const set<llvm::Function *> &memoir_functions) {
+                            Vector<llvm::CallBase *> &calls,
+                            const Set<llvm::Function *> &memoir_functions) {
   for (auto &BB : F) {
     for (auto &I : BB) {
       auto *new_call = dyn_cast<llvm::CallBase>(&I);
@@ -72,7 +72,7 @@ static void queue_new_calls(llvm::Function &F,
 LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
 
   // Identify functions that have more than one callers.
-  set<llvm::Function *> memoir_functions = {};
+  Set<llvm::Function *> memoir_functions = {};
   for (auto &F : M) {
 
     if (F.empty()) {
@@ -103,8 +103,8 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
   }
 
   // Collect all the calls to this function.
-  map<llvm::Function *, vector<llvm::CallBase *>> recursive = {};
-  vector<llvm::CallBase *> calls = {};
+  Map<llvm::Function *, Vector<llvm::CallBase *>> recursive = {};
+  Vector<llvm::CallBase *> calls = {};
   for (auto *func : memoir_functions) {
     for (auto &use : func->uses()) {
 

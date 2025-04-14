@@ -70,8 +70,8 @@ bool ContentAnalysisDriver::is_in_scope(llvm::Value &V) {
   return true;
 }
 
-std::pair<set<llvm::Value *>, bool> ContentAnalysisDriver::set_recurse() {
-  std::pair<set<llvm::Value *>, bool> old = { this->visited, this->recurse };
+std::pair<Set<llvm::Value *>, bool> ContentAnalysisDriver::set_recurse() {
+  std::pair<Set<llvm::Value *>, bool> old = { this->visited, this->recurse };
 
   // this->visited.clear();
   this->recurse = true;
@@ -79,7 +79,7 @@ std::pair<set<llvm::Value *>, bool> ContentAnalysisDriver::set_recurse() {
   return old;
 }
 void ContentAnalysisDriver::restore_recurse(
-    std::pair<set<llvm::Value *>, bool> old) {
+    std::pair<Set<llvm::Value *>, bool> old) {
   // this->visited = old.first;
   this->recurse = old.second;
 }
@@ -242,7 +242,7 @@ ContentSummary ContentAnalysisDriver::visitSeqInsertInst(SeqInsertInst &I) {
 
   // If the element type is a struct, create a TupleContent with empty fields.
   if (struct_type) {
-    vector<Content *> fields(struct_type->getNumFields(),
+    Vector<Content *> fields(struct_type->getNumFields(),
                              &Content::create<EmptyContent>());
 
     auto &tuple_content = Content::create<TupleContent>(fields);
@@ -288,7 +288,7 @@ ContentSummary ContentAnalysisDriver::visitIndexWriteInst(IndexWriteInst &I) {
                                         "Subindex access to non-struct type.");
 
     // Create a TupleContent and union it with the input.
-    vector<Content *> fields(struct_type.getNumFields(),
+    Vector<Content *> fields(struct_type.getNumFields(),
                              &Content::create<EmptyContent>());
 
     // Update the relevant field.
@@ -364,7 +364,7 @@ ContentSummary ContentAnalysisDriver::visitAssocInsertInst(AssocInsertInst &I) {
   Content *empty_content = &Content::create<EmptyContent>();
   if (auto *struct_type = dyn_cast<TupleType>(element_type)) {
     // TODO: handle nested structs.
-    vector<Content *> fields(struct_type->getNumFields(), empty_content);
+    Vector<Content *> fields(struct_type->getNumFields(), empty_content);
 
     empty_content = &Content::create<TupleContent>(fields);
   }
@@ -661,8 +661,8 @@ ContentSummary ContentAnalysisDriver::visitPHINode(llvm::PHINode &I) {
   }
 
   // Otherwise, return a conservative content.
-  set<llvm::Value *> incoming_values = {};
-  vector<ContentSummary> incoming_contents = {};
+  Set<llvm::Value *> incoming_values = {};
+  Vector<ContentSummary> incoming_contents = {};
   incoming_contents.reserve(I.getNumIncomingValues());
 
   for (unsigned i = 0; i < I.getNumIncomingValues(); ++i) {
@@ -753,7 +753,7 @@ ContentSummary ContentAnalysisDriver::contextualize_call(
   auto [domain, range] = content;
 
   // Collect all live out variables.
-  map<llvm::Argument *, llvm::Value *> live_outs = {};
+  Map<llvm::Argument *, llvm::Value *> live_outs = {};
   for (auto &BB : function) {
     for (auto &I : BB) {
       auto live_out_metadata = Metadata::get<LiveOutMetadata>(I);
@@ -769,7 +769,7 @@ ContentSummary ContentAnalysisDriver::contextualize_call(
   }
 
   // For each live-out, find a the corresponding RET-PHI.
-  map<llvm::Argument *, llvm::Value *> ret_phis = {};
+  Map<llvm::Argument *, llvm::Value *> ret_phis = {};
   llvm::BasicBlock::iterator it(call.getNextNode());
   for (auto *inst = call.getNextNode(); inst != nullptr;
        inst = inst->getNextNode()) {

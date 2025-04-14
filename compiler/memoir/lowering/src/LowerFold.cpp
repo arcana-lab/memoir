@@ -374,7 +374,7 @@ bool lower_fold(FoldInst &I,
   auto *body_type = body.getFunctionType();
 
   // Construct the list of arguments to pass into the body.
-  vector<llvm::Value *> arguments = { &accumulator, &key };
+  Vector<llvm::Value *> arguments = { &accumulator, &key };
   if (element) {
     arguments.push_back(element);
   }

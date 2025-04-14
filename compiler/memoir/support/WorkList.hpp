@@ -13,8 +13,8 @@ template <typename T,
           const bool PopFront = false>
 struct WorkList {
 protected:
-  vector<T> _items;
-  set<T> _present;
+  Vector<T> _items;
+  Set<T> _present;
 
 public:
   WorkList() : _items{}, _present{} {}

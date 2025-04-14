@@ -106,10 +106,10 @@ public:
 
 protected:
   DifferenceKind _kind;
-  vector<unsigned> _offsets;
+  Vector<unsigned> _offsets;
 };
 
-struct Differences : public vector<Difference> {
+struct Differences : public Vector<Difference> {
   Differences() {}
 
   llvm::ArrayRef<Difference> diffs() const {
@@ -181,7 +181,7 @@ static void type_differences(Differences &differences,
                     " => ",
                     other);
 
-      vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
+      Vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
       for (unsigned field = 0; field < base_fields; ++field) {
         nested_offsets.push_back(field);
 
@@ -202,7 +202,7 @@ static void type_differences(Differences &differences,
       auto &base_key = base_assoc->getKeyType();
       auto &other_key = other_assoc->getKeyType();
 
-      vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
+      Vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
 
       type_differences(differences, offsets, base_key, other_key);
 
@@ -227,7 +227,7 @@ static void type_differences(Differences &differences,
       auto &base_elem = base_seq->getElementType();
       auto &other_elem = other_seq->getElementType();
 
-      vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
+      Vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
 
       nested_offsets.push_back(ELEMS);
       type_differences(differences, nested_offsets, base_elem, other_elem);
@@ -248,7 +248,7 @@ static void type_differences(Differences &differences,
       auto &base_elem = base_assoc->getElementType();
       auto &other_elem = other_seq->getElementType();
 
-      vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
+      Vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
 
       nested_offsets.push_back(ELEMS);
       type_differences(differences, nested_offsets, base_elem, other_elem);
@@ -277,7 +277,7 @@ static Differences type_differences(Type &base, Type &other) {
   return differences;
 }
 
-static void gather_base_redefinitions(set<llvm::Value *> &redefs,
+static void gather_base_redefinitions(Set<llvm::Value *> &redefs,
                                       llvm::Value &V) {
 
   if (redefs.count(&V) > 0) {
@@ -395,11 +395,11 @@ struct NestedInfo {
 
 protected:
   llvm::Value *_value;
-  vector<unsigned> _offsets;
+  Vector<unsigned> _offsets;
 };
 
-static void gather_nested_redefinitions(ordered_set<NestedInfo> &redefs,
-                                        set<llvm::Value *> &visited,
+static void gather_nested_redefinitions(OrderedSet<NestedInfo> &redefs,
+                                        Set<llvm::Value *> &visited,
                                         llvm::Value &V,
                                         llvm::ArrayRef<unsigned> offsets) {
 
@@ -431,7 +431,7 @@ static void gather_nested_redefinitions(ordered_set<NestedInfo> &redefs,
           auto *type = type_of(V);
 
           // Construct the nested offsets.
-          vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
+          Vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
           for (auto *index : fold->indices()) {
             if (auto *collection_type = dyn_cast<CollectionType>(type)) {
 
@@ -496,7 +496,7 @@ static void gather_nested_redefinitions(ordered_set<NestedInfo> &redefs,
   return;
 }
 
-static void gather_offsets(vector<unsigned> &offsets, AccessInst &access) {
+static void gather_offsets(Vector<unsigned> &offsets, AccessInst &access) {
 
   auto *type = &access.getObjectType();
 
@@ -515,17 +515,17 @@ static void gather_offsets(vector<unsigned> &offsets, AccessInst &access) {
   return;
 }
 
-static ordered_set<NestedInfo> gather_redefinitions(llvm::Value &V) {
+static OrderedSet<NestedInfo> gather_redefinitions(llvm::Value &V) {
 
   // Initialize the redefinitions.
-  ordered_set<NestedInfo> redefs = {};
+  OrderedSet<NestedInfo> redefs = {};
 
   // Gather base redefinitions.
-  set<llvm::Value *> base_redefs = {};
+  Set<llvm::Value *> base_redefs = {};
   gather_base_redefinitions(base_redefs, V);
 
   // Gather nested redefinitions.
-  set<llvm::Value *> visited = {};
+  Set<llvm::Value *> visited = {};
   for (auto *base : base_redefs) {
     gather_nested_redefinitions(redefs, visited, *base, {});
   }
@@ -538,7 +538,7 @@ static ordered_set<NestedInfo> gather_redefinitions(llvm::Value &V) {
   return redefs;
 }
 
-static ordered_set<NestedInfo> gather_redefinitions(MemOIRInst &I) {
+static OrderedSet<NestedInfo> gather_redefinitions(MemOIRInst &I) {
   return gather_redefinitions(I.getCallInst());
 }
 
@@ -602,7 +602,7 @@ static void update_has(const NestedInfo &info,
                        llvm::ArrayRef<unsigned> diff_offsets) {
   auto &value = info.value();
 
-  set<llvm::Instruction *> to_cleanup = {};
+  Set<llvm::Instruction *> to_cleanup = {};
 
   for (auto &use : value.uses()) {
     auto *user = dyn_cast<llvm::Instruction>(use.getUser());
@@ -644,7 +644,7 @@ static void update_has(const NestedInfo &info,
       MemOIRBuilder builder(*has);
 
       auto &object = has->getObject();
-      vector<llvm::Value *> indices(has->indices_begin(), has->indices_end());
+      Vector<llvm::Value *> indices(has->indices_begin(), has->indices_end());
       auto *last_index = indices.back();
       indices.pop_back();
 
@@ -665,7 +665,7 @@ static void update_has(const NestedInfo &info,
   }
 }
 
-static void find_arguments(map<llvm::Argument *, Type *> &args_to_mutate,
+static void find_arguments(Map<llvm::Argument *, Type *> &args_to_mutate,
                            const NestedInfo &info,
                            Differences &diffs,
                            Type &type) {
@@ -678,7 +678,7 @@ static void find_arguments(map<llvm::Argument *, Type *> &args_to_mutate,
       if (&use == &fold->getObjectAsUse()) {
 
         // Gather the offsets for the fold.
-        vector<unsigned> offsets(info.offsets().begin(), info.offsets().end());
+        Vector<unsigned> offsets(info.offsets().begin(), info.offsets().end());
         gather_offsets(offsets, *fold);
 
         // Check for key type differences.
@@ -729,12 +729,12 @@ static void find_arguments(map<llvm::Argument *, Type *> &args_to_mutate,
   return;
 }
 
-static void update_arguments(ordered_set<NestedInfo> &redefs,
+static void update_arguments(OrderedSet<NestedInfo> &redefs,
                              Differences &diffs,
                              Type &type,
                              OnFuncClone on_func_clone) {
 
-  map<llvm::Argument *, Type *> to_mutate = {};
+  Map<llvm::Argument *, Type *> to_mutate = {};
 
   // Find all arguments to mutate.
   for (auto &info : redefs) {
@@ -742,13 +742,13 @@ static void update_arguments(ordered_set<NestedInfo> &redefs,
   }
 
   // Gather the set of functions to update.
-  map<llvm::Function *, vector<llvm::Argument *>> functions = {};
+  Map<llvm::Function *, Vector<llvm::Argument *>> functions = {};
   for (const auto &[arg, _type] : to_mutate) {
     functions[arg->getParent()].push_back(arg);
   }
 
   // Create a clone of each function with the new argument types.
-  set<llvm::Function *> functions_to_delete = {};
+  Set<llvm::Function *> functions_to_delete = {};
   for (const auto &[func, args] : functions) {
     auto &context = func->getContext();
     auto &module = MEMOIR_SANITIZE(func->getParent(),
@@ -758,7 +758,7 @@ static void update_arguments(ordered_set<NestedInfo> &redefs,
     auto *func_type = func->getFunctionType();
 
     // Rebuild the function type.
-    vector<llvm::Type *> params(func_type->param_begin(),
+    Vector<llvm::Type *> params(func_type->param_begin(),
                                 func_type->param_end());
 
     for (auto *arg : args) {

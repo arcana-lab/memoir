@@ -10,8 +10,8 @@ namespace folio {
 namespace detail {
 
 void gather_used_redefinitions(llvm::Value &V,
-                               set<llvm::Value *> &used_redefinitions,
-                               set<llvm::Value *> visited = {}) {
+                               Set<llvm::Value *> &used_redefinitions,
+                               Set<llvm::Value *> visited = {}) {
 
   if (visited.count(&V) > 0) {
     return;
@@ -216,7 +216,7 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
   //  - range(P) \contains domain(C)
 
   // Find all collection allocations in the program.
-  set<AllocInst *> allocations = {};
+  Set<AllocInst *> allocations = {};
   auto *assoc_alloc_func =
       FunctionNames::get_memoir_function(M, MemOIR_Func::ALLOCATE);
   for (auto &uses : assoc_alloc_func->uses()) {
@@ -244,13 +244,13 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
   // For each allocation that we found, determine a maximal domain for it, if
   // possible.
   // ContentSimplification simplifier(contents);
-  map<CollectionAllocInst *, Content *> domains = {};
+  Map<CollectionAllocInst *, Content *> domains = {};
   for (auto *alloc : allocations) {
 
     println("Analyzing ", *alloc);
 
     // Gather all used redefinitions of the allocation.
-    set<llvm::Value *> used_redefinitions = {};
+    Set<llvm::Value *> used_redefinitions = {};
     detail::gather_used_redefinitions(alloc->getCallInst(), used_redefinitions);
 
     // Determine if all uses share a content.
@@ -378,7 +378,7 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
   }
 
   // Coalesce equivalent domains to use the same pointer.
-  ordered_set<Content *> super_domains = {};
+  OrderedSet<Content *> super_domains = {};
   for (auto it = domains.begin(); it != domains.end(); ++it) {
     auto *domain = it->second;
 
@@ -408,7 +408,7 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
 
   // TODO
   // Construct a mapping from subdomain to superdomain.
-  map<Content *, Content *> sub_domains = {};
+  Map<Content *, Content *> sub_domains = {};
   for (auto it = super_domains.begin(); it != super_domains.end(); ++it) {
     auto *domain = *it;
 
@@ -440,7 +440,7 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
   }
 
   // Update the mapping from allocation to domain.
-  set<Content *> proxy_domains = {};
+  Set<Content *> proxy_domains = {};
   for (auto &[alloc, domain] : domains) {
     auto found = sub_domains.find(domain);
     if (found != sub_domains.end()) {
@@ -455,7 +455,7 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
   }
 
   // Construct a reverse mapping from domain to allocations.
-  ordered_multimap<Content *, CollectionAllocInst *> domain_to_allocs = {};
+  OrderedMultiMap<Content *, CollectionAllocInst *> domain_to_allocs = {};
   for (auto [alloc, domain] : domains) {
     println("Allocation ", *alloc);
     println("  uses proxy of ", *domain);
@@ -469,7 +469,7 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
   println();
 
   // For each super domain, fetch a proxy, if possible.
-  ordered_multimap<Content *, Proxy *> proxies = {};
+  OrderedMultiMap<Content *, Proxy *> proxies = {};
   for (auto *domain : proxy_domains) {
 
     // TODO: See if a natural proxy exists.
@@ -487,7 +487,7 @@ Opportunities ProxyOpportunityAnalysis::run(llvm::Module &M,
     auto range = domain_to_allocs.equal_range(domain);
 
     // Create the set of allocations that will be proxied.
-    set<CollectionAllocInst *> allocations = {};
+    Set<CollectionAllocInst *> allocations = {};
     for (auto it = range.first; it != range.second; ++it) {
       // Get the allocation.
       auto *alloc = it->second;

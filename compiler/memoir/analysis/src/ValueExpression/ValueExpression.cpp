@@ -132,7 +132,7 @@ llvm::Argument *ValueExpression::handleCallContext(
   // argument.
 
   // Grab the fixed argument list from the old call.
-  vector<llvm::Value *> new_arguments = {};
+  Vector<llvm::Value *> new_arguments = {};
   auto num_fixed_args = old_func_type.getNumParams();
   for (unsigned arg_idx = 0; arg_idx < num_fixed_args; arg_idx++) {
     auto *fixed_arg = call_context.getArgOperand(arg_idx);

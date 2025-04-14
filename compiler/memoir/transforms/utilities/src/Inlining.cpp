@@ -23,10 +23,10 @@ namespace llvm::memoir {
  * @param entry a reference to the single-entry
  * @param exit a reference to the single-exit
  */
-void collect_blocks_between(set<llvm::BasicBlock *> &blocks,
+void collect_blocks_between(Set<llvm::BasicBlock *> &blocks,
                             llvm::BasicBlock &entry,
                             llvm::BasicBlock &exit) {
-  vector<llvm::BasicBlock *> worklist = { &entry };
+  Vector<llvm::BasicBlock *> worklist = { &entry };
   while (not worklist.empty()) {
     // Pop off the top block of the worklist.
     auto *current = worklist.back();
@@ -90,7 +90,7 @@ llvm::InlineResult InlineFunction(llvm::CallBase &CB,
   // Collect all of the collection arguments to the function before we inline
   // the function.
   unsigned arg_index = 0;
-  map<unsigned, llvm::Value *> arguments_to_patch = {};
+  Map<unsigned, llvm::Value *> arguments_to_patch = {};
   for (auto &arg_use : CB.data_ops()) {
 
     // Unpack the argument value.
@@ -124,12 +124,12 @@ llvm::InlineResult InlineFunction(llvm::CallBase &CB,
   }
 
   // Collect the set of basic blocks introduced by inlining.
-  set<llvm::BasicBlock *> inlined_blocks = {};
+  Set<llvm::BasicBlock *> inlined_blocks = {};
   collect_blocks_between(inlined_blocks, *entry, *exit);
 
   // Otherwise, we need to traverse the CFG of the newly inlined function to
   // find any instructions with LiveOutMetadata attached.
-  map<llvm::Value *, llvm::Value *> patches = {};
+  Map<llvm::Value *, llvm::Value *> patches = {};
   for (auto *inlined_block : inlined_blocks) {
     for (auto &I : *inlined_block) {
       // Check if this instruction has live-out metadata.
@@ -169,7 +169,7 @@ llvm::InlineResult InlineFunction(llvm::CallBase &CB,
   }
 
   // Find all relevant RetPHIs.
-  set<llvm::Instruction *> to_cleanup = {};
+  Set<llvm::Instruction *> to_cleanup = {};
   for (const auto &[to_patch, patch] : patches) {
 
     // For each use of the value to patch:

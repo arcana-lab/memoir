@@ -256,7 +256,7 @@ bool TypeInference::infer_return_type(llvm::Function &F) {
   }
 
   // Otherwise, we need to infer the type from the return instructions.
-  set<llvm::Value *> returned_values = {};
+  Set<llvm::Value *> returned_values = {};
   for (auto &BB : F) {
     // Get the return instruction.
     auto *return_inst = dyn_cast_or_null<llvm::ReturnInst>(BB.getTerminator());

@@ -9,9 +9,9 @@ namespace llvm::memoir {
  * An association list that maintain insertion order.
  */
 template <typename K, typename V>
-struct AssocList : public list<pair<K, V>> {
+struct AssocList : public List<pair<K, V>> {
 
-  using DataTy = list<pair<K, V>>;
+  using DataTy = List<pair<K, V>>;
 
   DataTy::iterator find(const K &key) {
     return std::find_if(this->begin(), this->end(), [&key](const auto &pair) {

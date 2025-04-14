@@ -58,7 +58,7 @@ Content &ConditionalContent::create(Content &C,
                          "Failed to create ConditionalContent.");
 }
 
-Content &TupleContent::create(const vector<Content *> &elements) {
+Content &TupleContent::create(const Vector<Content *> &elements) {
   auto &tuple = MEMOIR_SANITIZE(new TupleContent(elements),
                                 "Failed to create TupleContent.");
   std::for_each(tuple.elements().begin(),
@@ -70,7 +70,7 @@ Content &TupleContent::create(const vector<Content *> &elements) {
 
 Content &TupleContent::create(std::initializer_list<Content *> elements) {
   return MEMOIR_SANITIZE(
-      new TupleContent(vector<Content *>(
+      new TupleContent(Vector<Content *>(
           std::forward<std::initializer_list<Content *>>(elements))),
       "Failed to create TupleContent.");
 }
@@ -161,7 +161,7 @@ Content &TupleContent::substitute(Content &from, Content &to) {
 
   bool modified = false;
 
-  llvm::memoir::vector<Content *> subst_elements = {};
+  llvm::memoir::Vector<Content *> subst_elements = {};
   subst_elements.reserve(this->_elements.size());
 
   for (auto *elem : this->_elements) {

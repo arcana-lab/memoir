@@ -39,20 +39,20 @@ public:
       llvm_type(llvm_type) {}
   TypeLayout(IntegerType &memoir_integer_type,
              llvm::IntegerType &llvm_integer_type,
-             map<unsigned, pair<unsigned, unsigned>> bit_field_ranges)
+             Map<unsigned, pair<unsigned, unsigned>> bit_field_ranges)
     : memoir_type(memoir_integer_type),
       llvm_type(llvm_integer_type),
       bit_field_ranges(bit_field_ranges) {}
   TypeLayout(TupleType &memoir_struct_type,
              llvm::StructType &llvm_struct_type,
-             vector<unsigned> field_offsets)
+             Vector<unsigned> field_offsets)
     : memoir_type(memoir_struct_type),
       llvm_type(llvm_struct_type),
       field_offsets(field_offsets) {}
   TypeLayout(TupleType &memoir_struct_type,
              llvm::StructType &llvm_struct_type,
-             vector<unsigned> field_offsets,
-             map<unsigned, pair<unsigned, unsigned>> bit_field_ranges)
+             Vector<unsigned> field_offsets,
+             Map<unsigned, pair<unsigned, unsigned>> bit_field_ranges)
     : memoir_type(memoir_struct_type),
       llvm_type(llvm_struct_type),
       field_offsets(field_offsets),
@@ -95,8 +95,8 @@ public:
 protected:
   Type &memoir_type;
   llvm::Type &llvm_type;
-  vector<unsigned> field_offsets;
-  map<unsigned, pair<unsigned, unsigned>> bit_field_ranges;
+  Vector<unsigned> field_offsets;
+  Map<unsigned, pair<unsigned, unsigned>> bit_field_ranges;
 }; // struct TypeLayout
 
 class TypeConverter : public TypeVisitor<TypeConverter, TypeLayout &> {
@@ -269,11 +269,11 @@ protected:
     auto num_fields = T.getNumFields();
 
     // Construct the llvm TupleType for the given type.
-    vector<unsigned> field_offsets;
+    Vector<unsigned> field_offsets;
     field_offsets.resize(num_fields);
-    vector<llvm::Type *> llvm_field_types;
+    Vector<llvm::Type *> llvm_field_types;
     llvm_field_types.reserve(num_fields);
-    map<unsigned, pair<unsigned, unsigned>> bit_field_ranges = {};
+    Map<unsigned, pair<unsigned, unsigned>> bit_field_ranges = {};
 
     // Get the type layout of each field.
     unsigned current_field_width = 0;
@@ -398,7 +398,7 @@ protected:
   }
 
   // Owned state.
-  map<Type *, TypeLayout *> memoir_to_type_layout;
+  Map<Type *, TypeLayout *> memoir_to_type_layout;
 
   // Borrowed state.
   llvm::LLVMContext &C;

@@ -550,13 +550,13 @@ public:
     : Content(ContentKind::CONTENT_TUPLE),
       _elements(std::forward<std::initializer_list<Content *>>(elements)) {}
 
-  TupleContent(const llvm::memoir::vector<Content *> &elements)
+  TupleContent(const llvm::memoir::Vector<Content *> &elements)
     : Content(ContentKind::CONTENT_TUPLE),
       _elements(elements) {}
 
   static Content &create(std::initializer_list<Content *> elements);
 
-  static Content &create(const llvm::memoir::vector<Content *> &elements);
+  static Content &create(const llvm::memoir::Vector<Content *> &elements);
 
   std::string to_string() const override {
     return "[ "
@@ -596,7 +596,7 @@ public:
     return content->kind() == ContentKind::CONTENT_TUPLE;
   }
 
-  llvm::memoir::vector<Content *> &elements() {
+  llvm::memoir::Vector<Content *> &elements() {
     return this->_elements;
   }
 
@@ -609,7 +609,7 @@ public:
   }
 
 protected:
-  llvm::memoir::vector<Content *> _elements = {};
+  llvm::memoir::Vector<Content *> _elements = {};
 };
 
 /**
@@ -674,7 +674,7 @@ protected:
 };
 
 using ContentSummary = typename std::pair<Content *, Content *>;
-using Contents = typename llvm::memoir::map<llvm::Value *, ContentSummary>;
+using Contents = typename llvm::memoir::Map<llvm::Value *, ContentSummary>;
 
 } // namespace folio
 

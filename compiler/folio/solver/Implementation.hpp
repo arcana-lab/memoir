@@ -38,7 +38,7 @@ public:
   /**
    * Query the set of constraints that are _not_ met by this implementation.
    */
-  const llvm::memoir::ordered_set<Constraint> &constraints() const {
+  const llvm::memoir::OrderedSet<Constraint> &constraints() const {
     return this->_constraints;
   }
 
@@ -57,7 +57,7 @@ public:
 protected:
   ImplementationKind _kind;
   std::string _name;
-  llvm::memoir::ordered_set<Constraint> _constraints;
+  llvm::memoir::OrderedSet<Constraint> _constraints;
   bool _selectable;
 };
 
@@ -109,7 +109,7 @@ public:
   }
 };
 
-using Implementations = typename llvm::memoir::map<std::string, Implementation>;
+using Implementations = typename llvm::memoir::Map<std::string, Implementation>;
 
 } // namespace folio
 

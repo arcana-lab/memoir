@@ -49,7 +49,7 @@ public:
   virtual ~Opportunity() = 0;
 };
 
-using Opportunities = typename llvm::memoir::vector<Opportunity *>;
+using Opportunities = typename llvm::memoir::Vector<Opportunity *>;
 
 } // namespace folio
 

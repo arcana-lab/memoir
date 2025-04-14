@@ -91,7 +91,7 @@ Instantiation &Implementation::instantiate(Type &type) const {
                                     environment);
 }
 
-map<std::string, Implementation> *Implementation::templates = nullptr;
+Map<std::string, Implementation> *Implementation::templates = nullptr;
 
 // =============================================================================
 Instantiation &Instantiation::instantiate(
@@ -100,7 +100,7 @@ Instantiation &Instantiation::instantiate(
     const AssocList<TypeVariable *, Type *> &bindings) {
   if (Instantiation::instantiations == nullptr) {
     Instantiation::instantiations =
-        new ordered_multimap<std::string, Instantiation *>();
+        new OrderedMultiMap<std::string, Instantiation *>();
   }
   auto &map = *Instantiation::instantiations;
 
@@ -155,7 +155,7 @@ std::string Instantiation::get_typename() const {
   return this->get_prefix() + "_t";
 }
 
-ordered_multimap<std::string, Instantiation *> *Instantiation::instantiations =
+OrderedMultiMap<std::string, Instantiation *> *Instantiation::instantiations =
     nullptr;
 
 } // namespace llvm::memoir

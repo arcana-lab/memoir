@@ -34,8 +34,8 @@ public:
   bool insert(llvm::Use &U, ValueExpression &E);
 
 protected:
-  map<llvm::Value *, ValueExpression *> table;
-  map<llvm::Value *, map<llvm::Use *, ValueExpression *>> use_table;
+  Map<llvm::Value *, ValueExpression *> table;
+  Map<llvm::Value *, Map<llvm::Use *, ValueExpression *>> use_table;
 };
 
 class ValueNumbering

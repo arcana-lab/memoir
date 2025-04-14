@@ -25,16 +25,16 @@
 namespace folio {
 
 // Analysis result.
-using ConstraintSet = typename llvm::memoir::ordered_set<Constraint>;
+using ConstraintSet = typename llvm::memoir::OrderedSet<Constraint>;
 
 struct Constraints {
 public:
   using iterator =
-      typename llvm::memoir::map<llvm::Value *, ConstraintSet>::iterator;
+      typename llvm::memoir::Map<llvm::Value *, ConstraintSet>::iterator;
   using const_iterator =
-      typename llvm::memoir::map<llvm::Value *, ConstraintSet>::const_iterator;
+      typename llvm::memoir::Map<llvm::Value *, ConstraintSet>::const_iterator;
   using reference =
-      typename llvm::memoir::map<llvm::Value *, ConstraintSet>::mapped_type &;
+      typename llvm::memoir::Map<llvm::Value *, ConstraintSet>::mapped_type &;
 
   // const ConstraintSet &get(llvm::Value &V) const;
 
@@ -59,7 +59,7 @@ public:
   }
 
 protected:
-  llvm::memoir::map<llvm::Value *, ConstraintSet> value_to_constraints;
+  llvm::memoir::Map<llvm::Value *, ConstraintSet> value_to_constraints;
 
   void add(llvm::Value &V, Constraint C) {
     this->value_to_constraints[&V].insert(C);

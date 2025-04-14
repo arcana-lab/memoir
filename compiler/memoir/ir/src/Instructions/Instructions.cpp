@@ -5,11 +5,11 @@
 
 namespace llvm::memoir {
 
-map<llvm::Instruction *, MemOIRInst *> *MemOIRInst::llvm_to_memoir = nullptr;
+Map<llvm::Instruction *, MemOIRInst *> *MemOIRInst::llvm_to_memoir = nullptr;
 
 MemOIRInst *MemOIRInst::get(llvm::Instruction &I) {
   if (MemOIRInst::llvm_to_memoir == nullptr) {
-    MemOIRInst::llvm_to_memoir = new map<llvm::Instruction *, MemOIRInst *>();
+    MemOIRInst::llvm_to_memoir = new Map<llvm::Instruction *, MemOIRInst *>();
   }
   auto &llvm_to_memoir = *MemOIRInst::llvm_to_memoir;
 

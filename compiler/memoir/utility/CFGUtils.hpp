@@ -4,6 +4,6 @@
 
 namespace llvm::memoir {
 
-list<llvm::BasicBlock *> dfs_preorder_traversal(llvm::DominatorTree &DT);
+List<llvm::BasicBlock *> dfs_preorder_traversal(llvm::DominatorTree &DT);
 
 }

@@ -164,7 +164,7 @@ public:
   TupleTypeInst *CreateTupleTypeInst(llvm::ArrayRef<Type *> fields,
                                      const Twine &name = "") {
 
-    vector<llvm::Value *> llvm_fields = {};
+    Vector<llvm::Value *> llvm_fields = {};
     llvm_fields.reserve(fields.size());
     for (auto *field : fields) {
       auto *llvm_field = &this->CreateTypeInst(*field)->getCallInst();
@@ -191,7 +191,7 @@ public:
                                            opt<std::string> selection = {},
                                            const Twine &name = "") {
 
-    vector<llvm::Value *> args = { element_type };
+    Vector<llvm::Value *> args = { element_type };
 
     if (selection) {
       auto &context = this->getContext();
@@ -210,7 +210,7 @@ public:
                                                opt<std::string> selection = {},
                                                const Twine &name = "") {
 
-    vector<llvm::Value *> args = { key_type, value_type };
+    Vector<llvm::Value *> args = { key_type, value_type };
 
     if (selection) {
       auto &context = this->getContext();
@@ -230,7 +230,7 @@ public:
   AllocInst *CreateAllocInst(llvm::Value *type,
                              llvm::ArrayRef<llvm::Value *> extra_args = {},
                              const Twine &name = "") {
-    vector<llvm::Value *> args = { type };
+    Vector<llvm::Value *> args = { type };
     args.insert(args.end(), extra_args.begin(), extra_args.end());
 
     return this->create<AllocInst>(MemOIR_Func::ALLOCATE, args, name);
@@ -306,7 +306,7 @@ public:
                            llvm::Value *llvm_object,
                            llvm::ArrayRef<llvm::Value *> indices = {},
                            const Twine &name = "") {
-    vector<llvm::Value *> args = { llvm_object };
+    Vector<llvm::Value *> args = { llvm_object };
     args.insert(args.end(), indices.begin(), indices.end());
 
     return this->create<ReadInst>(getReadEnumForType(element_type), args, name);
@@ -316,7 +316,7 @@ public:
   GetInst *CreateGetInst(llvm::Value *llvm_object,
                          llvm::ArrayRef<llvm::Value *> indices = {},
                          const Twine &name = "") {
-    vector<llvm::Value *> args = { llvm_object };
+    Vector<llvm::Value *> args = { llvm_object };
     args.insert(args.end(), indices.begin(), indices.end());
 
     return this->create<GetInst>(MemOIR_Func::GET, args, name);
@@ -328,7 +328,7 @@ public:
                              llvm::Value *llvm_object,
                              llvm::ArrayRef<llvm::Value *> indices = {},
                              const Twine &name = "") {
-    vector<llvm::Value *> args = { llvm_value_to_write, llvm_object };
+    Vector<llvm::Value *> args = { llvm_value_to_write, llvm_object };
     args.insert(args.end(), indices.begin(), indices.end());
 
     return this->create<WriteInst>(getWriteEnumForType(element_type),
@@ -343,7 +343,7 @@ public:
   InsertInst *CreateInsertInst(llvm::Value *object,
                                llvm::ArrayRef<llvm::Value *> indices,
                                const Twine &name = "") {
-    vector<llvm::Value *> args = { object };
+    Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
     return this->create<InsertInst>(MemOIR_Func::INSERT, args, name);
@@ -352,7 +352,7 @@ public:
   RemoveInst *CreateRemoveInst(llvm::Value *object,
                                llvm::ArrayRef<llvm::Value *> indices,
                                const Twine &name = "") {
-    vector<llvm::Value *> args = { object };
+    Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
     return this->create<RemoveInst>(MemOIR_Func::REMOVE, args, name);
@@ -361,7 +361,7 @@ public:
   KeysInst *CreateKeysInst(llvm::Value *object,
                            llvm::ArrayRef<llvm::Value *> indices = {},
                            const Twine &name = "") {
-    vector<llvm::Value *> args = { object };
+    Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
     return this->create<KeysInst>(MemOIR_Func::KEYS, args, name);
@@ -370,7 +370,7 @@ public:
   HasInst *CreateHasInst(llvm::Value *object,
                          llvm::ArrayRef<llvm::Value *> indices,
                          const Twine &name = "") {
-    vector<llvm::Value *> args = { object };
+    Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
     return this->create<HasInst>(MemOIR_Func::HAS, args, name);
@@ -382,7 +382,7 @@ public:
                                    llvm::Value *llvm_object,
                                    llvm::ArrayRef<llvm::Value *> indices = {},
                                    const Twine &name = "") {
-    vector<llvm::Value *> args = { llvm_value_to_write, llvm_object };
+    Vector<llvm::Value *> args = { llvm_value_to_write, llvm_object };
     args.insert(args.end(), indices.begin(), indices.end());
 
     return this->create<MutWriteInst>(getMutWriteEnumForType(element_type),
@@ -393,7 +393,7 @@ public:
   MutInsertInst *CreateMutInsertInst(llvm::Value *object,
                                      llvm::ArrayRef<llvm::Value *> indices,
                                      const Twine &name = "") {
-    vector<llvm::Value *> args = { object };
+    Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
     return this->create<MutInsertInst>(MemOIR_Func::MUT_INSERT, args, name);
@@ -402,7 +402,7 @@ public:
   MutRemoveInst *CreateMutRemoveInst(llvm::Value *object,
                                      llvm::ArrayRef<llvm::Value *> indices,
                                      const Twine &name = "") {
-    vector<llvm::Value *> args = { object };
+    Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
     return this->create<MutRemoveInst>(MemOIR_Func::MUT_REMOVE, args, name);
@@ -412,7 +412,7 @@ public:
   CopyInst *CreateCopyInst(llvm::Value *object,
                            llvm::ArrayRef<llvm::Value *> extra_args = {},
                            const Twine &name = "") {
-    vector<llvm::Value *> args = { object };
+    Vector<llvm::Value *> args = { object };
     args.insert(args.end(), extra_args.begin(), extra_args.end());
 
     return this->create<CopyInst>(MemOIR_Func::COPY, args, name);
@@ -422,7 +422,7 @@ public:
                               llvm::Value *left,
                               llvm::Value *right,
                               const Twine &name = "") {
-    vector<llvm::Value *> args = { &Keyword::get_llvm<RangeKeyword>(
+    Vector<llvm::Value *> args = { &Keyword::get_llvm<RangeKeyword>(
                                        this->getContext()),
                                    left,
                                    right };
@@ -472,7 +472,7 @@ public:
   SizeInst *CreateSizeInst(llvm::Value *object,
                            llvm::ArrayRef<llvm::Value *> extra_args = {},
                            const Twine &name = "") {
-    vector<llvm::Value *> args = { object };
+    Vector<llvm::Value *> args = { object };
     args.insert(args.end(), extra_args.begin(), extra_args.end());
 
     return this->create<SizeInst>(MemOIR_Func::SIZE, args, name);
@@ -514,7 +514,7 @@ public:
     auto *func_type = body->getFunctionType();
 
     // Create the argument list.
-    vector<llvm::Value *> args = { body, initial, collection };
+    Vector<llvm::Value *> args = { body, initial, collection };
     args.insert(args.end(), indices.begin(), indices.end());
     if (not closed.empty()) {
       args.push_back(&Keyword::get_llvm<ClosedKeyword>(this->getContext()));
@@ -543,7 +543,7 @@ public:
   ClearInst *CreateClearInst(llvm::Value *collection,
                              llvm::ArrayRef<llvm::Value *> extra_args = {},
                              const Twine &name = "") {
-    vector<llvm::Value *> arguments = { collection };
+    Vector<llvm::Value *> arguments = { collection };
     arguments.insert(arguments.end(), extra_args.begin(), extra_args.end());
     return this->create<ClearInst>(MemOIR_Func::CLEAR, { collection }, name);
   }

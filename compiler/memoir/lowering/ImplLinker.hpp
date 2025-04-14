@@ -59,7 +59,7 @@ public:
 protected:
   struct StructInstantiation {
     TupleType *type;
-    vector<Instantiation *> fields;
+    Vector<Instantiation *> fields;
 
     StructInstantiation(TupleType *type, llvm::ArrayRef<Instantiation *> fields)
       : type(type),
@@ -70,8 +70,8 @@ protected:
     }
   };
 
-  ordered_set<StructInstantiation> structs_to_emit;
-  ordered_set<Instantiation *> collections_to_emit;
+  OrderedSet<StructInstantiation> structs_to_emit;
+  OrderedSet<Instantiation *> collections_to_emit;
 
   llvm::Module &M;
   TypeConverter TC;

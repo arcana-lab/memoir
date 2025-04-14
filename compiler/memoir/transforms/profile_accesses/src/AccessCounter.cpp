@@ -141,7 +141,7 @@ static void create_report(llvm::Module &M,
                                llvm::GlobalValue::LinkageTypes::InternalLinkage,
                                format_array);
 
-  vector<llvm::Value *> args = { format_global };
+  Vector<llvm::Value *> args = { format_global };
   for (auto *global : globals) {
     auto *load = builder.CreateLoad(counter_type, global);
 

@@ -46,7 +46,7 @@ public:
    * @returns a nested mapping from LLVM Values and their CallBase context (or
    * NULL) to their ValueRange.
    */
-  const map<llvm::Value *, map<llvm::CallBase *, ValueRange *>> &live_ranges()
+  const Map<llvm::Value *, Map<llvm::CallBase *, ValueRange *>> &live_ranges()
       const;
 
   friend class LiveRangeAnalysisDriver;
@@ -54,7 +54,7 @@ public:
 protected:
   ValueRange *lookup_live_range(llvm::Value &V, llvm::CallBase *C) const;
 
-  map<llvm::Value *, map<llvm::CallBase *, ValueRange *>> _live_ranges;
+  Map<llvm::Value *, Map<llvm::CallBase *, ValueRange *>> _live_ranges;
 };
 
 struct LiveRangeConstraintGraph;

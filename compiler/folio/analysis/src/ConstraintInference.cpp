@@ -105,12 +105,12 @@ bool ConstraintInferenceDriver::propagate(llvm::Value &V, ConstraintSet &C) {
 void ConstraintInferenceDriver::infer() {
 
   // Unpack the underlying constraint mapping.
-  map<llvm::Value *, ConstraintSet> &mapping =
+  Map<llvm::Value *, ConstraintSet> &mapping =
       this->constraints.value_to_constraints;
 
   // Construct a mapping from functions to their possible callees.
-  map<llvm::Function *, ordered_set<llvm::CallBase *>> possible_callers = {};
-  map<llvm::CallBase *, ordered_set<llvm::Function *>> possible_callees = {};
+  Map<llvm::Function *, OrderedSet<llvm::CallBase *>> possible_callers = {};
+  Map<llvm::CallBase *, OrderedSet<llvm::Function *>> possible_callees = {};
 
   for (auto &F : M) {
     if (F.empty()) {
@@ -154,7 +154,7 @@ void ConstraintInferenceDriver::infer() {
   }
 
   // Gather the initial worklist.
-  vector<llvm::Value *> worklist;
+  Vector<llvm::Value *> worklist;
   worklist.reserve(this->constraints.value_to_constraints.size());
 
   for (auto [val, c] : this->constraints.value_to_constraints) {

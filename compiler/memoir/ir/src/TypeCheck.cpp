@@ -175,7 +175,7 @@ Type *TypeChecker::visitReferenceTypeInst(ReferenceTypeInst &I) {
 
 Type *TypeChecker::visitTupleTypeInst(TupleTypeInst &I) {
   // Get the types of each field.
-  vector<Type *> field_types;
+  Vector<Type *> field_types;
   for (unsigned field_idx = 0; field_idx < I.getNumberOfFields(); ++field_idx) {
     auto &field_type_value = I.getFieldTypeOperand(field_idx);
     auto *field_type = this->analyze(field_type_value);
@@ -204,7 +204,7 @@ Type *TypeChecker::visitTupleTypeInst(TupleTypeInst &I) {
 //       I.getNameOperand().stripPointerCasts(),
 //       "Could not get the name operand stripped of pointer casts");
 
-//   set<DefineTupleTypeInst *> call_inst_users = {};
+//   Set<DefineTupleTypeInst *> call_inst_users = {};
 //   for (auto *user : name_value.users()) {
 
 //     if (auto *type_def = into<DefineTupleTypeInst>(user)) {

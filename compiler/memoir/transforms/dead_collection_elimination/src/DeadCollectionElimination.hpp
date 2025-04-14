@@ -29,9 +29,9 @@
 namespace llvm::memoir {
 
 class DeadCollectionElimination
-  : InstVisitor<DeadCollectionElimination, set<llvm::Value *>> {
-  friend class InstVisitor<DeadCollectionElimination, set<llvm::Value *>>;
-  friend class llvm::InstVisitor<DeadCollectionElimination, set<llvm::Value *>>;
+  : InstVisitor<DeadCollectionElimination, Set<llvm::Value *>> {
+  friend class InstVisitor<DeadCollectionElimination, Set<llvm::Value *>>;
+  friend class llvm::InstVisitor<DeadCollectionElimination, Set<llvm::Value *>>;
 
 public:
   DeadCollectionElimination(llvm::Module &M) {
@@ -46,9 +46,9 @@ protected:
   }
 
   // Analysis
-  set<llvm::Value *> analyze(llvm::Module &M) {
+  Set<llvm::Value *> analyze(llvm::Module &M) {
     // Find dead collections.
-    set<llvm::Value *> dead_values;
+    Set<llvm::Value *> dead_values;
     for (auto &F : M) {
       for (auto &BB : F) {
         for (auto &I : BB) {
@@ -62,13 +62,13 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitInstruction(llvm::Instruction &I) {
+  Set<llvm::Value *> visitInstruction(llvm::Instruction &I) {
     // Do nothing.
     return {};
   }
 
-  set<llvm::Value *> visitAllocInst(AllocInst &I) {
-    set<llvm::Value *> dead_values = {};
+  Set<llvm::Value *> visitAllocInst(AllocInst &I) {
+    Set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();
     if (llvm_inst.hasNUses(0)) {
@@ -78,8 +78,8 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitInsertInst(InsertInst &I) {
-    set<llvm::Value *> dead_values = {};
+  Set<llvm::Value *> visitInsertInst(InsertInst &I) {
+    Set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();
     if (llvm_inst.hasNUses(0)) {
@@ -89,8 +89,8 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitRemoveInst(RemoveInst &I) {
-    set<llvm::Value *> dead_values = {};
+  Set<llvm::Value *> visitRemoveInst(RemoveInst &I) {
+    Set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();
     if (llvm_inst.hasNUses(0)) {
@@ -100,8 +100,8 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitCopyInst(CopyInst &I) {
-    set<llvm::Value *> dead_values = {};
+  Set<llvm::Value *> visitCopyInst(CopyInst &I) {
+    Set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();
     if (llvm_inst.hasNUses(0)) {
@@ -111,8 +111,8 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitSwapInst(SwapInst &I) {
-    set<llvm::Value *> dead_values = {};
+  Set<llvm::Value *> visitSwapInst(SwapInst &I) {
+    Set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();
     if (llvm_inst.hasNUses(0)) {
@@ -122,12 +122,12 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitDefineTupleTypeInst(DefineTupleTypeInst &I) {
+  Set<llvm::Value *> visitDefineTupleTypeInst(DefineTupleTypeInst &I) {
     return {};
   }
 
-  set<llvm::Value *> visitTypeInst(TypeInst &I) {
-    set<llvm::Value *> dead_values = {};
+  Set<llvm::Value *> visitTypeInst(TypeInst &I) {
+    Set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();
     if (llvm_inst.hasNUses(0)) {
@@ -137,8 +137,8 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitAssertTupleTypeInst(AssertTupleTypeInst &I) {
-    set<llvm::Value *> dead_values = {};
+  Set<llvm::Value *> visitAssertTupleTypeInst(AssertTupleTypeInst &I) {
+    Set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();
     dead_values.insert(&llvm_inst);
@@ -151,9 +151,9 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitAssertCollectionTypeInst(
+  Set<llvm::Value *> visitAssertCollectionTypeInst(
       AssertCollectionTypeInst &I) {
-    set<llvm::Value *> dead_values = {};
+    Set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();
     dead_values.insert(&llvm_inst);
@@ -166,8 +166,8 @@ protected:
     return dead_values;
   }
 
-  set<llvm::Value *> visitReturnTypeInst(ReturnTypeInst &I) {
-    set<llvm::Value *> dead_values = {};
+  Set<llvm::Value *> visitReturnTypeInst(ReturnTypeInst &I) {
+    Set<llvm::Value *> dead_values = {};
 
     auto &llvm_inst = I.getCallInst();
     dead_values.insert(&llvm_inst);
@@ -181,9 +181,9 @@ protected:
   }
 
   // Transformation
-  bool transform(set<llvm::Value *> &&dead_values) {
+  bool transform(Set<llvm::Value *> &&dead_values) {
     // Drop all references to dead values that are Instructions.
-    set<llvm::Value *> values_ready_to_delete = {};
+    Set<llvm::Value *> values_ready_to_delete = {};
     for (auto dead_value : dead_values) {
       // Sanity check.
       if (!dead_value) {

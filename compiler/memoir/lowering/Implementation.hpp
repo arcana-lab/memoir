@@ -20,14 +20,14 @@ struct Implementation {
 public:
   static void define(Implementation impl) {
     if (Implementation::templates == nullptr) {
-      Implementation::templates = new map<std::string, Implementation>;
+      Implementation::templates = new Map<std::string, Implementation>;
     }
     Implementation::templates->insert({ impl.get_name(), impl });
   }
 
   static void define(std::initializer_list<Implementation> impl_list) {
     if (Implementation::templates == nullptr) {
-      Implementation::templates = new map<std::string, Implementation>;
+      Implementation::templates = new Map<std::string, Implementation>;
     }
     for (const auto &impl : impl_list) {
       Implementation::templates->insert({ impl.get_name(), impl });
@@ -84,7 +84,7 @@ protected:
   std::string name;
   Type *type_template;
 
-  static map<std::string, Implementation> *templates;
+  static Map<std::string, Implementation> *templates;
 };
 
 struct Instantiation : public Implementation {
@@ -107,22 +107,22 @@ struct Instantiation : public Implementation {
    */
   std::string get_typename() const;
 
-  vector<Type *> &types() {
+  Vector<Type *> &types() {
     return this->_types;
   }
 
-  const vector<Type *> &types() const {
+  const Vector<Type *> &types() const {
     return this->_types;
   }
 
 protected:
-  vector<Type *> _types;
+  Vector<Type *> _types;
 
   Instantiation(std::string name, Type &type_template)
     : Implementation(name, type_template),
       _types() {}
 
-  static ordered_multimap<std::string, Instantiation *> *instantiations;
+  static OrderedMultiMap<std::string, Instantiation *> *instantiations;
 };
 
 } // namespace llvm::memoir

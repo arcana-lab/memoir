@@ -20,17 +20,17 @@ namespace folio {
 
 #if 0
   
-using ImplList = vector<std::optional<std::string>>;
+using ImplList = Vector<std::optional<std::string>>;
 
 struct Selections {
 
   using ID = uint32_t;
 
   // A mapping from implementation list to its unique identifier.
-  ordered_map<ImplList, ID> implementations;
+  OrderedMap<ImplList, ID> implementations;
 
   // A multimapping from value to its implementations.
-  ordered_multimap<llvm::Value *, ID> selections;
+  OrderedMultiMap<llvm::Value *, ID> selections;
 
   // Returns TRUE if the value changed.
   bool insert(llvm::Value &V, ID id) {
@@ -58,7 +58,7 @@ struct Selections {
     }
 
     // Gather all of the selections of @from.
-    vector<ID> from_selections;
+    Vector<ID> from_selections;
     from_selections.reserve(this->selections.count(&from));
     for (auto it = this->selections.lower_bound(&from);
          it != this->selections.upper_bound(&from);
@@ -125,11 +125,11 @@ struct Selections {
     return this->selections.clear();
   }
 
-  decltype(auto) erase(ordered_multimap<llvm::Value *, ID>::iterator it) {
+  decltype(auto) erase(OrderedMultiMap<llvm::Value *, ID>::iterator it) {
     return this->selections.erase(it);
   }
 
-  decltype(auto) erase(ordered_multimap<llvm::Value *, ID>::const_iterator it) {
+  decltype(auto) erase(OrderedMultiMap<llvm::Value *, ID>::const_iterator it) {
     return this->selections.erase(it);
   }
 };
@@ -194,7 +194,7 @@ void collect_declarations(Selections &selections, llvm::Module &M) {
 }
 
 void propagate(Selections &selections,
-               vector<llvm::Value *> &worklist,
+               Vector<llvm::Value *> &worklist,
                llvm::Module &M,
                llvm::Value &from,
                llvm::Use &use) {
@@ -403,7 +403,7 @@ void propagate_declarations(Selections &selections, llvm::Module &M) {
   // propagating all selections to their redefinitions.
 
   // Initialize the worklist.
-  vector<llvm::Value *> worklist = {};
+  Vector<llvm::Value *> worklist = {};
   worklist.reserve(selections.size());
   for (const auto &[value, selection] : selections) {
     worklist.push_back(value);
@@ -429,7 +429,7 @@ bool transform(const Selections &selections) {
   bool transformed = false;
 
   // Collect the polymorphic values (those that have multiple selections).
-  set<llvm::Value *> polymorphic = {};
+  Set<llvm::Value *> polymorphic = {};
   for (const auto &[value, selection] : selections) {
 
     // If the value has more than one selection, it is polymorphic.
@@ -450,7 +450,7 @@ bool transform(const Selections &selections) {
       // If an argument is polymorphic, fetch all of the possible call sites and
       // partition them based on their argument's selection, if it is
       // monomorphic.
-      map<llvm::Use *, Selections::ID> caller_to_selection = {};
+      Map<llvm::Use *, Selections::ID> caller_to_selection = {};
 
       // Fetch the parent function.
       auto *function = arg->getParent();
@@ -485,7 +485,7 @@ bool transform(const Selections &selections) {
       }
 
       // Partition the callers by their selections.
-      ordered_map<Selections::ID, vector<llvm::Use *>>
+      OrderedMap<Selections::ID, Vector<llvm::Use *>>
           selection_to_callers = {};
       for (const auto &[caller, selection] : caller_to_selection) {
         selection_to_callers[selection].push_back(caller);
@@ -531,7 +531,7 @@ bool transform(const Selections &selections) {
   return transformed;
 }
 
-void annotate(const map<MemOIRInst *, const ImplList *> &selections) {
+void annotate(const Map<MemOIRInst *, const ImplList *> &selections) {
 
   // For each value with a selection.
   for (const auto &[memoir_inst, selection] : selections) {
@@ -650,7 +650,7 @@ SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
   } while (detail::transform(selections));
 
   // Validate that the program is monomorphized.
-  map<MemOIRInst *, const ImplList *> selections_to_annotate = {};
+  Map<MemOIRInst *, const ImplList *> selections_to_annotate = {};
   for (const auto &[value, selection] : selections) {
     // Only insert mappings for memoir instructions.
     auto *memoir_inst = into<MemOIRInst>(value);

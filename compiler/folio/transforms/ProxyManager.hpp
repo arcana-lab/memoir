@@ -26,7 +26,7 @@ public:
    * @returns the natural proxy, or NULL if one does not exist.
    */
   static Proxy *has_natural_proxy(Content &content,
-                                  llvm::memoir::set<llvm::Use *> &uses);
+                                  llvm::memoir::Set<llvm::Use *> &uses);
 
   /**
    * Requests an artificial proxy of the given content.
@@ -40,7 +40,7 @@ public:
   /**
    * Get a reference to the list of proxies.
    */
-  static llvm::memoir::list<Proxy *> proxies() {
+  static llvm::memoir::List<Proxy *> proxies() {
     return ProxyManager::_manager->_proxies;
   }
 
@@ -67,11 +67,11 @@ protected:
 
   // Methods.
   Proxy *_has_natural_proxy(Content &content,
-                            llvm::memoir::set<llvm::Use *> &uses);
+                            llvm::memoir::Set<llvm::Use *> &uses);
   Proxy *_request(Content &content);
 
   // Owned state.
-  llvm::memoir::list<Proxy *> _proxies;
+  llvm::memoir::List<Proxy *> _proxies;
 
   // Borrowed state.
   Contents &_contents;

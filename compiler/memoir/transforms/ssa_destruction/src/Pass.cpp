@@ -45,7 +45,7 @@ using namespace llvm::memoir;
 namespace llvm::memoir {
 
 using DomTreeNode = llvm::DomTreeNodeBase<llvm::BasicBlock>;
-using DomTreeTraversalListTy = list<llvm::BasicBlock *>;
+using DomTreeTraversalListTy = List<llvm::BasicBlock *>;
 static DomTreeTraversalListTy dfs_preorder_traversal_helper(DomTreeNode *root) {
   MEMOIR_NULL_CHECK(root, "Root of dfs preorder traversal is NULL!");
 

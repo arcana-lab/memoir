@@ -21,7 +21,7 @@ namespace llvm::memoir {
 namespace detail {
 static llvm::Function *find_tempargs_to_reify(
     llvm::Module &M,
-    vector<llvm::LoadInst *> &temp_loads) {
+    Vector<llvm::LoadInst *> &temp_loads) {
 
   // Clear the list of temporary loads found in the last pass.
   temp_loads.clear();
@@ -61,9 +61,9 @@ static llvm::Function *find_tempargs_to_reify(
 
 static llvm::Function &clone_function(
     llvm::Function &F,
-    vector<llvm::LoadInst *> &temp_loads,
-    map<llvm::GlobalVariable *, llvm::Argument *> &global_to_arg,
-    set<llvm::Value *> &to_cleanup) {
+    Vector<llvm::LoadInst *> &temp_loads,
+    Map<llvm::GlobalVariable *, llvm::Argument *> &global_to_arg,
+    Set<llvm::Value *> &to_cleanup) {
 
   auto &M =
       MEMOIR_SANITIZE(F.getParent(), "Function does not belong to a module!");
@@ -73,7 +73,7 @@ static llvm::Function &clone_function(
 
   // Construct the new function type.
   auto *return_type = old_func_type->getReturnType();
-  vector<llvm::Type *> param_types(old_func_type->param_begin(),
+  Vector<llvm::Type *> param_types(old_func_type->param_begin(),
                                    old_func_type->param_end());
   for (auto *load : temp_loads) {
     // Add the parameter type for the load.
@@ -134,20 +134,20 @@ static llvm::Function &clone_function(
 }
 
 static void reify_function(llvm::Function &function,
-                           vector<llvm::LoadInst *> &temp_loads) {
+                           Vector<llvm::LoadInst *> &temp_loads) {
 
   // Maintain a mapping from global to the formal argument.
-  map<llvm::GlobalVariable *, llvm::Argument *> global_to_arg = {};
+  Map<llvm::GlobalVariable *, llvm::Argument *> global_to_arg = {};
 
   // Track the instructions that need to be cleaned up once we're done.
-  set<llvm::Value *> to_cleanup = {};
+  Set<llvm::Value *> to_cleanup = {};
 
   // Clone the function, converting temp args to formal parameters.
   auto &new_func =
       clone_function(function, temp_loads, global_to_arg, to_cleanup);
 
   // Find each of the tempargs stores and patch the call site.
-  ordered_map<llvm::CallBase *, set<llvm::StoreInst *>> temp_stores = {};
+  OrderedMap<llvm::CallBase *, Set<llvm::StoreInst *>> temp_stores = {};
   for (auto [global, _arg] : global_to_arg) {
     for (auto &use : global->uses()) {
       // Filter out irrelevant instruction types.
@@ -197,7 +197,7 @@ static void reify_function(llvm::Function &function,
       // Construct the list of arguments, initialize with the current closed
       // arguments.
       // [ closed... ]
-      vector<llvm::Value *> new_closed(fold->closed_begin(),
+      Vector<llvm::Value *> new_closed(fold->closed_begin(),
                                        fold->closed_end());
 
       // Allocate space for the new arguments.
@@ -235,7 +235,7 @@ static void reify_function(llvm::Function &function,
 
       // Construct a new fold.
       MemOIRBuilder builder(call);
-      vector<llvm::Value *> indices(fold->indices_begin(), fold->indices_end());
+      Vector<llvm::Value *> indices(fold->indices_begin(), fold->indices_end());
       auto *new_fold = builder.CreateFoldInst(fold->getKind(),
                                               &new_func,
                                               &fold->getInitial(),
@@ -261,7 +261,7 @@ static void reify_function(llvm::Function &function,
     } else {
 
       // Construct the list of arguments.
-      vector<llvm::Value *> arguments(new_func.arg_size(), nullptr);
+      Vector<llvm::Value *> arguments(new_func.arg_size(), nullptr);
 
       // First, copy over the current list of arguments.
       auto arg_idx = 0;
@@ -335,7 +335,7 @@ static void reify_function(llvm::Function &function,
 bool reify_tempargs(llvm::Module &M) {
   bool changed = false;
 
-  vector<LoadInst *> temp_loads = {};
+  Vector<LoadInst *> temp_loads = {};
   while (auto *func = detail::find_tempargs_to_reify(M, temp_loads)) {
 
     detail::reify_function(*func, temp_loads);

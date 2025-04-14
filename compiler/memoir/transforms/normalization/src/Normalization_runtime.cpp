@@ -10,7 +10,7 @@ namespace llvm::memoir {
 
 void Normalization::transformRuntime() {
 
-  set<llvm::Function *> functions_to_delete;
+  Set<llvm::Function *> functions_to_delete;
   for (auto &F : M) {
     if (FunctionNames::is_memoir_call(F) || FunctionNames::is_mut_call(F)) {
       F.deleteBody();

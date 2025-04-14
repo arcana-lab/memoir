@@ -33,8 +33,8 @@ public:
 
 protected:
   llvm::Module &M;
-  llvm::memoir::map<llvm::Value *, uint32_t> _value_ids = {};
-  llvm::memoir::map<uint32_t, llvm::Value *> _id_values = {};
+  llvm::memoir::Map<llvm::Value *, uint32_t> _value_ids = {};
+  llvm::memoir::Map<uint32_t, llvm::Value *> _id_values = {};
   uint32_t _current_id = 0;
 };
 } // namespace folio

@@ -40,20 +40,20 @@
 namespace llvm::memoir {
 
 class FieldElision {
-  using ValueSetTy = set<llvm::Value *>;
-  using InstSetTy = set<llvm::Instruction *>;
-  using ArgSetTy = set<llvm::Argument *>;
-  using AccessSetTy = set<AccessInst *>;
-  using TupleTypeSetTy = set<TupleType *>;
-  using TypeToStructsMapTy = map<TupleType *, ValueSetTy>;
-  using FieldsToInstsMapTy = map<TupleType *, InstSetTy>;
-  using FieldsToArgsMapTy = map<TupleType *, ArgSetTy>;
-  using TypeToFieldAccessesMapTy = map<TupleType *, map<unsigned, AccessSetTy>>;
-  using FieldsToAccessesMapTy = map<llvm::Function *, TypeToFieldAccessesMapTy>;
+  using ValueSetTy = Set<llvm::Value *>;
+  using InstSetTy = Set<llvm::Instruction *>;
+  using ArgSetTy = Set<llvm::Argument *>;
+  using AccessSetTy = Set<AccessInst *>;
+  using TupleTypeSetTy = Set<TupleType *>;
+  using TypeToStructsMapTy = Map<TupleType *, ValueSetTy>;
+  using FieldsToInstsMapTy = Map<TupleType *, InstSetTy>;
+  using FieldsToArgsMapTy = Map<TupleType *, ArgSetTy>;
+  using TypeToFieldAccessesMapTy = Map<TupleType *, Map<unsigned, AccessSetTy>>;
+  using FieldsToAccessesMapTy = Map<llvm::Function *, TypeToFieldAccessesMapTy>;
 
 public:
-  using IndexSetTy = set<unsigned>;
-  using FieldsToElideMapTy = map<TupleType *, list<IndexSetTy>>;
+  using IndexSetTy = Set<unsigned>;
+  using FieldsToElideMapTy = Map<TupleType *, List<IndexSetTy>>;
 
   bool transformed;
 
@@ -162,7 +162,7 @@ protected:
     }
 
     // Find all structs.
-    map<llvm::Function *, TypeToStructsMapTy> structs_of_type = {};
+    Map<llvm::Function *, TypeToStructsMapTy> structs_of_type = {};
     TupleTypeSetTy escaped_types = {};
 
     // For each function:
@@ -311,11 +311,11 @@ protected:
     return M.getFunction(replacement);
   }
 
-  using UsedFieldsSetTy = multimap<TupleType *, unsigned>;
+  using UsedFieldsSetTy = multiMap<TupleType *, unsigned>;
   UsedFieldsSetTy &traverse_call_graph_node(
-      map<llvm::Function *, UsedFieldsSetTy> &function_to_used_fields,
+      Map<llvm::Function *, UsedFieldsSetTy> &function_to_used_fields,
       FieldsToAccessesMapTy &fields_to_accesses,
-      set<llvm::CallGraphNode *> visited,
+      Set<llvm::CallGraphNode *> visited,
       llvm::CallGraphNode &node) {
     // Mark this node as visited.
     visited.insert(&node);
@@ -385,18 +385,18 @@ protected:
     return used_fields;
   }
 
-  map<llvm::Function *, UsedFieldsSetTy> traverse_call_graph(
+  Map<llvm::Function *, UsedFieldsSetTy> traverse_call_graph(
       llvm::CallGraph &CG,
       FieldsToAccessesMapTy &fields_to_accesses,
       const llvm::Function &entry_function) {
 
-    map<llvm::Function *, UsedFieldsSetTy> function_to_used_fields = {};
+    Map<llvm::Function *, UsedFieldsSetTy> function_to_used_fields = {};
 
     auto &entry_node = MEMOIR_SANITIZE(
         CG[&entry_function],
         "Could not get the CallGraphNode for the entry function.");
 
-    set<llvm::CallGraphNode *> visited = {};
+    Set<llvm::CallGraphNode *> visited = {};
     traverse_call_graph_node(function_to_used_fields,
                              fields_to_accesses,
                              visited,
@@ -416,7 +416,7 @@ protected:
       return transformed;
     }
 
-    set<llvm::Instruction *> instructions_to_delete = {};
+    Set<llvm::Instruction *> instructions_to_delete = {};
 
     // Now for the tricky bit.
     // We need to version all functions in the callgraph so that there is a
@@ -427,13 +427,13 @@ protected:
 
     // Perform a post-order DFS traversal of the callgraph, collecting the
     // types that must be propagated along
-    map<llvm::Function *, UsedFieldsSetTy> function_to_used_fields =
+    Map<llvm::Function *, UsedFieldsSetTy> function_to_used_fields =
         traverse_call_graph(CG, fields_to_accesses, entry_function);
 
     // Collect the elided fields that will be added to each function's
     // list of parameters.
     // Map from function to a (struct_type, candidates[i])
-    map<llvm::Function *, ordered_multimap<TupleType *, size_t>>
+    Map<llvm::Function *, OrderedMultiMap<TupleType *, size_t>>
         function_to_argument_order = {};
     for (auto const &[function, used_fields] : function_to_used_fields) {
       // Skip this if there are no used fields.
@@ -475,9 +475,9 @@ protected:
 
     // For each function that has a used type, we need to change its function
     // type to include the replaced assoc as arguments.
-    map<llvm::Function *, map<TupleType *, map<size_t, llvm::Value *>>>
+    Map<llvm::Function *, Map<TupleType *, Map<size_t, llvm::Value *>>>
         function_to_elision_values = {};
-    map<llvm::Function *, llvm::Function *> function_clones = {};
+    Map<llvm::Function *, llvm::Function *> function_clones = {};
     for (auto const &[function, elision_parameters] :
          function_to_argument_order) {
       // Skip main, it is the entry function.
@@ -600,8 +600,8 @@ protected:
       // Insert type annotations for the arguments.
 
       // Collect the calls and accesses.
-      set<llvm::CallBase *> calls = {};
-      set<AccessInst *> accesses = {};
+      Set<llvm::CallBase *> calls = {};
+      Set<AccessInst *> accesses = {};
       for (auto &BB : F) {
         for (auto &I : BB) {
           if (auto *memoir_inst = MemOIRInst::get(I)) {
@@ -649,7 +649,7 @@ protected:
         // unaligned!
         MEMOIR_ASSERT(!cloned_function->getFunctionType()->isVarArg(),
                       "Cloning function with var args is unsupported!");
-        vector<llvm::Value *> new_arguments(call->arg_begin(), call->arg_end());
+        Vector<llvm::Value *> new_arguments(call->arg_begin(), call->arg_end());
         for (auto const &[struct_type, elision_group] : argument_order) {
           auto *elision_value = elision_values[struct_type][elision_group];
           new_arguments.push_back(elision_value);

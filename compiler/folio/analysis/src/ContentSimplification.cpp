@@ -180,7 +180,7 @@ Content &ContentSimplification::visitElementsContent(ElementsContent &C) {
 }
 
 namespace detail {
-Content &dedup(UnionContent &C, vector<Content *> &seen) {
+Content &dedup(UnionContent &C, Vector<Content *> &seen) {
 
   auto *lhs = &C.lhs();
   auto *rhs = &C.rhs();
@@ -241,7 +241,7 @@ Content &dedup(UnionContent &C, vector<Content *> &seen) {
 Content &ContentSimplification::visitUnionContent(UnionContent &C) {
 
   // Deduplicate.
-  vector<Content *> seen = {};
+  Vector<Content *> seen = {};
   auto &union_content = detail::dedup(C, seen);
   if (&union_content != &C) {
     return union_content;
@@ -279,7 +279,7 @@ Content &ContentSimplification::visitUnionContent(UnionContent &C) {
 
     auto size = lhs_elements.size();
 
-    llvm::memoir::vector<Content *> new_elements = {};
+    llvm::memoir::Vector<Content *> new_elements = {};
     new_elements.reserve(size);
     for (size_t i = 0; i < size; ++i) {
       auto &lhs_elem = this->visit(lhs_tuple->element(i));

@@ -37,6 +37,3 @@ add_subdirectory(profile_accesses)
 add_subdirectory(impl_linker)
 add_subdirectory(lower_fold)
 add_subdirectory(temp_arg_reification)
-
-# Analysis passes.
-add_subdirectory(example)

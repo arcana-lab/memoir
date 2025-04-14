@@ -64,11 +64,11 @@ protected:
   TypeVariable &new_type_variable();
   Type *find(Type *T);
   Type *unify(Type *T, Type *U);
-  map<TypeVariable *, Type *> type_bindings;
+  Map<TypeVariable *, Type *> type_bindings;
   TypeVariable::TypeID current_id;
 
   // Variable bindings.
-  map<llvm::Value *, TypeVariable *> value_bindings;
+  Map<llvm::Value *, TypeVariable *> value_bindings;
 
   // Analysis functions.
   Type *analyze(MemOIRInst &I);

@@ -75,7 +75,7 @@ llvm::Value *BasicExpression::materialize(llvm::Instruction &IP,
   MemOIRBuilder local_builder(&IP);
 
   // Materialize the operands.
-  vector<llvm::Value *> materialized_operands = {};
+  Vector<llvm::Value *> materialized_operands = {};
   for (auto *operand_expr : this->arguments) {
     debugln("Materializing operand");
     debugln("  ", *operand_expr);

@@ -34,7 +34,7 @@ static FunctionCallee get_function_callee(llvm::Module &M, std::string name) {
 static FunctionCallee prepare_call(MemOIRBuilder &builder,
                                    const std::string &prefix,
                                    const std::string &operation,
-                                   vector<llvm::Value *> &arguments) {
+                                   Vector<llvm::Value *> &arguments) {
 
   auto function_name = prefix + "__" + operation;
 
@@ -86,7 +86,7 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
                                    const Implementation &implementation,
                                    CollectionType &type,
                                    const std::string &operation,
-                                   vector<llvm::Value *> &arguments) {
+                                   Vector<llvm::Value *> &arguments) {
 
   auto &instantiation = implementation.instantiate(type);
 
@@ -104,7 +104,7 @@ llvm::Value &construct_field_read(MemOIRBuilder &builder,
 
   auto operation = "read_" + std::to_string(field_index);
 
-  vector<llvm::Value *> arguments = { &object };
+  Vector<llvm::Value *> arguments = { &object };
 
   auto callee = prepare_call(builder, prefix, operation, arguments);
 
@@ -122,7 +122,7 @@ void construct_field_write(MemOIRBuilder &builder,
 
   auto operation = "write_" + std::to_string(field_index);
 
-  vector<llvm::Value *> arguments = { &object, &value_to_write };
+  Vector<llvm::Value *> arguments = { &object, &value_to_write };
 
   auto callee = prepare_call(builder, prefix, operation, arguments);
 
@@ -141,7 +141,7 @@ llvm::Value &construct_field_get(MemOIRBuilder &builder,
 
   auto operation = "get_" + std::to_string(field_index);
 
-  vector<llvm::Value *> arguments = { &object };
+  Vector<llvm::Value *> arguments = { &object };
 
   auto callee = prepare_call(builder, prefix, operation, arguments);
 
@@ -158,7 +158,7 @@ llvm::CallBase &construct_collection_write(
     llvm::Value &written,
     const Implementation &implementation) {
 
-  vector<llvm::Value *> arguments = { &object };
+  Vector<llvm::Value *> arguments = { &object };
   arguments.insert(arguments.end(), index_begin, index_end);
   arguments.push_back(&written);
 
@@ -218,7 +218,7 @@ llvm::Value &construct_collection_allocation(
     const auto &dim_impl = ImplLinker::get_implementation(*collection_type);
 
     // Fetch the arguments.
-    vector<llvm::Value *> arguments = {};
+    Vector<llvm::Value *> arguments = {};
     auto *nested_type = collection_type;
     auto dim_size_it = size_it;
     bool in_assoc = false;
@@ -259,7 +259,7 @@ llvm::Value &construct_collection_allocation(
       //       A[i] = { ... };
 
       // Construct the if conditions and for loops.
-      vector<llvm::Value *> loop_indices = {};
+      Vector<llvm::Value *> loop_indices = {};
       for (auto it = size_it; it != dim_size_it; ++it) {
         auto *init_size = *size_it;
         auto *zero_constant = Constant::getNullValue(init_size->getType());
@@ -347,7 +347,7 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
 
     auto operation = "allocate";
 
-    vector<llvm::Value *> arguments = {};
+    Vector<llvm::Value *> arguments = {};
 
     auto callee = detail::prepare_call(builder, prefix, operation, arguments);
 
@@ -370,7 +370,7 @@ void SSADestructionVisitor::visitDeleteInst(DeleteInst &I) {
 
     MemOIRBuilder builder(I);
 
-    vector<llvm::Value *> arguments = { &I.getObject() };
+    Vector<llvm::Value *> arguments = { &I.getObject() };
 
     // Fetch the collection implementation.
     const auto &impl = ImplLinker::get_implementation(*collection_type);
@@ -409,7 +409,7 @@ static llvm::Value &contextualize_end(AccessInst &inst, llvm::Use &use) {
     }
   }
 
-  vector<llvm::Value *> indices = {};
+  Vector<llvm::Value *> indices = {};
   for (auto &index_use : inst.index_operands()) {
     if (&use == &index_use) {
       break;
@@ -595,7 +595,7 @@ static NestedObjectInfo get_nested_object(
 
       // Otherwise, we will construct the get operation for the nested
       // object.
-      vector<llvm::Value *> arguments = { object };
+      Vector<llvm::Value *> arguments = { object };
       auto dim_it = std::next(it, dim_impl.num_dimensions());
       arguments.insert(arguments.end(), it, dim_it);
       it = dim_it;
@@ -712,7 +712,7 @@ void SSADestructionVisitor::visitReadInst(ReadInst &I) {
 
   } else if (auto *collection_type = dyn_cast<CollectionType>(&info.type)) {
     // Fetch the function that implements this operation.
-    vector<llvm::Value *> arguments = { &info.object };
+    Vector<llvm::Value *> arguments = { &info.object };
     arguments.insert(arguments.end(), info.begin, info.end);
 
     auto callee = detail::prepare_call(builder,
@@ -814,7 +814,7 @@ void SSADestructionVisitor::visitHasInst(HasInst &I) {
                                           I);
 
   // Construct the call.
-  vector<llvm::Value *> arguments = { &info.object };
+  Vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
   auto callee = detail::prepare_call(builder,
@@ -843,7 +843,7 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
   MemOIRBuilder builder(I);
 
   // Handle operation keywords.
-  vector<llvm::Value *> arguments = {};
+  Vector<llvm::Value *> arguments = {};
 
   bool base_operation = true;
   bool fully_qualified = false;
@@ -903,7 +903,7 @@ void SSADestructionVisitor::visitInsertInst(InsertInst &I) {
             dyn_cast<CollectionType>(&element_type)) {
       // Default initialize the nested collection.
 
-      vector<llvm::Value *> args = {};
+      Vector<llvm::Value *> args = {};
       if (isa<SequenceType>(nested_collection_type)) {
         args.push_back(builder.getInt64(0));
       }
@@ -958,7 +958,7 @@ void SSADestructionVisitor::visitRemoveInst(RemoveInst &I) {
                                           I);
 
   // Fetch the function that implements this operation.
-  vector<llvm::Value *> arguments = { &info.object };
+  Vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
   std::string operation_name = "remove";
@@ -1000,7 +1000,7 @@ void SSADestructionVisitor::visitCopyInst(CopyInst &I) {
                                           I);
 
   // Fetch the function that implements this operation.
-  vector<llvm::Value *> arguments = { &info.object };
+  Vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
   std::string operation_name = "copy";
@@ -1042,7 +1042,7 @@ void SSADestructionVisitor::visitClearInst(ClearInst &I) {
                                           I);
 
   // Fetch the function that implements this operation.
-  vector<llvm::Value *> arguments = { &info.object };
+  Vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
   auto callee = detail::prepare_call(builder,
@@ -1084,7 +1084,7 @@ void SSADestructionVisitor::visitSizeInst(SizeInst &I) {
                       I.getFunction()->getName());
 
   // Fetch the function that implements this operation.
-  vector<llvm::Value *> arguments = { &info.object };
+  Vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
   std::string operation = "size";
@@ -1125,7 +1125,7 @@ void SSADestructionVisitor::visitKeysInst(KeysInst &I) {
                                           I);
 
   // Fetch the function that implements this operation.
-  vector<llvm::Value *> arguments = { &info.object };
+  Vector<llvm::Value *> arguments = { &info.object };
   arguments.insert(arguments.end(), info.begin, info.end);
 
   auto callee = detail::prepare_call(builder,
@@ -1390,7 +1390,7 @@ void SSADestructionVisitor::markForCleanup(llvm::Instruction &I) {
   this->instructions_to_delete.insert(&I);
 }
 
-const set<llvm::Instruction *> &SSADestructionVisitor::staged() {
+const Set<llvm::Instruction *> &SSADestructionVisitor::staged() {
   return this->_staged;
 }
 

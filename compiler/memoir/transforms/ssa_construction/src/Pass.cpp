@@ -87,7 +87,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     infoln("BEGIN: ", F.getName());
 
     // Collect all source-level collection pointers names.
-    ordered_set<llvm::Value *> memoir_names = {};
+    OrderedSet<llvm::Value *> memoir_names = {};
     for (auto &A : F.args()) {
       if (Type::value_is_object(A)) {
         memoir_names.insert(&A);
@@ -120,15 +120,15 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     auto dfs_traversal = dfs_preorder_traversal(DT);
 
     // Insert PHIs.
-    map<llvm::PHINode *, llvm::Value *> inserted_phis = {};
+    Map<llvm::PHINode *, llvm::Value *> inserted_phis = {};
     for (auto *name : memoir_names) {
       // Get information about the named variable.
       auto *type = name->getType();
 
       // Gather the set of basic blocks containing definitions of the
       // named variable.
-      set<llvm::BasicBlock *> def_parents = {};
-      queue<llvm::BasicBlock *> def_parents_worklist = {};
+      Set<llvm::BasicBlock *> def_parents = {};
+      Queue<llvm::BasicBlock *> def_parents_worklist = {};
       if (auto *name_as_inst = dyn_cast<llvm::Instruction>(name)) {
         if (auto *name_bb = name_as_inst->getParent()) {
           def_parents.insert(name_bb);
@@ -158,7 +158,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
 
       debugln("inserting PHIs");
       // Gather the set of basic blocks where PHIs need to be added.
-      set<llvm::BasicBlock *> phi_parents = {};
+      Set<llvm::BasicBlock *> phi_parents = {};
       while (!def_parents_worklist.empty()) {
         // Pop the basic block off the set.
         auto *bb = def_parents_worklist.front();
@@ -280,7 +280,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
   }
 
   // Transform the program so that each static fold body has at most one use.
-  vector<FoldInst *> worklist = {};
+  Vector<FoldInst *> worklist = {};
   for (auto &F : M) {
     for (auto &BB : F) {
       for (auto &I : BB) {

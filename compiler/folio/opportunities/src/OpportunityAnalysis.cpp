@@ -8,7 +8,7 @@ using namespace llvm::memoir;
 
 namespace folio {
 
-static llvm::cl::list<std::string> disabled_opportunities(
+static llvm::cl::List<std::string> disabled_opportunities(
     "disable-opportunities",
     llvm::cl::desc("List of opportunities to disable."),
     llvm::cl::ZeroOrMore,
@@ -27,7 +27,7 @@ Opportunities OpportunityAnalysis::run(llvm::Module &M,
   ProxyManager::initialize(contents);
 
   // Collect the opportunity blacklist.
-  set<std::string> blacklist = {};
+  Set<std::string> blacklist = {};
   for (auto &opportunity : disabled_opportunities) {
     blacklist.insert(opportunity);
   }

@@ -17,13 +17,13 @@ bool LivenessResult::is_live(llvm::Value &V, llvm::Instruction &I, bool after) {
   return live_set.find(&V) != live_set.end();
 }
 
-set<llvm::Value *> LivenessResult::live_values(MemOIRInst &I, bool after) {
+Set<llvm::Value *> LivenessResult::live_values(MemOIRInst &I, bool after) {
   return this->live_values(I.getCallInst(), after);
 }
 
-set<llvm::Value *> LivenessResult::live_values(llvm::Instruction &I,
+Set<llvm::Value *> LivenessResult::live_values(llvm::Instruction &I,
                                                bool after) {
-  set<llvm::Value *> result;
+  Set<llvm::Value *> result;
 
   auto &live_set = after ? this->DFR->OUT(&I) : this->DFR->IN(&I);
 
@@ -32,9 +32,9 @@ set<llvm::Value *> LivenessResult::live_values(llvm::Instruction &I,
   return result;
 }
 
-set<llvm::Value *> LivenessResult::live_values(llvm::BasicBlock &From,
+Set<llvm::Value *> LivenessResult::live_values(llvm::BasicBlock &From,
                                                llvm::BasicBlock &To) {
-  set<llvm::Value *> result;
+  Set<llvm::Value *> result;
 
   // The resulting live set is
   //     (IN[To.FirstNonPHI] \ PhiDefs[To])

@@ -15,7 +15,7 @@
 
 namespace llvm::memoir {
 
-using ReachingDefMapTy = map<llvm::Value *, llvm::Value *>;
+using ReachingDefMapTy = Map<llvm::Value *, llvm::Value *>;
 
 struct SSADestructionStats {
   using CountTy = uint32_t;
@@ -97,7 +97,7 @@ public:
   // Staged lowering
   void stage(llvm::Instruction &I);
   void clear_stage();
-  const set<llvm::Instruction *> &staged();
+  const Set<llvm::Instruction *> &staged();
 
   void do_coalesce(llvm::Value &V);
 
@@ -110,15 +110,15 @@ protected:
   TypeConverter TC;
 
   // Owned state.
-  map<MemOIRInst *, detail::View *> inst_to_view;
+  Map<MemOIRInst *, detail::View *> inst_to_view;
 
   // Borrowed state.
-  map<llvm::Value *, llvm::Value *> coalesced_values;
-  map<llvm::Value *, llvm::Value *> replaced_values;
-  map<llvm::Value *, llvm::Value *> def_phi_replacements;
-  ordered_set<llvm::Instruction *> instructions_to_delete;
+  Map<llvm::Value *, llvm::Value *> coalesced_values;
+  Map<llvm::Value *, llvm::Value *> replaced_values;
+  Map<llvm::Value *, llvm::Value *> def_phi_replacements;
+  OrderedSet<llvm::Instruction *> instructions_to_delete;
 
-  set<llvm::Instruction *> _staged;
+  Set<llvm::Instruction *> _staged;
 
   llvm::Value *find_replacement(llvm::Value *value);
 

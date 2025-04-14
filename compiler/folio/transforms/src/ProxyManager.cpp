@@ -17,14 +17,14 @@ void ProxyManager::initialize(Contents &contents) {
 }
 
 Proxy *ProxyManager::has_natural_proxy(Content &content,
-                                       set<llvm::Use *> &uses) {
+                                       Set<llvm::Use *> &uses) {
   MEMOIR_NULL_CHECK(ProxyManager::_manager,
                     "Using ProxyManager before calling initialize!");
   return ProxyManager::_manager->_has_natural_proxy(content, uses);
 }
 
 Proxy *ProxyManager::_has_natural_proxy(Content &content,
-                                        set<llvm::Use *> &uses) {
+                                        Set<llvm::Use *> &uses) {
   // For a collection to be a natural proxy, it must:
   // 1. Be a sequence.
   // 2. Provide all elements necessary for the given content.

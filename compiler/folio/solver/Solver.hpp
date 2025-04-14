@@ -25,25 +25,25 @@ public:
   /**
    * Get the mapping from llvm values to their selected implementations.
    */
-  llvm::memoir::map<llvm::Value *, Selection *> &selections() {
+  llvm::memoir::Map<llvm::Value *, Selection *> &selections() {
     return this->_selections;
   }
 
   /**
    * Get the set of opportunities exploited by this candidate.
    */
-  llvm::memoir::set<Opportunity *> &opportunities() {
+  llvm::memoir::Set<Opportunity *> &opportunities() {
     return this->_opportunities;
   }
 
 protected:
-  llvm::memoir::map<llvm::Value *, Selection *> _selections;
-  llvm::memoir::set<Opportunity *> _opportunities;
+  llvm::memoir::Map<llvm::Value *, Selection *> _selections;
+  llvm::memoir::Set<Opportunity *> _opportunities;
 
   friend class Solver;
 };
 
-using Candidates = typename llvm::memoir::list<Candidate>;
+using Candidates = typename llvm::memoir::List<Candidate>;
 
 /**
  * The Solver formulates the constraints, opportunities, implementations as an
@@ -60,7 +60,7 @@ public:
    * @param implementations the set of available implementations
    */
   Solver(llvm::Module &M,
-         const llvm::memoir::set<llvm::Value *> &selectable,
+         const llvm::memoir::Set<llvm::Value *> &selectable,
          Constraints &constraints,
          Opportunities &opportunities,
          Implementations &implementations);
@@ -87,7 +87,7 @@ protected:
   FormulaEnvironment _env;
 
   // Borrowed state.
-  const llvm::memoir::set<llvm::Value *> &_selectable;
+  const llvm::memoir::Set<llvm::Value *> &_selectable;
   Constraints &_constraints;
   Opportunities &_opportunities;
   Implementations &_implementations;

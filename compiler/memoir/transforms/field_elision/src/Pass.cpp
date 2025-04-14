@@ -37,7 +37,7 @@ using namespace llvm::memoir;
 
 namespace llvm::memoir {
 
-static llvm::cl::list<std::string> FieldsToElide(
+static llvm::cl::List<std::string> FieldsToElide(
     "elide",
     cl::desc("Specify fields to elide as NAME:FIELD#,..."),
     cl::ZeroOrMore);
@@ -57,7 +57,7 @@ llvm::PreservedAnalyses FieldElisionPass::run(
   FieldElision::FieldsToElideMapTy fields_to_elide = {};
 
   // Find all user type definitions in the program.
-  map<std::string, DefineTupleTypeInst *> type_definitions = {};
+  Map<std::string, DefineTupleTypeInst *> type_definitions = {};
   auto *define_struct_type_func =
       FunctionNames::get_memoir_function(M, MemOIR_Func::DEFINE_STRUCT_TYPE);
   for (auto &func_use : define_struct_type_func->uses()) {

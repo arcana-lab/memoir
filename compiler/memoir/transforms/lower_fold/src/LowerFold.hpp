@@ -35,7 +35,7 @@ public:
 
   bool transform() {
     // Collect all fold instructions to be lowered.
-    vector<FoldInst *> folds = {};
+    Vector<FoldInst *> folds = {};
     for (auto &F : M) {
       for (auto &BB : F) {
         for (auto &I : BB) {
@@ -82,7 +82,7 @@ private:
 
   // Borrowed state.
   llvm::Module &M;
-  set<llvm::Instruction *> to_cleanup;
+  Set<llvm::Instruction *> to_cleanup;
 };
 
 } // namespace llvm::memoir

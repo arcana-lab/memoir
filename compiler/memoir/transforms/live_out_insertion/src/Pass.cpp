@@ -31,7 +31,7 @@ namespace llvm::memoir {
 namespace detail {
 
 void _gather_reaching_definitions(llvm::Value &V,
-                                  set<llvm::Value *> &reaching) {
+                                  Set<llvm::Value *> &reaching) {
 
   if (reaching.count(&V) > 0) {
     return;
@@ -71,9 +71,9 @@ void _gather_reaching_definitions(llvm::Value &V,
   return;
 }
 
-set<llvm::Value *> gather_reaching_definitions(llvm::Value &V) {
+Set<llvm::Value *> gather_reaching_definitions(llvm::Value &V) {
 
-  set<llvm::Value *> reaching;
+  Set<llvm::Value *> reaching;
 
   _gather_reaching_definitions(V, reaching);
 
@@ -147,7 +147,7 @@ llvm::PreservedAnalyses LiveOutInsertionPass::run(
   }
 
   // Collect all of the collection-typed arguments.
-  set<llvm::Argument *> arguments = {};
+  Set<llvm::Argument *> arguments = {};
   for (auto &A : F.args()) {
     if (auto *type = type_of(A)) {
       if (isa<SequenceType>(type) or isa<AssocArrayType>(type)) {
@@ -195,7 +195,7 @@ llvm::PreservedAnalyses LiveOutInsertionPass::run(
 
     // Filter the reaching definitions to get the subset that dominate the
     // return.
-    vector<llvm::Value *> dominates = {};
+    Vector<llvm::Value *> dominates = {};
     std::copy_if(
         reaching.begin(),
         reaching.end(),
@@ -209,7 +209,7 @@ llvm::PreservedAnalyses LiveOutInsertionPass::run(
     // handle functions that call exit().
     if (not postdominates) {
       // Find all values that are in the same basic block as the single return.
-      vector<llvm::Value *> local = {};
+      Vector<llvm::Value *> local = {};
       std::copy_if(dominates.begin(),
                    dominates.end(),
                    std::back_inserter(local),

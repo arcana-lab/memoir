@@ -76,7 +76,7 @@ public:
 protected:
   llvm::CallInst &call_inst;
 
-  static map<llvm::Instruction *, MemOIRInst *> *llvm_to_memoir;
+  static Map<llvm::Instruction *, MemOIRInst *> *llvm_to_memoir;
 
   MemOIRInst(llvm::CallInst &call_inst) : call_inst(call_inst) {}
 };

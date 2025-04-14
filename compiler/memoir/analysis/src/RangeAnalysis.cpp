@@ -55,7 +55,7 @@ RangeAnalysisDriver::RangeAnalysisDriver(llvm::Module &M,
 
 void RangeAnalysisDriver::propagate_range_to_uses(
     ValueRange &range,
-    const set<llvm::Use *> &uses) {
+    const Set<llvm::Use *> &uses) {
   for (auto *use : uses) {
     this->result.use_to_range[use] = &range;
   }
@@ -109,13 +109,13 @@ ValueRange &RangeAnalysisDriver::induction_variable_to_range(
 }
 
 static void add_index_use(
-    map<llvm::Value *, set<llvm::Use *>> &index_value_to_uses,
+    Map<llvm::Value *, Set<llvm::Use *>> &index_value_to_uses,
     llvm::Use &index_use) {
   index_value_to_uses[index_use.get()].insert(&index_use);
 }
 
 static void add_index_uses(
-    map<llvm::Value *, set<llvm::Use *>> &index_value_to_uses,
+    Map<llvm::Value *, Set<llvm::Use *>> &index_value_to_uses,
     Type *type,
     llvm::iterator_range<llvm::Use *> range) {
 
@@ -144,7 +144,7 @@ bool RangeAnalysisDriver::analyze(llvm::Module &M,
                                   arcana::noelle::Noelle &noelle) {
 
   // Collect all index values used by memoir instructions.
-  map<llvm::Value *, set<llvm::Use *>> index_value_to_uses = {};
+  Map<llvm::Value *, Set<llvm::Use *>> index_value_to_uses = {};
   for (auto &F : M) {
     if (F.empty()) {
       continue;
@@ -210,7 +210,7 @@ bool RangeAnalysisDriver::analyze(llvm::Module &M,
       else if (auto *index_inst = dyn_cast<llvm::Instruction>(index_value)) {
         // Create a mapping from loop structures to induction variables that the
         // index instruction is involved in.
-        map<arcana::noelle::LoopStructure *, ValueRange *> loop_to_range = {};
+        Map<arcana::noelle::LoopStructure *, ValueRange *> loop_to_range = {};
         for (auto *loop : loops) {
           // Get the loop structure.
           auto &loop_structure =

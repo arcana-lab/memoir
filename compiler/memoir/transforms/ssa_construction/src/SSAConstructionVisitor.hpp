@@ -16,7 +16,7 @@
 
 namespace llvm::memoir {
 
-using ReachingDefMapTy = map<llvm::Value *, llvm::Value *>;
+using ReachingDefMapTy = Map<llvm::Value *, llvm::Value *>;
 
 struct SSAConstructionStats {
   using CountTy = uint32_t;
@@ -29,8 +29,8 @@ class SSAConstructionVisitor
 
 public:
   SSAConstructionVisitor(llvm::DominatorTree &DT,
-                         ordered_set<llvm::Value *> memoir_names,
-                         map<llvm::PHINode *, llvm::Value *> inserted_phis,
+                         OrderedSet<llvm::Value *> memoir_names,
+                         Map<llvm::PHINode *, llvm::Value *> inserted_phis,
                          SSAConstructionStats *stats = nullptr,
                          bool construct_use_phis = false);
 
@@ -88,8 +88,8 @@ protected:
   MemOIRBuilder *builder;
   ReachingDefMapTy reaching_definitions;
   llvm::DominatorTree &DT;
-  set<llvm::Instruction *> instructions_to_delete;
-  map<llvm::PHINode *, llvm::Value *> inserted_phis;
+  Set<llvm::Instruction *> instructions_to_delete;
+  Map<llvm::PHINode *, llvm::Value *> inserted_phis;
 
   // Options.
   bool construct_use_phis;

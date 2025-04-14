@@ -51,10 +51,10 @@ void Solver::parse_model(clingo_model_t const *model) {
   const std::regex opportunity_regex("use([_[:alnum:]]+)");
   std::smatch regex_match;
 
-  map<uint32_t, std::string> selected = {};
-  map<uint32_t, std::string> collection_types = {};
-  map<uint32_t, std::string> key_types = {};
-  map<uint32_t, std::string> element_types = {};
+  Map<uint32_t, std::string> selected = {};
+  Map<uint32_t, std::string> collection_types = {};
+  Map<uint32_t, std::string> key_types = {};
+  Map<uint32_t, std::string> element_types = {};
   for (it = atoms, ie = atoms + atoms_n; it != ie; ++it) {
 
     // Get the name of the symbol.
@@ -255,7 +255,7 @@ std::string Solver::formulate() {
   }
 
   // Formulate all of the selectable collections and their constraints.
-  set<Type *> derived_types = {};
+  Set<Type *> derived_types = {};
   for (auto *decl : this->_selectable) {
     // Get the type of the variable.
     auto *type = type_of(*decl);
@@ -371,7 +371,7 @@ std::string Solver::formulate() {
 }
 
 Solver::Solver(llvm::Module &M,
-               const llvm::memoir::set<llvm::Value *> &selectable,
+               const llvm::memoir::Set<llvm::Value *> &selectable,
                Constraints &constraints,
                Opportunities &opportunities,
                Implementations &implementations)

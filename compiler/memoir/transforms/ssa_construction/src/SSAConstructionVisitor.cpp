@@ -238,8 +238,8 @@ void SSAConstructionVisitor::prepare_keywords(MemOIRBuilder &builder,
 
 SSAConstructionVisitor::SSAConstructionVisitor(
     llvm::DominatorTree &DT,
-    ordered_set<llvm::Value *> memoir_names,
-    map<llvm::PHINode *, llvm::Value *> inserted_phis,
+    OrderedSet<llvm::Value *> memoir_names,
+    Map<llvm::PHINode *, llvm::Value *> inserted_phis,
     SSAConstructionStats *stats,
     bool construct_use_phis)
   : DT(DT),
@@ -473,7 +473,7 @@ void SSAConstructionVisitor::visitMutWriteInst(MutWriteInst &I) {
   auto *curr = update_reaching_definition(orig, I);
 
   // Collect the extra arguments for the write instruction.
-  vector<llvm::Value *> arguments(I.indices_begin(), I.indices_end());
+  Vector<llvm::Value *> arguments(I.indices_begin(), I.indices_end());
 
   // Create IndexWriteInst.
   auto *redef = builder.CreateWriteInst(I.getElementType(),
@@ -504,7 +504,7 @@ void SSAConstructionVisitor::visitMutInsertInst(MutInsertInst &I) {
   this->prepare_keywords(builder, I, &I.getElementType());
 
   // Collect the arguments.
-  vector<llvm::Value *> arguments(
+  Vector<llvm::Value *> arguments(
       llvm::User::value_op_iterator(std::next(&I.getObjectAsUse())),
       llvm::User::value_op_iterator(I.getCallInst().arg_end()));
 
@@ -532,7 +532,7 @@ void SSAConstructionVisitor::visitMutRemoveInst(MutRemoveInst &I) {
 
   this->prepare_keywords(builder, I, &I.getElementType());
 
-  vector<llvm::Value *> arguments(
+  Vector<llvm::Value *> arguments(
       llvm::User::value_op_iterator(std::next(&I.getObjectAsUse())),
       llvm::User::value_op_iterator(I.getCallInst().arg_end()));
 
@@ -557,7 +557,7 @@ void SSAConstructionVisitor::visitMutClearInst(MutClearInst &I) {
   auto *orig = &I.getObject();
   auto *curr = update_reaching_definition(orig, I);
 
-  vector<llvm::Value *> arguments(I.indices_begin(), I.indices_end());
+  Vector<llvm::Value *> arguments(I.indices_begin(), I.indices_end());
 
   auto *redef = builder.CreateClearInst(curr, arguments);
 

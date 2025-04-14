@@ -37,17 +37,17 @@ void register_default_implementations() {
             default_seq_impl,
             SequenceType::get(TypeVariable::get())),
 
-        Implementation( // std::unordered_map<T, U>
+        Implementation( // std::unOrderedMap<T, U>
             default_map_impl,
             AssocType::get(TypeVariable::get(), TypeVariable::get())),
 
-        Implementation( // std::unordered_set<T>
+        Implementation( // std::unOrderedSet<T>
             default_set_impl,
             AssocType::get(TypeVariable::get(), VoidType::get()))
 
 #ifdef BOOST_INCLUDE_DIR
             ,
-        Implementation( // boost::flat_set<T>
+        Implementation( // boost::flat_Set<T>
             "boost_flat_set",
             AssocType::get(TypeVariable::get(), VoidType::get()))
 #endif
@@ -104,7 +104,7 @@ const Implementation &ImplLinker::get_implementation(CollectionType &type) {
 void ImplLinker::implement(Type &type) {
   if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
     // TODO: instantitiate the fields of this struct.
-    vector<Instantiation *> fields = {};
+    Vector<Instantiation *> fields = {};
     for (auto field = 0; field < tuple_type->getNumFields(); ++field) {
       auto &field_type = tuple_type->getFieldType(field);
 

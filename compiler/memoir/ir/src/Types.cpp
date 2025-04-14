@@ -121,7 +121,7 @@ ReferenceType &Type::get_ref_type(Type &referenced_type) {
 
 ReferenceType &ReferenceType::get(Type &referenced_type) {
   if (ReferenceType::reference_types == nullptr) {
-    ReferenceType::reference_types = new map<Type *, ReferenceType *>();
+    ReferenceType::reference_types = new Map<Type *, ReferenceType *>();
   }
 
   auto found_type = ReferenceType::reference_types->find(&referenced_type);
@@ -135,12 +135,12 @@ ReferenceType &ReferenceType::get(Type &referenced_type) {
   return *new_type;
 }
 
-map<Type *, ReferenceType *> *ReferenceType::reference_types = nullptr;
+Map<Type *, ReferenceType *> *ReferenceType::reference_types = nullptr;
 
 #if 0
 Type &Type::define(DefineTypeInst &definition, std::string name, Type &type) {
   if (ReferenceType::reference_types == nullptr) {
-    ReferenceType::reference_types = new map<Type *, ReferenceType *>();
+    ReferenceType::reference_types = new Map<Type *, ReferenceType *>();
   }
 
   auto found_type = ReferenceType::reference_types->find(&referenced_type);
@@ -164,7 +164,7 @@ Type &Type::lookup(std::string name) {
   MEMOIR_UNREACHABLE("Could not find a TupleType of the given name");
 }
 
-map<std::string, Type *> *Type::defined_types = nullptr;
+Map<std::string, Type *> *Type::defined_types = nullptr;
 #endif
 
 // TupleType getter.
@@ -175,7 +175,7 @@ TupleType &Type::get_tuple_type(llvm::ArrayRef<Type *> fields) {
 TupleType &TupleType::get(llvm::ArrayRef<Type *> fields) {
 
   if (TupleType::tuple_types == nullptr) {
-    TupleType::tuple_types = new ordered_multimap<unsigned, TupleType *>();
+    TupleType::tuple_types = new OrderedMultiMap<unsigned, TupleType *>();
   }
   auto &tuple_types = *TupleType::tuple_types;
 
@@ -196,7 +196,7 @@ TupleType &TupleType::get(llvm::ArrayRef<Type *> fields) {
   return *new_type;
 }
 
-ordered_multimap<unsigned, TupleType *> *TupleType::tuple_types = nullptr;
+OrderedMultiMap<unsigned, TupleType *> *TupleType::tuple_types = nullptr;
 
 // ArrayType getter.
 ArrayType &Type::get_array_type(Type &element_type, size_t length) {
@@ -205,7 +205,7 @@ ArrayType &Type::get_array_type(Type &element_type, size_t length) {
 
 ArrayType &ArrayType::get(Type &element_type, size_t length) {
   if (ArrayType::array_types == nullptr) {
-    ArrayType::array_types = new ordered_multimap<Type *, ArrayType *>();
+    ArrayType::array_types = new OrderedMultiMap<Type *, ArrayType *>();
   }
 
   auto existing_types = ArrayType::array_types->equal_range(&element_type);
@@ -223,7 +223,7 @@ ArrayType &ArrayType::get(Type &element_type, size_t length) {
   return *type;
 }
 
-ordered_multimap<Type *, ArrayType *> *ArrayType::array_types = nullptr;
+OrderedMultiMap<Type *, ArrayType *> *ArrayType::array_types = nullptr;
 
 /*
  * AssocArrayType getter
