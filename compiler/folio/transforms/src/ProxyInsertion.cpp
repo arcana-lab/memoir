@@ -173,10 +173,22 @@ static uint32_t forward_analysis(
         }
 
         if (auto *fold = FoldInst::get_single_fold(*func)) {
-          auto *result = &fold->getResult();
-          encoded[fold->getFunction()].insert(result);
-          worklist.push(result);
-          ++count;
+          auto &body = fold->getBody();
+          auto &accum_arg = fold->getAccumulatorArgument();
+
+          // If the accumulator is encoded, then the result of the fold is
+          // encoded.
+          if (encoded[&body].count(&accum_arg)) {
+            auto *result = &fold->getResult();
+            encoded[fold->getFunction()].insert(result);
+            worklist.push(result);
+            ++count;
+          }
+
+          // Otherwise, recurse on the accumulator.
+          else {
+            worklist.push(&accum_arg);
+          }
         }
 
       } else if (auto *fold = into<FoldInst>(user)) {
@@ -194,7 +206,7 @@ static uint32_t forward_analysis(
           worklist.push(&accum_arg);
 
         } else if (auto *closed_arg = fold->getClosedArgument(use)) {
-          if (body_encoded.count(closed_arg) > 0) {
+          if (body_encoded.count(closed_arg)) {
             continue;
           }
 
@@ -418,7 +430,7 @@ static void gather_uses_to_proxy(
     map<llvm::Function *, set<llvm::Use *>> &to_encode,
     map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
 
-  println("REDEF ", V, " IN ", parent_function(V)->getName());
+  infoln("REDEF ", V, " IN ", parent_function(V)->getName());
 
   auto *function = parent_function(V);
   MEMOIR_ASSERT(function, "Gathering uses of value with no parent function!");
@@ -428,7 +440,7 @@ static void gather_uses_to_proxy(
   for (auto &use : V.uses()) {
     auto *user = use.getUser();
 
-    println("  USER ", *user);
+    infoln("  USER ", *user);
 
     // We only need to handle acceses.
     auto *access = into<AccessInst>(user);
@@ -451,13 +463,13 @@ static void gather_uses_to_proxy(
       if (auto *index_use = get_index_use(*access, offsets)) {
         if (isa<InsertInst>(access)) {
           if (is_last_index(index_use, access->index_operands_end())) {
-            println("    ADDING KEY ", *index_use->get());
+            infoln("    ADDING KEY ", *index_use->get());
             to_addkey[function].insert(index_use);
             continue;
           }
         }
 
-        println("    ENCODING KEY ", *index_use->get());
+        infoln("    ENCODING KEY ", *index_use->get());
         to_encode[function].insert(index_use);
         continue;
       }
@@ -468,10 +480,10 @@ static void gather_uses_to_proxy(
         // argument to the set of uses to decode.
         if (distance == offsets.size()) {
           auto &index_arg = fold->getIndexArgument();
-          println("    DECODING KEY ",
-                  index_arg,
-                  " IN ",
-                  fold->getBody().getName());
+          infoln("    DECODING KEY ",
+                 index_arg,
+                 " IN ",
+                 fold->getBody().getName());
           encoded[&fold->getBody()].insert(&index_arg);
         }
 
@@ -479,7 +491,7 @@ static void gather_uses_to_proxy(
         // argument.
         else if (distance < offsets.size()) {
           if (auto *elem_arg = fold->getElementArgument()) {
-            println("    RECURSING");
+            infoln("    RECURSING");
             gather_uses_to_proxy(*elem_arg,
                                  offsets.drop_front(distance + 1),
                                  encoded,
@@ -492,7 +504,7 @@ static void gather_uses_to_proxy(
     } else if (auto *fold = dyn_cast<FoldInst>(access)) {
       // Recurse on closed arguments.
       if (auto *closed_arg = fold->getClosedArgument(use)) {
-        println("    CLOSED");
+        infoln("    CLOSED");
         gather_uses_to_proxy(*closed_arg,
                              offsets,
                              encoded,
@@ -512,7 +524,7 @@ static void gather_uses_to_propagate(
     map<llvm::Function *, set<llvm::Use *>> &to_encode,
     map<llvm::Function *, set<llvm::Use *>> &to_addkey) {
 
-  println("REDEF ", V, " IN ", parent_function(V)->getName());
+  infoln("REDEF ", V, " IN ", parent_function(V)->getName());
 
   auto *function = parent_function(V);
   MEMOIR_ASSERT(function, "Gathering uses of value with no parent function!");
@@ -525,13 +537,13 @@ static void gather_uses_to_propagate(
       continue;
     }
 
-    println("  USER ", *user);
+    infoln("  USER ", *user);
 
     if (auto *access = into<AccessInst>(user)) {
 
       // Ensure that the use is the object being accessed.
       if (use != access->getObjectAsUse()) {
-        println("    Not object use");
+        infoln("    Not object use");
         continue;
       }
 
@@ -540,7 +552,7 @@ static void gather_uses_to_propagate(
 
       // If the indices don't match, skip.
       if (not maybe_distance) {
-        println("    Offsets don't match");
+        infoln("    Offsets don't match");
         continue;
       }
 
@@ -553,7 +565,7 @@ static void gather_uses_to_propagate(
         // need to do distance+1 here.
         if ((distance + 1) == offsets.size()) {
           if (auto *elem_arg = fold->getElementArgument()) {
-            println("    DECODING ELEM");
+            infoln("    DECODING ELEM");
             encoded[&fold->getBody()].insert(elem_arg);
           }
         }
@@ -565,7 +577,7 @@ static void gather_uses_to_propagate(
 
         else if ((distance + 1) < offsets.size()) {
           if (auto *elem_arg = fold->getElementArgument()) {
-            println("    RECURSING");
+            infoln("    RECURSING");
             gather_uses_to_propagate(*elem_arg,
                                      offsets.drop_front(distance + 1),
                                      encoded,
@@ -576,20 +588,20 @@ static void gather_uses_to_propagate(
 
       } else if (auto *read = dyn_cast<ReadInst>(access)) {
         if (distance == offsets.size()) {
-          println("    DECODING ELEM ");
+          infoln("    DECODING ELEM ");
           encoded[function].insert(&read->asValue());
         }
 
       } else if (auto *write = dyn_cast<WriteInst>(access)) {
         if (distance == offsets.size()) {
-          println("    ADDKEY ");
+          infoln("    ADDKEY ");
           to_addkey[function].insert(&write->getValueWrittenAsUse());
         }
 
       } else if (auto *insert = dyn_cast<InsertInst>(access)) {
         if (auto value_kw = insert->get_keyword<ValueKeyword>()) {
           if (distance == offsets.size()) {
-            println("    ADDKEY ");
+            infoln("    ADDKEY ");
             to_addkey[function].insert(&value_kw->getValueAsUse());
           }
         }
@@ -633,9 +645,9 @@ void ObjectInfo::analyze() {
   }
 
   for (const auto &[func, redefs] : this->redefinitions) {
-    println("IN ", func->getName());
+    infoln("IN ", func->getName());
     for (auto *redef : redefs) {
-      println("  REDEF ", *redef);
+      infoln("  REDEF ", *redef);
     }
   }
 
@@ -1707,7 +1719,7 @@ static llvm::Value &encode_use(
   auto *used = use.get();
 
   auto &module = MEMOIR_SANITIZE(user->getModule(), "User has no module.");
-  auto &data_layout = module.getDataLayout();
+  const auto &data_layout = module.getDataLayout();
   auto &context = user->getContext();
 
   auto &size_type = Type::get_size_type(data_layout);
@@ -1802,13 +1814,13 @@ static void inject(
 
     auto &encoded = encode_use(builder, *use, get_encoder, encode_value);
 
-    uses.value(encoded);
-
     // Update the coalesced uses.
     for (auto *other_use : uses) {
       if (other_use == use) {
         continue;
       }
+
+      uses.value(encoded);
 
       update_use(*other_use, encoded);
     }
@@ -1928,17 +1940,19 @@ bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {
       break;
     } else if (auto *branch = dyn_cast<llvm::BranchInst>(terminator)) {
       // Check if this branch checks if we have already inserted this value.
-      if (auto *cond = branch->getCondition()) {
-        if (auto *has = into<HasInst>(cond)) {
-          // Check if the offsets match.
-          if (&insert.getObject() == &has->getObject()
-              and std::equal(insert.indices_begin(),
-                             insert.indices_end(),
-                             has->indices_begin(),
-                             has->indices_end())) {
-            // Enqueue the false branch.
-            worklist.push(branch->getSuccessor(1));
-            continue;
+      if (branch->isConditional()) {
+        if (auto *cond = branch->getCondition()) {
+          if (auto *has = into<HasInst>(cond)) {
+            // Check if the offsets match.
+            if (&insert.getObject() == &has->getObject()
+                and std::equal(insert.indices_begin(),
+                               insert.indices_end(),
+                               has->indices_begin(),
+                               has->indices_end())) {
+              // Enqueue the false branch.
+              worklist.push(branch->getSuccessor(1));
+              continue;
+            }
           }
         }
       }
@@ -1959,8 +1973,6 @@ bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {
 }
 
 bool is_total_proxy(ObjectInfo &info, const vector<CoalescedUses> &added) {
-
-  return false; // TEMPORARY: do not commit!
 
   println();
   println("TOTAL PROXY? ", info);
@@ -2166,10 +2178,11 @@ Type &convert_element_type(Type &base,
   MEMOIR_UNREACHABLE("Failed to convert type!");
 }
 
-static void gather_candidate_uses(Candidate &candidate,
-                                  set<llvm::Use *> &to_decode,
-                                  set<llvm::Use *> &to_encode,
-                                  set<llvm::Use *> &to_addkey) {
+static map<llvm::Function *, set<llvm::Value *>> gather_candidate_uses(
+    Candidate &candidate,
+    set<llvm::Use *> &to_decode,
+    set<llvm::Use *> &to_encode,
+    set<llvm::Use *> &to_addkey) {
 
   map<llvm::Function *, set<llvm::Value *>> encoded = {};
   for (auto *info : candidate) {
@@ -2198,7 +2211,7 @@ static void gather_candidate_uses(Candidate &candidate,
         // If the user is a PHI/Select/Fold _and_ is also encoded, we don't
         // need to decode it.
         if (isa<llvm::PHINode>(user) or isa<llvm::SelectInst>(user)) {
-          if (encoded[func].count(user) > 0) {
+          if (encoded[func].count(user)) {
             continue;
           }
         } else if (auto *fold = into<FoldInst>(user)) {
@@ -2230,7 +2243,7 @@ static void gather_candidate_uses(Candidate &candidate,
     }
   }
 
-  return;
+  return encoded;
 }
 
 bool ProxyInsertion::transform() {
@@ -2279,7 +2292,8 @@ bool ProxyInsertion::transform() {
     set<llvm::Use *> to_decode = {};
     set<llvm::Use *> to_encode = {};
     set<llvm::Use *> to_addkey = {};
-    gather_candidate_uses(candidate, to_decode, to_encode, to_addkey);
+    auto encoded_values =
+        gather_candidate_uses(candidate, to_decode, to_encode, to_addkey);
 
     println();
     println("  BEFORE TRIMMING");
@@ -2314,7 +2328,9 @@ bool ProxyInsertion::transform() {
             trim_to_decode.insert(&rhs);
           }
         }
-      } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+      }
+#if 0
+      else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
         bool all_decode = true;
         for (auto &incoming : phi->incoming_values()) {
           if (not used_value_will_be_decoded(incoming, to_decode)) {
@@ -2328,6 +2344,7 @@ bool ProxyInsertion::transform() {
           }
         }
       }
+#endif
     }
 
     // Trim uses that dont need to be encoded because they are produced by a
@@ -2368,17 +2385,17 @@ bool ProxyInsertion::transform() {
       println("  AFTER TRIMMING:");
       println("  USE TO ENCODE (", to_encode.size(), ")");
       for (auto *use : to_encode) {
-        println(pretty_use(*use));
+        infoln(pretty_use(*use));
       }
 
       println("  USE TO DECODE (", to_decode.size(), ")");
       for (auto *use : to_decode) {
-        println(pretty_use(*use));
+        infoln(pretty_use(*use));
       }
 
       println("  USE TO ADDKEY (", to_addkey.size(), ")");
       for (auto *use : to_addkey) {
-        println(pretty_use(*use));
+        infoln(pretty_use(*use));
       }
     }
 
@@ -2490,6 +2507,11 @@ bool ProxyInsertion::transform() {
     std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> decode_value =
         [&](MemOIRBuilder &builder, llvm::Value &value) -> llvm::Value & {
       auto *function = parent_function(value);
+      if (not function) {
+        if (auto *basic_block = builder.GetInsertBlock()) {
+          function = basic_block->getParent();
+        }
+      }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
       auto *decoder = function_to_decoder.at(function);
       return builder.CreateReadInst(key_type, decoder, { &value })->asValue();
@@ -2498,6 +2520,11 @@ bool ProxyInsertion::transform() {
     std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> encode_value =
         [&](MemOIRBuilder &builder, llvm::Value &value) -> llvm::Value & {
       auto *function = parent_function(value);
+      if (not function) {
+        if (auto *basic_block = builder.GetInsertBlock()) {
+          function = basic_block->getParent();
+        }
+      }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
       auto *encoder = function_to_encoder.at(function);
       return builder.CreateReadInst(size_type, encoder, &value)->asValue();
@@ -2506,8 +2533,12 @@ bool ProxyInsertion::transform() {
     std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> add_value =
         [&](MemOIRBuilder &builder, llvm::Value &value) -> llvm::Value & {
       auto *function = parent_function(value);
+      if (not function) {
+        if (auto *basic_block = builder.GetInsertBlock()) {
+          function = basic_block->getParent();
+        }
+      }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
-
       vector<llvm::Value *> args = { &value };
       if (build_encoder) {
         auto *encoder = function_to_encoder.at(function);
@@ -2517,7 +2548,6 @@ bool ProxyInsertion::transform() {
         auto *decoder = function_to_decoder.at(function);
         args.push_back(decoder);
       }
-
       return MEMOIR_SANITIZE(builder.CreateCall(addkey_callee, args),
                              "Failed to create call to addkey!");
     };
@@ -2531,6 +2561,89 @@ bool ProxyInsertion::transform() {
            decode_value,
            encode_value,
            add_value);
+
+    // Collect any function parameters whose type has changed because the
+    // argument propagates an encoded value.
+    // TODO: make this monomorphize the functions as well.
+    ordered_multimap<llvm::Function *, llvm::Argument *> params_to_mutate = {};
+    for (const auto &[func, values] : encoded_values) {
+      for (auto *val : values) {
+        if (auto *arg = dyn_cast<llvm::Argument>(val)) {
+          if (arg->getType() != &llvm_size_type) {
+            params_to_mutate.emplace(arg->getParent(), arg);
+          }
+        }
+      }
+    }
+
+    // Mutate the type of function parameters in the program.
+    set<llvm::Function *> to_cleanup = {};
+    for (auto it = params_to_mutate.begin(); it != params_to_mutate.end();) {
+      auto *func = it->first;
+
+      auto *module = func->getParent();
+      auto &data_layout = module->getDataLayout();
+
+      auto *func_type = func->getFunctionType();
+
+      // Collect the original parameter types.
+      vector<llvm::Type *> param_types(func_type->param_begin(),
+                                       func_type->param_end());
+
+      // Update the parameter types that are encoded.
+      for (; it != params_to_mutate.upper_bound(func); ++it) {
+        auto *arg = it->second;
+        auto arg_idx = arg->getArgNo();
+
+        param_types[arg_idx] = &llvm_size_type;
+      }
+
+      // Create the new function type.
+      auto *new_func_type = llvm::FunctionType::get(func_type->getReturnType(),
+                                                    param_types,
+                                                    func_type->isVarArg());
+
+      // TODO: Fix the attributes on the new function.
+
+      // Create the empty function to clone into.
+      auto &new_func =
+          MEMOIR_SANITIZE(llvm::Function::Create(new_func_type,
+                                                 func->getLinkage(),
+                                                 func->getName(),
+                                                 module),
+                          "Failed to create new function.");
+
+      println("CLONING ", func->getName());
+
+      // Update the function to the new type.
+      llvm::ValueToValueMapTy vmap;
+      for (auto &old_arg : func->args()) {
+        auto *new_arg = new_func.getArg(old_arg.getArgNo());
+        vmap.insert({ &old_arg, new_arg });
+      }
+      llvm::SmallVector<llvm::ReturnInst *, 8> returns;
+      llvm::CloneFunctionInto(&new_func,
+                              func,
+                              vmap,
+                              llvm::CloneFunctionChangeType::LocalChangesOnly,
+                              returns);
+
+      new_func.takeName(func);
+      func->replaceAllUsesWith(&new_func);
+
+      // Update the object info.
+      for (auto it = candidates_it; it != candidates.end(); ++it) {
+        for (auto &info : *it) {
+          info->update(*func,
+                       new_func,
+                       vmap,
+                       /* delete old? */ true);
+        }
+      }
+
+      // Clean up the old function.
+      to_cleanup.insert(func);
+    }
 
     // Collect the types that each candidate needs to be mutated to.
     AssocList<AllocInst *, Type *> types_to_mutate;
@@ -2553,9 +2666,6 @@ bool ProxyInsertion::transform() {
 
       } else {
         // Convert the type at the given offset to the size type.
-        auto &size_type =
-            Type::get_size_type(alloc->getModule()->getDataLayout());
-
         type = &convert_element_type(*type, info->offsets, size_type);
       }
     }
@@ -2573,7 +2683,7 @@ bool ProxyInsertion::transform() {
           [&](llvm::Function &old_func,
               llvm::Function &new_func,
               llvm::ValueToValueMapTy &vmap) {
-            // Update the remaining candidate.
+            // Update the remaining objects in the candidate.
             for (auto it = std::next(candidates_it); it != candidates.end();
                  ++it) {
               for (auto &info : *it) {
@@ -2599,6 +2709,14 @@ bool ProxyInsertion::transform() {
             }
           });
     }
+
+    for (auto *func : to_cleanup) {
+      func->deleteBody();
+      func->eraseFromParent();
+    }
+
+    // TEMPORARY: fix bug with multiple candidates instead of pushing
+    break;
   }
 
   return modified;
