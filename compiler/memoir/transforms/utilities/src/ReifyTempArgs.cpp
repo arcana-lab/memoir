@@ -28,6 +28,10 @@ static llvm::Function *find_tempargs_to_reify(
 
   // Collect all of the loads and stores marked as temporary arguments.
   for (auto &F : M) {
+    if (F.empty() or not F.hasName()) {
+      continue;
+    }
+
     for (auto &BB : F) {
       for (auto &I : BB) {
         // Filter out irrelevant instruction types.
@@ -89,7 +93,7 @@ static llvm::Function &clone_function(
   llvm::ValueToValueMapTy vmap;
   unsigned arg_no = 0;
   for (auto &old_arg : F.args()) {
-    auto *new_arg = new_func.getArg(arg_no++); // arg_begin() + arg_no++;
+    auto *new_arg = new_func.getArg(arg_no++);
     vmap.insert({ &old_arg, new_arg });
   }
   llvm::SmallVector<llvm::ReturnInst *, 8> returns;
@@ -217,9 +221,16 @@ static void reify_function(llvm::Function &function,
         auto *arg = found->second;
         auto closed_no = arg->getArgNo() - arg_offset;
 
-        new_closed[closed_no] = store->getValueOperand();
+        new_closed.at(closed_no) = store->getValueOperand();
 
         to_cleanup.insert(store);
+      }
+
+      // Validate the list of closed arguments.
+      unsigned idx = 0;
+      for (auto *val : new_closed) {
+        MEMOIR_ASSERT(val, "Closed argument (", idx, ") is NULL!");
+        ++idx;
       }
 
       // Construct a new fold.
@@ -248,6 +259,7 @@ static void reify_function(llvm::Function &function,
 #endif
 
     } else {
+
       // Construct the list of arguments.
       vector<llvm::Value *> arguments(new_func.arg_size(), nullptr);
 
@@ -325,6 +337,7 @@ bool reify_tempargs(llvm::Module &M) {
 
   vector<LoadInst *> temp_loads = {};
   while (auto *func = detail::find_tempargs_to_reify(M, temp_loads)) {
+
     detail::reify_function(*func, temp_loads);
 
     MemOIRInst::invalidate();
