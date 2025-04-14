@@ -306,9 +306,12 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
     auto *func = fold->getFunction();
 
     // Check if we are the last remaining user of this function, if so, skip it.
-    auto real_uses = count_real_uses(body);
-    if (real_uses == 1) {
+    if (fold == FoldInst::get_single_fold(body)) {
       continue;
+    }
+
+    if (llvm::verifyFunction(body, &llvm::errs())) {
+      MEMOIR_UNREACHABLE("Failed to verify function ", body.getName());
     }
 
     // Clone the function.
