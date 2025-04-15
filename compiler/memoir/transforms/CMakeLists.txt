@@ -18,7 +18,6 @@ endfunction()
 add_subdirectory(utilities)
 add_subdirectory(normalization)
 add_subdirectory(live_out_insertion)
-add_subdirectory(type_inference)
 
 # Utility passes.
 add_subdirectory(statistics)
