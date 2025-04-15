@@ -178,15 +178,6 @@ llvmGetPassPluginInfo() {
                      return true;
                    }
 
-                   // LowerFold require some addition simplification to be run
-                   // after it so it doesn't break other passes in the pipeline.
-                   if (name == "memoir-lower-fold") {
-                     MPM.addPass(LowerFoldPass());
-                     MPM.addPass(adapt_function(llvm::LoopSimplifyPass()));
-                     MPM.addPass(adapt_function(llvm::LCSSAPass()));
-                     return true;
-                   }
-
 #define MODULE_PASS(CLASS, NAME)                                               \
   if (name == NAME) {                                                          \
     MPM.addPass(CLASS());                                                      \
