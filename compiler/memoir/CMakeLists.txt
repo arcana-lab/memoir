@@ -32,6 +32,7 @@ add_subdirectory(support)
 add_subdirectory(utility)
 add_subdirectory(analysis)
 add_subdirectory(lowering)
+add_subdirectory(raising)
 add_subdirectory(passes)
 add_subdirectory(transforms)
 

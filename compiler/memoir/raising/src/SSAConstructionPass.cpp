@@ -30,7 +30,7 @@
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
 
-#include "SSAConstructionVisitor.hpp"
+#include "memoir/raising/SSAConstruction.hpp"
 
 using namespace llvm::memoir;
 

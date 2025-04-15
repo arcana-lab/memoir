@@ -1,5 +1,3 @@
-#include "SSAConstructionVisitor.hpp"
-
 #include "llvm/IR/User.h"
 
 #include "memoir/support/Assert.hpp"
@@ -7,6 +5,8 @@
 #include "memoir/support/Print.hpp"
 
 #include "memoir/utility/Metadata.hpp"
+
+#include "memoir/raising/SSAConstruction.hpp"
 
 namespace llvm::memoir {
 
