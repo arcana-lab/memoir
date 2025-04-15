@@ -35,5 +35,4 @@ add_subdirectory(profile_accesses)
 
 # Lowering passes.
 add_subdirectory(impl_linker)
-add_subdirectory(lower_fold)
 add_subdirectory(temp_arg_reification)

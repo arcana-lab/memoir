@@ -20,7 +20,6 @@ MODULE_PASS_(ImplLinkerPass, "memoir-impl-linker")
 MODULE_PASS_(NormalizationPass, "memoir-norm")
 MODULE_PASS_(StatisticsPass, "memoir-stats")
 MODULE_PASS_(TypeInferencePass, "memoir-type-infer")
-MODULE_PASS_(LowerFoldPass, "memoir-lower-fold-only")
 MODULE_PASS_(TempArgReificationPass, "memoir-reify-temp-args")
 MODULE_PASS_(ProfileAccessesPass, "memoir-profile-accesses")
 

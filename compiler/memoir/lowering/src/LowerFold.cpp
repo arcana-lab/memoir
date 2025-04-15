@@ -12,9 +12,8 @@
 #include "memoir/transforms/utilities/Inlining.hpp"
 
 #include "memoir/lowering/LowerFold.hpp"
-namespace llvm::memoir {
 
-namespace detail {
+namespace llvm::memoir {
 
 struct HeaderInfo {
   HeaderInfo(llvm::BasicBlock &preheader,
@@ -169,168 +168,6 @@ static HeaderInfo lower_fold_header(FoldInst &I,
                     element);
 }
 
-static HeaderInfo lower_fold_header(
-    FoldInst &I,
-    MemOIRBuilder &builder,
-    llvm::Value &collection,
-    llvm::memoir::CollectionType &collection_type) {
-
-  // Split the block before the fold instruction, creating a while loop.
-  //   it = alloca
-  //   elem = alloca
-  //   begin(it, collection)
-  //   while (next(it, elem))
-  //     {body}
-  //   {continuation}
-  auto &inst = I.getCallInst();
-  auto *preheader =
-      llvm::SplitBlock(inst.getParent(),
-                       &inst,
-                       /* DomTreeUpdater = */ (llvm::DomTreeUpdater *)nullptr,
-                       /* LoopInfo = */ nullptr,
-                       /* MemorySSAUpdater = */ nullptr,
-                       /* BBName = */ "fold.loop.preheader.",
-                       /* Before = */ false);
-  auto *body =
-      llvm::SplitBlock(inst.getParent(),
-                       &inst,
-                       /* DomTreeUpdater = */ (llvm::DomTreeUpdater *)nullptr,
-                       /* LoopInfo = */ nullptr,
-                       /* MemorySSAUpdater = */ nullptr,
-                       /* BBName = */ "fold.loop.body.",
-                       /* Before = */ false);
-  auto *header = llvm::BasicBlock::Create(builder.getContext(),
-                                          "fold.loop.header.",
-                                          body->getParent(),
-                                          body);
-  auto *exit =
-      llvm::SplitBlock(inst.getParent(),
-                       &inst,
-                       /* DomTreeUpdater = */ (llvm::DomTreeUpdater *)nullptr,
-                       /* LoopInfo = */ nullptr,
-                       /* MemorySSAUpdater = */ nullptr,
-                       /* BBName = */ "fold.loop.exit.",
-                       /* Before = */ false);
-
-  // Rewire the branch target of the preheader to the header.
-  auto *preheader_branch =
-      dyn_cast<llvm::BranchInst>(preheader->getTerminator());
-  preheader_branch->setSuccessor(0, header);
-
-  // Rewire the branch target of the body to the header.
-  auto *body_branch = dyn_cast<llvm::BranchInst>(body->getTerminator());
-  body_branch->setSuccessor(0, header);
-
-  // Construct the preheader.
-  builder.SetInsertPoint(preheader->getTerminator());
-
-  // If the collection is associative, create an AssocKeysInst.
-  bool collection_is_assoc = isa<AssocArrayType>(&collection_type);
-  auto *iterable = &collection;
-  if (collection_is_assoc) {
-    // Create the AssocKeysInst
-    auto &keys = MEMOIR_SANITIZE(builder.CreateKeysInst(&collection),
-                                 "Failed to create KeysInst!");
-
-    // Set the iterable collection to the AssocKeysInst.
-    iterable = &keys.getCallInst();
-  }
-
-  // Create a call to get the size of the instruction.
-  //   %n = size(%collection)
-  auto *collection_size =
-      &builder.CreateSizeInst(iterable, {}, "fold.size.")->getCallInst();
-
-  // Get the index type.
-  auto *index_type = cast<llvm::IntegerType>(collection_size->getType());
-  auto index_bitwidth = index_type->getBitWidth();
-
-  // Construct the header of the loop.
-  builder.SetInsertPoint(header);
-  //   %i = phi [0, preheader], [%i.inc, body]
-  auto *index = builder.CreatePHI(index_type, 2, "index.");
-  index->addIncoming(builder.getIntN(index_bitwidth, 0), preheader);
-  //   %check = %i < %n
-  auto *index_check =
-      builder.CreateICmpEQ(index, collection_size, "index.check.");
-  //   %next = %i + 1
-  auto *index_next = builder.CreateAdd(index,
-                                       builder.getIntN(index_bitwidth, 1),
-                                       "index.next.");
-  index->addIncoming(index_next, body);
-  //   br %end, next, exit
-  builder.CreateCondBr(index_check, exit, body);
-
-  // Update the builder's insertion point to the index PHI.
-  builder.SetInsertPoint(index);
-
-  // Create a PHI node for the accumulator value.
-  auto *accumulator_llvm_type = I.getCallInst().getType();
-  auto &accumulator = MEMOIR_SANITIZE(
-      builder.CreatePHI(accumulator_llvm_type, 2, "fold.accum.phi."),
-      "Unable to create PHI node for accumulator!");
-
-  // Update the builder's insertion point to the start of the loop.
-  builder.SetInsertPoint(body->getFirstInsertionPt());
-
-  // If this is a reverse fold, subtract the size of the iterable collection
-  // from the index.
-  llvm::Value *iterable_index = index;
-  if (I.isReverse()) {
-    iterable_index = builder.CreateSub(collection_size, index_next);
-  }
-
-  // If the collection is associative, read the key for this iteration.
-  llvm::Value *key = iterable_index;
-  if (collection_is_assoc) {
-    // Fetch the key type.
-    auto *assoc_type = cast<AssocArrayType>(&collection_type);
-    auto &key_type = assoc_type->getKeyType();
-
-    // Read the key from the keys sequence.
-    auto &read_key = MEMOIR_SANITIZE(
-        builder.CreateReadInst(key_type, iterable, { iterable_index }),
-        "Failed to create ReadInst for AssocKeys!");
-
-    // Save the key for later.
-    key = &read_key.getValueRead();
-  }
-
-  // Insert a Get/ReadInst at the beginning of the loop.
-  llvm::Value *element = nullptr;
-  auto &element_type = collection_type.getElementType();
-  if (isa<VoidType>(&element_type)) {
-    // Do nothing.
-  } else if (isa<TupleType>(&element_type)) {
-    // Read the value from the collection.
-    auto &read_value =
-        MEMOIR_SANITIZE(builder.CreateGetInst(&collection, { key }),
-                        "Failed to create IndexGetInst!");
-
-    // Save the element read for later.
-    element = &read_value.getCallInst();
-
-  } else {
-    // Read the value from the collection.
-    auto &read_value = MEMOIR_SANITIZE(
-        builder.CreateReadInst(element_type, &collection, { key }),
-        "Failed to create ReadInst!");
-
-    // Save the element read for later.
-    element = &read_value.getCallInst();
-  }
-
-  return HeaderInfo(*preheader,
-                    *header,
-                    *body,
-                    *exit,
-                    accumulator,
-                    *key,
-                    element);
-}
-
-} // namespace detail
-
 bool lower_fold(FoldInst &I,
                 llvm::Value &collection,
                 Type &type,
@@ -340,8 +177,6 @@ bool lower_fold(FoldInst &I,
                 std::function<void(llvm::Value &, llvm::Value &)> coalesce,
                 std::function<void(llvm::Instruction &)> cleanup) {
 
-  bool destructing_ssa = (begin_func and next_func and iter_type);
-
   auto &collection_type = MEMOIR_SANITIZE(dyn_cast<CollectionType>(&type),
                                           "Lowering fold over non-collection!");
 
@@ -349,16 +184,13 @@ bool lower_fold(FoldInst &I,
   MemOIRBuilder builder(I);
 
   // Insert the loop header.
-  auto header_info =
-      (destructing_ssa)
-          ? detail::lower_fold_header(I,
-                                      builder,
-                                      collection,
-                                      collection_type,
-                                      *begin_func,
-                                      *next_func,
-                                      *iter_type)
-          : detail::lower_fold_header(I, builder, collection, collection_type);
+  auto header_info = lower_fold_header(I,
+                                       builder,
+                                       collection,
+                                       collection_type,
+                                       *begin_func,
+                                       *next_func,
+                                       *iter_type);
 
   // Unpack the header info.
   auto &loop_preheader = header_info.preheader;
@@ -458,36 +290,7 @@ bool lower_fold(FoldInst &I,
     }
 
     // If it does, we need to patch its DEF-USE chain.
-    llvm::Value *closed_result;
-    if (not destructing_ssa) {
-      //  - Add a PHI for it in the loop.
-      builder.SetInsertPoint(&accumulator);
-      auto *closed_phi =
-          builder.CreatePHI(closed->getType(), 2, "fold.closed.phi.");
-
-      //  -- Update the use of the closed variabled to be the new PHI.
-      auto &element_type = collection_type.getElementType();
-      auto closed_offset = isa<VoidType>(&element_type) ? 2 : 3;
-      call.setOperand(closed_idx + closed_offset, closed_phi);
-
-      //  -- Insert a RetPHI after the call.
-      builder.SetInsertPoint(call.getNextNode());
-      auto *closed_ret_phi =
-          builder.CreateRetPHI(closed_phi, &body, "fold.closed.");
-
-      //  -- Wire up the PHI with the original value and the RetPHI.
-      for (auto *pred : llvm::predecessors(closed_phi->getParent())) {
-        auto *incoming =
-            (pred == &loop_preheader) ? closed : &closed_ret_phi->getCallInst();
-
-        closed_phi->addIncoming(incoming, pred);
-      }
-
-      closed_result = closed_phi;
-
-    } else {
-      closed_result = &found_ret_phi->getInput();
-    }
+    auto *closed_result = &found_ret_phi->getInput();
 
     //  -- Replace uses of the original RetPHI with the continuation PHI.
     auto &ret_phi_inst = found_ret_phi->getCallInst();
