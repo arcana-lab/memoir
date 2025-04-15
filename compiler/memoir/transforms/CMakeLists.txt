@@ -17,7 +17,6 @@ endfunction()
 # Core.
 add_subdirectory(utilities)
 add_subdirectory(normalization)
-add_subdirectory(ssa_destruction)
 add_subdirectory(live_out_insertion)
 add_subdirectory(type_inference)
 

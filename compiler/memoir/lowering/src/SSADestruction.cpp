@@ -12,11 +12,9 @@
 
 #include "memoir/lowering/ImplLinker.hpp"
 #include "memoir/lowering/Implementation.hpp"
-#include "memoir/lowering/TypeLayout.hpp"
-
 #include "memoir/lowering/LowerFold.hpp"
-
-#include "SSADestruction.hpp"
+#include "memoir/lowering/SSADestruction.hpp"
+#include "memoir/lowering/TypeLayout.hpp"
 
 namespace llvm::memoir {
 

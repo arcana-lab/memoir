@@ -30,7 +30,7 @@
 
 #include "memoir/utility/FunctionNames.hpp"
 
-#include "SSADestruction.hpp"
+#include "memoir/lowering/SSADestruction.hpp"
 
 using namespace llvm::memoir;
 
