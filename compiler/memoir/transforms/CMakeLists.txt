@@ -34,5 +34,4 @@ add_subdirectory(profile_accesses)
 # add_subdirectory(dead_element_elimination)
 
 # Lowering passes.
-add_subdirectory(impl_linker)
 add_subdirectory(temp_arg_reification)
