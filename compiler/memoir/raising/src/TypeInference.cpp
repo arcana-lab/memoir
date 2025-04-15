@@ -1,4 +1,4 @@
-#include "TypeInference.hpp"
+#include "memoir/raising/TypeInference.hpp"
 
 #include "memoir/support/Casting.hpp"
 

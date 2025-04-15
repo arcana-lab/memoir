@@ -9,8 +9,7 @@
 // MEMOIR
 #include "memoir/passes/Passes.hpp"
 
-// Type Inference
-#include "TypeInference.hpp"
+#include "memoir/raising/TypeInference.hpp"
 
 namespace llvm::memoir {
 
