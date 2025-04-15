@@ -17,7 +17,6 @@ endfunction()
 # Core.
 add_subdirectory(utilities)
 add_subdirectory(normalization)
-add_subdirectory(live_out_insertion)
 
 # Utility passes.
 add_subdirectory(statistics)
