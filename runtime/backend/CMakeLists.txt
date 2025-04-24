@@ -4,6 +4,9 @@ set(BACKEND_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/backend)
 set(CMAKE_C_FLAGS   "-O3 -gdwarf-4 -fdeclspec -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17")
 
+add_subdirectory(deps)
+
+# Install the header files.
 install(
   FILES utilities.h
   DESTINATION ${BACKEND_INSTALL_INCLUDEDIR}
@@ -17,7 +20,7 @@ function(install_impl DIR)
     ${DIR}/instantiation.h
     DESTINATION
     ${BACKEND_INSTALL_INCLUDEDIR}/${DIR}
-    )
+  )
 endfunction()
 
 # add_subdirectory(vector)
@@ -29,13 +32,20 @@ install_impl(boost_flat_multimap)
 # install_impl(deepsjeng_ttable)
 install_impl(stl_vector)
 install_impl(stl_unordered_set)
-install_impl(bitmap)
+
 install_impl(bitset)
-# install_impl(index_map)
+install_impl(bitmap)
+install_impl(sparse_bitset)
+install_impl(sparse_bitmap)
 
 # install_impl(boost_dynamic_bitset)
 # install_impl(boost_bit_vector)
 install_impl(boost_flat_set)
+install_impl(boost_flat_map)
+
+# Abseil containers
+install_impl(abseil_flat_hash_set)
+install_impl(abseil_flat_hash_map)
 
 # Configure LLVM
 # find_package(LLVM 9 REQUIRED CONFIG)
