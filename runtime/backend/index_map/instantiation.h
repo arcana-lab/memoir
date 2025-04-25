@@ -30,126 +30,126 @@ typedef size_t SIZE_TYPE;
 
 #define OP(op) CAT(CAT(PREFIX, __), op)
 
-cname alwaysinline used PTR OP(allocate)() {
+CNAME ALWAYS_INLINE USED PTR OP(allocate)() {
   return new TYPE();
 }
 
-cname alwaysinline used ENC_PTR OP(allocate_encoder)() {
+CNAME ALWAYS_INLINE USED ENC_PTR OP(allocate_encoder)() {
   return new ENC_TYPE();
 }
 
-cname alwaysinline used DEC_PTR OP(allocate_decoder)() {
+CNAME ALWAYS_INLINE USED DEC_PTR OP(allocate_decoder)() {
   return new DEC_TYPE();
 }
 
-cname alwaysinline used void OP(set_encoder)(PTR map, ENC_PTR enc) {
+CNAME ALWAYS_INLINE USED void OP(set_encoder)(PTR map, ENC_PTR enc) {
   return map->encoder(enc);
 }
 
-cname alwaysinline used void OP(set_decoder)(PTR map, DEC_PTR dec) {
+CNAME ALWAYS_INLINE USED void OP(set_decoder)(PTR map, DEC_PTR dec) {
   return map->decoder(dec);
 }
 
-cname alwaysinline used ENC_PTR OP(get_encoder)(PTR map) {
+CNAME ALWAYS_INLINE USED ENC_PTR OP(get_encoder)(PTR map) {
   return map->encoder();
 }
 
-cname alwaysinline used DEC_PTR OP(get_decoder)(PTR map) {
+CNAME ALWAYS_INLINE USED DEC_PTR OP(get_decoder)(PTR map) {
   return map->decoder();
 }
 
-cname alwaysinline used void OP(free)(PTR map) {
+CNAME ALWAYS_INLINE USED void OP(free)(PTR map) {
   delete map;
 }
 
-cname alwaysinline used VAL_TYPE OP(read_encoded)(PTR map, SIZE_TYPE i) {
+CNAME ALWAYS_INLINE USED VAL_TYPE OP(read_encoded)(PTR map, SIZE_TYPE i) {
   return map->read_encoded(i);
 }
 
-cname alwaysinline used VAL_TYPE OP(read)(PTR map, KEY_TYPE key) {
+CNAME ALWAYS_INLINE USED VAL_TYPE OP(read)(PTR map, KEY_TYPE key) {
   return map->read(key);
 }
 
-cname alwaysinline used PTR OP(write_encoded)(PTR map,
-                                              SIZE_TYPE i,
-                                              VAL_TYPE value) {
+CNAME ALWAYS_INLINE USED PTR OP(write_encoded)(PTR map,
+                                               SIZE_TYPE i,
+                                               VAL_TYPE value) {
   map->write_encoded(i, value);
   return map;
 }
 
-cname alwaysinline used PTR OP(write)(PTR map, KEY_TYPE key, VAL_TYPE value) {
+CNAME ALWAYS_INLINE USED PTR OP(write)(PTR map, KEY_TYPE key, VAL_TYPE value) {
   map->write(key, value);
   return map;
 }
 
-cname alwaysinline used VAL_TYPE *OP(get_encoded)(PTR map, SIZE_TYPE i) {
+CNAME ALWAYS_INLINE USED VAL_TYPE *OP(get_encoded)(PTR map, SIZE_TYPE i) {
   return map->get_encoded(i);
 }
 
-cname alwaysinline used VAL_TYPE *OP(get)(PTR map, KEY_TYPE key) {
+CNAME ALWAYS_INLINE USED VAL_TYPE *OP(get)(PTR map, KEY_TYPE key) {
   return map->get(key);
 }
 
-cname alwaysinline used PTR OP(copy)(PTR map) {
+CNAME ALWAYS_INLINE USED PTR OP(copy)(PTR map) {
   return map->copy();
 }
 
-cname alwaysinline used PTR OP(remove_encoded)(PTR map, SIZE_TYPE i) {
+CNAME ALWAYS_INLINE USED PTR OP(remove_encoded)(PTR map, SIZE_TYPE i) {
   map->remove_encoded(i);
   return map;
 }
 
-cname alwaysinline used PTR OP(remove)(PTR map, KEY_TYPE key) {
+CNAME ALWAYS_INLINE USED PTR OP(remove)(PTR map, KEY_TYPE key) {
   map->remove(key);
   return map;
 }
 
-cname alwaysinline used PTR OP(insert_encoded)(PTR map, SIZE_TYPE i) {
+CNAME ALWAYS_INLINE USED PTR OP(insert_encoded)(PTR map, SIZE_TYPE i) {
   map->insert_encoded(i);
   return map;
 }
 
-cname alwaysinline used PTR OP(insert)(PTR map, KEY_TYPE key) {
+CNAME ALWAYS_INLINE USED PTR OP(insert)(PTR map, KEY_TYPE key) {
   map->insert(key);
   return map;
 }
 
-cname alwaysinline used PTR OP(insert_value_encoded)(PTR map,
-                                                     SIZE_TYPE i,
-                                                     VAL_TYPE value) {
+CNAME ALWAYS_INLINE USED PTR OP(insert_value_encoded)(PTR map,
+                                                      SIZE_TYPE i,
+                                                      VAL_TYPE value) {
   map->insert_encoded(i, value);
   return map;
 }
 
-cname alwaysinline used PTR OP(insert_value)(PTR map,
-                                             KEY_TYPE key,
-                                             VAL_TYPE value) {
+CNAME ALWAYS_INLINE USED PTR OP(insert_value)(PTR map,
+                                              KEY_TYPE key,
+                                              VAL_TYPE value) {
   map->insert(key, value);
   return map;
 }
 
-cname alwaysinline used bool OP(has_encoded)(PTR map, SIZE_TYPE i) {
+CNAME ALWAYS_INLINE USED bool OP(has_encoded)(PTR map, SIZE_TYPE i) {
   return map->has_encoded(i);
 }
 
-cname alwaysinline used bool OP(has)(PTR map, KEY_TYPE key) {
+CNAME ALWAYS_INLINE USED bool OP(has)(PTR map, KEY_TYPE key) {
   return map->has(key);
 }
 
-cname alwaysinline used size_t OP(size)(PTR map) {
+CNAME ALWAYS_INLINE USED size_t OP(size)(PTR map) {
   return map->size();
 }
 
-cname alwaysinline used PTR OP(clear)(PTR map) {
+CNAME ALWAYS_INLINE USED PTR OP(clear)(PTR map) {
   map->clear();
   return map;
 }
 
-cname alwaysinline used void OP(begin)(ITER_PTR iter, PTR map) {
+CNAME ALWAYS_INLINE USED void OP(begin)(ITER_PTR iter, PTR map) {
   map->begin(iter);
 }
 
-cname alwaysinline used bool OP(next)(ITER_PTR iter) {
+CNAME ALWAYS_INLINE USED bool OP(next)(ITER_PTR iter) {
   return iter->next();
 }
 

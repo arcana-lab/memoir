@@ -38,84 +38,84 @@ typedef size_t SIZE_TYPE;
 
 #define OP(op) CAT(CAT(PREFIX, __), op)
 
-cname alwaysinline used PTR OP(allocate)() {
+CNAME ALWAYS_INLINE USED PTR OP(allocate)() {
   return new TYPE();
 }
 
-cname alwaysinline used ENC_PTR OP(allocate_encoder)() {
+CNAME ALWAYS_INLINE USED ENC_PTR OP(allocate_encoder)() {
   return new ENC_TYPE();
 }
 
-cname alwaysinline used DEC_PTR OP(allocate_decoder)() {
+CNAME ALWAYS_INLINE USED DEC_PTR OP(allocate_decoder)() {
   return new DEC_TYPE();
 }
 
-cname alwaysinline used void OP(set_encoder)(PTR set, ENC_PTR enc) {
+CNAME ALWAYS_INLINE USED void OP(set_encoder)(PTR set, ENC_PTR enc) {
   return set->encoder(enc);
 }
 
-cname alwaysinline used void OP(set_decoder)(PTR set, DEC_PTR dec) {
+CNAME ALWAYS_INLINE USED void OP(set_decoder)(PTR set, DEC_PTR dec) {
   return set->decoder(dec);
 }
 
-cname alwaysinline used ENC_PTR OP(get_encoder)(PTR set) {
+CNAME ALWAYS_INLINE USED ENC_PTR OP(get_encoder)(PTR set) {
   return set->encoder();
 }
 
-cname alwaysinline used DEC_PTR OP(get_decoder)(PTR set) {
+CNAME ALWAYS_INLINE USED DEC_PTR OP(get_decoder)(PTR set) {
   return set->decoder();
 }
 
-cname alwaysinline used void OP(free)(PTR set) {
+CNAME ALWAYS_INLINE USED void OP(free)(PTR set) {
   delete set;
 }
 
-cname alwaysinline used PTR OP(copy)(PTR set) {
+CNAME ALWAYS_INLINE USED PTR OP(copy)(PTR set) {
   return set->copy();
 }
 
-cname alwaysinline used PTR OP(remove_encoded)(PTR set, SIZE_TYPE i) {
+CNAME ALWAYS_INLINE USED PTR OP(remove_encoded)(PTR set, SIZE_TYPE i) {
   set->remove_encoded(i);
   return set;
 }
 
-cname alwaysinline used PTR OP(remove)(PTR set, KEY_TYPE key) {
+CNAME ALWAYS_INLINE USED PTR OP(remove)(PTR set, KEY_TYPE key) {
   set->remove(key);
   return set;
 }
 
-cname alwaysinline used PTR OP(insert_encoded)(PTR set, SIZE_TYPE i) {
+CNAME ALWAYS_INLINE USED PTR OP(insert_encoded)(PTR set, SIZE_TYPE i) {
   set->insert_encoded(i);
   return set;
 }
 
-cname alwaysinline used PTR OP(insert)(PTR set, KEY_TYPE key) {
+CNAME ALWAYS_INLINE USED PTR OP(insert)(PTR set, KEY_TYPE key) {
   set->insert(key);
   return set;
 }
 
-cname alwaysinline used bool OP(has_encoded)(PTR set, SIZE_TYPE i) {
+CNAME ALWAYS_INLINE USED bool OP(has_encoded)(PTR set, SIZE_TYPE i) {
   return set->has_encoded(i);
 }
 
-cname alwaysinline used bool OP(has)(PTR set, KEY_TYPE key) {
+CNAME ALWAYS_INLINE USED bool OP(has)(PTR set, KEY_TYPE key) {
   return set->has(key);
 }
 
-cname alwaysinline used size_t OP(size)(PTR set) {
+CNAME ALWAYS_INLINE USED size_t OP(size)(PTR set) {
   return set->size();
 }
 
-cname alwaysinline used PTR OP(clear)(PTR set) {
+CNAME ALWAYS_INLINE USED PTR OP(clear)(PTR set) {
   set->clear();
   return set;
 }
 
-cname alwaysinline used void OP(begin)(ITER_PTR iter, PTR set) {
+CNAME ALWAYS_INLINE USED void OP(begin)(ITER_PTR iter, PTR set) {
   set->begin(iter);
 }
 
-cname alwaysinline used bool OP(next)(ITER_PTR iter) {
+CNAME ALWAYS_INLINE USED bool OP(next)(ITER_PTR iter) {
   return iter->next();
 }
 

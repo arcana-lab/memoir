@@ -1,18 +1,13 @@
-// EXPECTS:
-//  CODE_0, the element type code
-//  TYPE_0, the element C type
-
 #include <backend/utilities.h>
 
-#include <backend/stl_unordered_map/definition.hpp>
+#include <backend/boost_flat_map/definition.hpp>
 
 #define KEY_CODE CODE_0
 #define KEY_TYPE TYPE_0
 #define VAL_CODE CODE_1
 #define VAL_TYPE TYPE_1
 
-#define IMPL stl_unordered_map
-#define PREFIX CAT(KEY_CODE, CAT(_, CAT(VAL_CODE, CAT(_, IMPL))))
+#define PREFIX CAT(KEY_CODE, CAT(_, CAT(VAL_CODE, _boost_flat_map)))
 
 #define TYPE CAT(PREFIX, _t)
 #define PTR CAT(PREFIX, _p)
@@ -59,8 +54,8 @@ CNAME ALWAYS_INLINE USED PTR OP(insert)(PTR map, KEY_TYPE key) {
 
 CNAME ALWAYS_INLINE USED PTR OP(insert_value)(PTR map,
                                               KEY_TYPE key,
-                                              VAL_TYPE value) {
-  map->insert(key, value);
+                                              VAL_TYPE val) {
+  map->insert_value(key, val);
   return map;
 }
 
@@ -89,9 +84,6 @@ CNAME ALWAYS_INLINE USED bool OP(next)(ITER_PTR iter) {
 #undef KEY_TYPE
 #undef VAL_CODE
 #undef VAL_TYPE
-#undef IMPL
 #undef PREFIX
-#undef TYPE
-#undef PTR
 #undef ITER_TYPE
 #undef ITER_PTR

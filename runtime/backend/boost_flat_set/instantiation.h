@@ -19,51 +19,51 @@
 
 #define OP(op) CAT(CAT(PREFIX, __), op)
 
-cname alwaysinline used PTR OP(allocate)() {
+CNAME ALWAYS_INLINE USED PTR OP(allocate)() {
   return new TYPE();
 }
 
-cname alwaysinline used void OP(free)(PTR set) {
+CNAME ALWAYS_INLINE USED void OP(free)(PTR set) {
   delete set;
 }
 
-cname alwaysinline used PTR OP(copy)(PTR set) {
+CNAME ALWAYS_INLINE USED PTR OP(copy)(PTR set) {
   return PTR(set->copy());
 }
 
-cname alwaysinline used PTR OP(remove)(PTR set, KEY_TYPE key) {
+CNAME ALWAYS_INLINE USED PTR OP(remove)(PTR set, KEY_TYPE key) {
   set->remove(key);
   return set;
 }
 
-cname alwaysinline used PTR OP(insert)(PTR set, KEY_TYPE key) {
+CNAME ALWAYS_INLINE USED PTR OP(insert)(PTR set, KEY_TYPE key) {
   set->insert(key);
   return set;
 }
 
-cname alwaysinline used PTR OP(insert_input)(PTR set, PTR set2) {
+CNAME ALWAYS_INLINE USED PTR OP(insert_input)(PTR set, PTR set2) {
   set->insert_input(set2);
   return set;
 }
 
-cname alwaysinline used bool OP(has)(PTR set, KEY_TYPE key) {
+CNAME ALWAYS_INLINE USED bool OP(has)(PTR set, KEY_TYPE key) {
   return set->has(key);
 }
 
-cname alwaysinline used size_t OP(size)(PTR set) {
+CNAME ALWAYS_INLINE USED size_t OP(size)(PTR set) {
   return set->size();
 }
 
-cname alwaysinline used PTR OP(clear)(PTR set) {
+CNAME ALWAYS_INLINE USED PTR OP(clear)(PTR set) {
   set->clear();
   return set;
 }
 
-cname alwaysinline used void OP(begin)(ITER_PTR iter, PTR set) {
+CNAME ALWAYS_INLINE USED void OP(begin)(ITER_PTR iter, PTR set) {
   set->begin(iter);
 }
 
-cname alwaysinline used bool OP(next)(ITER_PTR iter) {
+CNAME ALWAYS_INLINE USED bool OP(next)(ITER_PTR iter) {
   return iter->next();
 }
 
