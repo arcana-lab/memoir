@@ -1,9 +1,9 @@
 #ifndef MEMOIR_BACKEND_UTILITIES_H
 #define MEMOIR_BACKEND_UTILITIES_H
 
-#define cname extern "C"
-#define alwaysinline __attribute__((always_inline)) inline
-#define used __attribute__((used))
+#define CNAME extern "C"
+#define ALWAYS_INLINE __attribute__((always_inline)) inline
+#define USED __attribute__((used))
 
 // Macro pre-processor tricks from:
 // https://github.com/pfultz2/Cloak/wiki/C-Preprocessor-tricks,-tips,-and-idioms#deferred-expression
@@ -95,10 +95,9 @@ struct std::hash<Bytes<N>> {
   }
 
 template <class T>
-struct is_nested
-  : std::integral_constant<
-        bool,
-        not std::is_arithmetic_v<T> and not std::is_pointer_v<T>> {};
+struct is_nested : std::integral_constant<bool,
+                                          not std::is_arithmetic_v<T>
+                                              and not std::is_pointer_v<T>> {};
 
 template <class T>
 constexpr bool is_nested_v = is_nested<T>::value;
@@ -118,5 +117,9 @@ constexpr auto into_primitive(T &value) noexcept {
     return value;
   }
 }
+
+#define errorf(str, ...) fprintf(stderr, str, ##__VA_ARGS__)
+
+using Size = typename size_t;
 
 #endif // MEMOIR_BACKEND_UTILITIES_H
