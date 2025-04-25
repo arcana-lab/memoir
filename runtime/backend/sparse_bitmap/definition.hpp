@@ -4,10 +4,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
-#include <map>
 #include <type_traits>
 
-#include <backend/stl_vector/definition.hpp>
+#include <absl/container/btree_map.h>
 
 using Size = size_t;
 
@@ -18,8 +17,8 @@ struct Chunk {
 };
 
 template <typename Key, typename Val, const Size ChunkSize = 1024>
-struct SparseBitMap : std::map<Size, Chunk<Val, ChunkSize>> {
-  using Base = typename std::map<Size, Chunk<Val, ChunkSize>>;
+struct SparseBitMap : absl::btree_map<Size, Chunk<Val, ChunkSize>> {
+  using Base = typename absl::btree_map<Size, Chunk<Val, ChunkSize>>;
 
   SparseBitMap() : Base() {}
   SparseBitMap(const SparseBitMap<Key, Val, ChunkSize> &other) : Base(other) {}
