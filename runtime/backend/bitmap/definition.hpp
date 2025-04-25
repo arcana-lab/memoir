@@ -105,12 +105,6 @@ public:
     return this->Base::count();
   }
 
-  Vector<Size> *keys() {
-    auto *keys = new Vector<Size>(this->size());
-    // TODO
-    return keys;
-  }
-
   struct iterator {
     Size _key;
     as_primitive_t<Val> _val;
