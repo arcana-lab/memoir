@@ -19,15 +19,30 @@ struct FlatHashMap : absl::flat_hash_map<Key, Val> {
   }
 
   ALWAYS_INLINE const Val &read(const Key &key) {
-    return this->Base::at(key);
+    try {
+      return this->Base::at(key);
+    } catch (const std::out_of_range &exc) {
+      errorf("Out of bounds at %zu\n", key);
+      exit(11);
+    }
   }
 
   ALWAYS_INLINE void write(const Key &key, const Val &val) {
-    this->Base::at(key) = val;
+    try {
+      this->Base::at(key) = val;
+    } catch (const std::out_of_range &exc) {
+      errorf("Out of bounds at %zu\n", key);
+      exit(11);
+    }
   }
 
   ALWAYS_INLINE Val *get(const Key &key) {
-    return &this->Base::at(key);
+    try {
+      return &this->Base::at(key);
+    } catch (const std::out_of_range &exc) {
+      errorf("Out of bounds at %zu\n", key);
+      exit(11);
+    }
   }
 
   ALWAYS_INLINE void insert(const Key &key) {
