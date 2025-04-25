@@ -4,14 +4,15 @@
 #include <cstdint>
 #include <cstdio>
 #include <functional>
-#include <map>
 #include <type_traits>
+
+#include <absl/container/btree_map.h>
 
 using Size = size_t;
 
 template <typename Key, const size_t ChunkSize = 1024>
-struct SparseBitSet : std::map<Size, std::bitset<ChunkSize>> {
-  using Base = typename std::map<Size, std::bitset<ChunkSize>>;
+struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
+  using Base = typename absl::btree_map<Size, std::bitset<ChunkSize>>;
 
   SparseBitSet() : Base() {}
   SparseBitSet(const SparseBitSet<Key> &other) : Base(other) {}
