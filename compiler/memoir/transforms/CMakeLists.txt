@@ -22,6 +22,7 @@ add_subdirectory(normalization)
 add_subdirectory(statistics)
 add_subdirectory(profile_accesses)
 add_subdirectory(temp_arg_reification)
+add_subdirectory(sweep_selections)
 
 # Transformation passes.
 # add_subdirectory(dead_collection_elimination)
