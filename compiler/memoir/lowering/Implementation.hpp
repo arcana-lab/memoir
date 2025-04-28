@@ -48,6 +48,45 @@ public:
     return &found->second;
   }
 
+  static void candidates(Type &type,
+                         Vector<const Implementation *> &candidates) {
+    if (not Implementation::templates) {
+      return;
+    }
+
+    for (const auto &[_name, impl] : *Implementation::templates) {
+      if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
+        auto existing = collection_type->get_selection();
+        if (existing) {
+          if (existing.value() == impl.get_name()) {
+            candidates.push_back(&impl);
+            continue;
+          } else if ((existing.value() == "bitset"
+                      or existing.value() == "bitmap")
+                     and impl.get_name().find(existing.value())
+                             != std::string::npos) {
+            candidates.push_back(&impl);
+            continue;
+          } else {
+            continue;
+          }
+        }
+      }
+
+      if (impl.selectable() and impl.match(type)) {
+        candidates.push_back(&impl);
+      }
+    }
+  }
+
+  static Vector<const Implementation *> candidates(Type &type) {
+    Vector<const Implementation *> candidates = {};
+
+    Implementation::candidates(type, candidates);
+
+    return candidates;
+  }
+
   /**
    * Checks if the given type can be matched to this implementation's
    * template.
@@ -68,21 +107,27 @@ public:
    */
   Instantiation &instantiate(Type &type) const;
 
-  Implementation(std::string name, Type &type_template)
-    : name(name),
-      type_template(&type_template) {}
+  Implementation(std::string name, Type &type_template, bool selectable = true)
+    : _name(name),
+      _template(&type_template),
+      _selectable(selectable) {}
 
   std::string get_name() const {
-    return this->name;
+    return this->_name;
   }
 
   Type &get_template() const {
-    return *this->type_template;
+    return *this->_template;
+  }
+
+  bool selectable() const {
+    return this->_selectable;
   }
 
 protected:
-  std::string name;
-  Type *type_template;
+  std::string _name;
+  Type *_template;
+  bool _selectable;
 
   static Map<std::string, Implementation> *templates;
 };
