@@ -4,8 +4,6 @@ set(BACKEND_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR}/backend)
 set(CMAKE_C_FLAGS   "-O3 -gdwarf-4 -fdeclspec -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17")
 
-add_subdirectory(deps)
-
 # Install the header files.
 install(
   FILES utilities.h
@@ -23,25 +21,24 @@ function(install_impl DIR)
   )
 endfunction()
 
-# add_subdirectory(vector)
-# add_subdirectory(hashtable)
+# C++ standard template library.
 install_impl(stl_unordered_map)
 # install_impl(stl_map)
 install_impl(stl_multimap)
-install_impl(boost_flat_multimap)
-# install_impl(deepsjeng_ttable)
 install_impl(stl_vector)
 install_impl(stl_unordered_set)
 
+# Boost library.
+install_impl(boost_flat_multimap)
+install_impl(boost_flat_set)
+install_impl(boost_flat_map)
+
+# Custom bit{set,map} implementations.
 install_impl(bitset)
 install_impl(bitmap)
 install_impl(sparse_bitset)
 install_impl(sparse_bitmap)
-
-# install_impl(boost_dynamic_bitset)
-# install_impl(boost_bit_vector)
-install_impl(boost_flat_set)
-install_impl(boost_flat_map)
+install_impl(twined_bitmap)
 
 # Abseil containers
 install_impl(abseil_flat_hash_set)
