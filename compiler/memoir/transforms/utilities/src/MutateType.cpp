@@ -926,4 +926,59 @@ void mutate_type(AllocInst &alloc, Type &type, OnFuncClone on_func_clone) {
   return;
 }
 
+Type &mutate_selection(Type &type,
+                       llvm::ArrayRef<unsigned> offsets,
+                       opt<std::string> selection) {
+  // If we are at the base of the offsets, mutate the type.
+  if (offsets.empty()) {
+    auto *collection_type = dyn_cast<CollectionType>(&type);
+    return collection_type->set_selection(selection);
+  }
+
+  // Recurse based on the next offset, rebuilding the type with the returnee.
+  if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
+    // Recurse.
+    auto &elem_type = mutate_selection(collection_type->getElementType(),
+                                       offsets.drop_front(),
+                                       selection);
+
+    // Rebuild the type.
+    if (auto *assoc_type = dyn_cast<AssocType>(collection_type)) {
+      return AssocType::get(assoc_type->getKeyType(),
+                            elem_type,
+                            assoc_type->get_selection());
+
+    } else if (auto *seq_type = dyn_cast<SequenceType>(collection_type)) {
+      return SequenceType::get(elem_type, seq_type->get_selection());
+
+    } else if (auto *array_type = dyn_cast<ArrayType>(collection_type)) {
+      return ArrayType::get(elem_type, array_type->getLength());
+    }
+
+  } else if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
+
+    auto num_fields = tuple_type->getNumFields();
+    Vector<Type *> fields(num_fields, NULL);
+    for (unsigned field = 0; field < num_fields; ++field) {
+      fields[field] = &tuple_type->getFieldType(field);
+    }
+
+    // Update the selected field.
+    auto offset = offsets.front();
+    fields[offset] =
+        &mutate_selection(*fields[offset], offsets.drop_front(), selection);
+
+    return TupleType::get(fields);
+  }
+
+  MEMOIR_UNREACHABLE("Unhandled type for mutation: ", type);
+}
+
+void default_on_func_clone(llvm::Function &old_function,
+                           llvm::Function &new_function,
+                           llvm::ValueToValueMapTy &vmap) {
+  // Do nothing.
+  return;
+}
+
 } // namespace llvm::memoir

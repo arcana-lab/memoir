@@ -20,10 +20,7 @@ using OnFuncClone = std::function<void(llvm::Function & /* old function */,
  */
 void default_on_func_clone(llvm::Function &old_function,
                            llvm::Function &new_function,
-                           llvm::ValueToValueMapTy &vmap) {
-  // Do nothing.
-  return;
-}
+                           llvm::ValueToValueMapTy &vmap);
 
 /**
  * Mutates the type of the given allocation.
@@ -33,6 +30,17 @@ void default_on_func_clone(llvm::Function &old_function,
 void mutate_type(AllocInst &alloc,
                  Type &type,
                  OnFuncClone on_func_clone = default_on_func_clone);
+
+/**
+ * Mutates the selection at the given offset.
+ * @param type the type to mutate.
+ * @param offsets a list of offsets into the base type.
+ * @param selection the name of the selection.
+ * @returns the mutated type.
+ */
+Type &mutate_selection(Type &type,
+                       llvm::ArrayRef<unsigned> offsets,
+                       opt<std::string> selection);
 
 } // namespace llvm::memoir
 
