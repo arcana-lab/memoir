@@ -16,6 +16,11 @@ bool match(AssocList<TypeVariable *, Type *> &environment,
   // Check if the type variable in the pattern matches, checking with
   // constraints in the environment.
   if (auto *var = dyn_cast<TypeVariable>(&pattern)) {
+    // Type variables cannot match on void types.
+    if (isa<VoidType>(&to_match)) {
+      return false;
+    }
+
     auto found = environment.find(var);
     if (found == environment.end()) {
       environment[var] = &to_match;
