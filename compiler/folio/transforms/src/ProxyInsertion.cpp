@@ -2158,7 +2158,7 @@ Type &convert_element_type(Type &base,
         if (isa<VoidType>(&assoc_type->getValueType())) {
           selection = "bitset";
         } else {
-          selection = "twined_bitmap";
+          selection = "bitmap";
         }
       }
 
