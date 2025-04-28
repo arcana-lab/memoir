@@ -1200,7 +1200,11 @@ void SSADestructionVisitor::visitFoldInst(FoldInst &I) {
     }
 
     // Ensure that we found a type.
-    MEMOIR_NULL_CHECK(iter_type, "Could not infer a type for the iterator!");
+    MEMOIR_NULL_CHECK(iter_type,
+                      "Could not infer a type for the iterator (",
+                      iter_struct_name,
+                      ")!\n",
+                      *begin_func);
   }
 
   // Invoke the LowerFold utility.
