@@ -45,7 +45,8 @@ do
             shift
             ;;
         --ldflags)
-            echo "-L@CMAKE_INSTALL_LIBDIR@ -lmemoir.impl_native -lstdc++"
+            ABSL_FLAGS=$(find @CMAKE_INSTALL_LIBDIR@ -name "libabsl_*.a" -exec sh -c "basename {} | sed 's/^lib/-l/' | sed 's/.a$//'" \; | paste -sd' ' -)
+            echo " -L@CMAKE_INSTALL_LIBDIR@ -lstdc++ -Wl,--start-group ${ABSL_FLAGS} -Wl,--end-group"
             shift
             ;;
         -h|--help)
