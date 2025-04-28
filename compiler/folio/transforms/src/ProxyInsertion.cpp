@@ -2158,7 +2158,7 @@ Type &convert_element_type(Type &base,
         if (isa<VoidType>(&assoc_type->getValueType())) {
           selection = "bitset";
         } else {
-          selection = "bitmap";
+          selection = "twined_bitmap";
         }
       }
 
@@ -2729,13 +2729,25 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M,
 
   // Register the bit{map,set} implementations.
   Implementation::define({
-      Implementation( // bitSet<T>
-          "bitset",
-          AssocType::get(TypeVariable::get(), VoidType::get())),
+      Implementation("bitset",
+                     AssocType::get(TypeVariable::get(), VoidType::get()),
+                     /* selectable? */ false),
 
-      Implementation( // bitMap<T, U>
-          "bitmap",
-          AssocType::get(TypeVariable::get(), TypeVariable::get())),
+      Implementation("bitmap",
+                     AssocType::get(TypeVariable::get(), TypeVariable::get()),
+                     /* selectable? */ false),
+
+      Implementation("sparse_bitset",
+                     AssocType::get(TypeVariable::get(), VoidType::get()),
+                     /* selectable? */ false),
+
+      Implementation("sparse_bitmap",
+                     AssocType::get(TypeVariable::get(), TypeVariable::get()),
+                     /* selectable? */ false),
+
+      Implementation("twined_bitmap",
+                     AssocType::get(TypeVariable::get(), TypeVariable::get()),
+                     /* selectable? */ false),
 
   });
 
