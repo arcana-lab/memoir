@@ -22,6 +22,7 @@ MODULE_PASS_(StatisticsPass, "memoir-stats")
 MODULE_PASS_(TypeInferencePass, "memoir-type-infer")
 MODULE_PASS_(TempArgReificationPass, "memoir-reify-temp-args")
 MODULE_PASS_(ProfileAccessesPass, "memoir-profile-accesses")
+MODULE_PASS_(SweepSelectionsPass, "memoir-sweep-selections")
 
 MODULE_PASS_(DeadCollectionEliminationPass, "memoir-dce")
 MODULE_PASS_(DeadFieldEliminationPass, "memoir-dfe")
