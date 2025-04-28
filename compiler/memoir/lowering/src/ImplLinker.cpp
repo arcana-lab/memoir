@@ -37,21 +37,44 @@ void register_default_implementations() {
             default_seq_impl,
             SequenceType::get(TypeVariable::get())),
 
-        Implementation( // std::unOrderedMap<T, U>
+        Implementation( // std::unordered_map<T, U>
             default_map_impl,
             AssocType::get(TypeVariable::get(), TypeVariable::get())),
 
-        Implementation( // std::unOrderedSet<T>
+        Implementation( // std::unordered_set<T>
             default_set_impl,
-            AssocType::get(TypeVariable::get(), VoidType::get()))
+            AssocType::get(TypeVariable::get(), VoidType::get())),
 
 #ifdef BOOST_INCLUDE_DIR
-            ,
         Implementation( // boost::flat_Set<T>
             "boost_flat_set",
-            AssocType::get(TypeVariable::get(), VoidType::get()))
+            AssocType::get(TypeVariable::get(), VoidType::get())),
+        Implementation( // boost::flat_map<T>
+            "boost_flat_map",
+            AssocType::get(TypeVariable::get(), TypeVariable::get())),
 #endif
-      });
+
+#if 1
+        Implementation( // absl::flat_hash_set<T>
+            "abseil_flat_hash_set",
+            AssocType::get(TypeVariable::get(), VoidType::get())),
+        Implementation( // boost::flat_hash_map<T>
+            "abseil_flat_hash_map",
+            AssocType::get(TypeVariable::get(), TypeVariable::get())),
+#endif
+
+        Implementation("bitset",
+                       AssocType::get(TypeVariable::get(), VoidType::get()),
+                       /* selectable? */ false),
+        Implementation("bitmap",
+                       AssocType::get(TypeVariable::get(), TypeVariable::get()),
+                       /* selectable? */ false),
+        Implementation("sparse_bitset",
+                       AssocType::get(TypeVariable::get(), VoidType::get()),
+                       /* selectable? */ false),
+        Implementation("sparse_bitmap",
+                       AssocType::get(TypeVariable::get(), TypeVariable::get()),
+                       /* selectable? */ false) });
 }
 } // namespace detail
 
@@ -92,9 +115,10 @@ const Implementation &ImplLinker::get_implementation(CollectionType &type) {
   // Lookup the selection, if we were given one.
   auto selection = type.get_selection();
   if (selection.has_value()) {
-    return MEMOIR_SANITIZE(
-        Implementation::lookup(selection.value()),
-        "Requested implementation has not been registered with the compiler!");
+    return MEMOIR_SANITIZE(Implementation::lookup(selection.value()),
+                           "Requested implementation (",
+                           selection.value(),
+                           ") has not been registered with the compiler!");
   }
 
   // Otherwise, get the default implementation.
@@ -343,7 +367,7 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
 
     // Emit the allocation function for this struct.
     fprintln(os,
-             "cname alwaysinline used ",
+             "CNAME ALWAYS_INLINE USED ",
              type_name,
              "* ",
              type_name,
@@ -361,7 +385,7 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
 
       if (isa<ObjectType>(&field_type)) {
         fprintln(os,
-                 "cname alwaysinline used ",
+                 "CNAME ALWAYS_INLINE USED ",
                  "char * ",
                  type_name,
                  "__get_",
@@ -374,7 +398,7 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
                  "; }");
       } else {
         fprintln(os,
-                 "cname alwaysinline used ",
+                 "CNAME ALWAYS_INLINE USED ",
                  c_field_type,
                  " ",
                  type_name,
@@ -387,7 +411,7 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
                  std::to_string(field),
                  "; }");
         fprintln(os,
-                 "cname alwaysinline used ",
+                 "CNAME ALWAYS_INLINE USED ",
                  "void ",
                  type_name,
                  "__write_",
