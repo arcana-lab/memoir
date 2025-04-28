@@ -1,6 +1,8 @@
 #ifndef MEMOIR_BACKEND_UTILITIES_H
 #define MEMOIR_BACKEND_UTILITIES_H
 
+#include <cstddef>
+
 #define CNAME extern "C"
 #define ALWAYS_INLINE __attribute__((always_inline)) inline
 #define USED __attribute__((used))
@@ -120,6 +122,6 @@ constexpr auto into_primitive(T &value) noexcept {
 
 #define errorf(str, ...) fprintf(stderr, str, ##__VA_ARGS__)
 
-using Size = typename size_t;
+using Size = size_t;
 
 #endif // MEMOIR_BACKEND_UTILITIES_H
