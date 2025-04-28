@@ -1,6 +1,7 @@
 #ifndef MEMOIR_BACKEND_SPARSEBITSET_H
 #define MEMOIR_BACKEND_SPARSEBITSET_H
 
+#include <bitset>
 #include <cstdint>
 #include <cstdio>
 #include <functional>
@@ -10,7 +11,7 @@
 
 using Size = size_t;
 
-template <typename Key, const size_t ChunkSize = 1024>
+template <typename Key, const size_t ChunkSize = 256>
 struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
   using Base = typename absl::btree_map<Size, std::bitset<ChunkSize>>;
 
@@ -20,40 +21,40 @@ struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
     // TODO: if the element is a collection pointer, delete it too.
   }
 
-  std::bitset<ChunkSize> &chunk(const Size &key) {
+  ALWAYS_INLINE std::bitset<ChunkSize> &chunk(const Size &key) {
     return this->Base::operator[](key / ChunkSize);
   }
 
-  const std::bitset<ChunkSize> &chunk(const Size &key) const {
+  ALWAYS_INLINE const std::bitset<ChunkSize> &chunk(const Size &key) const {
     return this->Base::at(key / ChunkSize);
   }
 
-  void insert(const Size &key) {
+  ALWAYS_INLINE void insert(const Size &key) {
     this->chunk(key).set(key % ChunkSize);
   }
 
-  void insert_input(SparseBitSet<Key> *other) {
+  ALWAYS_INLINE void insert_input(SparseBitSet<Key> *other) {
     for (const auto &[hi, chunk] : *other) {
       this->chunk(hi) |= chunk;
     }
   }
 
-  void remove(const Size &key) {
+  ALWAYS_INLINE void remove(const Size &key) {
     this->chunk(key).reset(key % ChunkSize);
   }
 
-  SparseBitSet<Key> *copy() {
+  ALWAYS_INLINE SparseBitSet<Key> *copy() {
     // TODO: if Val is a collection type, we need to deep copy.
     auto *copy = new SparseBitSet<Key>(*this);
 
     return copy;
   }
 
-  void clear() {
+  ALWAYS_INLINE void clear() {
     this->Base::clear();
   }
 
-  bool has(const Size &key) {
+  ALWAYS_INLINE bool has(const Size &key) {
     auto found = this->Base::find(key / ChunkSize);
     if (found == this->Base::end()) {
       return false;
@@ -62,7 +63,7 @@ struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
     return found->second.test(key % ChunkSize);
   }
 
-  size_t size() {
+  ALWAYS_INLINE size_t size() {
     size_t count = 0;
     for (const auto &[hi, chunk] : *this) {
       count += chunk.count();
@@ -72,13 +73,13 @@ struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
 
   struct iterator {
     Size _key;
-    Size _i, _j;
+    Size _j;
     SparseBitSet<Key>::Base::iterator _it;
     SparseBitSet<Key>::Base::iterator _ie;
 
-    void find_next() {
-      for (; this->_it != this->_ie; ++this->_it, ++this->_i) {
-        for (; this->_i < ChunkSize; ++this->_j) {
+    ALWAYS_INLINE void find_next() {
+      for (; this->_it != this->_ie; ++this->_it) {
+        for (; this->_j < ChunkSize; ++this->_j) {
           if (this->_it->second.test(this->_j)) {
             return;
           }
@@ -87,13 +88,13 @@ struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
       }
     }
 
-    bool next() {
+    ALWAYS_INLINE bool next() {
       if (this->_it == this->_ie) {
         return false;
       }
 
       // Compute the current key.
-      this->_key = (this->_i * ChunkSize) + this->_j;
+      this->_key = (this->_it->first * ChunkSize) + this->_j;
 
       // Iterate until we find the next set bit.
       ++this->_j;
@@ -103,8 +104,7 @@ struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
     }
   };
 
-  void begin(iterator *iter) {
-    iter->_i = 0;
+  ALWAYS_INLINE void begin(iterator *iter) {
     iter->_j = 0;
     iter->_it = this->begin();
     iter->_ie = this->end();
