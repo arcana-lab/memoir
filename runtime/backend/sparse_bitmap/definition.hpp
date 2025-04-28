@@ -11,14 +11,15 @@
 using Size = size_t;
 
 template <typename Val, const Size ChunkSize>
-struct Chunk {
+struct SparseBitSetChunk {
   std::bitset<ChunkSize> bits;
   std::array<Val, ChunkSize> vals;
 };
 
 template <typename Key, typename Val, const Size ChunkSize = 1024>
-struct SparseBitMap : absl::btree_map<Size, Chunk<Val, ChunkSize>> {
-  using Base = typename absl::btree_map<Size, Chunk<Val, ChunkSize>>;
+struct SparseBitMap : absl::btree_map<Size, SparseBitSetChunk<Val, ChunkSize>> {
+  using Chunk = typename SparseBitMapChunk<Val, ChunkSize>;
+  using Base = typename absl::btree_map<Size, Chunk>;
 
   SparseBitMap() : Base() {}
   SparseBitMap(const SparseBitMap<Key, Val, ChunkSize> &other) : Base(other) {}
@@ -26,11 +27,11 @@ struct SparseBitMap : absl::btree_map<Size, Chunk<Val, ChunkSize>> {
     // TODO: if the element is a collection pointer, delete it too.
   }
 
-  Chunk<Val, ChunkSize> &chunk(const Size &key) {
+  Chunk &chunk(const Size &key) {
     return this->Base::operator[](key / ChunkSize);
   }
 
-  const Chunk<Val, ChunkSize> &chunk(const Size &key) const {
+  const Chunk &chunk(const Size &key) const {
     return this->Base::at(key / ChunkSize);
   }
 
@@ -92,9 +93,22 @@ struct SparseBitMap : absl::btree_map<Size, Chunk<Val, ChunkSize>> {
   struct iterator {
     Size _key;
     as_primitive_t<Val> _val;
-    Size _i;
-    SparseBitMap<Key, Val, ChunkSize>::Base::iterator _it;
-    SparseBitMap<Key, Val, ChunkSize>::Base::iterator _ie;
+    Size _i, _j;
+    Base::iterator _it;
+    Base::iterator _ie;
+
+    void find_next() {
+      for (; this->_it != this->_ie; ++this->_it, ++this->_i) {
+        auto &chunk = this->_it->second;
+
+        for (; this->_i < ChunkSize; ++this->_j) {
+          if (chunk.bits.test(this->_j)) {
+            return;
+          }
+        }
+        this->_j = 0;
+      }
+    }
 
     bool next() {
       if (this->_it == this->_ie) {
@@ -102,28 +116,20 @@ struct SparseBitMap : absl::btree_map<Size, Chunk<Val, ChunkSize>> {
       }
 
       // Compute the current key.
-      this->_key = (this->_it->first * ChunkSize) + this->_i;
+      this->_key = (this->_i * ChunkSize) + this->_j;
       this->_val = into_primitive(this->_it->second.vals[this->_i]);
 
       // Iterate until we find the next set bit.
-      for (; this->_it != this->_ie; ++this->_it) {
-        auto &chunk = this->_it->second;
+      ++this->_i;
+      this->find_next();
 
-        for (; this->_i < ChunkSize; ++this->_i) {
-          if (chunk.bits.test(this->_i)) {
-            return true;
-          }
-        }
-        this->_i = 0;
-      }
-
-      // If we go this far, then there are no more set bits.
-      return false;
+      return true;
     }
   };
 
   void begin(iterator *iter) {
     iter->_i = 0;
+    iter->_j = 0;
     iter->_it = this->Base::begin();
     iter->_ie = this->Base::end();
   }

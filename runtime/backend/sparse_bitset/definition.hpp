@@ -72,9 +72,20 @@ struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
 
   struct iterator {
     Size _key;
-    Size _i;
+    Size _i, _j;
     SparseBitSet<Key>::Base::iterator _it;
     SparseBitSet<Key>::Base::iterator _ie;
+
+    void find_next() {
+      for (; this->_it != this->_ie; ++this->_it, ++this->_i) {
+        for (; this->_i < ChunkSize; ++this->_j) {
+          if (this->_it->second.test(this->_j)) {
+            return;
+          }
+        }
+        this->_j = 0;
+      }
+    }
 
     bool next() {
       if (this->_it == this->_ie) {
@@ -82,27 +93,22 @@ struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
       }
 
       // Compute the current key.
-      this->_key = (this->_it->first * ChunkSize) + this->_i;
+      this->_key = (this->_i * ChunkSize) + this->_j;
 
       // Iterate until we find the next set bit.
-      for (; this->_it != this->_ie; ++this->_it) {
-        for (; this->_i < ChunkSize; ++this->_i) {
-          if (this->_it->second.test(this->_i)) {
-            return true;
-          }
-        }
-        this->_i = 0;
-      }
+      ++this->_j;
+      this->find_next();
 
-      // If we go this far, then there are no more set bits.
-      return false;
+      return true;
     }
   };
 
   void begin(iterator *iter) {
     iter->_i = 0;
+    iter->_j = 0;
     iter->_it = this->begin();
     iter->_ie = this->end();
+    iter->find_next();
   }
 
   using Base::begin;

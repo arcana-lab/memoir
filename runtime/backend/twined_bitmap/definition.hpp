@@ -158,7 +158,7 @@ public:
     Base::iterator _it, _ie;
     Size _i, _j;
 
-    void find() {
+    void find_next() {
       for (; this->_it != this->_ie; ++this->_it, ++this->_i) {
         auto &chunk = *this->_it;
 
@@ -182,7 +182,7 @@ public:
 
       // Iterate until we find the next set bit.
       ++this->_j;
-      this->find();
+      this->find_next();
 
       return true;
     }
