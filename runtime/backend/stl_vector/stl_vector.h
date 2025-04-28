@@ -15,9 +15,9 @@
 #  define KEY_(_TYPE) MEMOIR_BACKEND_CAT(USING_KEY_, _TYPE)
 #endif
 
-#define cname extern "C"
-#define alwaysinline __attribute__((always_inline)) inline
-#define used __attribute__((used))
+#define CNAME extern "C"
+#define ALWAYS_INLINE __attribute__((always_inline)) inline
+#define USED __attribute__((USED))
 
 #define RESERVE_SIZE 4000 + 60 + 1
 
@@ -41,7 +41,7 @@
   } T##_stl_vector_riter_t;                                                    \
   typedef T##_stl_vector_riter_t *T##_stl_vector_riter_p;                      \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__allocate(           \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__allocate(          \
       size_t num) {                                                            \
     T##_stl_vector_p vec = new T##_stl_vector_t();                             \
     vec->resize(num);                                                          \
@@ -51,21 +51,21 @@
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void T##_stl_vector__free(T##_stl_vector_p vec) {    \
+  CNAME ALWAYS_INLINE USED void T##_stl_vector__free(T##_stl_vector_p vec) {   \
     delete vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used C_TYPE *T##_stl_vector__get(T##_stl_vector_p vec,    \
-                                                      size_t index) {          \
+  CNAME ALWAYS_INLINE USED C_TYPE *T##_stl_vector__get(T##_stl_vector_p vec,   \
+                                                       size_t index) {         \
     return (C_TYPE *)(&((*vec)[index]));                                       \
   }                                                                            \
                                                                                \
-  cname alwaysinline used C_TYPE T##_stl_vector__read(T##_stl_vector_p vec,    \
-                                                      size_t index) {          \
+  CNAME ALWAYS_INLINE USED C_TYPE T##_stl_vector__read(T##_stl_vector_p vec,   \
+                                                       size_t index) {         \
     return (*vec)[index];                                                      \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__write(              \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__write(             \
       T##_stl_vector_p vec,                                                    \
       size_t index,                                                            \
       C_TYPE value) {                                                          \
@@ -73,14 +73,14 @@
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__copy(               \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__copy(              \
       T##_stl_vector_p vec) {                                                  \
     T##_stl_vector_p new_vec =                                                 \
         new T##_stl_vector_t(vec->cbegin(), vec->cend());                      \
     return new_vec;                                                            \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__copy_range(         \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__copy_range(        \
       T##_stl_vector_p vec,                                                    \
       size_t begin_index,                                                      \
       size_t end_index) {                                                      \
@@ -90,14 +90,14 @@
     return new_vec;                                                            \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__remove(             \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__remove(            \
       T##_stl_vector_p vec,                                                    \
       size_t index) {                                                          \
     vec->erase(std::next(vec->begin(), index));                                \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__remove_range(       \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__remove_range(      \
       T##_stl_vector_p vec,                                                    \
       size_t begin_index,                                                      \
       size_t end_index) {                                                      \
@@ -105,7 +105,7 @@
                std::next(vec->begin(), end_index));                            \
     return vec;                                                                \
   }                                                                            \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert(             \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__insert(            \
       T##_stl_vector_p vec,                                                    \
       size_t start) {                                                          \
     using elem_type = C_TYPE;                                                  \
@@ -113,7 +113,7 @@
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_value(       \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__insert_value(      \
       T##_stl_vector_p vec,                                                    \
       size_t start,                                                            \
       C_TYPE value) {                                                          \
@@ -121,7 +121,7 @@
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_input(       \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__insert_input(      \
       T##_stl_vector_p vec,                                                    \
       size_t start,                                                            \
       T##_stl_vector_p vec2) {                                                 \
@@ -129,36 +129,37 @@
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_input_range( \
-      T##_stl_vector_p vec,                                                    \
-      size_t start,                                                            \
-      T##_stl_vector_p vec2,                                                   \
-      size_t begin,                                                            \
-      size_t end) {                                                            \
+  CNAME ALWAYS_INLINE USED                                                     \
+      T##_stl_vector_p T##_stl_vector__insert_input_range(                     \
+          T##_stl_vector_p vec,                                                \
+          size_t start,                                                        \
+          T##_stl_vector_p vec2,                                               \
+          size_t begin,                                                        \
+          size_t end) {                                                        \
     vec->insert(std::next(vec->begin(), start),                                \
                 std::next(vec2->cbegin(), begin),                              \
                 std::next(vec2->cbegin(), end));                               \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used size_t T##_stl_vector__size(T##_stl_vector_p vec) {  \
+  CNAME ALWAYS_INLINE USED size_t T##_stl_vector__size(T##_stl_vector_p vec) { \
     return vec->size();                                                        \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__clear(              \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__clear(             \
       T##_stl_vector_p vec) {                                                  \
     vec->clear();                                                              \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void T##_stl_vector__begin(                          \
+  CNAME ALWAYS_INLINE USED void T##_stl_vector__begin(                         \
       T##_stl_vector_iter_p iter,                                              \
       T##_stl_vector_p vec) {                                                  \
     iter->_it = vec->begin();                                                  \
     iter->_ie = vec->end();                                                    \
     iter->_idx = -1;                                                           \
   }                                                                            \
-  cname alwaysinline used bool T##_stl_vector__next(                           \
+  CNAME ALWAYS_INLINE USED bool T##_stl_vector__next(                          \
       T##_stl_vector_iter_p iter) {                                            \
     if (iter->_it == iter->_ie) {                                              \
       return false;                                                            \
@@ -168,14 +169,14 @@
     ++iter->_it;                                                               \
     return true;                                                               \
   }                                                                            \
-  cname alwaysinline used void T##_stl_vector__rbegin(                         \
+  CNAME ALWAYS_INLINE USED void T##_stl_vector__rbegin(                        \
       T##_stl_vector_riter_p iter,                                             \
       T##_stl_vector_p vec) {                                                  \
     iter->_it = vec->rbegin();                                                 \
     iter->_ie = vec->rend();                                                   \
     iter->_idx = vec->size();                                                  \
   }                                                                            \
-  cname alwaysinline used bool T##_stl_vector__rnext(                          \
+  CNAME ALWAYS_INLINE USED bool T##_stl_vector__rnext(                         \
       T##_stl_vector_riter_p iter) {                                           \
     if (iter->_it == iter->_ie) {                                              \
       return false;                                                            \
@@ -203,22 +204,22 @@
   } T##_stl_vector_riter_t;                                                    \
   typedef T##_stl_vector_riter_t *T##_stl_vector_riter_p;                      \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__allocate(           \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__allocate(          \
       size_t num) {                                                            \
     T##_stl_vector_p vec = new T##_stl_vector_t(num);                          \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void T##_stl_vector__free(T##_stl_vector_p vec) {    \
+  CNAME ALWAYS_INLINE USED void T##_stl_vector__free(T##_stl_vector_p vec) {   \
     delete vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used C_TYPE T##_stl_vector__read(T##_stl_vector_p vec,    \
-                                                      size_t index) {          \
+  CNAME ALWAYS_INLINE USED C_TYPE T##_stl_vector__read(T##_stl_vector_p vec,   \
+                                                       size_t index) {         \
     return vec->test(index);                                                   \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__write(              \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__write(             \
       T##_stl_vector_p vec,                                                    \
       size_t index,                                                            \
       C_TYPE value) {                                                          \
@@ -226,17 +227,17 @@
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used size_t T##_stl_vector__size(T##_stl_vector_p vec) {  \
+  CNAME ALWAYS_INLINE USED size_t T##_stl_vector__size(T##_stl_vector_p vec) { \
     return vec->size();                                                        \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void T##_stl_vector__begin(                          \
+  CNAME ALWAYS_INLINE USED void T##_stl_vector__begin(                         \
       T##_stl_vector_iter_p iter,                                              \
       T##_stl_vector_p vec) {                                                  \
     iter->_vec = vec;                                                          \
     iter->_idx = -1;                                                           \
   }                                                                            \
-  cname alwaysinline used bool T##_stl_vector__next(                           \
+  CNAME ALWAYS_INLINE USED bool T##_stl_vector__next(                          \
       T##_stl_vector_iter_p iter) {                                            \
     if (iter->_idx == iter->_vec->size()) {                                    \
       return false;                                                            \
@@ -244,13 +245,13 @@
     iter->_val = iter->_vec->test(++iter->_idx);                               \
     return true;                                                               \
   }                                                                            \
-  cname alwaysinline used void T##_stl_vector__rbegin(                         \
+  CNAME ALWAYS_INLINE USED void T##_stl_vector__rbegin(                        \
       T##_stl_vector_riter_p iter,                                             \
       T##_stl_vector_p vec) {                                                  \
     iter->_vec = vec;                                                          \
     iter->_idx = vec->size();                                                  \
   }                                                                            \
-  cname alwaysinline used bool T##_stl_vector__rnext(                          \
+  CNAME ALWAYS_INLINE USED bool T##_stl_vector__rnext(                         \
       T##_stl_vector_iter_p iter) {                                            \
     if (iter->_idx == 0) {                                                     \
       return false;                                                            \
@@ -280,7 +281,7 @@
   } T##_stl_vector_riter_t;                                                    \
   typedef T##_stl_vector_riter_t *T##_stl_vector_riter_p;                      \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__allocate(           \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__allocate(          \
       size_t num) {                                                            \
     T##_stl_vector_p vec = new T##_stl_vector_t();                             \
     vec->resize(num);                                                          \
@@ -290,21 +291,21 @@
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void T##_stl_vector__free(T##_stl_vector_p vec) {    \
+  CNAME ALWAYS_INLINE USED void T##_stl_vector__free(T##_stl_vector_p vec) {   \
     delete vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used C_TYPE *T##_stl_vector__get(T##_stl_vector_p vec,    \
-                                                      size_t index) {          \
+  CNAME ALWAYS_INLINE USED C_TYPE *T##_stl_vector__get(T##_stl_vector_p vec,   \
+                                                       size_t index) {         \
     return (C_TYPE *)(&((*vec)[index]));                                       \
   }                                                                            \
                                                                                \
-  cname alwaysinline used C_TYPE T##_stl_vector__read(T##_stl_vector_p vec,    \
-                                                      size_t index) {          \
+  CNAME ALWAYS_INLINE USED C_TYPE T##_stl_vector__read(T##_stl_vector_p vec,   \
+                                                       size_t index) {         \
     return (*vec)[index];                                                      \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__write(              \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__write(             \
       T##_stl_vector_p vec,                                                    \
       size_t index,                                                            \
       C_TYPE value) {                                                          \
@@ -312,14 +313,14 @@
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__copy(               \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__copy(              \
       T##_stl_vector_p vec) {                                                  \
     T##_stl_vector_p new_vec =                                                 \
         new T##_stl_vector_t(vec->cbegin(), vec->cend());                      \
     return new_vec;                                                            \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__copy_range(         \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__copy_range(        \
       T##_stl_vector_p vec,                                                    \
       size_t begin_index,                                                      \
       size_t end_index) {                                                      \
@@ -329,14 +330,14 @@
     return new_vec;                                                            \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__remove(             \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__remove(            \
       T##_stl_vector_p vec,                                                    \
       size_t index) {                                                          \
     vec->erase(std::next(vec->begin(), index));                                \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__remove_range(       \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__remove_range(      \
       T##_stl_vector_p vec,                                                    \
       size_t begin_index,                                                      \
       size_t end_index) {                                                      \
@@ -344,7 +345,7 @@
                std::next(vec->begin(), end_index));                            \
     return vec;                                                                \
   }                                                                            \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert(             \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__insert(            \
       T##_stl_vector_p vec,                                                    \
       size_t start) {                                                          \
     using elem_type = C_TYPE;                                                  \
@@ -352,7 +353,7 @@
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_value(       \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__insert_value(      \
       T##_stl_vector_p vec,                                                    \
       size_t start,                                                            \
       C_TYPE value) {                                                          \
@@ -360,7 +361,7 @@
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_input(       \
+  CNAME ALWAYS_INLINE USED T##_stl_vector_p T##_stl_vector__insert_input(      \
       T##_stl_vector_p vec,                                                    \
       size_t start,                                                            \
       T##_stl_vector_p vec2) {                                                 \
@@ -368,30 +369,31 @@
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used T##_stl_vector_p T##_stl_vector__insert_input_range( \
-      T##_stl_vector_p vec,                                                    \
-      size_t start,                                                            \
-      T##_stl_vector_p vec2,                                                   \
-      size_t begin,                                                            \
-      size_t end) {                                                            \
+  CNAME ALWAYS_INLINE USED                                                     \
+      T##_stl_vector_p T##_stl_vector__insert_input_range(                     \
+          T##_stl_vector_p vec,                                                \
+          size_t start,                                                        \
+          T##_stl_vector_p vec2,                                               \
+          size_t begin,                                                        \
+          size_t end) {                                                        \
     vec->insert(std::next(vec->begin(), start),                                \
                 std::next(vec2->cbegin(), begin),                              \
                 std::next(vec2->cbegin(), end));                               \
     return vec;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used size_t T##_stl_vector__size(T##_stl_vector_p vec) {  \
+  CNAME ALWAYS_INLINE USED size_t T##_stl_vector__size(T##_stl_vector_p vec) { \
     return vec->size();                                                        \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void T##_stl_vector__begin(                          \
+  CNAME ALWAYS_INLINE USED void T##_stl_vector__begin(                         \
       T##_stl_vector_iter_p iter,                                              \
       T##_stl_vector_p vec) {                                                  \
     iter->_it = vec->begin();                                                  \
     iter->_ie = vec->end();                                                    \
     iter->_idx = -1;                                                           \
   }                                                                            \
-  cname alwaysinline used bool T##_stl_vector__next(                           \
+  CNAME ALWAYS_INLINE USED bool T##_stl_vector__next(                          \
       T##_stl_vector_iter_p iter) {                                            \
     if (iter->_it == iter->_ie) {                                              \
       return false;                                                            \
@@ -401,14 +403,14 @@
     ++iter->_it;                                                               \
     return true;                                                               \
   }                                                                            \
-  cname alwaysinline used void T##_stl_vector__rbegin(                         \
+  CNAME ALWAYS_INLINE USED void T##_stl_vector__rbegin(                        \
       T##_stl_vector_riter_p iter,                                             \
       T##_stl_vector_p vec) {                                                  \
     iter->_it = vec->rbegin();                                                 \
     iter->_ie = vec->rend();                                                   \
     iter->_idx = vec->size();                                                  \
   }                                                                            \
-  cname alwaysinline used bool T##_stl_vector__rnext(                          \
+  CNAME ALWAYS_INLINE USED bool T##_stl_vector__rnext(                         \
       T##_stl_vector_riter_p iter) {                                           \
     if (iter->_it == iter->_ie) {                                              \
       return false;                                                            \

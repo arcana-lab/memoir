@@ -6,9 +6,9 @@
 
 #include <backend/stl_vector.h>
 
-#define cname extern "C"
-#define alwaysinline __attribute__((always_inline)) inline
-#define used __attribute__((used))
+#define CNAME extern "C"
+#define ALWAYS_INLINE __attribute__((always_inline)) inline
+#define USED __attribute__((USED))
 
 extern "C" {
 
@@ -32,36 +32,36 @@ extern "C" {
   } K##_##V##_stl_map_riter_t;                                                 \
   typedef K##_##V##_stl_map_riter_t *K##_##V##_stl_map_riter_p;                \
                                                                                \
-  cname alwaysinline used K##_##V##_stl_map_p K##_##V##_stl_map__allocate(     \
+  CNAME ALWAYS_INLINE USED K##_##V##_stl_map_p K##_##V##_stl_map__allocate(    \
       void) {                                                                  \
     K##_##V##_stl_map_p table = new K##_##V##_stl_map_t();                     \
     return table;                                                              \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void K##_##V##_stl_map__free(                        \
+  CNAME ALWAYS_INLINE USED void K##_##V##_stl_map__free(                       \
       K##_##V##_stl_map_p table) {                                             \
     delete table;                                                              \
   }                                                                            \
                                                                                \
-  cname alwaysinline used bool K##_##V##_stl_map__has(                         \
+  CNAME ALWAYS_INLINE USED bool K##_##V##_stl_map__has(                        \
       K##_##V##_stl_map_p table,                                               \
       C_KEY key) {                                                             \
     return table->count(key) != 0;                                             \
   }                                                                            \
                                                                                \
-  cname alwaysinline used C_VALUE *K##_##V##_stl_map__get(                     \
+  CNAME ALWAYS_INLINE USED C_VALUE *K##_##V##_stl_map__get(                    \
       K##_##V##_stl_map_p table,                                               \
       C_KEY key) {                                                             \
     return (C_VALUE *)(&((*table)[key]));                                      \
   }                                                                            \
                                                                                \
-  cname alwaysinline used C_VALUE K##_##V##_stl_map__read(                     \
+  CNAME ALWAYS_INLINE USED C_VALUE K##_##V##_stl_map__read(                    \
       K##_##V##_stl_map_p table,                                               \
       C_KEY key) {                                                             \
     return (*table)[key];                                                      \
   }                                                                            \
                                                                                \
-  cname alwaysinline used K##_##V##_stl_map_p K##_##V##_stl_map__write(        \
+  CNAME ALWAYS_INLINE USED K##_##V##_stl_map_p K##_##V##_stl_map__write(       \
       K##_##V##_stl_map_p table,                                               \
       C_KEY key,                                                               \
       C_VALUE value) {                                                         \
@@ -69,31 +69,31 @@ extern "C" {
     return table;                                                              \
   }                                                                            \
                                                                                \
-  cname alwaysinline used K##_##V##_stl_map_p K##_##V##_stl_map__insert(       \
+  CNAME ALWAYS_INLINE USED K##_##V##_stl_map_p K##_##V##_stl_map__insert(      \
       K##_##V##_stl_map_p table,                                               \
       C_KEY key) {                                                             \
     (*table)[key];                                                             \
     return table;                                                              \
   }                                                                            \
                                                                                \
-  cname alwaysinline used K##_##V##_stl_map_p K##_##V##_stl_map__remove(       \
+  CNAME ALWAYS_INLINE USED K##_##V##_stl_map_p K##_##V##_stl_map__remove(      \
       K##_##V##_stl_map_p table,                                               \
       C_KEY key) {                                                             \
     table->erase(key);                                                         \
     return table;                                                              \
   }                                                                            \
                                                                                \
-  cname alwaysinline used K##_##V##_stl_map_p K##_##V##_stl_map__clear(        \
+  CNAME ALWAYS_INLINE USED K##_##V##_stl_map_p K##_##V##_stl_map__clear(       \
       K##_##V##_stl_map_p table) {                                             \
     table->clear();                                                            \
     return table;                                                              \
   }                                                                            \
                                                                                \
-  cname alwaysinline used size_t K##_##V##_stl_map__size(                      \
+  CNAME ALWAYS_INLINE USED size_t K##_##V##_stl_map__size(                     \
       K##_##V##_stl_map_p table) {                                             \
     return table->size();                                                      \
   }                                                                            \
-  cname alwaysinline used K##_stl_vector_p K##_##V##_stl_map__keys(            \
+  CNAME ALWAYS_INLINE USED K##_stl_vector_p K##_##V##_stl_map__keys(           \
       K##_##V##_stl_map_p table) {                                             \
     auto *keys = K##_stl_vector__allocate(table->size());                      \
     size_t i = 0;                                                              \
@@ -102,13 +102,13 @@ extern "C" {
     }                                                                          \
     return keys;                                                               \
   }                                                                            \
-  cname alwaysinline used void K##_##V##_stl_map__begin(                       \
+  CNAME ALWAYS_INLINE USED void K##_##V##_stl_map__begin(                      \
       K##_##V##_stl_map_iter_p iter,                                           \
       K##_##V##_stl_map_p vec) {                                               \
     iter->_it = vec->begin();                                                  \
     iter->_ie = vec->end();                                                    \
   }                                                                            \
-  cname alwaysinline used bool K##_##V##_stl_map__next(                        \
+  CNAME ALWAYS_INLINE USED bool K##_##V##_stl_map__next(                       \
       K##_##V##_stl_map_iter_p iter) {                                         \
     if (iter->_it == iter->_ie) {                                              \
       return false;                                                            \
@@ -119,13 +119,13 @@ extern "C" {
     ++iter->_it;                                                               \
     return true;                                                               \
   }                                                                            \
-  cname alwaysinline used void K##_##V##_stl_map__rbegin(                      \
+  CNAME ALWAYS_INLINE USED void K##_##V##_stl_map__rbegin(                     \
       K##_##V##_stl_map_riter_p iter,                                          \
       K##_##V##_stl_map_p vec) {                                               \
     iter->_it = vec->rbegin();                                                 \
     iter->_ie = vec->rend();                                                   \
   }                                                                            \
-  cname alwaysinline used bool K##_##V##_stl_map__rnext(                       \
+  CNAME ALWAYS_INLINE USED bool K##_##V##_stl_map__rnext(                      \
       K##_##V##_stl_map_iter_p iter) {                                         \
     if (iter->_it == iter->_ie) {                                              \
       return false;                                                            \
