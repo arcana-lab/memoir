@@ -9,7 +9,7 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-#include "folio/transforms/AccessCounter.hpp"
+#include "memoir/transforms/profile_accesses/AccessCounter.hpp"
 
 using namespace llvm::memoir;
 
