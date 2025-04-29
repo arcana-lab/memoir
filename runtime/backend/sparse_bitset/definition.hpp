@@ -11,9 +11,43 @@
 
 using Size = size_t;
 
+template <const Size ChunkSize = 256>
+struct SparseBitSetChunk {
+  using Bits = typename std::bitset<ChunkSize>;
+
+  Bits *_bits;
+
+  ALWAYS_INLINE SparseBitSetChunk() : _bits(new Bits()) {}
+
+  ALWAYS_INLINE std::bitset<ChunkSize> &bits() {
+    return this->_bits;
+  }
+
+  ALWAYS_INLINE const std::bitset<ChunkSize> &bits() const {
+    return this->_bits;
+  }
+
+  ALWAYS_INLINE void set(const Size &i) {
+    this->bits().set(i % ChunkSize);
+  }
+
+  ALWAYS_INLINE void reset(const Size &i) {
+    this->bit().reset(i % ChunkSize);
+  }
+
+  ALWAYS_INLINE bool test(const Size &i) const {
+    return this->bits().test(i % ChunkSize);
+  }
+
+  ALWAYS_INLINE Size count() const {
+    return this->bits().count();
+  }
+};
+
 template <typename Key, const size_t ChunkSize = 256>
-struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
-  using Base = typename absl::btree_map<Size, std::bitset<ChunkSize>>;
+struct SparseBitSet : absl::btree_map<Size, SparseBitSetChunk<ChunkSize>> {
+  using Chunk = SparseBitSetChunk<ChunkSize>;
+  using Base = typename absl::btree_map<Size, Chunk>;
 
   SparseBitSet() : Base() {}
   SparseBitSet(const SparseBitSet<Key> &other) : Base(other) {}
@@ -21,16 +55,16 @@ struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
     // TODO: if the element is a collection pointer, delete it too.
   }
 
-  ALWAYS_INLINE std::bitset<ChunkSize> &chunk(const Size &key) {
-    return this->Base::operator[](key / ChunkSize);
+  ALWAYS_INLINE Chunk &chunk(const Size &key) {
+    auto &slot = this->Base::operator[](key / ChunkSize);
   }
 
-  ALWAYS_INLINE const std::bitset<ChunkSize> &chunk(const Size &key) const {
+  ALWAYS_INLINE const Chunk &chunk(const Size &key) const {
     return this->Base::at(key / ChunkSize);
   }
 
   ALWAYS_INLINE void insert(const Size &key) {
-    this->chunk(key).set(key % ChunkSize);
+    this->chunk(key).set(key);
   }
 
   ALWAYS_INLINE void insert_input(SparseBitSet<Key> *other) {
@@ -54,16 +88,16 @@ struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
     this->Base::clear();
   }
 
-  ALWAYS_INLINE bool has(const Size &key) {
+  ALWAYS_INLINE bool has(const Size &key) const {
     auto found = this->Base::find(key / ChunkSize);
     if (found == this->Base::end()) {
       return false;
     }
 
-    return found->second.test(key % ChunkSize);
+    return found->second.test(key);
   }
 
-  ALWAYS_INLINE size_t size() {
+  ALWAYS_INLINE size_t size() const {
     size_t count = 0;
     for (const auto &[hi, chunk] : *this) {
       count += chunk.count();
@@ -74,8 +108,8 @@ struct SparseBitSet : absl::btree_map<Size, std::bitset<ChunkSize>> {
   struct iterator {
     Size _key;
     Size _j;
-    SparseBitSet<Key>::Base::iterator _it;
-    SparseBitSet<Key>::Base::iterator _ie;
+    Base::iterator _it;
+    Base::iterator _ie;
 
     ALWAYS_INLINE void find_next() {
       for (; this->_it != this->_ie; ++this->_it) {
