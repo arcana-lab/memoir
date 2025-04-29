@@ -193,7 +193,7 @@ public:
     iter->_ie = this->end();
     iter->_i = 0;
     iter->_j = 0;
-    iter->find();
+    iter->find_next();
   }
 
   using Base::begin;
