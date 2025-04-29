@@ -34,15 +34,15 @@ namespace detail {
 void register_default_implementations() {
   Implementation::define(
       { Implementation( // std::vector<T>
-            default_seq_impl,
+            "stl_vector",
             SequenceType::get(TypeVariable::get())),
 
         Implementation( // std::unordered_map<T, U>
-            default_map_impl,
+            "stl_unordered_map",
             AssocType::get(TypeVariable::get(), TypeVariable::get())),
 
         Implementation( // std::unordered_set<T>
-            default_set_impl,
+            "stl_unordered_set",
             AssocType::get(TypeVariable::get(), VoidType::get())),
 
 #ifdef BOOST_INCLUDE_DIR
@@ -54,14 +54,12 @@ void register_default_implementations() {
             AssocType::get(TypeVariable::get(), TypeVariable::get())),
 #endif
 
-#if 1
         Implementation( // absl::flat_hash_set<T>
             "abseil_flat_hash_set",
             AssocType::get(TypeVariable::get(), VoidType::get())),
         Implementation( // boost::flat_hash_map<T>
             "abseil_flat_hash_map",
             AssocType::get(TypeVariable::get(), TypeVariable::get())),
-#endif
 
         Implementation("bitset",
                        AssocType::get(TypeVariable::get(), VoidType::get()),
@@ -73,6 +71,9 @@ void register_default_implementations() {
                        AssocType::get(TypeVariable::get(), VoidType::get()),
                        /* selectable? */ false),
         Implementation("sparse_bitmap",
+                       AssocType::get(TypeVariable::get(), TypeVariable::get()),
+                       /* selectable? */ false),
+        Implementation("twined_bitmap",
                        AssocType::get(TypeVariable::get(), TypeVariable::get()),
                        /* selectable? */ false) });
 }
