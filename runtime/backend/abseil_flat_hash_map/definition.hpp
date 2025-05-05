@@ -22,7 +22,7 @@ struct FlatHashMap : absl::flat_hash_map<Key, Val> {
     try {
       return this->Base::at(key);
     } catch (const std::out_of_range &exc) {
-      errorf("Out of bounds at %zu\n", key);
+      errorf("FlatHashMap: Out of bounds at %zu\n", key);
       exit(11);
     }
   }
@@ -31,7 +31,7 @@ struct FlatHashMap : absl::flat_hash_map<Key, Val> {
     try {
       this->Base::at(key) = val;
     } catch (const std::out_of_range &exc) {
-      errorf("Out of bounds at %zu\n", key);
+      errorf("FlatHashMap: Out of bounds at %zu\n", key);
       exit(11);
     }
   }
@@ -40,13 +40,13 @@ struct FlatHashMap : absl::flat_hash_map<Key, Val> {
     try {
       return &this->Base::at(key);
     } catch (const std::out_of_range &exc) {
-      errorf("Out of bounds at %zu\n", key);
+      errorf("FlatHashMap: Out of bounds at %zu\n", key);
       exit(11);
     }
   }
 
   ALWAYS_INLINE void insert(const Key &key) {
-    this->Base::operator[](key);
+    this->Base::emplace(key, Val());
   }
 
   ALWAYS_INLINE void insert_value(const Key &key, const Val &val) {
@@ -69,7 +69,7 @@ struct FlatHashMap : absl::flat_hash_map<Key, Val> {
   }
 
   ALWAYS_INLINE bool has(const Key &key) {
-    return this->Base::count(key) > 0;
+    return this->Base::contains(key);
   }
 
   ALWAYS_INLINE size_t size() {
@@ -86,9 +86,12 @@ struct FlatHashMap : absl::flat_hash_map<Key, Val> {
       if (this->_it == this->_ie) {
         return false;
       }
+
       this->_key = this->_it->first;
       this->_val = into_primitive(this->_it->second);
+
       this->_it = std::next(this->_it);
+
       return true;
     }
   };
