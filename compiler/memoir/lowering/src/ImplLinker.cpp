@@ -33,7 +33,22 @@ static llvm::cl::opt<std::string, true> DefaultSetImpl(
 namespace detail {
 void register_default_implementations() {
   Implementation::define(
-      { Implementation( // std::vector<T>
+      { Implementation(default_seq_impl,
+                       SequenceType::get(TypeVariable::get()),
+                       /* selectable? */ true,
+                       /* default? */ true),
+
+        Implementation(default_map_impl,
+                       AssocType::get(TypeVariable::get(), TypeVariable::get()),
+                       /* selectable? */ true,
+                       /* default? */ true),
+
+        Implementation(default_set_impl,
+                       AssocType::get(TypeVariable::get(), VoidType::get()),
+                       /* selectable? */ true,
+                       /* default? */ true),
+
+        Implementation( // std::vector<T>
             "stl_vector",
             SequenceType::get(TypeVariable::get())),
 
@@ -113,17 +128,19 @@ const Implementation &ImplLinker::get_default_implementation(
 
 const Implementation &ImplLinker::get_implementation(CollectionType &type) {
 
-  // Lookup the selection, if we were given one.
+  // Fetch the selection.
   auto selection = type.get_selection();
-  if (selection.has_value()) {
-    return MEMOIR_SANITIZE(Implementation::lookup(selection.value()),
-                           "Requested implementation (",
-                           selection.value(),
-                           ") has not been registered with the compiler!");
+
+  // If there is not selection, or the default is requested, fetch it.
+  if (not selection.has_value() or selection.value() == ":DEFAULT:") {
+    return ImplLinker::get_default_implementation(type);
   }
 
-  // Otherwise, get the default implementation.
-  return ImplLinker::get_default_implementation(type);
+  // Otherwise, lookup the implementation.
+  return MEMOIR_SANITIZE(Implementation::lookup(selection.value()),
+                         "Requested implementation (",
+                         selection.value(),
+                         ") has not been registered with the compiler!");
 }
 
 void ImplLinker::implement(Type &type) {

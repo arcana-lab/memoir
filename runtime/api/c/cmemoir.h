@@ -88,6 +88,7 @@ namespace memoir {
   memoir_allocate_assoc(key_type, memoir_void_t)
 
 #define memoir_selection(_sel) MEMOIR_KEYWORD(selection), _sel
+#define memoir_default_selection() MEMOIR_KEYWORD(selection), ":DEFAULT:"
 
 #define memoir_delete(collection) MEMOIR_FUNC(delete)(collection)
 

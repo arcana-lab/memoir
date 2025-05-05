@@ -22,15 +22,16 @@ public:
     if (Implementation::templates == nullptr) {
       Implementation::templates = new Map<std::string, Implementation>;
     }
-    Implementation::templates->insert({ impl.get_name(), impl });
+
+    auto impl_name = impl.get_name();
+    if (not Implementation::templates->count(impl_name)) {
+      Implementation::templates->insert({ impl_name, impl });
+    }
   }
 
   static void define(std::initializer_list<Implementation> impl_list) {
-    if (Implementation::templates == nullptr) {
-      Implementation::templates = new Map<std::string, Implementation>;
-    }
     for (const auto &impl : impl_list) {
-      Implementation::templates->insert({ impl.get_name(), impl });
+      Implementation::define(impl);
     }
   }
 
@@ -61,6 +62,11 @@ public:
           if (existing.value() == impl.get_name()) {
             candidates.push_back(&impl);
             continue;
+          } else if (existing.value() == ":DEFAULT:") {
+            if (impl.is_default() and impl.match(type)) {
+              candidates.push_back(&impl);
+              continue;
+            }
           } else if ((existing.value() == "bitset"
                       or existing.value() == "bitmap")
                      and impl.get_name().find(existing.value())
@@ -107,10 +113,14 @@ public:
    */
   Instantiation &instantiate(Type &type) const;
 
-  Implementation(std::string name, Type &type_template, bool selectable = true)
+  Implementation(std::string name,
+                 Type &type_template,
+                 bool selectable = true,
+                 bool is_default = false)
     : _name(name),
       _template(&type_template),
-      _selectable(selectable) {}
+      _selectable(selectable),
+      _default(is_default) {}
 
   std::string get_name() const {
     return this->_name;
@@ -118,6 +128,10 @@ public:
 
   Type &get_template() const {
     return *this->_template;
+  }
+
+  bool is_default() const {
+    return this->_default;
   }
 
   bool selectable() const {
@@ -128,6 +142,7 @@ protected:
   std::string _name;
   Type *_template;
   bool _selectable;
+  bool _default;
 
   static Map<std::string, Implementation> *templates;
 };
