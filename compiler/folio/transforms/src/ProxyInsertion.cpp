@@ -1994,6 +1994,17 @@ bool is_total_proxy(ObjectInfo &info, const Vector<CoalescedUses> &added) {
     }
   }
 
+  // Check that this value is never cleared or removed from.
+  bool monotonic = true;
+  for (const auto &[func, redefs] : info.redefinitions) {
+    for (auto *redef : redefs) {
+      if (into<RemoveInst>(redef) or into<ClearInst>(redef)) {
+        println("NO, keys are removed");
+        return false;
+      }
+    }
+  }
+
   // Check that for each addkey use, this object is inserted into.
   // Also, ensure that the encoded value is in a control flow equivalent block
   // to the uses.
