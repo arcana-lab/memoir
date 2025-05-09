@@ -19,6 +19,7 @@ using namespace llvm::memoir;
 
 namespace folio {
 
+// ================
 static llvm::cl::opt<bool> disable_proxy_propagation(
     "disable-proxy-propagation",
     llvm::cl::desc("Disable proxy propagation"),
@@ -29,6 +30,27 @@ static llvm::cl::opt<bool> disable_use_coalescing(
     llvm::cl::desc("Disable coalescing proxy uses"),
     llvm::cl::init(false));
 
+static llvm::cl::opt<bool> disable_total_proxy(
+    "disable-total-proxy",
+    llvm::cl::desc("Disable total proxy optimization"),
+    llvm::cl::init(false));
+
+static llvm::cl::opt<bool> disable_proxy_sharing(
+    "disable-proxy-sharing",
+    llvm::cl::desc("Disable proxy sharing optimization"),
+    llvm::cl::init(false));
+
+static llvm::cl::opt<std::string> proxy_set_impl(
+    "proxy-set-impl",
+    llvm::cl::desc("Set the implementation for proxied sets"),
+    llvm::cl::init("bitset"));
+
+static llvm::cl::opt<std::string> proxy_map_impl(
+    "proxy-map-impl",
+    llvm::cl::desc("Set the implementation for proxied map"),
+    llvm::cl::init("bitmap"));
+
+// ================
 static llvm::Function *parent_function(llvm::Value &V) {
   if (auto *arg = dyn_cast<llvm::Argument>(&V)) {
     return arg->getParent();
@@ -370,16 +392,10 @@ static bool is_last_index(llvm::Use *use,
   return std::next(AccessInst::index_op_iterator(use)) == index_end;
 }
 
-static llvm::Use *get_index_use(AccessInst &access,
-                                llvm::ArrayRef<unsigned> offsets) {
-
-  auto offset_it = offsets.begin();
-  auto offset_ie = offsets.end();
-
-  auto index_it = access.index_operands_begin();
-  auto index_ie = access.index_operands_end();
-
-  auto *type = &access.getObjectType();
+static llvm::Use *get_use_at_offset(llvm::User::op_iterator index_begin,
+                                    llvm::User::op_iterator index_end,
+                                    llvm::ArrayRef<unsigned> offsets) {
+  auto index_it = index_begin, index_ie = index_end;
 
   for (auto offset : offsets) {
 
@@ -389,8 +405,8 @@ static llvm::Use *get_index_use(AccessInst &access,
       return nullptr;
     }
 
-    if (auto *tuple_type = dyn_cast<TupleType>(type)) {
-
+    // If the offset is not a placeholder, make sure it matches.
+    if (offset != -1) {
       auto &index_use = *index_it;
       auto &index_const =
           MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index_use.get()),
@@ -400,13 +416,6 @@ static llvm::Use *get_index_use(AccessInst &access,
       if (offset != index_const.getZExtValue()) {
         return nullptr;
       }
-
-      // Get the inner type.
-      type = &tuple_type->getFieldType(offset);
-
-    } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
-      // Get the inner type.
-      type = &collection_type->getElementType();
     }
 
     ++index_it;
@@ -417,10 +426,15 @@ static llvm::Use *get_index_use(AccessInst &access,
     return nullptr;
   }
 
-  // Otherwise, fetch the index use and return it.
-  auto *index_use = &*index_it;
+  // Otherwise, return the current use.
+  return &*index_it;
+}
 
-  return index_it;
+static llvm::Use *get_index_use(AccessInst &access,
+                                llvm::ArrayRef<unsigned> offsets) {
+  return get_use_at_offset(access.index_operands_begin(),
+                           access.index_operands_end(),
+                           offsets);
 }
 
 static void gather_uses_to_proxy(
@@ -485,6 +499,7 @@ static void gather_uses_to_proxy(
                  " IN ",
                  fold->getBody().getName());
           encoded[&fold->getBody()].insert(&index_arg);
+          continue;
         }
 
         // If the offsets are not fully exhausted, recurse on the value
@@ -498,6 +513,20 @@ static void gather_uses_to_proxy(
                                  to_encode,
                                  to_addkey);
           }
+        }
+      }
+
+    } else if (auto input_kw = access->get_keyword<InputKeyword>()) {
+      if (&input_kw->getInputAsUse() == &use) {
+        auto &type =
+            MEMOIR_SANITIZE(type_of(V),
+                            "Failed to get type of object used as input.");
+        if (auto *index_use = get_use_at_offset(input_kw->index_ops_begin(),
+                                                input_kw->index_ops_end(),
+                                                offsets)) {
+          infoln("    ENCODING KEY ", *index_use->get());
+          to_encode[function].insert(index_use);
+          continue;
         }
       }
 
@@ -960,7 +989,7 @@ void ProxyInsertion::analyze() {
     println();
   }
 
-  // Use a heuristic to group together objects.
+  // Use a heuristic to share proxies between collections.
   Set<const ObjectInfo *> used = {};
   for (auto it = this->objects.begin(); it != this->objects.end(); ++it) {
     auto &info = *it;
@@ -981,30 +1010,33 @@ void ProxyInsertion::analyze() {
     candidate.push_back(&info);
 
     // Find all other allocations in the same function as this one.
-    for (auto it2 = std::next(it); it2 != this->objects.end(); ++it2) {
-      auto &other = *it2;
+    if (not disable_proxy_sharing) {
+      for (auto it2 = std::next(it); it2 != this->objects.end(); ++it2) {
+        auto &other = *it2;
 
-      if (used.count(&other)) {
-        continue;
+        if (used.count(&other)) {
+          continue;
+        }
+
+        // Check that the key types match.
+        auto *other_alloc = other.allocation;
+        auto &other_type =
+            MEMOIR_SANITIZE(dyn_cast<AssocType>(&other.get_type()),
+                            "Non-assoc type, unhandled.");
+
+        if (&type.getKeyType() != &other_type.getKeyType()) {
+          continue;
+        }
+
+        // Check that they share a parent function.
+        // NOTE: this is overly conservative
+        auto *other_func = other.allocation->getFunction();
+        if (func != other_func) {
+          continue;
+        }
+
+        candidate.push_back(&other);
       }
-
-      // Check that the key types match.
-      auto *other_alloc = other.allocation;
-      auto &other_type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&other.get_type()),
-                                         "Non-assoc type, unhandled.");
-
-      if (&type.getKeyType() != &other_type.getKeyType()) {
-        continue;
-      }
-
-      // Check that they share a parent function.
-      // NOTE: this is overly conservative
-      auto *other_func = other.allocation->getFunction();
-      if (func != other_func) {
-        continue;
-      }
-
-      candidate.push_back(&other);
     }
 
     // Find all propagators in the same function as this one.
@@ -2167,9 +2199,9 @@ Type &convert_element_type(Type &base,
       auto selection = assoc_type->get_selection();
       if (not selection) {
         if (isa<VoidType>(&assoc_type->getValueType())) {
-          selection = "bitset";
+          selection = proxy_set_impl;
         } else {
-          selection = "bitmap";
+          selection = proxy_map_impl;
         }
       }
 
@@ -2340,22 +2372,6 @@ bool ProxyInsertion::transform() {
           }
         }
       }
-#if 0
-      else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-        bool all_decode = true;
-        for (auto &incoming : phi->incoming_values()) {
-          if (not used_value_will_be_decoded(incoming, to_decode)) {
-            all_decode = false;
-            break;
-          }
-        }
-        if (all_decode) {
-          for (auto &incoming : phi->incoming_values()) {
-            trim_to_decode.insert(&incoming);
-          }
-        }
-      }
-#endif
     }
 
     // Trim uses that dont need to be encoded because they are produced by a
@@ -2624,7 +2640,7 @@ bool ProxyInsertion::transform() {
                                                  module),
                           "Failed to create new function.");
 
-      println("CLONING ", func->getName());
+      debugln("CLONING ", func->getName());
 
       // Update the function to the new type.
       llvm::ValueToValueMapTy vmap;
@@ -2669,7 +2685,7 @@ bool ProxyInsertion::transform() {
       auto &type = types_to_mutate[alloc];
 
       // If the object is a total proxy, update it to be a sequence.
-      if (is_total_proxy(*info, added)) {
+      if (is_total_proxy(*info, added) and not disable_total_proxy) {
 
         println(Style::BOLD, Colors::GREEN, "FOUND TOTAL PROXY", Style::RESET);
 
@@ -2725,9 +2741,6 @@ bool ProxyInsertion::transform() {
       func->deleteBody();
       func->eraseFromParent();
     }
-
-    // TEMPORARY: fix bug with multiple candidates instead of pushing
-    break;
   }
 
   return modified;
@@ -2740,6 +2753,14 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M,
 
   // Register the bit{map,set} implementations.
   Implementation::define({
+      Implementation(proxy_set_impl,
+                     AssocType::get(TypeVariable::get(), VoidType::get()),
+                     /* selectable? */ false),
+
+      Implementation(proxy_map_impl,
+                     AssocType::get(TypeVariable::get(), TypeVariable::get()),
+                     /* selectable? */ false),
+
       Implementation("bitset",
                      AssocType::get(TypeVariable::get(), VoidType::get()),
                      /* selectable? */ false),
@@ -2774,7 +2795,6 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M,
       }
     }
   }
-  println("Verified module post-proxy insertion.");
 
   MemOIRInst::invalidate();
 
@@ -2788,7 +2808,6 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M,
       }
     }
   }
-  println("Verified module post-temparg reify.");
 }
 
 } // namespace folio
