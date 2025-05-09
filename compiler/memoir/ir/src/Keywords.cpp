@@ -172,7 +172,7 @@ llvm::iterator_range<Keyword::operand_iterator> InputKeyword::index_operands() {
 }
 
 Keyword::operand_iterator InputKeyword::index_ops_begin() {
-  return operand_iterator(std::next(&this->getAsUse()));
+  return operand_iterator(std::next(&this->getInputAsUse()));
 }
 
 Keyword::operand_iterator InputKeyword::index_ops_end() {
