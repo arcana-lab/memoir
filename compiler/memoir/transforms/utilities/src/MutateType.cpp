@@ -591,6 +591,13 @@ static void update_accesses(llvm::Value &V, Type &type) {
       // Update the called function.
       auto &call = access->getCallInst();
 
+      // If the call is a read operation, we need to rebuild the instruction.
+      auto *orig_ret_type = orig_func.getReturnType();
+      auto *new_ret_type = new_func.getReturnType();
+      if (orig_ret_type != new_ret_type) {
+        call.mutateType(new_ret_type);
+      }
+
       call.setCalledFunction(&new_func);
     }
   }
@@ -611,8 +618,6 @@ static void update_has(const NestedInfo &info,
     }
 
     if (auto *has = into<HasInst>(user)) {
-
-      println(*has);
 
       // Check that the operation is at the correct offset.
       if (info.offsets().size() != diff_offsets.size()) {
@@ -698,12 +703,6 @@ static void find_arguments(Map<llvm::Argument *, Type *> &args_to_mutate,
             println("UNHANDLED PARENT TYPE ", converted_type);
           }
 
-          println("KEY  DIFF: ",
-                  key_arg,
-                  " : ",
-                  converted_key_type,
-                  " IN ",
-                  fold->getBody().getName());
           args_to_mutate[&key_arg] = converted_key_type;
         }
 
@@ -713,12 +712,6 @@ static void find_arguments(Map<llvm::Argument *, Type *> &args_to_mutate,
           auto *elem_diff = diffs.find(offsets);
           if (elem_diff and elem_diff->type_differs()) {
             auto &converted_type = elem_diff->convert_type(nested_type);
-            println("ELEM DIFF: ",
-                    *elem_arg,
-                    " : ",
-                    converted_type,
-                    " IN ",
-                    fold->getBody().getName());
             args_to_mutate[elem_arg] = &converted_type;
           }
         }
