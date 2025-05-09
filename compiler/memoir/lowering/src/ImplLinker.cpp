@@ -143,9 +143,62 @@ const Implementation &ImplLinker::get_implementation(CollectionType &type) {
                          ") has not been registered with the compiler!");
 }
 
+Type &ImplLinker::canonicalize(Type &type) {
+
+  // Recurse based on the next offset, rebuilding the type with the returnee.
+  if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
+
+    // If the selection is a placeholder, replace it with the canon selection.
+    auto selection = collection_type->get_selection();
+    if (not selection or selection.value() == ":DEFAULT:") {
+      // Get the default implementation of this type.
+      const auto &default_impl =
+          ImplLinker::get_default_implementation(*collection_type);
+
+      // Update the selection.
+      selection = default_impl.get_name();
+    }
+
+    // Recurse on the element type.
+    auto &elem_type = this->canonicalize(collection_type->getElementType());
+
+    // Rebuild the type.
+    if (auto *assoc_type = dyn_cast<AssocType>(collection_type)) {
+      return AssocType::get(assoc_type->getKeyType(), elem_type, selection);
+
+    } else if (auto *seq_type = dyn_cast<SequenceType>(collection_type)) {
+      return SequenceType::get(elem_type, selection);
+
+    } else if (auto *array_type = dyn_cast<ArrayType>(collection_type)) {
+      return ArrayType::get(elem_type, array_type->getLength());
+    }
+
+  } else if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
+
+    auto num_fields = tuple_type->getNumFields();
+    Vector<Type *> fields(num_fields, NULL);
+    for (unsigned field = 0; field < num_fields; ++field) {
+      fields[field] = &this->canonicalize(tuple_type->getFieldType(field));
+    }
+
+    return TupleType::get(fields);
+  }
+
+  return type;
+}
+
 void ImplLinker::implement(Type &type) {
+
   if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
-    // TODO: instantitiate the fields of this struct.
+
+    // Skip types we've already implemented.
+    for (const auto &to_emit : this->structs_to_emit) {
+      if (to_emit.type == tuple_type) {
+        return;
+      }
+    }
+
+    // Instantitiate the fields of this struct.
     Vector<Instantiation *> fields = {};
     for (auto field = 0; field < tuple_type->getNumFields(); ++field) {
       auto &field_type = tuple_type->getFieldType(field);

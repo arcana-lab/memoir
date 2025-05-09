@@ -50,6 +50,12 @@ public:
    */
   static const Implementation &get_implementation(CollectionType &type);
 
+  /**
+   * Canonicalize any default selections in the given type, replacing them with
+   * the default implementation.
+   */
+  Type &canonicalize(Type &type);
+
   void implement(Type &type);
 
   void implement(Instantiation &inst);

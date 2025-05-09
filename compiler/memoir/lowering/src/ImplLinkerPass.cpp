@@ -12,6 +12,8 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
 
+#include "llvm/TargetParser/Triple.h"
+
 #include "llvm/Analysis/DominanceFrontier.h"
 
 #include "llvm/Support/CommandLine.h"
@@ -71,7 +73,7 @@ static void link_implementation(ImplLinker &IL, CollectionType &type) {
 
     // Check if there is an explicit selection.
     auto selection = collection_type->get_selection();
-    if (selection) {
+    if (selection and selection.value() != ":DEFAULT:") {
       impl = Implementation::lookup(selection.value());
     }
 
@@ -109,6 +111,45 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   // Get the ImplLinker.
   ImplLinker IL(M);
 
+  // Canonicalize the IR.
+  for (auto &F : M) {
+    if (F.empty()) {
+      continue;
+    }
+
+    for (auto &BB : F) {
+      for (auto &I : BB) {
+        if (auto *alloc = into<AllocInst>(&I)) {
+          // Fetch the allocation type.
+          auto &alloc_type = alloc->getType();
+
+          // Replace any default implementations in the type.
+          auto &canon_type = IL.canonicalize(alloc_type);
+
+          // Reconstruct the type argument.
+          MemOIRBuilder builder(&I);
+
+          auto &canon_type_val =
+              builder.CreateTypeInst(canon_type)->getCallInst();
+
+          alloc->getTypeOperandAsUse().set(&canon_type_val);
+
+        } else if (auto *assert = into<AssertTypeInst>(&I)) {
+
+          auto &canon_type = IL.canonicalize(assert->getType());
+
+          MemOIRBuilder builder(&I);
+
+          auto &canon_type_val =
+              builder.CreateTypeInst(canon_type)->getCallInst();
+
+          assert->getTypeOperandAsUse().set(&canon_type_val);
+        }
+      }
+    }
+  }
+
+  // Link all required implementations.
   for (auto &F : M) {
     if (F.empty()) {
       continue;
@@ -117,66 +158,37 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
     // Collect all of the collection allocations in the program.
     for (auto &BB : F) {
       for (auto &I : BB) {
+        // Fetch the type of the instruction.
+        Type *type = NULL;
         if (auto *alloc = into<AllocInst>(&I)) {
+          type = &alloc->getType();
+        } else if (auto *assert = into<AssertTypeInst>(&I)) {
+          type = &assert->getType();
+        } else {
+          continue;
+        }
 
-          // Check that this is a collection implementation.
-          auto *collection_type = dyn_cast<CollectionType>(&alloc->getType());
-          if (not collection_type) {
-            continue;
-          }
-
-          // Link the selection.
-          detail::link_implementation(IL, *collection_type);
-
-        } else if (auto *tuple_inst = into<TupleTypeInst>(&I)) {
-          // Get the struct type.
-          auto &tuple_type = cast<TupleType>(tuple_inst->getType());
-
+        // Link the required implementation.
+        if (auto *tuple_type = dyn_cast<TupleType>(type)) {
           // Implement the struct.
-          IL.implement(tuple_type);
+          IL.implement(*tuple_type);
 
-          // For each collection-typed field, fetch the selection, if it exists.
+          // For each collection-typed field, fetch the selection, if it
+          // exists.
           for (unsigned field_index = 0;
-               field_index < tuple_type.getNumFields();
+               field_index < tuple_type->getNumFields();
                ++field_index) {
-            auto &field_type = tuple_type.getFieldType(field_index);
+            auto &field_type = tuple_type->getFieldType(field_index);
 
             // If the field is a collection, implement it.
             if (auto *collection_type = dyn_cast<CollectionType>(&field_type)) {
               detail::link_implementation(IL, *collection_type);
             }
           }
-        }
 
-        // Also handle instructions that don't have selections.
-        else {
-
-          // Only handle memoir instructions.
-          auto *inst = into<MemOIRInst>(&I);
-          if (not inst) {
-            continue;
-          }
-
-          // Get the type of the collection being operated on.
-          Type *type = nullptr;
-          if (auto *access = dyn_cast<AccessInst>(inst)) {
-            type = type_of(access->getObject());
-          }
-
-          // If we couldn't determine a type, skip it.
-          auto *collection_type = dyn_cast_or_null<CollectionType>(type);
-          if (not collection_type) {
-            continue;
-          }
-
-          // Link the default implementation.
-          auto &default_impl =
-              ImplLinker::get_default_implementation(*collection_type);
-
-          // Instantiate the default implementation.
-          auto &default_inst = default_impl.instantiate(*collection_type);
-
-          IL.implement(default_inst);
+        } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+          // Link the selection.
+          detail::link_implementation(IL, *collection_type);
         }
       }
     }
@@ -212,6 +224,13 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
 
   println("ImplLinker: bitcodes at ", bitcode_filename);
 
+  // Fetch the target triple for the module.
+  llvm::Triple triple(M.getTargetTriple());
+  std::string march = "";
+  if (triple.getArch() != llvm::Triple::ArchType::UnknownArch) {
+    march = "-march=" + triple.getArchName().str();
+  }
+
   // Compile the file.
   // TODO: can we get -march=XXX from LLVM and use it here?
   // auto clang_program = llvm::sys::findProgramByName();
@@ -220,6 +239,7 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
                              impl_file_output,
                              "-O3",
                              "-std=c++20",
+                             // march.c_str(),
                              // "-g",
                              "-c",
                              "-emit-llvm",
