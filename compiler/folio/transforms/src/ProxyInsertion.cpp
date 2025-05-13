@@ -1037,28 +1037,28 @@ void ProxyInsertion::analyze() {
 
         candidate.push_back(&other);
       }
-    }
 
-    // Find all propagators in the same function as this one.
-    for (auto &other : this->propagators) {
-      if (used.count(&other) > 0) {
-        continue;
+      // Find all propagators in the same function as this one.
+      for (auto &other : this->propagators) {
+        if (used.count(&other) > 0) {
+          continue;
+        }
+
+        auto *other_alloc = other.allocation;
+        auto &other_type = other.get_type();
+
+        if (&type.getKeyType() != &other_type) {
+          continue;
+        }
+
+        // Check that they share a parent basic block.
+        auto *other_func = other_alloc->getFunction();
+        if (func != other_func) {
+          continue;
+        }
+
+        candidate.push_back(&other);
       }
-
-      auto *other_alloc = other.allocation;
-      auto &other_type = other.get_type();
-
-      if (&type.getKeyType() != &other_type) {
-        continue;
-      }
-
-      // Check that they share a parent basic block.
-      auto *other_func = other_alloc->getFunction();
-      if (func != other_func) {
-        continue;
-      }
-
-      candidate.push_back(&other);
     }
 
     // Compute the benefit of each object in the candidate.
@@ -1953,7 +1953,7 @@ bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {
   // instruction, a has instruction equivalent to the inserted key, or is
   // unreachable.
   bool will_be_inserted = true;
-  WorkList<llvm::BasicBlock *> worklist = { value_bb };
+  WorkList<llvm::BasicBlock *, /* VisitOnce? */ true> worklist = { value_bb };
   while (not worklist.empty()) {
     auto *bb = worklist.pop();
 
