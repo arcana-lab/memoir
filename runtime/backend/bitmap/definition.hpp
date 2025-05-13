@@ -109,7 +109,7 @@ public:
     Size _key;
     as_primitive_t<Val> _val;
     Size _cur;
-    BitMap<Key, Val> *_set;
+    BitMap<Key, Val> *_map;
 
     bool next() {
       if (this->_cur == Base::npos) {
@@ -117,18 +117,18 @@ public:
       }
       this->_key = this->_cur;
       if constexpr (std::is_same_v<Val, bool>) {
-        this->_val = this->_set->read(this->_key);
+        this->_val = this->_map->read(this->_key);
       } else {
-        this->_val = into_primitive(this->_set->_vals[this->_key]);
+        this->_val = into_primitive(this->_map->_vals[this->_key]);
       }
-      this->_cur = this->_set->find_next(this->_cur);
+      this->_cur = this->_map->find_next(this->_cur);
       return true;
     }
   };
 
   void begin(iterator *iter) {
     iter->_cur = this->find_first();
-    iter->_set = this;
+    iter->_map = this;
   }
 };
 
