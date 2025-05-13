@@ -542,6 +542,21 @@ static OrderedSet<NestedInfo> gather_redefinitions(MemOIRInst &I) {
   return gather_redefinitions(I.getCallInst());
 }
 
+static void update_phis(llvm::Value &V) {
+  auto *type = V.getType();
+
+  for (auto &use : V.uses()) {
+    if (auto *phi = dyn_cast<llvm::PHINode>(use.getUser())) {
+      if (phi->getType() != type) {
+        phi->mutateType(type);
+
+        // Recursively update PHIs.
+        update_phis(*phi);
+      }
+    }
+  }
+}
+
 static void update_assertions(llvm::Value &V, Type &type) {
   for (auto &use : V.uses()) {
     if (auto *assertion = into<AssertTypeInst>(use.getUser())) {
@@ -591,11 +606,13 @@ static void update_accesses(llvm::Value &V, Type &type) {
       // Update the called function.
       auto &call = access->getCallInst();
 
-      // If the call is a read operation, we need to rebuild the instruction.
+      // If the call is a read operation, we need to mutate the resultant type.
       auto *orig_ret_type = orig_func.getReturnType();
       auto *new_ret_type = new_func.getReturnType();
       if (orig_ret_type != new_ret_type) {
         call.mutateType(new_ret_type);
+
+        update_phis(call);
       }
 
       call.setCalledFunction(&new_func);
@@ -807,6 +824,11 @@ static void update_arguments(OrderedSet<NestedInfo> &redefs,
       attr_list = attr_list.removeParamAttributes(context, arg->getArgNo());
     }
     new_func->setAttributes(attr_list);
+
+    // Update any PHIs that use the changed arguments.
+    for (auto &arg : new_func->args()) {
+      update_phis(arg);
+    }
 
     func->replaceAllUsesWith(new_func);
 
