@@ -11,7 +11,7 @@
 #include <backend/stl_vector/definition.hpp>
 
 #ifndef BITSET_TRACK_SIZE
-#  define BITSET_TRACK_SIZE 1
+#  define BITSET_TRACK_SIZE 0
 #endif
 
 template <typename Key>
