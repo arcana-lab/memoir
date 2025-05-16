@@ -45,6 +45,11 @@ static llvm::cl::opt<std::string> proxy_set_impl(
     llvm::cl::desc("Set the implementation for proxied sets"),
     llvm::cl::init("bitset"));
 
+static llvm::cl::opt<std::string> proxy_nested_set_impl(
+    "proxy-nested-set-impl",
+    llvm::cl::desc("Set the implementation for proxied sets that are nested"),
+    llvm::cl::init(proxy_set_impl));
+
 static llvm::cl::opt<std::string> proxy_map_impl(
     "proxy-map-impl",
     llvm::cl::desc("Set the implementation for proxied map"),
@@ -236,6 +241,71 @@ static uint32_t forward_analysis(
           worklist.push(closed_arg);
           ++count;
         }
+      } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
+#if 0
+        
+        // Skip memoir calls.
+        if (into<MemOIRInst>(call)) {
+          continue;
+        }
+
+        // Fetch the callee function, if this is a direct call.
+        auto *callee = call->getCalledFunction();
+        if (not callee) {
+          continue;
+        }
+
+        // TODO: If we want to be conservative, we should ensure that this
+        // function has internal linkage.
+
+        // Fetch the argument information.
+        auto arg_no = use.getOperandNo();
+        auto *arg = callee->getArg(arg_no);
+
+        println("ARG ENCODED? ", *arg, " IN ", callee->getName());
+
+        // Merge all caller information.
+        bool all_encoded = true;
+        for (auto &callee_use : callee->uses()) {
+          // Fetch the user.
+          auto *callee_user = callee_use.getUser();
+          if (auto *ret_phi = into<RetPHIInst>(callee_user)) {
+            // Skip RetPHIs.
+            continue;
+          } else if (auto *caller = dyn_cast<llvm::CallBase>(callee_user)) {
+            // Fetch the parent function of the caller.
+            auto &caller_func =
+                MEMOIR_SANITIZE(caller->getFunction(),
+                                "Could not get the caller function!");
+
+            // Get the corresponding argument usage.
+            auto *caller_arg = caller->getArgOperand(arg_no);
+
+            // Check if the arg operand is encoded.
+            auto &caller_encoded = encoded[&caller_func];
+            if (not caller_encoded.count(caller->getArgOperand(arg_no))) {
+              println("  NO, caller not encoded in ", caller_func.getName());
+              all_encoded = false;
+              break;
+            }
+          } else {
+            // If we see a non-direct call use of the callee, then we must be
+            // conservative and not propagate information.
+            println("  NO, found indirect call");
+            all_encoded = false;
+            break;
+          }
+        }
+
+        // If all incoming callers pass an encoded value, then propagate.
+        if (all_encoded) {
+          println("YES!");
+
+          local_encoded.insert(arg);
+          worklist.push(arg);
+          ++count;
+        }
+#endif
       }
     }
   }
@@ -2170,7 +2240,8 @@ Type &convert_to_sequence_type(Type &base, llvm::ArrayRef<unsigned> offsets) {
 
 Type &convert_element_type(Type &base,
                            llvm::ArrayRef<unsigned> offsets,
-                           Type &new_type) {
+                           Type &new_type,
+                           bool is_nested = false) {
 
   if (auto *tuple_type = dyn_cast<TupleType>(&base)) {
 
@@ -2180,7 +2251,8 @@ Type &convert_element_type(Type &base,
 
     fields[field] = &convert_element_type(tuple_type->getFieldType(field),
                                           offsets.drop_front(),
-                                          new_type);
+                                          new_type,
+                                          is_nested);
 
     return TupleType::get(fields);
 
@@ -2188,7 +2260,8 @@ Type &convert_element_type(Type &base,
 
     return SequenceType::get(convert_element_type(seq_type->getElementType(),
                                                   offsets.drop_front(),
-                                                  new_type),
+                                                  new_type,
+                                                  true),
                              seq_type->get_selection());
 
   } else if (auto *assoc_type = dyn_cast<AssocType>(&base)) {
@@ -2199,7 +2272,7 @@ Type &convert_element_type(Type &base,
       auto selection = assoc_type->get_selection();
       if (not selection) {
         if (isa<VoidType>(&assoc_type->getValueType())) {
-          selection = proxy_set_impl;
+          selection = is_nested ? proxy_nested_set_impl : proxy_set_impl;
         } else {
           selection = proxy_map_impl;
         }
@@ -2211,7 +2284,8 @@ Type &convert_element_type(Type &base,
     return AssocType::get(assoc_type->getKeyType(),
                           convert_element_type(assoc_type->getValueType(),
                                                offsets.drop_front(),
-                                               new_type),
+                                               new_type,
+                                               true),
                           assoc_type->get_selection());
 
   } else if (offsets.empty()) {
