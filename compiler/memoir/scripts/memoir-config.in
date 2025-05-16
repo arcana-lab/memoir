@@ -46,7 +46,14 @@ do
             ;;
         --ldflags)
             ABSL_FLAGS=$(find @CMAKE_INSTALL_LIBDIR@ -name "libabsl_*.a" -exec sh -c "basename {} | sed 's/^lib/-l/' | sed 's/.a$//'" \; | paste -sd' ' -)
-            echo " -L@CMAKE_INSTALL_LIBDIR@ -lstdc++ -Wl,--start-group ${ABSL_FLAGS} -Wl,--end-group"
+            
+            ROARING_FLAGS=""
+            if [[ -f @CMAKE_INSTALL_LIBDIR@/libroaring.a ]]
+            then
+                ROARING_FLAGS="-lroaring"
+            fi
+            
+            echo " -L@CMAKE_INSTALL_LIBDIR@ -lstdc++ -Wl,--start-group ${ABSL_FLAGS} ${ROARING_FLAGS} -Wl,--end-group"
             shift
             ;;
         -h|--help)
