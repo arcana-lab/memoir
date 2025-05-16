@@ -592,9 +592,13 @@ unsigned TupleType::getNumFields() const {
 }
 
 Type &TupleType::getFieldType(unsigned field_index) const {
-  MEMOIR_ASSERT(
-      (field_index < this->getNumFields()),
-      "Attempt to get length of out-of-range field index for struct type");
+  MEMOIR_ASSERT((field_index < this->getNumFields()),
+                "Out of range: field ",
+                field_index,
+                " >= ",
+                this->getNumFields(),
+                " in tuple type ",
+                *this);
 
   return *(this->field_types[field_index]);
 }
