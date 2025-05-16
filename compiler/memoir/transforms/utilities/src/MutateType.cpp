@@ -355,6 +355,22 @@ struct NestedInfo {
     this->_value = &V;
   }
 
+  llvm::BasicBlock *parent() const {
+    if (auto *inst = dyn_cast<llvm::Instruction>(&this->value())) {
+      return inst->getParent();
+    }
+    return NULL;
+  }
+
+  llvm::Function *parent_function() const {
+    if (auto *inst = dyn_cast<llvm::Instruction>(&this->value())) {
+      return inst->getFunction();
+    } else if (auto *arg = dyn_cast<llvm::Argument>(&this->value())) {
+      return arg->getParent();
+    }
+    return NULL;
+  }
+
   llvm::ArrayRef<unsigned> offsets() const {
     return this->_offsets;
   }
@@ -391,6 +407,20 @@ struct NestedInfo {
     }
 
     return false;
+  }
+
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                       const NestedInfo &info) {
+    os << "(" << info.value() << ")";
+    for (auto offset : info.offsets()) {
+      if (offset == unsigned(-1)) {
+        os << "[*]";
+      } else {
+        os << "." << std::to_string(offset);
+      }
+    }
+
+    return os;
   }
 
 protected:
@@ -692,8 +722,6 @@ static void find_arguments(Map<llvm::Argument *, Type *> &args_to_mutate,
                            Differences &diffs,
                            Type &type) {
 
-  auto &nested_type = info.nested_type(type);
-
   // Find fold operations on this collection.
   for (auto &use : info.value().uses()) {
     if (auto *fold = into<FoldInst>(use.getUser())) {
@@ -709,7 +737,7 @@ static void find_arguments(Map<llvm::Argument *, Type *> &args_to_mutate,
           auto &key_arg = fold->getIndexArgument();
 
           Type *converted_key_type = nullptr;
-          auto &converted_type = key_diff->convert_type(nested_type);
+          auto &converted_type = key_diff->convert_type(info.nested_type(type));
           if (auto *assoc_type = dyn_cast<AssocType>(&converted_type)) {
             converted_key_type = &assoc_type->getKeyType();
           } else if (auto *seq_type = dyn_cast<SequenceType>(&converted_type)) {
@@ -725,10 +753,16 @@ static void find_arguments(Map<llvm::Argument *, Type *> &args_to_mutate,
 
         // Check for value type differences.
         if (auto *elem_arg = fold->getElementArgument()) {
+
+          NestedInfo elem_info(info.value(), offsets);
+          auto &elem_type = elem_info.nested_type(type);
+
           offsets.push_back(ELEMS);
+
           auto *elem_diff = diffs.find(offsets);
           if (elem_diff and elem_diff->type_differs()) {
-            auto &converted_type = elem_diff->convert_type(nested_type);
+
+            auto &converted_type = elem_diff->convert_type(elem_type);
             args_to_mutate[elem_arg] = &converted_type;
           }
         }
