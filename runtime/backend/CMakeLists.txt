@@ -6,7 +6,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17")
 
 # Find or install Abseil.
 find_package(absl)
-if (NOT abls_FOUND)
+if (NOT absl_FOUND)
   message(WARNING "Failed to find Abseil, installing.")
 
   include(ExternalProject)
@@ -23,6 +23,25 @@ if (NOT abls_FOUND)
   )
 endif()
 
+
+# Install Roaring.
+find_package(roaring)
+if (NOT roaring_FOUND)
+  message(WARNING "Failed to find Roaring, installing.")
+
+  include(ExternalProject)
+  ExternalProject_Add(
+    absl
+    GIT_REPOSITORY "git@github.com:RoaringBitmap/CRoaring.git"
+    GIT_TAG v4.3.1
+    LOG_CONFIGURE ON
+    LOG_INSTALL ON
+    CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+  )
+endif()
 
 # Install the header files.
 install(
