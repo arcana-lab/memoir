@@ -31,7 +31,7 @@ if (NOT roaring_FOUND)
 
   include(ExternalProject)
   ExternalProject_Add(
-    absl
+    roaring
     GIT_REPOSITORY "git@github.com:RoaringBitmap/CRoaring.git"
     GIT_TAG v4.3.1
     LOG_CONFIGURE ON
