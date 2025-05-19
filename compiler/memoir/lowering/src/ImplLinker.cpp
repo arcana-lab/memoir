@@ -352,6 +352,66 @@ static void include_collection_file(llvm::raw_ostream &os,
   return;
 }
 
+static void declare_tuple(llvm::raw_ostream &os, TupleType &type) {
+  auto type_name = memoir_to_c_type(type);
+  fprintln(os, "struct ", type_name, ";");
+}
+
+static bool is_simple_tuple(TupleType &type) {
+  for (unsigned field = 0; field < type.getNumFields(); ++field) {
+    auto &field_type = type.getFieldType(field);
+    if (Type::is_unsized(field_type)) {
+      return false;
+    } else if (auto *tuple = dyn_cast<TupleType>(&field_type)) {
+      return is_simple_tuple(*tuple);
+    }
+  }
+
+  return true;
+}
+
+static void define_tuple(llvm::raw_ostream &os,
+                         TupleType &type,
+                         const Vector<Instantiation *> &fields) {
+
+  // Create a C struct for it.
+  auto type_name = type.get_code().value();
+
+  fprintln(os, "#pragma pack(1)");
+  fprintln(os, "struct ", type_name, " { ");
+  for (auto field = 0; field < type.getNumFields(); ++field) {
+    auto *field_inst = fields[field];
+    if (field_inst) {
+      fprintln(os,
+               "  ",
+               field_inst->get_typename(),
+               " f_",
+               std::to_string(field),
+               ";");
+    } else {
+      auto &field_type = type.getFieldType(field);
+
+      fprint(os, "  ");
+
+      // Print the type.
+      fprint(os, memoir_to_c_type(field_type));
+
+      // Print the field name.
+      fprint(os, " f_", std::to_string(field));
+
+      // If this is a bitfield, print its width.
+      if (auto *field_int_type = dyn_cast<IntegerType>(&field_type)) {
+        auto bitwidth = field_int_type->getBitWidth();
+        fprint(os, " : ", bitwidth);
+      }
+
+      fprintln(os, ";");
+    }
+  }
+
+  fprintln(os, " };");
+}
+
 void ImplLinker::emit(llvm::raw_ostream &os) {
   // General include headers.
   fprintln(os, "#include <stdint.h>");
@@ -362,9 +422,19 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
   fprintln(os);
   fprintln(os);
   fprintln(os, "// Forward declarations for struct types");
-  for (const auto &[tuple_type, _fields] : this->structs_to_emit) {
-    auto type_name = memoir_to_c_type(*tuple_type);
-    fprintln(os, "struct ", type_name, ";");
+  Set<TupleType *> defined = {};
+  for (const auto &[tuple_type, fields] : this->structs_to_emit) {
+
+    if (is_simple_tuple(*tuple_type)) {
+      // Define simple tuple types.
+      // TODO: Replace this with a better algorithm that orders the tuples and
+      // collections to emit.
+      define_tuple(os, *tuple_type, fields);
+      defined.insert(tuple_type);
+    } else {
+      // Otherwise, just create a forward declaration.
+      declare_tuple(os, *tuple_type);
+    }
   }
 
   // Create forward declarations of all collection implementations.
@@ -380,43 +450,10 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
   fprintln(os);
   fprintln(os, "// Definition of struct types.");
   for (const auto &[tuple_type, fields] : this->structs_to_emit) {
-
-    // Create a C struct for it.
-    auto type_name = tuple_type->get_code().value();
-
-    fprintln(os, "#pragma pack(1)");
-    fprintln(os, "struct ", type_name, " { ");
-    for (auto field = 0; field < tuple_type->getNumFields(); ++field) {
-      auto *field_inst = fields[field];
-      if (field_inst) {
-        fprintln(os,
-                 "  ",
-                 field_inst->get_typename(),
-                 " f_",
-                 std::to_string(field),
-                 ";");
-      } else {
-        auto &field_type = tuple_type->getFieldType(field);
-
-        fprint(os, "  ");
-
-        // Print the type.
-        fprint(os, memoir_to_c_type(field_type));
-
-        // Print the field name.
-        fprint(os, " f_", std::to_string(field));
-
-        // If this is a bitfield, print its width.
-        if (auto *field_int_type = dyn_cast<IntegerType>(&field_type)) {
-          auto bitwidth = field_int_type->getBitWidth();
-          fprint(os, " : ", bitwidth);
-        }
-
-        fprintln(os, ";");
-      }
+    if (defined.count(tuple_type)) {
+      continue;
     }
-
-    fprintln(os, " };");
+    define_tuple(os, *tuple_type, fields);
   }
 
   // Instantiate the collections.
