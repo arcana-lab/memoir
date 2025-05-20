@@ -362,7 +362,7 @@ static void define_tuple(llvm::raw_ostream &os,
   auto type_name = type.get_code().value();
 
   fprintln(os, "#pragma pack(1)");
-  fprintln(os, "struct ", type_name, " { ");
+  fprintln(os, "struct alignas(8)", type_name, " { ");
   for (auto field = 0; field < type.getNumFields(); ++field) {
     auto *field_inst = fields[field];
     if (field_inst) {
