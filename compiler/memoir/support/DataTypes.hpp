@@ -20,6 +20,7 @@
 #include <queue>
 #include <stack>
 #include <tuple>
+#include <variant>
 #include <vector>
 
 #include <functional>
@@ -54,6 +55,9 @@ using shared = std::shared_ptr<T>;
 
 template <typename T>
 using weak = std::weak_ptr<T>;
+
+template <typename... Ts>
+using Variant = std::variant<Ts...>;
 
 /*
  * Some utility types that let us unwrap the inner type from a
