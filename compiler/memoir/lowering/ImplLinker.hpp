@@ -24,6 +24,31 @@ extern std::string default_seq_impl;
 extern std::string default_map_impl;
 extern std::string default_set_impl;
 
+struct StructInstantiation {
+  TupleType *_type;
+  Vector<Instantiation *> _fields;
+
+  TupleType &type() const {
+    return *this->_type;
+  }
+
+  Vector<Instantiation *> &fields() {
+    return this->_fields;
+  }
+
+  const Vector<Instantiation *> &fields() const {
+    return this->_fields;
+  }
+
+  StructInstantiation(TupleType *type, llvm::ArrayRef<Instantiation *> fields)
+    : _type(type),
+      _fields(fields.begin(), fields.end()) {}
+
+  bool operator<(const StructInstantiation &other) const {
+    return _type < other._type;
+  }
+};
+
 class ImplLinker {
 public:
   /**
@@ -63,19 +88,6 @@ public:
   void emit(llvm::raw_ostream &os = llvm::errs());
 
 protected:
-  struct StructInstantiation {
-    TupleType *type;
-    Vector<Instantiation *> fields;
-
-    StructInstantiation(TupleType *type, llvm::ArrayRef<Instantiation *> fields)
-      : type(type),
-        fields(fields.begin(), fields.end()) {}
-
-    bool operator<(const StructInstantiation &other) const {
-      return type < other.type;
-    }
-  };
-
   OrderedSet<StructInstantiation> structs_to_emit;
   OrderedSet<Instantiation *> collections_to_emit;
 

@@ -193,7 +193,7 @@ void ImplLinker::implement(Type &type) {
 
     // Skip types we've already implemented.
     for (const auto &to_emit : this->structs_to_emit) {
-      if (to_emit.type == tuple_type) {
+      if (&to_emit.type() == tuple_type) {
         return;
       }
     }
@@ -303,7 +303,7 @@ static std::string memoir_to_c_type(Type &T) {
 }
 
 static void include_collection_file(llvm::raw_ostream &os,
-                                    Instantiation &instantiation,
+                                    const Instantiation &instantiation,
                                     std::string filename) {
 
   auto type_id = 0;
@@ -352,27 +352,11 @@ static void include_collection_file(llvm::raw_ostream &os,
   return;
 }
 
-static void declare_tuple(llvm::raw_ostream &os, TupleType &type) {
-  auto type_name = memoir_to_c_type(type);
-  fprintln(os, "struct ", type_name, ";");
-}
-
-static bool is_simple_tuple(TupleType &type) {
-  for (unsigned field = 0; field < type.getNumFields(); ++field) {
-    auto &field_type = type.getFieldType(field);
-    if (Type::is_unsized(field_type)) {
-      return false;
-    } else if (auto *tuple = dyn_cast<TupleType>(&field_type)) {
-      return is_simple_tuple(*tuple);
-    }
-  }
-
-  return true;
-}
-
 static void define_tuple(llvm::raw_ostream &os,
-                         TupleType &type,
-                         const Vector<Instantiation *> &fields) {
+                         const StructInstantiation &inst) {
+
+  auto &type = inst.type();
+  const auto &fields = inst.fields();
 
   // Create a C struct for it.
   auto type_name = type.get_code().value();
@@ -412,55 +396,96 @@ static void define_tuple(llvm::raw_ostream &os,
   fprintln(os, " };");
 }
 
+static void emit_collection(llvm::raw_ostream &os,
+                            const Instantiation &inst,
+                            Set<const Instantiation *> &collections_declared,
+                            Set<const StructInstantiation *> &tuples_declared) {
+
+  // If the collection has already been declared, skip.
+  if (collections_declared.count(&inst)) {
+    return;
+  }
+
+  // Define the collection.
+  include_collection_file(os, inst, "declaration.h");
+
+  // Mark the collection as emitted.
+  collections_declared.insert(&inst);
+
+  return;
+}
+
+static void emit_tuple(llvm::raw_ostream &os,
+                       const StructInstantiation &inst,
+                       Set<const Instantiation *> &collections_declared,
+                       Set<const StructInstantiation *> &tuples_declared) {
+
+  if (tuples_declared.count(&inst)) {
+    return;
+  }
+
+  // Instantiate fields.
+  for (auto *field_inst : inst.fields()) {
+    // Skip non-collection fields.
+    if (not field_inst) {
+      continue;
+    }
+
+    // If the collection has already been emitted, skip it.
+    if (collections_declared.count(field_inst)) {
+      continue;
+    }
+
+    emit_collection(os, *field_inst, collections_declared, tuples_declared);
+  }
+
+  // Define the tuple.
+  define_tuple(os, inst);
+  tuples_declared.insert(&inst);
+}
+
 void ImplLinker::emit(llvm::raw_ostream &os) {
   // General include headers.
   fprintln(os, "#include <stdint.h>");
   fprintln(os, "#include <array>");
   fprintln(os, "#include <backend/utilities.h>");
 
+  // Track the instantiations that have been used already.
+  Set<const Instantiation *> collections_declared = {};
+  Set<const StructInstantiation *> tuples_declared = {};
+
   // Create forward declarations of all struct types.
   fprintln(os);
   fprintln(os);
   fprintln(os, "// Forward declarations for struct types");
-  Set<TupleType *> defined = {};
-  for (const auto &[tuple_type, fields] : this->structs_to_emit) {
-
-    if (is_simple_tuple(*tuple_type)) {
-      // Define simple tuple types.
-      // TODO: Replace this with a better algorithm that orders the tuples and
-      // collections to emit.
-      define_tuple(os, *tuple_type, fields);
-      defined.insert(tuple_type);
-    } else {
-      // Otherwise, just create a forward declaration.
-      declare_tuple(os, *tuple_type);
-    }
+  for (const auto &tuple : this->structs_to_emit) {
+    emit_tuple(os, tuple, collections_declared, tuples_declared);
   }
 
   // Create forward declarations of all collection implementations.
   fprintln(os);
   fprintln(os);
   fprintln(os, "// Forward declarations for collection types");
-  for (auto *instantiation : this->collections_to_emit) {
-    include_collection_file(os, *instantiation, "declaration.h");
+  for (const auto *inst : this->collections_to_emit) {
+    emit_collection(os, *inst, collections_declared, tuples_declared);
   }
 
-  // Emit the struct access functions.
-  fprintln(os);
-  fprintln(os);
-  fprintln(os, "// Definition of struct types.");
-  for (const auto &[tuple_type, fields] : this->structs_to_emit) {
-    if (defined.count(tuple_type)) {
-      continue;
-    }
-    define_tuple(os, *tuple_type, fields);
-  }
+  // // Emit the struct access functions.
+  // fprintln(os);
+  // fprintln(os);
+  // fprintln(os, "// Definition of struct types.");
+  // for (const auto &[tuple_type, fields] : this->structs_to_emit) {
+  //   if (defined.count(tuple_type)) {
+  //     continue;
+  //   }
+  //   define_tuple(os, *tuple_type, fields);
+  // }
 
   // Instantiate the collections.
   fprintln(os);
   fprintln(os);
   fprintln(os, "// Collection access functions.");
-  for (auto *instantiation : this->collections_to_emit) {
+  for (const auto *instantiation : this->collections_to_emit) {
     include_collection_file(os, *instantiation, "instantiation.h");
   }
 
