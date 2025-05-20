@@ -57,7 +57,7 @@ template <typename T>
 using weak = std::weak_ptr<T>;
 
 template <typename... Ts>
-using Variant = std::variant<Ts...>;
+using Union = std::variant<Ts...>;
 
 /*
  * Some utility types that let us unwrap the inner type from a
