@@ -21,27 +21,27 @@ while [[ $# -gt 0 ]] ;
 do
     case $1 in
         --prefix)
-            echo "@CMAKE_INSTALL_PREFIX@"
+            echo -n "@CMAKE_INSTALL_PREFIX@"
             shift
             ;;
         --includedir)
-            echo "@CMAKE_INSTALL_INCLUDEDIR@"
+            echo -n "@CMAKE_INSTALL_INCLUDEDIR@"
             shift
             ;;
         --bindir)
-            echo "@CMAKE_INSTALL_BINDIR@"
+            echo -n "@CMAKE_INSTALL_BINDIR@"
             shift
             ;;
         --libdir)
-            echo "@CMAKE_INSTALL_LIBDIR@"
+            echo -n "@CMAKE_INSTALL_LIBDIR@"
             shift
             ;;
         --cflags)
-            echo "-I@CMAKE_INSTALL_INCLUDEDIR@ -fdeclspec"
+            echo -n "-I@CMAKE_INSTALL_INCLUDEDIR@ -fdeclspec"
             shift
             ;;
         --cxxflags)
-            echo "-I@CMAKE_INSTALL_INCLUDEDIR@ -fdeclspec"
+            echo -n "-I@CMAKE_INSTALL_INCLUDEDIR@ -fdeclspec"
             shift
             ;;
         --ldflags)
@@ -53,7 +53,7 @@ do
                 ROARING_FLAGS="-lroaring"
             fi
             
-            echo " -L@CMAKE_INSTALL_LIBDIR@ -lstdc++ -Wl,--start-group ${ABSL_FLAGS} ${ROARING_FLAGS} -Wl,--end-group"
+            echo -n " -L@CMAKE_INSTALL_LIBDIR@ -lstdc++ -Wl,--start-group ${ABSL_FLAGS} ${ROARING_FLAGS} -Wl,--end-group"
             shift
             ;;
         -h|--help)
