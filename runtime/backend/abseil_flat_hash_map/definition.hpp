@@ -82,6 +82,8 @@ struct FlatHashMap : absl::flat_hash_map<Key, Val> {
     Base::iterator _it;
     Base::iterator _ie;
 
+    iterator(Base &base) : _it(base.begin()), _ie(base.end()) {}
+
     ALWAYS_INLINE bool next() {
       if (this->_it == this->_ie) {
         return false;
@@ -96,12 +98,9 @@ struct FlatHashMap : absl::flat_hash_map<Key, Val> {
     }
   };
 
-  using Base::begin;
-  using Base::end;
-
   ALWAYS_INLINE void begin(iterator *iter) {
-    iter->_it = this->begin();
-    iter->_ie = this->end();
+    iter->_it = this->Base::begin();
+    iter->_ie = this->Base::end();
   }
 };
 

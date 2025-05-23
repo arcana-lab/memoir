@@ -60,7 +60,7 @@ CNAME ALWAYS_INLINE USED PTR OP(insert)(PTR map, KEY_TYPE key) {
 CNAME ALWAYS_INLINE USED PTR OP(insert_value)(PTR map,
                                               KEY_TYPE key,
                                               VAL_TYPE value) {
-  map->insert(key, value);
+  map->insert_value(key, value);
   return map;
 }
 

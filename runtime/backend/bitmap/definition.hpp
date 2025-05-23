@@ -111,6 +111,8 @@ public:
     Size _cur;
     BitMap<Key, Val> *_map;
 
+    iterator(BitMap<Key, Val> &base) : _map(&base), _cur(base.find_first()) {}
+
     bool next() {
       if (this->_cur == Base::npos) {
         return false;

@@ -56,6 +56,8 @@ struct SparseBitSet : roaring::Roaring {
     Base::const_iterator _it;
     Base::const_iterator _ie;
 
+    iterator(Base &base) : _it(base.begin()), _ie(base.end()) {}
+
     ALWAYS_INLINE bool next() {
       if (this->_it >= this->_ie) {
         return false;
@@ -72,12 +74,9 @@ struct SparseBitSet : roaring::Roaring {
   };
 
   ALWAYS_INLINE void begin(iterator *iter) {
-    iter->_it = this->begin();
-    iter->_ie = this->end();
+    iter->_it = this->Base::begin();
+    iter->_ie = this->Base::end();
   }
-
-  using Base::begin;
-  using Base::end;
 };
 
 #endif // MEMOIR_BACKEND_SPARSEBITSET_H

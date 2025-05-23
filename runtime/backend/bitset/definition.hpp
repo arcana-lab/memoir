@@ -157,6 +157,8 @@ struct BitSet : boost::dynamic_bitset<> {
     Size _cur;
     BitSet<Key> *_set;
 
+    iterator(BitSet<Key> &base) : _cur(base.find_first()), _set(&base) {}
+
     bool next() {
       if (this->_cur == Base::npos) {
         return false;

@@ -25,7 +25,7 @@ struct UnorderedSet : std::unordered_set<Key> {
   }
 
   void insert_input(UnorderedSet<Key> *other) {
-    this->Base::insert(other->begin(), other->end());
+    this->Base::insert(other->Base::begin(), other->Base::end());
   }
 
   void remove(const Key &key) {
@@ -65,6 +65,8 @@ struct UnorderedSet : std::unordered_set<Key> {
     Base::iterator _it;
     Base::iterator _ie;
 
+    iterator(Base &base) : _it(base.begin()), _ie(base.end()) {}
+
     bool next() {
       if (this->_it == this->_ie) {
         return false;
@@ -75,12 +77,9 @@ struct UnorderedSet : std::unordered_set<Key> {
     }
   };
 
-  using Base::begin;
-  using Base::end;
-
   void begin(iterator *iter) {
-    iter->_it = this->begin();
-    iter->_ie = this->end();
+    iter->_it = this->Base::begin();
+    iter->_ie = this->Base::end();
   }
 };
 
