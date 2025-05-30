@@ -21,6 +21,7 @@
 // MEMOIR
 #include "memoir/passes/Passes.hpp"
 
+#include "memoir/analysis/BoundsCheckAnalysis.hpp"
 #include "memoir/analysis/LiveRangeAnalysis.hpp"
 #include "memoir/analysis/Liveness.hpp"
 #include "memoir/analysis/RangeAnalysis.hpp"

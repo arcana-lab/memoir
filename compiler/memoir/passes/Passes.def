@@ -15,6 +15,7 @@
 
 MODULE_PASS_(SSAConstructionPass, "memoir-ssa-construction")
 
+
 MODULE_PASS_(SSADestructionPass, "memoir-ssa-destruction")
 MODULE_PASS_(ImplLinkerPass, "memoir-impl-linker")
 MODULE_PASS_(NormalizationPass, "memoir-norm")
@@ -43,6 +44,7 @@ MODULE_PASS_(LinkDeclarationsPass, "memoir-link-decls")
 #define FUNCTION_PASS_(CLASS, RESULT) FUNCTION_PASS(CLASS, RESULT)
 
 FUNCTION_PASS_(LiveOutInsertionPass, "memoir-live-out-insertion")
+FUNCTION_PASS_(ExtendedSSAConstructionPass, "memoir-extended-ssa-construction")
 
 // ===
 // ANALYSIS(<scope>, <class>, <result>, <args>...)
@@ -65,6 +67,7 @@ MODULE_ANALYSIS_(LiveRangeAnalysis, LiveRangeAnalysisResult)
 #define FUNCTION_ANALYSIS_(CLASS, RESULT) FUNCTION_ANALYSIS(CLASS, RESULT)
 
 FUNCTION_ANALYSIS_(LivenessAnalysis, LivenessResult)
+FUNCTION_ANALYSIS_(BoundsCheckAnalysis, BoundsCheckResult)
 
 // ===
 #undef PASS
