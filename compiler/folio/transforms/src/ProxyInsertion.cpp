@@ -2,12 +2,14 @@
 #include <numeric>
 
 #include "llvm/IR/AttributeMask.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include "memoir/ir/Builder.hpp"
 #include "memoir/lowering/Implementation.hpp"
+#include "memoir/support/SortedVector.hpp"
 #include "memoir/support/WorkList.hpp"
 #include "memoir/transforms/utilities/MutateType.hpp"
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
@@ -1421,16 +1423,73 @@ static Map<llvm::Function *, Set<llvm::Value *>> gather_candidate_uses(
   return encoded;
 }
 
+static void propagate_data_flow(
+    Map<llvm::Instruction *, SortedVector<llvm::Value *>> &facts) {
+
+  // Initialize a worklist.
+  WorkList<llvm::Instruction *> worklist;
+  for (const auto &[inst, list] : facts) {
+    worklist.push(inst);
+  }
+
+  while (not worklist.empty()) {
+
+    // Pop an item off the worklist.
+    auto *inst = worklist.pop();
+
+    // Collect the set of successors.
+    if (auto *branch = dyn_cast<llvm::BranchInst>(inst)) {
+      for (auto *succ_block : branch->successors()) {
+        auto *succ = &succ_block->front();
+
+        auto old_size = facts[succ].size();
+
+        facts[succ].set_union(facts[inst]);
+
+        for (auto *pred_block : llvm::predecessors(succ_block)) {
+          auto *pred = &pred_block->back();
+
+          if (pred != inst) {
+            facts[succ].set_intersection(facts[pred]);
+          }
+        }
+
+        if (facts[succ].size() != old_size) {
+          worklist.push(succ);
+        }
+      }
+    } else if (auto *succ = inst->getNextNode()) {
+
+      auto &succ_facts = facts[succ];
+
+      if (succ_facts.set_union(facts[inst])) {
+        worklist.push(succ);
+      }
+
+      // Handle trivial copies.
+      if (auto *phi = dyn_cast<llvm::PHINode>(inst)) {
+        if (auto *val = phi->hasConstantValue()) {
+          if (succ_facts.find(val) != succ_facts.end()) {
+            if (succ_facts.insert(phi)) {
+              worklist.push(succ);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 static void weaken_uses(Set<llvm::Use *> &to_addkey,
                         Set<llvm::Use *> &to_weaken,
                         Candidate &candidate,
                         ProxyInsertion::GetBoundsChecks get_bound_checks) {
 
   // Collect all of the functions where addkey uses occur.
-  Set<llvm::Function *> functions = {};
+  Map<llvm::Function *, Set<llvm::Use *>> local_uses = {};
   for (auto *use : to_addkey) {
     auto &user = MEMOIR_SANITIZE(use->getUser(), "Use has NULL user!");
-    functions.insert(parent_function(user));
+    local_uses[parent_function(user)].insert(use);
   }
 
   // Create a reverse mapping from redefinition to ObjectInfo(s).
@@ -1438,26 +1497,27 @@ static void weaken_uses(Set<llvm::Use *> &to_addkey,
   for (auto *info : candidate) {
     for (const auto &[func, redefs] : info->redefinitions) {
       for (auto *redef : redefs) {
-        if (functions.count(func)) {
+        if (local_uses.count(func)) {
           redef_to_infos[redef].insert(info);
         }
       }
     }
   }
 
-  // Iterate over each of these functions.
-  for (auto *func : functions) {
+  // Iterate over each of the functions with uses.
+  for (const auto &[func, uses] : local_uses) {
     // Fetch the bound checks for this function.
     auto &bound_checks = get_bound_checks(*func);
 
     // For each object in the candidate, collate the sparse results into a
     // single dense result.
-    Map<llvm::Instruction *, Set<llvm::Value *>> present = {};
+    Map<llvm::Instruction *, SortedVector<llvm::Value *>> present = {};
 
     // Initialize the mapping with the analysis results.
     for (const auto &[val, checks] : bound_checks) {
+
       // Ensure that the value being checked is in the candidate.
-      if (redef_to_infos.count(val)) {
+      if (not redef_to_infos.count(val)) {
         continue;
       }
 
@@ -1470,34 +1530,81 @@ static void weaken_uses(Set<llvm::Use *> &to_addkey,
         continue;
       }
 
-      // Fetch the set of present keys.
-      auto &keys = present[inst];
+      debugln("INST: ", *inst);
 
       for (const auto &check : checks) {
+
+        debugln("  CHECK: ", check);
+
         // Skip negated checks.
         if (check.negated()) {
+          debugln("    NEGATED!");
           continue;
         }
 
         // If the check indices match an info offset, insert the key.
         for (auto *info : infos) {
+
+          debugln("    INFO: ", *info);
+
           // If the check is at the relevant depth for this info, insert it.
-          if (check.indices().size() == (info->offsets.size() - 1)) {
-            keys.insert(&check.key());
+          if (check.indices().size() == (info->offsets.size() + 1)) {
+            debugln("      YES!");
+            auto *next = inst->getNextNode();
+            present[next].insert(&check.key());
           }
         }
       }
     }
 
-    // TEMPORARY: Debug print.
-    println("PRESENT KEYS IN ", func->getName());
-    for (const auto &[inst, keys] : present) {
-      println(*inst);
-      for (const auto *key : keys) {
-        println("  ", *key);
+    // Propagate present key information.
+    propagate_data_flow(present);
+
+    // Debug print the data flow results.
+    debugln("PRESENT KEYS IN ", func->getName());
+    for (auto &BB : *func) {
+      debugln(value_name(BB), ":");
+      for (auto &I : BB) {
+        if (present.count(&I)) {
+          debug("  ", I /*value_name(I)*/, " ⊢ ");
+          if (present[&I].empty()) {
+            debugln(Style::BOLD, Colors::RED, "∅", Style::RESET);
+
+          } else {
+            debug(Style::BOLD, Colors::GREEN, "{ ");
+            for (const auto *key : present[&I]) {
+              debug(value_name(*key), " ");
+            }
+            debugln("}", Style::RESET);
+          }
+        }
+      }
+    }
+
+    // For each use in this function, if it uses a function that is already
+    // present in the proxy, weaken it.
+    for (auto *use : uses) {
+      // Ensure that the user is an instruction.
+      auto *inst = dyn_cast<llvm::Instruction>(use->getUser());
+      if (not inst) {
+        continue;
+      }
+
+      // Skip instructions that have no present information.
+      if (not present.count(inst)) {
+        continue;
+      }
+      auto &keys = present[inst];
+
+      // If the value used is present, weaken the use.
+      auto *used = use->get();
+      if (keys.find(used) != keys.end()) {
+        to_weaken.insert(use);
+        println(Style::BOLD, "WEAKEN ", pretty_use(*use), Style::RESET);
       }
     }
   }
+
   return;
 }
 
@@ -1567,10 +1674,19 @@ bool ProxyInsertion::transform() {
       infoln(pretty_use(*use));
     }
 
+#if 0
+    // DISABLED: Use weakening works, but does not have any considerable
+    // performance benefits.
+
     // Weaken uses from addkey to encode if we know that the value is already
     // inserted.
     Set<llvm::Use *> to_weaken = {};
     weaken_uses(to_addkey, to_weaken, candidate, this->get_bounds_checks);
+    for (auto *use : to_weaken) {
+      to_addkey.erase(use);
+      to_encode.insert(use);
+    }
+#endif
 
     // Trim uses that dont need to be decoded because they are only used to
     // compare against other values that need to be decoded.
