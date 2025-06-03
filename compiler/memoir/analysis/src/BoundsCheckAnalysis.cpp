@@ -89,8 +89,6 @@ static bool transfer(BoundsCheckResult &result, llvm::Use &use) {
     return false;
   }
 
-  println("TRANSFER ", *user);
-
   if (auto *update = into<UpdateInst>(user)) {
 
     // Ensure that the use is the object being updated.
