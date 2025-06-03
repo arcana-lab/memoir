@@ -1,6 +1,5 @@
 #ifndef MEMOIR_CASTING_H
 #define MEMOIR_CASTING_H
-#pragma once
 
 #include <type_traits>
 
