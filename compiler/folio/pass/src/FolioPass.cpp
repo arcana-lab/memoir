@@ -1,5 +1,6 @@
 #include "memoir/utility/Metadata.hpp"
 
+#include "memoir/analysis/BoundsCheckAnalysis.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/PassUtils.hpp"
@@ -41,7 +42,12 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
       auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(MAM, M);
       return FAM.getResult<llvm::DominatorTreeAnalysis>(F);
     };
-    ProxyInsertion proxies(M, get_dominator_tree);
+    ProxyInsertion::GetBoundsChecks get_bounds_checks =
+        [&](llvm::Function &F) -> llvm::memoir::BoundsCheckResult & {
+      auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(MAM, M);
+      return FAM.getResult<llvm::memoir::BoundsCheckAnalysis>(F);
+    };
+    ProxyInsertion proxies(M, get_dominator_tree, get_bounds_checks);
   }
 
   MemOIRInst::invalidate();

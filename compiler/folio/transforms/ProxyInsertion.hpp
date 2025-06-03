@@ -5,6 +5,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 
+#include "memoir/analysis/BoundsCheckAnalysis.hpp"
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/Casting.hpp"
@@ -113,8 +114,12 @@ struct ProxyInsertion {
 public:
   using GetDominatorTree =
       std::function<llvm::DominatorTree &(llvm::Function &)>;
+  using GetBoundsChecks =
+      std::function<llvm::memoir::BoundsCheckResult &(llvm::Function &)>;
 
-  ProxyInsertion(llvm::Module &M, GetDominatorTree get_dominator_tree);
+  ProxyInsertion(llvm::Module &M,
+                 GetDominatorTree get_dominator_tree,
+                 GetBoundsChecks get_bounds_checks);
 
   void analyze();
 
@@ -141,6 +146,7 @@ protected:
   llvm::memoir::Vector<Candidate> candidates;
 
   GetDominatorTree get_dominator_tree;
+  GetBoundsChecks get_bounds_checks;
 };
 
 } // namespace folio
