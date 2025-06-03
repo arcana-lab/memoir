@@ -78,6 +78,10 @@ public:
   bool empty() {
     return this->_items.empty();
   }
+
+  size_t size() {
+    return this->_items.size();
+  }
 };
 
 } // namespace llvm::memoir
