@@ -1,13 +1,16 @@
+
+
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/PromoteMemToReg.h"
 
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/passes/Passes.hpp"
-#include "memoir/raising/ExtendedSSAConstruction.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/DominatorUtils.hpp"
+
+#include "memoir/raising/ExtendedSSAConstruction.hpp"
 
 namespace llvm::memoir {
 
@@ -137,8 +140,6 @@ bool construct_extended_ssa(llvm::Function &F, llvm::DominatorTree &DT) {
   Vector<llvm::AllocaInst *> slots = {};
   for (const auto &[val, phis] : splitting_phis) {
 
-    println("PATCHING ", *val);
-
     // Fetch the type of the value.
     auto *type = val->getType();
 
@@ -202,14 +203,14 @@ bool construct_extended_ssa(llvm::Function &F, llvm::DominatorTree &DT) {
     }
   }
 
-  println("[Extended SSA] Before mem2reg:");
-  println(F);
+  debugln("[Extended SSA] Before mem2reg:");
+  debugln(F);
 
   // Promote all of the newly introduced stack slots to registers.
   llvm::PromoteMemToReg(to_promote, DT);
 
-  println("[Extended SSA] After mem2reg:");
-  println(F);
+  debugln("[Extended SSA] After mem2reg:");
+  debugln(F);
 
   return true;
 }

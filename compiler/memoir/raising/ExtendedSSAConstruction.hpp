@@ -13,7 +13,7 @@ namespace llvm::memoir {
  * @param DT the dominator tree of F
  * @returns true if the function was transformed, false if no changes were made
  */
-static bool construct_extended_ssa(llvm::Function &F, llvm::DominatorTree &DT);
+bool construct_extended_ssa(llvm::Function &F, llvm::DominatorTree &DT);
 
 } // namespace llvm::memoir
 
