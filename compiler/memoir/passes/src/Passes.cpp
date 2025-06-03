@@ -184,8 +184,49 @@ llvmGetPassPluginInfo() {
     MPM.addPass(CLASS());                                                      \
     return true;                                                               \
   }
+
+#define MODULE_ANALYSIS(CLASS, RESULT, NAME)                                   \
+  if (name == "require<" NAME ">") {                                           \
+    MPM.addPass(                                                               \
+        llvm::RequireAnalysisPass<std::remove_reference_t<decltype(CLASS())>,  \
+                                  Module>());                                  \
+    return true;                                                               \
+  }                                                                            \
+  if (name == "invalidate<" NAME ">") {                                        \
+    MPM.addPass(llvm::InvalidateAnalysisPass<                                  \
+                std::remove_reference_t<decltype(CLASS())>>());                \
+    return true;                                                               \
+  }
 #include "memoir/passes/Passes.def"
 
+                   return false;
+                 });
+
+             // Register function transformation passes.
+             PB.registerPipelineParsingCallback(
+                 [](llvm::StringRef name,
+                    llvm::FunctionPassManager &FPM,
+                    llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
+
+#define FUNCTION_PASS(CLASS, NAME)                                             \
+  if (name == NAME) {                                                          \
+    FPM.addPass(CLASS());                                                      \
+    return true;                                                               \
+  }
+
+#define FUNCTION_ANALYSIS(CLASS, RESULT, NAME)                                 \
+  if (name == "require<" NAME ">") {                                           \
+    FPM.addPass(                                                               \
+        llvm::RequireAnalysisPass<std::remove_reference_t<decltype(CLASS())>,  \
+                                  Function>());                                \
+    return true;                                                               \
+  }                                                                            \
+  if (name == "invalidate<" NAME ">") {                                        \
+    FPM.addPass(llvm::InvalidateAnalysisPass<                                  \
+                std::remove_reference_t<decltype(CLASS())>>());                \
+    return true;                                                               \
+  }
+#include "memoir/passes/Passes.def"
                    return false;
                  });
 
@@ -206,7 +247,7 @@ llvmGetPassPluginInfo() {
              // Register module analyses.
              PB.registerAnalysisRegistrationCallback(
                  [](llvm::ModuleAnalysisManager &MAM) {
-#define MODULE_ANALYSIS(CLASS, RESULT)                                         \
+#define MODULE_ANALYSIS(CLASS, RESULT, NAME)                                   \
   MAM.registerPass([&] { return CLASS(); });
 #include "memoir/passes/Passes.def"
                    // MAM.registerPass([&] { return
@@ -217,12 +258,9 @@ llvmGetPassPluginInfo() {
              // Register function analyses.
              PB.registerAnalysisRegistrationCallback(
                  [](llvm::FunctionAnalysisManager &FAM) {
-#define FUNCTION_ANALYSIS(CLASS, RESULT)                                       \
+#define FUNCTION_ANALYSIS(CLASS, RESULT, NAME)                                 \
   FAM.registerPass([&] { return CLASS(); });
 #include "memoir/passes/Passes.def"
-                   // FAM.registerPass([&] { return
-                   // llvm::memoir::LivenessAnalysis();
-                   // });
                  });
            } };
 }

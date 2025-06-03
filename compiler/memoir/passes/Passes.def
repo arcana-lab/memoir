@@ -15,7 +15,6 @@
 
 MODULE_PASS_(SSAConstructionPass, "memoir-ssa-construction")
 
-
 MODULE_PASS_(SSADestructionPass, "memoir-ssa-destruction")
 MODULE_PASS_(ImplLinkerPass, "memoir-impl-linker")
 MODULE_PASS_(NormalizationPass, "memoir-norm")
@@ -47,27 +46,27 @@ FUNCTION_PASS_(LiveOutInsertionPass, "memoir-live-out-insertion")
 FUNCTION_PASS_(ExtendedSSAConstructionPass, "memoir-extended-ssa-construction")
 
 // ===
-// ANALYSIS(<scope>, <class>, <result>, <args>...)
+// ANALYSIS(<scope>, <class>, <result>, <name>, <args>...)
 
 #ifndef ANALYSIS
-#  define ANALYSIS(SCOPE, CLASS, RESULT)
+#  define ANALYSIS(SCOPE, CLASS, RESULT, NAME)
 #endif
 
 #ifndef MODULE_ANALYSIS
-#  define MODULE_ANALYSIS(CLASS, RESULT) ANALYSIS(Module, CLASS, RESULT)
+#  define MODULE_ANALYSIS(CLASS, RESULT, NAME) ANALYSIS(Module, CLASS, RESULT, NAME)
 #endif
-#define MODULE_ANALYSIS_(CLASS, RESULT) MODULE_ANALYSIS(CLASS, RESULT)
+#define MODULE_ANALYSIS_(CLASS, RESULT, NAME) MODULE_ANALYSIS(CLASS, RESULT, NAME)
 
-MODULE_ANALYSIS_(RangeAnalysis, RangeAnalysisResult)
-MODULE_ANALYSIS_(LiveRangeAnalysis, LiveRangeAnalysisResult)
+MODULE_ANALYSIS_(RangeAnalysis, RangeAnalysisResult, "memoir-range")
+MODULE_ANALYSIS_(LiveRangeAnalysis, LiveRangeAnalysisResult, "memoir-live-range")
 
 #ifndef FUNCTION_ANALYSIS
-#  define FUNCTION_ANALYSIS(CLASS, RESULT) ANALYSIS(Function, CLASS, RESULT)
+#  define FUNCTION_ANALYSIS(CLASS, RESULT, NAME) ANALYSIS(Function, CLASS, RESULT, NAME)
 #endif
-#define FUNCTION_ANALYSIS_(CLASS, RESULT) FUNCTION_ANALYSIS(CLASS, RESULT)
+#define FUNCTION_ANALYSIS_(CLASS, RESULT, NAME) FUNCTION_ANALYSIS(CLASS, RESULT, NAME)
 
-FUNCTION_ANALYSIS_(LivenessAnalysis, LivenessResult)
-FUNCTION_ANALYSIS_(BoundsCheckAnalysis, BoundsCheckResult)
+FUNCTION_ANALYSIS_(LivenessAnalysis, LivenessResult, "memoir-liveness")
+FUNCTION_ANALYSIS_(BoundsCheckAnalysis, BoundsCheckResult, "memoir-bounds-check")
 
 // ===
 #undef PASS
