@@ -137,6 +137,8 @@ bool construct_extended_ssa(llvm::Function &F, llvm::DominatorTree &DT) {
   Vector<llvm::AllocaInst *> slots = {};
   for (const auto &[val, phis] : splitting_phis) {
 
+    println("PATCHING ", *val);
+
     // Fetch the type of the value.
     auto *type = val->getType();
 
@@ -144,6 +146,35 @@ bool construct_extended_ssa(llvm::Function &F, llvm::DominatorTree &DT) {
     builder.SetInsertPoint(entry_point);
     auto *ptr = builder.CreateAlloca(type);
     slots.push_back(ptr);
+
+    // For each user, insert a load from the stack variable.
+    Map<llvm::Use *, llvm::Value *> patches = {};
+    for (auto &use : val->uses()) {
+      // Only handle instruction users.
+      auto *user = dyn_cast<llvm::Instruction>(use.getUser());
+      if (not user) {
+        continue;
+      }
+
+      // Determine the program point to insert the load.
+      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+        auto *incoming_block = phi->getIncomingBlock(use);
+        auto *terminator = incoming_block->getTerminator();
+        builder.SetInsertPoint(terminator);
+      } else {
+        builder.SetInsertPoint(user);
+      }
+
+      // Create a load to patch this user with.
+      auto *load = builder.CreateLoad(type, ptr);
+      patches[&use] = load;
+    }
+
+    // At each use of the value, replace it with a load from the stack slot.
+    for (const auto &[use, patch] : patches) {
+      // Replace the value with the loaded value.
+      use->set(patch);
+    }
 
     // After the value definition, store the value.
     auto *point = dyn_cast<llvm::Instruction>(val);
@@ -158,23 +189,6 @@ bool construct_extended_ssa(llvm::Function &F, llvm::DominatorTree &DT) {
       builder.SetInsertPoint(phi->getParent()->getFirstInsertionPt());
       builder.CreateStore(phi, ptr);
     }
-
-    // At each use of the value, replace it with a load from the stack slot.
-    for (auto &use : val->uses()) {
-      auto *user = dyn_cast<llvm::Instruction>(use.getUser());
-
-      // Skip non-instruction uses.
-      if (not user) {
-        continue;
-      }
-
-      // Insert a load before the user.
-      builder.SetInsertPoint(user);
-      auto *load = builder.CreateLoad(type, ptr);
-
-      // Replace the value with the loaded value.
-      use.set(load);
-    }
   }
 
   // Check that all slots can be promotable.
@@ -188,8 +202,14 @@ bool construct_extended_ssa(llvm::Function &F, llvm::DominatorTree &DT) {
     }
   }
 
+  println("[Extended SSA] Before mem2reg:");
+  println(F);
+
   // Promote all of the newly introduced stack slots to registers.
   llvm::PromoteMemToReg(to_promote, DT);
+
+  println("[Extended SSA] After mem2reg:");
+  println(F);
 
   return true;
 }
