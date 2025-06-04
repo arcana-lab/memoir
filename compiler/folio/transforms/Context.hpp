@@ -1,0 +1,48 @@
+#ifndef FOLIO_TRANSFORMS_CONTEXT_H
+#define FOLIO_TRANSFORMS_CONTEXT_H
+
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/User.h"
+#include "llvm/IR/Value.h"
+
+namespace folio {
+
+struct Context {
+  llvm::Function &function() const {
+    return *this->_func;
+  }
+
+  llvm::CallBase *caller() const {
+    return this->_call;
+  }
+
+  Context(llvm::Function &func, llvm::CallBase *caller = NULL)
+    : _func(&func),
+      _call(caller) {}
+
+  friend bool operator<(const Context &a, const Context &b) {
+    return (a._func < b._func) and (a._call < b._call);
+  }
+
+  friend bool operator==(const Context &a, const Context &b) {
+    return (a._func == b._func) and (a._call == b._call);
+  }
+
+protected:
+  llvm::Function *_func;
+  llvm::CallBase *_call;
+};
+
+} // namespace folio
+
+template <>
+struct std::hash<folio::Context> {
+  std::size_t operator()(const folio::Context &C) const noexcept {
+    std::size_t h1 = std::hash<llvm::Function *>{}(&C.function());
+    std::size_t h2 = std::hash<llvm::CallBase *>{}(C.caller());
+    return h1 ^ (h2 << 1); // or use boost::hash_combine
+  }
+};
+
+#endif // FOLIO_TRANSFORMS_CONTEXT_H
