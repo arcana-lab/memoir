@@ -17,9 +17,9 @@ struct Context {
     return this->_call;
   }
 
-  Context(llvm::Function &func, llvm::CallBase *caller = NULL)
-    : _func(&func),
-      _call(caller) {}
+  Context(llvm::Function &func, llvm::CallBase &caller)
+    : Context(&func, &caller) {}
+  Context(llvm::Function &func) : Context(&func, NULL) {}
 
   friend bool operator<(const Context &a, const Context &b) {
     return (a._func < b._func) and (a._call < b._call);
@@ -30,6 +30,10 @@ struct Context {
   }
 
 protected:
+  Context(llvm::Function *func, llvm::CallBase *caller)
+    : _func(func),
+      _call(caller) {}
+
   llvm::Function *_func;
   llvm::CallBase *_call;
 };
