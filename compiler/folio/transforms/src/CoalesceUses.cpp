@@ -169,42 +169,23 @@ static void coalesce_by_dominance(
   }
 
   for (auto &uses : coalesced) {
-    println("COALESCED ", uses);
+    debugln("COALESCED ", uses);
   }
 
   return;
 }
 
-void coalesce(Vector<CoalescedUses> &decoded,
-              Vector<CoalescedUses> &encoded,
-              Vector<CoalescedUses> &added,
-              const Set<llvm::Use *> &to_decode,
-              const Set<llvm::Use *> &to_encode,
-              const Set<llvm::Use *> &to_addkey,
-              ProxyInsertion::GetDominatorTree get_dominator_tree) {
+Vector<CoalescedUses> coalesce(
+    const Set<llvm::Use *> &uses,
+    ProxyInsertion::GetDominatorTree get_dominator_tree) {
 
-  // Group uses by their parent function and the value being used..
-  auto grouped_to_decode = groupby_function_and_used(to_decode);
-  auto grouped_to_encode = groupby_function_and_used(to_encode);
-  auto grouped_to_addkey = groupby_function_and_used(to_addkey);
+  Vector<CoalescedUses> coalesced = {};
 
-  // For each function with a use that needs decoding:
-  println("COALESCE TO DECODE");
-  coalesce_by_dominance(decoded, grouped_to_decode, get_dominator_tree);
-  println();
+  auto grouped = groupby_function_and_used(uses);
 
-  println("COALESCE TO ENCODE");
-  coalesce_by_dominance(encoded, grouped_to_encode, get_dominator_tree);
-  println();
+  coalesce_by_dominance(coalesced, grouped, get_dominator_tree);
 
-  println("COALESCE TO ADDKEY");
-  coalesce_by_dominance(added, grouped_to_addkey, get_dominator_tree);
-  println();
-
-  // Further coalesce addkey and encoded uses.
-  // TODO
-
-  return;
+  return coalesced;
 }
 
 } // namespace folio

@@ -38,13 +38,9 @@ public:
                                        const CoalescedUses &uses);
 };
 
-void coalesce(llvm::memoir::Vector<CoalescedUses> &decoded,
-              llvm::memoir::Vector<CoalescedUses> &encoded,
-              llvm::memoir::Vector<CoalescedUses> &added,
-              const llvm::memoir::Set<llvm::Use *> &to_decode,
-              const llvm::memoir::Set<llvm::Use *> &to_encode,
-              const llvm::memoir::Set<llvm::Use *> &to_addkey,
-              ProxyInsertion::GetDominatorTree get_dominator_tree);
+llvm::memoir::Vector<CoalescedUses> coalesce(
+    const llvm::memoir::Set<llvm::Use *> &uses,
+    ProxyInsertion::GetDominatorTree get_dominator_tree);
 
 } // namespace folio
 
