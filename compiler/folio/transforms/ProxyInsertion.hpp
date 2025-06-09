@@ -13,10 +13,53 @@
 
 namespace folio {
 
+struct NestedObject {
+  // Accessors.
+  llvm::Value &value() const {
+    return *this->_value;
+  }
+
+  llvm::ArrayRef<unsigned> offsets() const {
+    return this->_offsets;
+  }
+
+  // Constructors.
+  NestedObject(llvm::Value &value, llvm::ArrayRef<unsigned> offsets = {})
+    : _value(&value),
+      _offsets(offsets) {}
+
+  friend bool operator<(const NestedObject &lhs, const NestedObject &rhs);
+  friend bool operator==(const NestedObject &lhs, const NestedObject &rhs);
+
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
+                                       const NestedObject &obj);
+
+protected:
+  llvm::Value *_value;
+  llvm::memoir::SmallVector<unsigned> _offsets;
+};
+
+} // namespace folio
+
+template <>
+struct std::hash<folio::NestedObject> {
+  std::size_t operator()(const folio::NestedObject &obj) const noexcept {
+    std::size_t h1 = std::hash<llvm::Value *>{}(&obj.value());
+    std::size_t i = 0;
+    for (auto offset : obj.offsets()) {
+      std::size_t h2 = std::hash<unsigned>{}(offset);
+      h1 ^= (h2 << ++i);
+    }
+    return h1;
+  }
+};
+
+namespace folio {
+
 struct ObjectInfo {
   llvm::memoir::AllocInst *allocation;
   llvm::memoir::Vector<unsigned> offsets;
-  llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>>
+  llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<NestedObject>>
       redefinitions;
   llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>> encoded;
   llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>> to_encode;
@@ -43,7 +86,8 @@ struct ObjectInfo {
    * @param old_func, the old function.
    * @param new_func, the new function.
    * @param vmap, a map from original values to cloned values.
-   * @param delete_old, if we should delete information about the old function.
+   * @param delete_old, if we should delete information about the old
+   * function.
    */
   void update(llvm::Function &old_func,
               llvm::Function &new_func,

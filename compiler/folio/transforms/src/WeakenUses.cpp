@@ -87,9 +87,9 @@ void weaken_uses(Set<llvm::Use *> &to_addkey,
   Map<llvm::Value *, Set<ObjectInfo *>> redef_to_infos = {};
   for (auto *info : candidate) {
     for (const auto &[func, redefs] : info->redefinitions) {
-      for (auto *redef : redefs) {
+      for (const auto &redef : redefs) {
         if (local_uses.count(func)) {
-          redef_to_infos[redef].insert(info);
+          redef_to_infos[&redef.value()].insert(info);
         }
       }
     }

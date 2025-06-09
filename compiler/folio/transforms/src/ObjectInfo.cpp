@@ -7,6 +7,16 @@ namespace folio {
 
 // ================
 static void update_values(llvm::ValueToValueMapTy &vmap,
+                          Set<NestedObject> &input,
+                          Set<NestedObject> &output) {
+  for (auto info : input) {
+    auto *clone = &*vmap[&info.value()];
+
+    output.emplace(*clone, info.offsets());
+  }
+}
+
+static void update_values(llvm::ValueToValueMapTy &vmap,
                           Set<llvm::Value *> &input,
                           Set<llvm::Value *> &output) {
   for (auto *val : input) {
@@ -156,43 +166,49 @@ uint32_t ObjectInfo::compute_heuristic(const ObjectInfo &other) const {
 
 bool ObjectInfo::is_redefinition(llvm::Value &V) const {
   for (const auto &[func, redefs] : this->redefinitions) {
-    if (redefs.count(&V) > 0) {
-      return true;
+    for (const auto &redef : redefs) {
+      if (&redef.value() == &V) {
+        return true;
+      }
     }
   }
   return false;
 }
 
 static void gather_redefinitions(
-    llvm::Value &V,
-    Map<llvm::Function *, Set<llvm::Value *>> &redefinitions) {
+    const NestedObject &obj,
+    Map<llvm::Function *, Set<NestedObject>> &redefinitions,
+    llvm::ArrayRef<unsigned> base_offset) {
 
-  auto *function = parent_function(V);
+  auto *function = parent_function(obj.value());
   MEMOIR_ASSERT(function, "Unknown parent function for redefinition.");
 
-  if (redefinitions[function].count(&V) > 0) {
+  auto &local_redefs = redefinitions[function];
+
+  if (local_redefs.contains(obj)) {
     return;
   }
 
-  redefinitions[function].insert(&V);
+  local_redefs.insert(obj);
 
-  for (auto &use : V.uses()) {
+  for (auto &use : obj.value().uses()) {
     auto *user = use.getUser();
+
+    NestedObject user_obj(*user, obj.offsets());
 
     // Recurse on redefinitions.
     if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-      gather_redefinitions(*user, redefinitions);
-
+      gather_redefinitions(user_obj, redefinitions, base_offset);
     } else if (auto *memoir_inst = into<MemOIRInst>(user)) {
       if (auto *update = dyn_cast<UpdateInst>(memoir_inst)) {
         if (&use == &update->getObjectAsUse()) {
-          gather_redefinitions(*user, redefinitions);
+          gather_redefinitions(user_obj, redefinitions, base_offset);
         }
 
       } else if (isa<RetPHIInst>(memoir_inst) or isa<UsePHIInst>(memoir_inst)) {
 
         // Recurse on redefinitions.
-        gather_redefinitions(*user, redefinitions);
+        gather_redefinitions(user_obj, redefinitions, base_offset);
       }
 
       // Gather variable if folded on, or recurse on closed argument.
@@ -200,20 +216,57 @@ static void gather_redefinitions(
 
         if (&use == &fold->getInitialAsUse()) {
           // Gather uses of the accumulator argument.
-          gather_redefinitions(fold->getAccumulatorArgument(), redefinitions);
+          gather_redefinitions(
+              NestedObject(fold->getAccumulatorArgument(), obj.offsets()),
+              redefinitions,
+              base_offset);
 
           // Gather uses of the resultant.
-          gather_redefinitions(fold->getResult(), redefinitions);
+          gather_redefinitions(NestedObject(fold->getResult(), obj.offsets()),
+                               redefinitions,
+                               base_offset);
 
         } else if (&use == &fold->getObjectAsUse()) {
-          // Do nothing.
+
+          // If the element argument is an object, gather uses of it.
+          auto *elem_arg = fold->getElementArgument();
+          if (elem_arg and Type::value_is_object(*elem_arg)) {
+
+            // Try to match the access indices against the offsets.
+            auto maybe_distance = fold->match_offsets(base_offset);
+            if (not maybe_distance) {
+              continue;
+            }
+            auto distance = maybe_distance.value();
+
+            // If the offsets are not fully exhausted, recurse on the value
+            // argument.
+            if (distance < base_offset.size()) {
+
+              // Construct the nested offsets.
+              Vector<unsigned> nested_offsets(obj.offsets().begin(),
+                                              obj.offsets().end());
+
+              // Append the new offsets from the base.
+              auto new_offset = base_offset.take_front(distance + 1);
+              nested_offsets.insert(nested_offsets.end(),
+                                    new_offset.begin(),
+                                    new_offset.end());
+
+              // Recurse.
+              gather_redefinitions(NestedObject(*elem_arg, nested_offsets),
+                                   redefinitions,
+                                   base_offset);
+            }
+          }
 
         } else if (auto *closed_arg = fold->getClosedArgument(use)) {
           // Gather uses of the closed argument.
-          gather_redefinitions(*closed_arg, redefinitions);
+          gather_redefinitions(NestedObject(*closed_arg, obj.offsets()),
+                               redefinitions,
+                               base_offset);
         }
       }
-
     } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
       auto &callee =
           MEMOIR_SANITIZE(call->getCalledFunction(),
@@ -223,11 +276,20 @@ static void gather_redefinitions(
           MEMOIR_SANITIZE(callee.getArg(use.getOperandNo()),
                           "No arguments in the callee matching this use!");
 
-      gather_redefinitions(arg, redefinitions);
+      gather_redefinitions(NestedObject(arg, obj.offsets()),
+                           redefinitions,
+                           base_offset);
     }
   }
 
   return;
+}
+
+static void gather_redefinitions(
+    llvm::Value &value,
+    Map<llvm::Function *, Set<NestedObject>> &redefinitions,
+    llvm::ArrayRef<unsigned> base_offset) {
+  gather_redefinitions(NestedObject(value), redefinitions, base_offset);
 }
 
 static llvm::Use *get_use_at_offset(llvm::User::op_iterator index_begin,
@@ -295,88 +357,86 @@ static void gather_uses_to_proxy(
     infoln("  USER ", *user);
 
     // We only need to handle acceses.
-    auto *access = into<AccessInst>(user);
-    if (not access) {
-      continue;
-    }
+    if (auto *access = into<AccessInst>(user)) {
 
-    // Check if any of the index uses need to be updated.
-    if (&use == &access->getObjectAsUse()) {
+      // Check if any of the index uses need to be updated.
+      if (&use == &access->getObjectAsUse()) {
 
-      // Check that the access matches the offsets.
-      auto maybe_distance = access->match_offsets(offsets);
-      if (not maybe_distance) {
-        continue; // Do nothing.
-      }
-      auto distance = maybe_distance.value();
+        // Check that the access matches the offsets.
+        auto maybe_distance = access->match_offsets(offsets);
+        if (not maybe_distance) {
+          continue; // Do nothing.
+        }
+        auto distance = maybe_distance.value();
 
-      // If we find the index to handle in the indices list, then mark it for
-      // encoding and continue;.
-      if (auto *index_use = get_index_use(*access, offsets)) {
-        if (isa<InsertInst>(access)) {
-          if (is_last_index(index_use, access->index_operands_end())) {
-            infoln("    ADDING KEY ", *index_use->get());
-            to_addkey[function].insert(index_use);
-            continue;
+        // If we find the index to handle in the indices list, then mark it for
+        // encoding and continue;.
+        if (auto *index_use = get_index_use(*access, offsets)) {
+          if (isa<InsertInst>(access)) {
+            if (is_last_index(index_use, access->index_operands_end())) {
+              infoln("    ADDING KEY ", *index_use->get());
+              to_addkey[function].insert(index_use);
+              continue;
+            }
           }
-        }
 
-        infoln("    ENCODING KEY ", *index_use->get());
-        to_encode[function].insert(index_use);
-        continue;
-      }
-
-      // Handle fold operations specially for recursion.
-      else if (auto *fold = dyn_cast<FoldInst>(access)) {
-        // If the offsets are fully exhausted, add uses of the index
-        // argument to the set of uses to decode.
-        if (distance == offsets.size()) {
-          auto &index_arg = fold->getIndexArgument();
-          infoln("    DECODING KEY ",
-                 index_arg,
-                 " IN ",
-                 fold->getBody().getName());
-          encoded[&fold->getBody()].insert(&index_arg);
-          continue;
-        }
-
-        // If the offsets are not fully exhausted, recurse on the value
-        // argument.
-        else if (distance < offsets.size()) {
-          if (auto *elem_arg = fold->getElementArgument()) {
-            infoln("    RECURSING");
-            gather_uses_to_proxy(*elem_arg,
-                                 offsets.drop_front(distance + 1),
-                                 encoded,
-                                 to_encode,
-                                 to_addkey);
-          }
-        }
-      }
-
-    } else if (auto input_kw = access->get_keyword<InputKeyword>()) {
-      if (&input_kw->getInputAsUse() == &use) {
-        auto &type =
-            MEMOIR_SANITIZE(type_of(V),
-                            "Failed to get type of object used as input.");
-        if (auto *index_use = get_use_at_offset(input_kw->index_ops_begin(),
-                                                input_kw->index_ops_end(),
-                                                offsets)) {
           infoln("    ENCODING KEY ", *index_use->get());
           to_encode[function].insert(index_use);
           continue;
         }
-      }
 
-    } else if (auto *fold = dyn_cast<FoldInst>(access)) {
-      // Recurse on closed arguments.
-      if (auto *closed_arg = fold->getClosedArgument(use)) {
-        infoln("    CLOSED");
-        gather_uses_to_proxy(*closed_arg,
-                             offsets,
-                             encoded,
-                             to_encode,
-                             to_addkey);
+        // Handle fold operations specially for recursion.
+        else if (auto *fold = dyn_cast<FoldInst>(access)) {
+          // If the offsets are fully exhausted, add uses of the index
+          // argument to the set of uses to decode.
+          if (distance == offsets.size()) {
+            auto &index_arg = fold->getIndexArgument();
+            infoln("    DECODING KEY ",
+                   index_arg,
+                   " IN ",
+                   fold->getBody().getName());
+            encoded[&fold->getBody()].insert(&index_arg);
+            continue;
+          }
+
+          // If the offsets are not fully exhausted, recurse on the value
+          // argument.
+          else if (distance < offsets.size()) {
+            if (auto *elem_arg = fold->getElementArgument()) {
+              infoln("    RECURSING");
+              gather_uses_to_proxy(*elem_arg,
+                                   offsets.drop_front(distance + 1),
+                                   encoded,
+                                   to_encode,
+                                   to_addkey);
+            }
+          }
+        }
+
+      } else if (auto input_kw = access->get_keyword<InputKeyword>()) {
+        if (&input_kw->getInputAsUse() == &use) {
+          auto &type =
+              MEMOIR_SANITIZE(type_of(V),
+                              "Failed to get type of object used as input.");
+          if (auto *index_use = get_use_at_offset(input_kw->index_ops_begin(),
+                                                  input_kw->index_ops_end(),
+                                                  offsets)) {
+            infoln("    ENCODING KEY ", *index_use->get());
+            to_encode[function].insert(index_use);
+            continue;
+          }
+        }
+
+      } else if (auto *fold = dyn_cast<FoldInst>(access)) {
+        // Recurse on closed arguments.
+        if (auto *closed_arg = fold->getClosedArgument(use)) {
+          infoln("    CLOSED");
+          gather_uses_to_proxy(*closed_arg,
+                               offsets,
+                               encoded,
+                               to_encode,
+                               to_addkey);
+        }
       }
     }
   }
@@ -409,7 +469,7 @@ static void gather_uses_to_propagate(
     if (auto *access = into<AccessInst>(user)) {
 
       // Ensure that the use is the object being accessed.
-      if (use != access->getObjectAsUse()) {
+      if (&use != &access->getObjectAsUse()) {
         infoln("    Not object use");
         continue;
       }
@@ -459,17 +519,20 @@ static void gather_uses_to_propagate(
           encoded[function].insert(&read->asValue());
         }
 
-      } else if (auto *write = dyn_cast<WriteInst>(access)) {
-        if (distance == offsets.size()) {
-          infoln("    ADDKEY ");
-          to_addkey[function].insert(&write->getValueWrittenAsUse());
-        }
-
-      } else if (auto *insert = dyn_cast<InsertInst>(access)) {
-        if (auto value_kw = insert->get_keyword<ValueKeyword>()) {
+      } else if (auto *update = dyn_cast<UpdateInst>(access)) {
+        // Handle values.
+        if (auto *write = dyn_cast<WriteInst>(access)) {
           if (distance == offsets.size()) {
             infoln("    ADDKEY ");
-            to_addkey[function].insert(&value_kw->getValueAsUse());
+            to_addkey[function].insert(&write->getValueWrittenAsUse());
+          }
+
+        } else if (auto *insert = dyn_cast<InsertInst>(access)) {
+          if (auto value_kw = insert->get_keyword<ValueKeyword>()) {
+            if (distance == offsets.size()) {
+              infoln("    ADDKEY ");
+              to_addkey[function].insert(&value_kw->getValueAsUse());
+            }
           }
         }
       }
@@ -487,23 +550,29 @@ void ObjectInfo::analyze() {
   println();
   println("ANALYZING ", *this);
 
-  gather_redefinitions(this->allocation->asValue(), this->redefinitions);
+  gather_redefinitions(this->allocation->asValue(),
+                       this->redefinitions,
+                       this->offsets);
 
   bool is_propagator = this->is_propagator();
 
   println("PROPAGATOR? ", is_propagator ? "YES" : "NO");
 
+  llvm::ArrayRef<unsigned> offsets(this->offsets);
+
   for (const auto &[func, redefs] : this->redefinitions) {
-    for (auto *redef : redefs) {
+    for (const auto &redef : redefs) {
+      println("  ", redef);
+
       if (is_propagator) {
-        gather_uses_to_propagate(*redef,
-                                 this->offsets,
+        gather_uses_to_propagate(redef.value(),
+                                 offsets.drop_front(redef.offsets().size()),
                                  this->encoded,
                                  this->to_encode,
                                  this->to_addkey);
       } else {
-        gather_uses_to_proxy(*redef,
-                             this->offsets,
+        gather_uses_to_proxy(redef.value(),
+                             offsets.drop_front(redef.offsets().size()),
                              this->encoded,
                              this->to_encode,
                              this->to_addkey);
@@ -513,8 +582,8 @@ void ObjectInfo::analyze() {
 
   for (const auto &[func, redefs] : this->redefinitions) {
     infoln("IN ", func->getName());
-    for (auto *redef : redefs) {
-      infoln("  REDEF ", *redef);
+    for (const auto &redef : redefs) {
+      infoln("  REDEF ", redef);
     }
   }
 
@@ -538,6 +607,61 @@ Type &ObjectInfo::get_type() const {
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const ObjectInfo &info) {
   os << "(" << *info.allocation << ")";
   for (auto offset : info.offsets) {
+    if (offset == unsigned(-1)) {
+      os << "[*]";
+    } else {
+      os << "." << std::to_string(offset);
+    }
+  }
+
+  return os;
+}
+
+bool operator<(const NestedObject &lhs, const NestedObject &rhs) {
+  auto *lvalue = &lhs.value(), *rvalue = &rhs.value();
+  if (lvalue != rvalue) {
+    return lvalue < rvalue;
+  }
+
+  auto lsize = lhs.offsets().size(), rsize = rhs.offsets().size();
+  if (lsize != rsize) {
+    return lsize < rsize;
+  }
+
+  for (size_t i = 0; i < lsize; ++i) {
+    auto loffset = lhs.offsets()[i], roffset = rhs.offsets()[i];
+    if (loffset != roffset) {
+      return loffset < roffset;
+    }
+  }
+
+  return false;
+}
+
+bool operator==(const NestedObject &lhs, const NestedObject &rhs) {
+  auto *lvalue = &lhs.value(), *rvalue = &rhs.value();
+  if (lvalue != rvalue) {
+    return false;
+  }
+
+  auto lsize = lhs.offsets().size(), rsize = rhs.offsets().size();
+  if (lsize != rsize) {
+    return false;
+  }
+
+  for (size_t i = 0; i < lsize; ++i) {
+    auto loffset = lhs.offsets()[i], roffset = rhs.offsets()[i];
+    if (loffset != roffset) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const NestedObject &obj) {
+  os << "(" << obj.value() << ")";
+  for (auto offset : obj.offsets()) {
     if (offset == unsigned(-1)) {
       os << "[*]";
     } else {

@@ -24,6 +24,16 @@ using namespace llvm::memoir;
 namespace folio {
 
 // ================
+static llvm::cl::opt<bool> disable_translation_elimination(
+    "disable-translation-elimination",
+    llvm::cl::desc("Disable redundant translation elimination"),
+    llvm::cl::init(false));
+
+static llvm::cl::opt<bool> disable_use_weakening(
+    "disable-use-weakening",
+    llvm::cl::desc("Disable weakening uses"),
+    llvm::cl::init(true));
+
 static llvm::cl::opt<bool> disable_proxy_propagation(
     "disable-proxy-propagation",
     llvm::cl::desc("Disable proxy propagation"),
@@ -891,7 +901,6 @@ static llvm::Value &encode_use(
 
   // Handle has operations separately.
   if (auto *has = into<HasInst>(user)) {
-    println("ENCODE ", pretty_use(use));
     if (is_last_index(&use, has->index_operands_end())) {
       // Construct an if-else block.
       // if (has(encoder, key))
@@ -1160,8 +1169,9 @@ bool is_total_proxy(ObjectInfo &info, const Vector<CoalescedUses> &added) {
   // Check that this value is never cleared or removed from.
   bool monotonic = true;
   for (const auto &[func, redefs] : info.redefinitions) {
-    for (auto *redef : redefs) {
-      if (into<RemoveInst>(redef) or into<ClearInst>(redef)) {
+    for (const auto &redef : redefs) {
+      auto *value = &redef.value();
+      if (into<RemoveInst>(value) or into<ClearInst>(value)) {
         println("NO, keys are removed");
         return false;
       }
@@ -1474,89 +1484,91 @@ bool ProxyInsertion::transform() {
         gather_candidate_uses(candidate, to_decode, to_encode, to_addkey);
 
     println();
-    println("  BEFORE TRIMMING");
-    println("  USES TO ENCODE (", to_encode.size(), ")");
+    println("  FOUND USES");
+    println("    USES TO ENCODE ", to_encode.size());
     for (auto *use : to_encode) {
       infoln(pretty_use(*use));
     }
     println();
-    println("  USES TO DECODE (", to_decode.size(), ")");
+    println("    USES TO DECODE ", to_decode.size());
     for (auto *use : to_decode) {
       infoln(pretty_use(*use));
     }
     println();
-    println("  USES TO ADDKEY (", to_addkey.size(), ")");
+    println("    USES TO ADDKEY ", to_addkey.size());
     for (auto *use : to_addkey) {
       infoln(pretty_use(*use));
     }
 
-#if 0
-    // DISABLED: Use weakening works, but does not have any considerable
-    // performance benefits.
+    if (not disable_use_weakening) {
+      // DISABLED: Use weakening works, but does not have any considerable
+      // performance benefits.
 
-    // Weaken uses from addkey to encode if we know that the value is already
-    // inserted.
-    Set<llvm::Use *> to_weaken = {};
-    weaken_uses(to_addkey, to_weaken, candidate, this->get_bounds_checks);
-    for (auto *use : to_weaken) {
-      to_addkey.erase(use);
-      to_encode.insert(use);
+      // Weaken uses from addkey to encode if we know that the value is already
+      // inserted.
+      Set<llvm::Use *> to_weaken = {};
+      weaken_uses(to_addkey, to_weaken, candidate, this->get_bounds_checks);
+      for (auto *use : to_weaken) {
+        to_addkey.erase(use);
+        to_encode.insert(use);
+      }
     }
-#endif
 
-    // Trim uses that dont need to be decoded because they are only used to
-    // compare against other values that need to be decoded.
-    Set<llvm::Use *> trim_to_decode = {};
-    for (auto *use : to_decode) {
-      auto *user = use->getUser();
+    if (not disable_translation_elimination) {
+      // Trim uses that dont need to be decoded because they are only used to
+      // compare against other values that need to be decoded.
+      Set<llvm::Use *> trim_to_decode = {};
+      for (auto *use : to_decode) {
+        auto *user = use->getUser();
 
-      if (auto *cmp = dyn_cast<llvm::CmpInst>(user)) {
-        if (cmp->isEquality()) {
-          auto &lhs = cmp->getOperandUse(0);
-          auto &rhs = cmp->getOperandUse(1);
-          if (used_value_will_be_decoded(lhs, to_decode)
-              and used_value_will_be_decoded(rhs, to_decode)) {
-            trim_to_decode.insert(&lhs);
-            trim_to_decode.insert(&rhs);
+        if (auto *cmp = dyn_cast<llvm::CmpInst>(user)) {
+          if (cmp->isEquality()) {
+            auto &lhs = cmp->getOperandUse(0);
+            auto &rhs = cmp->getOperandUse(1);
+            if (used_value_will_be_decoded(lhs, to_decode)
+                and used_value_will_be_decoded(rhs, to_decode)) {
+              trim_to_decode.insert(&lhs);
+              trim_to_decode.insert(&rhs);
+            }
           }
         }
       }
-    }
 
-    // Trim uses that dont need to be encoded because they are produced by a
-    // use that needs decoded.
-    Set<llvm::Use *> trim_to_encode = {};
-    for (auto uses : { to_encode, to_addkey }) {
-      for (auto *use : uses) {
-        if (used_value_will_be_decoded(*use, to_decode)) {
-          trim_to_encode.insert(use);
-          trim_to_decode.insert(use);
+      // Trim uses that dont need to be encoded because they are produced by a
+      // use that needs decoded.
+      Set<llvm::Use *> trim_to_encode = {};
+      for (auto uses : { to_encode, to_addkey }) {
+        for (auto *use : uses) {
+          if (used_value_will_be_decoded(*use, to_decode)) {
+            trim_to_encode.insert(use);
+            trim_to_decode.insert(use);
+          }
         }
       }
-    }
 
-    // Erase the uses that we identified to trim.
-    for (auto *use_to_trim : trim_to_decode) {
-      to_decode.erase(use_to_trim);
-    }
-    for (auto *use_to_trim : trim_to_encode) {
-      to_encode.erase(use_to_trim);
-      to_addkey.erase(use_to_trim);
+      // Erase the uses that we identified to trim.
+      for (auto *use_to_trim : trim_to_decode) {
+        to_decode.erase(use_to_trim);
+      }
+      for (auto *use_to_trim : trim_to_encode) {
+        to_encode.erase(use_to_trim);
+        to_addkey.erase(use_to_trim);
+      }
     }
 
     {
       println("  AFTER TRIMMING:");
-      println("  USE TO ENCODE (", to_encode.size(), ")");
+      println("    USES TO ENCODE ", to_encode.size());
       for (auto *use : to_encode) {
         infoln(pretty_use(*use));
       }
 
-      println("  USE TO DECODE (", to_decode.size(), ")");
+      println("    USES TO DECODE ", to_decode.size());
       for (auto *use : to_decode) {
         infoln(pretty_use(*use));
       }
 
-      println("  USE TO ADDKEY (", to_addkey.size(), ")");
+      println("    USES TO ADDKEY ", to_addkey.size());
       for (auto *use : to_addkey) {
         infoln(pretty_use(*use));
       }
@@ -1641,22 +1653,15 @@ bool ProxyInsertion::transform() {
                                                 decoder_type);
 
     // Coalesce the values that have been encoded/decoded.
-    Vector<CoalescedUses> decoded = {};
-    Vector<CoalescedUses> encoded = {};
-    Vector<CoalescedUses> added = {};
-    coalesce(decoded,
-             encoded,
-             added,
-             to_decode,
-             to_encode,
-             to_addkey,
-             this->get_dominator_tree);
+    auto decoded = coalesce(to_decode, this->get_dominator_tree);
+    auto encoded = coalesce(to_encode, this->get_dominator_tree);
+    auto added = coalesce(to_addkey, this->get_dominator_tree);
 
     // Report the coalescing.
-    println("AFTER COALESCING:");
-    println(encoded.size(), " uses to encode");
-    println(decoded.size(), " uses to decode");
-    println(added.size(), " uses to addkey");
+    println("  AFTER COALESCING:");
+    println("    USES TO ENCODE ", encoded.size());
+    println("    USES TO DECODE ", decoded.size());
+    println("    USES TO ADDKEY ", added.size());
 
     // Create anon functions to encode/decode a value
     std::function<llvm::Value &(llvm::Value &)> get_encoder =
