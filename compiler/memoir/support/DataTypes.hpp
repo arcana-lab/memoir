@@ -31,6 +31,7 @@
 // LLVM Data types
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace llvm::memoir {
@@ -76,6 +77,24 @@ struct unwrap_ref<std::reference_wrapper<T>> {
 template <typename T>
 using unwrap_ref_type = typename unwrap_ref<T>::type;
 
+// Pair.
+template <typename T1, typename T2>
+using Pair = std::pair<T1, T2>;
+
+template <typename T1, typename T2>
+inline Pair<T1, T2> make_pair(T1 first, T2 second) {
+  return std::make_pair(first, second);
+}
+
+// Tuple
+template <typename... Ts>
+using Tuple = std::tuple<Ts...>;
+
+template <typename... Ts>
+inline Tuple<Ts...> make_tuple(Ts... args) {
+  return std::make_tuple<Ts...>(std::forward<Ts...>(args)...);
+}
+
 /*
  * Define the internal types used for debug vs release versions
  *
@@ -94,16 +113,18 @@ using Map = std::unordered_map<T, U, std::hash<unwrap_ref_type<T>>>;
 template <typename T, typename U>
 using OrderedMap = std::map<T, U, std::less<unwrap_ref_type<T>>>;
 
-#if DEBUG
 template <typename T>
+#if DEBUG
 using Set = std::set<T, std::less<unwrap_ref_type<T>>>;
 #else
-template <typename T>
 using Set = std::unordered_set<T, std::hash<unwrap_ref_type<T>>>;
 #endif
 
 template <typename T>
 using OrderedSet = std::set<T, std::less<unwrap_ref_type<T>>>;
+
+template <typename T, size_t N = 8, typename Cmp = std::less<T>>
+using SmallSet = llvm::SmallSet<T, N, Cmp>;
 
 #if DEBUG
 template <typename T, typename U>
@@ -155,6 +176,7 @@ using MultiSet = std::unordered_multiset<T, std::hash<unwrap_ref_type<T>>>;
 template <typename T>
 using OrderedMultiSet = std::multiset<T, std::less<unwrap_ref_type<T>>>;
 
+// Sequences.
 template <typename T>
 using Vector = std::vector<T>;
 
@@ -167,23 +189,8 @@ using Stack = std::stack<T>;
 template <typename T>
 using Queue = std::queue<T>;
 
-// Pair.
-template <typename T1, typename T2>
-using pair = std::pair<T1, T2>;
-
-template <typename T1, typename T2>
-inline pair<T1, T2> make_pair(T1 first, T2 second) {
-  return std::make_pair(first, second);
-}
-
-// Tuple
-template <typename... Ts>
-using tuple = std::tuple<Ts...>;
-
-template <typename... Ts>
-inline tuple<Ts...> make_tuple(Ts... args) {
-  return std::make_tuple<Ts...>(std::forward<Ts...>(args)...);
-}
+template <typename T>
+using SmallVector = llvm::SmallVector<T>;
 
 } // namespace llvm::memoir
 

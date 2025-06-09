@@ -9,7 +9,7 @@
 namespace llvm::memoir {
 
 // Inferred type
-using inferred_type = tuple<bool, Type *>;
+using InferredType = Tuple<bool, Type *>;
 
 /**
  * Type inference for a MEMOIR program.

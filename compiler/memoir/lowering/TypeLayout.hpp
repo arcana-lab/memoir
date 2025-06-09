@@ -39,7 +39,7 @@ public:
       llvm_type(llvm_type) {}
   TypeLayout(IntegerType &memoir_integer_type,
              llvm::IntegerType &llvm_integer_type,
-             Map<unsigned, pair<unsigned, unsigned>> bit_field_ranges)
+             Map<unsigned, Pair<unsigned, unsigned>> bit_field_ranges)
     : memoir_type(memoir_integer_type),
       llvm_type(llvm_integer_type),
       bit_field_ranges(bit_field_ranges) {}
@@ -52,7 +52,7 @@ public:
   TypeLayout(TupleType &memoir_struct_type,
              llvm::StructType &llvm_struct_type,
              Vector<unsigned> field_offsets,
-             Map<unsigned, pair<unsigned, unsigned>> bit_field_ranges)
+             Map<unsigned, Pair<unsigned, unsigned>> bit_field_ranges)
     : memoir_type(memoir_struct_type),
       llvm_type(llvm_struct_type),
       field_offsets(field_offsets),
@@ -80,7 +80,7 @@ public:
     return (this->bit_field_ranges.count(field_index) > 0);
   }
 
-  opt<pair<unsigned, unsigned>> get_bit_field_range(unsigned field_index) {
+  opt<Pair<unsigned, unsigned>> get_bit_field_range(unsigned field_index) {
     auto found_bit_field = this->bit_field_ranges.find(field_index);
 
     // If we found the field index, return its bit field range.
@@ -96,7 +96,7 @@ protected:
   Type &memoir_type;
   llvm::Type &llvm_type;
   Vector<unsigned> field_offsets;
-  Map<unsigned, pair<unsigned, unsigned>> bit_field_ranges;
+  Map<unsigned, Pair<unsigned, unsigned>> bit_field_ranges;
 }; // struct TypeLayout
 
 class TypeConverter : public TypeVisitor<TypeConverter, TypeLayout &> {
@@ -273,7 +273,7 @@ protected:
     field_offsets.resize(num_fields);
     Vector<llvm::Type *> llvm_field_types;
     llvm_field_types.reserve(num_fields);
-    Map<unsigned, pair<unsigned, unsigned>> bit_field_ranges = {};
+    Map<unsigned, Pair<unsigned, unsigned>> bit_field_ranges = {};
 
     // Get the type layout of each field.
     unsigned current_field_width = 0;

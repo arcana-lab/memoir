@@ -33,9 +33,9 @@ void TypeInference::type(llvm::Function &F, Type *type) {
 }
 
 // Inferred type
-using inferred_type = tuple<bool, Type *>;
+using InferredType = Tuple<bool, Type *>;
 
-static inferred_type argument_has_type_annotation(llvm::Argument &A) {
+static InferredType argument_has_type_annotation(llvm::Argument &A) {
 
   // Quickly check that the argument has pointer type.
   if (not isa<llvm::PointerType>(A.getType())) {
@@ -209,7 +209,7 @@ bool TypeInference::infer_argument_type(llvm::Argument &A) {
   return false;
 }
 
-static inferred_type function_has_return_type_annotation(llvm::Function &F) {
+static InferredType function_has_return_type_annotation(llvm::Function &F) {
   // Check the LLVM return type of the function.
   auto *return_type = F.getReturnType();
 
