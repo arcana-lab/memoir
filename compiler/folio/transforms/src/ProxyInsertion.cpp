@@ -1438,17 +1438,17 @@ static Map<llvm::Function *, Set<llvm::Value *>> gather_candidate_uses(
 static void print_uses(const Set<llvm::Use *> &to_encode,
                        const Set<llvm::Use *> &to_decode,
                        const Set<llvm::Use *> &to_addkey) {
-  println("    ", to_encode.size(), "USES TO ENCODE ");
+  println("    ", to_encode.size(), " USES TO ENCODE ");
   for (auto *use : to_encode) {
     infoln(pretty_use(*use));
   }
   infoln();
-  println("    ", to_decode.size(), "USES TO DECODE ");
+  println("    ", to_decode.size(), " USES TO DECODE ");
   for (auto *use : to_decode) {
     infoln(pretty_use(*use));
   }
   infoln();
-  println("    ", to_addkey.size(), "USES TO ADDKEY ");
+  println("    ", to_addkey.size(), " USES TO ADDKEY ");
   for (auto *use : to_addkey) {
     infoln(pretty_use(*use));
   }
