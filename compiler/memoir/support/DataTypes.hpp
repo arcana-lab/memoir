@@ -123,7 +123,7 @@ using Set = std::unordered_set<T, std::hash<unwrap_ref_type<T>>>;
 template <typename T>
 using OrderedSet = std::set<T, std::less<unwrap_ref_type<T>>>;
 
-template <typename T, size_t N = 8, typename Cmp = std::less<T>>
+template <typename T, unsigned N = 8, typename Cmp = std::less<T>>
 using SmallSet = llvm::SmallSet<T, N, Cmp>;
 
 #if DEBUG
@@ -136,6 +136,9 @@ using MultiMap = std::unordered_multimap<T, U>;
 
 template <typename T, typename U>
 using OrderedMultiMap = std::multimap<T, U>;
+
+template <typename T, typename U, unsigned N = 8>
+using SmallMap = llvm::SmallMapVector<T, U, N>;
 
 template <typename T, typename TT, typename U, typename UU>
 inline typename std::multimap<T, U>::iterator insert_unique(
