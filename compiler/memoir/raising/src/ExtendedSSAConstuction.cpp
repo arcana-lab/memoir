@@ -6,11 +6,11 @@
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/passes/Passes.hpp"
+#include "memoir/raising/ExtendedSSAConstruction.hpp"
+#include "memoir/raising/RepairSSA.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/DominatorUtils.hpp"
-
-#include "memoir/raising/ExtendedSSAConstruction.hpp"
 
 namespace llvm::memoir {
 
@@ -192,25 +192,9 @@ bool construct_extended_ssa(llvm::Function &F, llvm::DominatorTree &DT) {
     }
   }
 
-  // Check that all slots can be promotable.
-  Vector<llvm::AllocaInst *> to_promote = {};
-  for (auto *slot : slots) {
-    if (llvm::isAllocaPromotable(slot)) {
-      to_promote.push_back(slot);
-
-    } else {
-      warnln("Cannot promote alloca introduced by extended SSA ", *slot);
-    }
-  }
-
-  debugln("[Extended SSA] Before mem2reg:");
-  debugln(F);
-
-  // Promote all of the newly introduced stack slots to registers.
-  llvm::PromoteMemToReg(to_promote, DT);
-
-  debugln("[Extended SSA] After mem2reg:");
-  debugln(F);
+  // Repair SSA for the stack variables we introduced.
+  repair_ssa(slots,
+             [&DT](llvm::Function &F) -> llvm::DominatorTree & { return DT; });
 
   return true;
 }
