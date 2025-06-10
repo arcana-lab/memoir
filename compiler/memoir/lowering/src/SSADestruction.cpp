@@ -1351,7 +1351,7 @@ void SSADestructionVisitor::coalesce(llvm::Value &V, llvm::Value &replacement) {
   this->coalesced_values[&V] = &replacement;
 
   if (auto *inst = dyn_cast<llvm::Instruction>(&V)) {
-    if (auto *new_inst = dyn_cast<llvm::Instruction>(&V)) {
+    if (auto *new_inst = dyn_cast<llvm::Instruction>(&replacement)) {
       new_inst->cloneDebugInfoFrom(inst);
     }
   }
