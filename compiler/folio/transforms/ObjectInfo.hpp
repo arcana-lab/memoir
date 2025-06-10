@@ -8,10 +8,17 @@
 namespace folio {
 
 struct ObjectInfo {
+
+  template <typename T>
+  using LocalMap =
+      llvm::memoir::SmallMap<llvm::Value *, T, /* SmallSize = */ 2>;
+  template <typename T>
+  using ContextMap = llvm::memoir::Map<llvm::Function *, // Parent function.
+                                       LocalMap<T>>;
+
   llvm::memoir::AllocInst *allocation;
   llvm::memoir::Vector<unsigned> offsets;
-  llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<NestedObject>>
-      redefinitions;
+  ContextMap<llvm::memoir::Set<NestedObject>> redefinitions;
   llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>> encoded;
   llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>> to_encode;
   llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>> to_addkey;

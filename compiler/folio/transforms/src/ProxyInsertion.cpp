@@ -942,8 +942,7 @@ static llvm::Value &encode_use(
     }
   }
 
-  // In the common case, read the encoded value and update the use with
-  // it.
+  // In the common case, update the use with the encoded value.
   auto &encoded = encode_value(builder, *used);
 
   update_use(use, encoded);
@@ -1168,12 +1167,14 @@ bool is_total_proxy(ObjectInfo &info, const Vector<CoalescedUses> &added) {
 
   // Check that this value is never cleared or removed from.
   bool monotonic = true;
-  for (const auto &[func, redefs] : info.redefinitions) {
-    for (const auto &redef : redefs) {
-      auto *value = &redef.value();
-      if (into<RemoveInst>(value) or into<ClearInst>(value)) {
-        println("NO, keys are removed");
-        return false;
+  for (const auto &[func, base_to_redefs] : info.redefinitions) {
+    for (const auto &[base, redefs] : base_to_redefs) {
+      for (const auto &redef : redefs) {
+        auto *value = &redef.value();
+        if (into<RemoveInst>(value) or into<ClearInst>(value)) {
+          println("NO, keys are removed");
+          return false;
+        }
       }
     }
   }
@@ -1434,11 +1435,30 @@ static Map<llvm::Function *, Set<llvm::Value *>> gather_candidate_uses(
   return encoded;
 }
 
+static void print_uses(const Set<llvm::Use *> &to_encode,
+                       const Set<llvm::Use *> &to_decode,
+                       const Set<llvm::Use *> &to_addkey) {
+  println("    ", to_encode.size(), "USES TO ENCODE ");
+  for (auto *use : to_encode) {
+    infoln(pretty_use(*use));
+  }
+  infoln();
+  println("    ", to_decode.size(), "USES TO DECODE ");
+  for (auto *use : to_decode) {
+    infoln(pretty_use(*use));
+  }
+  infoln();
+  println("    ", to_addkey.size(), "USES TO ADDKEY ");
+  for (auto *use : to_addkey) {
+    infoln(pretty_use(*use));
+  }
+}
+
 bool ProxyInsertion::transform() {
 
   bool modified = false;
 
-  // Collect the set of redefinitions for each allocation involved.
+  // Transform the program for each candidate.
   for (auto candidates_it = this->candidates.begin();
        candidates_it != this->candidates.end();
        ++candidates_it) {
@@ -1483,22 +1503,8 @@ bool ProxyInsertion::transform() {
     auto encoded_values =
         gather_candidate_uses(candidate, to_decode, to_encode, to_addkey);
 
-    println();
     println("  FOUND USES");
-    println("    USES TO ENCODE ", to_encode.size());
-    for (auto *use : to_encode) {
-      infoln(pretty_use(*use));
-    }
-    println();
-    println("    USES TO DECODE ", to_decode.size());
-    for (auto *use : to_decode) {
-      infoln(pretty_use(*use));
-    }
-    println();
-    println("    USES TO ADDKEY ", to_addkey.size());
-    for (auto *use : to_addkey) {
-      infoln(pretty_use(*use));
-    }
+    print_uses(to_encode, to_decode, to_addkey);
 
     if (not disable_use_weakening) {
       // DISABLED: Use weakening works, but does not have any considerable
@@ -1556,23 +1562,8 @@ bool ProxyInsertion::transform() {
       }
     }
 
-    {
-      println("  AFTER TRIMMING:");
-      println("    USES TO ENCODE ", to_encode.size());
-      for (auto *use : to_encode) {
-        infoln(pretty_use(*use));
-      }
-
-      println("    USES TO DECODE ", to_decode.size());
-      for (auto *use : to_decode) {
-        infoln(pretty_use(*use));
-      }
-
-      println("    USES TO ADDKEY ", to_addkey.size());
-      for (auto *use : to_addkey) {
-        infoln(pretty_use(*use));
-      }
-    }
+    println("  TRIMMED USES:");
+    print_uses(to_encode, to_decode, to_addkey);
 
     // Find the construction point for the encoder and decoder.
     llvm::Instruction *construction_point = &alloc->getCallInst();
@@ -1624,9 +1615,11 @@ bool ProxyInsertion::transform() {
       decoder = &decoder_alloc->getCallInst();
     }
 
-    // TODO: replace this with the new SSA repair utility.
     // Make the proxy available at all uses.
-    Map<llvm::Function *, llvm::Instruction *> function_to_encoder = {};
+    // TODO: replace this with the new SSA repair utility.
+    Map<llvm::Function *, llvm::Instruction *> function_to_encoder = {
+      { NULL, encoder }
+    };
     if (build_encoder) {
       add_tempargs(function_to_encoder,
                    { to_encode, to_addkey },
@@ -1635,7 +1628,9 @@ bool ProxyInsertion::transform() {
                    "encoder.");
     }
 
-    Map<llvm::Function *, llvm::Instruction *> function_to_decoder = {};
+    Map<llvm::Function *, llvm::Instruction *> function_to_decoder = {
+      { NULL, decoder }
+    };
     if (build_decoder) {
       add_tempargs(function_to_decoder,
                    { to_decode, to_addkey },
@@ -1682,6 +1677,7 @@ bool ProxyInsertion::transform() {
         }
       }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
+
       auto *decoder = function_to_decoder.at(function);
       return builder.CreateReadInst(key_type, decoder, { &value })->asValue();
     };
@@ -1695,6 +1691,7 @@ bool ProxyInsertion::transform() {
         }
       }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
+
       auto *encoder = function_to_encoder.at(function);
       return builder.CreateReadInst(size_type, encoder, &value)->asValue();
     };

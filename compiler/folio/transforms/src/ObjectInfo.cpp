@@ -1,3 +1,4 @@
+#include "folio/transforms/Context.hpp"
 #include "folio/transforms/ProxyInsertion.hpp"
 #include "folio/transforms/Utilities.hpp"
 
@@ -6,6 +7,16 @@ using namespace llvm::memoir;
 namespace folio {
 
 // ================
+static void update_values(llvm::ValueToValueMapTy &vmap,
+                          Set<llvm::Value *> &input,
+                          Set<llvm::Value *> &output) {
+  for (auto *val : input) {
+    auto *clone = &*vmap[val];
+
+    output.insert(clone);
+  }
+}
+
 static void update_values(llvm::ValueToValueMapTy &vmap,
                           Set<NestedObject> &input,
                           Set<NestedObject> &output) {
@@ -16,13 +27,13 @@ static void update_values(llvm::ValueToValueMapTy &vmap,
   }
 }
 
+template <typename T>
 static void update_values(llvm::ValueToValueMapTy &vmap,
-                          Set<llvm::Value *> &input,
-                          Set<llvm::Value *> &output) {
-  for (auto *val : input) {
-    auto *clone = &*vmap[val];
-
-    output.insert(clone);
+                          ObjectInfo::LocalMap<T> &input,
+                          ObjectInfo::LocalMap<T> &output) {
+  for (auto &[base, redefs] : input) {
+    auto *clone = &*vmap[base];
+    update_values(vmap, redefs, output[clone]);
   }
 }
 
@@ -37,10 +48,6 @@ static void update_uses(Map<llvm::Function *, Set<llvm::Use *>> &uses,
     auto &old_uses = uses[&old_func];
     auto &new_uses = uses[&new_func];
 
-    if (delete_old) {
-      uses.erase(&old_func);
-    }
-
     for (auto *use : old_uses) {
       auto *user = dyn_cast<llvm::Instruction>(use->getUser());
       auto *clone = dyn_cast<llvm::Instruction>(&*vmap[user]);
@@ -48,6 +55,10 @@ static void update_uses(Map<llvm::Function *, Set<llvm::Use *>> &uses,
       auto &clone_use = clone->getOperandUse(use->getOperandNo());
 
       new_uses.insert(&clone_use);
+    }
+
+    if (delete_old) {
+      uses.erase(&old_func);
     }
   }
 }
@@ -112,7 +123,6 @@ uint32_t ObjectInfo::compute_heuristic(const ObjectInfo &other) const {
 
   for (const auto &[func, encoded] : merged) {
     for (const auto *value : encoded) {
-
       for (auto &use_to_decode : value->uses()) {
 
         auto *user = use_to_decode.getUser();
@@ -136,17 +146,19 @@ uint32_t ObjectInfo::compute_heuristic(const ObjectInfo &other) const {
         if (other.encoded.count(func)) {
           auto *cmp = dyn_cast<llvm::CmpInst>(user);
           if (cmp and cmp->isEquality()) {
-            if (other.encoded.at(func).count(cmp->getOperand(0))) {
+            if (encoded.count(cmp->getOperand(0))) {
               ++benefit;
-            } else if (other.encoded.at(func).count(cmp->getOperand(1))) {
+            } else if (encoded.count(cmp->getOperand(1))) {
               ++benefit;
             }
+
           } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
             bool all_decode = true;
             for (auto &incoming : phi->incoming_values()) {
               if (incoming == use_to_decode) {
                 continue;
               }
+
               if (other.encoded.at(func).count(incoming.get()) == 0) {
                 all_decode = false;
               }
@@ -165,25 +177,28 @@ uint32_t ObjectInfo::compute_heuristic(const ObjectInfo &other) const {
 }
 
 bool ObjectInfo::is_redefinition(llvm::Value &V) const {
-  for (const auto &[func, redefs] : this->redefinitions) {
-    for (const auto &redef : redefs) {
-      if (&redef.value() == &V) {
-        return true;
+  for (const auto &[func, base_to_redefs] : this->redefinitions) {
+    for (const auto &[base, redefs] : base_to_redefs) {
+      for (const auto &redef : redefs) {
+        if (&redef.value() == &V) {
+          return true;
+        }
       }
     }
   }
+
   return false;
 }
 
 static void gather_redefinitions(
     const NestedObject &obj,
-    Map<llvm::Function *, Set<NestedObject>> &redefinitions,
-    llvm::ArrayRef<unsigned> base_offset) {
+    ObjectInfo::ContextMap<Set<NestedObject>> &redefinitions,
+    const NestedObject &base) {
 
   auto *function = parent_function(obj.value());
   MEMOIR_ASSERT(function, "Unknown parent function for redefinition.");
 
-  auto &local_redefs = redefinitions[function];
+  auto &local_redefs = redefinitions[function][&base.value()];
 
   if (local_redefs.contains(obj)) {
     return;
@@ -198,17 +213,17 @@ static void gather_redefinitions(
 
     // Recurse on redefinitions.
     if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-      gather_redefinitions(user_obj, redefinitions, base_offset);
+      gather_redefinitions(user_obj, redefinitions, base);
     } else if (auto *memoir_inst = into<MemOIRInst>(user)) {
       if (auto *update = dyn_cast<UpdateInst>(memoir_inst)) {
         if (&use == &update->getObjectAsUse()) {
-          gather_redefinitions(user_obj, redefinitions, base_offset);
+          gather_redefinitions(user_obj, redefinitions, base);
         }
 
       } else if (isa<RetPHIInst>(memoir_inst) or isa<UsePHIInst>(memoir_inst)) {
 
         // Recurse on redefinitions.
-        gather_redefinitions(user_obj, redefinitions, base_offset);
+        gather_redefinitions(user_obj, redefinitions, base);
       }
 
       // Gather variable if folded on, or recurse on closed argument.
@@ -216,15 +231,16 @@ static void gather_redefinitions(
 
         if (&use == &fold->getInitialAsUse()) {
           // Gather uses of the accumulator argument.
-          gather_redefinitions(
-              NestedObject(fold->getAccumulatorArgument(), obj.offsets()),
-              redefinitions,
-              base_offset);
+          auto &accum = fold->getAccumulatorArgument();
+          gather_redefinitions(NestedObject(accum, obj.offsets()),
+                               redefinitions,
+                               NestedObject(accum, base.offsets()));
 
           // Gather uses of the resultant.
-          gather_redefinitions(NestedObject(fold->getResult(), obj.offsets()),
+          auto &result = fold->getResult();
+          gather_redefinitions(NestedObject(result, obj.offsets()),
                                redefinitions,
-                               base_offset);
+                               base);
 
         } else if (&use == &fold->getObjectAsUse()) {
 
@@ -233,7 +249,7 @@ static void gather_redefinitions(
           if (elem_arg and Type::value_is_object(*elem_arg)) {
 
             // Try to match the access indices against the offsets.
-            auto maybe_distance = fold->match_offsets(base_offset);
+            auto maybe_distance = fold->match_offsets(base.offsets());
             if (not maybe_distance) {
               continue;
             }
@@ -241,14 +257,14 @@ static void gather_redefinitions(
 
             // If the offsets are not fully exhausted, recurse on the value
             // argument.
-            if (distance < base_offset.size()) {
+            if (distance < base.offsets().size()) {
 
               // Construct the nested offsets.
               Vector<unsigned> nested_offsets(obj.offsets().begin(),
                                               obj.offsets().end());
 
               // Append the new offsets from the base.
-              auto new_offset = base_offset.take_front(distance + 1);
+              auto new_offset = base.offsets().take_front(distance + 1);
               nested_offsets.insert(nested_offsets.end(),
                                     new_offset.begin(),
                                     new_offset.end());
@@ -256,7 +272,7 @@ static void gather_redefinitions(
               // Recurse.
               gather_redefinitions(NestedObject(*elem_arg, nested_offsets),
                                    redefinitions,
-                                   base_offset);
+                                   NestedObject(*elem_arg, base.offsets()));
             }
           }
 
@@ -264,7 +280,7 @@ static void gather_redefinitions(
           // Gather uses of the closed argument.
           gather_redefinitions(NestedObject(*closed_arg, obj.offsets()),
                                redefinitions,
-                               base_offset);
+                               NestedObject(*closed_arg, base.offsets()));
         }
       }
     } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
@@ -278,7 +294,7 @@ static void gather_redefinitions(
 
       gather_redefinitions(NestedObject(arg, obj.offsets()),
                            redefinitions,
-                           base_offset);
+                           NestedObject(arg, base.offsets()));
     }
   }
 
@@ -286,10 +302,12 @@ static void gather_redefinitions(
 }
 
 static void gather_redefinitions(
+    ObjectInfo::ContextMap<Set<NestedObject>> &redefinitions,
     llvm::Value &value,
-    Map<llvm::Function *, Set<NestedObject>> &redefinitions,
     llvm::ArrayRef<unsigned> base_offset) {
-  gather_redefinitions(NestedObject(value), redefinitions, base_offset);
+  gather_redefinitions(NestedObject(value),
+                       redefinitions,
+                       NestedObject(value, base_offset));
 }
 
 static llvm::Use *get_use_at_offset(llvm::User::op_iterator index_begin,
@@ -550,9 +568,9 @@ void ObjectInfo::analyze() {
   println();
   println("ANALYZING ", *this);
 
-  gather_redefinitions(this->allocation->asValue(),
-                       this->redefinitions,
-                       this->offsets);
+  auto &alloc = this->allocation->asValue();
+
+  gather_redefinitions(this->redefinitions, alloc, this->offsets);
 
   bool is_propagator = this->is_propagator();
 
@@ -560,30 +578,37 @@ void ObjectInfo::analyze() {
 
   llvm::ArrayRef<unsigned> offsets(this->offsets);
 
-  for (const auto &[func, redefs] : this->redefinitions) {
-    for (const auto &redef : redefs) {
-      println("  ", redef);
+  for (const auto &[func, base_to_redefs] : this->redefinitions) {
 
-      if (is_propagator) {
-        gather_uses_to_propagate(redef.value(),
-                                 offsets.drop_front(redef.offsets().size()),
-                                 this->encoded,
-                                 this->to_encode,
-                                 this->to_addkey);
-      } else {
-        gather_uses_to_proxy(redef.value(),
-                             offsets.drop_front(redef.offsets().size()),
-                             this->encoded,
-                             this->to_encode,
-                             this->to_addkey);
+    for (const auto &[base, redefs] : base_to_redefs) {
+      println("REDEFS(", *base, ")");
+
+      for (const auto &redef : redefs) {
+        println("  ", redef);
+
+        if (is_propagator) {
+          gather_uses_to_propagate(redef.value(),
+                                   offsets.drop_front(redef.offsets().size()),
+                                   this->encoded,
+                                   this->to_encode,
+                                   this->to_addkey);
+        } else {
+          gather_uses_to_proxy(redef.value(),
+                               offsets.drop_front(redef.offsets().size()),
+                               this->encoded,
+                               this->to_encode,
+                               this->to_addkey);
+        }
       }
     }
   }
 
-  for (const auto &[func, redefs] : this->redefinitions) {
-    infoln("IN ", func->getName());
-    for (const auto &redef : redefs) {
-      infoln("  REDEF ", redef);
+  for (const auto &[func, base_to_redefs] : this->redefinitions) {
+    for (const auto &[base, redefs] : base_to_redefs) {
+      infoln("IN ", func->getName());
+      for (const auto &redef : redefs) {
+        infoln("  REDEF ", redef);
+      }
     }
   }
 

@@ -86,10 +86,12 @@ void weaken_uses(Set<llvm::Use *> &to_addkey,
   // Create a reverse mapping from redefinition to ObjectInfo(s).
   Map<llvm::Value *, Set<ObjectInfo *>> redef_to_infos = {};
   for (auto *info : candidate) {
-    for (const auto &[func, redefs] : info->redefinitions) {
-      for (const auto &redef : redefs) {
-        if (local_uses.count(func)) {
-          redef_to_infos[&redef.value()].insert(info);
+    for (const auto &[func, base_to_redefs] : info->redefinitions) {
+      for (const auto &[base, redefs] : base_to_redefs) {
+        for (const auto &redef : redefs) {
+          if (local_uses.count(func)) {
+            redef_to_infos[&redef.value()].insert(info);
+          }
         }
       }
     }
