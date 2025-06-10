@@ -17,6 +17,8 @@ struct Context {
     return this->_call;
   }
 
+  Context(llvm::Function &func, llvm::CallBase *caller = NULL)
+    : Context(&func, caller) {}
   Context(llvm::Function &func, llvm::CallBase &caller)
     : Context(&func, &caller) {}
   Context(llvm::Function &func) : Context(&func, NULL) {}
@@ -27,6 +29,14 @@ struct Context {
 
   friend bool operator==(const Context &a, const Context &b) {
     return (a._func == b._func) and (a._call == b._call);
+  }
+
+  friend bool operator<(const Context &ctx, const llvm::Function &func) {
+    return (ctx._func < &func) and (ctx._call != NULL);
+  }
+
+  friend bool operator==(const Context &ctx, const llvm::Function &func) {
+    return (ctx._func == &func) and (ctx._call == NULL);
   }
 
 protected:
