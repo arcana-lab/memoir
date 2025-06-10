@@ -469,22 +469,11 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
     emit_collection(os, *inst, collections_declared, tuples_declared);
   }
 
-  // // Emit the struct access functions.
-  // fprintln(os);
-  // fprintln(os);
-  // fprintln(os, "// Definition of struct types.");
-  // for (const auto &[tuple_type, fields] : this->structs_to_emit) {
-  //   if (defined.count(tuple_type)) {
-  //     continue;
-  //   }
-  //   define_tuple(os, *tuple_type, fields);
-  // }
-
   // Instantiate the collections.
   fprintln(os);
   fprintln(os);
   fprintln(os, "// Collection access functions.");
-  for (const auto *instantiation : this->collections_to_emit) {
+  for (const auto *instantiation : collections_declared) {
     include_collection_file(os, *instantiation, "instantiation.h");
   }
 
