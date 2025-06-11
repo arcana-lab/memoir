@@ -230,20 +230,6 @@ llvmGetPassPluginInfo() {
                    return false;
                  });
 
-             // Register module transformation passes.
-             PB.registerPipelineParsingCallback(
-                 [](llvm::StringRef name,
-                    llvm::FunctionPassManager &FPM,
-                    llvm::ArrayRef<llvm::PassBuilder::PipelineElement>) {
-#define FUNCTION_PASS(CLASS, NAME)                                             \
-  if (name == NAME) {                                                          \
-    FPM.addPass(CLASS());                                                      \
-    return true;                                                               \
-  }
-#include "memoir/passes/Passes.def"
-                   return false;
-                 });
-
              // Register module analyses.
              PB.registerAnalysisRegistrationCallback(
                  [](llvm::ModuleAnalysisManager &MAM) {
