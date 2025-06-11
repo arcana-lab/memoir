@@ -1,9 +1,13 @@
 #ifndef FOLIO_TRANSFORMS_OBJECTINFO_H
 #define FOLIO_TRANSFORMS_OBJECTINFO_H
 
+#include "llvm/Transforms/Utils/ValueMapper.h"
+
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/DataTypes.hpp"
+
+#include "folio/transforms/NestedObject.hpp"
 
 namespace folio {
 
@@ -22,6 +26,9 @@ struct ObjectInfo {
   llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>> encoded;
   llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>> to_encode;
   llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>> to_addkey;
+  llvm::memoir::Map<llvm::Value *, llvm::memoir::Set<llvm::Value *>>
+      base_to_values;
+  llvm::memoir::Map<llvm::Value *, llvm::memoir::Set<llvm::Use *>> base_to_uses;
 
   ObjectInfo(llvm::memoir::AllocInst &alloc, llvm::ArrayRef<unsigned> offsets)
     : allocation(&alloc),

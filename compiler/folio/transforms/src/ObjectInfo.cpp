@@ -360,7 +360,9 @@ static void gather_uses_to_proxy(
     llvm::ArrayRef<unsigned> offsets,
     Map<llvm::Function *, Set<llvm::Value *>> &encoded,
     Map<llvm::Function *, Set<llvm::Use *>> &to_encode,
-    Map<llvm::Function *, Set<llvm::Use *>> &to_addkey) {
+    Map<llvm::Function *, Set<llvm::Use *>> &to_addkey,
+    Set<llvm::Value *> &values_gathered,
+    Set<llvm::Use *> &uses_gathered) {
 
   infoln("REDEF ", V, " IN ", parent_function(V)->getName());
 
@@ -394,12 +396,14 @@ static void gather_uses_to_proxy(
             if (is_last_index(index_use, access->index_operands_end())) {
               infoln("    ADDING KEY ", *index_use->get());
               to_addkey[function].insert(index_use);
+              uses_gathered.insert(index_use);
               continue;
             }
           }
 
           infoln("    ENCODING KEY ", *index_use->get());
           to_encode[function].insert(index_use);
+          uses_gathered.insert(index_use);
           continue;
         }
 
@@ -414,6 +418,7 @@ static void gather_uses_to_proxy(
                    " IN ",
                    fold->getBody().getName());
             encoded[&fold->getBody()].insert(&index_arg);
+            values_gathered.insert(&index_arg);
             continue;
           }
 
@@ -426,7 +431,9 @@ static void gather_uses_to_proxy(
                                    offsets.drop_front(distance + 1),
                                    encoded,
                                    to_encode,
-                                   to_addkey);
+                                   to_addkey,
+                                   values_gathered,
+                                   uses_gathered);
             }
           }
         }
@@ -441,6 +448,7 @@ static void gather_uses_to_proxy(
                                                   offsets)) {
             infoln("    ENCODING KEY ", *index_use->get());
             to_encode[function].insert(index_use);
+            uses_gathered.insert(index_use);
             continue;
           }
         }
@@ -453,7 +461,9 @@ static void gather_uses_to_proxy(
                                offsets,
                                encoded,
                                to_encode,
-                               to_addkey);
+                               to_addkey,
+                               values_gathered,
+                               uses_gathered);
         }
       }
     }
@@ -467,7 +477,9 @@ static void gather_uses_to_propagate(
     llvm::ArrayRef<unsigned> offsets,
     Map<llvm::Function *, Set<llvm::Value *>> &encoded,
     Map<llvm::Function *, Set<llvm::Use *>> &to_encode,
-    Map<llvm::Function *, Set<llvm::Use *>> &to_addkey) {
+    Map<llvm::Function *, Set<llvm::Use *>> &to_addkey,
+    Set<llvm::Value *> &values_gathered,
+    Set<llvm::Use *> &uses_gathered) {
 
   infoln("REDEF ", V, " IN ", parent_function(V)->getName());
 
@@ -512,6 +524,7 @@ static void gather_uses_to_propagate(
           if (auto *elem_arg = fold->getElementArgument()) {
             infoln("    DECODING ELEM");
             encoded[&fold->getBody()].insert(elem_arg);
+            values_gathered.insert(elem_arg);
           }
         }
 
@@ -527,14 +540,18 @@ static void gather_uses_to_propagate(
                                      offsets.drop_front(distance + 1),
                                      encoded,
                                      to_encode,
-                                     to_addkey);
+                                     to_addkey,
+                                     values_gathered,
+                                     uses_gathered);
           }
         }
 
       } else if (auto *read = dyn_cast<ReadInst>(access)) {
         if (distance == offsets.size()) {
           infoln("    DECODING ELEM ");
-          encoded[function].insert(&read->asValue());
+          auto &value = read->asValue();
+          encoded[function].insert(&value);
+          values_gathered.insert(&value);
         }
 
       } else if (auto *update = dyn_cast<UpdateInst>(access)) {
@@ -542,14 +559,18 @@ static void gather_uses_to_propagate(
         if (auto *write = dyn_cast<WriteInst>(access)) {
           if (distance == offsets.size()) {
             infoln("    ADDKEY ");
-            to_addkey[function].insert(&write->getValueWrittenAsUse());
+            auto &val_use = write->getValueWrittenAsUse();
+            to_addkey[function].insert(&val_use);
+            uses_gathered.insert(&val_use);
           }
 
         } else if (auto *insert = dyn_cast<InsertInst>(access)) {
           if (auto value_kw = insert->get_keyword<ValueKeyword>()) {
             if (distance == offsets.size()) {
               infoln("    ADDKEY ");
-              to_addkey[function].insert(&value_kw->getValueAsUse());
+              auto &val_use = value_kw->getValueAsUse();
+              to_addkey[function].insert(&val_use);
+              uses_gathered.insert(&val_use);
             }
           }
         }
@@ -591,13 +612,17 @@ void ObjectInfo::analyze() {
                                    offsets.drop_front(redef.offsets().size()),
                                    this->encoded,
                                    this->to_encode,
-                                   this->to_addkey);
+                                   this->to_addkey,
+                                   this->base_to_values[base],
+                                   this->base_to_uses[base]);
         } else {
           gather_uses_to_proxy(redef.value(),
                                offsets.drop_front(redef.offsets().size()),
                                this->encoded,
                                this->to_encode,
-                               this->to_addkey);
+                               this->to_addkey,
+                               this->base_to_values[base],
+                               this->base_to_uses[base]);
         }
       }
     }

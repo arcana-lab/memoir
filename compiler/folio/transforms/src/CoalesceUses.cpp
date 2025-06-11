@@ -99,7 +99,7 @@ static void sort_in_level_order(Vector<llvm::Use *> &uses,
 static void coalesce_by_dominance(
     Vector<CoalescedUses> &coalesced,
     GroupedUses &grouped,
-    ProxyInsertion::GetDominatorTree get_dominator_tree) {
+    std::function<llvm::DominatorTree &(llvm::Function &)> get_dominator_tree) {
 
   for (auto &[func, locals] : grouped) {
 
@@ -175,17 +175,13 @@ static void coalesce_by_dominance(
   return;
 }
 
-Vector<CoalescedUses> coalesce(
+void coalesce(
+    Vector<CoalescedUses> &coalesced,
     const Set<llvm::Use *> &uses,
-    ProxyInsertion::GetDominatorTree get_dominator_tree) {
-
-  Vector<CoalescedUses> coalesced = {};
-
+    std::function<llvm::DominatorTree &(llvm::Function &)> get_dominator_tree) {
   auto grouped = groupby_function_and_used(uses);
 
   coalesce_by_dominance(coalesced, grouped, get_dominator_tree);
-
-  return coalesced;
 }
 
 } // namespace folio

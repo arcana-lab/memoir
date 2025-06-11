@@ -11,12 +11,10 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-#include "folio/transforms/NestedObject.hpp"
+#include "folio/transforms/Candidate.hpp"
 #include "folio/transforms/ObjectInfo.hpp"
 
 namespace folio {
-
-using Candidate = llvm::memoir::Vector<ObjectInfo *>;
 
 struct ProxyInsertion {
 public:
@@ -30,6 +28,8 @@ public:
                  GetBoundsChecks get_bounds_checks);
 
   void analyze();
+
+  void prepare();
 
   bool transform();
 

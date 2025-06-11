@@ -2,6 +2,8 @@
 #define FOLIO_TRANSFORMS_COALESCEUSES_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -9,8 +11,6 @@
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
-
-#include "folio/transforms/ProxyInsertion.hpp"
 
 namespace folio {
 
@@ -38,9 +38,10 @@ public:
                                        const CoalescedUses &uses);
 };
 
-llvm::memoir::Vector<CoalescedUses> coalesce(
+void coalesce(
+    llvm::memoir::Vector<CoalescedUses> &coalesced,
     const llvm::memoir::Set<llvm::Use *> &uses,
-    ProxyInsertion::GetDominatorTree get_dominator_tree);
+    std::function<llvm::DominatorTree &(llvm::Function &)> get_dominator_tree);
 
 } // namespace folio
 
