@@ -10,7 +10,6 @@
 #include "memoir/raising/RepairSSA.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
-#include "memoir/support/DominatorUtils.hpp"
 
 namespace llvm::memoir {
 
