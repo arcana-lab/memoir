@@ -874,24 +874,16 @@ bool ProxyInsertion::transform() {
 
   bool modified = false;
 
-  // Optimize the uses in each candidate.
-  for (auto &candidate : this->candidates) {
-    infoln("OPTIMIZING ", candidate);
-    candidate.optimize(this->get_dominator_tree, this->get_bounds_checks);
-  }
-
-  // Prepare the program for transformation.
-  this->prepare();
-
   // Transform the program for each candidate.
   for (auto candidates_it = this->candidates.begin();
        candidates_it != this->candidates.end();
        ++candidates_it) {
+
+    // If we found a candidate, then the program will be modified.
     modified |= true;
 
+    // Unpack the candidate.
     auto &candidate = *candidates_it;
-
-    // Unpack the candidate uses.
     auto &encoded = candidate.encoded;
     auto &decoded = candidate.decoded;
     auto &added = candidate.added;
@@ -918,8 +910,8 @@ bool ProxyInsertion::transform() {
     auto size_type_bitwidth = size_type.getBitWidth();
 
     // Determine which proxies we need.
-    bool build_encoder = encoded.size() > 0 or added.size() > 0;
-    bool build_decoder = decoded.size() > 0;
+    bool build_encoder = candidate.build_encoder();
+    bool build_decoder = candidate.build_decoder();
 
     // Allocate the encoder.
     llvm::Instruction *encoder = nullptr;
@@ -929,6 +921,9 @@ bool ProxyInsertion::transform() {
       auto *encoder_alloc =
           builder.CreateAllocInst(*encoder_type, {}, "proxy.encode.");
       encoder = &encoder_alloc->getCallInst();
+
+      // Store the allocation to the relevant global.
+      builder.CreateStore(encoder, &candidate.encoder.global());
     }
 
     // Allocate the decoder.
@@ -940,30 +935,9 @@ bool ProxyInsertion::transform() {
                                                     { builder.getInt64(0) },
                                                     "proxy.decode.");
       decoder = &decoder_alloc->getCallInst();
-    }
 
-    // Make the proxy available at all uses.
-    // TODO: replace this with the new SSA repair utility.
-    Map<llvm::Function *, llvm::Instruction *> function_to_encoder = {
-      { NULL, encoder }
-    };
-    if (build_encoder) {
-      add_tempargs(function_to_encoder,
-                   { encoded, added },
-                   *encoder,
-                   *encoder_type,
-                   "encoder.");
-    }
-
-    Map<llvm::Function *, llvm::Instruction *> function_to_decoder = {
-      { NULL, decoder }
-    };
-    if (build_decoder) {
-      add_tempargs(function_to_decoder,
-                   { decoded, added },
-                   *decoder,
-                   *decoder_type,
-                   "decoder.");
+      // Store the allocation to the relevant global.
+      builder.CreateStore(decoder, &candidate.decoder.global());
     }
 
     // Create the addkey function.
@@ -977,11 +951,12 @@ bool ProxyInsertion::transform() {
     // Create anon functions to encode/decode a value
     std::function<llvm::Value &(llvm::Value &)> get_encoder =
         [&](llvm::Value &value) -> llvm::Value & {
-      auto *function = parent_function(value);
-      MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
-      return MEMOIR_SANITIZE(function_to_encoder[function],
+      auto &function = MEMOIR_SANITIZE(parent_function(value),
+                                       "Failed to find parent function for ",
+                                       value);
+      return MEMOIR_SANITIZE(candidate.encoder.local(function),
                              "Failed to find encoder in ",
-                             function->getName());
+                             function.getName());
     };
 
     std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> decode_value =
@@ -994,7 +969,7 @@ bool ProxyInsertion::transform() {
       }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
 
-      auto *decoder = function_to_decoder.at(function);
+      auto *decoder = candidate.decoder.local(*function);
       return builder.CreateReadInst(key_type, decoder, { &value })->asValue();
     };
 
@@ -1008,7 +983,7 @@ bool ProxyInsertion::transform() {
       }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
 
-      auto *encoder = function_to_encoder.at(function);
+      auto *encoder = candidate.encoder.local(*function);
       return builder.CreateReadInst(size_type, encoder, &value)->asValue();
     };
 
@@ -1021,13 +996,14 @@ bool ProxyInsertion::transform() {
         }
       }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
+
       Vector<llvm::Value *> args = { &value };
       if (build_encoder) {
-        auto *encoder = function_to_encoder.at(function);
+        auto *encoder = candidate.encoder.local(*function);
         args.push_back(encoder);
       }
       if (build_decoder) {
-        auto *decoder = function_to_decoder.at(function);
+        auto *decoder = candidate.decoder.local(*function);
         args.push_back(decoder);
       }
       return MEMOIR_SANITIZE(builder.CreateCall(addkey_callee, args),
