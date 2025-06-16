@@ -110,18 +110,18 @@ using Map = std::map<T, U, std::less<unwrap_ref_type<T>>>;
 using Map = std::unordered_map<T, U, std::hash<unwrap_ref_type<T>>>;
 #endif
 
-template <typename T, typename U>
-using OrderedMap = std::map<T, U, std::less<unwrap_ref_type<T>>>;
+template <typename T, typename U, typename Cmp = std::less<T>>
+using OrderedMap = std::map<T, U, Cmp>;
 
 template <typename T>
 #if DEBUG
-using Set = std::set<T, std::less<unwrap_ref_type<T>>>;
+using Set = std::set<T, std::less<T>>;
 #else
 using Set = std::unordered_set<T, std::hash<unwrap_ref_type<T>>>;
 #endif
 
-template <typename T>
-using OrderedSet = std::set<T, std::less<unwrap_ref_type<T>>>;
+template <typename T, typename Cmp = std::less<T>>
+using OrderedSet = std::set<T, Cmp>;
 
 template <typename T, unsigned N = 8, typename Cmp = std::less<T>>
 using SmallSet = llvm::SmallSet<T, N, Cmp>;
@@ -134,8 +134,8 @@ template <typename T, typename U>
 using MultiMap = std::unordered_multimap<T, U>;
 #endif
 
-template <typename T, typename U>
-using OrderedMultiMap = std::multimap<T, U>;
+template <typename T, typename U, typename Cmp = std::less<T>>
+using OrderedMultiMap = std::multimap<T, U, Cmp>;
 
 template <typename T, typename U, unsigned N = 8>
 using SmallMap = llvm::SmallMapVector<T, U, N>;
