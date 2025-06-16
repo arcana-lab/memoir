@@ -883,8 +883,6 @@ bool ProxyInsertion::transform() {
   // Prepare the program for transformation.
   this->prepare();
 
-  println(this->M);
-
   // Transform the program for each candidate.
   for (auto candidates_it = this->candidates.begin();
        candidates_it != this->candidates.end();
@@ -913,6 +911,7 @@ bool ProxyInsertion::transform() {
     // Allocate the proxy.
     MemOIRBuilder builder(&construction_point);
 
+    // Fetch type information.
     auto &key_type = candidate.key_type();
     auto &size_type = Type::get_size_type(data_layout);
     auto &llvm_size_type = *size_type.get_llvm_type(context);
