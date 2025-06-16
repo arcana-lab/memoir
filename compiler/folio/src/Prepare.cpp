@@ -1,8 +1,8 @@
 #include "memoir/ir/Builder.hpp"
 
-#include "folio/transforms/ProxyInsertion.hpp"
-#include "folio/transforms/Utilities.hpp"
-#include "folio/transforms/Version.hpp"
+#include "folio/ProxyInsertion.hpp"
+#include "folio/Utilities.hpp"
+#include "folio/Version.hpp"
 
 using namespace llvm::memoir;
 

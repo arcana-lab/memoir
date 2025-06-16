@@ -7,9 +7,9 @@
 #include "memoir/lowering/Implementation.hpp"
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
 
-#include "folio/transforms/CoalesceUses.hpp"
-#include "folio/transforms/ProxyInsertion.hpp"
-#include "folio/transforms/Utilities.hpp"
+#include "folio/CoalesceUses.hpp"
+#include "folio/ProxyInsertion.hpp"
+#include "folio/Utilities.hpp"
 
 using namespace llvm::memoir;
 

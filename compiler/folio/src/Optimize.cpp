@@ -1,4 +1,4 @@
-#include "folio/transforms/ProxyInsertion.hpp"
+#include "folio/ProxyInsertion.hpp"
 
 using namespace llvm::memoir;
 

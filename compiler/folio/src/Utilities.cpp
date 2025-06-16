@@ -5,7 +5,7 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/WorkList.hpp"
 
-#include "folio/transforms/Utilities.hpp"
+#include "folio/Utilities.hpp"
 
 using namespace llvm::memoir;
 

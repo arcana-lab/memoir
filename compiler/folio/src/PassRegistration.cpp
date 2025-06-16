@@ -7,12 +7,7 @@
 #include "memoir/passes/Passes.hpp"
 
 // Folio
-#include "folio/pass/Pass.hpp"
-
-// #include "folio/analysis/ConstraintInference.hpp"
-// #include "folio/analysis/ContentAnalysis.hpp"
-
-// #include "folio/opportunities/Analysis.hpp"
+#include "folio/Pass.hpp"
 
 using namespace folio;
 
@@ -73,7 +68,7 @@ llvmGetPassPluginInfo() {
                    // #define OPPORTUNITY(CLASS) \
 //   MAM.registerPass([&] { return folio::CLASS##Analysis();
                    //   });
-                   // #include "folio/opportunities/Opportunities.def"
+                   // #include "folio/Opportunities.def"
                  });
 
              // Register function analyses.

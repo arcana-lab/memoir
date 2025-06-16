@@ -11,8 +11,8 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-#include "folio/transforms/Candidate.hpp"
-#include "folio/transforms/ObjectInfo.hpp"
+#include "folio/Candidate.hpp"
+#include "folio/ObjectInfo.hpp"
 
 namespace folio {
 

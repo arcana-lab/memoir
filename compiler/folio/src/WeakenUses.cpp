@@ -7,8 +7,8 @@
 #include "memoir/support/SortedVector.hpp"
 #include "memoir/support/WorkList.hpp"
 
-#include "folio/transforms/ProxyInsertion.hpp"
-#include "folio/transforms/Utilities.hpp"
+#include "folio/ProxyInsertion.hpp"
+#include "folio/Utilities.hpp"
 
 using namespace llvm::memoir;
 

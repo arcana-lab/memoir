@@ -9,20 +9,10 @@
 
 #include "memoir/support/FetchAnalysis.hpp"
 
-#include "folio/transforms/LambdaLifting.hpp"
-#include "folio/transforms/ProxyInsertion.hpp"
-#include "folio/transforms/SelectionMonomorphization.hpp"
-
-#if 0
-#  include "folio/analysis/ConstraintInference.hpp"
-#  include "folio/analysis/ContentAnalysis.hpp"
-#  include "folio/opportunities/Analysis.hpp"
-
-#  include "folio/solver/Implementation.hpp"
-#  include "folio/solver/Solver.hpp"
-#endif
-
-#include "folio/pass/Pass.hpp"
+#include "folio/LambdaLifting.hpp"
+#include "folio/Pass.hpp"
+#include "folio/ProxyInsertion.hpp"
+#include "folio/SelectionMonomorphization.hpp"
 
 using namespace llvm::memoir;
 

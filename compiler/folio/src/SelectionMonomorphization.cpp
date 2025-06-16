@@ -12,7 +12,7 @@
 #include "memoir/utility/Metadata.hpp"
 
 // Folio
-#include "folio/transforms/SelectionMonomorphization.hpp"
+#include "folio/SelectionMonomorphization.hpp"
 
 using namespace llvm::memoir;
 

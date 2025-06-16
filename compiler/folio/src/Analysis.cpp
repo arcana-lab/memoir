@@ -1,7 +1,7 @@
 #include "llvm/Support/CommandLine.h"
 
-#include "folio/transforms/ProxyInsertion.hpp"
-#include "folio/transforms/Utilities.hpp"
+#include "folio/ProxyInsertion.hpp"
+#include "folio/Utilities.hpp"
 
 using namespace llvm::memoir;
 

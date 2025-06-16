@@ -7,8 +7,8 @@
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-#include "folio/transforms/Context.hpp"
-#include "folio/transforms/NestedObject.hpp"
+#include "folio/Context.hpp"
+#include "folio/NestedObject.hpp"
 
 namespace folio {
 

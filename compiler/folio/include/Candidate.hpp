@@ -7,8 +7,8 @@
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-#include "folio/transforms/CoalesceUses.hpp"
-#include "folio/transforms/ObjectInfo.hpp"
+#include "folio/CoalesceUses.hpp"
+#include "folio/ObjectInfo.hpp"
 
 namespace folio {
 

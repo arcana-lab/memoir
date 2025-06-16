@@ -3,7 +3,7 @@
 
 #include "llvm/IR/Value.h"
 
-#include "folio/analysis/Content.hpp"
+#include "folio/Content.hpp"
 
 namespace folio {
 

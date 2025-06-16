@@ -6,7 +6,7 @@
 #include "memoir/analysis/BoundsCheckAnalysis.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-#include "folio/transforms/Candidate.hpp"
+#include "folio/Candidate.hpp"
 
 namespace folio {
 

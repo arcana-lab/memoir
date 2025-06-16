@@ -4,7 +4,7 @@
 #include "memoir/ir/TypeCheck.hpp"
 #include "memoir/support/Casting.hpp"
 
-#include "folio/transforms/LambdaLifting.hpp"
+#include "folio/LambdaLifting.hpp"
 
 using namespace llvm::memoir;
 

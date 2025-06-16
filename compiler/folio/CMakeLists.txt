@@ -1,48 +1,37 @@
+# Collect all header files.
+file(GLOB headers "include/*.hpp" "include/*.h" "include/*.hh" "include/*.def")
+
+# Install header files.
+install(
+  FILES
+  ${headers}
+  
+  DESTINATION
+  ${CMAKE_INSTALL_INCLUDEDIR}/folio/
+)
+
+# Collect all source files.
+file(GLOB_RECURSE sources "src/*.cpp" "src/*.c" "src/*.cc")
+
+# Add the sources to the build.
 add_llvm_library(
   folio
 
   MODULE
-  /dev/null
+  ${sources}
 
   PLUGIN_TOOL
   opt
 )
 
+include_directories(include)
+
 add_dependencies(folio
   memoir
   noelle
-  clingo
 )
 
-target_link_libraries(folio PRIVATE libclingo libclasp libgringo libpotassco libreify)
-
-function(add_folio_sources)
-  cmake_parse_arguments(
-    SRC     # prefix
-    ""      # booleans
-    ""      # single-value
-    "FILES" # multi-value
-    ${ARGN} # arguments
-    )
-  
-  if(NOT DEFINED SRC_FILES)
-    file(GLOB_RECURSE SRC_FILES "*.cpp" "*.c" "*.cc")
-  endif()
-
-  target_sources(
-    folio
-    PUBLIC
-    ${SRC_FILES}
-    )
-endfunction()
-
 add_subdirectory(scripts)
-
-# add_subdirectory(analysis)
-add_subdirectory(transforms)
-# add_subdirectory(solver)
-add_subdirectory(pass)
-# add_subdirectory(opportunities)
 
 install(
   TARGETS folio

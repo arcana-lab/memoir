@@ -1,8 +1,8 @@
 #include "memoir/support/Casting.hpp"
 
-#include "folio/transforms/Candidate.hpp"
-#include "folio/transforms/Utilities.hpp"
-#include "folio/transforms/WeakenUses.hpp"
+#include "folio/Candidate.hpp"
+#include "folio/Utilities.hpp"
+#include "folio/WeakenUses.hpp"
 
 using namespace llvm::memoir;
 

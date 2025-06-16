@@ -1,7 +1,7 @@
 #include "llvm/IR/Function.h"
 
-#include "folio/transforms/CoalesceUses.hpp"
-#include "folio/transforms/Utilities.hpp"
+#include "folio/CoalesceUses.hpp"
+#include "folio/Utilities.hpp"
 
 using namespace llvm::memoir;
 
