@@ -622,7 +622,6 @@ void ObjectInfo::analyze() {
   llvm::ArrayRef<unsigned> offsets(this->offsets);
 
   for (const auto &[func, base_to_redefs] : this->redefinitions) {
-
     for (const auto &[base, redefs] : base_to_redefs.second) {
       infoln("REDEFS(", *base, ")");
 
@@ -649,17 +648,6 @@ void ObjectInfo::analyze() {
       }
     }
   }
-
-  for (const auto &[func, base_to_redefs] : this->redefinitions) {
-    for (const auto &[base, redefs] : base_to_redefs.second) {
-      infoln("IN ", func->getName());
-      for (const auto &redef : redefs) {
-        infoln("  REDEF ", redef);
-      }
-    }
-  }
-
-  println();
 }
 
 Type &ObjectInfo::get_type() const {
