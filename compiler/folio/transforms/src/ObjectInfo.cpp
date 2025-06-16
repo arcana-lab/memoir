@@ -205,7 +205,7 @@ static void gather_redefinitions(const NestedObject &obj,
   auto *function = parent_function(obj.value());
   MEMOIR_ASSERT(function, "Unknown parent function for redefinition.");
 
-  println("GATHER ", obj);
+  infoln("GATHER ", obj);
 
   // Fetch the set of local redefinitions to update.
   auto &local_redefs = redefinitions.emplace(function, context)[&base.value()];

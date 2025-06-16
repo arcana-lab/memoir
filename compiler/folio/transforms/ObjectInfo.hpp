@@ -28,6 +28,7 @@ struct ObjectInfo {
   llvm::memoir::Map<llvm::Value *, llvm::memoir::Set<llvm::Value *>>
       base_to_values;
   llvm::memoir::Map<llvm::Value *, llvm::memoir::Set<llvm::Use *>> base_to_uses;
+  llvm::memoir::Map<llvm::Use *, llvm::Value *> use_to_base;
 
   ObjectInfo(llvm::memoir::AllocInst &alloc, llvm::ArrayRef<unsigned> offsets)
     : allocation(&alloc),
@@ -35,7 +36,10 @@ struct ObjectInfo {
       redefinitions{},
       encoded{},
       to_encode{},
-      to_addkey{} {}
+      to_addkey{},
+      base_to_values{},
+      base_to_uses{},
+      use_to_base{} {}
   ObjectInfo(llvm::memoir::AllocInst &alloc) : ObjectInfo(alloc, {}) {}
 
   /**
