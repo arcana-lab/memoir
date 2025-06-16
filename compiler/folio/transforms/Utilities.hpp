@@ -21,6 +21,13 @@ uint32_t forward_analysis(
 bool is_last_index(llvm::Use *use,
                    llvm::memoir::AccessInst::index_op_iterator index_end);
 
+llvm::GlobalVariable &create_global_ptr(llvm::Module &module,
+                                        const llvm::Twine &name = "",
+                                        bool is_external = false);
+
+llvm::AllocaInst &create_stack_ptr(llvm::Function &func,
+                                   const llvm::Twine &name = "");
+
 } // namespace folio
 
 #endif // FOLIO_TRANSFORMS_UTILITIES_h

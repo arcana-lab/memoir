@@ -1,5 +1,6 @@
 #include "llvm/IR/Instructions.h"
 
+#include "memoir/ir/Builder.hpp"
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/WorkList.hpp"
@@ -188,6 +189,32 @@ uint32_t forward_analysis(Map<llvm::Function *, Set<llvm::Value *>> &encoded) {
   }
 
   return count;
+}
+
+llvm::GlobalVariable &create_global_ptr(llvm::Module &module,
+                                        const llvm::Twine &name,
+                                        bool is_external) {
+  auto *llvm_ptr_type = llvm::PointerType::get(module.getContext(), 0);
+  auto linkage = is_external ? llvm::GlobalValue::LinkageTypes::ExternalLinkage
+                             : llvm::GlobalValue::LinkageTypes::InternalLinkage;
+  auto *init = llvm::Constant::getNullValue(llvm_ptr_type);
+  auto *global = new llvm::GlobalVariable(module,
+                                          llvm_ptr_type,
+                                          /* isConstant? */ false,
+                                          linkage,
+                                          init,
+                                          name);
+  return MEMOIR_SANITIZE(global, "Failed to allocate new global variable");
+}
+
+llvm::AllocaInst &create_stack_ptr(llvm::Function &function,
+                                   const llvm::Twine &name) {
+
+  llvm::IRBuilder<> builder(function.getEntryBlock().getFirstNonPHI());
+
+  auto *stack = builder.CreateAlloca(builder.getPtrTy(0), NULL, name);
+
+  return MEMOIR_SANITIZE(stack, "Failed to create alloca");
 }
 
 } // namespace folio
