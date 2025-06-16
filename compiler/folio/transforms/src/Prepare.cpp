@@ -60,7 +60,7 @@ static llvm::AllocaInst &load_global_to_stack(llvm::GlobalVariable &global,
   // Create a stack variable in the function.
   auto &stack = create_stack_ptr(func, name.concat(".stack"));
 
-  println("STORING *",
+  println("STORING ",
           global.getName(),
           " TO ",
           stack.getName(),
@@ -150,11 +150,11 @@ void version_function(llvm::Function &func, Vector<Version> &versions) {
   // Ensure that we need only one version of the function, otherwise we need
   // to create fresh copies.
   if (versions.size() > 1) {
-    println(" ", versions.size(), " VERSIONS");
+    println(" (", versions.size(), " VERSIONS)");
     MEMOIR_UNREACHABLE(
         "TODO: Function versioning for multiple candidates is not implemented.");
   } else {
-    println(" 1 VERSION");
+    println(" (1 VERSION)");
   }
 
   // Collect the set of possible callers for this function.
