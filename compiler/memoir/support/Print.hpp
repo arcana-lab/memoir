@@ -1,6 +1,9 @@
 #ifndef MEMOIR_PRINT_H
 #define MEMOIR_PRINT_H
 
+#include "llvm/IR/Argument.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
@@ -155,6 +158,37 @@ inline std::string pretty_use(const llvm::Use &use) {
   os << "(" << value_name(*use.get()) << ") ";
   os << "IN " << *use.getUser();
   return str;
+}
+
+inline std::string pretty(const llvm::Use &use) {
+  return pretty_use(use);
+}
+
+inline std::string pretty(const llvm::Instruction &inst) {
+  std::string str;
+  llvm::raw_string_ostream os(str);
+  os << inst;
+  return str.erase(0, 2); // Remove first two spaces.
+}
+
+inline std::string pretty(const llvm::Argument &arg) {
+  std::string str;
+  llvm::raw_string_ostream os(str);
+  os << arg << " IN " << arg.getParent()->getName();
+  return str;
+}
+
+inline std::string pretty(const llvm::Value &val) {
+  if (auto *arg = dyn_cast<llvm::Argument>(&val)) {
+    return pretty(*arg);
+  } else if (auto *inst = dyn_cast<llvm::Instruction>(&val)) {
+    return pretty(*inst);
+  } else {
+    std::string str;
+    llvm::raw_string_ostream os(str);
+    os << val;
+    return str;
+  }
 }
 
 } // namespace llvm::memoir
