@@ -40,7 +40,7 @@ namespace llvm::memoir {
  * We use references in all places where possible.
  */
 template <typename T>
-using opt = std::optional<T>;
+using Option = std::optional<T>;
 
 template <typename T>
 using ref = std::reference_wrapper<T>;

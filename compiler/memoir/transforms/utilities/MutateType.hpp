@@ -40,7 +40,7 @@ void mutate_type(AllocInst &alloc,
  */
 Type &mutate_selection(Type &type,
                        llvm::ArrayRef<unsigned> offsets,
-                       opt<std::string> selection);
+                       Option<std::string> selection);
 
 } // namespace llvm::memoir
 

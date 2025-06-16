@@ -147,7 +147,7 @@ public:
   }
 
   // Implementation of DFS topological sorting.
-  opt<Vector<NodeType>> topological_order() {
+  Option<Vector<NodeType>> topological_order() {
     Vector<NodeType> order = {};
     order.reserve(this->size());
 

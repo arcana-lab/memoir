@@ -80,7 +80,7 @@ public:
     return (this->bit_field_ranges.count(field_index) > 0);
   }
 
-  opt<Pair<unsigned, unsigned>> get_bit_field_range(unsigned field_index) {
+  Option<Pair<unsigned, unsigned>> get_bit_field_range(unsigned field_index) {
     auto found_bit_field = this->bit_field_ranges.find(field_index);
 
     // If we found the field index, return its bit field range.

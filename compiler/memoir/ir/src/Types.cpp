@@ -379,7 +379,7 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Type &T) {
   return os;
 }
 
-opt<std::string> Type::get_code() const {
+Option<std::string> Type::get_code() const {
   return {};
 }
 
@@ -434,7 +434,7 @@ std::string IntegerType::toString(std::string indent) const {
   return str;
 }
 
-opt<std::string> IntegerType::get_code() const {
+Option<std::string> IntegerType::get_code() const {
   std::string str;
   if (this->getBitWidth() == 1) {
     return "boolean";
@@ -463,7 +463,7 @@ std::string FloatType::toString(std::string indent) const {
   return str;
 }
 
-opt<std::string> FloatType::get_code() const {
+Option<std::string> FloatType::get_code() const {
   return "f32";
 }
 
@@ -486,7 +486,7 @@ std::string DoubleType::toString(std::string indent) const {
   return str;
 }
 
-opt<std::string> DoubleType::get_code() const {
+Option<std::string> DoubleType::get_code() const {
   return "f64";
 }
 
@@ -509,7 +509,7 @@ std::string PointerType::toString(std::string indent) const {
   return str;
 }
 
-opt<std::string> PointerType::get_code() const {
+Option<std::string> PointerType::get_code() const {
   return "ptr";
 }
 
@@ -532,7 +532,7 @@ std::string VoidType::toString(std::string indent) const {
   return str;
 }
 
-opt<std::string> VoidType::get_code() const {
+Option<std::string> VoidType::get_code() const {
   return "void";
 }
 
@@ -561,7 +561,7 @@ std::string ReferenceType::toString(std::string indent) const {
   return str;
 }
 
-opt<std::string> ReferenceType::get_code() const {
+Option<std::string> ReferenceType::get_code() const {
   auto ref_code = this->getReferencedType().get_code();
   if (!ref_code) {
     return {};
@@ -625,7 +625,7 @@ std::string TupleType::toString(std::string indent) const {
   return str;
 }
 
-opt<std::string> TupleType::get_code() const {
+Option<std::string> TupleType::get_code() const {
   std::string str = "T" + std::to_string(this->getNumFields());
 
   for (auto *field_type : this->fields()) {
@@ -651,15 +651,15 @@ CollectionType::CollectionType(TypeKind code) : ObjectType(code) {
   // Do nothing.
 }
 
-opt<std::string> CollectionType::get_code() const {
+Option<std::string> CollectionType::get_code() const {
   return "collection";
 }
 
-opt<std::string> CollectionType::get_selection() const {
+Option<std::string> CollectionType::get_selection() const {
   return {};
 }
 
-CollectionType &CollectionType::set_selection(opt<std::string> selection) {
+CollectionType &CollectionType::set_selection(Option<std::string> selection) {
   return *this;
 }
 
@@ -697,7 +697,7 @@ std::string ArrayType::toString(std::string indent) const {
  */
 AssocArrayType::AssocArrayType(Type &key_type,
                                Type &value_type,
-                               opt<std::string> selection)
+                               Option<std::string> selection)
   : CollectionType(TypeKind::ASSOC_ARRAY),
     key_type(key_type),
     value_type(value_type),
@@ -730,17 +730,17 @@ std::string AssocArrayType::toString(std::string indent) const {
   return str;
 }
 
-opt<std::string> AssocArrayType::get_code() const {
+Option<std::string> AssocArrayType::get_code() const {
   return this->get_selection().value_or("Assoc") + "_"
          + this->getKeyType().get_code().value() + "_"
          + this->getValueType().get_code().value();
 }
 
-opt<std::string> AssocArrayType::get_selection() const {
+Option<std::string> AssocArrayType::get_selection() const {
   return this->selection;
 }
 
-CollectionType &AssocArrayType::set_selection(opt<std::string> selection) {
+CollectionType &AssocArrayType::set_selection(Option<std::string> selection) {
   return AssocArrayType::get(this->getKeyType(),
                              this->getValueType(),
                              selection);
@@ -763,7 +763,7 @@ bool AssocArrayType::operator<=(const Type &other) const {
 /*
  * SequenceType implementation
  */
-SequenceType::SequenceType(Type &element_type, opt<std::string> selection)
+SequenceType::SequenceType(Type &element_type, Option<std::string> selection)
   : CollectionType(TypeKind::SEQUENCE),
     element_type(element_type),
     selection(selection) {
@@ -786,16 +786,16 @@ std::string SequenceType::toString(std::string indent) const {
   return str;
 }
 
-opt<std::string> SequenceType::get_code() const {
+Option<std::string> SequenceType::get_code() const {
   return this->get_selection().value_or("Seq") + "_"
          + this->getElementType().get_code().value();
 }
 
-opt<std::string> SequenceType::get_selection() const {
+Option<std::string> SequenceType::get_selection() const {
   return this->selection;
 }
 
-CollectionType &SequenceType::set_selection(opt<std::string> selection) {
+CollectionType &SequenceType::set_selection(Option<std::string> selection) {
   return SequenceType::get(this->getElementType(), selection);
 }
 

@@ -159,7 +159,8 @@ AccessInst::const_index_op_iterator AccessInst::index_operands_end() const {
   return const_index_op_iterator(this->kw_begin().asUse());
 }
 
-opt<size_t> AccessInst::match_offsets(llvm::ArrayRef<unsigned> offsets) const {
+Option<size_t> AccessInst::match_offsets(
+    llvm::ArrayRef<unsigned> offsets) const {
   auto index_it = this->index_operands_begin();
   auto index_ie = this->index_operands_end();
 

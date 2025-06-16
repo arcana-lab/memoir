@@ -977,7 +977,7 @@ void mutate_type(AllocInst &alloc, Type &type, OnFuncClone on_func_clone) {
 
 Type &mutate_selection(Type &type,
                        llvm::ArrayRef<unsigned> offsets,
-                       opt<std::string> selection) {
+                       Option<std::string> selection) {
   // If we are at the base of the offsets, mutate the type.
   if (offsets.empty()) {
     auto *collection_type = dyn_cast<CollectionType>(&type);

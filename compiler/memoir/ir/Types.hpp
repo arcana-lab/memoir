@@ -89,7 +89,7 @@ public:
   virtual llvm::Type *get_llvm_type(llvm::LLVMContext &C) const;
 
   virtual std::string toString(std::string indent = "") const = 0;
-  virtual opt<std::string> get_code() const;
+  virtual Option<std::string> get_code() const;
 
   friend std::ostream &operator<<(std::ostream &os, const Type &T);
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Type &T);
@@ -122,7 +122,7 @@ public:
 
   // Debug.
   std::string toString(std::string indent = "") const override;
-  opt<std::string> get_code() const override;
+  Option<std::string> get_code() const override;
 
   llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
@@ -144,7 +144,7 @@ public:
   }
 
   std::string toString(std::string indent = "") const override;
-  opt<std::string> get_code() const override;
+  Option<std::string> get_code() const override;
 
   llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
@@ -161,7 +161,7 @@ public:
   }
 
   std::string toString(std::string indent = "") const override;
-  opt<std::string> get_code() const override;
+  Option<std::string> get_code() const override;
 
   llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
@@ -178,7 +178,7 @@ public:
   }
 
   std::string toString(std::string indent = "") const override;
-  opt<std::string> get_code() const override;
+  Option<std::string> get_code() const override;
 
   llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
@@ -195,7 +195,7 @@ public:
   }
 
   std::string toString(std::string indent = "") const override;
-  opt<std::string> get_code() const override;
+  Option<std::string> get_code() const override;
 
   llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
@@ -214,7 +214,7 @@ public:
   }
 
   std::string toString(std::string indent = "") const override;
-  opt<std::string> get_code() const override;
+  Option<std::string> get_code() const override;
 
   llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
@@ -263,7 +263,7 @@ public:
 
   // Debug.
   std::string toString(std::string indent = "") const override;
-  opt<std::string> get_code() const override;
+  Option<std::string> get_code() const override;
 
 protected:
   Vector<Type *> field_types;
@@ -288,10 +288,10 @@ public:
     };
   }
 
-  opt<std::string> get_code() const override;
+  Option<std::string> get_code() const override;
 
-  virtual opt<std::string> get_selection() const;
-  virtual CollectionType &set_selection(opt<std::string> selection);
+  virtual Option<std::string> get_selection() const;
+  virtual CollectionType &set_selection(Option<std::string> selection);
 
   llvm::Type *get_llvm_type(llvm::LLVMContext &C) const override;
 
@@ -331,8 +331,8 @@ public:
   Type &getValueType() const;
   Type &getElementType() const override;
 
-  opt<std::string> get_selection() const override;
-  CollectionType &set_selection(opt<std::string> selection) override;
+  Option<std::string> get_selection() const override;
+  CollectionType &set_selection(Option<std::string> selection) override;
 
   static bool classof(const Type *T) {
     return (T->getKind() == TypeKind::ASSOC_ARRAY);
@@ -340,14 +340,14 @@ public:
 
   std::string toString(std::string indent = "") const override;
 
-  opt<std::string> get_code() const override;
+  Option<std::string> get_code() const override;
 
   bool operator<=(const Type &other) const override;
 
 protected:
   Type &key_type;
   Type &value_type;
-  opt<std::string> selection;
+  Option<std::string> selection;
 
   typedef OrderedMap<
       Type *,
@@ -358,7 +358,7 @@ protected:
 
   AssocArrayType(Type &key_type,
                  Type &value_type,
-                 opt<std::string> selection = {});
+                 Option<std::string> selection = {});
 };
 using AssocType = struct AssocArrayType;
 
@@ -375,23 +375,23 @@ public:
 
   std::string toString(std::string indent = "") const override;
 
-  opt<std::string> get_code() const override;
+  Option<std::string> get_code() const override;
 
-  opt<std::string> get_selection() const override;
-  CollectionType &set_selection(opt<std::string> selection) override;
+  Option<std::string> get_selection() const override;
+  CollectionType &set_selection(Option<std::string> selection) override;
 
   bool operator<=(const Type &other) const override;
 
 protected:
   Type &element_type;
-  opt<std::string> selection;
+  Option<std::string> selection;
 
   typedef OrderedMap<Type *,
                      OrderedMap<std::optional<std::string>, SequenceType *>>
       Types;
   static Types *sequence_types;
 
-  SequenceType(Type &element_type, opt<std::string> selection = {});
+  SequenceType(Type &element_type, Option<std::string> selection = {});
 };
 
 /**

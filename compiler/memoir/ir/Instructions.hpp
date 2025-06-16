@@ -574,7 +574,7 @@ public:
    * @param offsets the offsets to match
    * @returns the number of indices matched, or NONE if failed to match.
    */
-  opt<size_t> match_offsets(llvm::ArrayRef<unsigned> offsets) const;
+  Option<size_t> match_offsets(llvm::ArrayRef<unsigned> offsets) const;
 
   static bool classof(const MemOIRInst *I) {
     return (

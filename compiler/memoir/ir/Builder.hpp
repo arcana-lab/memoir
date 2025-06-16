@@ -17,7 +17,7 @@
 
 namespace llvm::memoir {
 
-class MemOIRBuilder : public IRBuilder<> {
+class MemOIRBuilder : public llvm::IRBuilder<> {
 public:
   /*
    * MemOIRBuilder Constructors
@@ -188,7 +188,7 @@ public:
   }
 
   SequenceTypeInst *CreateSequenceTypeInst(llvm::Value *element_type,
-                                           opt<std::string> selection = {},
+                                           Option<std::string> selection = {},
                                            const Twine &name = "") {
 
     Vector<llvm::Value *> args = { element_type };
@@ -205,10 +205,11 @@ public:
                                           name);
   }
 
-  AssocArrayTypeInst *CreateAssocArrayTypeInst(llvm::Value *key_type,
-                                               llvm::Value *value_type,
-                                               opt<std::string> selection = {},
-                                               const Twine &name = "") {
+  AssocArrayTypeInst *CreateAssocArrayTypeInst(
+      llvm::Value *key_type,
+      llvm::Value *value_type,
+      Option<std::string> selection = {},
+      const Twine &name = "") {
 
     Vector<llvm::Value *> args = { key_type, value_type };
 
