@@ -18,20 +18,28 @@ namespace folio {
 
 struct ProxyInsertion {
 public:
+  // Helper types.
   using GetDominatorTree =
       std::function<llvm::DominatorTree &(llvm::Function &)>;
   using GetBoundsChecks =
       std::function<llvm::memoir::BoundsCheckResult &(llvm::Function &)>;
 
+  // Constructors.
   ProxyInsertion(llvm::Module &M,
                  GetDominatorTree get_dominator_tree,
                  GetBoundsChecks get_bounds_checks);
 
+  // Driver functions.
   void analyze();
 
   void prepare();
 
   bool transform();
+
+  // Helper functions.
+  static llvm::memoir::Option<std::string> get_enumerated_impl(
+      llvm::memoir::Type &type,
+      bool is_nested = false);
 
 protected:
   void gather_assoc_objects(llvm::memoir::Vector<ObjectInfo> &allocations,
