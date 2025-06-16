@@ -6,6 +6,8 @@
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
 
+#include "memoir/support/DataTypes.hpp"
+
 namespace folio {
 
 struct Context {
@@ -46,6 +48,48 @@ protected:
 
   llvm::Function *_func;
   llvm::CallBase *_call;
+};
+
+template <typename T>
+using ContextMapBase =
+    llvm::memoir::OrderedMultiMap<llvm::Function *,
+                                  llvm::memoir::Pair<llvm::CallBase *, T>>;
+
+template <typename T>
+struct ContextMap : public ContextMapBase<T> {
+  using Base = ContextMapBase<T>;
+  using Iter = Base::iterator;
+
+  using Base::emplace;
+  T &emplace(llvm::Function *func, llvm::CallBase *call = NULL) {
+    // Try to find an existing item.
+    auto [it, ie] = this->Base::equal_range(func);
+    for (; it != ie; ++it) {
+      auto &[it_func, it_pair] = *it;
+      auto &[it_call, it_val] = it_pair;
+      if (call == it_call) {
+        return it_val;
+      }
+    }
+
+    // Otherwise, insert.
+    it = this->Base::insert(
+        it,
+        llvm::memoir::make_pair(func, llvm::memoir::make_pair(call, T())));
+    auto &[_func, pair] = *it;
+    return pair.second;
+  }
+
+  const T &operator[](llvm::Function *func) const {
+    // Assume null pair.
+    auto [it, ie] = this->Base::equal_range(func);
+    for (; it != ie; ++ie) {
+      const auto &[call, val] = *it;
+      if (call == NULL) {
+        return val;
+      }
+    }
+  }
 };
 
 } // namespace folio
