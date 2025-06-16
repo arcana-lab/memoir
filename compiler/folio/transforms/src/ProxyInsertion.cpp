@@ -17,17 +17,17 @@ namespace folio {
 
 // ================
 
-static llvm::cl::opt<std::string, true> proxy_set_impl(
+static llvm::cl::opt<std::string> proxy_set_impl(
     "proxy-set-impl",
     llvm::cl::desc("Set the implementation for proxied sets"),
     llvm::cl::init("bitset"));
 
-static llvm::cl::opt<std::string, true> proxy_nested_set_impl(
+static llvm::cl::opt<std::string> proxy_nested_set_impl(
     "proxy-nested-set-impl",
     llvm::cl::desc("Set the implementation for proxied sets that are nested"),
     llvm::cl::init(proxy_set_impl));
 
-static llvm::cl::opt<std::string, true> proxy_map_impl(
+static llvm::cl::opt<std::string> proxy_map_impl(
     "proxy-map-impl",
     llvm::cl::desc("Set the implementation for proxied map"),
     llvm::cl::init("bitmap"));
