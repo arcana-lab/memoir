@@ -624,10 +624,10 @@ void ObjectInfo::analyze() {
   for (const auto &[func, base_to_redefs] : this->redefinitions) {
 
     for (const auto &[base, redefs] : base_to_redefs.second) {
-      println("REDEFS(", *base, ")");
+      infoln("REDEFS(", *base, ")");
 
       for (const auto &redef : redefs) {
-        println("  ", redef);
+        infoln("  ", redef);
 
         if (is_propagator) {
           gather_uses_to_propagate(redef.value(),
