@@ -300,9 +300,9 @@ void Candidate::optimize(
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                               const Candidate &candidate) {
-  os << "CANDIDATE: \n";
+  os << "CANDIDATE: ";
   for (const auto *info : candidate) {
-    os << "  " << *info;
+    os << "\n  " << *info;
   }
   return os;
 }
