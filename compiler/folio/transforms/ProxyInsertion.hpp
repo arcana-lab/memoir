@@ -32,6 +32,8 @@ public:
   // Driver functions.
   void analyze();
 
+  void optimize();
+
   void prepare();
 
   bool transform();

@@ -98,11 +98,17 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M,
 
   });
 
-  // Analyze the objects.
-  analyze();
+  // Analyze the objects to find candidates.
+  this->analyze();
+
+  // Optimize the uses in each candidate.
+  this->optimize();
+
+  // Prepare the program for transformation.
+  this->prepare();
 
   // Transform the program.
-  transform();
+  this->transform();
 
   for (auto &F : M) {
     if (not F.empty()) {
