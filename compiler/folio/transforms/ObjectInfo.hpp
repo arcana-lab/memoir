@@ -7,6 +7,7 @@
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/DataTypes.hpp"
 
+#include "folio/transforms/Context.hpp"
 #include "folio/transforms/NestedObject.hpp"
 
 namespace folio {
@@ -16,13 +17,11 @@ struct ObjectInfo {
   template <typename T>
   using LocalMap =
       llvm::memoir::SmallMap<llvm::Value *, T, /* SmallSize = */ 2>;
-  template <typename T>
-  using ContextMap = llvm::memoir::Map<llvm::Function *, // Parent function.
-                                       LocalMap<T>>;
+  using Redefinitions = ContextMap<LocalMap<llvm::memoir::Set<NestedObject>>>;
 
   llvm::memoir::AllocInst *allocation;
   llvm::memoir::Vector<unsigned> offsets;
-  ContextMap<llvm::memoir::Set<NestedObject>> redefinitions;
+  Redefinitions redefinitions;
   llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>> encoded;
   llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>> to_encode;
   llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>> to_addkey;
