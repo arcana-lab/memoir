@@ -34,18 +34,10 @@ struct ObjectInfo {
   Map<llvm::Function *, Set<llvm::Use *>> to_addkey;
 
   /** Tracks the base for each encoded value. */
-  LocalMap<Set<llvm::Value *>> base_encoded;
-  /** Reverse mapping of {@link ObjectInfo#base_encoded}. */
   Map<llvm::Value *, llvm::Value *> encoded_base;
-
   /** Tracks the base for each use to encode. */
-  LocalMap<Set<llvm::Use *>> base_to_encode;
-  /** Reverse mapping of {@link ObjectInfo#base_to_encode}. */
   Map<llvm::Use *, llvm::Value *> to_encode_base;
-
   /** Tracks the base for each use to addkey. */
-  LocalMap<Set<llvm::Use *>> base_to_addkey;
-  /** Reverse mapping of {@link ObjectInfo#base_to_addkey}. */
   Map<llvm::Use *, llvm::Value *> to_addkey_base;
 
   ObjectInfo(llvm::memoir::AllocInst &alloc, llvm::ArrayRef<unsigned> offsets)
@@ -55,11 +47,8 @@ struct ObjectInfo {
       encoded{},
       to_encode{},
       to_addkey{},
-      base_encoded{},
       encoded_base{},
-      base_to_encode{},
       to_encode_base{},
-      base_to_addkey{},
       to_addkey_base{} {}
   ObjectInfo(llvm::memoir::AllocInst &alloc) : ObjectInfo(alloc, {}) {}
 
