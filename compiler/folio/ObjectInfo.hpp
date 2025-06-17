@@ -9,26 +9,44 @@
 
 #include "folio/Context.hpp"
 #include "folio/NestedObject.hpp"
+#include "folio/Utilities.hpp"
 
 namespace folio {
 
 struct ObjectInfo {
 
-  template <typename T>
-  using LocalMap =
-      llvm::memoir::SmallMap<llvm::Value *, T, /* SmallSize = */ 2>;
   using Redefinitions = ContextMap<LocalMap<llvm::memoir::Set<NestedObject>>>;
 
+  /** The single static allocation of this object. */
   llvm::memoir::AllocInst *allocation;
-  llvm::memoir::Vector<unsigned> offsets;
+
+  /** Nested offset into the allocation */
+  Vector<unsigned> offsets;
+
+  /** Interprocedural redefinitions of the allocation. */
   Redefinitions redefinitions;
-  llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>> encoded;
-  llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>> to_encode;
-  llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>> to_addkey;
-  llvm::memoir::Map<llvm::Value *, llvm::memoir::Set<llvm::Value *>>
-      base_to_values;
-  llvm::memoir::Map<llvm::Value *, llvm::memoir::Set<llvm::Use *>> base_to_uses;
-  llvm::memoir::Map<llvm::Use *, llvm::Value *> use_to_base;
+
+  /** Tracks the encoded values read from this object. */
+  Map<llvm::Function *, Set<llvm::Value *>> encoded;
+  /** Tracks the uses to encode. */
+  Map<llvm::Function *, Set<llvm::Use *>> to_encode;
+  /** Tracks the uses to encode. */
+  Map<llvm::Function *, Set<llvm::Use *>> to_addkey;
+
+  /** Tracks the base for each encoded value. */
+  LocalMap<Set<llvm::Value *>> base_encoded;
+  /** Reverse mapping of {@link ObjectInfo#base_encoded}. */
+  Map<llvm::Value *, llvm::Value *> encoded_base;
+
+  /** Tracks the base for each use to encode. */
+  LocalMap<Set<llvm::Use *>> base_to_encode;
+  /** Reverse mapping of {@link ObjectInfo#base_to_encode}. */
+  Map<llvm::Use *, llvm::Value *> to_encode_base;
+
+  /** Tracks the base for each use to addkey. */
+  LocalMap<Set<llvm::Use *>> base_to_addkey;
+  /** Reverse mapping of {@link ObjectInfo#base_to_addkey}. */
+  Map<llvm::Use *, llvm::Value *> to_addkey_base;
 
   ObjectInfo(llvm::memoir::AllocInst &alloc, llvm::ArrayRef<unsigned> offsets)
     : allocation(&alloc),
@@ -37,9 +55,12 @@ struct ObjectInfo {
       encoded{},
       to_encode{},
       to_addkey{},
-      base_to_values{},
-      base_to_uses{},
-      use_to_base{} {}
+      base_encoded{},
+      encoded_base{},
+      base_to_encode{},
+      to_encode_base{},
+      base_to_addkey{},
+      to_addkey_base{} {}
   ObjectInfo(llvm::memoir::AllocInst &alloc) : ObjectInfo(alloc, {}) {}
 
   /**

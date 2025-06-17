@@ -28,8 +28,8 @@ static void update_values(llvm::ValueToValueMapTy &vmap,
 
 template <typename T>
 static void update_values(llvm::ValueToValueMapTy &vmap,
-                          const ObjectInfo::LocalMap<T> &input,
-                          ObjectInfo::LocalMap<T> &output) {
+                          const LocalMap<T> &input,
+                          LocalMap<T> &output) {
   for (const auto &[base, redefs] : input) {
     auto *clone = &*vmap[base];
     update_values(vmap, redefs, output[clone]);
@@ -383,8 +383,25 @@ static void gather_uses_to_proxy(
     Map<llvm::Function *, Set<llvm::Value *>> &encoded,
     Map<llvm::Function *, Set<llvm::Use *>> &to_encode,
     Map<llvm::Function *, Set<llvm::Use *>> &to_addkey,
-    Set<llvm::Value *> &values_gathered,
-    Set<llvm::Use *> &uses_gathered) {
+    Set<llvm::Value *> &base_encoded,
+    Set<llvm::Use *> &base_to_encode,
+    Set<llvm::Use *> &base_to_addkey) {
+
+#define DECODE(FUNC, VAL)                                                      \
+  {                                                                            \
+    encoded[FUNC].insert(VAL);                                                 \
+    base_encoded.insert(VAL);                                                  \
+  }
+#define ENCODE(FUNC, USE)                                                      \
+  {                                                                            \
+    to_encode[FUNC].insert(USE);                                               \
+    base_to_encode.insert(USE);                                                \
+  }
+#define ADDKEY(FUNC, USE)                                                      \
+  {                                                                            \
+    to_addkey[FUNC].insert(USE);                                               \
+    base_to_addkey.insert(USE);                                                \
+  }
 
   infoln("REDEF ", V, " IN ", parent_function(V)->getName());
 
@@ -417,15 +434,13 @@ static void gather_uses_to_proxy(
           if (isa<InsertInst>(access)) {
             if (is_last_index(index_use, access->index_operands_end())) {
               infoln("    ADDING KEY ", *index_use->get());
-              to_addkey[function].insert(index_use);
-              uses_gathered.insert(index_use);
+              ADDKEY(function, index_use);
               continue;
             }
           }
 
           infoln("    ENCODING KEY ", *index_use->get());
-          to_encode[function].insert(index_use);
-          uses_gathered.insert(index_use);
+          ENCODE(function, index_use);
           continue;
         }
 
@@ -439,24 +454,8 @@ static void gather_uses_to_proxy(
                    index_arg,
                    " IN ",
                    fold->getBody().getName());
-            encoded[&fold->getBody()].insert(&index_arg);
-            values_gathered.insert(&index_arg);
+            DECODE(&fold->getBody(), &index_arg);
             continue;
-          }
-
-          // If the offsets are not fully exhausted, recurse on the value
-          // argument.
-          else if (distance < offsets.size()) {
-            if (auto *elem_arg = fold->getElementArgument()) {
-              infoln("    RECURSING");
-              gather_uses_to_proxy(*elem_arg,
-                                   offsets.drop_front(distance + 1),
-                                   encoded,
-                                   to_encode,
-                                   to_addkey,
-                                   values_gathered,
-                                   uses_gathered);
-            }
           }
         }
 
@@ -469,23 +468,9 @@ static void gather_uses_to_proxy(
                                                   input_kw->index_ops_end(),
                                                   offsets)) {
             infoln("    ENCODING KEY ", *index_use->get());
-            to_encode[function].insert(index_use);
-            uses_gathered.insert(index_use);
+            ENCODE(function, index_use);
             continue;
           }
-        }
-
-      } else if (auto *fold = dyn_cast<FoldInst>(access)) {
-        // Recurse on closed arguments.
-        if (auto *closed_arg = fold->getClosedArgument(use)) {
-          infoln("    CLOSED");
-          gather_uses_to_proxy(*closed_arg,
-                               offsets,
-                               encoded,
-                               to_encode,
-                               to_addkey,
-                               values_gathered,
-                               uses_gathered);
         }
       }
     }
@@ -500,8 +485,25 @@ static void gather_uses_to_propagate(
     Map<llvm::Function *, Set<llvm::Value *>> &encoded,
     Map<llvm::Function *, Set<llvm::Use *>> &to_encode,
     Map<llvm::Function *, Set<llvm::Use *>> &to_addkey,
-    Set<llvm::Value *> &values_gathered,
-    Set<llvm::Use *> &uses_gathered) {
+    Set<llvm::Value *> &base_encoded,
+    Set<llvm::Use *> &base_to_encode,
+    Set<llvm::Use *> &base_to_addkey) {
+
+#define DECODE(FUNC, VAL)                                                      \
+  {                                                                            \
+    encoded[FUNC].insert(VAL);                                                 \
+    base_encoded.insert(VAL);                                                  \
+  }
+#define ENCODE(FUNC, USE)                                                      \
+  {                                                                            \
+    to_encode[FUNC].insert(USE);                                               \
+    base_to_encode.insert(USE);                                                \
+  }
+#define ADDKEY(FUNC, USE)                                                      \
+  {                                                                            \
+    to_addkey[FUNC].insert(USE);                                               \
+    base_to_addkey.insert(USE);                                                \
+  }
 
   infoln("REDEF ", V, " IN ", parent_function(V)->getName());
 
@@ -545,26 +547,7 @@ static void gather_uses_to_propagate(
         if ((distance + 1) == offsets.size()) {
           if (auto *elem_arg = fold->getElementArgument()) {
             infoln("    DECODING ELEM");
-            encoded[&fold->getBody()].insert(elem_arg);
-            values_gathered.insert(elem_arg);
-          }
-        }
-
-        // If the offsets are not fully exhausted, recurse on the value
-        // argument.
-        // NOTE: because the offsets match the elements of the collection, we
-        // need to do distance+1 here.
-
-        else if ((distance + 1) < offsets.size()) {
-          if (auto *elem_arg = fold->getElementArgument()) {
-            infoln("    RECURSING");
-            gather_uses_to_propagate(*elem_arg,
-                                     offsets.drop_front(distance + 1),
-                                     encoded,
-                                     to_encode,
-                                     to_addkey,
-                                     values_gathered,
-                                     uses_gathered);
+            DECODE(&fold->getBody(), elem_arg);
           }
         }
 
@@ -572,8 +555,7 @@ static void gather_uses_to_propagate(
         if (distance == offsets.size()) {
           infoln("    DECODING ELEM ");
           auto &value = read->asValue();
-          encoded[function].insert(&value);
-          values_gathered.insert(&value);
+          DECODE(function, &value)
         }
 
       } else if (auto *update = dyn_cast<UpdateInst>(access)) {
@@ -582,8 +564,7 @@ static void gather_uses_to_propagate(
           if (distance == offsets.size()) {
             infoln("    ADDKEY ");
             auto &val_use = write->getValueWrittenAsUse();
-            to_addkey[function].insert(&val_use);
-            uses_gathered.insert(&val_use);
+            ADDKEY(function, &val_use);
           }
 
         } else if (auto *insert = dyn_cast<InsertInst>(access)) {
@@ -591,8 +572,7 @@ static void gather_uses_to_propagate(
             if (distance == offsets.size()) {
               infoln("    ADDKEY ");
               auto &val_use = value_kw->getValueAsUse();
-              to_addkey[function].insert(&val_use);
-              uses_gathered.insert(&val_use);
+              ADDKEY(function, &val_use);
             }
           }
         }
@@ -605,6 +585,37 @@ static void gather_uses_to_propagate(
 
 bool ObjectInfo::is_propagator() const {
   return not isa<CollectionType>(&this->get_type());
+}
+
+template <typename T>
+static void populate_reverse(const LocalMap<Set<T>> &input,
+                             Map<T, llvm::Value *> &output) {
+  // Create the reverse mappings.
+  for (const auto &[base, values] : input) {
+    for (auto *val : values) {
+      auto found = output.find(val);
+      if (found == output.end()) {
+        // Not found, insert.
+        output.emplace_hint(found, val, base);
+        continue;
+      }
+
+      if (base == found->second) {
+        // Found, no conflict.
+        continue;
+      }
+
+      // Otherwise, we found the value and it has a conflict!
+      MEMOIR_UNREACHABLE("Multiple bases found for ",
+                         pretty(*val),
+                         "\n  IN ",
+                         parent_function(*val)->getName(),
+                         "\n  BASE  ",
+                         pretty(*base),
+                         "\n  FOUND ",
+                         pretty(*found->second));
+    }
+  }
 }
 
 void ObjectInfo::analyze() {
@@ -634,20 +645,27 @@ void ObjectInfo::analyze() {
                                    this->encoded,
                                    this->to_encode,
                                    this->to_addkey,
-                                   this->base_to_values[base],
-                                   this->base_to_uses[base]);
+                                   this->base_encoded[base],
+                                   this->base_to_encode[base],
+                                   this->base_to_addkey[base]);
         } else {
           gather_uses_to_proxy(redef.value(),
                                offsets.drop_front(redef.offsets().size()),
                                this->encoded,
                                this->to_encode,
                                this->to_addkey,
-                               this->base_to_values[base],
-                               this->base_to_uses[base]);
+                               this->base_encoded[base],
+                               this->base_to_encode[base],
+                               this->base_to_addkey[base]);
         }
       }
     }
   }
+
+  // Populate the reverse mappings.
+  populate_reverse(this->base_encoded, this->encoded_base);
+  populate_reverse(this->base_to_encode, this->to_encode_base);
+  populate_reverse(this->base_to_addkey, this->to_addkey_base);
 }
 
 Type &ObjectInfo::get_type() const {
