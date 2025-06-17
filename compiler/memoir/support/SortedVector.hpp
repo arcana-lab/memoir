@@ -82,6 +82,30 @@ struct SortedVector : public Vector<T> {
 
     return modified;
   }
+
+  bool set_difference(const Self &other) {
+
+    bool modified = false;
+
+    // Remove all elements that occur in other.
+    auto oit = other.cbegin(), oie = other.cend();
+
+    for (auto it = this->begin(); it != this->end();) {
+
+      auto [lower, upper] = std::equal_range(it, this->end(), *oit, Cmp{});
+
+      if (lower != upper) {
+        // If the value is in the range, remove it.
+        it = this->Base::erase(lower, upper);
+        modified |= true;
+      } else {
+        // Otherwise, continue iterating.
+        it = upper;
+      }
+    }
+
+    return modified;
+  }
 };
 
 } // namespace llvm::memoir
