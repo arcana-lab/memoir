@@ -1,4 +1,6 @@
 #include "memoir/ir/Builder.hpp"
+#include "memoir/ir/CallGraph.hpp"
+#include "memoir/support/SortedVector.hpp"
 
 #include "folio/ProxyInsertion.hpp"
 #include "folio/Utilities.hpp"
@@ -7,6 +9,253 @@
 using namespace llvm::memoir;
 
 namespace folio {
+
+static SortedVector<llvm::CallBase *> enumerated_callers(
+    llvm::Function &callee,
+    const Vector<Candidate> &candidates) {
+
+  SortedVector<llvm::CallBase *> callers = {};
+
+  for (const auto &candidate : candidates) {
+    for (const auto *info : candidate) {
+      for (const auto &[func, pair] : info->redefinitions) {
+        if (auto *caller = pair.first) {
+          if (caller->getCalledFunction() == &callee) {
+            callers.insert(caller);
+          }
+        }
+      }
+    }
+  }
+
+  return callers;
+}
+
+static void collect_versions(
+    Set<llvm::Argument *> &arguments,
+    Map<llvm::Function *, List<SortedVector<llvm::CallBase *>>> &versions,
+    const Vector<Candidate> &candidates,
+    const Candidate::Mapping &mapping) {
+
+  // For each base in the mapping.
+  for (const auto &[base, global] : mapping.globals()) {
+    if (auto *arg = dyn_cast<llvm::Argument>(base)) {
+
+      // Track the argument.
+      arguments.insert(arg);
+
+      // Fetch the parent function.
+      auto &func =
+          MEMOIR_SANITIZE(arg->getParent(), "Argument has no parent function!");
+
+      // If we've already seen this function, continue;
+      if (versions.contains(&func)) {
+        continue;
+      }
+      auto &func_versions = versions[&func];
+
+      // Collect the set of enumerated callers.
+      auto enum_callers = enumerated_callers(func, candidates);
+
+      // Collect the set of external callers to this function.
+      auto callers = possible_callers(func);
+      func_versions.emplace_back();
+      auto &external_callers = func_versions.back();
+      for (auto *caller : callers) {
+        external_callers.insert(caller);
+      }
+      external_callers.set_difference(enum_callers);
+
+      // TODO: partition the enumerated callers into more versions based on
+      // arguments aligning.
+      if (not enum_callers.empty()) {
+        func_versions.push_back(enum_callers);
+      }
+    }
+  }
+}
+
+static void cleanup_versions(
+    Map<llvm::Function *, List<SortedVector<llvm::CallBase *>>> &versions) {
+  // Eliminate empty versions.
+  for (auto it = versions.begin(); it != versions.end();) {
+
+    auto &func_versions = it->second;
+
+    for (auto jt = std::next(func_versions.begin());
+         jt != func_versions.end();) {
+      if (jt->empty()) {
+        jt = func_versions.erase(jt);
+      } else {
+        ++jt;
+      }
+    }
+
+    // If we only have the original version, no cloning is needed.
+    if (func_versions.size() <= 1) {
+      it = versions.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
+static void gather_bases(Set<llvm::Value *> &bases,
+                         const Vector<CoalescedUses> &uses) {
+  for (const auto &use : uses) {
+    bases.insert(use.base());
+  }
+}
+
+static void create_base_globals(Vector<Candidate> &candidates) {
+
+  for (auto &candidate : candidates) {
+    // Gather the set of bases from the uses.
+    Set<llvm::Value *> bases = {};
+    gather_bases(bases, candidate.decoded);
+    gather_bases(bases, candidate.encoded);
+    gather_bases(bases, candidate.added);
+
+    // For each base, create a global.
+    for (auto *base : bases) {
+      if (candidate.build_encoder()) {
+        auto &global = create_global_ptr(candidate.module(), "enc.");
+        candidate.encoder.global(base, global);
+      }
+
+      if (candidate.build_decoder()) {
+        auto &global = create_global_ptr(candidate.module(), "dec.");
+        candidate.decoder.global(base, global);
+      }
+    }
+  }
+}
+
+static llvm::Value *find_base_of(llvm::Value &value,
+                                 const Vector<Candidate> &candidates) {
+
+  auto *func = parent_function(value);
+
+  println("FIND BASE OF ", value);
+
+  llvm::Value *found_base = NULL;
+  for (const auto &candidate : candidates) {
+    println("SEARCHING ", candidate);
+
+    for (auto *info : candidate) {
+      // Search the redefinitions for the value.
+      auto [lo, hi] = info->redefinitions.equal_range(func);
+      for (auto it = lo; it != hi; ++it) {
+        for (const auto &[base, locals] : it->second.second) {
+          println("  POSSIBLE BASE ", *base);
+
+          bool found = false;
+          for (const auto &local : locals) {
+            println("    LOCAL ", local.value());
+            if (&local.value() == &value) {
+              found = true;
+              break;
+            }
+          }
+
+          if (found) {
+            print("  PRESENT ");
+            if (not found_base) {
+              println("FIRST!");
+              found_base = base;
+            } else if (found_base != base) {
+              println("MISMATCH!");
+              MEMOIR_UNREACHABLE("Found base ",
+                                 *found_base,
+                                 " does not match base ",
+                                 *base);
+            } else {
+              println("MATCHED!");
+            }
+          } else {
+            println("  NOT PRESENT!");
+          }
+        }
+      }
+    }
+  }
+
+  return found_base;
+}
+
+static void patch_mappings(Vector<Candidate> &candidates) {
+
+  // Collect all of the argument bases.
+  Set<llvm::Argument *> arguments = {};
+  Map<llvm::Function *, List<SortedVector<llvm::CallBase *>>> versions;
+  for (auto &candidate : candidates) {
+    collect_versions(arguments, versions, candidates, candidate.encoder);
+    collect_versions(arguments, versions, candidates, candidate.decoder);
+  }
+
+  // Clean up empty and un-needed versions.
+  cleanup_versions(versions);
+
+  // Version each function.
+  println("FOUND ", versions.size(), " FUNCTIONS TO VERSION");
+  for (const auto &[func, func_versions] : versions) {
+    println("FUNC ", func->getName());
+
+    bool first = true, no_original = false;
+    for (const auto &calls : func_versions) {
+
+      if (not calls.empty()) {
+        println(" VERSION");
+        for (auto *call : calls) {
+          println(*call);
+        }
+      }
+
+      if (first) {
+        if (not calls.empty()) {
+          first = false;
+        } else {
+          no_original = true;
+        }
+        continue;
+      }
+
+      // Clone the function and update the argument mapping.
+      MEMOIR_UNREACHABLE("Function versioning is unimplemented!");
+    }
+  }
+
+  // Create a store to the global for each argument at the call site.
+  for (auto *arg : arguments) {
+
+    auto &func = MEMOIR_SANITIZE(arg->getParent(), "Argument has no parent");
+    auto &module = MEMOIR_SANITIZE(func.getParent(), "Function has no module");
+
+    // Create a global pointer for this argument.
+    auto &enc_global = create_global_ptr(module, "enc.");
+
+    // Collect the set of callers.
+    auto callers = possible_callers(func);
+
+    // For each caller, store to the relevant global.
+    auto arg_no = arg->getArgNo();
+
+    for (auto *call : callers) {
+      auto *operand = call->getOperand(arg_no);
+
+      // Get the base of this operand.
+      auto &base = MEMOIR_SANITIZE(find_base_of(*operand, candidates),
+                                   "No base for op ",
+                                   arg_no,
+                                   " in ",
+                                   *call);
+
+      println("ARG  ", *arg, " IN ", func.getName());
+      println("BASE ", base);
+      println("CALL ", *call);
+    }
+  }
+}
 
 template <typename T>
 static bool pattern_matches(const Vector<T> &lhs, const Vector<T> &rhs) {
@@ -105,8 +354,8 @@ static void patch_call(llvm::CallBase &call,
   // Update the called function.
   call.setCalledFunction(versioned_func);
 
-  // For each argument, load the local value for this candidate and store it to
-  // the temparg.
+  // For each argument, load the local value for this candidate and store it
+  // to the temparg.
   Set<Candidate *> seen = {};
   for (auto i = 0; i < candidate_args.size(); ++i) {
     auto *candidate = candidate_args[i];
@@ -122,8 +371,8 @@ static void patch_call(llvm::CallBase &call,
     auto *dec_arg = decoder_args[i];
 
     // TODO: this code needs to be moved to a later time.
-    // For recursive functions, we need to know if we should pass the current or
-    // last iteration into the this call.
+    // For recursive functions, we need to know if we should pass the current
+    // or last iteration into the this call.
 
     if (auto *enc_arg = encoder_args[i]) {
       if (auto *enc_local = candidate->encoder.local(*func)) {
@@ -143,7 +392,8 @@ static void patch_call(llvm::CallBase &call,
   }
 }
 
-void version_function(llvm::Function &func, Vector<Version> &versions) {
+#if 0
+  void version_function(llvm::Function &func, Vector<SortedVector<llvm::CallBase *>> &versions) {
 
   print("VERSION ", func.getName());
 
@@ -159,36 +409,11 @@ void version_function(llvm::Function &func, Vector<Version> &versions) {
 
   // Collect the set of possible callers for this function.
   bool possibly_unknown = false;
-  Set<llvm::CallBase *> possible_callers = {};
-  for (auto &use : func.uses()) {
-    auto *call = dyn_cast<llvm::CallBase>(use.getUser());
-
-    // Check if the use may lead to an indirect call.
-    if (not call) {
-      possibly_unknown = true;
-
-    } else if (auto *ret_phi = into<RetPHIInst>(call)) {
-      if (&use != &ret_phi->getCalledOperandAsUse()) {
-        possibly_unknown = true;
-      }
-
-    } else if (auto *fold = into<FoldInst>(call)) {
-      if (&use != &fold->getBodyOperandAsUse()) {
-        possibly_unknown = true;
-      }
-
-    } else if (&use != &call->getCalledOperandUse()) {
-      possibly_unknown = true;
-
-    } else {
-      // Otherwise, we have a direct call to the function.
-      possible_callers.insert(call);
-    }
-  }
+  Set<llvm::CallBase *> possible_callers = possible_callers(func);
 
   // If the address of this function was taken, it may be indirectly called.
   // The defunctionalize utility in memoir can fix this.
-  MEMOIR_ASSERT(not possibly_unknown,
+  MEMOIR_ASSERT(not possible_callers.contains(unknown_caller()),
                 "Possible indirect call to function! "
                 "Employ defunctionalization to fix this.");
 
@@ -305,112 +530,15 @@ void version_function(llvm::Function &func, Vector<Version> &versions) {
     first = false;
   }
 }
+#endif
 
 void ProxyInsertion::prepare() {
 
-  auto &candidates = this->candidates;
+  // For each base in the candidate, insert a global for it.
+  create_base_globals(this->candidates);
 
-  // Collect all abstract candidate arguments.
-  Map<Context, Map<llvm::Argument *, Set<Candidate *>>>
-      abstract_candidates = {};
-  for (auto &candidate : candidates) {
-    println("PREPARING ", candidate);
-
-    // Find all argument redefinitions in the candidate.
-    for (const auto *info : candidate) {
-      for (const auto &[func, pair] : info->redefinitions) {
-        const auto &[call, locals] = pair;
-        Context ctx(*func, call);
-        for (const auto &[base, redefs] : locals) {
-          if (auto *arg = dyn_cast<llvm::Argument>(base)) {
-            abstract_candidates[ctx][arg].insert(&candidate);
-          }
-        }
-      }
-    }
-
-    // Create global variables for this candidate.
-    auto &module = MEMOIR_SANITIZE(candidate.function().getParent(),
-                                   "Function has no parent module!");
-    if (candidate.build_encoder()) {
-      candidate.encoder.global(create_global_ptr(module, "encoder"));
-    }
-    if (candidate.build_decoder()) {
-      candidate.decoder.global(create_global_ptr(module, "decoder"));
-    }
-  }
-
-  // Find all versions of the function that are needed.
-  Map<llvm::Function *, Vector<Version>> function_versions = {};
-  Map<Context, size_t> context_to_version = {};
-  for (const auto &[ctx, locals] : abstract_candidates) {
-    // Unpack the context.
-    auto &func = ctx.function();
-    auto *caller = ctx.caller();
-
-    Version version(&func, caller, func.arg_size());
-
-    println("FUNC: ", func.getName());
-    for (const auto &[arg, candidates] : locals) {
-      // TODO: Add handling for arguments that have more than one
-      // context-sensitive candidate.
-      if (candidates.size() > 1) {
-        MEMOIR_UNREACHABLE("ARG ", *arg, " HAS MULTIPLE CANDIDATES!");
-      }
-
-      version[arg->getArgNo()] = *candidates.begin();
-    }
-
-    // See if this version matched any existing ones.
-    bool matches = false;
-    auto vi = 0;
-    for (auto &other : function_versions[&func]) {
-      if (pattern_matches(version, other)) {
-        other.add_caller(caller, version);
-        matches = true;
-        break;
-      }
-
-      ++vi;
-    }
-
-    if (not matches) {
-      function_versions[&func].push_back(version);
-    }
-
-    context_to_version[ctx] = vi;
-  }
-
-  // Version the function
-  for (auto &[func, versions] : function_versions) {
-    version_function(*func, versions);
-  }
-
-  // Update calls to the versioned function.
-  for (const auto &[func, versions] : function_versions) {
-    for (const auto &version : versions) {
-
-      auto *call = version.call;
-
-      if (call) {
-        patch_call(*call,
-                   func,
-                   version,
-                   version.encoder_args,
-                   version.decoder_args);
-      }
-
-      for (auto &[call, args] : version.callers) {
-        if (call) {
-          patch_call(*call,
-                     func,
-                     args,
-                     version.encoder_args,
-                     version.decoder_args);
-        }
-      }
-    }
-  }
+  // For each argument base, store the correct global to it at each call site.
+  patch_mappings(this->candidates);
 }
 
 } // namespace folio
