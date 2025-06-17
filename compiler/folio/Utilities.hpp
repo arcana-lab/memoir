@@ -12,6 +12,11 @@
 
 namespace folio {
 
+// Using memoir types.
+using llvm::memoir::Map;
+using llvm::memoir::Set;
+using llvm::memoir::Vector;
+
 // Helper types.
 template <typename T>
 using LocalMap = llvm::memoir::SmallMap<llvm::Value *, T, /* SmallSize = */ 2>;
@@ -21,6 +26,7 @@ using BaseMap = LocalMap<llvm::memoir::Set<T>>;
 
 // Helper functions.
 llvm::Function *parent_function(llvm::Value &V);
+llvm::Function *parent_function(llvm::Use &U);
 
 uint32_t forward_analysis(
     llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>>

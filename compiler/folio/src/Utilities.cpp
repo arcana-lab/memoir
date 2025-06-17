@@ -24,6 +24,10 @@ llvm::Function *parent_function(llvm::Value &V) {
   return nullptr;
 }
 
+llvm::Function *parent_function(llvm::Use &U) {
+  return parent_function(*U.getUser());
+}
+
 uint32_t forward_analysis(Map<llvm::Function *, Set<llvm::Value *>> &encoded) {
 
   uint32_t count = 0;
