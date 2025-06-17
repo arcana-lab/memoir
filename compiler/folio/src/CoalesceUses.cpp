@@ -35,23 +35,24 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
 }
 
 using GroupedUses =
-    Map<llvm::Function *, Map<llvm::Value *, Vector<llvm::Use *>>>;
-static GroupedUses groupby_function_and_used(const Set<llvm::Use *> &uses) {
+    Map<llvm::Function *, LocalMap<Map<llvm::Value *, Vector<llvm::Use *>>>>;
+static GroupedUses groupby_function_and_used(
+    const LocalMap<Set<llvm::Use *>> &uses) {
 
   GroupedUses local;
 
-  for (auto *use : uses) {
-    auto *user = dyn_cast<llvm::Instruction>(use->getUser());
-    if (not user) {
-      warnln("Non-instruction user found during ProxyInsertion, unexpected.");
-      continue;
+  for (const auto &[base, local_uses] : uses) {
+    for (auto *use : local_uses) {
+      auto *func = parent_function(*use);
+      if (not func) {
+        warnln("User with no parent function found, unexpected.");
+        continue;
+      }
+
+      auto *used = use->get();
+
+      local[func][base][used].push_back(use);
     }
-
-    auto *func = user->getFunction();
-
-    auto *used = use->get();
-
-    local[func][used].push_back(use);
   }
 
   return local;
@@ -101,67 +102,70 @@ static void coalesce_by_dominance(
     GroupedUses &grouped,
     std::function<llvm::DominatorTree &(llvm::Function &)> get_dominator_tree) {
 
-  for (auto &[func, locals] : grouped) {
+  for (auto &[func, base_to_locals] : grouped) {
 
     // Fetch the dominators for this function.
     auto &DT = get_dominator_tree(*func);
 
-    // For each of the local values being decoded:
-    for (auto &[val, uses] : locals) {
+    for (auto &[base, locals] : base_to_locals) {
 
-      // Special handling for values with single uses.
-      if (uses.size() == 1) {
-        coalesced.emplace_back(uses);
-        continue;
-      }
+      // For each of the local values being decoded:
+      for (auto &[val, uses] : locals) {
 
-      // Sort the uses in level order of the dominator tree.
-      sort_in_level_order(uses, DT);
-
-      // Group together uses that are dominated by one another.
-      Set<llvm::Use *> visited = {};
-      for (auto it = uses.begin(); it != uses.end(); ++it) {
-        auto *use = *it;
-
-        if (visited.count(use) > 0) {
-          continue;
-        } else {
-          visited.insert(use);
-        }
-
-        // Unpack the use.
-        auto *user = cast<llvm::Instruction>(use->getUser());
-
-        // Add a new coalesced use.
-        coalesced.emplace_back(use);
-        auto &current = coalesced.back();
-
-        // If coalescing is disabled, then don't!
-        if (disable_use_coalescing) {
+        // Special handling for values with single uses.
+        if (uses.size() == 1) {
+          coalesced.emplace_back(uses, base);
           continue;
         }
 
-        // Don't coalesce has operations.
-        if (into<HasInst>(user)) {
-          continue;
-        }
+        // Sort the uses in level order of the dominator tree.
+        sort_in_level_order(uses, DT);
 
-        // Try to coalesce the remaining uses.
-        for (auto it2 = std::next(it); it2 != uses.end(); ++it2) {
-          auto *other_use = *it2;
-          auto *other_user = cast<llvm::Instruction>(other_use->getUser());
+        // Group together uses that are dominated by one another.
+        Set<llvm::Use *> visited = {};
+        for (auto it = uses.begin(); it != uses.end(); ++it) {
+          auto *use = *it;
 
-          if (DT.dominates(user, *other_use)) {
-            current.push_back(other_use);
-            visited.insert(other_use);
+          if (visited.count(use) > 0) {
+            continue;
+          } else {
+            visited.insert(use);
+          }
 
-          } else if (DT.dominates(other_user, *use)) {
-            // This check is unnecessary, it's here as a sanity check.
-            MEMOIR_UNREACHABLE("Level order is incorrect!\n",
-                               "      ",
-                               *other_user,
-                               " doms ",
-                               *user);
+          // Unpack the use.
+          auto *user = cast<llvm::Instruction>(use->getUser());
+
+          // Add a new coalesced use.
+          coalesced.emplace_back(use, base);
+          auto &current = coalesced.back();
+
+          // If coalescing is disabled, then don't!
+          if (disable_use_coalescing) {
+            continue;
+          }
+
+          // Don't coalesce has operations.
+          if (into<HasInst>(user)) {
+            continue;
+          }
+
+          // Try to coalesce the remaining uses.
+          for (auto it2 = std::next(it); it2 != uses.end(); ++it2) {
+            auto *other_use = *it2;
+            auto *other_user = cast<llvm::Instruction>(other_use->getUser());
+
+            if (DT.dominates(user, *other_use)) {
+              current.push_back(other_use);
+              visited.insert(other_use);
+
+            } else if (DT.dominates(other_user, *use)) {
+              // This check is unnecessary, it's here as a sanity check.
+              MEMOIR_UNREACHABLE("Level order is incorrect!\n",
+                                 "      ",
+                                 *other_user,
+                                 " doms ",
+                                 *user);
+            }
           }
         }
       }
@@ -177,8 +181,9 @@ static void coalesce_by_dominance(
 
 void coalesce(
     Vector<CoalescedUses> &coalesced,
-    const Set<llvm::Use *> &uses,
+    const LocalMap<Set<llvm::Use *>> &uses,
     std::function<llvm::DominatorTree &(llvm::Function &)> get_dominator_tree) {
+
   auto grouped = groupby_function_and_used(uses);
 
   coalesce_by_dominance(coalesced, grouped, get_dominator_tree);

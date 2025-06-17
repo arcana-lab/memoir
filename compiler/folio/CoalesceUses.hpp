@@ -12,19 +12,26 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 
+#include "folio/Utilities.hpp"
+
 namespace folio {
 
-struct CoalescedUses : public llvm::memoir::Vector<llvm::Use *> {
+struct CoalescedUses : public Vector<llvm::Use *> {
 protected:
-  using Base = llvm::memoir::Vector<llvm::Use *>;
+  using Base = Vector<llvm::Use *>;
 
   llvm::Value *_value;
+  llvm::Value *_base;
 
 public:
-  CoalescedUses(llvm::Use *use) : Base{ use }, _value(use->get()) {}
-  CoalescedUses(llvm::ArrayRef<llvm::Use *> uses)
+  CoalescedUses(llvm::Use *use, llvm::Value *base = NULL)
+    : Base{ use },
+      _value(use->get()),
+      _base{ base } {}
+  CoalescedUses(llvm::ArrayRef<llvm::Use *> uses, llvm::Value *base = NULL)
     : Base(uses.begin(), uses.end()),
-      _value(uses.front()->get()) {}
+      _value(uses.front()->get()),
+      _base{ base } {}
 
   llvm::Value &value() const {
     return *this->_value;
@@ -34,13 +41,21 @@ public:
     this->_value = &value;
   }
 
+  llvm::Value *base() const {
+    return this->_base;
+  }
+
+  void base(llvm::Value *base) {
+    this->_base = base;
+  }
+
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const CoalescedUses &uses);
 };
 
 void coalesce(
-    llvm::memoir::Vector<CoalescedUses> &coalesced,
-    const llvm::memoir::Set<llvm::Use *> &uses,
+    Vector<CoalescedUses> &coalesced,
+    const LocalMap<Set<llvm::Use *>> &uses,
     std::function<llvm::DominatorTree &(llvm::Function &)> get_dominator_tree);
 
 } // namespace folio
