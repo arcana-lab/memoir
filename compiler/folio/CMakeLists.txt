@@ -1,5 +1,5 @@
 # Collect all header files.
-file(GLOB headers "include/*.hpp" "include/*.h" "include/*.hh" "include/*.def")
+file(GLOB headers "*.hpp" "*.h" "*.hh" "*.def")
 
 # Install header files.
 install(
@@ -23,8 +23,6 @@ add_llvm_library(
   PLUGIN_TOOL
   opt
 )
-
-include_directories(include)
 
 add_dependencies(folio
   memoir

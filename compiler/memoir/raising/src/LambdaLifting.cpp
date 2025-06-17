@@ -2,13 +2,10 @@
 
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/TypeCheck.hpp"
+#include "memoir/raising/LambdaLifting.hpp"
 #include "memoir/support/Casting.hpp"
 
-#include "memoir/raising/LambdaLifting.hpp"
-
-using namespace llvm::memoir;
-
-namespace folio {
+namespace llvm::memoir {
 
 static llvm::Use &get_called_use(llvm::CallBase &call) {
   auto *fold = into<FoldInst>(call);
@@ -289,4 +286,4 @@ llvm::PreservedAnalyses LambdaLiftingPass::run(
                   : llvm::PreservedAnalyses::all();
 }
 
-} // namespace folio
+} // namespace llvm::memoir
