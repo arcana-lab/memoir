@@ -922,8 +922,12 @@ bool ProxyInsertion::transform() {
           builder.CreateAllocInst(*encoder_type, {}, "proxy.encode.");
       encoder = &encoder_alloc->getCallInst();
 
-      // Store the allocation to the relevant global.
-      builder.CreateStore(encoder, &candidate.encoder.global());
+      // Store the allocation to the relevant globals.
+      for (auto &[base, global] : candidate.encoder.globals()) {
+        if (into<AllocInst>(base)) {
+          builder.CreateStore(encoder, global);
+        }
+      }
     }
 
     // Allocate the decoder.
@@ -936,8 +940,12 @@ bool ProxyInsertion::transform() {
                                                     "proxy.decode.");
       decoder = &decoder_alloc->getCallInst();
 
-      // Store the allocation to the relevant global.
-      builder.CreateStore(decoder, &candidate.decoder.global());
+      // Store the allocation to the relevant globals.
+      for (auto &[base, global] : candidate.encoder.globals()) {
+        if (into<AllocInst>(base)) {
+          builder.CreateStore(encoder, global);
+        }
+      }
     }
 
     // Create the addkey function.
@@ -1024,11 +1032,13 @@ bool ProxyInsertion::transform() {
     // argument propagates an encoded value.
     // TODO: make this monomorphize the functions as well.
     OrderedMultiMap<llvm::Function *, llvm::Argument *> params_to_mutate = {};
-    for (const auto &[func, values] : candidate.encoded_values) {
-      for (auto *val : values) {
-        if (auto *arg = dyn_cast<llvm::Argument>(val)) {
-          if (arg->getType() != &llvm_size_type) {
-            params_to_mutate.emplace(arg->getParent(), arg);
+    for (const auto &[func, base_to_values] : candidate.encoded_values) {
+      for (const auto &[base, values] : base_to_values) {
+        for (auto *val : values) {
+          if (auto *arg = dyn_cast<llvm::Argument>(val)) {
+            if (arg->getType() != &llvm_size_type) {
+              params_to_mutate.emplace(arg->getParent(), arg);
+            }
           }
         }
       }
