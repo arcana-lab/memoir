@@ -632,6 +632,9 @@ void ObjectInfo::analyze() {
 
   llvm::ArrayRef<unsigned> offsets(this->offsets);
 
+  LocalMap<Set<llvm::Value *>> base_encoded;
+  LocalMap<Set<llvm::Use *>> base_to_encode, base_to_addkey;
+
   for (const auto &[func, base_to_redefs] : this->redefinitions) {
     for (const auto &[base, redefs] : base_to_redefs.second) {
       infoln("REDEFS(", *base, ")");
@@ -645,27 +648,27 @@ void ObjectInfo::analyze() {
                                    this->encoded,
                                    this->to_encode,
                                    this->to_addkey,
-                                   this->base_encoded[base],
-                                   this->base_to_encode[base],
-                                   this->base_to_addkey[base]);
+                                   base_encoded[base],
+                                   base_to_encode[base],
+                                   base_to_addkey[base]);
         } else {
           gather_uses_to_proxy(redef.value(),
                                offsets.drop_front(redef.offsets().size()),
                                this->encoded,
                                this->to_encode,
                                this->to_addkey,
-                               this->base_encoded[base],
-                               this->base_to_encode[base],
-                               this->base_to_addkey[base]);
+                               base_encoded[base],
+                               base_to_encode[base],
+                               base_to_addkey[base]);
         }
       }
     }
   }
 
   // Populate the reverse mappings.
-  populate_reverse(this->base_encoded, this->encoded_base);
-  populate_reverse(this->base_to_encode, this->to_encode_base);
-  populate_reverse(this->base_to_addkey, this->to_addkey_base);
+  populate_reverse(base_encoded, this->encoded_base);
+  populate_reverse(base_to_encode, this->to_encode_base);
+  populate_reverse(base_to_addkey, this->to_addkey_base);
 }
 
 Type &ObjectInfo::get_type() const {
