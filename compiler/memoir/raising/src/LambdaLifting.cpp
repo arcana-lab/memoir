@@ -4,7 +4,7 @@
 #include "memoir/ir/TypeCheck.hpp"
 #include "memoir/support/Casting.hpp"
 
-#include "folio/LambdaLifting.hpp"
+#include "memoir/raising/LambdaLifting.hpp"
 
 using namespace llvm::memoir;
 
@@ -69,7 +69,9 @@ static void queue_new_calls(llvm::Function &F,
   }
 }
 
-LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
+bool lambda_lift(llvm::Module &M) {
+
+  bool transformed = false;
 
   // Identify functions that have more than one callers.
   Set<llvm::Function *> memoir_functions = {};
@@ -157,6 +159,7 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
     // Create a clone of the function.
     llvm::ValueToValueMapTy vmap;
     auto *clone = llvm::CloneFunction(func, vmap);
+    transformed |= true;
 
     debugln("CREATED  ", clone->getName());
     debugln("  CALLER ", func->getName());
@@ -240,6 +243,7 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
     // Clone the function for this call site.
     llvm::ValueToValueMapTy vmap;
     auto *clone = llvm::CloneFunction(func, vmap);
+    transformed |= true;
 
     debugln("CREATED  ", clone->getName());
     debugln("  CALLER ", call->getCaller()->getName());
@@ -271,6 +275,18 @@ LambdaLifting::LambdaLifting(llvm::Module &M) : M(M) {
       }
     }
   }
+
+  return transformed;
+}
+
+llvm::PreservedAnalyses LambdaLiftingPass::run(
+    llvm::Module &M,
+    llvm::ModuleAnalysisManager &MAM) {
+
+  auto modified = lambda_lift(M);
+
+  return modified ? llvm::PreservedAnalyses::none()
+                  : llvm::PreservedAnalyses::all();
 }
 
 } // namespace folio

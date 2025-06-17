@@ -14,6 +14,7 @@
 #define MODULE_PASS_(CLASS, RESULT) MODULE_PASS(CLASS, RESULT)
 
 MODULE_PASS_(SSAConstructionPass, "memoir-ssa-construction")
+MODULE_PASS_(LambdaLiftingPass, "memoir-lambda-lift")
 
 MODULE_PASS_(SSADestructionPass, "memoir-ssa-destruction")
 MODULE_PASS_(ImplLinkerPass, "memoir-impl-linker")

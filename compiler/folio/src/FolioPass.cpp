@@ -9,7 +9,6 @@
 
 #include "memoir/support/FetchAnalysis.hpp"
 
-#include "folio/LambdaLifting.hpp"
 #include "folio/Pass.hpp"
 #include "folio/ProxyInsertion.hpp"
 #include "folio/SelectionMonomorphization.hpp"
@@ -20,13 +19,6 @@ namespace folio {
 
 llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
                                        llvm::ModuleAnalysisManager &MAM) {
-
-  // First, we will normalize the code such that memoir functions are called at
-  // most once.
-  // LambdaLifting lifter(M);
-
-  // Perform selection monomorphization.
-  // { SelectionMonomorphization monomorph(M); }
 
   // Construct analysis fetchers.
   auto &FAM = GET_FUNCTION_ANALYSIS_MANAGER(MAM, M);
@@ -50,9 +42,6 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
     ProxyInsertion proxies(M, get_dominator_tree, get_bounds_checks);
     MemOIRInst::invalidate();
   }
-
-  // Perform selection monomorphization.
-  //  { SelectionMonomorphization monomorph(M); }
 
   return llvm::PreservedAnalyses::none();
 }
