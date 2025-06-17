@@ -90,7 +90,7 @@ struct SortedVector : public Vector<T> {
     // Remove all elements that occur in other.
     auto oit = other.cbegin(), oie = other.cend();
 
-    for (auto it = this->begin(); it != this->end();) {
+    for (auto it = this->begin(); it != this->end(); ++oit) {
 
       auto [lower, upper] = std::equal_range(it, this->end(), *oit, Cmp{});
 
