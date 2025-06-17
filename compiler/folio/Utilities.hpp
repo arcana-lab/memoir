@@ -14,6 +14,8 @@ namespace folio {
 
 // Using memoir types.
 using llvm::memoir::Map;
+using llvm::memoir::Option;
+using llvm::memoir::Pair;
 using llvm::memoir::Set;
 using llvm::memoir::Vector;
 
@@ -27,6 +29,11 @@ using BaseMap = LocalMap<llvm::memoir::Set<T>>;
 // Helper functions.
 llvm::Function *parent_function(llvm::Value &V);
 llvm::Function *parent_function(llvm::Use &U);
+
+void erase_uses(Set<llvm::Use *> &uses, const Set<llvm::Use *> &to_erase);
+
+void erase_uses(LocalMap<Set<llvm::Use *>> &uses,
+                const Set<llvm::Use *> &to_erase);
 
 uint32_t forward_analysis(
     llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>>

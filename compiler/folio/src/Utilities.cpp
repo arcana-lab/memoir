@@ -28,6 +28,19 @@ llvm::Function *parent_function(llvm::Use &U) {
   return parent_function(*U.getUser());
 }
 
+void erase_uses(Set<llvm::Use *> &uses, const Set<llvm::Use *> &to_erase) {
+  for (auto *use : to_erase) {
+    uses.erase(use);
+  }
+}
+
+void erase_uses(LocalMap<Set<llvm::Use *>> &uses,
+                const Set<llvm::Use *> &to_erase) {
+  for (auto &[base, base_uses] : uses) {
+    erase_uses(base_uses, to_erase);
+  }
+}
+
 uint32_t forward_analysis(Map<llvm::Function *, Set<llvm::Value *>> &encoded) {
 
   uint32_t count = 0;
