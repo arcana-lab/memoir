@@ -9,11 +9,12 @@
 
 #include "folio/CoalesceUses.hpp"
 #include "folio/ObjectInfo.hpp"
+#include "folio/Utilities.hpp"
 
 namespace folio {
 
-struct Candidate : public llvm::memoir::Vector<ObjectInfo *> {
-  using Base = typename llvm::memoir::Vector<ObjectInfo *>;
+struct Candidate : public Vector<ObjectInfo *> {
+  using Base = Vector<ObjectInfo *>;
 
   Candidate()
     : Base{},
@@ -25,13 +26,32 @@ struct Candidate : public llvm::memoir::Vector<ObjectInfo *> {
       decoder() {}
 
   // The uses prepared for transformation.
-  llvm::memoir::Vector<CoalescedUses> decoded, encoded, added;
-  llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>>
-      encoded_values;
+  Vector<CoalescedUses> decoded, encoded, added;
+  Map<llvm::Function *, LocalMap<Set<llvm::Value *>>> encoded_values;
+
+  llvm::Module &module() const;
+  llvm::Function &function() const;
+
+  llvm::memoir::Type &key_type() const;
+
+  llvm::Instruction &construction_point(llvm::DominatorTree &domtree) const;
+
+  bool build_decoder() const;
+  bool build_encoder() const;
+
+  void gather_uses(Map<llvm::Function *, LocalMap<Set<llvm::Value *>>> &encoded,
+                   LocalMap<Set<llvm::Use *>> &to_decode,
+                   LocalMap<Set<llvm::Use *>> &to_encode,
+                   LocalMap<Set<llvm::Use *>> &to_addkey) const;
+
+  void optimize(
+      std::function<llvm::DominatorTree &(llvm::Function &)> get_domtree,
+      std::function<llvm::memoir::BoundsCheckResult &(llvm::Function &)>
+          get_bounds_checks);
 
   // Information about the en/decoder mappings.
   struct Mapping {
-    Mapping() : _alloc(NULL), _global(NULL), _locals{} {}
+    Mapping() : _alloc(NULL), _globals{}, _locals{} {}
 
     llvm::Value &alloc() const {
       return *this->_alloc;
@@ -41,12 +61,20 @@ struct Candidate : public llvm::memoir::Vector<ObjectInfo *> {
       this->_alloc = &V;
     }
 
-    llvm::GlobalVariable &global() const {
-      return *this->_global;
+    llvm::GlobalVariable &global(llvm::Value *base) const {
+      return *this->_globals.at(base);
     }
 
-    void global(llvm::GlobalVariable &GV) {
-      this->_global = &GV;
+    void global(llvm::Value *base, llvm::GlobalVariable &GV) {
+      this->_globals[base] = &GV;
+    }
+
+    Map<llvm::Value *, llvm::GlobalVariable *> &globals() {
+      return this->_globals;
+    }
+
+    const Map<llvm::Value *, llvm::GlobalVariable *> &globals() const {
+      return this->_globals;
     }
 
     llvm::AllocaInst *local(llvm::Function &F) const {
@@ -63,30 +91,10 @@ struct Candidate : public llvm::memoir::Vector<ObjectInfo *> {
     }
 
     llvm::Value *_alloc;
-    llvm::GlobalVariable *_global;
-    llvm::memoir::Map<llvm::Function *, llvm::AllocaInst *> _locals;
+    Map<llvm::Value *, llvm::GlobalVariable *> _globals;
+    Map<llvm::Function *, llvm::AllocaInst *> _locals;
   };
   Mapping encoder, decoder;
-
-  llvm::Function &function() const;
-
-  llvm::memoir::Type &key_type() const;
-
-  llvm::Instruction &construction_point(llvm::DominatorTree &domtree) const;
-
-  bool build_decoder() const;
-  bool build_encoder() const;
-
-  void gather_uses(llvm::memoir::Map<llvm::Function *,
-                                     llvm::memoir::Set<llvm::Value *>> &encoded,
-                   llvm::memoir::Set<llvm::Use *> &to_decode,
-                   llvm::memoir::Set<llvm::Use *> &to_encode,
-                   llvm::memoir::Set<llvm::Use *> &to_addkey) const;
-
-  void optimize(
-      std::function<llvm::DominatorTree &(llvm::Function &)> get_domtree,
-      std::function<llvm::memoir::BoundsCheckResult &(llvm::Function &)>
-          get_bounds_checks);
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const Candidate &uses);

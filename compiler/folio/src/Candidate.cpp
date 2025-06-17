@@ -1,6 +1,7 @@
 #include "memoir/support/Casting.hpp"
 
 #include "folio/Candidate.hpp"
+#include "folio/RedundantTranslations.hpp"
 #include "folio/Utilities.hpp"
 #include "folio/WeakenUses.hpp"
 
@@ -8,15 +9,15 @@ using namespace llvm::memoir;
 
 namespace folio {
 
-static llvm::cl::opt<bool> disable_translation_elimination(
-    "disable-translation-elimination",
-    llvm::cl::desc("Disable redundant translation elimination"),
-    llvm::cl::init(false));
-
 static llvm::cl::opt<bool> disable_use_weakening(
     "disable-use-weakening",
     llvm::cl::desc("Disable weakening uses"),
     llvm::cl::init(true));
+
+llvm::Module &Candidate::module() const {
+  return MEMOIR_SANITIZE(this->front()->allocation->getModule(),
+                         "Object in candidate has no parent module!");
+}
 
 llvm::Function &Candidate::function() const {
   return MEMOIR_SANITIZE(this->front()->allocation->getFunction(),
@@ -67,65 +68,78 @@ llvm::Instruction &Candidate::construction_point(
       "Failed to find a construction point for the candidate!");
 }
 
-void Candidate::gather_uses(Map<llvm::Function *, Set<llvm::Value *>> &encoded,
-                            Set<llvm::Use *> &to_decode,
-                            Set<llvm::Use *> &to_encode,
-                            Set<llvm::Use *> &to_addkey) const {
+void Candidate::gather_uses(
+    Map<llvm::Function *, LocalMap<Set<llvm::Value *>>> &encoded,
+    LocalMap<Set<llvm::Use *>> &to_decode,
+    LocalMap<Set<llvm::Use *>> &to_encode,
+    LocalMap<Set<llvm::Use *>> &to_addkey) const {
 
   for (auto *info : *this) {
     for (const auto &[func, values] : info->encoded) {
-      encoded[func].insert(values.begin(), values.end());
+      for (auto *val : values) {
+        auto *base = info->encoded_base.at(val);
+        encoded[func][base].insert(val);
+      }
     }
 
     for (const auto &[func, uses] : info->to_encode) {
-      to_encode.insert(uses.begin(), uses.end());
+      for (auto *use : uses) {
+        auto *base = info->to_encode_base.at(use);
+        to_encode[base].insert(use);
+      }
     }
 
     for (const auto &[func, uses] : info->to_addkey) {
-      to_addkey.insert(uses.begin(), uses.end());
+      for (auto *use : uses) {
+        auto *base = info->to_addkey_base.at(use);
+        to_addkey[base].insert(use);
+      }
     }
   }
 
   // Perform a forward analysis on the encoded values.
-  forward_analysis(encoded);
+  // TODO: updateme.
+  // forward_analysis(encoded);
 
   // Collect the set of uses to decode.
-  for (const auto &[func, values] : encoded) {
-    for (auto *val : values) {
-      for (auto &use : val->uses()) {
-        auto *user = use.getUser();
+  for (const auto &[func, base_to_values] : encoded) {
+    for (const auto &[base, values] : base_to_values) {
+      for (auto *val : values) {
+        for (auto &use : val->uses()) {
+          auto *user = use.getUser();
 
-        // If the user is a PHI/Select/Fold _and_ is also encoded, we don't
-        // need to decode it.
-        if (isa<llvm::PHINode>(user) or isa<llvm::SelectInst>(user)) {
-          if (encoded[func].count(user)) {
-            continue;
-          }
-        } else if (auto *fold = into<FoldInst>(user)) {
-          auto *arg = (&use == &fold->getInitialAsUse())
-                          ? &fold->getAccumulatorArgument()
-                          : fold->getClosedArgument(use);
-          if (encoded[&fold->getBody()].count(arg)) {
-            continue;
-          }
-        } else if (auto *ret = dyn_cast<llvm::ReturnInst>(user)) {
-          if (auto *func = ret->getFunction()) {
-            if (auto *fold = FoldInst::get_single_fold(*func)) {
-              auto *caller = fold->getFunction();
-              auto &result = fold->getResult();
-              // If the result of the fold is encoded, we don't decode here.
-              if (encoded[caller].count(&result)) {
-                continue;
+          // If the user is a PHI/Select/Fold _and_ is also encoded, we don't
+          // need to decode it.
+          if (isa<llvm::PHINode>(user) or isa<llvm::SelectInst>(user)) {
+            if (encoded[func].count(user)) {
+              continue;
+            }
+          } else if (auto *fold = into<FoldInst>(user)) {
+            auto *arg = (&use == &fold->getInitialAsUse())
+                            ? &fold->getAccumulatorArgument()
+                            : fold->getClosedArgument(use);
+            if (encoded[&fold->getBody()].count(arg)) {
+              continue;
+            }
+          } else if (auto *ret = dyn_cast<llvm::ReturnInst>(user)) {
+            if (auto *func = ret->getFunction()) {
+              if (auto *fold = FoldInst::get_single_fold(*func)) {
+                auto *caller = fold->getFunction();
+                auto &result = fold->getResult();
+                // If the result of the fold is encoded, we don't decode here.
+                if (encoded[caller].count(&result)) {
+                  continue;
+                }
               }
             }
+          } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
+            // TODO
           }
-        } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
-          // TODO
-        }
 
-        // If the user is not an encoded propagator, we need to decode this
-        // use.
-        to_decode.insert(&use);
+          // If the user is not an encoded propagator, we need to decode this
+          // use.
+          to_decode[base].insert(&use);
+        }
       }
     }
   }
@@ -160,59 +174,11 @@ static void print_uses(const Set<llvm::Use *> &to_encode,
   }
 }
 
-static bool used_value_will_be_decoded(llvm::Use &use,
-                                       const Set<llvm::Use *> &to_decode,
-                                       Set<llvm::Use *> &visited) {
-
-  debugln("DECODED? ", *use.get());
-
-  if (to_decode.count(&use) > 0) {
-    debugln("  YES");
-    return true;
-  }
-
-  if (visited.count(&use) > 0) {
-    debugln("  YES");
-    return true;
-  } else {
-    visited.insert(&use);
-  }
-
-  auto *value = use.get();
-  if (auto *phi = dyn_cast<llvm::PHINode>(value)) {
-    debugln("  RECURSE");
-    bool all_decoded = true;
-    for (auto &incoming : phi->incoming_values()) {
-      all_decoded &= used_value_will_be_decoded(incoming, to_decode, visited);
-    }
-    return all_decoded;
-  } else if (auto *select = dyn_cast<llvm::SelectInst>(value)) {
-    debugln("  RECURSE");
-    return used_value_will_be_decoded(select->getOperandUse(1),
-                                      to_decode,
-                                      visited)
-           and used_value_will_be_decoded(select->getOperandUse(2),
-                                          to_decode,
-                                          visited);
-  } else if (auto *arg = dyn_cast<llvm::Argument>(value)) {
-    auto &func =
-        MEMOIR_SANITIZE(arg->getParent(), "Argument has no parent function!");
-    if (auto *fold = FoldInst::get_single_fold(func)) {
-      if (auto *operand_use = fold->getOperandForArgument(*arg)) {
-        debugln("  RECURSE");
-        return used_value_will_be_decoded(*operand_use, to_decode, visited);
-      }
-    }
-  }
-
-  debugln("  NO");
-  return false;
-}
-
-static bool used_value_will_be_decoded(llvm::Use &use,
-                                       const Set<llvm::Use *> &to_decode) {
-  Set<llvm::Use *> visited = {};
-  return used_value_will_be_decoded(use, to_decode, visited);
+static void print_uses(const LocalMap<Set<llvm::Use *>> &to_encode,
+                       const LocalMap<Set<llvm::Use *>> &to_decode,
+                       const LocalMap<Set<llvm::Use *>> &to_addkey) {
+  // TODO
+  return;
 }
 
 void Candidate::optimize(
@@ -220,14 +186,13 @@ void Candidate::optimize(
     std::function<BoundsCheckResult &(llvm::Function &)> get_bounds_checks) {
 
   // Collect all of the uses that need to be handled.
-  Set<llvm::Use *> to_decode = {};
-  Set<llvm::Use *> to_encode = {};
-  Set<llvm::Use *> to_addkey = {};
+  LocalMap<Set<llvm::Use *>> to_decode, to_encode, to_addkey;
   this->gather_uses(this->encoded_values, to_decode, to_encode, to_addkey);
 
   println("  FOUND USES");
   print_uses(to_encode, to_decode, to_addkey);
 
+#if 0
   if (not disable_use_weakening) {
     // DISABLED: Use weakening works, but does not have any considerable
     // performance benefits.
@@ -236,53 +201,15 @@ void Candidate::optimize(
     // inserted.
     Set<llvm::Use *> to_weaken = {};
     weaken_uses(to_addkey, to_weaken, *this, get_bounds_checks);
+
+    erase_uses(to_addkey, to_weaken);
     for (auto *use : to_weaken) {
-      to_addkey.erase(use);
       to_encode.insert(use);
     }
   }
+#endif
 
-  if (not disable_translation_elimination) {
-    // Trim uses that dont need to be decoded because they are only used to
-    // compare against other values that need to be decoded.
-    Set<llvm::Use *> trim_to_decode = {};
-    for (auto *use : to_decode) {
-      auto *user = use->getUser();
-
-      if (auto *cmp = dyn_cast<llvm::CmpInst>(user)) {
-        if (cmp->isEquality()) {
-          auto &lhs = cmp->getOperandUse(0);
-          auto &rhs = cmp->getOperandUse(1);
-          if (used_value_will_be_decoded(lhs, to_decode)
-              and used_value_will_be_decoded(rhs, to_decode)) {
-            trim_to_decode.insert(&lhs);
-            trim_to_decode.insert(&rhs);
-          }
-        }
-      }
-    }
-
-    // Trim uses that dont need to be encoded because they are produced by a
-    // use that needs decoded.
-    Set<llvm::Use *> trim_to_encode = {};
-    for (auto uses : { to_encode, to_addkey }) {
-      for (auto *use : uses) {
-        if (used_value_will_be_decoded(*use, to_decode)) {
-          trim_to_encode.insert(use);
-          trim_to_decode.insert(use);
-        }
-      }
-    }
-
-    // Erase the uses that we identified to trim.
-    for (auto *use_to_trim : trim_to_decode) {
-      to_decode.erase(use_to_trim);
-    }
-    for (auto *use_to_trim : trim_to_encode) {
-      to_encode.erase(use_to_trim);
-      to_addkey.erase(use_to_trim);
-    }
-  }
+  eliminate_redundant_translations(to_decode, to_encode, to_addkey);
 
   println("  TRIMMED USES:");
   print_uses(to_encode, to_decode, to_addkey);
