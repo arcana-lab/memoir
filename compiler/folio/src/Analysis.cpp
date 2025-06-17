@@ -148,90 +148,301 @@ ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
   return &info;
 }
 
-void ProxyInsertion::gather_propagators(
-    Map<llvm::Function *, Set<llvm::Value *>> encoded,
-    Map<llvm::Function *, Set<llvm::Use *>> to_encode) {
+static int heuristic(const Map<llvm::Function *, Set<llvm::Value *>> &encoded,
+                     const Map<llvm::Function *, Set<llvm::Use *>> &to_encode,
+                     const Map<llvm::Function *, Set<llvm::Use *>> &to_addkey) {
 
+  int benefit = 0;
   for (const auto &[func, values] : encoded) {
-    for (auto *val : values) {
-      for (auto &use : val->uses()) {
-        auto *user = dyn_cast<llvm::Instruction>(use.getUser());
-        if (not user) {
-          continue;
-        }
+    for (const auto *value : values) {
+      for (auto &use_to_decode : value->uses()) {
 
-        infoln("GATHER ", *user);
+        auto *user = use_to_decode.getUser();
 
-        if (auto *write = into<WriteInst>(user)) {
-          if (&use == &write->getValueWrittenAsUse()) {
-            this->find_base_object(write->getObject(), *write);
-          }
-
-        } else if (auto *insert = into<InsertInst>(user)) {
-          if (auto value_keyword = insert->get_keyword<ValueKeyword>()) {
-            if (&use == &value_keyword->getValueAsUse()) {
-              this->find_base_object(insert->getObject(), *insert);
+        if (to_encode.count(func)) {
+          for (const auto *use_to_encode : to_encode.at(func)) {
+            if (&use_to_decode == use_to_encode) {
+              ++benefit;
             }
           }
         }
-      }
-    }
-  }
 
-  for (const auto &[func, uses] : to_encode) {
-    for (auto *use : uses) {
-      auto *user = dyn_cast<llvm::Instruction>(use->getUser());
-      if (not user) {
-        continue;
-      }
-
-      auto *used = use->get();
-
-      infoln("GATHER ", *user);
-
-      if (auto *arg = dyn_cast<llvm::Argument>(used)) {
-        auto &parent = MEMOIR_SANITIZE(arg->getParent(),
-                                       "Argument has no parent function.");
-
-        if (auto *fold = FoldInst::get_single_fold(parent)) {
-          if (arg == fold->getElementArgument()) {
-            this->find_base_object(fold->getObject(), *fold);
+        if (to_addkey.count(func)) {
+          for (const auto *use_to_addkey : to_addkey.at(func)) {
+            if (&use_to_decode == use_to_addkey) {
+              ++benefit;
+            }
           }
         }
 
-      } else if (auto *read = into<ReadInst>(used)) {
-        this->find_base_object(read->getObject(), *read);
+        auto *cmp = dyn_cast<llvm::CmpInst>(user);
+        if (cmp and cmp->isEquality()) {
+          if (values.contains(cmp->getOperand(0))
+              and values.contains(cmp->getOperand(1))) {
+            ++benefit;
+          }
+        }
       }
     }
   }
 
-  // Deduplicate propagators.
-  for (auto it = this->propagators.begin(); it != this->propagators.end();) {
-    auto &info = *it;
+  return benefit;
+}
 
-    // Search for an equivalent propagator.
-    auto found = std::find_if(this->propagators.begin(),
-                              it,
-                              [&](const ObjectInfo &other) {
-                                return info.allocation == other.allocation
-                                       and std::equal(info.offsets.begin(),
-                                                      info.offsets.end(),
-                                                      other.offsets.begin(),
-                                                      other.offsets.end());
-                              });
+static int benefit(llvm::ArrayRef<const ObjectInfo *> candidate) {
+  // Compute the benefit of this candidate.
 
-    if (found != it) {
-      // If we found an equivalent propagator, delete this one.
-      it = this->propagators.erase(it);
-    } else {
-      // Analyze this object, since it is unique.
-      info.analyze();
-      // Commit this object.
-      ++it;
+  // Merge encoded values.
+  Map<llvm::Function *, Set<llvm::Value *>> encoded = {};
+  for (const auto *info : candidate) {
+    for (const auto &[func, values] : info->encoded) {
+      encoded[func].insert(values.begin(), values.end());
     }
   }
 
-  return;
+  // Perform a forward data flow analysis on the encoded values.
+  forward_analysis(encoded);
+
+  // Merge uses.
+  Map<llvm::Function *, Set<llvm::Use *>> to_encode = {}, to_addkey = {};
+  for (const auto *info : candidate) {
+    for (const auto &[func, uses] : info->to_encode) {
+      to_encode[func].insert(uses.begin(), uses.end());
+    }
+
+    for (const auto &[func, uses] : info->to_addkey) {
+      to_addkey[func].insert(uses.begin(), uses.end());
+    }
+  }
+
+  // Perform a "what if?" analysis.
+  return heuristic(encoded, to_encode, to_addkey);
+}
+
+static bool object_can_share(Type &type,
+                             llvm::Function *func,
+                             ObjectInfo &other) {
+  // Check that the key types match.
+  auto *other_alloc = other.allocation;
+  auto &other_type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&other.get_type()),
+                                     "Non-assoc type, unhandled.");
+
+  if (&type != &other_type.getKeyType()) {
+    return false;
+  }
+
+  // Check that they share a parent function.
+  // NOTE: this is overly conservative
+  auto *other_func = other.allocation->getFunction();
+  if (func != other_func) {
+    return false;
+  }
+
+  return true;
+}
+
+static bool propagator_can_share(Type &type,
+                                 llvm::Function *func,
+                                 ObjectInfo &other) {
+  auto *other_alloc = other.allocation;
+  auto &other_type = other.get_type();
+
+  if (&type != &other_type) {
+    return false;
+  }
+
+  // Check that they share a parent basic block.
+  auto *other_func = other_alloc->getFunction();
+  if (func != other_func) {
+    return false;
+  }
+
+  return true;
+}
+
+static void share_proxies(Vector<ObjectInfo> &objects,
+                          Vector<ObjectInfo> &propagators,
+                          Vector<Candidate> &candidates) {
+
+  Set<const ObjectInfo *> used = {};
+  for (auto it = objects.begin(); it != objects.end(); ++it) {
+    auto &info = *it;
+
+    if (used.count(&info)) {
+      continue;
+    }
+
+    auto *alloc = info.allocation;
+    auto *bb = alloc->getParent();
+    auto *func = bb->getParent();
+
+    auto &type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&info.get_type()),
+                                 "Non-assoc type, unhandled.");
+    auto &key_type = type.getKeyType();
+
+    candidates.emplace_back();
+    auto &candidate = candidates.back();
+    candidate.push_back(&info);
+    println("TRYING ", info);
+
+    // Compute the benefit of the candidate as is.
+    auto candidate_benefit = benefit(candidate);
+
+    // Find all other allocations in the same function as this one.
+    if (not disable_proxy_sharing) {
+
+      // Collect the set of objects that can share, and their solo benefit.
+      Map<ObjectInfo *, int> shareable = {};
+
+      for (auto &other : objects) {
+        if (used.contains(&other) or &other == &info) {
+          continue;
+        }
+
+        if (object_can_share(key_type, func, other)) {
+          shareable[&other] = benefit({ &other });
+        }
+      }
+
+      // Find all propagators in the same function as this one.
+      for (auto &other : propagators) {
+        if (used.contains(&other) or &other == &info) {
+          continue;
+        }
+
+        if (propagator_can_share(key_type, func, other)) {
+          shareable[&other] = benefit({ &other });
+        }
+      }
+
+      println("SHAREABLE");
+      for (const auto &[other, _] : shareable) {
+        println("  ", *other);
+      }
+      println();
+
+      // Iterate until we can't find a new object to add to the candidate.
+      bool fresh;
+      do {
+        fresh = false;
+
+        println("CURRENT ", candidate);
+        println("  BENEFIT ", candidate_benefit);
+
+        for (auto jt = shareable.begin(); jt != shareable.end();) {
+          const auto &[other, single_benefit] = *jt;
+
+          println("  WHAT IF? ", *other);
+
+          // Compute the benefit of adding this candidate.
+          candidate.push_back(other);
+          auto new_benefit = benefit(candidate);
+          println("    NEW BENEFIT ", new_benefit);
+          println("    SUM BENEFIT ", candidate_benefit + single_benefit);
+          println();
+
+          if (new_benefit > (candidate_benefit + single_benefit)) {
+            fresh = true;
+            candidate_benefit = new_benefit;
+
+            // Erase the object from the search list.
+            jt = shareable.erase(jt);
+
+          } else {
+            // If there's no benefit, roll it back.
+            candidate.pop_back();
+
+            // Continue iterating.
+            ++jt;
+          }
+        }
+
+      } while (fresh);
+    }
+
+    // If there is no benefit, roll back the candidate.
+    if (candidate.size() == 0 or candidate_benefit == 0) {
+      candidates.pop_back();
+
+    } else {
+      // Mark the objects in the candidate as being used.
+      used.insert(candidate.begin(), candidate.end());
+
+      println("CANDIDATE:");
+      println("  BENEFIT=", candidate_benefit);
+      for (const auto *info : candidate) {
+        println("  ", *info);
+      }
+    }
+  }
+}
+
+static void gather_nested_propagators(Vector<ObjectInfo> &propagators,
+                                      const Set<Type *> &types,
+                                      AllocInst &alloc,
+                                      Type &type,
+                                      llvm::ArrayRef<unsigned> offsets = {}) {
+
+  if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
+
+    auto &elem_type = collection_type->getElementType();
+
+    Vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
+
+    // Recurse on the element.
+    nested_offsets.push_back(unsigned(-1));
+    gather_nested_propagators(propagators,
+                              types,
+                              alloc,
+                              elem_type,
+                              nested_offsets);
+
+  } else if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
+
+    Vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
+
+    for (auto field = 0; field < tuple_type->getNumFields(); ++field) {
+      auto &field_type = tuple_type->getFieldType(field);
+
+      // Recurse on the field.
+      nested_offsets.push_back(field);
+      gather_nested_propagators(propagators,
+                                types,
+                                alloc,
+                                field_type,
+                                nested_offsets);
+      nested_offsets.pop_back();
+    }
+
+  } else {
+    if (types.contains(&type)) {
+      propagators.emplace_back(alloc, offsets);
+    }
+  }
+}
+
+static void gather_propagators(Vector<ObjectInfo> &propagators,
+                               const Set<Type *> &types,
+                               llvm::Module &M) {
+  // Fetch all allocations.
+  auto *alloc_func =
+      FunctionNames::get_memoir_function(M, MemOIR_Func::ALLOCATE);
+
+  for (auto &use : alloc_func->uses()) {
+    auto *alloc = into<AllocInst>(use.getUser());
+    if (not alloc) {
+      continue;
+    }
+
+    println("ALLOC ", *alloc);
+
+    // Recurse into the type to find relevant objects.
+    gather_nested_propagators(propagators, types, *alloc, alloc->getType());
+  }
+
+  for (auto &prop : propagators) {
+    prop.analyze();
+  }
 }
 
 void ProxyInsertion::analyze() {
@@ -270,6 +481,20 @@ void ProxyInsertion::analyze() {
   // collections that can be used to propagate proxied values.
   if (not disable_proxy_propagation) {
 
+    // Find all objects whose value type is the same as any of the objects we've
+    // discovered.
+    Set<Type *> types = {};
+    for (auto &info : this->objects) {
+      if (auto *assoc_type = dyn_cast<AssocType>(&info.get_type())) {
+        auto &key_type = assoc_type->getKeyType();
+        types.insert(&key_type);
+      }
+    }
+
+    // Gather all objects in the program that have elements of a relevant type.
+    gather_propagators(this->propagators, types, M);
+
+#if 0
     // From the use information, find any collection elements that _could_
     // propagate the proxy.
     Map<llvm::Function *, Set<llvm::Value *>> encoded = {};
@@ -287,6 +512,7 @@ void ProxyInsertion::analyze() {
 
     // Gather the propagators from the encoded values.
     this->gather_propagators(encoded, to_encode);
+#endif
 
     println();
     println("FOUND PROPAGATORS ", this->propagators.size());
@@ -297,116 +523,7 @@ void ProxyInsertion::analyze() {
   }
 
   // Use a heuristic to share proxies between collections.
-  Set<const ObjectInfo *> used = {};
-  for (auto it = this->objects.begin(); it != this->objects.end(); ++it) {
-    auto &info = *it;
-
-    if (used.count(&info)) {
-      continue;
-    }
-
-    auto *alloc = info.allocation;
-    auto *bb = alloc->getParent();
-    auto *func = bb->getParent();
-
-    auto &type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&info.get_type()),
-                                 "Non-assoc type, unhandled.");
-
-    this->candidates.emplace_back();
-    auto &candidate = this->candidates.back();
-    candidate.push_back(&info);
-
-    // Find all other allocations in the same function as this one.
-    if (not disable_proxy_sharing) {
-      for (auto it2 = std::next(it); it2 != this->objects.end(); ++it2) {
-        auto &other = *it2;
-
-        if (used.count(&other)) {
-          continue;
-        }
-
-        // Check that the key types match.
-        auto *other_alloc = other.allocation;
-        auto &other_type =
-            MEMOIR_SANITIZE(dyn_cast<AssocType>(&other.get_type()),
-                            "Non-assoc type, unhandled.");
-
-        if (&type.getKeyType() != &other_type.getKeyType()) {
-          continue;
-        }
-
-        // Check that they share a parent function.
-        // NOTE: this is overly conservative
-        auto *other_func = other.allocation->getFunction();
-        if (func != other_func) {
-          continue;
-        }
-
-        candidate.push_back(&other);
-      }
-
-      // Find all propagators in the same function as this one.
-      for (auto &other : this->propagators) {
-        if (used.count(&other) > 0) {
-          continue;
-        }
-
-        auto *other_alloc = other.allocation;
-        auto &other_type = other.get_type();
-
-        if (&type.getKeyType() != &other_type) {
-          continue;
-        }
-
-        // Check that they share a parent basic block.
-        auto *other_func = other_alloc->getFunction();
-        if (func != other_func) {
-          continue;
-        }
-
-        candidate.push_back(&other);
-      }
-    }
-
-    // Compute the benefit of each object in the candidate.
-    uint32_t candidate_benefit = 0;
-    Set<const ObjectInfo *> has_benefit = {};
-    for (const auto *info : candidate) {
-      for (const auto *other : candidate) {
-        if (info == other) {
-          continue;
-        }
-
-        auto benefit = info->compute_heuristic(*other);
-
-        if (benefit > 0) {
-          has_benefit.insert(info);
-          has_benefit.insert(other);
-          candidate_benefit += benefit;
-        }
-      }
-    }
-
-    // Remove objects that provide no benefits.
-    std::erase_if(candidate, [&](ObjectInfo *info) {
-      return has_benefit.count(info) == 0;
-    });
-
-    // If there is no benefit, roll back the candidate.
-    if (candidate.size() == 0) {
-      candidates.pop_back();
-    } else {
-
-      // Mark the objects in the candidate as being used.
-      used.insert(candidate.begin(), candidate.end());
-
-      println("CANDIDATE:");
-      println("  BENEFIT=", candidate_benefit);
-      for (const auto *info : candidate) {
-        println("  ", *info);
-      }
-    }
-  }
+  share_proxies(this->objects, this->propagators, this->candidates);
 }
 
 } // namespace folio

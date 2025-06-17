@@ -13,6 +13,7 @@
 
 #include "folio/Candidate.hpp"
 #include "folio/ObjectInfo.hpp"
+#include "folio/Utilities.hpp"
 
 namespace folio {
 
@@ -39,29 +40,22 @@ public:
   bool transform();
 
   // Helper functions.
-  static llvm::memoir::Option<std::string> get_enumerated_impl(
-      llvm::memoir::Type &type,
-      bool is_nested = false);
+  static Option<std::string> get_enumerated_impl(llvm::memoir::Type &type,
+                                                 bool is_nested = false);
 
 protected:
-  void gather_assoc_objects(llvm::memoir::Vector<ObjectInfo> &allocations,
+  void gather_assoc_objects(Vector<ObjectInfo> &allocations,
                             llvm::memoir::AllocInst &alloc,
                             llvm::memoir::Type &type,
-                            llvm::memoir::Vector<unsigned> offsets = {});
+                            Vector<unsigned> offsets = {});
 
   ObjectInfo *find_base_object(llvm::Value &V,
                                llvm::memoir::AccessInst &access);
 
-  void gather_propagators(
-      llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>>
-          encoded,
-      llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Use *>>
-          to_decode);
-
   llvm::Module &M;
-  llvm::memoir::Vector<ObjectInfo> objects;
-  llvm::memoir::Vector<ObjectInfo> propagators;
-  llvm::memoir::Vector<Candidate> candidates;
+  Vector<ObjectInfo> objects;
+  Vector<ObjectInfo> propagators;
+  Vector<Candidate> candidates;
 
   GetDominatorTree get_dominator_tree;
   GetBoundsChecks get_bounds_checks;
