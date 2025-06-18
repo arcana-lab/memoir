@@ -18,39 +18,33 @@ namespace folio {
 struct Mapping {
 public:
   using GlobalsMap = Map<llvm::Value *, llvm::GlobalVariable *>;
+  using LocalsMap = Map<llvm::Value *, llvm::AllocaInst *>;
 
 protected:
   llvm::Value *_alloc;
   GlobalsMap _globals;
+  LocalsMap _locals;
 
 public:
   Mapping() : _alloc(NULL), _globals{} {}
 
   // Allocation accessors.
-  llvm::Value &alloc() const {
-    return *this->_alloc;
-  }
+  llvm::Value &alloc() const;
 
-  void alloc(llvm::Value &V) {
-    this->_alloc = &V;
-  }
+  void alloc(llvm::Value &V);
 
   // Globals accessors.
-  llvm::GlobalVariable &global(llvm::Value *base) const {
-    return *this->_globals.at(base);
-  }
+  llvm::GlobalVariable &global(llvm::Value *base) const;
+  void global(llvm::Value *base, llvm::GlobalVariable &GV);
 
-  void global(llvm::Value *base, llvm::GlobalVariable &GV) {
-    this->_globals[base] = &GV;
-  }
+  GlobalsMap &globals();
 
-  GlobalsMap &globals() {
-    return this->_globals;
-  }
+  const GlobalsMap &globals() const;
 
-  const GlobalsMap &globals() const {
-    return this->_globals;
-  }
+  // Locals accessors.
+  llvm::AllocaInst &local(llvm::Value *base) const;
+
+  void local(llvm::Value *base, llvm::AllocaInst &stack);
 };
 
 } // namespace folio
