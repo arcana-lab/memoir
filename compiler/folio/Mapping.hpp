@@ -24,7 +24,7 @@ protected:
   GlobalsMap _globals;
 
 public:
-  Mapping() : _alloc(NULL), _globals{}, _locals{} {}
+  Mapping() : _alloc(NULL), _globals{} {}
 
   // Allocation accessors.
   llvm::Value &alloc() const {

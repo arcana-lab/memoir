@@ -101,58 +101,157 @@ static void cleanup_versions(
   }
 }
 
-static void gather_bases(Set<llvm::Value *> &bases,
-                         const Vector<CoalescedUses> &uses) {
-  for (const auto &use : uses) {
-    bases.insert(use.base());
-  }
-}
+static void monomorphize(Vector<Candidate> &candidates) {
 
-static void create_base_globals(Vector<Candidate> &candidates) {
-
+  // Find all abstract arguments.
+  Map<llvm::Argument *, Set<llvm::CallBase *>> abstract_args = {};
   for (auto &candidate : candidates) {
-    // Gather the set of bases from the uses.
-    Set<llvm::Value *> bases = {};
-    gather_bases(bases, candidate.decoded);
-    gather_bases(bases, candidate.encoded);
-    gather_bases(bases, candidate.added);
+    for (auto *info : candidate) {
+      for (const auto &[func, context] : info->redefinitions) {
+        // Unpack the context.
+        const auto &[call, base_redefs] = context;
 
-    // For each base, create a global.
-    for (auto *base : bases) {
-      if (candidate.build_encoder()) {
-        auto &global = create_global_ptr(candidate.module(), "enc.");
-        candidate.encoder.global(base, global);
+        // Skip context-insensitive results.
+        if (not call) {
+          continue;
+        }
+
+        // Map relevant arguments to their possible callees.
+        for (const auto &[base, redefs] : base_redefs) {
+          if (auto *arg = dyn_cast<llvm::Argument>(base)) {
+            abstract_args[arg].insert(call);
+          }
+        }
+      }
+    }
+  }
+
+  // Partition the calls based on pattern.
+  Set<llvm::Function *> callees = {};
+  Map<llvm::CallBase *, Set<llvm::Argument *>> call_args = {};
+  for (const auto &[arg, calls] : abstract_args) {
+
+    // Debug print.
+    println("ARG ", *arg, " IN ", arg->getParent()->getName());
+    for (auto *call : calls) {
+      println("  CALL ", *call);
+    }
+
+    // Track the callee.
+    callees.insert(arg->getParent());
+
+    // Construct a pivot table.
+    for (auto &call : calls) {
+      call_args[call].insert(arg);
+    }
+  }
+
+  // Determine which function versions we need.
+  Map<llvm::Function *, List<SortedVector<llvm::CallBase *>>> versions = {};
+  for (auto *func : callees) {
+    auto &func_versions = versions[func];
+
+    // Determine if there are callers to the original function.
+    auto callers = possible_callers(*func);
+    func_versions.emplace_back();
+    auto &orig_version = func_versions.back();
+    for (auto *caller : callers) {
+      orig_version.insert(caller);
+    }
+
+    // Create versions for each enumerated call.
+    Set<llvm::CallBase *> used = {};
+    while (call_args.size() > used.size()) {
+      for (auto it = call_args.begin(); it != call_args.end(); ++it) {
+        const auto &[call, args] = *it;
+
+        if (used.contains(call)) {
+          continue;
+        }
+
+        // Create a new version.
+        func_versions.emplace_back();
+        auto &curr_version = func_versions.back();
+        curr_version.insert(call);
+
+        // Find other calls that match this ones args.
+        for (auto jt = std::next(it); jt != call_args.end(); ++jt) {
+          const auto &[other_call, other_args] = *jt;
+
+          if (used.contains(other_call)) {
+            continue;
+          }
+
+          // Check if the args match.
+          if (args.size() != other_args.size()) {
+            continue;
+          }
+          bool all_found = true;
+          for (auto *arg : args) {
+            if (not other_args.contains(arg)) {
+              all_found = false;
+              break;
+            }
+          }
+          if (not all_found) {
+            continue;
+          }
+
+          // If the args match, add this call to the version.
+          curr_version.insert(other_call);
+        }
+
+        // Mark all calls in the current version as used.
+        used.insert(curr_version.begin(), curr_version.end());
+
+        // Remove calls in this version from the set of otiginal calls.
+        orig_version.set_difference(curr_version);
+      }
+    }
+
+    if (not orig_version.empty()) {
+      // Clone the function and update the argument mapping.
+      MEMOIR_UNREACHABLE("Need original, versioning is unimplemented!");
+    }
+
+    if (func_versions.size() > 2) {
+      MEMOIR_UNREACHABLE("Need version, versioning is unimplemented!");
+    }
+  }
+
+  for (const auto &[func, func_versions] : versions) {
+    println("VERSIONS OF ", func->getName());
+    for (const auto &version : func_versions) {
+      if (version.empty()) {
+        println(" NO ORIGINAL NEEDED");
+        continue;
       }
 
-      if (candidate.build_decoder()) {
-        auto &global = create_global_ptr(candidate.module(), "dec.");
-        candidate.decoder.global(base, global);
+      println(" VERSION");
+      for (auto *call : version) {
+        println("  ", *call);
       }
     }
   }
 }
 
 static llvm::Value *find_base_of(llvm::Value &value,
-                                 const Vector<Candidate> &candidates) {
+                                 const Vector<Candidate *> &candidates) {
 
   auto *func = parent_function(value);
 
-  println("FIND BASE OF ", value);
-
   llvm::Value *found_base = NULL;
-  for (const auto &candidate : candidates) {
-    println("SEARCHING ", candidate);
+  for (auto *candidate_ptr : candidates) {
+    auto &candidate = *candidate_ptr;
 
     for (auto *info : candidate) {
       // Search the redefinitions for the value.
       auto [lo, hi] = info->redefinitions.equal_range(func);
       for (auto it = lo; it != hi; ++it) {
         for (const auto &[base, locals] : it->second.second) {
-          println("  POSSIBLE BASE ", *base);
 
           bool found = false;
           for (const auto &local : locals) {
-            println("    LOCAL ", local.value());
             if (&local.value() == &value) {
               found = true;
               break;
@@ -160,21 +259,14 @@ static llvm::Value *find_base_of(llvm::Value &value,
           }
 
           if (found) {
-            print("  PRESENT ");
             if (not found_base) {
-              println("FIRST!");
               found_base = base;
             } else if (found_base != base) {
-              println("MISMATCH!");
               MEMOIR_UNREACHABLE("Found base ",
                                  *found_base,
                                  " does not match base ",
                                  *base);
-            } else {
-              println("MATCHED!");
             }
-          } else {
-            println("  NOT PRESENT!");
           }
         }
       }
@@ -184,362 +276,100 @@ static llvm::Value *find_base_of(llvm::Value &value,
   return found_base;
 }
 
-static void patch_mappings(Vector<Candidate> &candidates) {
+static void create_base_globals(Vector<Candidate> &candidates) {
 
-  // Collect all of the argument bases.
-  Set<llvm::Argument *> arguments = {};
-  Map<llvm::Function *, List<SortedVector<llvm::CallBase *>>> versions;
+  // Find all of the bases in the program.
+  Map<llvm::Value *, SmallMap<Candidate *, SmallSet<ObjectInfo *>>>
+      base_objects = {};
   for (auto &candidate : candidates) {
-    collect_versions(arguments, versions, candidates, candidate.encoder);
-    collect_versions(arguments, versions, candidates, candidate.decoder);
-  }
-
-  // Clean up empty and un-needed versions.
-  cleanup_versions(versions);
-
-  // Version each function.
-  println("FOUND ", versions.size(), " FUNCTIONS TO VERSION");
-  for (const auto &[func, func_versions] : versions) {
-    println("FUNC ", func->getName());
-
-    bool first = true, no_original = false;
-    for (const auto &calls : func_versions) {
-
-      if (not calls.empty()) {
-        println(" VERSION");
-        for (auto *call : calls) {
-          println(*call);
+    // Collect all of the bases and their relevant objects in this candidate.
+    for (auto *info : candidate) {
+      for (const auto &[func, context] : info->redefinitions) {
+        for (const auto &[base, _redefs] : context.second) {
+          base_objects[base][&candidate].insert(info);
         }
       }
-
-      if (first) {
-        if (not calls.empty()) {
-          first = false;
-        } else {
-          no_original = true;
-        }
-        continue;
-      }
-
-      // Clone the function and update the argument mapping.
-      MEMOIR_UNREACHABLE("Function versioning is unimplemented!");
     }
   }
 
-  // Create a store to the global for each argument at the call site.
-  for (auto *arg : arguments) {
+  // Create a global for each of the bases, and update the mapping.
+  Map<llvm::Value *, Pair<llvm::GlobalVariable *, llvm::GlobalVariable *>>
+      mappings = {};
+  Map<llvm::Value *, Vector<Candidate *>> base_candidates = {};
+  for (const auto &[base, candidate_objects] : base_objects) {
 
-    auto &func = MEMOIR_SANITIZE(arg->getParent(), "Argument has no parent");
-    auto &module = MEMOIR_SANITIZE(func.getParent(), "Function has no module");
+    auto &function =
+        MEMOIR_SANITIZE(parent_function(*base), "Base has no parent function");
+    auto &module =
+        MEMOIR_SANITIZE(function.getParent(), "Function has no parent module");
 
-    // Create a global pointer for this argument.
-    auto &enc_global = create_global_ptr(module, "enc.");
+    // Create globals for this base.
+    auto &enc = create_global_ptr(module, "enc.");
+    auto &dec = create_global_ptr(module, "dec.");
 
-    // Collect the set of callers.
+    // TODO: we need to differentiate different NestedObjects within the base.
+    mappings[base].first = &enc;
+    mappings[base].second = &dec;
+
+    // Update the mapping in each candidate.
+    for (const auto &[candidate, objects] : candidate_objects) {
+
+      base_candidates[base].push_back(candidate);
+
+      for (auto *object : objects) {
+        candidate->encoder(object).global(base, enc);
+        candidate->decoder(object).global(base, dec);
+      }
+    }
+  }
+
+  // Link the caller-callee for each base.
+  for (const auto &[base, globals] : mappings) {
+    const auto &[enc, dec] = globals;
+
+    auto *arg = dyn_cast<llvm::Argument>(base);
+    if (not arg) {
+      // Non-argument bases will be handled later.
+      continue;
+    }
+
+    // Collect the callers for this function.
+    auto &func = MEMOIR_SANITIZE(arg->getParent(), "Arg has no parent");
+
     auto callers = possible_callers(func);
 
-    // For each caller, store to the relevant global.
-    auto arg_no = arg->getArgNo();
-
     for (auto *call : callers) {
-      auto *operand = call->getOperand(arg_no);
+      auto *operand = call->getOperand(arg->getArgNo());
+      auto *caller_base = find_base_of(*operand, base_candidates[base]);
 
-      // Get the base of this operand.
-      auto &base = MEMOIR_SANITIZE(find_base_of(*operand, candidates),
-                                   "No base for op ",
-                                   arg_no,
-                                   " in ",
-                                   *call);
+      if (not caller_base) {
+        MEMOIR_UNREACHABLE("Failed to find base of ", *operand, " for ", *call);
+      }
 
-      println("ARG  ", *arg, " IN ", func.getName());
-      println("BASE ", base);
-      println("CALL ", *call);
+      // Get the globals for the caller base.
+      const auto &[caller_enc, caller_dec] = mappings.at(caller_base);
+
+      // Load the mappings and store them to the globals.
+      MemOIRBuilder builder(call);
+
+      auto *enc_type = enc->getValueType();
+      auto *enc_value = builder.CreateLoad(enc_type, caller_enc);
+      builder.CreateStore(enc_value, enc);
+
+      auto *dec_type = dec->getValueType();
+      auto *dec_value = builder.CreateLoad(dec_type, caller_dec);
+      builder.CreateStore(dec_value, dec);
     }
   }
 }
-
-template <typename T>
-static bool pattern_matches(const Vector<T> &lhs, const Vector<T> &rhs) {
-  Map<T, T> lmap = {}, rmap = {};
-
-  if (lhs.size() != rhs.size()) {
-    return false;
-  }
-
-  auto lit = lhs.begin(), lie = lhs.end();
-  auto rit = rhs.begin(), rie = rhs.end();
-
-  for (; lit != lie and rit != rie; ++lit, ++rit) {
-    const auto &l = *lit;
-    const auto &r = *rit;
-
-    // If they are equal, continue.
-    if (l == r) {
-      continue;
-    }
-
-    // Otherwise see if they unify with the mapping.
-    auto lfound = lmap.find(l);
-    auto rfound = rmap.find(r);
-
-    // If the values are in neither mapping, add them.
-    if (lfound == lmap.end() and rfound == rmap.end()) {
-      lmap[l] = r;
-      rmap[r] = l;
-      continue;
-    }
-
-    //  If the values are in both mappings, and they match, then continue.
-    if (lfound != lmap.end() and rfound != rmap.end()) {
-      if (lfound->second == r and rfound->second == l) {
-        continue;
-      }
-    }
-
-    // Otherwise, we found mismatch!
-    return false;
-  }
-
-  return true;
-}
-
-static llvm::AllocaInst &load_global_to_stack(llvm::GlobalVariable &global,
-                                              llvm::Function &func,
-                                              const llvm::Twine &name = "") {
-
-  // Create a stack variable in the function.
-  auto &stack = create_stack_ptr(func, name.concat(".stack"));
-
-  println("STORING ",
-          global.getName(),
-          " TO ",
-          stack.getName(),
-          " IN ",
-          func.getName());
-
-  // Fetch type information.
-  auto *type = stack.getAllocatedType();
-
-  // Load the global and store it into the stack slot.
-  llvm::IRBuilder<> builder(stack.getNextNode());
-  auto *load = builder.CreateLoad(type, &global);
-  builder.CreateStore(load, &stack);
-
-  return stack;
-}
-
-static Pair<llvm::GlobalVariable *, llvm::AllocaInst *> load_temparg_to_stack(
-    llvm::Function &func,
-    const llvm::Twine name = "") {
-  auto &module =
-      MEMOIR_SANITIZE(func.getParent(), "Function has no parent module.");
-
-  // Create a temparg for the function.
-  auto &temparg = create_global_ptr(module, name.concat(".temparg"));
-
-  // Load the temparg into a new stack variable.
-  auto &stack = load_global_to_stack(temparg, func, name);
-
-  return make_pair(&temparg, &stack);
-}
-
-static void patch_call(llvm::CallBase &call,
-                       llvm::Function *versioned_func,
-                       const Vector<Candidate *> &candidate_args,
-                       const Vector<llvm::GlobalVariable *> &encoder_args,
-                       const Vector<llvm::GlobalVariable *> &decoder_args) {
-  llvm::IRBuilder<> builder(&call);
-
-  auto *func = call.getFunction();
-
-  // Update the called function.
-  call.setCalledFunction(versioned_func);
-
-  // For each argument, load the local value for this candidate and store it
-  // to the temparg.
-  Set<Candidate *> seen = {};
-  for (auto i = 0; i < candidate_args.size(); ++i) {
-    auto *candidate = candidate_args[i];
-
-    if (not candidate or seen.contains(candidate)) {
-      continue;
-    } else {
-      seen.insert(candidate);
-    }
-
-    // Unpack the tempargs for this argument, if they exist.
-    auto *enc_arg = encoder_args[i];
-    auto *dec_arg = decoder_args[i];
-
-    // TODO: this code needs to be moved to a later time.
-    // For recursive functions, we need to know if we should pass the current
-    // or last iteration into the this call.
-
-    if (auto *enc_arg = encoder_args[i]) {
-      if (auto *enc_local = candidate->encoder.local(*func)) {
-        auto *type = enc_local->getAllocatedType();
-        auto *load = builder.CreateLoad(type, enc_local);
-        builder.CreateStore(load, enc_arg);
-      }
-    }
-
-    if (auto *dec_arg = decoder_args[i]) {
-      if (auto *dec_local = candidate->decoder.local(*func)) {
-        auto *type = dec_local->getAllocatedType();
-        auto *load = builder.CreateLoad(type, dec_local);
-        builder.CreateStore(load, dec_arg);
-      }
-    }
-  }
-}
-
-#if 0
-  void version_function(llvm::Function &func, Vector<SortedVector<llvm::CallBase *>> &versions) {
-
-  print("VERSION ", func.getName());
-
-  // Ensure that we need only one version of the function, otherwise we need
-  // to create fresh copies.
-  if (versions.size() > 1) {
-    println(" (", versions.size(), " VERSIONS)");
-    MEMOIR_UNREACHABLE(
-        "TODO: Function versioning for multiple candidates is not implemented.");
-  } else {
-    println(" (1 VERSION)");
-  }
-
-  // Collect the set of possible callers for this function.
-  bool possibly_unknown = false;
-  Set<llvm::CallBase *> possible_callers = possible_callers(func);
-
-  // If the address of this function was taken, it may be indirectly called.
-  // The defunctionalize utility in memoir can fix this.
-  MEMOIR_ASSERT(not possible_callers.contains(unknown_caller()),
-                "Possible indirect call to function! "
-                "Employ defunctionalization to fix this.");
-
-  // If these caller sets are not equal, or the function is externally
-  // visible, we need to create separate clones.
-  for (auto &version : versions) {
-    possible_callers.erase(version.call);
-    for (const auto &[call, _call_version] : version.callers) {
-      possible_callers.erase(call);
-    }
-  }
-
-  // If there are any remaining possible callers, or the function is
-  // externally visible, we need to keep the original function around.
-  bool need_original =
-      (possible_callers.size() > 0 or func.hasExternalLinkage());
-  if (possible_callers.size() > 0) {
-    println("POSSIBLE CALLERS");
-    for (auto *call : possible_callers) {
-      println(*call);
-    }
-  }
-
-  // Create a clone of the function with extra arguments for the
-  // encoder/decoder.
-  bool first = true;
-  for (auto &version : versions) {
-
-    // Fetch the parent module.
-    auto &module =
-        MEMOIR_SANITIZE(func.getParent(), "Function has no parent module");
-
-    // For each version, create a clone of the function.
-    version.func = &func;
-    if (need_original or not first) {
-      if (need_original) {
-        println("NEED ORIGINAL");
-      }
-
-      // TODO: Create a clone of the function and deeply clone its CFG.
-      MEMOIR_UNREACHABLE("Unimplemented, tell Tommy.");
-    }
-
-    // Collect the number of candidates passed into this function.
-    auto idx = 0;
-    Map<Candidate *, Pair<llvm::GlobalVariable *, llvm::GlobalVariable *>>
-        in_version;
-    for (auto *candidate : version) {
-      if (not candidate) {
-        continue;
-      }
-
-      // Check if we have seen this candidate yet.
-      bool already_seen = in_version.contains(candidate);
-
-      // Unpack the enc/dec tempargs to update.
-      auto [encoder_arg, decoder_arg] = in_version[candidate];
-
-      // If we've already seen the candidate, update this arguments tempargs.
-      if (already_seen) {
-        version.encoder_args[idx] = encoder_arg;
-        version.decoder_args[idx] = decoder_arg;
-        continue;
-      }
-
-      println();
-      println("FUNC ", version.func->getName());
-      println(*candidate);
-
-      // Check if this argument is polymorphic.
-      bool polymorphic = version.is_polymorphic(idx);
-      println(polymorphic ? "POLYMORPHIC" : "MONOMORPHIC");
-
-      // TODO: we want to be a bit smarter about this, should use that old cfg
-      // analysis we cooked up to determine if a function needs the enc/dec.
-      if (candidate->build_encoder()) {
-
-        llvm::AllocaInst *local = NULL;
-        if (polymorphic) {
-          std::tie(encoder_arg, local) =
-              load_temparg_to_stack(*version.func, "enc");
-
-          version.encoder_args[idx] = encoder_arg;
-
-        } else {
-          local = &load_global_to_stack(candidate->encoder.global(),
-                                        *version.func,
-                                        "enc");
-        }
-
-        candidate->encoder.local(*version.func, *local);
-      }
-
-      if (candidate->build_decoder()) {
-        llvm::AllocaInst *local = NULL;
-        if (polymorphic) {
-          std::tie(decoder_arg, local) =
-              load_temparg_to_stack(*version.func, "dec");
-
-          version.decoder_args[idx] = decoder_arg;
-
-        } else {
-          local = &load_global_to_stack(candidate->decoder.global(),
-                                        *version.func,
-                                        "dec");
-        }
-
-        candidate->decoder.local(*version.func, *local);
-      }
-
-      ++idx;
-    }
-
-    first = false;
-  }
-}
-#endif
 
 void ProxyInsertion::prepare() {
 
+  // Monomorphize the program, for candidate patterns.
+  monomorphize(this->candidates);
+
   // For each base in the candidate, insert a global for it.
   create_base_globals(this->candidates);
-
-  // For each argument base, store the correct global to it at each call site.
-  patch_mappings(this->candidates);
 }
 
 } // namespace folio

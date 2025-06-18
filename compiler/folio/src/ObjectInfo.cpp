@@ -62,6 +62,46 @@ static void update_uses(Map<llvm::Function *, Set<llvm::Use *>> &uses,
   }
 }
 
+static llvm::Use *remap(llvm::Use *use, llvm::ValueToValueMapTy &vmap) {
+  auto *user = use->getUser();
+  auto *new_user = cast<llvm::User>(&*vmap[user]);
+  return &new_user->getOperandUse(use->getOperandNo());
+}
+
+static llvm::Value *remap(llvm::Value *val, llvm::ValueToValueMapTy &vmap) {
+  return &*vmap[val];
+}
+
+template <typename T>
+static void update_bases(Map<T *, llvm::Value *> bases,
+                         llvm::Function &old_func,
+                         llvm::Function &new_func,
+                         llvm::ValueToValueMapTy &vmap,
+                         bool delete_old) {
+
+  Map<T *, llvm::Value *> new_bases = {};
+  for (auto it = bases.begin(); it != bases.end();) {
+    auto [val, base] = *it;
+    auto *func = parent_function(*val);
+
+    if (func != &old_func) {
+      continue;
+    }
+
+    new_bases[remap(val, vmap)] = remap(base, vmap);
+
+    if (delete_old) {
+      it = bases.erase(it);
+    } else {
+      ++it;
+    }
+  }
+
+  for (const auto &[val, base] : new_bases) {
+    bases[val] = base;
+  }
+}
+
 void ObjectInfo::update(llvm::Function &old_func,
                         llvm::Function &new_func,
                         llvm::ValueToValueMapTy &vmap,
@@ -106,6 +146,11 @@ void ObjectInfo::update(llvm::Function &old_func,
 
   // Update the set of encoded values.
   update_values(vmap, this->encoded[&old_func], this->encoded[&new_func]);
+
+  // Update the mappings to base.
+  update_bases(encoded_base, old_func, new_func, vmap, delete_old);
+  update_bases(to_encode_base, old_func, new_func, vmap, delete_old);
+  update_bases(to_addkey_base, old_func, new_func, vmap, delete_old);
 
   if (delete_old) {
     this->encoded[&old_func].clear();

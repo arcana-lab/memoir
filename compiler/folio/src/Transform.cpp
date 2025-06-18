@@ -921,13 +921,6 @@ bool ProxyInsertion::transform() {
       auto *encoder_alloc =
           builder.CreateAllocInst(*encoder_type, {}, "proxy.encode.");
       encoder = &encoder_alloc->getCallInst();
-
-      // Store the allocation to the relevant globals.
-      for (auto &[base, global] : candidate.encoder.globals()) {
-        if (into<AllocInst>(base)) {
-          builder.CreateStore(encoder, global);
-        }
-      }
     }
 
     // Allocate the decoder.
@@ -939,12 +932,20 @@ bool ProxyInsertion::transform() {
                                                     { builder.getInt64(0) },
                                                     "proxy.decode.");
       decoder = &decoder_alloc->getCallInst();
+    }
 
-      // Store the allocation to the relevant globals.
-      for (auto &[base, global] : candidate.encoder.globals()) {
-        if (into<AllocInst>(base)) {
-          builder.CreateStore(encoder, global);
-        }
+    // Store the allocated mappings to the relevant globals.
+    for (auto *info : candidate) {
+      auto *alloc = &info->allocation->asValue();
+
+      if (encoder) {
+        auto &enc_global = candidate.encoder(info).global(alloc);
+        builder.CreateStore(encoder, &enc_global);
+      }
+
+      if (decoder) {
+        auto &dec_global = candidate.decoder(info).global(alloc);
+        builder.CreateStore(decoder, &dec_global);
       }
     }
 
@@ -962,9 +963,12 @@ bool ProxyInsertion::transform() {
       auto &function = MEMOIR_SANITIZE(parent_function(value),
                                        "Failed to find parent function for ",
                                        value);
+      MEMOIR_UNREACHABLE("UNIMPLEMENTED");
+#if 0
       return MEMOIR_SANITIZE(candidate.encoder.local(function),
                              "Failed to find encoder in ",
                              function.getName());
+#endif
     };
 
     std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> decode_value =
@@ -977,8 +981,11 @@ bool ProxyInsertion::transform() {
       }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
 
+      MEMOIR_UNREACHABLE("UNIMPLEMENTED");
+#if 0
       auto *decoder = candidate.decoder.local(*function);
       return builder.CreateReadInst(key_type, decoder, { &value })->asValue();
+#endif
     };
 
     std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> encode_value =
@@ -991,8 +998,11 @@ bool ProxyInsertion::transform() {
       }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
 
+      MEMOIR_UNREACHABLE("UNIMPLEMENTED");
+#if 0
       auto *encoder = candidate.encoder.local(*function);
       return builder.CreateReadInst(size_type, encoder, &value)->asValue();
+#endif
     };
 
     std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> add_value =
@@ -1005,6 +1015,8 @@ bool ProxyInsertion::transform() {
       }
       MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
 
+      MEMOIR_UNREACHABLE("UNIMPLEMENTED");
+#if 0
       Vector<llvm::Value *> args = { &value };
       if (build_encoder) {
         auto *encoder = candidate.encoder.local(*function);
@@ -1016,6 +1028,7 @@ bool ProxyInsertion::transform() {
       }
       return MEMOIR_SANITIZE(builder.CreateCall(addkey_callee, args),
                              "Failed to create call to addkey!");
+#endif
     };
 
     // Inject instructions to handle each use.

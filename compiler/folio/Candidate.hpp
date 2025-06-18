@@ -23,8 +23,7 @@ struct Candidate : public Vector<ObjectInfo *> {
       encoded{},
       added{},
       encoded_values{},
-      encoder(),
-      decoder() {}
+      mappings{} {}
 
   // The uses prepared for transformation.
   Vector<CoalescedUses> decoded, encoded, added;
@@ -34,6 +33,8 @@ struct Candidate : public Vector<ObjectInfo *> {
   llvm::Function &function() const;
 
   llvm::memoir::Type &key_type() const;
+
+  int benefit;
 
   llvm::Instruction &construction_point(llvm::DominatorTree &domtree) const;
 
@@ -51,7 +52,14 @@ struct Candidate : public Vector<ObjectInfo *> {
           get_bounds_checks);
 
   // Information about the en/decoder mappings.
-  Map<ObjectInfo *, Mapping> encoder, decoder;
+  Map<ObjectInfo *, Pair<Mapping, Mapping>> mappings;
+
+  Mapping &encoder(ObjectInfo *info) {
+    return mappings[info].first;
+  }
+  Mapping &decoder(ObjectInfo *info) {
+    return mappings[info].second;
+  }
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const Candidate &uses);
