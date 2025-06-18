@@ -49,6 +49,27 @@ public:
     this->_base = base;
   }
 
+  llvm::Instruction *insertion_point() const {
+    llvm::Instruction *program_point = nullptr;
+
+    auto *use = this->Base::front();
+    auto *user = dyn_cast<llvm::Instruction>(use->getUser());
+
+    if (user) {
+      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+        auto *incoming_block = phi->getIncomingBlock(*use);
+        // TODO: this may be unsound if the terminator is conditional.
+        program_point = incoming_block->getTerminator();
+      } else {
+        program_point = user;
+      }
+    } else {
+      MEMOIR_UNREACHABLE("Failed to find a point to decode the value!");
+    }
+
+    return program_point;
+  }
+
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const CoalescedUses &uses);
 };
