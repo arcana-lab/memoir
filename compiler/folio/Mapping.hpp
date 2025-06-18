@@ -36,15 +36,14 @@ public:
   // Globals accessors.
   llvm::GlobalVariable &global(llvm::Value *base) const;
   void global(llvm::Value *base, llvm::GlobalVariable &GV);
-
   GlobalsMap &globals();
-
   const GlobalsMap &globals() const;
 
   // Locals accessors.
   llvm::AllocaInst &local(llvm::Value *base) const;
-
   void local(llvm::Value *base, llvm::AllocaInst &stack);
+  LocalsMap &locals();
+  const LocalsMap &locals() const;
 };
 
 } // namespace folio

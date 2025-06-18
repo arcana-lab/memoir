@@ -39,4 +39,12 @@ void Mapping::local(llvm::Value *base, llvm::AllocaInst &stack) {
   this->_locals[base] = &stack;
 }
 
+Mapping::LocalsMap &Mapping::locals() {
+  return this->_locals;
+}
+
+const Mapping::LocalsMap &Mapping::locals() const {
+  return this->_locals;
+}
+
 } // namespace folio
