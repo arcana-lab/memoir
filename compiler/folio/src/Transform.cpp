@@ -2,10 +2,12 @@
 
 #include "llvm/IR/AttributeMask.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/Instructions.hpp"
+#include "memoir/raising/RepairSSA.hpp"
 #include "memoir/support/AssocList.hpp"
 #include "memoir/support/WorkList.hpp"
 #include "memoir/transforms/utilities/MutateType.hpp"
@@ -229,135 +231,6 @@ static void collect_callees(llvm::Function &from,
   }
 }
 
-static void add_tempargs(
-    Map<llvm::Function *, llvm::Instruction *> &local_patches,
-    llvm::ArrayRef<llvm::memoir::Vector<CoalescedUses>> uses_to_patch,
-    llvm::Instruction &patch_with,
-    Type &patch_type,
-    const llvm::Twine &name) {
-
-  MemOIRBuilder builder(&patch_with);
-  auto &context = builder.getContext();
-  auto &module = builder.getModule();
-
-  // Unpack the patch.
-  auto *patch_func = patch_with.getFunction();
-  auto *llvm_patch_type = patch_type.get_llvm_type(context);
-
-  // Track the local patch for each function.
-  local_patches[patch_func] = &patch_with;
-
-  // Find the set of functions that need the patch.
-  Set<llvm::Function *> functions = { patch_func };
-  for (auto &coalesced : uses_to_patch) {
-    for (auto &uses : coalesced) {
-      for (auto *use : uses) {
-        if (auto *inst = dyn_cast<llvm::Instruction>(use->getUser())) {
-          functions.insert(inst->getFunction());
-        }
-      }
-    }
-  }
-
-  // Close the set of functions.
-  Set<llvm::Function *> forward = {};
-  Set<llvm::Function *> backward = {};
-  for (auto *func : functions) {
-    collect_callers(*func, forward);
-    collect_callees(*func, backward);
-  }
-
-  for (auto *func : forward) {
-    if (backward.count(func) > 0) {
-      functions.insert(func);
-    }
-  }
-
-  // Determine the set of functions that we need to pass the proxy to.
-  Map<llvm::CallBase *, llvm::GlobalVariable *> calls_to_patch = {};
-  Map<FoldInst *, llvm::GlobalVariable *> folds_to_patch = {};
-  for (auto *func : functions) {
-
-    if (func == patch_func) {
-      continue;
-    }
-
-    // Create the global variable.
-    auto *global = &create_global_ptr(module, "temparg");
-
-    // Create the load in the entry of the fold body.
-    builder.SetInsertPoint(func->getEntryBlock().getFirstNonPHI());
-
-    auto *load = builder.CreateLoad(llvm_patch_type, global);
-    Metadata::get_or_add<TempArgumentMetadata>(*load);
-
-    load->setName(name);
-
-    // Annotate the loaded value with type information.
-    builder.CreateAssertTypeInst(load, patch_type);
-
-    local_patches[func] = load;
-
-    for (auto &use : func->uses()) {
-      auto *call = dyn_cast<llvm::CallBase>(use.getUser());
-      if (not call) {
-        continue;
-      }
-
-      if (auto *fold = into<FoldInst>(call)) {
-        if (&fold->getBody() == func) {
-          folds_to_patch[fold] = global;
-        }
-      } else if (not into<MemOIRInst>(call)) {
-        if (call->getCalledFunction() == func) {
-          calls_to_patch[call] = global;
-        }
-      }
-    }
-  }
-
-  // Patch each of the folds by storing to the global before the operation.
-  for (const auto &[fold, global] : folds_to_patch) {
-    // Unpack.
-    auto &inst = fold->getCallInst();
-    auto *func = inst.getFunction();
-
-    // Create the store ahead of the fold.
-    builder.SetInsertPoint(&inst);
-
-    auto *local = local_patches[func];
-
-    if (not local) {
-      warnln("No local patch for caller ", func->getName());
-      continue;
-    }
-
-    auto *store = builder.CreateStore(local, global);
-    Metadata::get_or_add<TempArgumentMetadata>(*store);
-  }
-
-  // Patch each of the calls by storing to the global before the operation.
-  for (const auto &[call, global] : calls_to_patch) {
-    // Unpack.
-    auto *func = call->getFunction();
-
-    // Create the store ahead of the call.
-    builder.SetInsertPoint(call);
-
-    auto *local = local_patches[func];
-
-    if (not local) {
-      warnln("No local patch for caller ", func->getName());
-      continue;
-    }
-
-    auto *store = builder.CreateStore(local, global);
-    Metadata::get_or_add<TempArgumentMetadata>(*store);
-  }
-
-  return;
-}
-
 /**
  * Following a function clone--where the old function will be deleted--update
  * any candidate information to point to the cloned function.
@@ -520,7 +393,7 @@ static void inject(
 
     // Unpack the use.
     auto *use = uses.front();
-    auto *used = &uses.value();
+    auto *used = use->get();
     auto *user = dyn_cast<llvm::Instruction>(use->getUser());
 
     // Compute the insertion point.
@@ -536,6 +409,22 @@ static void inject(
   }
 
   return;
+}
+
+static void promote_locals(Mapping &mapping,
+                           ProxyInsertion::GetDominatorTree get_domtree) {
+  // Collect the stack variables to promote.
+  Map<llvm::Function *, Vector<llvm::AllocaInst *>> locals = {};
+  for (const auto &[base, var] : mapping.locals()) {
+    auto *func = var->getFunction();
+    MEMOIR_ASSERT(func, "Stack variable has no parent function!");
+    locals[func].push_back(var);
+  }
+
+  for (const auto &[func, vars] : locals) {
+    auto &domtree = get_domtree(*func);
+    repair_ssa(vars, domtree);
+  }
 }
 
 bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {
@@ -835,9 +724,110 @@ Type &convert_element_type(Type &base,
   MEMOIR_UNREACHABLE("Failed to convert type!");
 }
 
+using ParamTypes =
+    OrderedMultiMap<llvm::Function *, Pair<llvm::Argument *, llvm::Type *>>;
+using AllocTypes = AssocList<AllocInst *, Type *>;
+static void mutate_param_types(ParamTypes &params_to_mutate,
+                               AllocTypes &allocs_to_mutate) {
+
+  Set<llvm::Function *> to_cleanup = {};
+  for (auto it = params_to_mutate.begin(); it != params_to_mutate.end();) {
+    auto *func = it->first;
+
+    auto *module = func->getParent();
+    auto &data_layout = module->getDataLayout();
+
+    auto *func_type = func->getFunctionType();
+
+    // Collect the original parameter types.
+    Vector<llvm::Type *> param_types(func_type->param_begin(),
+                                     func_type->param_end());
+
+    // Update the parameter types that are encoded.
+    for (; it != params_to_mutate.upper_bound(func); ++it) {
+      auto [arg, type] = it->second;
+      auto arg_idx = arg->getArgNo();
+
+      param_types[arg_idx] = type;
+    }
+
+    // Create the new function type.
+    auto *new_func_type = llvm::FunctionType::get(func_type->getReturnType(),
+                                                  param_types,
+                                                  func_type->isVarArg());
+
+    // TODO: Fix the attributes on the new function.
+
+    // Create the empty function to clone into.
+    auto &new_func = MEMOIR_SANITIZE(llvm::Function::Create(new_func_type,
+                                                            func->getLinkage(),
+                                                            func->getName(),
+                                                            module),
+                                     "Failed to create new function.");
+
+    debugln("CLONING ", func->getName());
+
+    // Update the function to the new type.
+    llvm::ValueToValueMapTy vmap;
+    for (auto &old_arg : func->args()) {
+      auto *new_arg = new_func.getArg(old_arg.getArgNo());
+      vmap.insert({ &old_arg, new_arg });
+    }
+    llvm::SmallVector<llvm::ReturnInst *, 8> returns;
+    llvm::CloneFunctionInto(&new_func,
+                            func,
+                            vmap,
+                            llvm::CloneFunctionChangeType::LocalChangesOnly,
+                            returns);
+
+    new_func.takeName(func);
+    func->replaceAllUsesWith(&new_func);
+
+    // Clean up the old function.
+    to_cleanup.insert(func);
+  }
+
+  // Mutate the types in the program.
+  auto mutate_it = allocs_to_mutate.begin(), mutate_ie = allocs_to_mutate.end();
+  for (; mutate_it != mutate_ie; ++mutate_it) {
+    auto *alloc = mutate_it->first;
+    auto *type = mutate_it->second;
+
+    // Mutate the type.
+    mutate_type(*alloc,
+                *type,
+                [&](llvm::Function &old_func,
+                    llvm::Function &new_func,
+                    llvm::ValueToValueMapTy &vmap) {
+                  // Update allocations marked for mutation.
+                  for (auto it = std::next(mutate_it); it != mutate_ie; ++it) {
+                    auto *alloc = it->first;
+                    auto &inst = alloc->getCallInst();
+
+                    if (inst.getFunction() == &old_func) {
+                      auto *new_inst = &*vmap[&inst];
+                      auto *new_alloc = into<AllocInst>(new_inst);
+
+                      // Update in-place.
+                      it->first = new_alloc;
+                    }
+                  }
+                });
+  }
+
+  for (auto *func : to_cleanup) {
+    func->deleteBody();
+    func->eraseFromParent();
+  }
+}
+
 bool ProxyInsertion::transform() {
 
   bool modified = false;
+
+  // Track the function parameters whose type needs to be mutated.
+  ParamTypes params_to_mutate = {};
+  AssocList<AllocInst *, Type *> allocs_to_mutate;
 
   // Transform the program for each candidate.
   for (auto candidates_it = this->candidates.begin();
@@ -923,14 +913,25 @@ bool ProxyInsertion::transform() {
                                                 decoder_type);
 
     // Create anon functions to encode/decode a value
+    auto get_ptr = [&](Mapping &mapping,
+                       llvm::Value &value,
+                       llvm::Value *base) -> Pair<llvm::Value *, llvm::Type *> {
+      if (parent_function(value) == parent_function(*base)) {
+        auto &local = mapping.local(base);
+        return make_pair(&local, local.getAllocatedType());
+      }
+
+      auto &global = mapping.global(base);
+      return make_pair(&global, global.getValueType());
+    };
+
     std::function<
         llvm::Instruction &(MemOIRBuilder &, llvm::Value &, llvm::Value *)>
         has_value = [&](MemOIRBuilder &builder,
                         llvm::Value &value,
                         llvm::Value *base) -> llvm::Instruction & {
-      auto &enc_local = candidate.encoder.local(base);
-      auto *enc_type = enc_local.getAllocatedType();
-      auto *enc = builder.CreateLoad(enc_type, &enc_local);
+      auto [ptr, type] = get_ptr(candidate.encoder, value, base);
+      auto *enc = builder.CreateLoad(type, ptr);
       return builder.CreateHasInst(enc, { &value })->getCallInst();
     };
 
@@ -938,9 +939,8 @@ bool ProxyInsertion::transform() {
         decode_value = [&](MemOIRBuilder &builder,
                            llvm::Value &value,
                            llvm::Value *base) -> llvm::Value & {
-      auto &dec_local = candidate.decoder.local(base);
-      auto *dec_type = dec_local.getAllocatedType();
-      auto *dec = builder.CreateLoad(dec_type, &dec_local);
+      auto [ptr, type] = get_ptr(candidate.decoder, value, base);
+      auto *dec = builder.CreateLoad(type, ptr);
       return builder.CreateReadInst(key_type, dec, { &value })->asValue();
     };
 
@@ -948,9 +948,8 @@ bool ProxyInsertion::transform() {
         encode_value = [&](MemOIRBuilder &builder,
                            llvm::Value &value,
                            llvm::Value *base) -> llvm::Value & {
-      auto &enc_local = candidate.encoder.local(base);
-      auto *enc_type = enc_local.getAllocatedType();
-      auto *enc = builder.CreateLoad(enc_type, &enc_local);
+      auto [ptr, type] = get_ptr(candidate.decoder, value, base);
+      auto *enc = builder.CreateLoad(type, ptr);
       return builder.CreateReadInst(size_type, enc, &value)->asValue();
     };
 
@@ -960,15 +959,13 @@ bool ProxyInsertion::transform() {
                         llvm::Value *base) -> llvm::Value & {
       Vector<llvm::Value *> args = { &value };
       if (build_encoder) {
-        auto &enc_local = candidate.encoder.local(base);
-        auto *enc_type = enc_local.getAllocatedType();
-        auto *enc = builder.CreateLoad(enc_type, &enc_local);
+        auto [ptr, type] = get_ptr(candidate.encoder, value, base);
+        auto *enc = builder.CreateLoad(type, ptr);
         args.push_back(enc);
       }
       if (build_decoder) {
-        auto &dec_local = candidate.decoder.local(base);
-        auto *dec_type = dec_local.getAllocatedType();
-        auto *dec = builder.CreateLoad(dec_type, &dec_local);
+        auto [ptr, type] = get_ptr(candidate.decoder, value, base);
+        auto *dec = builder.CreateLoad(type, ptr);
         args.push_back(dec);
       }
       return MEMOIR_SANITIZE(builder.CreateCall(addkey_callee, args),
@@ -986,104 +983,34 @@ bool ProxyInsertion::transform() {
            add_value);
 
     // Promote the locals to registers.
-    // promote_locals(candidate.encoder, candidate.decoder);
+    promote_locals(candidate.encoder, this->get_dominator_tree);
+    promote_locals(candidate.decoder, this->get_dominator_tree);
 
     // Collect any function parameters whose type has changed because the
     // argument propagates an encoded value.
-    // TODO: make this monomorphize the functions as well.
-    OrderedMultiMap<llvm::Function *, llvm::Argument *> params_to_mutate = {};
     for (const auto &[func, base_to_values] : candidate.encoded_values) {
       for (const auto &[base, values] : base_to_values) {
         for (auto *val : values) {
           if (auto *arg = dyn_cast<llvm::Argument>(val)) {
             if (arg->getType() != &llvm_size_type) {
-              params_to_mutate.emplace(arg->getParent(), arg);
+              params_to_mutate.emplace(arg->getParent(),
+                                       make_pair(arg, &llvm_size_type));
             }
           }
         }
       }
     }
 
-    // Mutate the type of function parameters in the program.
-    Set<llvm::Function *> to_cleanup = {};
-    for (auto it = params_to_mutate.begin(); it != params_to_mutate.end();) {
-      auto *func = it->first;
-
-      auto *module = func->getParent();
-      auto &data_layout = module->getDataLayout();
-
-      auto *func_type = func->getFunctionType();
-
-      // Collect the original parameter types.
-      Vector<llvm::Type *> param_types(func_type->param_begin(),
-                                       func_type->param_end());
-
-      // Update the parameter types that are encoded.
-      for (; it != params_to_mutate.upper_bound(func); ++it) {
-        auto *arg = it->second;
-        auto arg_idx = arg->getArgNo();
-
-        param_types[arg_idx] = &llvm_size_type;
-      }
-
-      // Create the new function type.
-      auto *new_func_type = llvm::FunctionType::get(func_type->getReturnType(),
-                                                    param_types,
-                                                    func_type->isVarArg());
-
-      // TODO: Fix the attributes on the new function.
-
-      // Create the empty function to clone into.
-      auto &new_func =
-          MEMOIR_SANITIZE(llvm::Function::Create(new_func_type,
-                                                 func->getLinkage(),
-                                                 func->getName(),
-                                                 module),
-                          "Failed to create new function.");
-
-      debugln("CLONING ", func->getName());
-
-      // Update the function to the new type.
-      llvm::ValueToValueMapTy vmap;
-      for (auto &old_arg : func->args()) {
-        auto *new_arg = new_func.getArg(old_arg.getArgNo());
-        vmap.insert({ &old_arg, new_arg });
-      }
-      llvm::SmallVector<llvm::ReturnInst *, 8> returns;
-      llvm::CloneFunctionInto(&new_func,
-                              func,
-                              vmap,
-                              llvm::CloneFunctionChangeType::LocalChangesOnly,
-                              returns);
-
-      new_func.takeName(func);
-      func->replaceAllUsesWith(&new_func);
-
-      // Update the object info.
-      for (auto it = candidates_it; it != candidates.end(); ++it) {
-        for (auto &info : *it) {
-          info->update(*func,
-                       new_func,
-                       vmap,
-                       /* delete old? */ true);
-        }
-      }
-
-      // Clean up the old function.
-      to_cleanup.insert(func);
-    }
-
     // Collect the types that each candidate needs to be mutated to.
-    AssocList<AllocInst *, Type *> types_to_mutate;
     for (auto *info : candidate) {
       auto *alloc = info->allocation;
 
       // Initialize the type to mutate if it doesnt exist already.
-      auto found = types_to_mutate.find(alloc);
-      if (found == types_to_mutate.end()) {
-        types_to_mutate[alloc] = &alloc->getType();
+      auto found = allocs_to_mutate.find(alloc);
+      if (found == allocs_to_mutate.end()) {
+        allocs_to_mutate[alloc] = &alloc->getType();
       }
-      auto &type = types_to_mutate[alloc];
+      auto &type = allocs_to_mutate[alloc];
 
       // If the object is a total proxy, update it to be a sequence.
       if (is_total_proxy(*info, added) and not disable_total_proxy) {
@@ -1097,52 +1024,10 @@ bool ProxyInsertion::transform() {
         type = &convert_element_type(*type, info->offsets, size_type);
       }
     }
-
-    // Mutate the types in the program.
-    auto mutate_it = types_to_mutate.begin(), mutate_ie = types_to_mutate.end();
-    for (; mutate_it != mutate_ie; ++mutate_it) {
-      auto *alloc = mutate_it->first;
-      auto *type = mutate_it->second;
-
-      // Mutate the type.
-      mutate_type(
-          *alloc,
-          *type,
-          [&](llvm::Function &old_func,
-              llvm::Function &new_func,
-              llvm::ValueToValueMapTy &vmap) {
-            // Update the remaining objects in the candidate.
-            for (auto it = std::next(candidates_it); it != candidates.end();
-                 ++it) {
-              for (auto &info : *it) {
-                info->update(old_func,
-                             new_func,
-                             vmap,
-                             /* delete old? */ true);
-              }
-            }
-
-            // Update allocations marked for mutation.
-            for (auto it = std::next(mutate_it); it != mutate_ie; ++it) {
-              auto *alloc = it->first;
-              auto &inst = alloc->getCallInst();
-
-              if (inst.getFunction() == &old_func) {
-                auto *new_inst = &*vmap[&inst];
-                auto *new_alloc = into<AllocInst>(new_inst);
-
-                // Update in-place.
-                it->first = new_alloc;
-              }
-            }
-          });
-    }
-
-    for (auto *func : to_cleanup) {
-      func->deleteBody();
-      func->eraseFromParent();
-    }
   }
+
+  // Mutate the type of function parameters in the program.
+  mutate_param_types(params_to_mutate, allocs_to_mutate);
 
   return modified;
 }
