@@ -2,6 +2,7 @@
 #include "memoir/ir/CallGraph.hpp"
 #include "memoir/support/SortedVector.hpp"
 
+#include "folio/Mapping.hpp"
 #include "folio/ProxyInsertion.hpp"
 #include "folio/Utilities.hpp"
 #include "folio/Version.hpp"
@@ -35,7 +36,7 @@ static void collect_versions(
     Set<llvm::Argument *> &arguments,
     Map<llvm::Function *, List<SortedVector<llvm::CallBase *>>> &versions,
     const Vector<Candidate> &candidates,
-    const Candidate::Mapping &mapping) {
+    const Mapping &mapping) {
 
   // For each base in the mapping.
   for (const auto &[base, global] : mapping.globals()) {
