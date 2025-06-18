@@ -939,12 +939,12 @@ bool ProxyInsertion::transform() {
       auto *alloc = &info->allocation->asValue();
 
       if (encoder) {
-        auto &enc_global = candidate.encoder(info).global(alloc);
+        auto &enc_global = candidate.encoder.global(alloc);
         builder.CreateStore(encoder, &enc_global);
       }
 
       if (decoder) {
-        auto &dec_global = candidate.decoder(info).global(alloc);
+        auto &dec_global = candidate.decoder.global(alloc);
         builder.CreateStore(decoder, &dec_global);
       }
     }

@@ -316,10 +316,8 @@ static void create_base_globals(Vector<Candidate> &candidates) {
 
       base_candidates[base].push_back(candidate);
 
-      for (auto *object : objects) {
-        candidate->encoder(object).global(base, enc);
-        candidate->decoder(object).global(base, dec);
-      }
+      candidate->encoder.global(base, enc);
+      candidate->decoder.global(base, dec);
     }
   }
 
