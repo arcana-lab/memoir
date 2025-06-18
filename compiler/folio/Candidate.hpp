@@ -8,6 +8,7 @@
 #include "memoir/support/DataTypes.hpp"
 
 #include "folio/CoalesceUses.hpp"
+#include "folio/Mapping.hpp"
 #include "folio/ObjectInfo.hpp"
 #include "folio/Utilities.hpp"
 
@@ -50,51 +51,7 @@ struct Candidate : public Vector<ObjectInfo *> {
           get_bounds_checks);
 
   // Information about the en/decoder mappings.
-  struct Mapping {
-    Mapping() : _alloc(NULL), _globals{}, _locals{} {}
-
-    llvm::Value &alloc() const {
-      return *this->_alloc;
-    }
-
-    void alloc(llvm::Value &V) {
-      this->_alloc = &V;
-    }
-
-    llvm::GlobalVariable &global(llvm::Value *base) const {
-      return *this->_globals.at(base);
-    }
-
-    void global(llvm::Value *base, llvm::GlobalVariable &GV) {
-      this->_globals[base] = &GV;
-    }
-
-    Map<llvm::Value *, llvm::GlobalVariable *> &globals() {
-      return this->_globals;
-    }
-
-    const Map<llvm::Value *, llvm::GlobalVariable *> &globals() const {
-      return this->_globals;
-    }
-
-    llvm::AllocaInst *local(llvm::Function &F) const {
-      auto found = this->_locals.find(&F);
-      if (found == this->_locals.end()) {
-        return NULL;
-      }
-
-      return found->second;
-    }
-
-    void local(llvm::Function &func, llvm::AllocaInst &alloca) {
-      this->_locals[&func] = &alloca;
-    }
-
-    llvm::Value *_alloc;
-    Map<llvm::Value *, llvm::GlobalVariable *> _globals;
-    Map<llvm::Function *, llvm::AllocaInst *> _locals;
-  };
-  Mapping encoder, decoder;
+  Map<ObjectInfo *, Mapping> encoder, decoder;
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                                        const Candidate &uses);
