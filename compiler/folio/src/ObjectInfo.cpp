@@ -6,13 +6,25 @@ using namespace llvm::memoir;
 namespace folio {
 
 // ================
+static llvm::Value *remap(llvm::Value *val, llvm::ValueToValueMapTy &vmap) {
+  auto found = vmap.find(val);
+  if (found == vmap.end()) {
+    return val;
+  }
+  return found->second;
+}
+
+static llvm::Use *remap(llvm::Use *use, llvm::ValueToValueMapTy &vmap) {
+  auto *user = use->getUser();
+  auto *new_user = cast<llvm::User>(remap(user, vmap));
+  return &new_user->getOperandUse(use->getOperandNo());
+}
+
 static void update_values(llvm::ValueToValueMapTy &vmap,
                           const Set<llvm::Value *> &input,
                           Set<llvm::Value *> &output) {
   for (auto *val : input) {
-    auto *clone = &*vmap[val];
-
-    output.insert(clone);
+    output.insert(remap(val, vmap));
   }
 }
 
@@ -20,9 +32,7 @@ static void update_values(llvm::ValueToValueMapTy &vmap,
                           const Set<NestedObject> &input,
                           Set<NestedObject> &output) {
   for (const auto &info : input) {
-    auto *clone = &*vmap[&info.value()];
-
-    output.emplace(*clone, info.offsets());
+    output.emplace(*remap(&info.value(), vmap), info.offsets());
   }
 }
 
@@ -31,7 +41,7 @@ static void update_values(llvm::ValueToValueMapTy &vmap,
                           const LocalMap<T> &input,
                           LocalMap<T> &output) {
   for (const auto &[base, redefs] : input) {
-    auto *clone = &*vmap[base];
+    auto *clone = remap(base, vmap);
     update_values(vmap, redefs, output[clone]);
   }
 }
@@ -62,16 +72,6 @@ static void update_uses(Map<llvm::Function *, Set<llvm::Use *>> &uses,
   }
 }
 
-static llvm::Use *remap(llvm::Use *use, llvm::ValueToValueMapTy &vmap) {
-  auto *user = use->getUser();
-  auto *new_user = cast<llvm::User>(&*vmap[user]);
-  return &new_user->getOperandUse(use->getOperandNo());
-}
-
-static llvm::Value *remap(llvm::Value *val, llvm::ValueToValueMapTy &vmap) {
-  return &*vmap[val];
-}
-
 template <typename T>
 static void update_bases(Map<T *, llvm::Value *> bases,
                          llvm::Function &old_func,
@@ -84,17 +84,17 @@ static void update_bases(Map<T *, llvm::Value *> bases,
     auto [val, base] = *it;
     auto *func = parent_function(*val);
 
-    if (func != &old_func) {
-      continue;
+    if (func == &old_func) {
+
+      new_bases[remap(val, vmap)] = remap(base, vmap);
+
+      if (delete_old) {
+        it = bases.erase(it);
+        continue;
+      }
     }
 
-    new_bases[remap(val, vmap)] = remap(base, vmap);
-
-    if (delete_old) {
-      it = bases.erase(it);
-    } else {
-      ++it;
-    }
+    ++it;
   }
 
   for (const auto &[val, base] : new_bases) {
