@@ -393,8 +393,12 @@ static void update_use(llvm::Use &use, llvm::Value &value) {
 static llvm::Value &encode_use(
     MemOIRBuilder &builder,
     llvm::Use &use,
-    std::function<llvm::Value &(llvm::Value &)> get_encoder,
-    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> encode_value) {
+    llvm::Value *base,
+    std::function<llvm::Instruction &(MemOIRBuilder &,
+                                      llvm::Value &,
+                                      llvm::Value *)> has_value,
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &, llvm::Value *)>
+        encode_value) {
 
   auto *user = cast<llvm::Instruction>(use.getUser());
   auto *used = use.get();
@@ -406,8 +410,6 @@ static llvm::Value &encode_use(
   auto &size_type = Type::get_size_type(data_layout);
   auto &llvm_size_type = *size_type.get_llvm_type(context);
 
-  auto &encoder = get_encoder(*user);
-
   // Handle has operations separately.
   if (auto *has = into<HasInst>(user)) {
     if (is_last_index(&use, has->index_operands_end())) {
@@ -417,14 +419,14 @@ static llvm::Value &encode_use(
       //   h = has(collection, i)
       // h' = PHI(h, false)
 
-      auto *cond = &builder.CreateHasInst(&encoder, used)->getCallInst();
-      auto *phi = builder.CreatePHI(cond->getType(), 2);
+      auto &cond = has_value(builder, *used, base);
+      auto *phi = builder.CreatePHI(cond.getType(), 2);
 
       // i' = PHI(i, undef)
       auto *index_phi = builder.CreatePHI(&llvm_size_type, 2);
 
       auto *then_terminator =
-          llvm::SplitBlockAndInsertIfThen(cond,
+          llvm::SplitBlockAndInsertIfThen(&cond,
                                           phi,
                                           /* unreachable? */ false);
 
@@ -432,14 +434,14 @@ static llvm::Value &encode_use(
 
       builder.SetInsertPoint(user);
 
-      auto &encoded = encode_value(builder, *used);
+      auto &encoded = encode_value(builder, *used, base);
 
       update_use(use, encoded);
 
       user->replaceAllUsesWith(phi);
 
       auto *then_bb = then_terminator->getParent();
-      auto *else_bb = cond->getParent();
+      auto *else_bb = cond.getParent();
 
       phi->addIncoming(user, then_bb);
       phi->addIncoming(llvm::ConstantInt::getFalse(context), else_bb);
@@ -452,7 +454,7 @@ static llvm::Value &encode_use(
   }
 
   // In the common case, update the use with the encoded value.
-  auto &encoded = encode_value(builder, *used);
+  auto &encoded = encode_value(builder, *used, base);
 
   update_use(use, encoded);
 
@@ -464,35 +466,26 @@ static void inject(
     Vector<CoalescedUses> &decoded,
     Vector<CoalescedUses> &encoded,
     Vector<CoalescedUses> &added,
-    std::function<llvm::Value &(llvm::Value &)> get_encoder,
-    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> decode_value,
-    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> encode_value,
-    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> add_value) {
+    std::function<llvm::Instruction &(MemOIRBuilder &,
+                                      llvm::Value &,
+                                      llvm::Value *)> has_value,
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &, llvm::Value *)>
+        decode_value,
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &, llvm::Value *)>
+        encode_value,
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &, llvm::Value *)>
+        add_value) {
 
   for (auto &uses : encoded) {
 
     // Unpack the use.
     auto *use = uses.front();
-    auto *used = use->get();
-    auto *user = dyn_cast<llvm::Instruction>(use->getUser());
-
-    // Compute the insertion point.
-    llvm::Instruction *program_point = nullptr;
-    if (user) {
-      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-        MEMOIR_UNREACHABLE("En/decoding uses by PHI is unhandled.");
-      } else {
-        program_point = user;
-      }
-
-    } else {
-      MEMOIR_UNREACHABLE("Failed to find a point to encode the value!");
-    }
 
     // Create the builder.
-    MemOIRBuilder builder(program_point);
+    MemOIRBuilder builder(uses.insertion_point());
 
-    auto &encoded = encode_use(builder, *use, get_encoder, encode_value);
+    auto &encoded =
+        encode_use(builder, *use, uses.base(), has_value, encode_value);
 
     // Update the coalesced uses.
     for (auto *other_use : uses) {
@@ -511,24 +504,10 @@ static void inject(
     // Unpack the use.
     auto *use = uses.front();
     auto *used = use->get();
-    auto *user = dyn_cast<llvm::Instruction>(use->getUser());
 
-    // Compute the insertion point.
-    llvm::Instruction *program_point = nullptr;
-    if (user) {
-      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-        MEMOIR_UNREACHABLE("En/decoding uses by PHI is unhandled.");
-      } else {
-        program_point = user;
-      }
+    MemOIRBuilder builder(uses.insertion_point());
 
-    } else {
-      MEMOIR_UNREACHABLE("Failed to find a point to encode the value!");
-    }
-
-    MemOIRBuilder builder(program_point);
-
-    auto &encoded = add_value(builder, *used);
+    auto &encoded = add_value(builder, *used, uses.base());
 
     uses.value(encoded);
 
@@ -541,27 +520,13 @@ static void inject(
 
     // Unpack the use.
     auto *use = uses.front();
-    auto *used = use->get();
+    auto *used = &uses.value();
     auto *user = dyn_cast<llvm::Instruction>(use->getUser());
 
     // Compute the insertion point.
-    llvm::Instruction *program_point = nullptr;
-    if (user) {
-      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-        auto *incoming_block = phi->getIncomingBlock(*use);
-        // TODO: this may be unsound if the terminator is conditional.
-        program_point = incoming_block->getTerminator();
-      } else {
-        program_point = user;
-      }
+    MemOIRBuilder builder(uses.insertion_point());
 
-    } else {
-      MEMOIR_UNREACHABLE("Failed to find a point to decode the value!");
-    }
-
-    MemOIRBuilder builder(program_point);
-
-    auto &decoded = decode_value(builder, *used);
+    auto &decoded = decode_value(builder, *used, uses.base());
 
     uses.value(decoded);
 
@@ -958,77 +923,56 @@ bool ProxyInsertion::transform() {
                                                 decoder_type);
 
     // Create anon functions to encode/decode a value
-    std::function<llvm::Value &(llvm::Value &)> get_encoder =
-        [&](llvm::Value &value) -> llvm::Value & {
-      auto &function = MEMOIR_SANITIZE(parent_function(value),
-                                       "Failed to find parent function for ",
-                                       value);
-      MEMOIR_UNREACHABLE("UNIMPLEMENTED");
-#if 0
-      return MEMOIR_SANITIZE(candidate.encoder.local(function),
-                             "Failed to find encoder in ",
-                             function.getName());
-#endif
+    std::function<
+        llvm::Instruction &(MemOIRBuilder &, llvm::Value &, llvm::Value *)>
+        has_value = [&](MemOIRBuilder &builder,
+                        llvm::Value &value,
+                        llvm::Value *base) -> llvm::Instruction & {
+      auto &enc_local = candidate.encoder.local(base);
+      auto *enc_type = enc_local.getAllocatedType();
+      auto *enc = builder.CreateLoad(enc_type, &enc_local);
+      return builder.CreateHasInst(enc, { &value })->getCallInst();
     };
 
-    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> decode_value =
-        [&](MemOIRBuilder &builder, llvm::Value &value) -> llvm::Value & {
-      auto *function = parent_function(value);
-      if (not function) {
-        if (auto *basic_block = builder.GetInsertBlock()) {
-          function = basic_block->getParent();
-        }
-      }
-      MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
-
-      MEMOIR_UNREACHABLE("UNIMPLEMENTED");
-#if 0
-      auto *decoder = candidate.decoder.local(*function);
-      return builder.CreateReadInst(key_type, decoder, { &value })->asValue();
-#endif
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &, llvm::Value *)>
+        decode_value = [&](MemOIRBuilder &builder,
+                           llvm::Value &value,
+                           llvm::Value *base) -> llvm::Value & {
+      auto &dec_local = candidate.decoder.local(base);
+      auto *dec_type = dec_local.getAllocatedType();
+      auto *dec = builder.CreateLoad(dec_type, &dec_local);
+      return builder.CreateReadInst(key_type, dec, { &value })->asValue();
     };
 
-    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> encode_value =
-        [&](MemOIRBuilder &builder, llvm::Value &value) -> llvm::Value & {
-      auto *function = parent_function(value);
-      if (not function) {
-        if (auto *basic_block = builder.GetInsertBlock()) {
-          function = basic_block->getParent();
-        }
-      }
-      MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
-
-      MEMOIR_UNREACHABLE("UNIMPLEMENTED");
-#if 0
-      auto *encoder = candidate.encoder.local(*function);
-      return builder.CreateReadInst(size_type, encoder, &value)->asValue();
-#endif
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &, llvm::Value *)>
+        encode_value = [&](MemOIRBuilder &builder,
+                           llvm::Value &value,
+                           llvm::Value *base) -> llvm::Value & {
+      auto &enc_local = candidate.encoder.local(base);
+      auto *enc_type = enc_local.getAllocatedType();
+      auto *enc = builder.CreateLoad(enc_type, &enc_local);
+      return builder.CreateReadInst(size_type, enc, &value)->asValue();
     };
 
-    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &)> add_value =
-        [&](MemOIRBuilder &builder, llvm::Value &value) -> llvm::Value & {
-      auto *function = parent_function(value);
-      if (not function) {
-        if (auto *basic_block = builder.GetInsertBlock()) {
-          function = basic_block->getParent();
-        }
-      }
-      MEMOIR_ASSERT(function, "Failed to find parent function for ", value);
-
-      MEMOIR_UNREACHABLE("UNIMPLEMENTED");
-#if 0
+    std::function<llvm::Value &(MemOIRBuilder &, llvm::Value &, llvm::Value *)>
+        add_value = [&](MemOIRBuilder &builder,
+                        llvm::Value &value,
+                        llvm::Value *base) -> llvm::Value & {
       Vector<llvm::Value *> args = { &value };
       if (build_encoder) {
-        auto *encoder = candidate.encoder.local(*function);
-        args.push_back(encoder);
+        auto &enc_local = candidate.encoder.local(base);
+        auto *enc_type = enc_local.getAllocatedType();
+        auto *enc = builder.CreateLoad(enc_type, &enc_local);
+        args.push_back(enc);
       }
       if (build_decoder) {
-        auto *decoder = candidate.decoder.local(*function);
-        args.push_back(decoder);
+        auto &dec_local = candidate.decoder.local(base);
+        auto *dec_type = dec_local.getAllocatedType();
+        auto *dec = builder.CreateLoad(dec_type, &dec_local);
+        args.push_back(dec);
       }
       return MEMOIR_SANITIZE(builder.CreateCall(addkey_callee, args),
                              "Failed to create call to addkey!");
-#endif
     };
 
     // Inject instructions to handle each use.
@@ -1036,10 +980,13 @@ bool ProxyInsertion::transform() {
            decoded,
            encoded,
            added,
-           get_encoder,
+           has_value,
            decode_value,
            encode_value,
            add_value);
+
+    // Promote the locals to registers.
+    // promote_locals(candidate.encoder, candidate.decoder);
 
     // Collect any function parameters whose type has changed because the
     // argument propagates an encoded value.
