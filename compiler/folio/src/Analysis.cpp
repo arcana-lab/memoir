@@ -213,10 +213,9 @@ static void share_proxies(Vector<ObjectInfo> &objects,
     candidates.emplace_back();
     auto &candidate = candidates.back();
     candidate.push_back(&info);
-    println("TRYING ", info);
 
     // Compute the benefit of the candidate as is.
-    auto candidate_benefit = benefit(candidate);
+    candidate.benefit = benefit(candidate);
 
     // Find all other allocations in the same function as this one.
     if (not disable_proxy_sharing) {
@@ -245,35 +244,35 @@ static void share_proxies(Vector<ObjectInfo> &objects,
         }
       }
 
-      println("SHAREABLE");
+      infoln("SHAREABLE");
       for (const auto &[other, _] : shareable) {
-        println("  ", *other);
+        infoln("  ", *other);
       }
-      println();
+      infoln();
 
       // Iterate until we can't find a new object to add to the candidate.
       bool fresh;
       do {
         fresh = false;
 
-        println("CURRENT ", candidate);
-        println("  BENEFIT ", candidate_benefit);
+        infoln("CURRENT ", candidate);
+        infoln("  BENEFIT ", candidate.benefit);
 
         for (auto jt = shareable.begin(); jt != shareable.end();) {
           const auto &[other, single_benefit] = *jt;
 
-          println("  WHAT IF? ", *other);
+          infoln("  WHAT IF? ", *other);
 
           // Compute the benefit of adding this candidate.
           candidate.push_back(other);
           auto new_benefit = benefit(candidate);
-          println("    NEW BENEFIT ", new_benefit);
-          println("    SUM BENEFIT ", candidate_benefit + single_benefit);
-          println();
+          infoln("    NEW BENEFIT ", new_benefit);
+          infoln("    SUM BENEFIT ", candidate.benefit + single_benefit);
+          infoln();
 
-          if (new_benefit > (candidate_benefit + single_benefit)) {
+          if (new_benefit > (candidate.benefit + single_benefit)) {
             fresh = true;
-            candidate_benefit = new_benefit;
+            candidate.benefit = new_benefit;
 
             // Erase the object from the search list.
             jt = shareable.erase(jt);
@@ -291,18 +290,63 @@ static void share_proxies(Vector<ObjectInfo> &objects,
     }
 
     // If there is no benefit, roll back the candidate.
-    if (candidate.size() == 0 or candidate_benefit == 0) {
+    if (candidate.size() == 0 or candidate.benefit == 0) {
       candidates.pop_back();
 
     } else {
       // Mark the objects in the candidate as being used.
       used.insert(candidate.begin(), candidate.end());
+    }
+  }
 
-      println("CANDIDATE:");
-      println("  BENEFIT=", candidate_benefit);
-      for (const auto *info : candidate) {
-        println("  ", *info);
+  for (auto it = candidates.begin(); it != candidates.end(); ++it) {
+    auto &candidate = *it;
+
+    // Find any candidates that share an allocation with this one.
+    Set<AllocInst *> allocations = {};
+    for (auto *info : candidate) {
+      allocations.insert(info->allocation);
+    }
+
+    auto benefit = candidate.benefit;
+
+    bool other_wins = false;
+    for (auto jt = std::next(it); jt != candidates.end();) {
+      auto &other = *jt;
+
+      bool aliases = false;
+      for (auto *info : other) {
+        if (allocations.contains(info->allocation)) {
+          aliases = true;
+        }
       }
+
+      if (aliases) {
+        // Which candidate needs to go?
+        if (other.benefit > benefit) {
+          // Other candidate wins, delete this candidate.
+          other_wins = true;
+          break;
+        } else {
+          // This candidate wins, delete other candidate.
+          jt = candidates.erase(jt);
+        }
+      } else {
+        // If we don't alias, then its all hunky dory.
+        ++jt;
+      }
+    }
+
+    if (other_wins) {
+      it = candidates.erase(it);
+    }
+  }
+
+  for (auto &candidate : candidates) {
+    println("CANDIDATE:");
+    println("  BENEFIT=", candidate.benefit);
+    for (const auto *info : candidate) {
+      println("  ", *info);
     }
   }
 }
