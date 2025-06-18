@@ -361,6 +361,44 @@ static void create_base_globals(Vector<Candidate> &candidates) {
   }
 }
 
+static void create_base_locals(Vector<Candidate> &candidates) {
+  for (auto &candidate : candidates) {
+    for (const auto &[base, global] : candidate.encoder.globals()) {
+      auto *func = parent_function(*base);
+      if (not func) {
+        continue;
+      }
+
+      MemOIRBuilder builder(&func->getEntryBlock());
+
+      auto *type = global->getValueType();
+
+      auto *var = builder.CreateAlloca(type, 0, "enc.local");
+      auto *enc = builder.CreateLoad(type, global);
+      builder.CreateStore(enc, var);
+
+      candidate.encoder.local(base, *var);
+    }
+
+    for (const auto &[base, global] : candidate.decoder.globals()) {
+      auto *func = parent_function(*base);
+      if (not func) {
+        continue;
+      }
+
+      MemOIRBuilder builder(&func->getEntryBlock());
+
+      auto *type = global->getValueType();
+
+      auto *var = builder.CreateAlloca(type, 0, "dec.local");
+      auto *dec = builder.CreateLoad(type, global);
+      builder.CreateStore(dec, var);
+
+      candidate.decoder.local(base, *var);
+    }
+  }
+}
+
 void ProxyInsertion::prepare() {
 
   // Monomorphize the program, for candidate patterns.
@@ -368,6 +406,9 @@ void ProxyInsertion::prepare() {
 
   // For each base in the candidate, insert a global for it.
   create_base_globals(this->candidates);
+
+  // For each base global, create a local stack variable to hold it.
+  create_base_locals(this->candidates);
 }
 
 } // namespace folio
