@@ -456,7 +456,7 @@ static llvm::Value *fetch_mapping(Mapping &mapping,
                                   llvm::Value *base,
                                   const llvm::Twine &name = "") {
   auto [ptr, type] = get_ptr(mapping, value, base);
-  auto *val = builder.CreateLoad(type, ptr);
+  auto *val = builder.CreateLoad(type, ptr, name);
   builder.CreateAssertTypeInst(val, mapping_type, name.concat(".type"));
 
   return val;
