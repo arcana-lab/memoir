@@ -486,9 +486,17 @@ static llvm::Value *fetch_decoder(Candidate &candidate,
                        "dec");
 }
 
+#ifndef PRINT_VALUES
+#  define PRINT_VALUES 0
+#endif
+
 llvm::Instruction &Candidate::has_value(MemOIRBuilder &builder,
                                         llvm::Value &value,
                                         llvm::Value *base) {
+#if PRINT_VALUES
+  builder.CreateErrorf("HAS %u\n", { &value });
+#endif
+
   auto *enc = fetch_encoder(*this, builder, value, base);
   return builder.CreateHasInst(enc, { &value })->getCallInst();
 };
@@ -496,22 +504,47 @@ llvm::Instruction &Candidate::has_value(MemOIRBuilder &builder,
 llvm::Value &Candidate::decode_value(MemOIRBuilder &builder,
                                      llvm::Value &value,
                                      llvm::Value *base) {
+#if PRINT_VALUES
+  builder.CreateErrorf("DEC %lu ", { &value });
+#endif
+
   auto *dec = fetch_decoder(*this, builder, value, base);
-  return builder.CreateReadInst(this->key_type(), dec, { &value })->asValue();
+  auto &decoded =
+      builder.CreateReadInst(this->key_type(), dec, { &value })->asValue();
+
+#if PRINT_VALUES
+  builder.CreateErrorf("= %u\n", { &decoded });
+#endif
+
+  return decoded;
 };
 
 llvm::Value &Candidate::encode_value(MemOIRBuilder &builder,
                                      llvm::Value &value,
                                      llvm::Value *base) {
+#if PRINT_VALUES
+  builder.CreateErrorf("ENC %u ", { &value });
+#endif
+
   auto *enc = fetch_encoder(*this, builder, value, base);
 
   auto &size_type = Type::get_size_type(this->module().getDataLayout());
-  return builder.CreateReadInst(size_type, enc, &value)->asValue();
+  auto &encoded = builder.CreateReadInst(size_type, enc, &value)->asValue();
+
+#if PRINT_VALUES
+  builder.CreateErrorf("= %lu\n", { &encoded });
+#endif
+
+  return encoded;
 };
 
 llvm::Value &Candidate::add_value(MemOIRBuilder &builder,
                                   llvm::Value &value,
                                   llvm::Value *base) {
+#if PRINT_VALUES
+  builder.CreateErrorf("ADD %u ", { &value });
+#endif
+
   Vector<llvm::Value *> args = { &value };
   if (this->build_encoder()) {
     auto *enc = fetch_encoder(*this, builder, value, base);
@@ -521,8 +554,15 @@ llvm::Value &Candidate::add_value(MemOIRBuilder &builder,
     auto *dec = fetch_decoder(*this, builder, value, base);
     args.push_back(dec);
   }
-  return MEMOIR_SANITIZE(builder.CreateCall(this->addkey_callee(), args),
-                         "Failed to create call to addkey!");
+  auto &encoded =
+      MEMOIR_SANITIZE(builder.CreateCall(this->addkey_callee(), args),
+                      "Failed to create call to addkey!");
+
+#if PRINT_VALUES
+  builder.CreateErrorf("= %lu\n", { &encoded });
+#endif
+
+  return encoded;
 };
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
