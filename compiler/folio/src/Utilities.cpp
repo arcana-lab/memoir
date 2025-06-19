@@ -234,4 +234,20 @@ llvm::AllocaInst &create_stack_ptr(llvm::Function &function,
   return MEMOIR_SANITIZE(stack, "Failed to create alloca");
 }
 
+llvm::Instruction *insertion_point(llvm::Use &use) {
+  auto *user = use.getUser();
+
+  if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+    auto incoming = use.getOperandNo();
+    auto *incoming_block = phi->getIncomingBlock(incoming);
+    auto *terminator = incoming_block->getTerminator();
+    return terminator;
+
+  } else if (auto *inst = dyn_cast<llvm::Instruction>(user)) {
+    return inst;
+  }
+
+  MEMOIR_UNREACHABLE("Failed to find insertion point for use ", pretty(use));
+}
+
 } // namespace folio

@@ -276,6 +276,28 @@ static llvm::Value *find_base_of(llvm::Value &value,
   return found_base;
 }
 
+static void store_mappings_for_base(llvm::Instruction *insertion_point,
+                                    llvm::GlobalVariable *enc,
+                                    llvm::GlobalVariable *caller_enc,
+                                    llvm::GlobalVariable *dec,
+                                    llvm::GlobalVariable *caller_dec) {
+
+  // Load the mappings and store them to the globals.
+  MemOIRBuilder builder(insertion_point);
+
+  if (enc and caller_enc) {
+    auto *enc_type = enc->getValueType();
+    auto *enc_value = builder.CreateLoad(enc_type, caller_enc);
+    builder.CreateStore(enc_value, enc);
+  }
+
+  if (dec and caller_dec) {
+    auto *dec_type = dec->getValueType();
+    auto *dec_value = builder.CreateLoad(dec_type, caller_dec);
+    builder.CreateStore(dec_value, dec);
+  }
+}
+
 static void create_base_globals(Vector<Candidate> &candidates) {
 
   // Find all of the bases in the program.
@@ -334,6 +356,34 @@ static void create_base_globals(Vector<Candidate> &candidates) {
     // Collect the callers for this function.
     auto &func = MEMOIR_SANITIZE(arg->getParent(), "Arg has no parent");
 
+    // Handle fold bodies.
+    if (auto *fold = FoldInst::get_single_fold(func)) {
+
+      llvm::Value *operand = NULL;
+      if (auto *operand_use = fold->getOperandForArgument(*arg)) {
+        operand = operand_use->get();
+      } else {
+        operand = &fold->getObject();
+      }
+
+      auto *caller_base = find_base_of(*operand, base_candidates[base]);
+      MEMOIR_ASSERT(caller_base,
+                    "Failed to find base of ",
+                    *operand,
+                    " for ",
+                    *fold);
+
+      const auto &[caller_enc, caller_dec] = mappings.at(caller_base);
+
+      store_mappings_for_base(&fold->getCallInst(),
+                              enc,
+                              caller_enc,
+                              dec,
+                              caller_dec);
+
+      continue;
+    }
+
     auto callers = possible_callers(func);
 
     for (auto *call : callers) {
@@ -347,16 +397,7 @@ static void create_base_globals(Vector<Candidate> &candidates) {
       // Get the globals for the caller base.
       const auto &[caller_enc, caller_dec] = mappings.at(caller_base);
 
-      // Load the mappings and store them to the globals.
-      MemOIRBuilder builder(call);
-
-      auto *enc_type = enc->getValueType();
-      auto *enc_value = builder.CreateLoad(enc_type, caller_enc);
-      builder.CreateStore(enc_value, enc);
-
-      auto *dec_type = dec->getValueType();
-      auto *dec_value = builder.CreateLoad(dec_type, caller_dec);
-      builder.CreateStore(dec_value, dec);
+      store_mappings_for_base(call, enc, caller_enc, dec, caller_dec);
     }
   }
 }

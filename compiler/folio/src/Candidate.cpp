@@ -195,8 +195,10 @@ void Candidate::optimize(
     std::function<BoundsCheckResult &(llvm::Function &)> get_bounds_checks) {
 
   // Collect all of the uses that need to be handled.
-  LocalMap<Set<llvm::Use *>> to_decode, to_encode, to_addkey;
-  this->gather_uses(this->encoded_values, to_decode, to_encode, to_addkey);
+  this->gather_uses(this->encoded_values,
+                    this->to_decode,
+                    this->to_encode,
+                    this->to_addkey);
 
   println("  FOUND USES");
   print_uses(to_encode, to_decode, to_addkey);
@@ -223,6 +225,7 @@ void Candidate::optimize(
   println("  TRIMMED USES:");
   print_uses(to_encode, to_decode, to_addkey);
 
+#if 0
   coalesce(decoded, to_decode, get_domtree);
   coalesce(encoded, to_encode, get_domtree);
   coalesce(added, to_addkey, get_domtree);
@@ -244,14 +247,15 @@ void Candidate::optimize(
     println("      COALESCED ", uses.value(), " ", *uses.base());
     print_uses(uses);
   }
+#endif
 }
 
 bool Candidate::build_encoder() const {
-  return this->encoded.size() > 0 or this->added.size() > 0;
+  return this->to_encode.size() > 0 or this->to_addkey.size() > 0;
 }
 
 bool Candidate::build_decoder() const {
-  return this->decoded.size() > 0;
+  return this->to_decode.size() > 0;
 }
 
 llvm::Instruction &Candidate::construction_point(
@@ -289,8 +293,6 @@ static llvm::Function &create_addkey_function(llvm::Module &M,
   auto *llvm_size_type = size_type.get_llvm_type(context);
   auto *llvm_ptr_type = llvm::PointerType::get(context, 0);
   auto *llvm_key_type = key_type.get_llvm_type(context);
-
-  println("KEY ", key_type, " AS LLVM ", *llvm_key_type);
 
   // Create the addkey functions for this proxy.
   Vector<llvm::Type *> addkey_params = { llvm_key_type };
@@ -335,7 +337,9 @@ static llvm::Function &create_addkey_function(llvm::Module &M,
   }
 
   auto *has_key = &builder.CreateHasInst(encoder, key)->getCallInst();
+
   auto *phi = builder.CreatePHI(llvm_size_type, 2);
+
   llvm::PHINode *encoder_phi = nullptr;
   if (build_encoder) {
     encoder_phi = builder.CreatePHI(llvm_ptr_type, 2);
@@ -379,7 +383,7 @@ static llvm::Function &create_addkey_function(llvm::Module &M,
                                         new_index,
                                         &insert->getCallInst(),
                                         { key })
-                       ->getCallInst();
+                       ->asValue();
   }
 
   llvm::Value *new_decoder = nullptr;
@@ -394,21 +398,23 @@ static llvm::Function &create_addkey_function(llvm::Module &M,
                                         key,
                                         &insert->getCallInst(),
                                         { new_index })
-                       ->getCallInst();
+                       ->asValue();
   }
 
   // Update the PHIs
+  MEMOIR_ASSERT(read_index, "Read index is NULL");
   phi->addIncoming(read_index, then_bb);
+  MEMOIR_ASSERT(new_index, "New index is NULL");
   phi->addIncoming(new_index, else_bb);
 
-  if (encoder_phi) {
+  if (encoder_phi and encoder and new_encoder) {
     encoder_phi->addIncoming(encoder, then_bb);
     encoder_phi->addIncoming(new_encoder, else_bb);
     auto encoder_live_out = Metadata::get_or_add<LiveOutMetadata>(*encoder_phi);
     encoder_live_out.setArgNo(encoder->getArgNo());
   }
 
-  if (decoder_phi) {
+  if (decoder_phi and decoder and new_decoder) {
     decoder_phi->addIncoming(decoder, then_bb);
     decoder_phi->addIncoming(new_decoder, else_bb);
     auto decoder_live_out = Metadata::get_or_add<LiveOutMetadata>(*decoder_phi);
@@ -426,9 +432,6 @@ llvm::FunctionCallee Candidate::addkey_callee() {
                                                     &this->encoder_type(),
                                                     this->build_decoder(),
                                                     &this->decoder_type());
-
-    println("CREATED ADDKEY");
-    println(*this->addkey_function);
   }
 
   return llvm::FunctionCallee(this->addkey_function);

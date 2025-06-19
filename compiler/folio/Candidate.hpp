@@ -24,6 +24,9 @@ public:
       decoded{},
       encoded{},
       added{},
+      to_decode{},
+      to_encode{},
+      to_addkey{},
       encoded_values{},
       encoder(),
       decoder(),
@@ -31,6 +34,7 @@ public:
 
   // The uses prepared for transformation.
   Vector<CoalescedUses> decoded, encoded, added;
+  LocalMap<Set<llvm::Use *>> to_decode, to_encode, to_addkey;
   Map<llvm::Function *, LocalMap<Set<llvm::Value *>>> encoded_values;
 
   // Type and program information.

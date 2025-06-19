@@ -49,6 +49,8 @@ llvm::GlobalVariable &create_global_ptr(llvm::Module &module,
 llvm::AllocaInst &create_stack_ptr(llvm::Function &func,
                                    const llvm::Twine &name = "");
 
+llvm::Instruction *insertion_point(llvm::Use &use);
+
 } // namespace folio
 
 #endif // FOLIO_TRANSFORMS_UTILITIES_h

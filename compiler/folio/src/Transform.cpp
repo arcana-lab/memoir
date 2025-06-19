@@ -385,21 +385,17 @@ Type &convert_element_type(Type &base,
 }
 
 static void decode_candidate_uses(Candidate &candidate) {
-  for (auto &uses : candidate.decoded) {
-
-    // Unpack the use.
-    auto *use = uses.front();
-    auto *used = use->get();
-    auto *user = dyn_cast<llvm::Instruction>(use->getUser());
-
-    // Compute the insertion point.
-    MemOIRBuilder builder(uses.insertion_point());
-
-    auto &decoded = candidate.decode_value(builder, *used, uses.base());
-
-    uses.value(decoded);
-
+  for (const auto &[base, uses] : candidate.to_decode) {
     for (auto *use : uses) {
+      // Unpack the use.
+      auto *used = use->get();
+      auto *user = dyn_cast<llvm::Instruction>(use->getUser());
+
+      // Compute the insertion point.
+      MemOIRBuilder builder(insertion_point(*use));
+
+      auto &decoded = candidate.decode_value(builder, *used, base);
+
       use->set(&decoded);
     }
   }
@@ -487,41 +483,22 @@ static llvm::Value &encode_use(Candidate &candidate,
 
 static void encode_candidate_uses(Candidate &candidate) {
 
-  for (auto &uses : candidate.added) {
-
-    // Unpack the use.
-    auto *use = uses.front();
-    auto *used = use->get();
-
-    MemOIRBuilder builder(uses.insertion_point());
-
-    auto &encoded = candidate.add_value(builder, *used, uses.base());
-
-    uses.value(encoded);
-
+  for (const auto &[base, uses] : candidate.to_addkey) {
     for (auto *use : uses) {
-      update_use(*use, encoded);
+
+      MemOIRBuilder builder(insertion_point(*use));
+
+      auto &added = candidate.add_value(builder, *use->get(), base);
+      update_use(*use, added);
     }
   }
 
-  for (auto &uses : candidate.encoded) {
-    // Unpack the use.
-    auto *use = uses.front();
+  for (const auto &[base, uses] : candidate.to_encode) {
+    for (auto *use : uses) {
 
-    // Create the builder.
-    MemOIRBuilder builder(uses.insertion_point());
+      MemOIRBuilder builder(insertion_point(*use));
 
-    auto &encoded = encode_use(candidate, builder, *use, uses.base());
-
-    // Update the coalesced uses.
-    for (auto *other_use : uses) {
-      if (other_use == use) {
-        continue;
-      }
-
-      uses.value(encoded);
-
-      update_use(*other_use, encoded);
+      auto &encoded = encode_use(candidate, builder, *use, base);
     }
   }
 }
@@ -546,11 +523,14 @@ static void mutate_param_types(ParamTypes &params_to_mutate,
                                      func_type->param_end());
 
     // Update the parameter types that are encoded.
+    println("MUTATE PARAMS OF ", func->getName());
     for (; it != params_to_mutate.upper_bound(func); ++it) {
       auto [arg, type] = it->second;
       auto arg_idx = arg->getArgNo();
 
       param_types[arg_idx] = type;
+
+      println("  ARG ", *arg, " TO ", *type);
     }
 
     // Create the new function type.
