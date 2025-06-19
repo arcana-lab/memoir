@@ -5,6 +5,7 @@
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
@@ -92,6 +93,32 @@ static DomTreeTraversalListTy dfs_postorder_traversal_helper(
   MEMOIR_NULL_CHECK(root_node, "Root node couldn't be found in DominatorTree");
 
   return dfs_postorder_traversal_helper(root_node);
+}
+
+static void cleanup_casts(llvm::Module &module) {
+  // Collect all NOP cast operations.
+  Set<llvm::Instruction *> to_delete = {};
+  for (auto &func : module) {
+    for (auto &inst : llvm::instructions(func)) {
+      if (auto *cast = dyn_cast<llvm::CastInst>(&inst)) {
+
+        if (cast->getSrcTy() == cast->getDestTy()) {
+
+          // Short-circuit the cast.
+          auto *operand = cast->getOperand(0);
+          cast->replaceAllUsesWith(operand);
+
+          // Mark the instruction to delete.
+          to_delete.insert(cast);
+        }
+      }
+    }
+  }
+
+  // Delete all instructions we found.
+  for (auto *inst : to_delete) {
+    inst->eraseFromParent();
+  }
 }
 
 PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
@@ -192,6 +219,7 @@ PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
 
   infoln("Cleaning up dead instructions.");
   SSADV.cleanup();
+  cleanup_casts(M);
 
   // Verify each function.
   for (auto &F : M) {
