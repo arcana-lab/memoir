@@ -46,6 +46,7 @@ MODULE_PASS_(LinkDeclarationsPass, "memoir-link-decls")
 FUNCTION_PASS_(LiveOutInsertionPass, "memoir-live-out-insertion")
 FUNCTION_PASS_(ExtendedSSAConstructionPass, "memoir-extended-ssa-construction")
 FUNCTION_PASS_(DefunctionalizePass, "defunc")
+FUNCTION_PASS_(CoercePass, "coerce")
 
 
 

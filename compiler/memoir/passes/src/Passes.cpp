@@ -83,6 +83,9 @@ void raise_memoir(llvm::ModulePassManager &MPM) {
   // Construct SSA form.
   MPM.addPass(SSAConstructionPass());
 
+  // Coerce values.
+  MPM.addPass(adapt_function(CoercePass()));
+
   // Infer types.
   MPM.addPass(TypeInferencePass());
 
