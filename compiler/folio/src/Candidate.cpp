@@ -1,4 +1,7 @@
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+
 #include "memoir/support/Casting.hpp"
+#include "memoir/utility/Metadata.hpp"
 
 #include "folio/Candidate.hpp"
 #include "folio/RedundantTranslations.hpp"
@@ -48,24 +51,64 @@ llvm::memoir::Type &Candidate::key_type() const {
   return assoc_type.getKeyType();
 }
 
-llvm::Instruction &Candidate::construction_point(
-    llvm::DominatorTree &domtree) const {
-  // Find the construction point for the encoder and decoder.
-  llvm::Instruction *construction_point =
-      &this->front()->allocation->getCallInst();
+llvm::memoir::Type &Candidate::encoder_type() const {
+  auto &data_layout = this->module().getDataLayout();
+  auto &size_type = Type::get_size_type(data_layout);
+  return AssocType::get(this->key_type(), size_type);
+}
 
-  // Find a point that dominates all of the object allocations.
-  for (const auto *other : *this) {
-    auto *other_alloc = other->allocation;
-    auto &other_inst = other_alloc->getCallInst();
+llvm::memoir::Type &Candidate::decoder_type() const {
+  return SequenceType::get(this->key_type());
+}
 
-    construction_point =
-        domtree.findNearestCommonDominator(construction_point, &other_inst);
+static void print_uses(const Vector<llvm::Use *> &uses) {
+  for (auto *use : uses) {
+    println("    ", pretty_use(*use));
+  }
+}
+
+static void print_uses(const Set<llvm::Use *> &uses) {
+  for (auto *use : uses) {
+    println("    ", pretty_use(*use));
+  }
+}
+
+static void print_uses(const Set<llvm::Use *> &to_encode,
+                       const Set<llvm::Use *> &to_decode,
+                       const Set<llvm::Use *> &to_addkey) {
+  println("    ", to_encode.size(), " USES TO ENCODE ");
+  print_uses(to_encode);
+  println();
+  println("    ", to_decode.size(), " USES TO DECODE ");
+  print_uses(to_decode);
+  println();
+  println("    ", to_addkey.size(), " USES TO ADDKEY ");
+  print_uses(to_addkey);
+  println();
+}
+
+static void print_uses(const LocalMap<Set<llvm::Use *>> &to_encode,
+                       const LocalMap<Set<llvm::Use *>> &to_decode,
+                       const LocalMap<Set<llvm::Use *>> &to_addkey) {
+  println("TO ENCODE");
+  for (const auto &[base, uses] : to_encode) {
+    println(" BASE ", *base);
+    print_uses(uses);
   }
 
-  return MEMOIR_SANITIZE(
-      construction_point,
-      "Failed to find a construction point for the candidate!");
+  println("TO DECODE");
+  for (const auto &[base, uses] : to_decode) {
+    println(" BASE ", *base);
+    print_uses(uses);
+  }
+
+  println("TO ADDKEY");
+  for (const auto &[base, uses] : to_addkey) {
+    println(" BASE ", *base);
+    print_uses(uses);
+  }
+
+  return;
 }
 
 void Candidate::gather_uses(
@@ -147,40 +190,6 @@ void Candidate::gather_uses(
   return;
 }
 
-bool Candidate::build_encoder() const {
-  return this->encoded.size() > 0 or this->added.size() > 0;
-}
-
-bool Candidate::build_decoder() const {
-  return this->decoded.size() > 0;
-}
-
-static void print_uses(const Set<llvm::Use *> &to_encode,
-                       const Set<llvm::Use *> &to_decode,
-                       const Set<llvm::Use *> &to_addkey) {
-  println("    ", to_encode.size(), " USES TO ENCODE ");
-  for (auto *use : to_encode) {
-    infoln(pretty_use(*use));
-  }
-  infoln();
-  println("    ", to_decode.size(), " USES TO DECODE ");
-  for (auto *use : to_decode) {
-    infoln(pretty_use(*use));
-  }
-  infoln();
-  println("    ", to_addkey.size(), " USES TO ADDKEY ");
-  for (auto *use : to_addkey) {
-    infoln(pretty_use(*use));
-  }
-}
-
-static void print_uses(const LocalMap<Set<llvm::Use *>> &to_encode,
-                       const LocalMap<Set<llvm::Use *>> &to_decode,
-                       const LocalMap<Set<llvm::Use *>> &to_addkey) {
-  // TODO
-  return;
-}
-
 void Candidate::optimize(
     std::function<llvm::DominatorTree &(llvm::Function &)> get_domtree,
     std::function<BoundsCheckResult &(llvm::Function &)> get_bounds_checks) {
@@ -221,9 +230,297 @@ void Candidate::optimize(
   // Report the coalescing.
   println("  AFTER COALESCING:");
   println("    USES TO ENCODE ", encoded.size());
+  for (const auto &uses : encoded) {
+    println("      COALESCED ", uses.value(), " ", *uses.base());
+    print_uses(uses);
+  }
   println("    USES TO DECODE ", decoded.size());
+  for (const auto &uses : decoded) {
+    println("      COALESCED ", uses.value(), " ", *uses.base());
+    print_uses(uses);
+  }
   println("    USES TO ADDKEY ", added.size());
+  for (const auto &uses : added) {
+    println("      COALESCED ", uses.value(), " ", *uses.base());
+    print_uses(uses);
+  }
 }
+
+bool Candidate::build_encoder() const {
+  return this->encoded.size() > 0 or this->added.size() > 0;
+}
+
+bool Candidate::build_decoder() const {
+  return this->decoded.size() > 0;
+}
+
+llvm::Instruction &Candidate::construction_point(
+    llvm::DominatorTree &domtree) const {
+  // Find the construction point for the encoder and decoder.
+  llvm::Instruction *construction_point =
+      &this->front()->allocation->getCallInst();
+
+  // Find a point that dominates all of the object allocations.
+  for (const auto *other : *this) {
+    auto *other_alloc = other->allocation;
+    auto &other_inst = other_alloc->getCallInst();
+
+    construction_point =
+        domtree.findNearestCommonDominator(construction_point, &other_inst);
+  }
+
+  return MEMOIR_SANITIZE(
+      construction_point,
+      "Failed to find a construction point for the candidate!");
+}
+
+static llvm::Function &create_addkey_function(llvm::Module &M,
+                                              Type &key_type,
+                                              bool build_encoder,
+                                              Type *encoder_type,
+                                              bool build_decoder,
+                                              Type *decoder_type) {
+
+  auto &context = M.getContext();
+  auto &data_layout = M.getDataLayout();
+
+  auto &size_type = Type::get_size_type(data_layout);
+
+  auto *llvm_size_type = size_type.get_llvm_type(context);
+  auto *llvm_ptr_type = llvm::PointerType::get(context, 0);
+  auto *llvm_key_type = key_type.get_llvm_type(context);
+
+  println("KEY ", key_type, " AS LLVM ", *llvm_key_type);
+
+  // Create the addkey functions for this proxy.
+  Vector<llvm::Type *> addkey_params = { llvm_key_type };
+  if (build_encoder) {
+    addkey_params.push_back(llvm_ptr_type);
+  }
+  if (build_decoder) {
+    addkey_params.push_back(llvm_ptr_type);
+  }
+  auto *addkey_type =
+      llvm::FunctionType::get(llvm_size_type, addkey_params, false);
+  auto &addkey_function = MEMOIR_SANITIZE(
+      llvm::Function::Create(addkey_type,
+                             llvm::GlobalValue::LinkageTypes::InternalLinkage,
+                             "proxy_addkey_",
+                             M),
+      "Failed to create LLVM function");
+
+  auto arg_idx = 0;
+  auto *key = addkey_function.getArg(arg_idx++);
+
+  llvm::Argument *encoder = nullptr;
+  if (build_encoder) {
+    encoder = addkey_function.getArg(arg_idx++);
+  }
+
+  llvm::Argument *decoder = nullptr;
+  if (build_decoder) {
+    decoder = addkey_function.getArg(arg_idx++);
+  }
+
+  auto *ret_bb = llvm::BasicBlock::Create(context, "", &addkey_function);
+
+  MemOIRBuilder builder(ret_bb);
+
+  if (build_encoder) {
+    builder.CreateAssertTypeInst(encoder, *encoder_type);
+  }
+
+  if (build_decoder) {
+    builder.CreateAssertTypeInst(decoder, *decoder_type);
+  }
+
+  auto *has_key = &builder.CreateHasInst(encoder, key)->getCallInst();
+  auto *phi = builder.CreatePHI(llvm_size_type, 2);
+  llvm::PHINode *encoder_phi = nullptr;
+  if (build_encoder) {
+    encoder_phi = builder.CreatePHI(llvm_ptr_type, 2);
+  }
+
+  llvm::PHINode *decoder_phi = nullptr;
+  if (build_decoder) {
+    decoder_phi = builder.CreatePHI(llvm_ptr_type, 2);
+  }
+
+  auto *ret = builder.CreateRet(phi);
+
+  llvm::Instruction *then_terminator, *else_terminator;
+  llvm::SplitBlockAndInsertIfThenElse(has_key,
+                                      phi,
+                                      &then_terminator,
+                                      &else_terminator);
+
+  // if (has(encoder, key)) {
+  //   z2 = read(encoder, key)
+  // }
+  auto *then_bb = then_terminator->getParent();
+  builder.SetInsertPoint(then_terminator);
+  auto *read_index =
+      &builder.CreateReadInst(size_type, encoder, { key })->getCallInst();
+
+  // else {
+  //   z1 = size(encoder)
+  //   insert(size(encoder), encoder, key)
+  //   insert(key, decoder, end)
+  // }
+  auto *else_bb = else_terminator->getParent();
+  builder.SetInsertPoint(else_terminator);
+  llvm::Value *new_index = nullptr;
+  llvm::Value *new_encoder = nullptr;
+  if (encoder) {
+    new_index = &builder.CreateSizeInst(encoder)->getCallInst();
+    auto *insert = builder.CreateInsertInst(encoder, { key });
+    new_encoder = &builder
+                       .CreateWriteInst(size_type,
+                                        new_index,
+                                        &insert->getCallInst(),
+                                        { key })
+                       ->getCallInst();
+  }
+
+  llvm::Value *new_decoder = nullptr;
+  if (decoder) {
+    if (not new_index) {
+      new_index = &builder.CreateSizeInst(decoder)->getCallInst();
+    }
+    auto *end = &builder.CreateEndInst()->getCallInst();
+    auto *insert = builder.CreateInsertInst(decoder, { end });
+    new_decoder = &builder
+                       .CreateWriteInst(key_type,
+                                        key,
+                                        &insert->getCallInst(),
+                                        { new_index })
+                       ->getCallInst();
+  }
+
+  // Update the PHIs
+  phi->addIncoming(read_index, then_bb);
+  phi->addIncoming(new_index, else_bb);
+
+  if (encoder_phi) {
+    encoder_phi->addIncoming(encoder, then_bb);
+    encoder_phi->addIncoming(new_encoder, else_bb);
+    auto encoder_live_out = Metadata::get_or_add<LiveOutMetadata>(*encoder_phi);
+    encoder_live_out.setArgNo(encoder->getArgNo());
+  }
+
+  if (decoder_phi) {
+    decoder_phi->addIncoming(decoder, then_bb);
+    decoder_phi->addIncoming(new_decoder, else_bb);
+    auto decoder_live_out = Metadata::get_or_add<LiveOutMetadata>(*decoder_phi);
+    decoder_live_out.setArgNo(decoder->getArgNo());
+  }
+
+  return addkey_function;
+}
+
+llvm::FunctionCallee Candidate::addkey_callee() {
+  if (this->addkey_function == NULL) {
+    this->addkey_function = &create_addkey_function(this->module(),
+                                                    this->key_type(),
+                                                    this->build_encoder(),
+                                                    &this->encoder_type(),
+                                                    this->build_decoder(),
+                                                    &this->decoder_type());
+
+    println("CREATED ADDKEY");
+    println(*this->addkey_function);
+  }
+
+  return llvm::FunctionCallee(this->addkey_function);
+}
+
+static Pair<llvm::Value *, llvm::Type *> get_ptr(Mapping &mapping,
+                                                 llvm::Value &value,
+                                                 llvm::Value *base) {
+  if (parent_function(value) == parent_function(*base)) {
+    auto &local = mapping.local(base);
+    return make_pair(&local, local.getAllocatedType());
+  }
+
+  auto &global = mapping.global(base);
+  return make_pair(&global, global.getValueType());
+}
+
+static llvm::Value *fetch_mapping(Mapping &mapping,
+                                  Type &mapping_type,
+                                  MemOIRBuilder &builder,
+                                  llvm::Value &value,
+                                  llvm::Value *base,
+                                  const llvm::Twine &name = "") {
+  auto [ptr, type] = get_ptr(mapping, value, base);
+  auto *val = builder.CreateLoad(type, ptr);
+  builder.CreateAssertTypeInst(val, mapping_type, name.concat(".type"));
+
+  return val;
+}
+
+static llvm::Value *fetch_encoder(Candidate &candidate,
+                                  MemOIRBuilder &builder,
+                                  llvm::Value &value,
+                                  llvm::Value *base) {
+  return fetch_mapping(candidate.encoder,
+                       candidate.encoder_type(),
+                       builder,
+                       value,
+                       base,
+                       "enc");
+}
+
+static llvm::Value *fetch_decoder(Candidate &candidate,
+                                  MemOIRBuilder &builder,
+                                  llvm::Value &value,
+                                  llvm::Value *base) {
+  return fetch_mapping(candidate.decoder,
+                       candidate.decoder_type(),
+                       builder,
+                       value,
+                       base,
+                       "dec");
+}
+
+llvm::Instruction &Candidate::has_value(MemOIRBuilder &builder,
+                                        llvm::Value &value,
+                                        llvm::Value *base) {
+  auto *enc = fetch_encoder(*this, builder, value, base);
+  return builder.CreateHasInst(enc, { &value })->getCallInst();
+};
+
+llvm::Value &Candidate::decode_value(MemOIRBuilder &builder,
+                                     llvm::Value &value,
+                                     llvm::Value *base) {
+  auto *dec = fetch_decoder(*this, builder, value, base);
+  return builder.CreateReadInst(this->key_type(), dec, { &value })->asValue();
+};
+
+llvm::Value &Candidate::encode_value(MemOIRBuilder &builder,
+                                     llvm::Value &value,
+                                     llvm::Value *base) {
+  auto *enc = fetch_encoder(*this, builder, value, base);
+
+  auto &size_type = Type::get_size_type(this->module().getDataLayout());
+  return builder.CreateReadInst(size_type, enc, &value)->asValue();
+};
+
+llvm::Value &Candidate::add_value(MemOIRBuilder &builder,
+                                  llvm::Value &value,
+                                  llvm::Value *base) {
+  Vector<llvm::Value *> args = { &value };
+  if (this->build_encoder()) {
+    auto *enc = fetch_encoder(*this, builder, value, base);
+    args.push_back(enc);
+  }
+  if (this->build_decoder()) {
+    auto *dec = fetch_decoder(*this, builder, value, base);
+    args.push_back(dec);
+  }
+  return MEMOIR_SANITIZE(builder.CreateCall(this->addkey_callee(), args),
+                         "Failed to create call to addkey!");
+};
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                               const Candidate &candidate) {
