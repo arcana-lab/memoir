@@ -328,11 +328,11 @@ static llvm::Function &create_addkey_function(llvm::Module &M,
 
   MemOIRBuilder builder(ret_bb);
 
-  if (build_encoder) {
+  if (encoder) {
     builder.CreateAssertTypeInst(encoder, *encoder_type);
   }
 
-  if (build_decoder) {
+  if (decoder) {
     builder.CreateAssertTypeInst(decoder, *decoder_type);
   }
 
