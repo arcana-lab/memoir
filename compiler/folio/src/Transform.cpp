@@ -48,6 +48,7 @@ static void update_candidates(std::forward_iterator auto candidates_begin,
 static void promote_locals(Mapping &mapping,
                            ProxyInsertion::GetDominatorTree get_domtree) {
 
+  // FIXME: Something is going wrong when calculating the dominance frontier.
   return;
 
   // Collect the stack variables to promote.
@@ -56,34 +57,14 @@ static void promote_locals(Mapping &mapping,
     auto *func = var->getFunction();
     MEMOIR_ASSERT(func, "Stack variable has no parent function!");
     if (var) {
-      println("VAR ", *var);
-      println("  BASE ", *base);
       locals[func].push_back(var);
     }
   }
 
   for (const auto &[func, vars] : locals) {
-    // Verify the function.
-    llvm::verifyFunction(*func);
-    println("VERIFIED ", func->getName());
-
     // Fetch the dominator tree.
     auto &domtree = get_domtree(*func);
-
-    println("PROMOTE");
-    for (auto *var : vars) {
-      println(*var);
-      println(" USERS");
-      for (auto &use : var->uses()) {
-        if (auto *user = dyn_cast<llvm::Instruction>(use.getUser())) {
-          println(user->getFunction()->getName());
-        }
-      }
-
-      repair_ssa(vars, domtree);
-    }
-
-    println("SUCCESS!");
+    repair_ssa(vars, domtree);
   }
 }
 
@@ -655,9 +636,119 @@ static void collect_types_to_mutate(Candidate &candidate,
   }
 }
 
+static bool check_initialized(llvm::Value &ptr) {
+  // Ensure that the pointer has been initialized.
+  for (auto &use : ptr.uses()) {
+    auto *store = dyn_cast<llvm::StoreInst>(use.getUser());
+    if (store and &ptr == store->getPointerOperand()) {
+      println("VALIDATED ", ptr);
+      println(" STORE ", *store);
+      return true;
+    }
+  }
+  return false;
+}
+
+static void validate_mapping(Mapping &mapping) {
+  for (const auto &[base, global] : mapping.globals()) {
+    MEMOIR_ASSERT(check_initialized(*global),
+                  "Global for ",
+                  *base,
+                  "not initialized!");
+  }
+
+  for (const auto &[base, local] : mapping.locals()) {
+    MEMOIR_ASSERT(check_initialized(*local),
+                  "Local for ",
+                  *base,
+                  "not initialized!");
+  }
+}
+
+static void allocate_mappings(
+    Candidate &candidate,
+    std::function<llvm::DominatorTree &(llvm::Function &)> get_domtree) {
+
+  // Unpack the candidate.
+  auto &encoded = candidate.encoded;
+  auto &decoded = candidate.decoded;
+  auto &added = candidate.added;
+
+  infoln("PROXYING ", candidate);
+
+  // Find the construction point for the candidate.
+  auto &domtree = get_domtree(candidate.function());
+  auto &construction_point = candidate.construction_point(domtree);
+
+  // Fetch LLVM context.
+  auto &context = construction_point.getContext();
+  auto &module = MEMOIR_SANITIZE(construction_point.getModule(),
+                                 "Construction point has no module.");
+  auto &data_layout = module.getDataLayout();
+
+  // Allocate the proxy.
+  MemOIRBuilder builder(&construction_point);
+
+  // Fetch type information.
+  auto &key_type = candidate.key_type();
+  auto &size_type = Type::get_size_type(data_layout);
+  auto size_type_bitwidth = size_type.getBitWidth();
+
+  // Determine which proxies we need.
+  bool build_encoder = candidate.build_encoder();
+  bool build_decoder = candidate.build_decoder();
+
+  // Allocate the encoder.
+  llvm::Instruction *encoder = nullptr;
+  Type *encoder_type = nullptr;
+  if (build_encoder) {
+    encoder_type = &candidate.encoder_type();
+    auto *encoder_alloc =
+        builder.CreateAllocInst(*encoder_type, {}, "proxy.encode.");
+    encoder = &encoder_alloc->getCallInst();
+  }
+
+  // Allocate the decoder.
+  llvm::Instruction *decoder = nullptr;
+  Type *decoder_type = nullptr;
+  if (build_decoder) {
+    decoder_type = &candidate.decoder_type();
+    auto *decoder_alloc = builder.CreateAllocInst(*decoder_type,
+                                                  { builder.getInt64(0) },
+                                                  "proxy.decode.");
+    decoder = &decoder_alloc->getCallInst();
+  }
+
+  // Store the allocated mappings to the relevant globals.
+  for (auto *info : candidate) {
+    auto *alloc = &info->allocation->asValue();
+
+    if (encoder) {
+      auto &enc_global = candidate.encoder.global(alloc);
+      builder.CreateStore(encoder, &enc_global);
+
+      auto &enc_local = candidate.encoder.local(alloc);
+      builder.CreateStore(encoder, &enc_local);
+    }
+
+    if (decoder) {
+      auto &dec_global = candidate.decoder.global(alloc);
+      builder.CreateStore(decoder, &dec_global);
+
+      auto &dec_local = candidate.decoder.local(alloc);
+      builder.CreateStore(decoder, &dec_local);
+    }
+  }
+
+  // Validate that the mappings are initialized correctly.
+  validate_mapping(candidate.encoder);
+  validate_mapping(candidate.decoder);
+  println("VALIDATED MAPPINGS");
+}
+
 bool ProxyInsertion::transform() {
 
-  bool modified = false;
+  bool modified = true;
 
   // Track the function parameters whose type needs to be mutated.
   ParamTypes params_to_mutate = {};
@@ -665,80 +756,7 @@ bool ProxyInsertion::transform() {
 
   // Transform the program for each candidate.
   for (auto &candidate : this->candidates) {
-
-    // If we found a candidate, then the program will be modified.
-    modified |= true;
-
-    // Unpack the candidate.
-    auto &encoded = candidate.encoded;
-    auto &decoded = candidate.decoded;
-    auto &added = candidate.added;
-
-    infoln("PROXYING ", candidate);
-
-    // Find the construction point for the candidate.
-    auto &domtree = this->get_dominator_tree(candidate.function());
-    auto &construction_point = candidate.construction_point(domtree);
-
-    // Fetch LLVM context.
-    auto &context = construction_point.getContext();
-    auto &module = MEMOIR_SANITIZE(construction_point.getModule(),
-                                   "Construction point has no module.");
-    auto &data_layout = module.getDataLayout();
-
-    // Allocate the proxy.
-    MemOIRBuilder builder(&construction_point);
-
-    // Fetch type information.
-    auto &key_type = candidate.key_type();
-    auto &size_type = Type::get_size_type(data_layout);
-    auto size_type_bitwidth = size_type.getBitWidth();
-
-    // Determine which proxies we need.
-    bool build_encoder = candidate.build_encoder();
-    bool build_decoder = candidate.build_decoder();
-
-    // Allocate the encoder.
-    llvm::Instruction *encoder = nullptr;
-    Type *encoder_type = nullptr;
-    if (build_encoder) {
-      encoder_type = &candidate.encoder_type();
-      auto *encoder_alloc =
-          builder.CreateAllocInst(*encoder_type, {}, "proxy.encode.");
-      encoder = &encoder_alloc->getCallInst();
-    }
-
-    // Allocate the decoder.
-    llvm::Instruction *decoder = nullptr;
-    Type *decoder_type = nullptr;
-    if (build_decoder) {
-      decoder_type = &candidate.decoder_type();
-      auto *decoder_alloc = builder.CreateAllocInst(*decoder_type,
-                                                    { builder.getInt64(0) },
-                                                    "proxy.decode.");
-      decoder = &decoder_alloc->getCallInst();
-    }
-
-    // Store the allocated mappings to the relevant globals.
-    for (auto *info : candidate) {
-      auto *alloc = &info->allocation->asValue();
-
-      if (encoder) {
-        auto &enc_global = candidate.encoder.global(alloc);
-        builder.CreateStore(encoder, &enc_global);
-
-        auto &enc_local = candidate.encoder.local(alloc);
-        builder.CreateStore(encoder, &enc_local);
-      }
-
-      if (decoder) {
-        auto &dec_global = candidate.decoder.global(alloc);
-        builder.CreateStore(decoder, &dec_global);
-
-        auto &dec_local = candidate.decoder.local(alloc);
-        builder.CreateStore(decoder, &dec_local);
-      }
-    }
+    allocate_mappings(candidate, this->get_dominator_tree);
   }
 
   // Patch uses to decode.
