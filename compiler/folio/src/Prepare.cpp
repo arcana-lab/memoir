@@ -362,15 +362,25 @@ static void create_base_globals(Vector<Candidate> &candidates) {
 }
 
 static llvm::AllocaInst &load_global_to_stack(llvm::GlobalVariable &global,
+                                              Type &mapping_type,
                                               llvm::Function &func,
                                               const llvm::Twine &name = "") {
+
   MemOIRBuilder builder(func.getEntryBlock().getFirstNonPHI());
 
   auto *type = global.getValueType();
 
+  // Create a stack variable.
   auto *var = builder.CreateAlloca(type, 0, name.concat(".local"));
-  auto *enc = builder.CreateLoad(type, &global, name);
-  builder.CreateStore(enc, var);
+
+  // Load the mapping.
+  auto *val = builder.CreateLoad(type, &global, name);
+
+  // Assert the type of the global.
+  builder.CreateAssertTypeInst(val, mapping_type, name.concat(".type"));
+
+  // Store the mapping to the stack variable.
+  builder.CreateStore(val, var);
 
   return *var;
 }
@@ -383,7 +393,8 @@ static void create_base_locals(Vector<Candidate> &candidates) {
         continue;
       }
 
-      auto &var = load_global_to_stack(*global, *func, "enc");
+      auto &var =
+          load_global_to_stack(*global, candidate.encoder_type(), *func, "enc");
 
       candidate.encoder.local(base, var);
     }
@@ -394,7 +405,8 @@ static void create_base_locals(Vector<Candidate> &candidates) {
         continue;
       }
 
-      auto &var = load_global_to_stack(*global, *func, "dec");
+      auto &var =
+          load_global_to_stack(*global, candidate.decoder_type(), *func, "dec");
 
       candidate.decoder.local(base, var);
     }
