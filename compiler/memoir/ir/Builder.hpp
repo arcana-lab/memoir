@@ -578,6 +578,22 @@ public:
     return this->CreateReturnTypeInst(&type_inst->getCallInst(), name);
   }
 
+  llvm::CallInst *CreatePrintf(std::string format,
+                               llvm::ArrayRef<llvm::Value *> args = {},
+                               const llvm::Twine &name = "") {
+    // Get the printf function.
+    auto *void_type = this->getVoidTy();
+    auto *int_type = this->getInt32Ty();
+    auto *ptr_type = this->getPtrTy(0);
+
+    auto *func_type = llvm::FunctionType::get(int_type, { ptr_type }, true);
+    auto callee = this->getModule().getOrInsertFunction("printf", func_type);
+
+    auto *str = this->CreateGlobalStringPtr(format, name.concat(".str"));
+
+    return this->CreateCall(callee, { str }, name);
+  }
+
 protected:
   // Borrowed state
   llvm::Module *M;
