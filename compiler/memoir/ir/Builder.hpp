@@ -578,20 +578,52 @@ public:
     return this->CreateReturnTypeInst(&type_inst->getCallInst(), name);
   }
 
-  llvm::CallInst *CreatePrintf(std::string format,
-                               llvm::ArrayRef<llvm::Value *> args = {},
-                               const llvm::Twine &name = "") {
+  llvm::CallInst *CreateFprintf(llvm::Value *file,
+                                std::string format,
+                                llvm::ArrayRef<llvm::Value *> format_args = {},
+                                const llvm::Twine &name = "") {
+
     // Get the printf function.
     auto *void_type = this->getVoidTy();
     auto *int_type = this->getInt32Ty();
     auto *ptr_type = this->getPtrTy(0);
 
+    auto &module = this->getModule();
+
     auto *func_type = llvm::FunctionType::get(int_type, { ptr_type }, true);
-    auto callee = this->getModule().getOrInsertFunction("printf", func_type);
+    auto callee = module.getOrInsertFunction("fprintf", func_type);
 
     auto *str = this->CreateGlobalStringPtr(format, name.concat(".str"));
 
-    return this->CreateCall(callee, { str }, name);
+    Vector<llvm::Value *> args = { file, str };
+    args.insert(args.end(), format_args.begin(), format_args.end());
+
+    return this->CreateCall(callee, args, name);
+  }
+
+  llvm::CallInst *CreateErrorf(std::string format,
+                               llvm::ArrayRef<llvm::Value *> format_args = {},
+                               const llvm::Twine &name = "") {
+    // Get the stderr FILE pointer.
+    auto *ptr_type = this->getPtrTy(0);
+    auto &module = this->getModule();
+    auto *stderr_global = module.getOrInsertGlobal("stderr", ptr_type);
+    auto *stderr_file = this->CreateLoad(ptr_type, stderr_global);
+
+    return this->CreateFprintf(stderr_file, format, format_args, name);
+  }
+
+  llvm::CallInst *CreatePrintf(std::string format,
+                               llvm::ArrayRef<llvm::Value *> format_args = {},
+                               const llvm::Twine &name = "") {
+
+    // Get the stdout FILE pointer.
+    auto *ptr_type = this->getPtrTy(0);
+    auto &module = this->getModule();
+    auto *stdout_global = module.getOrInsertGlobal("stdout", ptr_type);
+    auto *stdout_file = this->CreateLoad(ptr_type, stdout_global);
+
+    return this->CreateFprintf(stdout_file, format, format_args, name);
   }
 
 protected:
