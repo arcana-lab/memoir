@@ -25,7 +25,7 @@ namespace folio {
 static llvm::cl::opt<bool> disable_total_proxy(
     "disable-total-proxy",
     llvm::cl::desc("Disable total proxy optimization"),
-    llvm::cl::init(false));
+    llvm::cl::init(true));
 
 /**
  * Following a function clone--where the old function will be deleted--update
@@ -365,10 +365,17 @@ Type &convert_element_type(Type &base,
   MEMOIR_UNREACHABLE("Failed to convert type!");
 }
 
-static void decode_candidate_uses(Candidate &candidate) {
+static void decode_candidate_uses(Candidate &candidate,
+                                  Set<llvm::Use *> &handled) {
+
   for (const auto &[base, uses] : candidate.to_decode) {
     for (auto *use : uses) {
-      // Unpack the use.
+      if (handled.contains(use)) {
+        continue;
+      } else {
+        handled.insert(use);
+      }
+
       auto *used = use->get();
       auto *user = dyn_cast<llvm::Instruction>(use->getUser());
 
@@ -379,6 +386,13 @@ static void decode_candidate_uses(Candidate &candidate) {
 
       use->set(&decoded);
     }
+  }
+}
+
+static void decode_uses(Vector<Candidate> &candidates) {
+  Set<llvm::Use *> handled = {};
+  for (auto &candidate : candidates) {
+    decode_candidate_uses(candidate, handled);
   }
 }
 
@@ -462,10 +476,16 @@ static llvm::Value &encode_use(Candidate &candidate,
   return encoded;
 }
 
-static void encode_candidate_uses(Candidate &candidate) {
+static void encode_candidate_uses(Candidate &candidate,
+                                  Set<llvm::Use *> &handled) {
 
   for (const auto &[base, uses] : candidate.to_addkey) {
     for (auto *use : uses) {
+      if (handled.contains(use)) {
+        continue;
+      } else {
+        handled.insert(use);
+      }
 
       MemOIRBuilder builder(insertion_point(*use));
 
@@ -476,11 +496,23 @@ static void encode_candidate_uses(Candidate &candidate) {
 
   for (const auto &[base, uses] : candidate.to_encode) {
     for (auto *use : uses) {
+      if (handled.contains(use)) {
+        continue;
+      } else {
+        handled.insert(use);
+      }
 
       MemOIRBuilder builder(insertion_point(*use));
 
       auto &encoded = encode_use(candidate, builder, *use, base);
     }
+  }
+}
+
+static void encode_uses(Vector<Candidate> &candidates) {
+  Set<llvm::Use *> handled = {};
+  for (auto &candidate : candidates) {
+    encode_candidate_uses(candidate, handled);
   }
 }
 
@@ -760,14 +792,10 @@ bool ProxyInsertion::transform() {
   }
 
   // Patch uses to decode.
-  for (auto &candidate : candidates) {
-    decode_candidate_uses(candidate);
-  }
+  decode_uses(candidates);
 
   // Patch uses to encode/addkey.
-  for (auto &candidate : candidates) {
-    encode_candidate_uses(candidate);
-  }
+  encode_uses(candidates);
 
   // Promote the locals to registers.
   for (auto &candidate : candidates) {
