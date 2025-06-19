@@ -11,7 +11,7 @@ namespace folio {
 static llvm::cl::opt<bool> disable_use_coalescing(
     "disable-proxy-use-coalescing",
     llvm::cl::desc("Disable coalescing proxy uses"),
-    llvm::cl::init(false));
+    llvm::cl::init(true));
 
 // CoalescedUses implementation.
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
