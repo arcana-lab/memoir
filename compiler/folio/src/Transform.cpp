@@ -12,6 +12,7 @@
 #include "memoir/support/SortedVector.hpp"
 #include "memoir/support/WorkList.hpp"
 #include "memoir/transforms/utilities/MutateType.hpp"
+#include "memoir/transforms/utilities/PromoteGlobals.hpp"
 #include "memoir/utility/Metadata.hpp"
 
 #include "folio/ProxyInsertion.hpp"
@@ -66,6 +67,26 @@ static void promote_locals(Mapping &mapping,
     auto &domtree = get_domtree(*func);
     repair_ssa(vars, domtree);
   }
+}
+
+static void promote(Candidate &candidate,
+                    ProxyInsertion::GetDominatorTree get_domtree) {
+  // Promote local variabels to registers.
+  promote_locals(candidate.encoder, get_domtree);
+  promote_locals(candidate.decoder, get_domtree);
+
+  // Collect all of the globals that can be promoted.
+  Vector<llvm::GlobalVariable *> globals_to_promote;
+  for (const auto &mapping : { candidate.encoder, candidate.decoder }) {
+    for (const auto &[base, global] : mapping.globals()) {
+      if (global and global_is_promotable(*global)) {
+        globals_to_promote.push_back(global);
+      }
+    }
+  }
+
+  // Promote the globals.
+  promote_globals(globals_to_promote);
 }
 
 bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {
@@ -673,8 +694,6 @@ static bool check_initialized(llvm::Value &ptr) {
   for (auto &use : ptr.uses()) {
     auto *store = dyn_cast<llvm::StoreInst>(use.getUser());
     if (store and &ptr == store->getPointerOperand()) {
-      println("VALIDATED ", ptr);
-      println(" STORE ", *store);
       return true;
     }
   }
@@ -799,8 +818,7 @@ bool ProxyInsertion::transform() {
 
   // Promote the locals to registers.
   for (auto &candidate : candidates) {
-    promote_locals(candidate.encoder, this->get_dominator_tree);
-    promote_locals(candidate.decoder, this->get_dominator_tree);
+    promote(candidate, this->get_dominator_tree);
   }
 
   // Find parameter and allocation types that need to be mutated.
