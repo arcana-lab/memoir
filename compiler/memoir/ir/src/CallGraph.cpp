@@ -60,4 +60,89 @@ Set<llvm::CallBase *> possible_callers(llvm::Function &function) {
   return callers;
 }
 
+CallGraph::CallGraph(llvm::Module &module) : llvm::CallGraph(module) {
+
+  llvm::CallGraph &callgraph = *this;
+
+  // Handle external call edges.
+  auto *external = callgraph.getExternalCallingNode();
+
+  bool changed;
+  do {
+    // Iterate until we don't find a call edge to eliminate.
+    // We do it this way because the CallGraphNode iterators are not nice.
+    changed = false;
+
+    for (const auto &[_, out] : *external) {
+      auto *callee = out->getFunction();
+      if (not callee) {
+        continue;
+      }
+
+      // Don't remove external edges to externally visible functions.
+      if (is_externally_visible(*callee)) {
+        continue;
+      }
+
+      // Remove external call edges for fold bodies.
+      if (FoldInst::get_single_fold(*callee)) {
+        external->removeAnyCallEdgeTo(out);
+        changed = true;
+        continue;
+      }
+
+      // Remove external call edges due to ret phis.
+      // Count the number of real, non-call uses.
+      auto count = 0;
+      for (auto &use : callee->uses()) {
+        // If this is a direct call, or a ret phi, don't count it.
+        if (auto *call = dyn_cast<llvm::CallBase>(use.getUser())) {
+          if (into<RetPHIInst>(call) or &use == &call->getCalledOperandUse()) {
+            continue;
+          }
+        }
+
+        ++count;
+      }
+
+      // If there are no real non-call uses, remove all call edges.
+      if (count == 0) {
+        external->removeAnyCallEdgeTo(out);
+        changed = true;
+        continue;
+      }
+    }
+
+  } while (changed);
+
+  // Replace src->fold call edges with src->body call edges.
+  for (auto &function : module) {
+    if (auto *fold = FoldInst::get_single_fold(function)) {
+      auto *fold_call = &fold->getCallInst();
+      auto *caller = fold->getFunction();
+      if (not caller) {
+        continue;
+      }
+
+      auto *caller_node = callgraph[caller];
+
+      // Remove the call edge for the fold.
+      caller_node->removeCallEdgeFor(*fold_call);
+
+      // Add a new call edge from the fold to the body.
+      auto *body_node = callgraph[&function];
+      caller_node->addCalledFunction(fold_call, body_node);
+    }
+  }
+
+  // Remove all edges to memoir functions.
+  for (auto &function : module) {
+    if (FunctionNames::is_memoir_call(function)) {
+      for (auto &[func, node] : callgraph) {
+        node->removeAnyCallEdgeTo(callgraph[&function]);
+      }
+    }
+  }
+}
+
 } // namespace llvm::memoir

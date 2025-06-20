@@ -1,12 +1,23 @@
 #ifndef MEMOIR_IR_CALLGRAPH_H
 #define MEMOIR_IR_CALLGRAPH_H
 
+#include "llvm/Analysis/CallGraph.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 
 #include "memoir/support/DataTypes.hpp"
 
 namespace llvm::memoir {
+
+/**
+ * An adaptor for the LLVM CallGraph, with additional information about MEMOIR
+ * operations.
+ */
+struct CallGraph : public llvm::CallGraph {
+  using Base = llvm::CallGraph;
+
+  CallGraph(llvm::Module &M);
+};
 
 /**
  * Special value for the unknown caller.
