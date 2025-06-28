@@ -85,8 +85,11 @@ static void promote(Candidate &candidate,
     }
   }
 
+#if 0 // TODO: fix bug in reify_tempargs, where some temparg loads are not
+      // cleaned up!
   // Promote the globals.
   promote_globals(globals_to_promote);
+#endif
 }
 
 bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {
@@ -716,6 +719,84 @@ static void validate_mapping(Mapping &mapping) {
   }
 }
 
+static bool is_self_recursive(llvm::Function &function) {
+  for (auto &use : function.uses()) {
+    auto *call = dyn_cast<llvm::CallBase>(use.getUser());
+    if (not call) {
+      continue;
+    }
+
+    if (call->isIndirectCall()) {
+      continue;
+    }
+
+    if (call->getCalledFunction() == &function) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+static llvm::Value *find_recursive_base(Candidate &candidate) {
+  llvm::Value *recursive_base = NULL;
+
+  auto &function = candidate.function();
+
+  if (is_self_recursive(function)) {
+    // TODO: attach a boolean to specify that the top of the call stack is a
+    // self-recursive call.
+
+    // Find the base encoder argument for the calling context.
+    // TODO: make this a little nicer,
+    for (const auto &to_patch :
+         { candidate.to_decode, candidate.to_encode, candidate.to_addkey }) {
+
+      if (recursive_base) {
+        // TODO: ensure that this base is the same for all required mappings,
+        // otherwise they might end up using different states.
+      }
+
+      for (const auto &[base, uses] : to_patch) {
+        if (auto *arg = dyn_cast<llvm::Argument>(base)) {
+          if (arg->getParent() == &function) {
+            recursive_base = base;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  return recursive_base;
+}
+
+static void store_allocation(Candidate &candidate,
+                             MemOIRBuilder &builder,
+                             llvm::Value *encoder,
+                             llvm::Value *decoder) {
+
+  for (auto *info : candidate) {
+    auto *alloc = &info->allocation->asValue();
+
+    if (encoder) {
+      auto &enc_global = candidate.encoder.global(alloc);
+      builder.CreateStore(encoder, &enc_global);
+
+      auto &enc_local = candidate.encoder.local(alloc);
+      builder.CreateStore(encoder, &enc_local);
+    }
+
+    if (decoder) {
+      auto &dec_global = candidate.decoder.global(alloc);
+      builder.CreateStore(decoder, &dec_global);
+
+      auto &dec_local = candidate.decoder.local(alloc);
+      builder.CreateStore(decoder, &dec_local);
+    }
+  }
+}
+
 static void allocate_mappings(
     Candidate &candidate,
     std::function<llvm::DominatorTree &(llvm::Function &)> get_domtree) {
@@ -728,7 +809,8 @@ static void allocate_mappings(
   infoln("PROXYING ", candidate);
 
   // Find the construction point for the candidate.
-  auto &domtree = get_domtree(candidate.function());
+  auto &function = candidate.function();
+  auto &domtree = get_domtree(function);
   auto &construction_point = candidate.construction_point(domtree);
 
   // Fetch LLVM context.
@@ -749,13 +831,76 @@ static void allocate_mappings(
   bool build_encoder = candidate.build_encoder();
   bool build_decoder = candidate.build_decoder();
 
+  // If the construction function is self recursive, we will conditionally
+  // re-use the input mappings.
+  auto *recursive_base = find_recursive_base(candidate);
+
+  // If we are in a recursive function, condition allocation on a heuristic.
+  if (recursive_base) {
+
+    // Load the mappings from the stack.
+    llvm::Value *old_encoder = NULL, *old_decoder = NULL;
+    if (build_encoder) {
+      auto &local = candidate.encoder.local(recursive_base);
+      old_encoder =
+          builder.CreateLoad(local.getAllocatedType(), &local, "enc.old.");
+    }
+
+    if (build_decoder) {
+      auto &local = candidate.decoder.local(recursive_base);
+      old_decoder =
+          builder.CreateLoad(local.getAllocatedType(), &local, "dec.old.");
+    }
+
+    // Check if the old mappings are nonnull.
+    llvm::Value *nonnull = NULL;
+    if (old_encoder) {
+      nonnull = builder.CreateICmpNE(
+          old_encoder,
+          llvm::Constant::getNullValue(old_encoder->getType()));
+    }
+
+    if (old_decoder) {
+      auto *dec_nonnull = builder.CreateICmpNE(
+          old_decoder,
+          llvm::Constant::getNullValue(old_decoder->getType()));
+      if (nonnull) {
+        nonnull = builder.CreateAnd(nonnull, dec_nonnull);
+      } else {
+        nonnull = dec_nonnull;
+      }
+    }
+
+    // Create an if-then-else region conditioned on the old mappings being
+    // non-null.
+    // AFTER:
+    // br nonnull ? then_block : else_block
+    // then_block: br cont_block
+    // else_block: br cont_block
+    llvm::Instruction *then_term, *else_term;
+    llvm::SplitBlockAndInsertIfThenElse(nonnull,
+                                        &construction_point,
+                                        &then_term,
+                                        &else_term);
+    auto *then_block = then_term->getParent();
+    auto *else_block = else_term->getParent();
+
+    // TODO: call the heuristic function to determine if we should reuse the old
+    // mappings or not.
+
+    // In the then block, store the old mappings to the locals.
+    builder.SetInsertPoint(then_term);
+    store_allocation(candidate, builder, old_encoder, old_decoder);
+
+    // Set the builder to the else block so we can allocate the encoder/decoder.
+    builder.SetInsertPoint(else_term);
+  }
+
   // Allocate the encoder.
   llvm::Instruction *encoder = nullptr;
-  Type *encoder_type = nullptr;
   if (build_encoder) {
-    encoder_type = &candidate.encoder_type();
     auto *encoder_alloc =
-        builder.CreateAllocInst(*encoder_type, {}, "proxy.encode.");
+        builder.CreateAllocInst(candidate.encoder_type(), {}, "enc.new.");
     encoder = &encoder_alloc->getCallInst();
   }
 
@@ -763,33 +908,14 @@ static void allocate_mappings(
   llvm::Instruction *decoder = nullptr;
   Type *decoder_type = nullptr;
   if (build_decoder) {
-    decoder_type = &candidate.decoder_type();
-    auto *decoder_alloc = builder.CreateAllocInst(*decoder_type,
+    auto *decoder_alloc = builder.CreateAllocInst(candidate.decoder_type(),
                                                   { builder.getInt64(0) },
-                                                  "proxy.decode.");
+                                                  "dec.new.");
     decoder = &decoder_alloc->getCallInst();
   }
 
   // Store the allocated mappings to the relevant globals.
-  for (auto *info : candidate) {
-    auto *alloc = &info->allocation->asValue();
-
-    if (encoder) {
-      auto &enc_global = candidate.encoder.global(alloc);
-      builder.CreateStore(encoder, &enc_global);
-
-      auto &enc_local = candidate.encoder.local(alloc);
-      builder.CreateStore(encoder, &enc_local);
-    }
-
-    if (decoder) {
-      auto &dec_global = candidate.decoder.global(alloc);
-      builder.CreateStore(decoder, &dec_global);
-
-      auto &dec_local = candidate.decoder.local(alloc);
-      builder.CreateStore(decoder, &dec_local);
-    }
-  }
+  store_allocation(candidate, builder, encoder, decoder);
 
   // Validate that the mappings are initialized correctly.
   validate_mapping(candidate.encoder);
