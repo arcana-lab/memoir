@@ -1,6 +1,7 @@
 // LLVM
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Transforms/Utils/Cloning.h"
@@ -18,9 +19,9 @@
 
 namespace llvm::memoir {
 
-namespace detail {
 static llvm::Function *find_tempargs_to_reify(
     llvm::Module &M,
+    Set<llvm::Function *> &handled,
     Vector<llvm::LoadInst *> &temp_loads) {
 
   // Clear the list of temporary loads found in the last pass.
@@ -32,23 +33,26 @@ static llvm::Function *find_tempargs_to_reify(
       continue;
     }
 
-    for (auto &BB : F) {
-      for (auto &I : BB) {
-        // Filter out irrelevant instruction types.
-        auto *load = dyn_cast<llvm::LoadInst>(&I);
-        if (not load) {
-          continue;
-        }
+    if (handled.contains(&F)) {
+      continue;
+    } else {
+      handled.insert(&F);
+    }
 
-        // Check for temporary argument metadata.
-        auto temp_arg_metadata = Metadata::get<TempArgumentMetadata>(I);
-        if (not temp_arg_metadata) {
-          continue;
-        }
-
-        // Save the temporary arg load.
-        temp_loads.push_back(load);
+    for (auto &I : llvm::instructions(F)) {
+      // Filter out irrelevant instruction types.
+      auto *load = dyn_cast<llvm::LoadInst>(&I);
+      if (not load) {
+        continue;
       }
+
+      // Check for temporary argument metadata.
+      if (not Metadata::get<TempArgumentMetadata>(I)) {
+        continue;
+      }
+
+      // Save the temporary arg load.
+      temp_loads.push_back(load);
     }
 
     if (not temp_loads.empty()) {
@@ -59,14 +63,36 @@ static llvm::Function *find_tempargs_to_reify(
   return nullptr;
 }
 
-static llvm::Function &clone_function(
-    llvm::Function &F,
-    Vector<llvm::LoadInst *> &temp_loads,
-    Map<llvm::GlobalVariable *, llvm::Argument *> &global_to_arg,
-    Set<llvm::Value *> &to_cleanup) {
+struct Patch {
+  Map<llvm::CallBase *, llvm::StoreInst *> stores;
+  OrderedSet<llvm::LoadInst *> loads;
+  llvm::Argument *arg;
+
+  void store(llvm::CallBase *call, llvm::StoreInst *store) {
+    this->stores[call] = store;
+  }
+
+  void load(llvm::LoadInst *load) {
+    this->loads.insert(load);
+  }
+};
+
+using Patches = OrderedMap<llvm::GlobalVariable *, Patch>;
+
+static llvm::Function &clone_function(llvm::Function &F,
+                                      Patches &to_patch,
+                                      Set<llvm::Value *> &to_cleanup) {
 
   auto &M =
       MEMOIR_SANITIZE(F.getParent(), "Function does not belong to a module!");
+
+  // Collect patch information for this function.
+  Vector<llvm::LoadInst *> temp_loads = {};
+  for (const auto &[global, patch] : to_patch) {
+    for (auto *load : patch.loads) {
+      temp_loads.push_back(load);
+    }
+  }
 
   // Fetch the old function type.
   auto *old_func_type = F.getFunctionType();
@@ -117,14 +143,15 @@ static llvm::Function &clone_function(
     // Save the corresponding global variable.
     auto *ptr = load->getPointerOperand();
     auto *global = dyn_cast<llvm::GlobalVariable>(ptr);
-    MEMOIR_NULL_CHECK(
-        global,
-        "Temporary argument load has non-global pointer operand.");
-    global_to_arg[global] = new_arg;
+    MEMOIR_ASSERT(global,
+                  "Temporary argument load has non-global pointer operand.");
+    to_patch[global].arg = new_arg;
 
     // Replace the load with the argument.
     new_load->replaceAllUsesWith(new_arg);
 
+    // Mark the cloned load for deletion, the original will be deleted when the
+    // old function is.
     to_cleanup.insert(new_load);
   }
 
@@ -133,212 +160,228 @@ static llvm::Function &clone_function(
   return new_func;
 }
 
-static void reify_function(llvm::Function &function,
-                           Vector<llvm::LoadInst *> &temp_loads) {
+static void cleanup(Set<llvm::Value *> &to_cleanup) {
 
-  // Maintain a mapping from global to the formal argument.
-  Map<llvm::GlobalVariable *, llvm::Argument *> global_to_arg = {};
-
-  // Track the instructions that need to be cleaned up once we're done.
-  Set<llvm::Value *> to_cleanup = {};
-
-  // Clone the function, converting temp args to formal parameters.
-  auto &new_func =
-      clone_function(function, temp_loads, global_to_arg, to_cleanup);
-
-  // Find each of the tempargs stores and patch the call site.
-  OrderedMap<llvm::CallBase *, Set<llvm::StoreInst *>> temp_stores = {};
-  for (auto [global, _arg] : global_to_arg) {
-    for (auto &use : global->uses()) {
-      // Filter out irrelevant instruction types.
-      auto *store = dyn_cast<llvm::StoreInst>(use.getUser());
-      if (not store) {
-        continue;
-      }
-
-      // Filter out instructions in the original function.
-      if (store->getFunction() == &function) {
-        continue;
-      }
-
-      // Check for temporary argument metadata.
-      auto temp_arg_metadata = Metadata::get<TempArgumentMetadata>(*store);
-      if (not temp_arg_metadata) {
-        continue;
-      }
-
-      // Find the corresponding call.
-      llvm::CallBase *call = nullptr;
-      for (auto *curr = store->getNextNode(); curr != nullptr;
-           curr = curr->getNextNode()) {
-        if (into<FoldInst>(curr) or not into<MemOIRInst>(curr)) {
-          call = dyn_cast<llvm::CallBase>(curr);
-          if (call) {
-            break;
-          }
-        }
-      }
-      if (not call) {
-        MEMOIR_UNREACHABLE("Failed to find call for temp arg.");
-      }
-
-      // Save the temporary arg store.
-      temp_stores[call].insert(store);
-    }
-  }
-
-  // Patch each call with the new arguments.
-  for (auto &[call, stores] : temp_stores) {
-
-    // Fetch the new function.
-    auto *cloned_func = &new_func;
-    if (auto *fold = into<FoldInst>(call)) {
-
-      // Construct the list of arguments, initialize with the current closed
-      // arguments.
-      // [ closed... ]
-      Vector<llvm::Value *> new_closed(fold->closed_begin(),
-                                       fold->closed_end());
-
-      // Allocate space for the new arguments.
-      // [ closed..., null, ..., null]
-      new_closed.insert(new_closed.end(), stores.size(), nullptr);
-
-      // Then we will replace each of the stores.
-      // [ closed..., store0, ..., storeN ]
-      unsigned arg_offset = (not fold->getElementArgument()) ? 2 : 3;
-      for (auto *store : stores) {
-        auto *ptr = store->getPointerOperand();
-        auto *global = dyn_cast<llvm::GlobalVariable>(ptr);
-        MEMOIR_NULL_CHECK(global, "Temporary argument store to non-global.");
-
-        auto found = global_to_arg.find(global);
-        if (found == global_to_arg.end()) {
-          MEMOIR_UNREACHABLE(
-              "Temporary argument store with no matching argument.");
-        }
-
-        auto *arg = found->second;
-        auto closed_no = arg->getArgNo() - arg_offset;
-
-        new_closed.at(closed_no) = store->getValueOperand();
-
-        to_cleanup.insert(store);
-      }
-
-      // Validate the list of closed arguments.
-      unsigned idx = 0;
-      for (auto *val : new_closed) {
-        MEMOIR_ASSERT(val, "Closed argument (", idx, ") is NULL!");
-        ++idx;
-      }
-
-      // Construct a new fold.
-      MemOIRBuilder builder(call);
-      Vector<llvm::Value *> indices(fold->indices_begin(), fold->indices_end());
-      auto *new_fold = builder.CreateFoldInst(fold->getKind(),
-                                              &new_func,
-                                              &fold->getInitial(),
-                                              &fold->getObject(),
-                                              indices,
-                                              new_closed);
-      auto &new_call = new_fold->getCallInst();
-      new_call.copyMetadata(*call);
-
-      // Replace the old call with this one.
-      if (call->hasNUsesOrMore(1)) {
-        call->replaceAllUsesWith(&new_call);
-      }
-
-      auto *parent_func = call->getFunction();
-#if 0
-      if (llvm::verifyFunction(*parent_func, &llvm::errs())) {
-        println(*parent_func);
-        MEMOIR_UNREACHABLE("Failed to verify ", parent_func->getName());
-      }
-#endif
-
-    } else {
-
-      // Construct the list of arguments.
-      Vector<llvm::Value *> arguments(new_func.arg_size(), nullptr);
-
-      // First, copy over the current list of arguments.
-      auto arg_idx = 0;
-      for (auto &orig_arg_use : call->args()) {
-        auto *orig_arg = orig_arg_use.get();
-        arguments[arg_idx++] = orig_arg;
-      }
-
-      // Then we will replace each of the stores.
-      for (auto *store : stores) {
-        auto *ptr = store->getPointerOperand();
-        auto *global = dyn_cast<llvm::GlobalVariable>(ptr);
-        MEMOIR_NULL_CHECK(global, "Temporary argument store to non-global.");
-
-        auto found = global_to_arg.find(global);
-        if (found == global_to_arg.end()) {
-          MEMOIR_UNREACHABLE(
-              "Temporary argument store with no matching argument.");
-        }
-
-        auto *arg = found->second;
-        auto arg_no = arg->getArgNo();
-
-        arguments[arg_no] = store->getValueOperand();
-
-        to_cleanup.insert(store);
-      }
-
-      // Construct a new call.
-      MemOIRBuilder builder(call);
-      auto *new_call =
-          builder.CreateCall(new_func.getFunctionType(), &new_func, arguments);
-      new_call->copyMetadata(*call);
-
-      // Replace the old call with this one.
-      if (call->hasNUsesOrMore(1)) {
-        call->replaceAllUsesWith(new_call);
-      }
-
-      // Find any RetPHIs that need to be replaced.
-      for (auto *curr = call->getNextNode(); curr != nullptr;
-           curr = curr->getNextNode()) {
-        if (auto *ret_phi = into<RetPHIInst>(curr)) {
-          ret_phi->getCalledOperandAsUse().set(&new_func);
-        } else if (isa<llvm::CallBase>(curr)) {
-          // If we see another call, stop searching.
-          break;
-        }
-      }
-    }
-
-    // Mark the call for removal.
-    to_cleanup.insert(call);
-  }
-
-  // Remove all of the instructions marked for cleanup.
+  Set<llvm::Instruction *> to_delete = {};
   for (auto *val : to_cleanup) {
     if (auto *inst = dyn_cast<llvm::Instruction>(val)) {
       inst->eraseFromParent();
-    } else if (auto *func = dyn_cast<llvm::Function>(val)) {
+    }
+  }
+
+  for (auto *val : to_cleanup) {
+    if (auto *func = dyn_cast<llvm::Function>(val)) {
+      func->dropAllReferences();
       func->deleteBody();
       func->eraseFromParent();
     }
   }
+}
+
+static void reify_function(llvm::Function &function,
+                           Vector<llvm::LoadInst *> &temp_loads) {
+
+  auto &module =
+      MEMOIR_SANITIZE(function.getParent(), "Function has no parent");
+  auto &context = module.getContext();
+
+  // Track the instructions that need to be cleaned up once we're done.
+  Set<llvm::Value *> to_cleanup = {};
+
+  // Collect the globals from each of the loads we found.
+  Patches to_patch;
+  for (auto *load : temp_loads) {
+    auto *ptr = load->getPointerOperand();
+    auto *global = dyn_cast<llvm::GlobalVariable>(ptr);
+    MEMOIR_ASSERT(global, "temparg load to non-global");
+
+    for (auto &use : global->uses()) {
+      if (auto *store = dyn_cast<llvm::StoreInst>(use.getUser())) {
+        if (store->getPointerOperand() == global) {
+
+          // Find the corresponding call.
+          llvm::CallBase *call = nullptr;
+          for (auto *curr = store->getNextNode(); curr != nullptr;
+               curr = curr->getNextNode()) {
+            call = dyn_cast<llvm::CallBase>(curr);
+
+            // Skip non-calls.
+            if (not call) {
+              continue;
+            }
+
+            // If this is a call to the function, we found it!
+            if (call->getCalledFunction() == &function) {
+              break;
+            }
+
+            // If this is a fold where the body is the function, we found it!
+            if (auto *fold = into<FoldInst>(curr)) {
+              if (&fold->getBody() == &function) {
+                break;
+              }
+            }
+          }
+          if (not call) {
+            MEMOIR_UNREACHABLE("Failed to find call for temparg.");
+          }
+
+          if (to_patch[global].stores.contains(call)) {
+            MEMOIR_UNREACHABLE(
+                "Found multiple temparg stores to same global for single call!");
+          } else {
+            to_patch[global].store(call, store);
+          }
+        }
+      }
+    }
+
+    // If we couldn't find any stores for this load, replace the load with the
+    // initializer.
+    if (not to_patch.contains(global) or to_patch.at(global).stores.empty()) {
+      auto *init = global->getInitializer();
+      if (not init) {
+        // If there is no initializer, get the undef value.
+        init = llvm::UndefValue::get(load->getType());
+      }
+
+      load->replaceAllUsesWith(init);
+
+    } else {
+      to_patch[global].load(load);
+    }
+
+    to_cleanup.insert(load);
+  }
+
+  // If there is no work to be done, we're finished!
+  if (to_patch.empty()) {
+    cleanup(to_cleanup);
+    return;
+  }
+
+  // Clone the function, converting temp args to formal parameters.
+  auto &new_func = clone_function(function, to_patch, to_cleanup);
+
+  // For each patch the arguments.
+  Map<llvm::CallBase *, Vector<llvm::Value *>> new_arguments;
+  for (const auto &[global, patch] : to_patch) {
+    for (const auto &[call, store] : patch.stores) {
+
+      auto new_arg_size = call->arg_size() + to_patch.size();
+
+      // If the argument list doesn't have a closed keyword yet, add it.
+      bool add_closed_keyword = false;
+      if (auto *fold = into<FoldInst>(call)) {
+        if (not fold->getClosed()) {
+          add_closed_keyword = true;
+        }
+      }
+
+      if (add_closed_keyword) {
+        new_arg_size += 1;
+      }
+
+      // Only need to initialize arguments once
+      if (not new_arguments.contains(call)) {
+
+        // Find the new size of the function.
+        Vector<llvm::Value *> new_args(new_arg_size, nullptr);
+
+        // Populate the existing arguments.
+        for (auto &arg_use : call->args()) {
+          println("POPULATE ", pretty(arg_use));
+          auto *new_arg = arg_use.get();
+          if (new_arg == &function) {
+            println("FOUND FUNC ARG");
+            new_arg = &new_func;
+          }
+
+          new_args[arg_use.getOperandNo()] = new_arg;
+        }
+
+        if (add_closed_keyword) {
+          // Find the first NULL argument.
+          auto it = std::find(new_args.begin(), new_args.end(), nullptr);
+          auto &closed_str = Keyword::get_llvm<ClosedKeyword>(context);
+          *it = &closed_str;
+        }
+
+        new_arguments[call] = new_args;
+      }
+
+      // Fetch the new argument list.
+      auto &new_args = new_arguments.at(call);
+
+      // Determine the argument index for this store.
+      auto param_idx = patch.arg->getArgNo();
+      auto arg_offset =
+          new_func.arg_size() - param_idx; // How far we are from the end.
+      auto arg_idx = new_arg_size - arg_offset;
+
+      // Get the value from the store.
+      auto *value = store->getValueOperand();
+      new_args.at(arg_idx) = value;
+
+      // Mark the store for cleanup.
+      to_cleanup.insert(store);
+    }
+  }
+
+  // Rebuild each of the calls.
+  for (const auto &[call, args] : new_arguments) {
+    // Validate the arguments.
+    bool invalid = false;
+    for (auto *arg : args) {
+      MEMOIR_ASSERT(arg, "Argument is NULL!");
+    }
+
+    // Rebuild the call.
+    MemOIRBuilder builder(call);
+
+    auto *callee = call->getCalledFunction();
+    if (callee == &function) {
+      callee = &new_func;
+    }
+
+    auto *new_call = builder.CreateCall(llvm::FunctionCallee(callee), args);
+
+    call->replaceAllUsesWith(new_call);
+    new_call->cloneDebugInfoFrom(call);
+
+    to_cleanup.insert(call);
+
+    // Patch return PHIs.
+    for (auto *inst = call->getNextNode(); inst != NULL;
+         inst = inst->getNextNode()) {
+      if (auto *call = dyn_cast<llvm::CallBase>(inst)) {
+        if (into<RetPHIInst>(call)) {
+          call->replaceUsesOfWith(&function, &new_func);
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
+  cleanup(to_cleanup);
 
   return;
 }
 
-} // namespace detail
-
 bool reify_tempargs(llvm::Module &M) {
   bool changed = false;
 
+  Set<llvm::Function *> handled = {};
   Vector<LoadInst *> temp_loads = {};
-  while (auto *func = detail::find_tempargs_to_reify(M, temp_loads)) {
+  while (auto *func = find_tempargs_to_reify(M, handled, temp_loads)) {
 
-    detail::reify_function(*func, temp_loads);
+    println("REIFY ", func->getName());
+    for (auto *load : temp_loads) {
+      println(" LOAD ", *load);
+    }
+
+    reify_function(*func, temp_loads);
 
     MemOIRInst::invalidate();
   }
