@@ -30,6 +30,11 @@ llvm::CallBase *unknown_caller();
 bool is_unknown_caller(const llvm::CallBase *caller);
 
 /**
+ *  Check if the given caller set has the unknown caller.
+ */
+bool has_unknown_caller(const Set<llvm::CallBase *> &callers);
+
+/**
  * Collect the set of possible callers to the given function.
  */
 Set<llvm::CallBase *> possible_callers(llvm::Function &function);
