@@ -1,8 +1,10 @@
 #include <algorithm>
 
 #include "llvm/IR/Function.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 
+#include "memoir/ir/Builder.hpp"
 #include "memoir/ir/CallGraph.hpp"
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/support/Assert.hpp"
@@ -11,6 +13,7 @@
 #include "memoir/support/Print.hpp"
 #include "memoir/transforms/utilities/PromoteGlobals.hpp"
 #include "memoir/utility/FunctionNames.hpp"
+#include "memoir/utility/Metadata.hpp"
 
 namespace llvm::memoir {
 
@@ -119,6 +122,12 @@ struct FunctionPath : public Vector<llvm::Function *> {
       }
     }
 
+    // If we reached the beginning, then we are only duplicated if we also
+    // reached the start of the search.
+    if (jt == je and it != ie) {
+      return false;
+    }
+
     return true;
   }
 
@@ -135,9 +144,9 @@ struct FunctionPath : public Vector<llvm::Function *> {
       if (first) {
         first = false;
       } else {
-        os << " -> ";
+        os << "\n -> ";
       }
-      os << func->getName() << "\n";
+      os << func->getName();
     }
     return os;
   }
@@ -241,6 +250,11 @@ static void find_all_paths(List<FunctionPath> &paths,
   return;
 }
 
+static llvm::Instruction *insertion_point(llvm::Function *func) {
+  auto &entry = func->getEntryBlock();
+  return entry.getFirstNonPHIOrDbg();
+}
+
 bool promote_global(llvm::GlobalVariable &global) {
   println("PROMOTE ", global);
 
@@ -312,6 +326,9 @@ bool promote_global(llvm::GlobalVariable &global) {
     }
   }
 
+  // Collect all of the functions in the paths
+  Set<llvm::Function *> on_path, in_path;
+
   // If any of the paths may be entered by an external function call, then we
   // can't transform the function.
   println("FOUND ", paths.size(), " PATH", paths.size() == 1 ? "" : "S");
@@ -321,12 +338,195 @@ bool promote_global(llvm::GlobalVariable &global) {
       warnln("PATH MAY BE CALLED EXTERNALLY, CAN'T PROMOTE.");
       return modified;
     }
+
+    // Collect internal functions on this path.
+    on_path.insert(path.begin(), path.end());
+    in_path.insert(std::next(path.begin()), path.end());
+  }
+
+  // Collect the calls that need to be patched.
+  struct Patch {
+    Set<llvm::CallBase *> load, init;
+    llvm::GlobalVariable *global;
+    llvm::AllocaInst *local;
+    Vector<llvm::StoreInst *> stores;
+    Vector<llvm::LoadInst *> loads;
+
+    void to_load(llvm::CallBase *call) {
+      this->load.insert(call);
+    }
+
+    void to_init(llvm::CallBase *call) {
+      this->init.insert(call);
+    }
+  };
+
+  // Version functions with function calls outside this path.
+  // TODO: this would be easier with a reverse call graph.
+  Map<llvm::Function *, Patch> calls_to_patch = {};
+  Vector<llvm::Function *> to_version = {};
+  for (auto *func : in_path) {
+
+    println("PATCH ", func->getName());
+
+    // If the function is a fold body.
+    if (auto *fold = FoldInst::get_single_fold(*func)) {
+      auto *call = &fold->getCallInst();
+      auto *caller = fold->getFunction();
+      if (not on_path.contains(caller)) {
+        calls_to_patch[func].to_init(call);
+        println("  INIT ", *fold);
+      } else {
+        calls_to_patch[func].to_load(call);
+        println("  LOAD ", *call);
+      }
+
+      continue;
+    }
+
+    // If the function may be externally called, we need to version it.
+    auto callers = possible_callers(*func);
+    if (has_unknown_caller(callers)) {
+      to_version.push_back(func);
+      continue;
+    }
+
+    for (auto *call : callers) {
+      // Skip indirect calls.
+      if (call->isIndirectCall()) {
+        continue;
+      }
+
+      // We need to version functions with off-path callers.
+      auto *caller = call->getFunction();
+      if (not on_path.contains(caller)) {
+        calls_to_patch[func].to_init(call);
+        println("  INIT ", *call);
+        continue;
+      }
+
+      // We need to patch any call in the path.
+      calls_to_patch[func].to_load(call);
+      println("  LOAD ", *call);
+    }
+  }
+
+  // Version functions as needed.
+  for (auto *func : to_version) {
+    // TODO: Clone the function for the path.
+    warnln("UNIMPLEMENTED: ", func->getName(), " NEEDS TO BE VERSIONED");
+    return modified;
+  }
+
+  // Unpack the global.
+  auto *type = global.getValueType();
+  auto *init = global.getInitializer();
+  llvm::Twine name("");
+  if (global.hasName()) {
+    name.concat(global.getName());
+  }
+
+  //  Collect the local load/stores for the global.
+  for (auto &use : global.uses()) {
+    auto *user = dyn_cast<llvm::Instruction>(use.getUser());
+    if (not user) {
+      continue;
+    }
+
+    auto *func = user->getFunction();
+    if (not func) {
+      continue;
+    }
+
+    auto &patch = calls_to_patch[func];
+
+    if (auto *store = dyn_cast<llvm::StoreInst>(user)) {
+      patch.stores.push_back(store);
+    } else if (auto *load = dyn_cast<llvm::LoadInst>(user)) {
+      patch.loads.push_back(load);
+    }
+  }
+
+  // Patch calls to each function.
+  for (auto &[func, patch] : calls_to_patch) {
+
+    MemOIRBuilder builder(insertion_point(func));
+
+    // Create a temparg in the function.
+    patch.global = new llvm::GlobalVariable(
+        module,
+        type,
+        /* constant? */ false,
+        llvm::GlobalValue::LinkageTypes::InternalLinkage,
+        init,
+        name.concat(".temparg"));
+
+    // Create a stack variable in the function.
+    patch.local =
+        builder.CreateAlloca(type, /* addrspace */ 0, name.concat(".local"));
+
+    // Load the temparg in the function.
+    auto *load_temparg = builder.CreateLoad(type, patch.global);
+    Metadata::get_or_add<TempArgumentMetadata>(*load_temparg);
+
+    // Store the loaded temparg to the stack.
+    builder.CreateStore(load_temparg, patch.local);
+
+    // Replace all loads from the global with loads from the stack variable.
+    for (auto *load : patch.loads) {
+      auto &ptr_use =
+          load->getOperandUse(llvm::LoadInst::getPointerOperandIndex());
+      ptr_use.set(patch.local);
+    }
+
+    // Replace all stores to the global with stores to the stack variable.
+    for (auto *store : patch.stores) {
+      auto &ptr_use =
+          store->getOperandUse(llvm::StoreInst::getPointerOperandIndex());
+      ptr_use.set(patch.local);
+    }
+
+    modified |= true;
+  }
+
+  // At each call site:
+  for (const auto &[func, patch] : calls_to_patch) {
+
+    MemOIRBuilder builder(insertion_point(func));
+
+    for (auto *call : patch.load) {
+
+      builder.SetInsertPoint(call);
+
+      // Load the local for this function.
+      auto *caller = call->getFunction();
+      auto *local = calls_to_patch.at(caller).local;
+      auto *load = builder.CreateLoad(type, local);
+
+      // Store the local to the temparg.
+      auto *store_temparg = builder.CreateStore(load, patch.global);
+      Metadata::get_or_add<TempArgumentMetadata>(*store_temparg);
+
+      modified |= true;
+    }
+
+    for (auto *call : patch.init) {
+
+      builder.SetInsertPoint(call);
+
+      // Store the initial value to the temparg.
+      auto *store_temparg = builder.CreateStore(init, patch.global);
+      Metadata::get_or_add<TempArgumentMetadata>(*store_temparg);
+
+      modified |= true;
+    }
   }
 
   return modified;
 }
 
 bool promote_globals(llvm::ArrayRef<llvm::GlobalVariable *> globals) {
+
   bool modified = false;
 
   for (auto *global : globals) {
