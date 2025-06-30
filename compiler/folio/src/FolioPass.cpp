@@ -4,10 +4,10 @@
 #include "memoir/raising/ExtendedSSAConstruction.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
+#include "memoir/support/FetchAnalysis.hpp"
 #include "memoir/support/PassUtils.hpp"
 #include "memoir/support/Print.hpp"
-
-#include "memoir/support/FetchAnalysis.hpp"
+#include "memoir/transforms/utilities/ReifyTempArgs.hpp"
 
 #include "folio/Pass.hpp"
 #include "folio/ProxyInsertion.hpp"
@@ -42,6 +42,9 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
     ProxyInsertion proxies(M, get_dominator_tree, get_bounds_checks);
     MemOIRInst::invalidate();
   }
+
+  // Cleanup tempargs and stack variables.
+  { llvm::memoir::reify_tempargs(M); }
 
   return llvm::PreservedAnalyses::none();
 }
