@@ -1,13 +1,13 @@
-#include "memoir/utility/Metadata.hpp"
-
 #include "memoir/analysis/BoundsCheckAnalysis.hpp"
 #include "memoir/raising/ExtendedSSAConstruction.hpp"
+#include "memoir/raising/RepairSSA.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/FetchAnalysis.hpp"
 #include "memoir/support/PassUtils.hpp"
 #include "memoir/support/Print.hpp"
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
+#include "memoir/utility/Metadata.hpp"
 
 #include "folio/Pass.hpp"
 #include "folio/ProxyInsertion.hpp"
