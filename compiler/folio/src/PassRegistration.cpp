@@ -1,7 +1,10 @@
 // LLVM
+#include "llvm/Transforms/IPO/GlobalDCE.h"
+#include "llvm/Transforms/Scalar/DCE.h"
 #include "llvm/Transforms/Scalar/IndVarSimplify.h"
 #include "llvm/Transforms/Utils/LCSSA.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
+#include "llvm/Transforms/Utils/Mem2Reg.h"
 
 // MEMOIR
 #include "memoir/passes/Passes.hpp"
@@ -27,6 +30,9 @@ static auto adapt(T &&fp) {
 void folio_selection(llvm::ModulePassManager &MPM) {
   MPM.addPass(folio::FolioPass());
   MPM.addPass(llvm::memoir::TempArgReificationPass());
+  MPM.addPass(adapt(llvm::PromotePass()));
+  MPM.addPass(adapt(llvm::DCEPass()));
+  MPM.addPass(llvm::GlobalDCEPass());
 
   return;
 }
