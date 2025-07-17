@@ -75,6 +75,18 @@ struct Patch {
   void load(llvm::LoadInst *load) {
     this->loads.insert(load);
   }
+
+  void remap(llvm::CallBase *old_call, llvm::CallBase *new_call) {
+    // Search for the old call.
+    auto found = this->stores.find(old_call);
+    if (found == this->stores.end()) {
+      return;
+    }
+    // If found, extract the element, update its key, and re-insert it.
+    auto node = this->stores.extract(found);
+    node.key() = new_call;
+    this->stores.insert(std::move(node));
+  }
 };
 
 using Patches = OrderedMap<llvm::GlobalVariable *, Patch>;
@@ -131,6 +143,40 @@ static llvm::Function &clone_function(llvm::Function &F,
 
   new_func.takeName(&F);
 
+  // Remap the patches.
+  for (auto &[_global, patch] : to_patch) {
+    auto &stores = patch.stores;
+
+    // Update remapped calls in the patch.
+    bool changed;
+    do {
+      changed = false;
+      for (auto it = stores.begin(); it != stores.end(); ++it) {
+        // Search for the old call in the vmap.
+        auto *old_call = it->first;
+        auto found = vmap.find(old_call);
+        if (found == vmap.end())
+          continue;
+
+        // Extract the node.
+        auto node = stores.extract(it);
+
+        // Update the call.
+        auto *new_call = cast<llvm::CallBase>(found->second);
+        node.key() = new_call;
+
+        // Re-insert the node.
+        auto result = stores.insert(std::move(node));
+        it = result.position;
+
+        // Update the store.
+        it->second = cast<llvm::StoreInst>(vmap[it->second]);
+
+        changed = true;
+      }
+    } while (changed);
+  }
+
   // Replace each of the old temporary arguments with its new argument. In
   // the process, create a mapping from temparg global to the formal
   // parameter.
@@ -158,6 +204,21 @@ static llvm::Function &clone_function(llvm::Function &F,
   to_cleanup.insert(&F);
 
   return new_func;
+}
+
+static void patch_retphis(llvm::CallBase &call,
+                          llvm::Function &old_func,
+                          llvm::Function &new_func) {
+  for (auto *inst = call.getNextNode(); inst != NULL;
+       inst = inst->getNextNode()) {
+    if (auto *call = dyn_cast<llvm::CallBase>(inst)) {
+      if (into<RetPHIInst>(call)) {
+        call->replaceUsesOfWith(&old_func, &new_func);
+      } else {
+        break;
+      }
+    }
+  }
 }
 
 static void cleanup(Set<llvm::Value *> &to_cleanup) {
@@ -352,17 +413,12 @@ static void reify_function(llvm::Function &function,
     to_cleanup.insert(call);
 
     // Patch return PHIs.
-    for (auto *inst = call->getNextNode(); inst != NULL;
-         inst = inst->getNextNode()) {
-      if (auto *call = dyn_cast<llvm::CallBase>(inst)) {
-        if (into<RetPHIInst>(call)) {
-          call->replaceUsesOfWith(&function, &new_func);
-        } else {
-          break;
-        }
-      }
-    }
+    patch_retphis(*call, function, new_func);
+
+    println("REBUILT ", *new_call);
   }
+
+  println("REIFIED\n", new_func);
 
   cleanup(to_cleanup);
 
@@ -375,6 +431,10 @@ bool reify_tempargs(llvm::Module &M) {
   Set<llvm::Function *> handled = {};
   Vector<LoadInst *> temp_loads = {};
   while (auto *func = find_tempargs_to_reify(M, handled, temp_loads)) {
+
+    if (func->getName() == "main") {
+      continue;
+    }
 
     println("REIFY ", func->getName());
     for (auto *load : temp_loads) {
