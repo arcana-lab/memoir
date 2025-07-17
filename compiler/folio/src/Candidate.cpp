@@ -311,47 +311,42 @@ static llvm::Function &create_addkey_function(llvm::Module &M,
                              M),
       "Failed to create LLVM function");
 
+  // Unpack the function arguments.
   auto arg_idx = 0;
   auto *key = addkey_function.getArg(arg_idx++);
 
-  llvm::Argument *encoder = nullptr;
+  llvm::Value *encoder_inout = NULL;
   if (build_encoder) {
-    encoder = addkey_function.getArg(arg_idx++);
+    encoder_inout = addkey_function.getArg(arg_idx++);
   }
 
-  llvm::Argument *decoder = nullptr;
+  llvm::Value *decoder_inout = NULL;
   if (build_decoder) {
-    decoder = addkey_function.getArg(arg_idx++);
+    decoder_inout = addkey_function.getArg(arg_idx++);
   }
 
   auto *ret_bb = llvm::BasicBlock::Create(context, "", &addkey_function);
 
   MemOIRBuilder builder(ret_bb);
 
-  if (encoder) {
+  llvm::Value *encoder = NULL, *decoder = NULL;
+  if (build_encoder) {
+    encoder = builder.CreateLoad(llvm_ptr_type, encoder_inout, "enc.");
     builder.CreateAssertTypeInst(encoder, *encoder_type);
   }
-
-  if (decoder) {
+  if (build_decoder) {
+    decoder = builder.CreateLoad(llvm_ptr_type, decoder_inout, "dec.");
     builder.CreateAssertTypeInst(decoder, *decoder_type);
   }
 
+  // Check if the encoder has the given key.
   auto *has_key = &builder.CreateHasInst(encoder, key)->getCallInst();
 
+  // Construct the join block.
   auto *phi = builder.CreatePHI(llvm_size_type, 2);
+  builder.CreateRet(phi);
 
-  llvm::PHINode *encoder_phi = nullptr;
-  if (build_encoder) {
-    encoder_phi = builder.CreatePHI(llvm_ptr_type, 2);
-  }
-
-  llvm::PHINode *decoder_phi = nullptr;
-  if (build_decoder) {
-    decoder_phi = builder.CreatePHI(llvm_ptr_type, 2);
-  }
-
-  auto *ret = builder.CreateRet(phi);
-
+  // Split the block and insert an if-then-else conditioned on the has-key.
   llvm::Instruction *then_terminator, *else_terminator;
   llvm::SplitBlockAndInsertIfThenElse(has_key,
                                       phi,
@@ -374,31 +369,27 @@ static llvm::Function &create_addkey_function(llvm::Module &M,
   auto *else_bb = else_terminator->getParent();
   builder.SetInsertPoint(else_terminator);
   llvm::Value *new_index = nullptr;
-  llvm::Value *new_encoder = nullptr;
-  if (encoder) {
+  if (build_encoder) {
     new_index = &builder.CreateSizeInst(encoder)->getCallInst();
     auto *insert = builder.CreateInsertInst(encoder, { key });
-    new_encoder = &builder
-                       .CreateWriteInst(size_type,
-                                        new_index,
-                                        &insert->getCallInst(),
-                                        { key })
-                       ->asValue();
+    auto *write = builder.CreateWriteInst(size_type,
+                                          new_index,
+                                          &insert->asValue(),
+                                          { key });
+    builder.CreateStore(&write->asValue(), encoder_inout);
   }
 
-  llvm::Value *new_decoder = nullptr;
-  if (decoder) {
+  if (build_decoder) {
     if (not new_index) {
       new_index = &builder.CreateSizeInst(decoder)->getCallInst();
     }
     auto *end = &builder.CreateEndInst()->getCallInst();
     auto *insert = builder.CreateInsertInst(decoder, { end });
-    new_decoder = &builder
-                       .CreateWriteInst(key_type,
-                                        key,
-                                        &insert->getCallInst(),
-                                        { new_index })
-                       ->asValue();
+    auto *write = builder.CreateWriteInst(key_type,
+                                          key,
+                                          &insert->asValue(),
+                                          { new_index });
+    builder.CreateStore(&write->asValue(), decoder_inout);
   }
 
   // Update the PHIs
@@ -406,20 +397,6 @@ static llvm::Function &create_addkey_function(llvm::Module &M,
   phi->addIncoming(read_index, then_bb);
   MEMOIR_ASSERT(new_index, "New index is NULL");
   phi->addIncoming(new_index, else_bb);
-
-  if (encoder_phi and encoder and new_encoder) {
-    encoder_phi->addIncoming(encoder, then_bb);
-    encoder_phi->addIncoming(new_encoder, else_bb);
-    auto encoder_live_out = Metadata::get_or_add<LiveOutMetadata>(*encoder_phi);
-    encoder_live_out.setArgNo(encoder->getArgNo());
-  }
-
-  if (decoder_phi and decoder and new_decoder) {
-    decoder_phi->addIncoming(decoder, then_bb);
-    decoder_phi->addIncoming(new_decoder, else_bb);
-    auto decoder_live_out = Metadata::get_or_add<LiveOutMetadata>(*decoder_phi);
-    decoder_live_out.setArgNo(decoder->getArgNo());
-  }
 
   return addkey_function;
 }
@@ -546,17 +523,52 @@ llvm::Value &Candidate::add_value(MemOIRBuilder &builder,
 #endif
 
   Vector<llvm::Value *> args = { &value };
+
+  llvm::AllocaInst *enc_inout = NULL, *dec_inout = NULL;
+
   if (this->build_encoder()) {
+    // Fetch the current state of the encoder.
     auto *enc = fetch_encoder(*this, builder, value, base);
-    args.push_back(enc);
+
+    // Create an inout stack variable and initialize it.
+    enc_inout = builder.CreateLocal(builder.getPtrTy());
+    builder.CreateLifetimeStart(enc_inout);
+    builder.CreateStore(enc, enc_inout);
+
+    // Pass the inout stack variable to the function.
+    args.push_back(enc_inout);
   }
   if (this->build_decoder()) {
+    // Fetch the current state of the decoder.
     auto *dec = fetch_decoder(*this, builder, value, base);
-    args.push_back(dec);
+
+    // Create an inout stack variable and initialize it.
+    dec_inout = builder.CreateLocal(builder.getPtrTy());
+    builder.CreateLifetimeStart(dec_inout);
+    builder.CreateStore(dec, dec_inout);
+
+    // Pass the inout stack variable to the function.
+    args.push_back(dec_inout);
   }
+
+  // Call the addkey function.
   auto &encoded =
       MEMOIR_SANITIZE(builder.CreateCall(this->addkey_callee(), args),
                       "Failed to create call to addkey!");
+
+  // Load the inout results.
+  if (enc_inout) {
+    auto *enc = builder.CreateLoad(builder.getPtrTy(), enc_inout);
+    builder.CreateLifetimeEnd(enc_inout);
+    auto [enc_state, enc_type] = get_ptr(this->encoder, value, base);
+    builder.CreateStore(enc, enc_state);
+  }
+  if (dec_inout) {
+    auto *dec = builder.CreateLoad(builder.getPtrTy(), dec_inout);
+    builder.CreateLifetimeEnd(dec_inout);
+    auto [dec_state, dec_type] = get_ptr(this->decoder, value, base);
+    builder.CreateStore(dec, dec_state);
+  }
 
 #if PRINT_VALUES
   builder.CreateErrorf("= %lu\n", { &encoded });

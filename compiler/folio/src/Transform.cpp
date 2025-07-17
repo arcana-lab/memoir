@@ -85,11 +85,8 @@ static void promote(Candidate &candidate,
     }
   }
 
-#if 0 // TODO: fix bug in reify_tempargs, where some temparg loads are not
-      // cleaned up!
   // Promote the globals.
   promote_globals(globals_to_promote);
-#endif
 }
 
 bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {

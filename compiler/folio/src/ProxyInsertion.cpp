@@ -112,9 +112,12 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M,
 
   for (auto &F : M) {
     if (not F.empty()) {
+      print("VERIFYING ", F.getName());
       if (llvm::verifyFunction(F, &llvm::errs())) {
         println(F);
         MEMOIR_UNREACHABLE("Failed to verify ", F.getName());
+      } else {
+        print("\r                                                \r");
       }
     }
   }
@@ -125,9 +128,12 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M,
 
   for (auto &F : M) {
     if (not F.empty()) {
+      print("VERIFYING ", F.getName());
       if (llvm::verifyFunction(F, &llvm::errs())) {
         println(F);
         MEMOIR_UNREACHABLE("Failed to verify ", F.getName());
+      } else {
+        print("\r                                                \r");
       }
     }
   }

@@ -326,8 +326,8 @@ static void create_base_globals(Vector<Candidate> &candidates) {
         MEMOIR_SANITIZE(function.getParent(), "Function has no parent module");
 
     // Create globals for this base.
-    auto &enc = create_global_ptr(module, "enc.");
-    auto &dec = create_global_ptr(module, "dec.");
+    auto &enc = create_global_ptr(module, "enc." + function.getName());
+    auto &dec = create_global_ptr(module, "dec." + function.getName());
 
     // TODO: we need to differentiate different NestedObjects within the base.
     mappings[base].first = &enc;
@@ -464,6 +464,8 @@ void ProxyInsertion::prepare() {
 
   // For each base global, create a local stack variable to hold it.
   create_base_locals(this->candidates);
+
+  println("PREPARED\n", this->M);
 }
 
 } // namespace folio
