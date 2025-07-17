@@ -25,7 +25,7 @@ MODULE_PASS_(TempArgReificationPass, "memoir-reify-temp-args")
 MODULE_PASS_(ProfileAccessesPass, "memoir-profile-accesses")
 MODULE_PASS_(SweepSelectionsPass, "memoir-sweep-selections")
 
-MODULE_PASS_(DeadCollectionEliminationPass, "memoir-dce")
+MODULE_PASS_(DeadCollectionEliminationPass, "memoir-deadcollection")
 MODULE_PASS_(DeadFieldEliminationPass, "memoir-dfe")
 MODULE_PASS_(FieldElisionPass, "memoir-fe")
 MODULE_PASS_(KeyFoldingPass, "memoir-kf")
@@ -47,6 +47,7 @@ FUNCTION_PASS_(LiveOutInsertionPass, "memoir-live-out-insertion")
 FUNCTION_PASS_(ExtendedSSAConstructionPass, "memoir-extended-ssa-construction")
 FUNCTION_PASS_(DefunctionalizePass, "defunc")
 FUNCTION_PASS_(CoercePass, "coerce")
+FUNCTION_PASS_(DeadCodeEliminationPass, "memoir-dce")
 
 
 
