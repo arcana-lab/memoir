@@ -31,7 +31,7 @@ void folio_selection(llvm::ModulePassManager &MPM) {
   MPM.addPass(folio::FolioPass());
   MPM.addPass(llvm::memoir::TempArgReificationPass());
   MPM.addPass(adapt(llvm::PromotePass()));
-  MPM.addPass(adapt(llvm::DCEPass()));
+  MPM.addPass(adapt(llvm::memoir::DeadCodeEliminationPass()));
   MPM.addPass(llvm::GlobalDCEPass());
 
   return;
