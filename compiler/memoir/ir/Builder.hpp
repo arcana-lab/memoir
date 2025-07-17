@@ -626,6 +626,26 @@ public:
     return this->CreateFprintf(stdout_file, format, format_args, name);
   }
 
+  llvm::AllocaInst *CreateLocal(llvm::Type *type,
+                                llvm::Value *array_size = NULL,
+                                const llvm::Twine &name = "") {
+    // Save the current insertion point.
+    auto *point = &*this->GetInsertPoint();
+
+    // Get the entry block of the current function.
+    auto *func = point->getFunction();
+    auto &entry = func->getEntryBlock();
+    this->SetInsertPoint(entry.getFirstNonPHI());
+
+    // Create a local stack variable.
+    auto *local = this->CreateAlloca(type, array_size, name);
+
+    // Reset the insertion point.
+    this->SetInsertPoint(point);
+
+    return local;
+  }
+
 protected:
   // Borrowed state
   llvm::Module *M;
