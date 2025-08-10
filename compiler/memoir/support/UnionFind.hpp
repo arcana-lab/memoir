@@ -4,12 +4,23 @@
 #include <cstdint>
 #include <iterator>
 
+#include "llvm/Support/raw_ostream.h"
+
 #include "memoir/support/DataTypes.hpp"
 
 namespace llvm::memoir {
 
 template <typename T>
 struct UnionFind {
+protected:
+  using ParentMap = Map<T, T>;
+  using Iter = typename ParentMap::iterator;
+  using Size = size_t;
+  using SizeMap = Map<T, Size>;
+
+  ParentMap _parent;
+  SizeMap _size;
+
 public:
   void insert(T t) {
     auto found = this->_parent.find(t);
@@ -51,28 +62,36 @@ public:
     u = this->find(u);
 
     // If u.size > t.size, swap them
-    if (this->_size[u] > this->_size[t]) {
+    if (this->size(u) > this->size(t)) {
       std::swap(t, u);
     }
 
     // Merge u into t
-    this->_parent[u] = t;
-    this->_size[t] += this->_size[u];
+    this->parent(u) = t;
+    this->size(t) += this->size(u);
 
     // Return
     return t;
   }
 
-  typename Map<T, T>::iterator begin() {
+  Iter begin() {
     this->reify();
     return this->_parent.begin();
   }
-  typename Map<T, T>::iterator end() {
+  Iter end() {
     return this->_parent.end();
   }
 
-  size_t size() const {
+  Size size() const {
     return this->_parent.size();
+  }
+
+  Size &size(const T &t) {
+    return this->_size.at(t);
+  }
+
+  T &parent(const T &t) {
+    return this->_parent.at(t);
   }
 
   /**
@@ -85,10 +104,6 @@ public:
     }
     return;
   }
-
-protected:
-  Map<T, T> _parent;
-  Map<T, size_t> _size;
 };
 
 } // namespace llvm::memoir
