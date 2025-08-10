@@ -1,13 +1,16 @@
 #include "memoir/ir/ControlFlow.hpp"
+#include "memoir/support/Casting.hpp"
 
 namespace llvm::memoir {
 
-llvm::BasicBlock *parent<llvm::BasicBlock>(llvm::value &value) {
+template <>
+llvm::BasicBlock *parent<llvm::BasicBlock>(llvm::Value &value) {
   if (auto *inst = dyn_cast<llvm::Instruction>(&value))
     return inst->getParent();
   return NULL;
 }
 
+template <>
 llvm::Function *parent<llvm::Function>(llvm::Value &value) {
   if (auto *inst = dyn_cast<llvm::Instruction>(&value))
     return inst->getFunction();
@@ -16,6 +19,7 @@ llvm::Function *parent<llvm::Function>(llvm::Value &value) {
   return NULL;
 }
 
+template <>
 llvm::Module *parent<llvm::Module>(llvm::Value &value) {
   if (auto *func = parent<llvm::Function>(value))
     return func->getParent();
