@@ -12,7 +12,6 @@
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
-#include "memoir/support/Print.hpp"
 #include "memoir/utility/Metadata.hpp"
 
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
@@ -351,10 +350,8 @@ static void reify_function(llvm::Function &function,
 
         // Populate the existing arguments.
         for (auto &arg_use : call->args()) {
-          println("POPULATE ", pretty(arg_use));
           auto *new_arg = arg_use.get();
           if (new_arg == &function) {
-            println("FOUND FUNC ARG");
             new_arg = &new_func;
           }
 
@@ -414,11 +411,7 @@ static void reify_function(llvm::Function &function,
 
     // Patch return PHIs.
     patch_retphis(*call, function, new_func);
-
-    println("REBUILT ", *new_call);
   }
-
-  println("REIFIED\n", new_func);
 
   cleanup(to_cleanup);
 
@@ -434,11 +427,6 @@ bool reify_tempargs(llvm::Module &M) {
 
     if (func->getName() == "main") {
       continue;
-    }
-
-    println("REIFY ", func->getName());
-    for (auto *load : temp_loads) {
-      println(" LOAD ", *load);
     }
 
     reify_function(*func, temp_loads);
