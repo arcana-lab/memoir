@@ -63,7 +63,7 @@ protected:
   // Union find data structure for type bindings.
   TypeVariable &new_type_variable();
   Type *find(Type *T);
-  Type *unify(Type *T, Type *U);
+  Option<Type *> unify(Type *T, Type *U);
   Map<TypeVariable *, Type *> type_bindings;
   TypeVariable::TypeID current_id;
 

@@ -357,25 +357,7 @@ Type *TypeChecker::visitExtractValueInst(llvm::ExtractValueInst &I) {
 Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
   // If we have load instruction, trace back to its global variable and find the
   // original store to it.
-  auto *load_ptr = I.getPointerOperand();
-
-  if (auto *global =
-          dyn_cast<llvm::GlobalVariable>(load_ptr->stripPointerCasts())) {
-
-    // Find the original store for this global variable.
-    for (auto *user : global->users()) {
-      if (auto *store_inst = dyn_cast<llvm::StoreInst>(user)) {
-        auto *store_value = store_inst->getValueOperand();
-
-        auto *stored_type = this->analyze(*store_value);
-
-        if (stored_type != nullptr) {
-          return stored_type;
-        }
-      }
-    }
-  }
-
+  auto *ptr = I.getPointerOperand();
   // See if the loaded value is used in any type assertions.
   for (auto &use : I.uses()) {
     if (auto *user_as_inst = dyn_cast<llvm::Instruction>(use.getUser())) {
@@ -383,6 +365,21 @@ Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
         if (&I == &assert_type->getObject()) {
           return &assert_type->getType();
         }
+      }
+    }
+  }
+
+  // Find any stores for this variable and unify based on them.
+  for (auto *user : ptr->users()) {
+    if (auto *store_inst = dyn_cast<llvm::StoreInst>(user)) {
+      auto *store_value = store_inst->getValueOperand();
+
+      auto *stored_type = this->analyze(*store_value);
+
+      // TODO: we should unify here instead of taking the first result, but this
+      // will do fine for now.
+      if (stored_type != nullptr) {
+        return stored_type;
       }
     }
   }
@@ -400,8 +397,8 @@ Type *TypeChecker::visitPHINode(llvm::PHINode &I) {
   }
 
   // Create a type variable for the PHI node.
-  auto &phi_type = this->new_type_variable();
-  this->value_bindings[&I] = &phi_type;
+  auto *type_var = &this->new_type_variable();
+  this->value_bindings[&I] = type_var;
 
   // For each incoming value, visit it, and unify it with the PHI type.
   for (auto &incoming : I.incoming_values()) {
@@ -410,11 +407,12 @@ Type *TypeChecker::visitPHINode(llvm::PHINode &I) {
     auto *incoming_type = this->analyze(incoming_value);
 
     // Unify the PHI with the incoming type.
-    this->unify(&phi_type, incoming_type);
+    auto unified_type = this->unify(type_var, incoming_type);
+    MEMOIR_ASSERT(unified_type, "Failed to unify type of ", I);
   }
 
   // Find the resulting type of the PHI and return it.
-  return this->find(&phi_type);
+  return this->find(type_var);
 }
 
 Type *TypeChecker::visitLLVMCallInst(llvm::CallInst &I) {
@@ -495,7 +493,7 @@ Type *TypeChecker::find(Type *t) {
   return new_parent;
 }
 
-Type *TypeChecker::unify(Type *t, Type *u) {
+Option<Type *> TypeChecker::unify(Type *t, Type *u) {
   // Find each type's equivalence class.
   t = this->find(t);
   u = this->find(u);
@@ -538,7 +536,7 @@ Type *TypeChecker::unify(Type *t, Type *u) {
 
   // If neither t nor u is a type variable, and they are not equal, we
   // have a type error!
-  MEMOIR_UNREACHABLE("Unable to merge types!");
+  return {};
 }
 
 // Constructor
