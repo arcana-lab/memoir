@@ -256,7 +256,6 @@ static llvm::Instruction *insertion_point(llvm::Function *func) {
 }
 
 bool promote_global(llvm::GlobalVariable &global) {
-  println("PROMOTE ", global);
 
   bool modified = false;
 
@@ -331,9 +330,8 @@ bool promote_global(llvm::GlobalVariable &global) {
 
   // If any of the paths may be entered by an external function call, then we
   // can't transform the function.
-  println("FOUND ", paths.size(), " PATH", paths.size() == 1 ? "" : "S");
   for (const auto &path : paths) {
-    println(path);
+    debugln(path);
     if (path.called_externally(callgraph)) {
       warnln("PATH MAY BE CALLED EXTERNALLY, CAN'T PROMOTE.");
       return modified;
@@ -367,18 +365,14 @@ bool promote_global(llvm::GlobalVariable &global) {
   Vector<llvm::Function *> to_version = {};
   for (auto *func : in_path) {
 
-    println("PATCH ", func->getName());
-
     // If the function is a fold body.
     if (auto *fold = FoldInst::get_single_fold(*func)) {
       auto *call = &fold->getCallInst();
       auto *caller = fold->getFunction();
       if (not on_path.contains(caller)) {
         calls_to_patch[func].to_init(call);
-        println("  INIT ", *fold);
       } else {
         calls_to_patch[func].to_load(call);
-        println("  LOAD ", *call);
       }
 
       continue;
@@ -401,13 +395,11 @@ bool promote_global(llvm::GlobalVariable &global) {
       auto *caller = call->getFunction();
       if (not on_path.contains(caller)) {
         calls_to_patch[func].to_init(call);
-        println("  INIT ", *call);
         continue;
       }
 
       // We need to patch any call in the path.
       calls_to_patch[func].to_load(call);
-      println("  LOAD ", *call);
     }
   }
 
