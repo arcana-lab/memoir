@@ -1,7 +1,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IR/Value.h"
-#Include "llvm/IR/Module.h"
 
 namespace llvm::memoir {
 
