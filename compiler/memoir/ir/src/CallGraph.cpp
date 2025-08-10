@@ -21,8 +21,8 @@ bool has_unknown_caller(const Set<llvm::CallBase *> &callers) {
   return callers.contains(unknown_caller());
 }
 
-Set<llvm::CallBase *> possible_callers(llvm::Function &function) {
-  Set<llvm::CallBase *> callers = {};
+bool possible_callers(llvm::Function &function,
+                      Set<llvm::CallBase *> &callers) {
 
   bool possibly_unknown = is_externally_visible(function);
 
@@ -57,7 +57,48 @@ Set<llvm::CallBase *> possible_callers(llvm::Function &function) {
     callers.insert(unknown_caller());
   }
 
+  return possibly_unknown;
+}
+
+Set<llvm::CallBase *> possible_callers(llvm::Function &function) {
+  Set<llvm::CallBase *> callers;
+  possible_callers(function, callers);
   return callers;
+}
+
+llvm::CallBase *single_caller(llvm::Function &function) {
+
+  if (is_externally_visible(function))
+    return NULL;
+
+  llvm::CallBase *single_call = NULL;
+  for (auto &use : function.uses()) {
+    auto *call = dyn_cast<llvm::CallBase>(use.getUser());
+
+    // Check if the use may lead to an indirect call.
+    if (not call) {
+      return NULL; // Escaped!
+
+    } else if (auto *ret_phi = into<RetPHIInst>(call)) {
+      if (&use != &ret_phi->getCalledOperandAsUse())
+        return NULL; // Escaped!
+
+    } else if (auto *fold = into<FoldInst>(call)) {
+      if (&use != &fold->getBodyOperandAsUse())
+        return NULL; // Escaped!
+
+    } else if (&use != &call->getCalledOperandUse()) {
+      return NULL; // Escaped!
+
+    } else if (single_call) {
+      return NULL; // Multiple callers.
+
+    } else {
+      single_call = call;
+    }
+  }
+
+  return single_call;
 }
 
 CallGraph::CallGraph(llvm::Module &module) : llvm::CallGraph(module) {

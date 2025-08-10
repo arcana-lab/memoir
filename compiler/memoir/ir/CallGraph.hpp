@@ -35,9 +35,20 @@ bool is_unknown_caller(const llvm::CallBase *caller);
 bool has_unknown_caller(const Set<llvm::CallBase *> &callers);
 
 /**
+ * Collect the set of possible callers to the given function into the given set.
+ * returns TRUE iff the set includes the unknown caller.
+ */
+bool possible_callers(llvm::Function &function, Set<llvm::CallBase *> &callers);
+
+/**
  * Collect the set of possible callers to the given function.
  */
 Set<llvm::CallBase *> possible_callers(llvm::Function &function);
+
+/**
+ * Fetch the single caller of the given function, if it exists.
+ */
+llvm::CallBase *single_caller(llvm::Function &function);
 
 } // namespace llvm::memoir
 
