@@ -16,26 +16,16 @@
 namespace folio {
 
 struct Candidate : public Vector<ObjectInfo *> {
+protected:
+  llvm::memoir::Type *_key_type;
+
 public:
   using Base = Vector<ObjectInfo *>;
 
-  Candidate()
-    : Base{},
-      decoded{},
-      encoded{},
-      added{},
-      to_decode{},
-      to_encode{},
-      to_addkey{},
-      encoded_values{},
-      encoder(),
-      decoder(),
-      addkey_function(NULL) {}
-
-  // The uses prepared for transformation.
-  Vector<CoalescedUses> decoded, encoded, added;
-  LocalMap<Set<llvm::Use *>> to_decode, to_encode, to_addkey;
-  Map<llvm::Function *, LocalMap<Set<llvm::Value *>>> encoded_values;
+  Candidate(llvm::memoir::Type &key_type,
+            llvm::ArrayRef<ObjectInfo *> objects = {})
+    : Base(objects.begin(), objects.end()),
+      _key_type(&key_type) {}
 
   // Type and program information.
   llvm::Module &module() const;
@@ -45,6 +35,19 @@ public:
   llvm::memoir::Type &encoder_type() const;
   llvm::memoir::Type &decoder_type() const;
 
+  // The uses prepared for transformation.
+  Map<ObjectInfo *, Map<llvm::Function *, Set<llvm::Use *>>> to_decode,
+      to_encode, to_addkey;
+
+  // Intermediate analysis results.
+  Map<ObjectInfo *, Map<llvm::Function *, Set<llvm::Value *>>> encoded;
+  UnionFind<ObjectInfo *> bases;
+  Map<ObjectInfo *, Vector<ObjectInfo *>> equiv;
+
+protected:
+  void unify_bases();
+
+public:
   // Cost model.
   int benefit;
 
@@ -54,17 +57,17 @@ public:
       std::function<llvm::memoir::BoundsCheckResult &(llvm::Function &)>
           get_bounds_checks);
 
-  /** Global information for this candidate's encoder. */
-  Mapping encoder;
-  /** Global information for this candidate's decoder. */
-  Mapping decoder;
-
   // Transform.
 protected:
   llvm::Function *addkey_function;
   llvm::FunctionCallee addkey_callee();
 
 public:
+  /** Global information for this candidate's encoder. */
+  Mapping encoder;
+  /** Global information for this candidate's decoder. */
+  Mapping decoder;
+
   llvm::Instruction &construction_point(llvm::DominatorTree &domtree) const;
   bool build_decoder() const;
   bool build_encoder() const;
@@ -72,24 +75,21 @@ public:
   /** Check if the enumeration has the given value */
   llvm::Instruction &has_value(llvm::memoir::MemOIRBuilder &builder,
                                llvm::Value &value,
-                               llvm::Value *base);
+                               ObjectInfo *base);
   /** Decode the given value */
   llvm::Value &decode_value(llvm::memoir::MemOIRBuilder &builder,
                             llvm::Value &value,
-                            llvm::Value *base);
+                            ObjectInfo *base);
   /** Encode the given value */
   llvm::Value &encode_value(llvm::memoir::MemOIRBuilder &builder,
                             llvm::Value &value,
-                            llvm::Value *base);
+                            ObjectInfo *base);
   /** Add the given value to the enumeration */
   llvm::Value &add_value(llvm::memoir::MemOIRBuilder &builder,
                          llvm::Value &value,
-                         llvm::Value *base);
+                         ObjectInfo *base);
 
-  void gather_uses(Map<llvm::Function *, LocalMap<Set<llvm::Value *>>> &encoded,
-                   LocalMap<Set<llvm::Use *>> &to_decode,
-                   LocalMap<Set<llvm::Use *>> &to_encode,
-                   LocalMap<Set<llvm::Use *>> &to_addkey) const;
+  void gather_uses();
 
   // Print.
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,

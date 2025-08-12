@@ -17,6 +17,9 @@
 
 namespace folio {
 
+using llvm::memoir::AllocInst;
+using llvm::memoir::Type;
+
 struct ProxyInsertion {
 public:
   // Helper types.
@@ -24,6 +27,7 @@ public:
       std::function<llvm::DominatorTree &(llvm::Function &)>;
   using GetBoundsChecks =
       std::function<llvm::memoir::BoundsCheckResult &(llvm::Function &)>;
+  using Enumerated = Map<NestedObject, SmallSet<Candidate *, 1>>;
 
   // Constructors.
   ProxyInsertion(llvm::Module &M,
@@ -40,22 +44,32 @@ public:
   bool transform();
 
   // Helper functions.
-  static Option<std::string> get_enumerated_impl(llvm::memoir::Type &type,
+  static Option<std::string> get_enumerated_impl(Type &type,
                                                  bool is_nested = false);
 
 protected:
-  void gather_assoc_objects(Vector<ObjectInfo> &allocations,
-                            llvm::memoir::AllocInst &alloc,
-                            llvm::memoir::Type &type,
-                            Vector<unsigned> offsets = {});
+  void gather_assoc_objects();
+  void gather_assoc_objects(AllocInst &alloc);
+  void gather_assoc_objects(AllocInst &alloc, Type &type, Offsets offsets = {});
+
+  void gather_propagators();
+  void gather_propagators(const Set<Type *> &types, AllocInst &alloc);
+  void gather_propagators(const Set<Type *> &types,
+                          AllocInst &alloc,
+                          Type &type,
+                          OffsetsRef offsets = {});
+
+  void gather_abstract_objects();
+  void gather_abstract_objects(ObjectInfo &object);
 
   ObjectInfo *find_base_object(llvm::Value &V,
                                llvm::memoir::AccessInst &access);
 
   llvm::Module &M;
-  Vector<ObjectInfo> objects;
-  Vector<ObjectInfo> propagators;
+  Vector<BaseObjectInfo> objects, propagators;
+  Vector<ArgObjectInfo> arguments;
   Vector<Candidate> candidates;
+  Enumerated enumerated;
 
   GetDominatorTree get_dominator_tree;
   GetBoundsChecks get_bounds_checks;

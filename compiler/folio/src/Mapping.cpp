@@ -14,12 +14,12 @@ void Mapping::alloc(llvm::Value &V) {
 }
 
 // Globals accessors.
-llvm::GlobalVariable &Mapping::global(llvm::Value *base) const {
-  return *this->_globals.at(base);
+llvm::GlobalVariable &Mapping::global(ObjectInfo &base) const {
+  return *this->_globals.at(&base);
 }
 
-void Mapping::global(llvm::Value *base, llvm::GlobalVariable &GV) {
-  this->_globals[base] = &GV;
+void Mapping::global(ObjectInfo &base, llvm::GlobalVariable &GV) {
+  this->_globals[&base] = &GV;
 }
 
 Mapping::GlobalsMap &Mapping::globals() {
@@ -31,12 +31,12 @@ const Mapping::GlobalsMap &Mapping::globals() const {
 }
 
 // Locals accessors.
-llvm::AllocaInst &Mapping::local(llvm::Value *base) const {
-  return *this->_locals.at(base);
+llvm::AllocaInst &Mapping::local(ObjectInfo &base) const {
+  return *this->_locals.at(&base);
 }
 
-void Mapping::local(llvm::Value *base, llvm::AllocaInst &stack) {
-  this->_locals[base] = &stack;
+void Mapping::local(ObjectInfo &base, llvm::AllocaInst &stack) {
+  this->_locals[&base] = &stack;
 }
 
 Mapping::LocalsMap &Mapping::locals() {

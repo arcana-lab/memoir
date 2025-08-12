@@ -7,9 +7,11 @@
 
 namespace folio {
 
-void eliminate_redundant_translations(LocalMap<Set<llvm::Use *>> &to_decode,
-                                      LocalMap<Set<llvm::Use *>> &to_encode,
-                                      LocalMap<Set<llvm::Use *>> &to_addkey);
+void eliminate_redundant_translations(
+    const Map<llvm::Function *, Set<llvm::Value *>> &encoded,
+    Map<llvm::Function *, Set<llvm::Use *>> &to_decode,
+    Map<llvm::Function *, Set<llvm::Use *>> &to_encode,
+    Map<llvm::Function *, Set<llvm::Use *>> &to_addkey);
 
 } // namespace folio
 

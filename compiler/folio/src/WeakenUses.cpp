@@ -1,14 +1,15 @@
-#include "llvm/IR/CFG.h"
+#if 0
+#  include "llvm/IR/CFG.h"
 
-#include "memoir/analysis/BoundsCheckAnalysis.hpp"
-#include "memoir/support/Assert.hpp"
-#include "memoir/support/Casting.hpp"
-#include "memoir/support/Print.hpp"
-#include "memoir/support/SortedVector.hpp"
-#include "memoir/support/WorkList.hpp"
+#  include "memoir/analysis/BoundsCheckAnalysis.hpp"
+#  include "memoir/support/Assert.hpp"
+#  include "memoir/support/Casting.hpp"
+#  include "memoir/support/Print.hpp"
+#  include "memoir/support/SortedVector.hpp"
+#  include "memoir/support/WorkList.hpp"
 
-#include "folio/ProxyInsertion.hpp"
-#include "folio/Utilities.hpp"
+#  include "folio/ProxyInsertion.hpp"
+#  include "folio/Utilities.hpp"
 
 using namespace llvm::memoir;
 
@@ -202,3 +203,4 @@ void weaken_uses(Set<llvm::Use *> &to_addkey,
 }
 
 } // namespace folio
+#endif

@@ -8,13 +8,16 @@
 
 namespace folio {
 
+using Offset = unsigned;
+using Offsets = typename llvm::memoir::SmallVector<Offset>;
+
 struct NestedObject {
   // Accessors.
   llvm::Value &value() const {
     return *this->_value;
   }
 
-  llvm::ArrayRef<unsigned> offsets() const {
+  llvm::ArrayRef<Offset> offsets() const {
     return this->_offsets;
   }
 
@@ -31,7 +34,7 @@ struct NestedObject {
 
 protected:
   llvm::Value *_value;
-  llvm::memoir::SmallVector<unsigned> _offsets;
+  Offsets _offsets;
 };
 
 } // namespace folio

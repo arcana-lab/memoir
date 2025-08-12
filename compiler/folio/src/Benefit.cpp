@@ -18,38 +18,26 @@ static int heuristic(const Map<llvm::Function *, Set<llvm::Value *>> &encoded,
                      const Map<llvm::Function *, Set<llvm::Use *>> &to_addkey) {
 
   int benefit = 0;
-  for (const auto &[func, values] : encoded) {
-    for (const auto *value : values) {
+  for (const auto &[func, values] : encoded)
+    for (const auto *value : values)
       for (auto &use_to_decode : value->uses()) {
 
-        auto *user = use_to_decode.getUser();
-
-        if (to_encode.count(func)) {
-          for (const auto *use_to_encode : to_encode.at(func)) {
-            if (&use_to_decode == use_to_encode) {
+        if (to_encode.count(func))
+          for (const auto *use_to_encode : to_encode.at(func))
+            if (&use_to_decode == use_to_encode)
               ++benefit;
-            }
-          }
-        }
 
-        if (to_addkey.count(func)) {
-          for (const auto *use_to_addkey : to_addkey.at(func)) {
-            if (&use_to_decode == use_to_addkey) {
+        if (to_addkey.count(func))
+          for (const auto *use_to_addkey : to_addkey.at(func))
+            if (&use_to_decode == use_to_addkey)
               ++benefit;
-            }
-          }
-        }
 
-        auto *cmp = dyn_cast<llvm::CmpInst>(user);
-        if (cmp and cmp->isEquality()) {
+        auto *cmp = dyn_cast<llvm::CmpInst>(use_to_decode.getUser());
+        if (cmp and cmp->isEquality())
           if (values.contains(cmp->getOperand(0))
-              and values.contains(cmp->getOperand(1))) {
+              and values.contains(cmp->getOperand(1)))
             ++benefit;
-          }
-        }
       }
-    }
-  }
 
   return benefit;
 }
@@ -57,28 +45,19 @@ static int heuristic(const Map<llvm::Function *, Set<llvm::Value *>> &encoded,
 int benefit(llvm::ArrayRef<const ObjectInfo *> candidate) {
   // Compute the benefit of this candidate.
 
-  // Merge encoded values.
+  // Merge per-object information.
   Map<llvm::Function *, Set<llvm::Value *>> encoded = {};
-  for (const auto *info : candidate) {
-    for (const auto &[func, values] : info->encoded) {
-      encoded[func].insert(values.begin(), values.end());
+  Map<llvm::Function *, Set<llvm::Use *>> to_encode = {}, to_addkey = {};
+  for (const auto *obj : candidate) {
+    for (const auto &[func, info] : obj->info()) {
+      encoded[func].insert(info.encoded.begin(), info.encoded.end());
+      to_encode[func].insert(info.to_encode.begin(), info.to_encode.end());
+      to_addkey[func].insert(info.to_addkey.begin(), info.to_addkey.begin());
     }
   }
 
   // Perform a forward data flow analysis on the encoded values.
   forward_analysis(encoded);
-
-  // Merge uses.
-  Map<llvm::Function *, Set<llvm::Use *>> to_encode = {}, to_addkey = {};
-  for (const auto *info : candidate) {
-    for (const auto &[func, uses] : info->to_encode) {
-      to_encode[func].insert(uses.begin(), uses.end());
-    }
-
-    for (const auto &[func, uses] : info->to_addkey) {
-      to_addkey[func].insert(uses.begin(), uses.end());
-    }
-  }
 
   // Perform a "what if?" analysis.
   return heuristic(encoded, to_encode, to_addkey);

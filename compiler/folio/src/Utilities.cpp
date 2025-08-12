@@ -29,27 +29,25 @@ llvm::Function *parent_function(llvm::Use &U) {
 }
 
 void erase_uses(Set<llvm::Use *> &uses, const Set<llvm::Use *> &to_erase) {
-  for (auto *use : to_erase) {
+  for (auto *use : to_erase)
     uses.erase(use);
-  }
 }
 
-void erase_uses(LocalMap<Set<llvm::Use *>> &uses,
-                const Set<llvm::Use *> &to_erase) {
-  for (auto &[base, base_uses] : uses) {
+template <typename Key, typename Uses>
+void erase_uses(Map<Key, Uses> &uses, const Set<llvm::Use *> &to_erase) {
+  for (auto &[base, base_uses] : uses)
     erase_uses(base_uses, to_erase);
-  }
 }
 
-uint32_t forward_analysis(Map<llvm::Function *, Set<llvm::Value *>> &encoded) {
-
-  uint32_t count = 0;
+uint32_t forward_analysis(
+    llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>>
+        &encoded) {
 
   WorkList<llvm::Value *> worklist;
-
-  for (auto &[func, values] : encoded) {
+  for (auto &[func, values] : encoded)
     worklist.push(values.begin(), values.end());
-  }
+
+  uint32_t count = 0;
 
   while (not worklist.empty()) {
     auto *val = worklist.pop();
@@ -248,6 +246,22 @@ llvm::Instruction *insertion_point(llvm::Use &use) {
   }
 
   MEMOIR_UNREACHABLE("Failed to find insertion point for use ", pretty(use));
+}
+
+void print_uses(const Vector<llvm::Use *> &uses) {
+  for (auto *use : uses)
+    println("    ", pretty_use(*use));
+}
+
+void print_uses(const Set<llvm::Use *> &uses) {
+  for (auto *use : uses)
+    println("    ", pretty_use(*use));
+}
+
+template <typename Key, typename Uses>
+void print_uses(const Map<Key, Uses> &uses) {
+  for (const auto &[_, val] : uses)
+    print_uses(val);
 }
 
 } // namespace folio

@@ -1,5 +1,8 @@
 #include "llvm/Support/CommandLine.h"
 
+#include "memoir/ir/CallGraph.hpp"
+#include "memoir/support/WorkList.hpp"
+
 #include "folio/Benefit.hpp"
 #include "folio/ProxyInsertion.hpp"
 #include "folio/Utilities.hpp"
@@ -18,19 +21,20 @@ static llvm::cl::opt<bool> disable_proxy_sharing(
     llvm::cl::desc("Disable proxy sharing optimization"),
     llvm::cl::init(false));
 
-void ProxyInsertion::gather_assoc_objects(Vector<ObjectInfo> &allocations,
-                                          AllocInst &alloc,
-                                          Type &type,
-                                          Vector<unsigned> offsets) {
+void ProxyInsertion::gather_assoc_objects(AllocInst &alloc) {
+  this->gather_assoc_objects(alloc, alloc.getType());
+}
 
+void ProxyInsertion::gather_assoc_objects(AllocInst &alloc,
+                                          Type &type,
+                                          Offsets offsets) {
   if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
     for (unsigned field = 0; field < tuple_type->getNumFields(); ++field) {
 
       auto new_offsets = offsets;
       new_offsets.push_back(field);
 
-      this->gather_assoc_objects(allocations,
-                                 alloc,
+      this->gather_assoc_objects(alloc,
                                  tuple_type->getFieldType(field),
                                  new_offsets);
     }
@@ -40,133 +44,32 @@ void ProxyInsertion::gather_assoc_objects(Vector<ObjectInfo> &allocations,
 
     // If this is an assoc, add the object information.
     if (isa<AssocType>(collection_type)) {
-      allocations.push_back(ObjectInfo(alloc, offsets));
+      this->objects.emplace_back(alloc, offsets);
     }
 
     // Recurse on the element.
     auto new_offsets = offsets;
     new_offsets.push_back(-1);
 
-    this->gather_assoc_objects(allocations, alloc, elem_type, new_offsets);
+    this->gather_assoc_objects(alloc, elem_type, new_offsets);
   }
 
   return;
-}
-
-static AllocInst *_find_base_object(llvm::Value &V,
-                                    Vector<unsigned> &offsets,
-                                    Set<llvm::Value *> &visited) {
-  if (visited.count(&V) > 0) {
-    return nullptr;
-  } else {
-    visited.insert(&V);
-  }
-
-  if (auto *arg = dyn_cast<llvm::Argument>(&V)) {
-    auto &func =
-        MEMOIR_SANITIZE(arg->getParent(), "Argument has no parent function");
-    if (auto *fold = FoldInst::get_single_fold(func)) {
-      if (arg == fold->getElementArgument()) {
-        auto it = offsets.begin();
-        for (auto *index : fold->indices()) {
-          unsigned offset = -1;
-          if (auto *index_const = dyn_cast<llvm::ConstantInt>(index)) {
-            offset = index_const->getZExtValue();
-          }
-          it = offsets.insert(it, offset);
-        }
-        offsets.insert(it, -1);
-
-        return _find_base_object(fold->getObject(), offsets, visited);
-      } else if (auto *operand = fold->getOperandForArgument(*arg)) {
-        return _find_base_object(*operand->get(), offsets, visited);
-      }
-    }
-
-  } else if (auto *phi = dyn_cast<llvm::PHINode>(&V)) {
-    for (auto &incoming : phi->incoming_values()) {
-      auto *base = _find_base_object(*incoming.get(), offsets, visited);
-      if (base) {
-        return base;
-      }
-    }
-  } else if (auto *alloc = into<AllocInst>(&V)) {
-    return alloc;
-
-  } else if (auto *update = into<UpdateInst>(&V)) {
-    return _find_base_object(update->getObject(), offsets, visited);
-
-  } else if (auto *ret_phi = into<RetPHIInst>(&V)) {
-    return _find_base_object(ret_phi->getInput(), offsets, visited);
-
-  } else if (auto *call = dyn_cast<llvm::CallBase>(&V)) {
-    // TODO
-    warnln("Base object returned from call!");
-  }
-
-  return nullptr;
-}
-
-ObjectInfo *ProxyInsertion::find_base_object(llvm::Value &V,
-                                             AccessInst &access) {
-
-  infoln("FINDING BASE OF ", access);
-
-  auto *type = type_of(V);
-
-  Vector<unsigned> offsets = {};
-  for (auto *index : access.indices()) {
-    if (auto *tuple_type = dyn_cast<TupleType>(type)) {
-      auto index_const = dyn_cast<llvm::ConstantInt>(index);
-      auto field = index_const->getZExtValue();
-      type = &tuple_type->getFieldType(field);
-
-      offsets.push_back(field);
-
-    } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
-      type = &collection_type->getElementType();
-
-      offsets.push_back(-1);
-    }
-  }
-  if (isa<FoldInst>(&access)) {
-    offsets.push_back(-1);
-  }
-
-  Set<llvm::Value *> visited = {};
-
-  auto *alloc = _find_base_object(V, offsets, visited);
-
-  if (not alloc) {
-    return nullptr;
-  }
-
-  this->propagators.emplace_back(*alloc, offsets);
-  auto &info = this->propagators.back();
-
-  infoln("FOUND PROPAGATOR ", info);
-
-  return &info;
 }
 
 static bool object_can_share(Type &type,
                              llvm::Function *func,
                              ObjectInfo &other) {
   // Check that the key types match.
-  auto *other_alloc = other.allocation;
-  auto &other_type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&other.get_type()),
+  auto &other_type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&other.type()),
                                      "Non-assoc type, unhandled.");
-
-  if (&type != &other_type.getKeyType()) {
+  if (&type != &other_type.getKeyType())
     return false;
-  }
 
   // Check that they share a parent function.
   // NOTE: this is overly conservative
-  auto *other_func = other.allocation->getFunction();
-  if (func != other_func) {
+  if (func != other.function())
     return false;
-  }
 
   return true;
 }
@@ -174,24 +77,20 @@ static bool object_can_share(Type &type,
 static bool propagator_can_share(Type &type,
                                  llvm::Function *func,
                                  ObjectInfo &other) {
-  auto *other_alloc = other.allocation;
-  auto &other_type = other.get_type();
-
-  if (&type != &other_type) {
+  if (&type != &other.type()) {
     return false;
   }
 
   // Check that they share a parent basic block.
-  auto *other_func = other_alloc->getFunction();
-  if (func != other_func) {
+  if (func != other.function()) {
     return false;
   }
 
   return true;
 }
 
-static void share_proxies(Vector<ObjectInfo> &objects,
-                          Vector<ObjectInfo> &propagators,
+static void share_proxies(Vector<BaseObjectInfo> &objects,
+                          Vector<BaseObjectInfo> &propagators,
                           Vector<Candidate> &candidates) {
 
   Set<const ObjectInfo *> used = {};
@@ -202,15 +101,13 @@ static void share_proxies(Vector<ObjectInfo> &objects,
       continue;
     }
 
-    auto *alloc = info.allocation;
-    auto *bb = alloc->getParent();
-    auto *func = bb->getParent();
+    auto *func = info.function();
 
-    auto &type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&info.get_type()),
+    auto &type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&info.type()),
                                  "Non-assoc type, unhandled.");
     auto &key_type = type.getKeyType();
 
-    candidates.emplace_back();
+    candidates.emplace_back(key_type);
     auto &candidate = candidates.back();
     candidate.push_back(&info);
 
@@ -299,49 +196,6 @@ static void share_proxies(Vector<ObjectInfo> &objects,
     }
   }
 
-  for (auto it = candidates.begin(); it != candidates.end(); ++it) {
-    auto &candidate = *it;
-
-    // Find any candidates that share an allocation with this one.
-    Set<AllocInst *> allocations = {};
-    for (auto *info : candidate) {
-      allocations.insert(info->allocation);
-    }
-
-    auto benefit = candidate.benefit;
-
-    bool other_wins = false;
-    for (auto jt = std::next(it); jt != candidates.end();) {
-      auto &other = *jt;
-
-      bool aliases = false;
-      for (auto *info : other) {
-        if (allocations.contains(info->allocation)) {
-          aliases = true;
-        }
-      }
-
-      if (aliases) {
-        // Which candidate needs to go?
-        if (other.benefit > benefit) {
-          // Other candidate wins, delete this candidate.
-          other_wins = true;
-          break;
-        } else {
-          // This candidate wins, delete other candidate.
-          jt = candidates.erase(jt);
-        }
-      } else {
-        // If we don't alias, then its all hunky dory.
-        ++jt;
-      }
-    }
-
-    if (other_wins) {
-      it = candidates.erase(it);
-    }
-  }
-
   for (auto &candidate : candidates) {
     println("CANDIDATE:");
     println("  BENEFIT=", candidate.benefit);
@@ -351,91 +205,270 @@ static void share_proxies(Vector<ObjectInfo> &objects,
   }
 }
 
-static void gather_nested_propagators(Vector<ObjectInfo> &propagators,
-                                      const Set<Type *> &types,
-                                      AllocInst &alloc,
-                                      Type &type,
-                                      llvm::ArrayRef<unsigned> offsets = {}) {
+void ProxyInsertion::gather_propagators(const Set<Type *> &types,
+                                        AllocInst &alloc) {
+  this->gather_propagators(types, alloc, alloc.getType());
+}
+
+void ProxyInsertion::gather_propagators(const Set<Type *> &types,
+                                        AllocInst &alloc,
+                                        Type &type,
+                                        OffsetsRef offsets) {
 
   if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
 
     auto &elem_type = collection_type->getElementType();
 
-    Vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
+    Offsets nested_offsets(offsets.begin(), offsets.end());
 
     // Recurse on the element.
     nested_offsets.push_back(unsigned(-1));
-    gather_nested_propagators(propagators,
-                              types,
-                              alloc,
-                              elem_type,
-                              nested_offsets);
+    this->gather_propagators(types, alloc, elem_type, nested_offsets);
 
   } else if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
 
-    Vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
+    Offsets nested_offsets(offsets.begin(), offsets.end());
 
-    for (auto field = 0; field < tuple_type->getNumFields(); ++field) {
+    for (Offset field = 0; field < tuple_type->getNumFields(); ++field) {
       auto &field_type = tuple_type->getFieldType(field);
 
       // Recurse on the field.
       nested_offsets.push_back(field);
-      gather_nested_propagators(propagators,
-                                types,
-                                alloc,
-                                field_type,
-                                nested_offsets);
+      this->gather_propagators(types, alloc, field_type, nested_offsets);
       nested_offsets.pop_back();
     }
 
-  } else {
-    if (types.contains(&type)) {
-      propagators.emplace_back(alloc, offsets);
-    }
+  } else if (types.contains(&type)) {
+    this->propagators.emplace_back(alloc, offsets);
   }
 }
 
-static void gather_propagators(Vector<ObjectInfo> &propagators,
-                               const Set<Type *> &types,
-                               llvm::Module &M) {
-  // Fetch all allocations.
-  auto *alloc_func =
-      FunctionNames::get_memoir_function(M, MemOIR_Func::ALLOCATE);
+#if 0
+static void add_enumerated(ProxyInsertion::Enumerated &enumerated,
+                           WorkList<NestedObject> &worklist,
+                           llvm::Value &value,
+                           llvm::ArrayRef<Offset> offsets,
+                           const SmallSet<Candidate *, 1> &incoming) {
+  NestedObject obj(value, offsets);
 
-  for (auto &use : alloc_func->uses()) {
-    auto *alloc = into<AllocInst>(use.getUser());
-    if (not alloc) {
-      continue;
-    }
-
-    println("ALLOC ", *alloc);
-
-    // Recurse into the type to find relevant objects.
-    gather_nested_propagators(propagators, types, *alloc, alloc->getType());
+  auto [it, fresh] = enumerated.try_emplace(obj, incoming);
+  if (not fresh) {
+    auto &enums = it->second;
+    auto orig_size = enums.size();
+    enums.insert(incoming.begin(), incoming.end());
+    if (enums.size() == orig_size)
+      return;
   }
 
-  for (auto &prop : propagators) {
-    prop.analyze();
-  }
+  worklist.push(obj);
 }
 
-void ProxyInsertion::analyze() {
-  auto &M = this->M;
+static void gather_enumerated(Vector<Candidate> &candidates,
+                              ProxyInsertion::Enumerated &enumerated) {
+  // For each candidate, map the allocations to their candidate.
+  for (auto &candidate : candidates) {
+    for (auto *info : candidate) {
+      auto &alloc = info->allocation->asValue();
+      NestedObject obj(alloc, info->offsets);
+      enumerated[obj].insert(&candidate);
+    }
+  }
 
-  // Gather all possible allocations.
-  for (auto &F : M) {
-    for (auto &BB : F) {
-      for (auto &I : BB) {
-        if (auto *alloc = into<AllocInst>(&I)) {
-          // Gather all of the Assoc allocations.
-          this->gather_assoc_objects(this->objects,
-                                     *alloc,
-                                     alloc->getType(),
-                                     {});
+  // Propagate the candidate information along the def-use chains.
+  WorkList<NestedObject> worklist;
+  for (const auto &[obj, _] : enumerated)
+    worklist.push(obj);
+
+  while (not worklist.empty()) {
+    auto obj = worklist.pop();
+    auto &enums = enumerated[obj];
+
+    // Propagate to each user of the object.
+    for (auto &use : obj.value().uses()) {
+      auto *user = dyn_cast<llvm::Instruction>(use.getUser());
+      if (not user)
+        continue;
+
+      if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+        add_enumerated(enumerated, worklist, *phi, obj.offsets(), enums);
+
+      } else if (auto *memoir = into<MemOIRInst>(user)) {
+        if (auto *update = dyn_cast<UpdateInst>(memoir)) {
+          if (&use == &update->getObjectAsUse())
+            add_enumerated(enumerated,
+                           worklist,
+                           update->getResult(),
+                           obj.offsets(),
+                           enums);
+
+        } else if (auto *retphi = dyn_cast<RetPHIInst>(memoir)) {
+          add_enumerated(enumerated,
+                         worklist,
+                         retphi->getResult(),
+                         obj.offsets(),
+                         enums);
+
+        } else if (auto *fold = dyn_cast<FoldInst>(memoir)) {
+          if (&use == &fold->getObjectAsUse()) {
+            auto match = fold->match_offsets(obj.offsets());
+            if (match and (1 + match.value()) <= obj.offsets().size())
+              if (auto *arg = fold->getElementArgument())
+                add_enumerated(enumerated,
+                               worklist,
+                               *arg,
+                               obj.offsets().drop_front(match.value() + 1),
+                               enums);
+
+          } else if (&use == &fold->getInitialAsUse()) {
+            add_enumerated(enumerated,
+                           worklist,
+                           fold->getAccumulatorArgument(),
+                           obj.offsets(),
+                           enums);
+            add_enumerated(enumerated,
+                           worklist,
+                           fold->getResult(),
+                           obj.offsets(),
+                           enums);
+
+          } else if (auto *arg = fold->getClosedArgument(use)) {
+            add_enumerated(enumerated, worklist, *arg, obj.offsets(), enums);
+          }
+        }
+      } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
+        // Create an abstract candidate with alias information.
+        auto &function = MEMOIR_SANITIZE(call->getCalledFunction(),
+                                         "Found indirect function call");
+        auto &arg = MEMOIR_SANITIZE(function.getArg(use.getOperandNo()),
+                                    "Failed to get argument");
+
+        // If we have already handled this argument, skip it.
+        NestedObject arg_obj(arg, obj.offsets());
+
+        // Collect all of the possible callers.
+        auto callers = possible_callers(function);
+
+        // If this function has a single caller with only one incoming
+        // candidate, then simply propagate.
+        if (single_caller(function) == call and enums.size() == 1) {
+          add_enumerated(enumerated, worklist, arg, obj.offsets(), enums);
+        }
+
+        // Otherwise, create or update the abstract candidate.
+        auto *abstract = new AbstractCandidate();
+        auto [it, fresh] = enumerated.try_emplace(arg_obj);
+        if (not fresh) {
+          delete abstract;
+          abstract = cast<AbstractCandidate>(*it->second.begin());
+        } else {
+          it->second.insert(abstract);
+        }
+
+        // Add all of the aliasing enums.
+        auto orig_size = abstract->aliased.size();
+        abstract->aliased.insert(enums.begin(), enums.end());
+
+        if (orig_size < abstract->aliased.size())
+          worklist.push(arg_obj);
+      }
+    }
+  }
+
+  // DEBUG PRINT
+  println("ENUMERATED =================================");
+  for (const auto &[obj, enums] : enumerated) {
+    println(" OBJ ", obj);
+    println("   # ", enums.size());
+  }
+  println("============================================");
+}
+#endif
+static llvm::Function &get_alloc_function(llvm::Module &module) {
+  return MEMOIR_SANITIZE(
+      FunctionNames::get_memoir_function(module, MemOIR_Func::ALLOCATE),
+      "Failed to find MEMOIR alloc function!");
+}
+
+void ProxyInsertion::gather_assoc_objects() {
+  for (auto &use : get_alloc_function(this->M).uses())
+    if (auto *alloc = into<AllocInst>(use.getUser()))
+      this->gather_assoc_objects(*alloc);
+
+  for (auto &info : this->objects)
+    info.analyze();
+}
+
+void ProxyInsertion::gather_propagators() {
+  // Collect the key types of our assoc objects.
+  Set<Type *> types = {};
+  for (auto &info : this->objects)
+    if (auto *assoc_type = dyn_cast<AssocType>(&info.type()))
+      types.insert(&assoc_type->getKeyType());
+
+  // Gather all objects in the program with elements of a relevant type.
+  for (auto &use : get_alloc_function(this->M).uses())
+    if (auto *alloc = into<AllocInst>(use.getUser()))
+      this->gather_propagators(types, *alloc);
+
+  // Analyze each of the propagators.
+  for (auto &info : this->propagators)
+    info.analyze();
+}
+
+void ProxyInsertion::gather_abstract_objects(ObjectInfo &obj) {
+  for (const auto &[func, local] : obj.info()) {
+    for (const auto &redef : local.redefinitions) {
+      for (auto &use : redef.value().uses()) {
+        auto *call = dyn_cast<llvm::CallBase>(use.getUser());
+        // Skip non-calls and memoir instructions.
+        if (not call or into<MemOIRInst>(call))
+          continue;
+
+        auto *function = call->getCalledFunction();
+        MEMOIR_ASSERT(function, "NYI, blacklist object used by indirect call");
+        auto *arg = function->getArg(use.getOperandNo());
+        Object arg_obj(*arg, obj.offsets());
+
+        // If the arg object doesn't exist yet, create one.
+        auto begin = this->arguments.begin(), end = this->arguments.end();
+        auto found = std::find_if(begin, end, [&arg_obj](const Object &other) {
+          return arg_obj == other;
+        });
+
+        bool fresh = false;
+        ArgObjectInfo *arg_info = NULL;
+        if (found == end) {
+          fresh = true;
+          arg_info = &this->arguments.emplace_back(*arg, obj.offsets());
+        } else {
+          arg_info = &*found;
+        }
+
+        // Add the incoming call edge.
+        arg_info->incoming(*call, obj);
+
+        // If the object was newly added, analyze it and recurse.
+        if (fresh) {
+          arg_info->analyze();
+          this->gather_abstract_objects(*arg_info);
         }
       }
     }
   }
+}
+
+void ProxyInsertion::gather_abstract_objects() {
+  // Find any call users of the base object, and construct object infos for the
+  // argument.
+  for (auto &obj : this->objects)
+    this->gather_abstract_objects(obj);
+  for (auto &obj : this->propagators)
+    this->gather_abstract_objects(obj);
+}
+
+void ProxyInsertion::analyze() {
+  // Gather all assoc object allocations in the program.
+  this->gather_assoc_objects();
 
   println();
   println("FOUND OBJECTS ", this->objects.size());
@@ -444,49 +477,12 @@ void ProxyInsertion::analyze() {
   }
   println();
 
-  // Analyze each of the objects.
-  for (auto &info : this->objects) {
-    info.analyze();
-
-    forward_analysis(info.encoded);
-  }
-
   // With the set of values that need to be encoded/decoded, we will find
   // collections that can be used to propagate proxied values.
   if (not disable_proxy_propagation) {
 
-    // Find all objects whose value type is the same as any of the objects we've
-    // discovered.
-    Set<Type *> types = {};
-    for (auto &info : this->objects) {
-      if (auto *assoc_type = dyn_cast<AssocType>(&info.get_type())) {
-        auto &key_type = assoc_type->getKeyType();
-        types.insert(&key_type);
-      }
-    }
-
     // Gather all objects in the program that have elements of a relevant type.
-    gather_propagators(this->propagators, types, M);
-
-#if 0
-    // From the use information, find any collection elements that _could_
-    // propagate the proxy.
-    Map<llvm::Function *, Set<llvm::Value *>> encoded = {};
-    Map<llvm::Function *, Set<llvm::Use *>> to_encode = {};
-    for (auto &info : this->objects) {
-      for (const auto &[func, locals] : info.encoded) {
-        encoded[func].insert(locals.begin(), locals.end());
-      }
-      for (const auto &uses : { info.to_encode, info.to_addkey }) {
-        for (const auto &[func, locals] : uses) {
-          to_encode[func].insert(locals.begin(), locals.end());
-        }
-      }
-    }
-
-    // Gather the propagators from the encoded values.
-    this->gather_propagators(encoded, to_encode);
-#endif
+    this->gather_propagators();
 
     println();
     println("FOUND PROPAGATORS ", this->propagators.size());
@@ -495,6 +491,9 @@ void ProxyInsertion::analyze() {
     }
     println();
   }
+
+  // Gather any abstract objects.
+  this->gather_abstract_objects();
 
   // Use a heuristic to share proxies between collections.
   share_proxies(this->objects, this->propagators, this->candidates);

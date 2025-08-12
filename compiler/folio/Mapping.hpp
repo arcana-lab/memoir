@@ -7,6 +7,7 @@
 #include "llvm/IR/Value.h"
 
 #include "folio/NestedObject.hpp"
+#include "folio/ObjectInfo.hpp"
 #include "folio/Utilities.hpp"
 
 namespace folio {
@@ -17,8 +18,8 @@ namespace folio {
  */
 struct Mapping {
 public:
-  using GlobalsMap = Map<llvm::Value *, llvm::GlobalVariable *>;
-  using LocalsMap = Map<llvm::Value *, llvm::AllocaInst *>;
+  using GlobalsMap = Map<ObjectInfo *, llvm::GlobalVariable *>;
+  using LocalsMap = Map<ObjectInfo *, llvm::AllocaInst *>;
 
 protected:
   llvm::Value *_alloc;
@@ -26,22 +27,21 @@ protected:
   LocalsMap _locals;
 
 public:
-  Mapping() : _alloc(NULL), _globals{} {}
+  Mapping() : _alloc(NULL), _globals{}, _locals{} {}
 
   // Allocation accessors.
   llvm::Value &alloc() const;
-
-  void alloc(llvm::Value &V);
+  void alloc(llvm::Value &alloc);
 
   // Globals accessors.
-  llvm::GlobalVariable &global(llvm::Value *base) const;
-  void global(llvm::Value *base, llvm::GlobalVariable &GV);
+  llvm::GlobalVariable &global(ObjectInfo &base) const;
+  void global(ObjectInfo &base, llvm::GlobalVariable &GV);
   GlobalsMap &globals();
   const GlobalsMap &globals() const;
 
   // Locals accessors.
-  llvm::AllocaInst &local(llvm::Value *base) const;
-  void local(llvm::Value *base, llvm::AllocaInst &stack);
+  llvm::AllocaInst &local(ObjectInfo &base) const;
+  void local(ObjectInfo &base, llvm::AllocaInst &stack);
   LocalsMap &locals();
   const LocalsMap &locals() const;
 };

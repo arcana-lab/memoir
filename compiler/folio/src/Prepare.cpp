@@ -11,24 +11,18 @@ using namespace llvm::memoir;
 
 namespace folio {
 
+#if 0
 static SortedVector<llvm::CallBase *> enumerated_callers(
     llvm::Function &callee,
     const Vector<Candidate> &candidates) {
 
   SortedVector<llvm::CallBase *> callers = {};
 
-  for (const auto &candidate : candidates) {
-    for (const auto *info : candidate) {
-      for (const auto &[func, pair] : info->redefinitions) {
-        if (auto *caller = pair.first) {
-          if (caller->getCalledFunction() == &callee) {
-            callers.insert(caller);
-          }
-        }
-      }
-    }
-  }
-
+  for (const auto &candidate : candidates)
+    for (const auto *info : candidate)
+      if (auto *arg = dyn_cast<ArgObjectInfo>(info))
+        for (const auto &[call, _] : arg->incoming())
+          callers.insert(call);
   return callers;
 }
 
@@ -235,46 +229,7 @@ static void monomorphize(Vector<Candidate> &candidates) {
   }
 }
 
-static llvm::Value *find_base_of(llvm::Value &value,
-                                 const Vector<Candidate *> &candidates) {
-
-  auto *func = parent_function(value);
-
-  llvm::Value *found_base = NULL;
-  for (auto *candidate_ptr : candidates) {
-    auto &candidate = *candidate_ptr;
-
-    for (auto *info : candidate) {
-      // Search the redefinitions for the value.
-      auto [lo, hi] = info->redefinitions.equal_range(func);
-      for (auto it = lo; it != hi; ++it) {
-        for (const auto &[base, locals] : it->second.second) {
-
-          bool found = false;
-          for (const auto &local : locals) {
-            if (&local.value() == &value) {
-              found = true;
-              break;
-            }
-          }
-
-          if (found) {
-            if (not found_base) {
-              found_base = base;
-            } else if (found_base != base) {
-              MEMOIR_UNREACHABLE("Found base ",
-                                 *found_base,
-                                 " does not match base ",
-                                 *base);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return found_base;
-}
+#endif
 
 static void store_mappings_for_base(llvm::Instruction *insertion_point,
                                     llvm::GlobalVariable *enc,
@@ -300,46 +255,34 @@ static void store_mappings_for_base(llvm::Instruction *insertion_point,
 
 static void create_base_globals(Vector<Candidate> &candidates) {
 
-  // Find all of the bases in the program.
-  Map<llvm::Value *, SmallMap<Candidate *, SmallSet<ObjectInfo *>>>
-      base_objects = {};
-  for (auto &candidate : candidates) {
-    // Collect all of the bases and their relevant objects in this candidate.
-    for (auto *info : candidate) {
-      for (const auto &[func, context] : info->redefinitions) {
-        for (const auto &[base, _redefs] : context.second) {
-          base_objects[base][&candidate].insert(info);
-        }
-      }
-    }
-  }
+  // We need to create a global for each base object in the program, but the
+  // same object may be shared between multiple candidates. So, we gather them
+  // all here and record the candidates that we'll have to update later.
+  Map<ObjectInfo *, SmallVector<Candidate *>> bases = {};
+  for (auto &candidate : candidates)
+    for (const auto &[base, _] : candidate.equiv)
+      bases[base].push_back(&candidate);
 
   // Create a global for each of the bases, and update the mapping.
-  Map<llvm::Value *, Pair<llvm::GlobalVariable *, llvm::GlobalVariable *>>
+  Map<ObjectInfo *, Pair<llvm::GlobalVariable *, llvm::GlobalVariable *>>
       mappings = {};
-  Map<llvm::Value *, Vector<Candidate *>> base_candidates = {};
-  for (const auto &[base, candidate_objects] : base_objects) {
-
+  for (const auto &[base, base_candidates] : bases) {
+    // Create globals for this base.
     auto &function =
-        MEMOIR_SANITIZE(parent_function(*base), "Base has no parent function");
+        MEMOIR_SANITIZE(base->function(), "Base has no parent function");
     auto &module =
         MEMOIR_SANITIZE(function.getParent(), "Function has no parent module");
 
-    // Create globals for this base.
     auto &enc = create_global_ptr(module, "enc." + function.getName());
-    auto &dec = create_global_ptr(module, "dec." + function.getName());
-
-    // TODO: we need to differentiate different NestedObjects within the base.
     mappings[base].first = &enc;
+
+    auto &dec = create_global_ptr(module, "dec." + function.getName());
     mappings[base].second = &dec;
 
-    // Update the mapping in each candidate.
-    for (const auto &[candidate, objects] : candidate_objects) {
-
-      base_candidates[base].push_back(candidate);
-
-      candidate->encoder.global(base, enc);
-      candidate->decoder.global(base, dec);
+    // Record the global in each relevant candidate.
+    for (auto *candidate : base_candidates) {
+      candidate->encoder.global(*base, enc);
+      candidate->decoder.global(*base, dec);
     }
   }
 
@@ -347,56 +290,19 @@ static void create_base_globals(Vector<Candidate> &candidates) {
   for (const auto &[base, globals] : mappings) {
     const auto &[enc, dec] = globals;
 
-    auto *arg = dyn_cast<llvm::Argument>(base);
-    if (not arg) {
-      // Non-argument bases will be handled later.
+    // Non-argument bases will be handled later.
+    auto *arg = dyn_cast<ArgObjectInfo>(base);
+    if (not arg)
       continue;
-    }
 
     // Collect the callers for this function.
-    auto &func = MEMOIR_SANITIZE(arg->getParent(), "Arg has no parent");
-
-    // Handle fold bodies.
-    if (auto *fold = FoldInst::get_single_fold(func)) {
-
-      llvm::Value *operand = NULL;
-      if (auto *operand_use = fold->getOperandForArgument(*arg)) {
-        operand = operand_use->get();
-      } else {
-        operand = &fold->getObject();
-      }
-
-      auto *caller_base = find_base_of(*operand, base_candidates[base]);
-      MEMOIR_ASSERT(caller_base,
-                    "Failed to find base of ",
-                    *operand,
-                    " for ",
-                    *fold);
-
-      const auto &[caller_enc, caller_dec] = mappings.at(caller_base);
-
-      store_mappings_for_base(&fold->getCallInst(),
-                              enc,
-                              caller_enc,
-                              dec,
-                              caller_dec);
-
-      continue;
-    }
+    auto &func = MEMOIR_SANITIZE(arg->function(), "Arg has no parent");
 
     auto callers = possible_callers(func);
 
-    for (auto *call : callers) {
-      auto *operand = call->getOperand(arg->getArgNo());
-      auto *caller_base = find_base_of(*operand, base_candidates[base]);
-
-      if (not caller_base) {
-        MEMOIR_UNREACHABLE("Failed to find base of ", *operand, " for ", *call);
-      }
-
+    for (const auto &[call, incoming] : arg->incoming()) {
       // Get the globals for the caller base.
-      const auto &[caller_enc, caller_dec] = mappings.at(caller_base);
-
+      const auto &[caller_enc, caller_dec] = mappings.at(incoming);
       store_mappings_for_base(call, enc, caller_enc, dec, caller_dec);
     }
   }
@@ -428,28 +334,37 @@ static llvm::AllocaInst &load_global_to_stack(llvm::GlobalVariable &global,
 
 static void create_base_locals(Vector<Candidate> &candidates) {
   for (auto &candidate : candidates) {
-    for (const auto &[base, global] : candidate.encoder.globals()) {
-      auto *func = parent_function(*base);
-      if (not func) {
-        continue;
+    // Iterate over each object in the equivalence class, and give each
+    // one a local, then load its base global into the local.
+
+    // Handle encoders.
+    auto &enc_type = candidate.encoder_type();
+    for (const auto &[base, equiv] : candidate.equiv) {
+      auto &enc = candidate.encoder.global(*base);
+      for (auto *obj : equiv) {
+        auto *func = obj->function();
+        if (not func)
+          continue;
+
+        auto &var = load_global_to_stack(enc, enc_type, *func, "enc");
+
+        candidate.encoder.local(*base, var);
       }
-
-      auto &var =
-          load_global_to_stack(*global, candidate.encoder_type(), *func, "enc");
-
-      candidate.encoder.local(base, var);
     }
 
-    for (const auto &[base, global] : candidate.decoder.globals()) {
-      auto *func = parent_function(*base);
-      if (not func) {
-        continue;
+    // Handle decoders.
+    auto &dec_type = candidate.decoder_type();
+    for (const auto &[base, equiv] : candidate.equiv) {
+      auto &dec = candidate.decoder.global(*base);
+      for (auto *obj : equiv) {
+        auto *func = obj->function();
+        if (not func)
+          continue;
+
+        auto &var = load_global_to_stack(dec, dec_type, *func, "dec");
+
+        candidate.decoder.local(*base, var);
       }
-
-      auto &var =
-          load_global_to_stack(*global, candidate.decoder_type(), *func, "dec");
-
-      candidate.decoder.local(base, var);
     }
   }
 }
@@ -457,7 +372,7 @@ static void create_base_locals(Vector<Candidate> &candidates) {
 void ProxyInsertion::prepare() {
 
   // Monomorphize the program, for candidate patterns.
-  monomorphize(this->candidates);
+  // monomorphize(this->candidates);
 
   // For each base in the candidate, insert a global for it.
   create_base_globals(this->candidates);
