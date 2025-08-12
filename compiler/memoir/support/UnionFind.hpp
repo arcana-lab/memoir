@@ -15,6 +15,7 @@ struct UnionFind {
 protected:
   using ParentMap = Map<T, T>;
   using Iter = typename ParentMap::iterator;
+  using ConstIter = typename ParentMap::const_iterator;
   using Size = size_t;
   using SizeMap = Map<T, Size>;
 
@@ -79,6 +80,13 @@ public:
     return this->_parent.begin();
   }
   Iter end() {
+    return this->_parent.end();
+  }
+
+  ConstIter begin() const {
+    return this->_parent.begin();
+  }
+  ConstIter end() const {
     return this->_parent.end();
   }
 
