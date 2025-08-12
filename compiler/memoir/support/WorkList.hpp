@@ -12,6 +12,12 @@ template <typename T,
           const bool PushFront = false,
           const bool PopFront = false>
 struct WorkList {
+public:
+  using Items = Vector<T>;
+  using ItemSet = Set<T>;
+  using Iter = Items::iterator;
+  using ConstIter = Items::const_iterator;
+
 protected:
   Vector<T> _items;
   Set<T> _present;
@@ -81,6 +87,22 @@ public:
 
   size_t size() {
     return this->_items.size();
+  }
+
+  Iter begin() {
+    return this->_items.begin();
+  }
+
+  Iter end() {
+    return this->_items.end();
+  }
+
+  ConstIter begin() const {
+    return this->_items.cbegin();
+  }
+
+  ConstIter end() const {
+    return this->_items.cend();
   }
 };
 
