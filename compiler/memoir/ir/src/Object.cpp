@@ -8,23 +8,31 @@ llvm::Value &Object::value() const {
   return *this->_value;
 }
 
+void Object::value(llvm::Value &new_value) {
+  this->_value = &new_value;
+}
+
 OffsetsRef Object::offsets() const {
   return this->_offsets;
 }
 
-Type &Object::type() const {
-  auto *type = type_of(this->value());
+Type &Object::type(llvm::Value &value, OffsetsRef offsets) {
+  auto *type = type_of(value);
 
-  for (auto offset : this->offsets()) {
-    if (auto *tuple = dyn_cast<TupleType>(type)) {
+  for (auto offset : offsets) {
+    if (auto *tuple = dyn_cast<TupleType>(type))
       type = &tuple->getFieldType(offset);
-    } else if (auto *collection = dyn_cast<CollectionType>(type)) {
+    else if (auto *collection = dyn_cast<CollectionType>(type))
       type = &collection->getElementType();
-    }
-    MEMOIR_UNREACHABLE("Malformed object offset, or incorrect type");
+    else
+      MEMOIR_UNREACHABLE("Malformed object offset, or incorrect type");
   }
 
   return *type;
+}
+
+Type &Object::type() const {
+  return Object::type(this->value(), this->offsets());
 }
 
 llvm::BasicBlock *Object::block() const {

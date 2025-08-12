@@ -20,6 +20,9 @@ struct Object {
   /** The offset of the object within the SSA value. */
   llvm::ArrayRef<Offset> offsets() const;
 
+  /** Utility to get the type of an object nested within an SSA value. */
+  static Type &type(llvm::Value &value, OffsetsRef offsets);
+
   /** Type of the object */
   Type &type() const;
 
@@ -46,6 +49,8 @@ struct Object {
 protected:
   llvm::Value *_value;
   Offsets _offsets;
+
+  void value(llvm::Value &new_value);
 };
 
 } // namespace llvm::memoir
