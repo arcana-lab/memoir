@@ -36,9 +36,12 @@ using BaseMap = LocalMap<llvm::memoir::Set<T>>;
 llvm::Function *parent_function(llvm::Value &V);
 llvm::Function *parent_function(llvm::Use &U);
 
-template <typename Key, typename Uses>
-void erase_uses(Map<Key, Uses> &uses, const Set<llvm::Use *> &to_erase);
 void erase_uses(Set<llvm::Use *> &uses, const Set<llvm::Use *> &to_erase);
+template <typename Key, typename Uses>
+void erase_uses(Map<Key, Uses> &uses, const Set<llvm::Use *> &to_erase) {
+  for (auto &[_, inner] : uses)
+    erase_uses(inner, to_erase);
+}
 
 uint32_t forward_analysis(
     llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>>
@@ -60,7 +63,10 @@ llvm::Instruction *insertion_point(llvm::Use &use);
 void print_uses(const Vector<llvm::Use *> &uses);
 void print_uses(const Set<llvm::Use *> &uses);
 template <typename Key, typename Uses>
-void print_uses(const Map<Key, Uses> &uses);
+void print_uses(const Map<Key, Uses> &uses) {
+  for (const auto &[_, inner] : uses)
+    print_uses(inner);
+}
 
 } // namespace folio
 
