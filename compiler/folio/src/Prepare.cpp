@@ -281,8 +281,10 @@ static void create_base_globals(Vector<Candidate> &candidates) {
 
     // Record the global in each relevant candidate.
     for (auto *candidate : base_candidates) {
-      candidate->encoder.global(*base, enc);
-      candidate->decoder.global(*base, dec);
+      for (auto *obj : candidate->equiv.at(base)) {
+        candidate->encoder.global(*obj, enc);
+        candidate->decoder.global(*obj, dec);
+      }
     }
   }
 
@@ -332,40 +334,37 @@ static llvm::AllocaInst &load_global_to_stack(llvm::GlobalVariable &global,
   return *var;
 }
 
+static void create_base_locals(Candidate &candidate,
+                               Type &type,
+                               Mapping &mapping,
+                               const llvm::Twine &name) {
+  // Iterate over each object in the equivalence class, and give each
+  // one a local, then load its base global into the local.
+  for (const auto &[base, equiv] : candidate.equiv) {
+    auto &global = mapping.global(*base);
+
+    for (auto *obj : equiv) {
+      auto *func = obj->function();
+      if (not func)
+        continue;
+
+      auto &var = load_global_to_stack(global, type, *func, name);
+
+      mapping.local(*obj, var);
+    }
+  }
+}
+
 static void create_base_locals(Vector<Candidate> &candidates) {
   for (auto &candidate : candidates) {
-    // Iterate over each object in the equivalence class, and give each
-    // one a local, then load its base global into the local.
-
-    // Handle encoders.
-    auto &enc_type = candidate.encoder_type();
-    for (const auto &[base, equiv] : candidate.equiv) {
-      auto &enc = candidate.encoder.global(*base);
-      for (auto *obj : equiv) {
-        auto *func = obj->function();
-        if (not func)
-          continue;
-
-        auto &var = load_global_to_stack(enc, enc_type, *func, "enc");
-
-        candidate.encoder.local(*base, var);
-      }
-    }
-
-    // Handle decoders.
-    auto &dec_type = candidate.decoder_type();
-    for (const auto &[base, equiv] : candidate.equiv) {
-      auto &dec = candidate.decoder.global(*base);
-      for (auto *obj : equiv) {
-        auto *func = obj->function();
-        if (not func)
-          continue;
-
-        auto &var = load_global_to_stack(dec, dec_type, *func, "dec");
-
-        candidate.decoder.local(*base, var);
-      }
-    }
+    create_base_locals(candidate,
+                       candidate.encoder_type(),
+                       candidate.encoder,
+                       "enc");
+    create_base_locals(candidate,
+                       candidate.decoder_type(),
+                       candidate.decoder,
+                       "dec");
   }
 }
 
