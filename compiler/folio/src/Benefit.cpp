@@ -58,18 +58,6 @@ int benefit(llvm::ArrayRef<const ObjectInfo *> candidate) {
   // Perform a forward data flow analysis on the encoded values.
   forward_analysis(encoded);
 
-  // Debug print.
-  int num_encoded = 0, num_to_encode = 0, num_to_addkey = 0;
-  for (const auto &[func, values] : encoded)
-    num_encoded += values.size();
-  for (const auto &[func, uses] : to_encode)
-    num_to_encode += uses.size();
-  for (const auto &[func, uses] : to_addkey)
-    num_to_addkey += uses.size();
-  println("# ENCODED VALUES = ", num_encoded);
-  println("# USES TO ENCODE = ", num_to_encode);
-  println("# USES TO ADDKEY = ", num_to_addkey);
-
   // Perform a "what if?" analysis.
   return heuristic(encoded, to_encode, to_addkey);
 }
