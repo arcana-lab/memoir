@@ -64,6 +64,11 @@ protected:
   llvm::Function *addkey_function;
   llvm::FunctionCallee addkey_callee();
 
+  void update(llvm::Function &old_func,
+              llvm::Function &new_Func,
+              llvm::ValueToValueMapTy &vmap,
+              bool delete_old = false);
+
 public:
   /** Global information for this candidate's encoder. */
   Mapping encoder;

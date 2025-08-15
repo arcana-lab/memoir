@@ -353,13 +353,8 @@ static void update_candidates(std::forward_iterator auto candidates_begin,
                               llvm::Function &old_func,
                               llvm::Function &new_func,
                               llvm::ValueToValueMapTy &vmap) {
-  for (auto it = candidates_begin; it != candidates_end; ++it) {
-    auto &candidate = *it;
-    for (auto *info : candidate) {
-
-      info->update(old_func, new_func, vmap, /* delete old? */ true);
-    }
-  }
+  for (auto it = candidates_begin; it != candidates_end; ++it)
+    it->update(old_func, new_func, vmap, /* delete old? */ true);
 }
 
 static void promote_locals(Mapping &mapping,
@@ -1123,7 +1118,17 @@ static void store_allocation(Candidate &candidate,
                              llvm::Value *encoder,
                              llvm::Value *decoder) {
 
+  auto *function = builder.GetInsertBlock()->getParent();
+  MEMOIR_ASSERT(function, "Builder has no parent function!");
+
   for (auto *info : candidate) {
+    if (!isa<BaseObjectInfo>(info))
+      continue;
+    if (info->function() != function)
+      continue;
+
+    println("STORE ", *info);
+
     if (encoder) {
       auto &enc_global = candidate.encoder.global(*info);
       builder.CreateStore(encoder, &enc_global);
