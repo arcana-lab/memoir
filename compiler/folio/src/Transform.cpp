@@ -1127,8 +1127,6 @@ static void store_allocation(Candidate &candidate,
     if (info->function() != function)
       continue;
 
-    println("STORE ", *info);
-
     if (encoder) {
       auto &enc_global = candidate.encoder.global(*info);
       builder.CreateStore(encoder, &enc_global);
@@ -1150,8 +1148,6 @@ static void store_allocation(Candidate &candidate,
 static void allocate_mappings(
     Candidate &candidate,
     std::function<llvm::DominatorTree &(llvm::Function &)> get_domtree) {
-
-  infoln("PROXYING ", candidate);
 
   // Find the construction point for the candidate.
   auto &function = candidate.function();
@@ -1279,20 +1275,30 @@ bool ProxyInsertion::transform() {
   AssocList<AllocInst *, Type *> allocs_to_mutate;
 
   // Transform the program for each candidate.
+  println("=== ALLOCATE MAPPINGS ===");
   for (auto &candidate : this->candidates) {
+    println(" >> ", candidate);
     allocate_mappings(candidate, this->get_dominator_tree);
   }
+  println();
 
   // Patch uses to decode.
+  println("=== PATCH USES TO DECODE ===");
   decode_uses(candidates);
+  println();
 
   // Patch uses to encode/addkey.
+  println("=== PATCH USES TO ENCODE/ADDKEY ===");
   encode_uses(candidates, this->get_dominator_tree);
+  println();
 
   // Promote the locals to registers.
+  println("=== PROMOTE LOCALS ===");
   for (auto &candidate : candidates) {
+    println(" >> ", candidate);
     promote(candidate, this->get_dominator_tree);
   }
+  println();
 
   // Find parameter and allocation types that need to be mutated.
   for (auto &candidate : candidates) {
