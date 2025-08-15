@@ -48,6 +48,8 @@ protected:
   void unify_bases();
 
 public:
+  void gather_uses();
+
   // Cost model.
   int benefit;
 
@@ -88,8 +90,6 @@ public:
   llvm::Value &add_value(llvm::memoir::MemOIRBuilder &builder,
                          llvm::Value &value,
                          ObjectInfo *base);
-
-  void gather_uses();
 
   // Print.
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
