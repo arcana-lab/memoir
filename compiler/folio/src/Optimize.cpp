@@ -15,13 +15,16 @@ namespace folio {
 void Candidate::unify_bases() {
   auto &candidate = *this;
 
+  println("UNIFY BASES");
+
   // Initialize the bases.
+  this->bases.clear();
   for (auto *info : candidate)
     this->bases.insert(info);
 
   // Unify all base objects.
   ObjectInfo *first = NULL;
-  WorkList<ArgObjectInfo *> worklist;
+  WorkList<ArgObjectInfo *, /* VisitOnce? */ true> worklist;
   for (auto *info : candidate)
     if (auto *base = dyn_cast<BaseObjectInfo>(info)) {
       if (first)
@@ -32,15 +35,41 @@ void Candidate::unify_bases() {
       worklist.push(arg);
     }
 
-  // Create a reverse mapping of outgoing call edges.
+  // Outgoing call edges.
   Map<ObjectInfo *, Set<ArgObjectInfo *>> outgoing;
-  for (auto *arg : worklist)
+  Map<llvm::Function *, Vector<ArgObjectInfo *>> func_args;
+  for (auto *arg : worklist) {
+    func_args[arg->function()].push_back(arg);
     for (const auto &[call, incoming] : arg->incoming())
       outgoing[incoming].insert(arg);
+  }
 
   // Iteratively unify arguments.
   while (not worklist.empty()) {
     auto *arg = worklist.pop();
+
+    // If two arguments have the same incoming parents for all incoming edges,
+    // merge them.
+    auto *function = arg->function();
+    for (auto *other : func_args.at(function)) {
+      if (other == arg)
+        continue;
+
+      bool all_same = true;
+      for (const auto &[call, inc] : arg->incoming()) {
+        auto *inc_base = this->bases.find(inc);
+        auto *other_inc_base = this->bases.find(other->incoming(*call));
+        if (inc_base != other_inc_base) {
+          all_same = false;
+          break;
+        }
+      }
+
+      if (all_same) {
+        this->bases.merge(arg, other);
+        worklist.push(other);
+      }
+    }
 
     // Merge arguments if all incoming objects are merged.
     ObjectInfo *shared = NULL;
@@ -77,8 +106,17 @@ void Candidate::unify_bases() {
   this->bases.reify();
 
   // Construct the set of equivalence classes.
+  this->equiv.clear();
   for (const auto &[v, p] : this->bases)
-    equiv[p].push_back(v);
+    this->equiv[p].push_back(v);
+
+  // Debug print.
+  println("=== BASES ===");
+  for (const auto &[base, objects] : this->equiv) {
+    println(" = ", *base);
+    for (const auto &obj : objects)
+      println(" ↳ ", *obj);
+  }
 }
 
 void Candidate::gather_uses() {
@@ -174,9 +212,9 @@ void Candidate::optimize(
 
   for (const auto &[base, encoded] : this->encoded)
     eliminate_redundant_translations(encoded,
-                                     this->to_decode.at(base),
-                                     this->to_encode.at(base),
-                                     this->to_addkey.at(base));
+                                     this->to_decode[base],
+                                     this->to_encode[base],
+                                     this->to_addkey[base]);
 
   println("  TRIMMED USES:");
   println("    TO ENCODE");
