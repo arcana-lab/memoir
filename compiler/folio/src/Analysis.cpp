@@ -1,6 +1,7 @@
 #include "llvm/Support/CommandLine.h"
 
 #include "memoir/ir/CallGraph.hpp"
+#include "memoir/support/SortedVector.hpp"
 #include "memoir/support/WorkList.hpp"
 
 #include "folio/Benefit.hpp"
@@ -20,6 +21,31 @@ static llvm::cl::opt<bool> disable_proxy_sharing(
     "disable-proxy-sharing",
     llvm::cl::desc("Disable proxy sharing optimization"),
     llvm::cl::init(false));
+
+void ProxyInsertion::flesh_out(Candidate &candidate) {
+  // Discover all relevant abstract objects for this candidate, and insert them.
+
+  // Gather the set of outgoing objects.
+  Map<ObjectInfo *, Vector<ArgObjectInfo *>> outgoing;
+  for (auto &arg : this->arguments)
+    for (const auto &[call, incoming] : arg.incoming())
+      outgoing[incoming].push_back(&arg);
+
+  // Keep adding objects until a fixed point is reached.
+  WorkList<ObjectInfo *, /* VisitOnce? */ true> worklist;
+  worklist.push(candidate.begin(), candidate.end());
+  while (not worklist.empty()) {
+    auto *obj = worklist.pop();
+
+    auto found = outgoing.find(obj);
+    if (found == outgoing.end())
+      continue;
+
+    for (auto *out : found->second)
+      if (worklist.push(out))
+        candidate.push_back(out);
+  }
+}
 
 void ProxyInsertion::gather_assoc_objects(AllocInst &alloc) {
   this->gather_assoc_objects(alloc, alloc.getType());
@@ -87,122 +113,6 @@ static bool propagator_can_share(Type &type,
   }
 
   return true;
-}
-
-static void share_proxies(Vector<BaseObjectInfo> &objects,
-                          Vector<BaseObjectInfo> &propagators,
-                          Vector<Candidate> &candidates) {
-
-  Set<const ObjectInfo *> used = {};
-  for (auto it = objects.begin(); it != objects.end(); ++it) {
-    auto &info = *it;
-
-    if (used.count(&info)) {
-      continue;
-    }
-
-    auto *func = info.function();
-
-    auto &type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&info.type()),
-                                 "Non-assoc type, unhandled.");
-    auto &key_type = type.getKeyType();
-
-    candidates.emplace_back(key_type);
-    auto &candidate = candidates.back();
-    candidate.push_back(&info);
-
-    // Compute the benefit of the candidate as is.
-    candidate.benefit = benefit(candidate);
-
-    // Find all other allocations in the same function as this one.
-    if (not disable_proxy_sharing) {
-
-      // Collect the set of objects that can share, and their solo benefit.
-      Map<ObjectInfo *, int> shareable = {};
-
-      for (auto &other : objects) {
-        if (used.contains(&other) or &other == &info) {
-          continue;
-        }
-
-        if (object_can_share(key_type, func, other)) {
-          shareable[&other] = benefit({ &other });
-        }
-      }
-
-      // Find all propagators in the same function as this one.
-      for (auto &other : propagators) {
-        if (used.contains(&other) or &other == &info) {
-          continue;
-        }
-
-        if (propagator_can_share(key_type, func, other)) {
-          shareable[&other] = benefit({ &other });
-        }
-      }
-
-      infoln("SHAREABLE");
-      for (const auto &[other, _] : shareable) {
-        infoln("  ", *other);
-      }
-      infoln();
-
-      // Iterate until we can't find a new object to add to the candidate.
-      bool fresh;
-      do {
-        fresh = false;
-
-        infoln("CURRENT ", candidate);
-        infoln("  BENEFIT ", candidate.benefit);
-
-        for (auto jt = shareable.begin(); jt != shareable.end();) {
-          const auto &[other, single_benefit] = *jt;
-
-          infoln("  WHAT IF? ", *other);
-
-          // Compute the benefit of adding this candidate.
-          candidate.push_back(other);
-          auto new_benefit = benefit(candidate);
-          infoln("    NEW BENEFIT ", new_benefit);
-          infoln("    SUM BENEFIT ", candidate.benefit + single_benefit);
-          infoln();
-
-          if (new_benefit > (candidate.benefit + single_benefit)) {
-            fresh = true;
-            candidate.benefit = new_benefit;
-
-            // Erase the object from the search list.
-            jt = shareable.erase(jt);
-
-          } else {
-            // If there's no benefit, roll it back.
-            candidate.pop_back();
-
-            // Continue iterating.
-            ++jt;
-          }
-        }
-
-      } while (fresh);
-    }
-
-    // If there is no benefit, roll back the candidate.
-    if (candidate.size() == 0 or candidate.benefit == 0) {
-      candidates.pop_back();
-
-    } else {
-      // Mark the objects in the candidate as being used.
-      used.insert(candidate.begin(), candidate.end());
-    }
-  }
-
-  for (auto &candidate : candidates) {
-    println("CANDIDATE:");
-    println("  BENEFIT=", candidate.benefit);
-    for (const auto *info : candidate) {
-      println("  ", *info);
-    }
-  }
 }
 
 void ProxyInsertion::gather_propagators(const Set<Type *> &types,
@@ -466,6 +376,124 @@ void ProxyInsertion::gather_abstract_objects() {
     this->gather_abstract_objects(obj);
 }
 
+void ProxyInsertion::share_proxies() {
+
+  Set<const ObjectInfo *> used = {};
+  for (auto it = this->objects.begin(); it != this->objects.end(); ++it) {
+    auto &info = *it;
+
+    if (used.count(&info)) {
+      continue;
+    }
+
+    auto *func = info.function();
+
+    auto &type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&info.type()),
+                                 "Non-assoc type, unhandled.");
+    auto &key_type = type.getKeyType();
+
+    this->candidates.emplace_back(key_type);
+    auto &candidate = this->candidates.back();
+    candidate.push_back(&info);
+    this->flesh_out(candidate);
+
+    // Compute the benefit of the candidate as is.
+    candidate.benefit = benefit(candidate);
+
+    // Find all other allocations in the same function as this one.
+    if (not disable_proxy_sharing) {
+
+      // Collect the set of objects that can share, and their solo benefit.
+      Map<ObjectInfo *, int> shareable = {};
+
+      for (auto &other : objects) {
+        if (used.contains(&other) or &other == &info) {
+          continue;
+        }
+
+        if (object_can_share(key_type, func, other)) {
+          Candidate other_alone(key_type, { &other });
+          this->flesh_out(other_alone);
+          shareable[&other] = benefit(other_alone);
+        }
+      }
+
+      // Find all propagators in the same function as this one.
+      for (auto &other : propagators) {
+        if (used.contains(&other) or &other == &info) {
+          continue;
+        }
+
+        if (propagator_can_share(key_type, func, other)) {
+          Candidate other_alone(key_type, { &other });
+          this->flesh_out(other_alone);
+          shareable[&other] = benefit(other_alone);
+        }
+      }
+
+      infoln("SHAREABLE");
+      for (const auto &[other, _] : shareable) {
+        infoln("  ", *other);
+      }
+      infoln();
+
+      // Iterate until we can't find a new object to add to the candidate.
+      bool fresh;
+      do {
+        fresh = false;
+
+        infoln("CURRENT ", candidate);
+        infoln("  BENEFIT ", candidate.benefit);
+
+        for (auto jt = shareable.begin(); jt != shareable.end();) {
+          const auto &[other, single_benefit] = *jt;
+
+          infoln("  WHAT IF? ", *other);
+
+          // Compute the benefit of adding this candidate.
+          Candidate checkpoint = candidate;
+          candidate.push_back(other);
+          this->flesh_out(candidate);
+          auto new_benefit = benefit(candidate);
+          infoln("    NEW BENEFIT ", new_benefit);
+          infoln("    SUM BENEFIT ", candidate.benefit + single_benefit);
+          infoln();
+
+          if (new_benefit > (candidate.benefit + single_benefit)) {
+            fresh = true;
+            candidate.benefit = new_benefit;
+
+            // Erase the object from the search list.
+            jt = shareable.erase(jt);
+
+          } else {
+            // If there's no benefit, roll it back.
+            candidate = std::move(checkpoint);
+
+            // Continue iterating.
+            ++jt;
+          }
+        }
+
+      } while (fresh);
+    }
+
+    // If there is no benefit, roll back the candidate.
+    if (candidate.size() == 0 or candidate.benefit == 0)
+      this->candidates.pop_back();
+    else
+      used.insert(candidate.begin(), candidate.end());
+  }
+
+  for (auto &candidate : this->candidates) {
+    println("CANDIDATE:");
+    println("  BENEFIT=", candidate.benefit);
+    for (const auto *info : candidate) {
+      println("  ", *info);
+    }
+  }
+}
+
 void ProxyInsertion::analyze() {
   // Gather all assoc object allocations in the program.
   this->gather_assoc_objects();
@@ -496,7 +524,7 @@ void ProxyInsertion::analyze() {
   this->gather_abstract_objects();
 
   // Use a heuristic to share proxies between collections.
-  share_proxies(this->objects, this->propagators, this->candidates);
+  this->share_proxies();
 }
 
 } // namespace folio

@@ -62,6 +62,10 @@ protected:
   void gather_abstract_objects();
   void gather_abstract_objects(ObjectInfo &object);
 
+  void flesh_out(Candidate &arguments);
+
+  void share_proxies();
+
   ObjectInfo *find_base_object(llvm::Value &V,
                                llvm::memoir::AccessInst &access);
 
