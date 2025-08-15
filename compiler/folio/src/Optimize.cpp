@@ -132,7 +132,7 @@ void Candidate::gather_uses() {
                                          local.encoded.end());
         this->to_encode[base][func].insert(local.to_encode.begin(),
                                            local.to_encode.end());
-        this->to_decode[base][func].insert(local.to_addkey.begin(),
+        this->to_addkey[base][func].insert(local.to_addkey.begin(),
                                            local.to_addkey.end());
       }
 
