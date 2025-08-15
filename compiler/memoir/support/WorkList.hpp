@@ -25,9 +25,13 @@ protected:
 public:
   WorkList() : _items{}, _present{} {}
   WorkList(std::initializer_list<T> init) : WorkList() {
-    for (const auto &val : init) {
+    for (const auto &val : init)
       this->push(val);
-    }
+  }
+  WorkList(std::input_iterator auto begin, std::input_iterator auto end)
+    : WorkList() {
+    for (auto it = begin; it != end; ++it)
+      this->push(*it);
   }
 
   bool present(const T &val) {
