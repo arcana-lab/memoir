@@ -379,8 +379,6 @@ void ProxyInsertion::prepare() {
 
   // For each base global, create a local stack variable to hold it.
   create_base_locals(this->candidates);
-
-  println("PREPARED\n", this->M);
 }
 
 } // namespace folio
