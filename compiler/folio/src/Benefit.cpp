@@ -22,12 +22,12 @@ static int heuristic(const Map<llvm::Function *, Set<llvm::Value *>> &encoded,
     for (const auto *value : values)
       for (auto &use_to_decode : value->uses()) {
 
-        if (to_encode.count(func))
+        if (to_encode.contains(func))
           for (const auto *use_to_encode : to_encode.at(func))
             if (&use_to_decode == use_to_encode)
               ++benefit;
 
-        if (to_addkey.count(func))
+        if (to_addkey.contains(func))
           for (const auto *use_to_addkey : to_addkey.at(func))
             if (&use_to_decode == use_to_addkey)
               ++benefit;
@@ -46,18 +46,29 @@ int benefit(llvm::ArrayRef<const ObjectInfo *> candidate) {
   // Compute the benefit of this candidate.
 
   // Merge per-object information.
-  Map<llvm::Function *, Set<llvm::Value *>> encoded = {};
-  Map<llvm::Function *, Set<llvm::Use *>> to_encode = {}, to_addkey = {};
-  for (const auto *obj : candidate) {
+  Map<llvm::Function *, Set<llvm::Value *>> encoded;
+  Map<llvm::Function *, Set<llvm::Use *>> to_encode, to_addkey;
+  for (const auto *obj : candidate)
     for (const auto &[func, info] : obj->info()) {
       encoded[func].insert(info.encoded.begin(), info.encoded.end());
       to_encode[func].insert(info.to_encode.begin(), info.to_encode.end());
-      to_addkey[func].insert(info.to_addkey.begin(), info.to_addkey.begin());
+      to_addkey[func].insert(info.to_addkey.begin(), info.to_addkey.end());
     }
-  }
 
   // Perform a forward data flow analysis on the encoded values.
   forward_analysis(encoded);
+
+  // Debug print.
+  int num_encoded = 0, num_to_encode = 0, num_to_addkey = 0;
+  for (const auto &[func, values] : encoded)
+    num_encoded += values.size();
+  for (const auto &[func, uses] : to_encode)
+    num_to_encode += uses.size();
+  for (const auto &[func, uses] : to_addkey)
+    num_to_addkey += uses.size();
+  println("# ENCODED VALUES = ", num_encoded);
+  println("# USES TO ENCODE = ", num_to_encode);
+  println("# USES TO ADDKEY = ", num_to_addkey);
 
   // Perform a "what if?" analysis.
   return heuristic(encoded, to_encode, to_addkey);
