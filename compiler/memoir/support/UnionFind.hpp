@@ -112,6 +112,11 @@ public:
     }
     return;
   }
+
+  void clear() {
+    this->_parent.clear();
+    this->_size.clear();
+  }
 };
 
 } // namespace llvm::memoir
