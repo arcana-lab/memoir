@@ -117,6 +117,10 @@ public:
     this->_parent.clear();
     this->_size.clear();
   }
+
+  bool contains(const T &t) const {
+    return this->_parent.contains(t);
+  }
 };
 
 } // namespace llvm::memoir
