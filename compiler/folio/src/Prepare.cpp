@@ -253,45 +253,120 @@ static void store_mappings_for_base(llvm::Instruction *insertion_point,
   }
 }
 
-static void create_base_globals(Vector<Candidate> &candidates) {
+static void create_base_globals(
+    Vector<Candidate> &candidates,
+    const Map<ObjectInfo *, SmallVector<ObjectInfo *>> &equiv,
+    const Map<ObjectInfo *, SmallVector<Candidate *>> &obj_candidates) {}
+
+#if 0  
+static void create_base_locals(
+    const Map<ObjectInfo *, SmallVector<ObjectInfo *>> &equiv,
+    const Map<ObjectInfo *, Set<Candidate *>> &obj_candidates,
+    Candidate &candidate,
+    Type &mapping_type,
+    Mapping &mapping,
+    const llvm::Twine &name) {
+
+  // Iterate over each object in the equivalence class, and give each
+  // one a local, then load its base global into the local.
+  for (auto *parent : candidate) {
+    // Only create locals for parents.
+    if (not equiv.contains(parent))
+      continue;
+
+    // Fetch the global.
+    auto &global = mapping.global(*parent);
+    auto *type = global.getValueType();
+
+    for (auto *obj : equiv.at(parent)) {
+      auto *func = obj->function();
+      if (not func)
+        continue;
+
+      MemOIRBuilder builder(func->getEntryBlock().getFirstNonPHI());
+
+      auto *local = builder.CreateAlloca(type, NULL, name.concat(".local"));
+
+      mapping.local(*obj, *local);
+
+      // If this is an argument, load the global mapping into the local.
+      if (isa<ArgObjectInfo>(obj)) {
+        // Load the mapping.
+        auto *val = builder.CreateLoad(type, &global, name);
+
+        // Assert the type of the global.
+        builder.CreateAssertTypeInst(val, mapping_type, name.concat(".type"));
+
+        // Store the mapping to the stack variable.
+        builder.CreateStore(val, local);
+      }
+    }
+  }
+}
+
+static void create_base_locals(
+    Vector<Candidate> &candidates,
+    const Map<ObjectInfo *, SmallVector<ObjectInfo *>> &equiv,
+    const Map<ObjectInfo *, Set<Candidate *>> &obj_candidates) {
+
+  for (auto &candidate : candidates) {
+    create_base_locals(equiv,
+                       obj_candidates,
+                       candidate,
+                       candidate.encoder_type(),
+                       candidate.encoder,
+                       "enc");
+    create_base_locals(equiv,
+                       obj_candidates,
+                       candidate,
+                       candidate.decoder_type(),
+                       candidate.decoder,
+                       "dec");
+  }
+}
+#endif
+
+static void print_mapping(const Mapping &mapping) {
+  for (const auto &[obj, global] : mapping.globals()) {
+    println("  ", *obj);
+    println("  GLOBAL ", *global);
+  }
+}
+
+void ProxyInsertion::prepare() {
+
+  // Monomorphize the program, for candidate patterns.
+  // monomorphize(this->candidates);
 
   // We need to create a global for each base object in the program, but the
   // same object may be shared between multiple candidates. So, we gather them
   // all here and record the candidates that we'll have to update later.
-  Map<ObjectInfo *, SmallVector<Candidate *>> bases = {};
-  for (auto &candidate : candidates)
-    for (const auto &[base, _] : candidate.equiv)
-      bases[base].push_back(&candidate);
+  Map<ObjectInfo *, SmallVector<Candidate *>> obj_candidates;
+  for (auto &candidate : this->candidates)
+    for (auto *info : candidate)
+      obj_candidates[info].push_back(&candidate);
 
   // Create a global for each of the bases, and update the mapping.
-  Map<ObjectInfo *, Pair<llvm::GlobalVariable *, llvm::GlobalVariable *>>
-      mappings = {};
-  for (const auto &[base, base_candidates] : bases) {
+  for (const auto &[base, children] : this->equiv) {
     // Create globals for this base.
     auto &function =
         MEMOIR_SANITIZE(base->function(), "Base has no parent function");
     auto &module =
         MEMOIR_SANITIZE(function.getParent(), "Function has no parent module");
 
+    // Create the globals.
     auto &enc = create_global_ptr(module, "enc." + function.getName());
-    mappings[base].first = &enc;
-
     auto &dec = create_global_ptr(module, "dec." + function.getName());
-    mappings[base].second = &dec;
 
-    // Record the global in each relevant candidate.
-    for (auto *candidate : base_candidates) {
-      for (auto *obj : candidate->equiv.at(base)) {
-        candidate->encoder.global(*obj, enc);
-        candidate->decoder.global(*obj, dec);
-      }
+    // Record the global.
+    for (auto *obj : children) {
+      this->globals[obj].encoder = &enc;
+      this->globals[obj].decoder = &dec;
     }
   }
 
   // Link the caller-callee for each base.
-  for (const auto &[base, globals] : mappings) {
-    const auto &[enc, dec] = globals;
-
+  for (const auto &[base, globals] : this->globals) {
     // Non-argument bases will be handled later.
     auto *arg = dyn_cast<ArgObjectInfo>(base);
     if (not arg)
@@ -304,80 +379,30 @@ static void create_base_globals(Vector<Candidate> &candidates) {
 
     for (const auto &[call, incoming] : arg->incoming()) {
       // Get the globals for the caller base.
-      const auto &[caller_enc, caller_dec] = mappings.at(incoming);
-      store_mappings_for_base(call, enc, caller_enc, dec, caller_dec);
+      const auto &inc_globals = this->globals.at(incoming);
+      store_mappings_for_base(call,
+                              globals.encoder,
+                              inc_globals.encoder,
+                              globals.decoder,
+                              inc_globals.decoder);
     }
   }
-}
 
-static llvm::AllocaInst &load_global_to_stack(llvm::GlobalVariable &global,
-                                              Type &mapping_type,
-                                              llvm::Function &func,
-                                              const llvm::Twine &name = "") {
-
-  MemOIRBuilder builder(func.getEntryBlock().getFirstNonPHI());
-
-  auto *type = global.getValueType();
-
-  // Create a stack variable.
-  auto *var = builder.CreateAlloca(type, 0, name.concat(".local"));
-
-  // Load the mapping.
-  auto *val = builder.CreateLoad(type, &global, name);
-
-  // Assert the type of the global.
-  builder.CreateAssertTypeInst(val, mapping_type, name.concat(".type"));
-
-  // Store the mapping to the stack variable.
-  builder.CreateStore(val, var);
-
-  return *var;
-}
-
-static void create_base_locals(Candidate &candidate,
-                               Type &type,
-                               Mapping &mapping,
-                               const llvm::Twine &name) {
-  // Iterate over each object in the equivalence class, and give each
-  // one a local, then load its base global into the local.
-  for (const auto &[base, equiv] : candidate.equiv) {
-    auto &global = mapping.global(*base);
-
-    for (auto *obj : equiv) {
-      auto *func = obj->function();
-      if (not func)
-        continue;
-
-      auto &var = load_global_to_stack(global, type, *func, name);
-
-      mapping.local(*obj, var);
-    }
-  }
-}
-
-static void create_base_locals(Vector<Candidate> &candidates) {
-  for (auto &candidate : candidates) {
-    create_base_locals(candidate,
-                       candidate.encoder_type(),
-                       candidate.encoder,
-                       "enc");
-    create_base_locals(candidate,
-                       candidate.decoder_type(),
-                       candidate.decoder,
-                       "dec");
-  }
-}
-
-void ProxyInsertion::prepare() {
-
-  // Monomorphize the program, for candidate patterns.
-  // monomorphize(this->candidates);
-
-  // For each base in the candidate, insert a global for it.
-  create_base_globals(this->candidates);
-
+#if 0
   // For each base global, create a local stack variable to hold it.
-  create_base_locals(this->candidates);
+  create_base_locals(this->candidates, this->equiv, obj_candidates);
+#endif
+
+  // Debug print.
+  println("=== PREPARED GLOBALS ===");
+  for (auto &candidate : this->candidates) {
+    println(" >> ENCODER << ");
+    print_mapping(candidate.encoder);
+    println(" >> DECODER << ");
+    print_mapping(candidate.decoder);
+    println();
+  }
+  println();
 }
 
 } // namespace folio

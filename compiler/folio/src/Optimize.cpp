@@ -12,138 +12,43 @@ using namespace llvm::memoir;
 
 namespace folio {
 
-void Candidate::unify_bases() {
-  auto &candidate = *this;
-
-  println("UNIFY BASES");
-
-  // Initialize the bases.
-  this->bases.clear();
-  for (auto *info : candidate)
-    this->bases.insert(info);
-
-  // Unify all base objects.
-  ObjectInfo *first = NULL;
-  WorkList<ArgObjectInfo *, /* VisitOnce? */ true> worklist;
-  for (auto *info : candidate)
-    if (auto *base = dyn_cast<BaseObjectInfo>(info)) {
-      if (first)
-        this->bases.merge(first, info);
-      else
-        first = info;
-    } else if (auto *arg = dyn_cast<ArgObjectInfo>(info)) {
-      worklist.push(arg);
-    }
-
-  // Outgoing call edges.
-  Map<ObjectInfo *, Set<ArgObjectInfo *>> outgoing;
-  Map<llvm::Function *, Vector<ArgObjectInfo *>> func_args;
-  for (auto *arg : worklist) {
-    func_args[arg->function()].push_back(arg);
-    for (const auto &[call, incoming] : arg->incoming())
-      outgoing[incoming].insert(arg);
-  }
-
-  // Iteratively unify arguments.
-  while (not worklist.empty()) {
-    auto *arg = worklist.pop();
-
-    // If two arguments have the same incoming parents for all incoming edges,
-    // merge them.
-    auto *function = arg->function();
-    for (auto *other : func_args.at(function)) {
-      if (other == arg)
-        continue;
-
-      bool all_same = true;
-      for (const auto &[call, inc] : arg->incoming()) {
-        auto *inc_base = this->bases.find(inc);
-        auto *other_inc_base = this->bases.find(other->incoming(*call));
-        if (inc_base != other_inc_base) {
-          all_same = false;
-          break;
-        }
-      }
-
-      if (all_same) {
-        this->bases.merge(arg, other);
-        worklist.push(other);
-      }
-    }
-
-    // Merge arguments if all incoming objects are merged.
-    ObjectInfo *shared = NULL;
-    for (const auto &[call, incoming] : arg->incoming()) {
-      auto *inc_base = this->bases.find(incoming);
-      if (not shared)
-        shared = inc_base;
-
-      // If the bases differ, fail.
-      if (inc_base != shared) {
-        shared = NULL;
-        break;
-      }
-    }
-
-    // If we couldn't find a unified base, continue.
-    if (not shared)
-      continue;
-
-    // If the arg base is already unified, continue.
-    if (this->bases.find(arg) == shared)
-      continue;
-
-    // If we found a single merge argument, merge with this argument.
-    this->bases.merge(arg, shared);
-
-    // Enqueue all outgoing.
-    if (outgoing.contains(arg))
-      for (auto *out : outgoing.at(arg))
-        worklist.push(out);
-  }
-
-  // Finally, reify the bases.
-  this->bases.reify();
-
-  // Construct the set of equivalence classes.
-  this->equiv.clear();
-  for (const auto &[v, p] : this->bases)
-    this->equiv[p].push_back(v);
-
-  // Debug print.
-  println("=== BASES ===");
-  for (const auto &[base, objects] : this->equiv) {
-    println(" = ", *base);
-    for (const auto &obj : objects)
-      println(" ↳ ", *obj);
-  }
-}
-
-void Candidate::gather_uses() {
-
-  // Unify the bases and compute the equivalence classes.
-  this->unify_bases();
+void Candidate::gather_uses(
+    const Map<ObjectInfo *, SmallVector<ObjectInfo *>> &equiv) {
 
   // Gather uses and encoded values within each equivalence class.
-  for (const auto &[base, equiv] : this->equiv)
-    for (auto *obj : equiv)
-      for (const auto &[func, local] : obj->info()) {
-        this->encoded[base][func].insert(local.encoded.begin(),
-                                         local.encoded.end());
-        this->to_encode[base][func].insert(local.to_encode.begin(),
-                                           local.to_encode.end());
-        this->to_addkey[base][func].insert(local.to_addkey.begin(),
-                                           local.to_addkey.end());
-      }
+  for (auto *base : *this)
+    if (equiv.contains(base))
+      for (auto *obj : equiv.at(base))
+        for (const auto &[func, local] : obj->info()) {
+          this->encoded[obj][func].insert(local.encoded.begin(),
+                                          local.encoded.end());
+          this->to_encode[obj][func].insert(local.to_encode.begin(),
+                                            local.to_encode.end());
+          this->to_addkey[obj][func].insert(local.to_addkey.begin(),
+                                            local.to_addkey.end());
+        }
 
   // Perform a forward analysis.
   for (auto &[base, values] : this->encoded)
     forward_analysis(values);
 
+  // Debug print.
+  for (const auto &[base, locals] : this->encoded) {
+    for (const auto &[func, values] : locals)
+      for (auto *val : values) {
+        print("  ENCODED ", *val);
+        if (auto *arg = dyn_cast<llvm::Argument>(val))
+          println(" IN ", arg->getParent()->getName());
+        else
+          println();
+      }
+  }
+
   // Collect the set of uses to decode.
+  println("=== COLLECT USES TO DECODE ===");
   for (auto &[base, equiv_encoded] : this->encoded)
-    for (const auto &[func, values] : equiv_encoded)
-      for (auto *val : values)
+    for (const auto &[func, values] : equiv_encoded) {
+      for (auto *val : values) {
         for (auto &use : val->uses()) {
           auto *user = use.getUser();
 
@@ -177,21 +82,27 @@ void Candidate::gather_uses() {
           // Otherwise, mark the use for decoding.
           this->to_decode[base][func].insert(&use);
         }
+      }
+    }
 }
 
-void Candidate::optimize(
-    std::function<llvm::DominatorTree &(llvm::Function &)> get_domtree,
-    std::function<BoundsCheckResult &(llvm::Function &)> get_bounds_checks) {
-  // Collect all of the uses that need to be handled.
-  this->gather_uses();
+void ProxyInsertion::optimize() {
 
-  println("  FOUND USES");
-  println("    TO ENCODE");
-  print_uses(this->to_encode);
-  println("    TO DECODE");
-  print_uses(this->to_decode);
-  println("    TO ADDKEY");
-  print_uses(this->to_addkey);
+  // Optimize the uses in each candidate.
+  for (auto &candidate : this->candidates) {
+    println("OPTIMIZE");
+    println(candidate);
+
+    // Collect all of the uses that need to be handled.
+    candidate.gather_uses(this->equiv);
+
+    println("  FOUND USES");
+    println("    TO ENCODE");
+    print_uses(candidate.to_encode);
+    println("    TO DECODE");
+    print_uses(candidate.to_decode);
+    println("    TO ADDKEY");
+    print_uses(candidate.to_addkey);
 
 #if 0
   if (not disable_use_weakening) {
@@ -201,7 +112,7 @@ void Candidate::optimize(
     // Weaken uses from addkey to encode if we know that the value is already
     // inserted.
     Set<llvm::Use *> to_weaken = {};
-    weaken_uses(to_addkey, to_weaken, *this, get_bounds_checks);
+    weaken_uses(to_addkey, to_weaken, candidate, get_bounds_checks);
 
     erase_uses(to_addkey, to_weaken);
     for (auto *use : to_weaken) {
@@ -210,26 +121,19 @@ void Candidate::optimize(
   }
 #endif
 
-  for (const auto &[base, encoded] : this->encoded)
-    eliminate_redundant_translations(encoded,
-                                     this->to_decode[base],
-                                     this->to_encode[base],
-                                     this->to_addkey[base]);
+    for (const auto &[base, encoded] : candidate.encoded)
+      eliminate_redundant_translations(encoded,
+                                       candidate.to_decode[base],
+                                       candidate.to_encode[base],
+                                       candidate.to_addkey[base]);
 
-  println("  TRIMMED USES:");
-  println("    TO ENCODE");
-  print_uses(this->to_encode);
-  println("    TO DECODE");
-  print_uses(this->to_decode);
-  println("    TO ADDKEY");
-  print_uses(this->to_addkey);
-}
-
-void ProxyInsertion::optimize() {
-  // Optimize the uses in each candidate.
-  for (auto &candidate : this->candidates) {
-    infoln("OPTIMIZING ", candidate);
-    candidate.optimize(this->get_dominator_tree, this->get_bounds_checks);
+    println("  TRIMMED USES:");
+    println("    TO ENCODE");
+    print_uses(candidate.to_encode);
+    println("    TO DECODE");
+    print_uses(candidate.to_decode);
+    println("    TO ADDKEY");
+    print_uses(candidate.to_addkey);
   }
 }
 

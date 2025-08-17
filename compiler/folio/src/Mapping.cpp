@@ -4,15 +4,6 @@ using namespace llvm::memoir;
 
 namespace folio {
 
-// Allocation accessors.
-llvm::Value &Mapping::alloc() const {
-  return *this->_alloc;
-}
-
-void Mapping::alloc(llvm::Value &V) {
-  this->_alloc = &V;
-}
-
 // Globals accessors.
 llvm::GlobalVariable &Mapping::global(ObjectInfo &base) const {
   return *this->_globals.at(&base);

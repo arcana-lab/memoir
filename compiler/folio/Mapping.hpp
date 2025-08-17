@@ -29,10 +29,6 @@ protected:
 public:
   Mapping() : _alloc(NULL), _globals{}, _locals{} {}
 
-  // Allocation accessors.
-  llvm::Value &alloc() const;
-  void alloc(llvm::Value &alloc);
-
   // Globals accessors.
   llvm::GlobalVariable &global(ObjectInfo &base) const;
   void global(ObjectInfo &base, llvm::GlobalVariable &GV);

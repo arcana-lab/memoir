@@ -91,8 +91,6 @@ void ObjectInfo::gather_redefinitions() {
 
 void ObjectInfo::gather_redefinitions(const Object &obj) {
 
-  println("GATHER ", obj);
-
   // Get the function parent.
   auto &function = MEMOIR_SANITIZE(this->function(),
                                    "Unknown parent function for redefinition.");
@@ -101,14 +99,19 @@ void ObjectInfo::gather_redefinitions(const Object &obj) {
   auto &local_redefs = this->redefinitions(function);
 
   // If we've already visited this object, return.
-  if (local_redefs.contains(obj))
+  if (local_redefs.contains(obj)) {
     return;
-  else
+  } else {
     local_redefs.insert(obj);
+  }
+
+  println("GATHER ", obj);
 
   // Iterate over all uses of this object to find redefinitions.
-  for (auto &use : this->value().uses()) {
+  for (auto &use : obj.value().uses()) {
     auto *user = use.getUser();
+
+    println("  USER ", *user);
 
     Object user_obj(*user, obj.offsets());
 
@@ -167,6 +170,7 @@ void ObjectInfo::gather_redefinitions(const Object &obj) {
           }
 
         } else if (auto *closed_arg = fold->getClosedArgument(use)) {
+          println("CLOSED ", *closed_arg);
           // Gather uses of the closed argument.
           gather_redefinitions(Object(*closed_arg, obj.offsets()));
         }
@@ -246,6 +250,7 @@ void ObjectInfo::gather_uses_to_proxy(const Object &obj) {
         // Check that the access matches the offsets.
         auto maybe_distance = access->match_offsets(offsets);
         if (not maybe_distance) {
+          println("    NO MATCH");
           continue; // Do nothing.
         }
         auto distance = maybe_distance.value();
@@ -296,6 +301,8 @@ void ObjectInfo::gather_uses_to_proxy(const Object &obj) {
         }
       }
     }
+
+    println("    NON-ACCESS");
   }
 
   return;
@@ -373,7 +380,15 @@ void ObjectInfo::analyze() {
 
   auto &base = this->value();
 
+  println("=== GATHER REDEFINITIONS ===");
   this->gather_redefinitions();
+  println();
+
+  println("=== REDEFINITIONS ===");
+  for (const auto &[func, info] : this->info())
+    for (const auto &redef : info.redefinitions)
+      println(redef);
+  println();
 
   bool is_propagator = this->is_propagator();
 
@@ -381,14 +396,15 @@ void ObjectInfo::analyze() {
 
   auto offsets = this->offsets();
 
+  println("=== GATHER USES ===");
   for (const auto &[func, info] : this->info())
     for (const auto &redef : info.redefinitions) {
-      auto redef_offsets = offsets.drop_front(redef.offsets().size());
       if (is_propagator)
-        gather_uses_to_propagate(Object(redef.value(), redef_offsets));
+        gather_uses_to_propagate(redef);
       else
-        gather_uses_to_proxy(Object(redef.value(), redef_offsets));
+        gather_uses_to_proxy(redef);
     }
+  println();
 }
 
 // BaseObjectInfo

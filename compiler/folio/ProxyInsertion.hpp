@@ -66,6 +66,8 @@ protected:
 
   void share_proxies();
 
+  void unify_bases();
+
   ObjectInfo *find_base_object(llvm::Value &V,
                                llvm::memoir::AccessInst &access);
 
@@ -74,6 +76,13 @@ protected:
   Vector<ArgObjectInfo> arguments;
   Vector<Candidate> candidates;
   Enumerated enumerated;
+  UnionFind<ObjectInfo *> unified;
+  Map<ObjectInfo *, SmallVector<ObjectInfo *>> equiv;
+
+  struct Globals {
+    llvm::GlobalVariable *encoder, *decoder;
+  };
+  Map<ObjectInfo *, Globals> globals;
 
   GetDominatorTree get_dominator_tree;
   GetBoundsChecks get_bounds_checks;

@@ -41,27 +41,16 @@ public:
 
   // Intermediate analysis results.
   Map<ObjectInfo *, Map<llvm::Function *, Set<llvm::Value *>>> encoded;
-  UnionFind<ObjectInfo *> bases;
-  Map<ObjectInfo *, Vector<ObjectInfo *>> equiv;
-
-protected:
-  void unify_bases();
 
 public:
-  void gather_uses();
+  void gather_uses(const Map<ObjectInfo *, SmallVector<ObjectInfo *>> &equiv);
 
   // Cost model.
   int benefit;
 
-  /** Optimize this candidate's uses. */
-  void optimize(
-      std::function<llvm::DominatorTree &(llvm::Function &)> get_domtree,
-      std::function<llvm::memoir::BoundsCheckResult &(llvm::Function &)>
-          get_bounds_checks);
-
   // Transform.
 protected:
-  llvm::Function *addkey_function;
+  llvm::Function *addkey_function = NULL;
   llvm::FunctionCallee addkey_callee();
 
   void update(llvm::Function &old_func,
@@ -82,19 +71,20 @@ public:
   /** Check if the enumeration has the given value */
   llvm::Instruction &has_value(llvm::memoir::MemOIRBuilder &builder,
                                llvm::Value &value,
-                               ObjectInfo *base);
+                               llvm::Value *enc_ptr);
   /** Decode the given value */
   llvm::Value &decode_value(llvm::memoir::MemOIRBuilder &builder,
                             llvm::Value &value,
-                            ObjectInfo *base);
+                            llvm::Value *dec_ptr);
   /** Encode the given value */
   llvm::Value &encode_value(llvm::memoir::MemOIRBuilder &builder,
                             llvm::Value &value,
-                            ObjectInfo *base);
+                            llvm::Value *enc_ptr);
   /** Add the given value to the enumeration */
   llvm::Value &add_value(llvm::memoir::MemOIRBuilder &builder,
                          llvm::Value &value,
-                         ObjectInfo *base);
+                         llvm::Value *enc_ptr,
+                         llvm::Value *dec_ptr);
 
   // Print.
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,

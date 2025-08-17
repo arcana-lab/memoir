@@ -22,6 +22,7 @@ using llvm::memoir::OrderedSet;
 using llvm::memoir::Pair;
 using llvm::memoir::Set;
 using llvm::memoir::SmallSet;
+using llvm::memoir::SmallVector;
 using llvm::memoir::UnionFind;
 using llvm::memoir::Vector;
 

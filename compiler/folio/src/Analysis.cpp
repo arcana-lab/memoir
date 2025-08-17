@@ -46,7 +46,6 @@ void ProxyInsertion::flesh_out(Candidate &candidate) {
         candidate.push_back(out);
   }
 }
-
 void ProxyInsertion::gather_assoc_objects(AllocInst &alloc) {
   this->gather_assoc_objects(alloc, alloc.getType());
 }
@@ -485,11 +484,155 @@ void ProxyInsertion::share_proxies() {
       used.insert(candidate.begin(), candidate.end());
   }
 
+  println("=== CANDIDATES ===");
   for (auto &candidate : this->candidates) {
     println("CANDIDATE:");
     println("  BENEFIT=", candidate.benefit);
     for (const auto *info : candidate) {
       println("  ", *info);
+    }
+    println();
+  }
+  println();
+}
+
+void ProxyInsertion::unify_bases() {
+
+  println("=== UNIFY BASES ===");
+
+  WorkList<ArgObjectInfo *, /* VisitOnce? */ true> worklist;
+
+  { // Unify bases within each candidate.
+    for (auto &candidate : this->candidates) {
+      ObjectInfo *first = NULL;
+      for (auto *obj : candidate) {
+        // Insert the object.
+        this->unified.insert(obj);
+
+        // Unify all base objects within this candidate.
+        if (auto *base = dyn_cast<BaseObjectInfo>(obj)) {
+          if (not first)
+            first = base;
+          else
+            unified.merge(first, base);
+        } else if (auto *arg = dyn_cast<ArgObjectInfo>(obj)) {
+          worklist.push(arg);
+        }
+      }
+    }
+
+    // Debug print.
+    debugln(" >> INITIALIZED BASE OBJECTS << ");
+    for (const auto &[obj, _] : this->unified)
+      debugln("    ", *obj);
+    debugln();
+  }
+
+  { // Unify arguments across candidate.
+
+    // Construct the outgoing mapping from obj->arg and group args by their
+    // parent function.
+    Map<ObjectInfo *, Set<ArgObjectInfo *>> outgoing;
+    Map<llvm::Function *, Vector<ArgObjectInfo *>> func_args;
+    for (auto *arg : worklist) {
+      func_args[arg->function()].push_back(arg);
+      for (const auto &[call, incoming] : arg->incoming())
+        outgoing[incoming].insert(arg);
+    }
+
+    // Unify arguments until a fixed point is reached.
+    while (not worklist.empty()) {
+      auto *arg = worklist.pop();
+
+      // If two arguments have the same incoming parents for all incoming edges,
+      // merge them.
+      auto *function = arg->function();
+      for (auto *other : func_args.at(function)) {
+        if (other == arg)
+          continue;
+
+        bool all_same = true;
+        for (const auto &[call, inc] : arg->incoming()) {
+          auto *other_inc = other->incoming(*call);
+          if (not this->unified.contains(other_inc))
+            continue;
+
+          auto *inc_base = this->unified.find(inc);
+          auto *other_inc_base = this->unified.find(other_inc);
+          if (inc_base != other_inc_base) {
+            all_same = false;
+            break;
+          }
+        }
+
+        if (all_same) {
+          this->unified.merge(arg, other);
+          worklist.push(other);
+        }
+      }
+
+      // Merge arguments if all incoming objects are merged.
+      ObjectInfo *shared = NULL;
+      for (const auto &[call, incoming] : arg->incoming()) {
+        if (not this->unified.contains(incoming))
+          continue;
+
+        auto *inc_base = this->unified.find(incoming);
+        if (not shared)
+          shared = inc_base;
+
+        // If the bases differ, fail.
+        if (inc_base != shared) {
+          shared = NULL;
+          break;
+        }
+      }
+
+      // If we couldn't find a unified base, continue.
+      if (not shared)
+        continue;
+
+      // If the arg base is already unified, continue.
+      if (this->unified.find(arg) == shared)
+        continue;
+
+      // If we found a single merge argument, merge with this argument.
+      debugln(" --> MERGE");
+      debugln("       ", *arg);
+      debugln("       ", *shared);
+      this->unified.merge(arg, shared);
+
+      // Enqueue all outgoing.
+      if (outgoing.contains(arg))
+        for (auto *out : outgoing.at(arg))
+          worklist.push(out);
+    }
+
+    debugln(" >> AFTER FIXED POINT << ");
+    for (const auto &[base, _] : this->unified)
+      debugln("    ", *base);
+    debugln();
+  }
+
+  { // Reify the unified objects.
+    this->unified.reify();
+
+    debugln(" >> AFTER REIFY << ");
+    for (const auto &[base, _] : this->unified)
+      debugln("    ", *base);
+    debugln();
+  }
+
+  { // Construct the set of equivalence classes.
+    for (const auto &[obj, parent] : this->unified)
+      this->equiv[parent].push_back(obj);
+
+    println("=== EQUIVALENCE CLASSES ===");
+    for (const auto &[base, objects] : this->equiv) {
+      println(" ┌╼ ", *base);
+      for (const auto &obj : objects)
+        println(" ├→ ", *obj);
+      println(" ╹");
     }
   }
 }
@@ -525,6 +668,9 @@ void ProxyInsertion::analyze() {
 
   // Use a heuristic to share proxies between collections.
   this->share_proxies();
+
+  // Unify bases.
+  this->unify_bases();
 }
 
 } // namespace folio

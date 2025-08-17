@@ -37,6 +37,7 @@ llvm::memoir::Type &Candidate::encoder_type() const {
 llvm::memoir::Type &Candidate::decoder_type() const {
   return SequenceType::get(this->key_type());
 }
+
 bool Candidate::build_encoder() const {
   return this->to_encode.size() > 0 or this->to_addkey.size() > 0;
 }
