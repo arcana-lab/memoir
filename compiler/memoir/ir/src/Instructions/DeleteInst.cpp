@@ -6,6 +6,6 @@ namespace llvm::memoir {
 
 // DeleteInst implementation
 OPERAND(DeleteInst, Object, 0)
-TO_STRING(DeleteInst)
+TO_STRING(DeleteInst, "delete")
 
 } // namespace llvm::memoir

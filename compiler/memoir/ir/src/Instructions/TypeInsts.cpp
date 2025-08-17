@@ -29,89 +29,89 @@ namespace llvm::memoir {
  * UInt64TypeInst implementation
  */
 GET_TYPE_IMPL(UInt64TypeInst)
-TO_STRING(UInt64TypeInst)
+TO_STRING(UInt64TypeInst, "u64")
 
 /*
  * UInt32TypeInst implementation
  */
 GET_TYPE_IMPL(UInt32TypeInst)
-TO_STRING(UInt32TypeInst)
+TO_STRING(UInt32TypeInst, "u32")
 
 /*
  * UInt16TypeInst implementation
  */
 GET_TYPE_IMPL(UInt16TypeInst)
-TO_STRING(UInt16TypeInst)
+TO_STRING(UInt16TypeInst, "u16")
 
 /*
  * UInt8TypeInst implementation
  */
 GET_TYPE_IMPL(UInt8TypeInst)
-TO_STRING(UInt8TypeInst)
+TO_STRING(UInt8TypeInst, "u8")
 
 // UInt8TypeInst implementation
 GET_TYPE_IMPL(UInt2TypeInst)
-TO_STRING(UInt2TypeInst)
+TO_STRING(UInt2TypeInst, "u2")
 
 /*
  * Int64TypeInst implementation
  */
 GET_TYPE_IMPL(Int64TypeInst)
-TO_STRING(Int64TypeInst)
+TO_STRING(Int64TypeInst, "i64")
 
 /*
  * Int32TypeInst implementation
  */
 GET_TYPE_IMPL(Int32TypeInst)
-TO_STRING(Int32TypeInst)
+TO_STRING(Int32TypeInst, "i32")
 
 /*
  * Int16TypeInst implementation
  */
 GET_TYPE_IMPL(Int16TypeInst)
-TO_STRING(Int16TypeInst)
+TO_STRING(Int16TypeInst, "i16")
 
 /*
  * Int8TypeInst implementation
  */
 GET_TYPE_IMPL(Int8TypeInst)
-TO_STRING(Int8TypeInst)
+TO_STRING(Int8TypeInst, "i8")
 
 /*
  * Int2TypeInst implementation
  */
 GET_TYPE_IMPL(Int2TypeInst)
-TO_STRING(Int2TypeInst)
+TO_STRING(Int2TypeInst, "i2")
 
 /*
  * BoolTypeInst implementation
  */
 GET_TYPE_IMPL(BoolTypeInst)
-TO_STRING(BoolTypeInst)
+TO_STRING(BoolTypeInst, "bool")
 
 /*
  * FloatType implementation
  */
 GET_TYPE_IMPL(FloatTypeInst)
-TO_STRING(FloatTypeInst)
+TO_STRING(FloatTypeInst, "f32")
 
 /*
  * DoubleType implementation
  */
 GET_TYPE_IMPL(DoubleTypeInst)
-TO_STRING(DoubleTypeInst)
+TO_STRING(DoubleTypeInst, "f64")
 
 /*
  * PointerType implementation
  */
 GET_TYPE_IMPL(PointerTypeInst)
-TO_STRING(PointerTypeInst)
+TO_STRING(PointerTypeInst, "ptr")
 
 /*
  * PointerType implementation
  */
 GET_TYPE_IMPL(VoidTypeInst)
-TO_STRING(VoidTypeInst)
+TO_STRING(VoidTypeInst, "void")
 
 /*
  * ReferenceType implementation
@@ -128,7 +128,7 @@ Type &ReferenceTypeInst::getReferencedType() const {
 
 OPERAND(ReferenceTypeInst, ReferencedTypeOperand, 0)
 
-TO_STRING(ReferenceTypeInst)
+TO_STRING(ReferenceTypeInst, "ref")
 
 #if 0
 /*
@@ -168,7 +168,7 @@ Type &DefineTypeInst::getType() const {
 
 OPERAND(DefineTypeInst, TypeOperand, 1)
 
-TO_STRING(DefineTypeInst)
+TO_STRING(DefineTypeInst, "deftype")
 
 /*
  * LookupType implementation
@@ -199,7 +199,7 @@ std::string LookupTypeInst::getName() const {
 
 OPERAND(LookupTypeInst, NameOperand, 0)
 
-TO_STRING(LookupTypeInst)
+TO_STRING(LookupTypeInst, "lookuptype")
 
 #endif
 
@@ -221,7 +221,7 @@ Type &TupleTypeInst::getFieldType(unsigned field_index) const {
 
 VAR_OPERAND(TupleTypeInst, FieldTypeOperand, 0)
 
-TO_STRING(TupleTypeInst)
+TO_STRING(TupleTypeInst, "tuple")
 
 /*
  * ArrayType implementation
@@ -245,7 +245,7 @@ size_t ArrayTypeInst::getLength() const {
 
 OPERAND(ArrayTypeInst, LengthOperand, 1)
 
-TO_STRING(ArrayTypeInst)
+TO_STRING(ArrayTypeInst, "array")
 
 /*
  * AssocArrayType implementation
@@ -269,7 +269,7 @@ Type &AssocArrayTypeInst::getValueType() const {
 
 OPERAND(AssocArrayTypeInst, ValueOperand, 1)
 
-TO_STRING(AssocArrayTypeInst)
+TO_STRING(AssocArrayTypeInst, "assoc")
 
 /*
  * SequenceType implementation
@@ -284,6 +284,6 @@ Type &SequenceTypeInst::getElementType() const {
 
 OPERAND(SequenceTypeInst, ElementOperand, 0)
 
-TO_STRING(SequenceTypeInst)
+TO_STRING(SequenceTypeInst, "seq")
 
 } // namespace llvm::memoir

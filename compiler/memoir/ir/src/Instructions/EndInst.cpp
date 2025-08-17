@@ -4,6 +4,6 @@
 namespace llvm::memoir {
 
 RESULTANT(EndInst, Value)
-TO_STRING(EndInst)
+TO_STRING(EndInst, "end")
 
 } // namespace llvm::memoir

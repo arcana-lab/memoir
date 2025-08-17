@@ -11,18 +11,18 @@ namespace llvm::memoir {
 // MutWriteInst implementation
 OPERAND(MutWriteInst, ValueWritten, 0)
 OPERAND(MutWriteInst, Object, 1)
-TO_STRING(MutWriteInst)
+TO_STRING(MutWriteInst, "mut.write")
 
 // MutInsertInst implementation
 OPERAND(MutInsertInst, Object, 0)
-TO_STRING(MutInsertInst)
+TO_STRING(MutInsertInst, "mut.insert")
 
 // MutRemoveInst implementation.
 OPERAND(MutRemoveInst, Object, 0)
-TO_STRING(MutRemoveInst)
+TO_STRING(MutRemoveInst, "mut.remove")
 
 // MutClearInst implementation
 OPERAND(MutClearInst, Object, 0)
-TO_STRING(MutClearInst)
+TO_STRING(MutClearInst, "mut.clear")
 
 } // namespace llvm::memoir

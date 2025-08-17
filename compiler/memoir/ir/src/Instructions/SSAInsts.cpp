@@ -11,7 +11,7 @@ namespace llvm::memoir {
 RESULTANT(UsePHIInst, Result)
 OPERAND(UsePHIInst, Used, 0)
 
-TO_STRING(UsePHIInst)
+TO_STRING(UsePHIInst, "usephi")
 
 // RetPHIInst implementation
 RESULTANT(RetPHIInst, Result)
@@ -22,6 +22,6 @@ llvm::Function *RetPHIInst::getCalledFunction() const {
 }
 
 OPERAND(RetPHIInst, CalledOperand, 1)
-TO_STRING(RetPHIInst)
+TO_STRING(RetPHIInst, "retphi")
 
 } // namespace llvm::memoir

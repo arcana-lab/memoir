@@ -205,32 +205,32 @@ Option<size_t> AccessInst::match_offsets(
 // ReadInst implementation
 RESULTANT(ReadInst, ValueRead)
 OPERAND(ReadInst, Object, 0)
-TO_STRING(ReadInst)
+TO_STRING(ReadInst, "read")
 
 // GetInst implementation
 RESULTANT(GetInst, NestedObject)
 OPERAND(GetInst, Object, 0)
-TO_STRING(GetInst)
+TO_STRING(GetInst, "get")
 
 // CopyInst implementation
 RESULTANT(CopyInst, Result)
 OPERAND(CopyInst, Object, 0)
-TO_STRING(CopyInst)
+TO_STRING(CopyInst, "copy")
 
 // SizeInst implementation
 RESULTANT(SizeInst, Size)
 OPERAND(SizeInst, Object, 0)
-TO_STRING(SizeInst)
+TO_STRING(SizeInst, "size")
 
 // HasInst implementation
 RESULTANT(HasInst, Result)
 OPERAND(HasInst, Object, 0)
-TO_STRING(HasInst)
+TO_STRING(HasInst, "has")
 
 // AssocKeysInst implementation.
 RESULTANT(KeysInst, Result)
 OPERAND(KeysInst, Object, 0)
-TO_STRING(KeysInst)
+TO_STRING(KeysInst, "keys")
 
 // UpdateInst implementation
 RESULTANT(UpdateInst, Result)
@@ -238,18 +238,18 @@ RESULTANT(UpdateInst, Result)
 // WriteInst implementation
 OPERAND(WriteInst, ValueWritten, 0)
 OPERAND(WriteInst, Object, 1)
-TO_STRING(WriteInst)
+TO_STRING(WriteInst, "write")
 
 // InsertInst implementation
 OPERAND(InsertInst, Object, 0)
-TO_STRING(InsertInst)
+TO_STRING(InsertInst, "insert")
 
 // RemoveInst implementation
 OPERAND(RemoveInst, Object, 0)
-TO_STRING(RemoveInst)
+TO_STRING(RemoveInst, "remove")
 
 // ClearInst implementation
 OPERAND(ClearInst, Object, 0)
-TO_STRING(ClearInst)
+TO_STRING(ClearInst, "clear")
 
 } // namespace llvm::memoir

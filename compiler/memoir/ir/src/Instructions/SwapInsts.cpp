@@ -13,7 +13,7 @@ OPERAND(SeqSwapInst, BeginIndex, 1)
 OPERAND(SeqSwapInst, EndIndex, 2)
 OPERAND(SeqSwapInst, ToCollection, 3)
 OPERAND(SeqSwapInst, ToBeginIndex, 4)
-TO_STRING(SeqSwapInst)
+TO_STRING(SeqSwapInst, "swap")
 
 llvm::Value &SeqSwapInst::getIncomingCollectionFor(
     llvm::Value &collection) const {
@@ -58,7 +58,7 @@ OPERAND(SeqSwapWithinInst, ToCollection, 0)
 OPERAND(SeqSwapWithinInst, BeginIndex, 1)
 OPERAND(SeqSwapWithinInst, EndIndex, 2)
 OPERAND(SeqSwapWithinInst, ToBeginIndex, 3)
-TO_STRING(SeqSwapWithinInst)
+TO_STRING(SeqSwapWithinInst, "swap.within")
 
 llvm::Value &SeqSwapWithinInst::getIncomingCollectionFor(
     llvm::Value &collection) const {

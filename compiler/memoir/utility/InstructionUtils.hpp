@@ -21,11 +21,19 @@
     return this->getCallInst().getOperandUse(OP_OFFSET + index);               \
   }
 
-#define TO_STRING(CLASS)                                                       \
+#define TO_STRING(CLASS, OP)                                                   \
   std::string CLASS::toString() const {                                        \
     std::string str, llvm_str;                                                 \
     llvm::raw_string_ostream llvm_ss(llvm_str);                                \
-    llvm_ss << this->getCallInst();                                            \
-    str = #CLASS + llvm_str;                                                   \
+    this->asValue().printAsOperand(llvm_ss, /*type?*/ false);                  \
+    str = llvm_str                                                             \
+          + " = "                                                              \
+            "memoir." OP "(";                                                  \
+    for (auto &arg : this->getCallInst().args()) {                             \
+      llvm_ss.flush();                                                         \
+      arg.get()->printAsOperand(llvm_ss);                                      \
+      str += llvm_str;                                                         \
+    }                                                                          \
+    str += ")";                                                                \
     return str;                                                                \
   }

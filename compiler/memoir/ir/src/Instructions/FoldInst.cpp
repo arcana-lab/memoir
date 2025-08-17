@@ -235,6 +235,6 @@ llvm::Use *FoldInst::getOperandForArgument(llvm::Argument &A) const {
   return nullptr;
 }
 
-TO_STRING(FoldInst)
+TO_STRING(FoldInst, "fold")
 
 } // namespace llvm::memoir
