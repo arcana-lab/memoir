@@ -26,19 +26,15 @@
     std::string str, llvm_str;                                                 \
     llvm::raw_string_ostream llvm_ss(llvm_str);                                \
     this->asValue().printAsOperand(llvm_ss, /*type?*/ false);                  \
-    str = llvm_str                                                             \
-          + " = "                                                              \
-            "memoir." OP "(";                                                  \
+    llvm_ss << " = memoir." OP "(";                                            \
     bool first = true;                                                         \
     for (auto &arg : this->getCallInst().args()) {                             \
       if (first)                                                               \
         first = false;                                                         \
       else                                                                     \
-        str += ", ";                                                           \
-      llvm_ss.flush();                                                         \
+        llvm_ss << ", ";                                                       \
       arg.get()->printAsOperand(llvm_ss);                                      \
-      str += llvm_str;                                                         \
     }                                                                          \
-    str += ")";                                                                \
-    return str;                                                                \
+    llvm_ss << ")";                                                            \
+    return llvm_str;                                                           \
   }
