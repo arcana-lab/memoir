@@ -91,9 +91,12 @@ bool operator==(const Object &lhs, const Object &rhs) {
 }
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Object &obj) {
-  os << "(" << obj.value();
-  if (auto *arg = dyn_cast<llvm::Argument>(&obj.value()))
-    os << " IN " << arg->getParent()->getName();
+  auto &value = obj.value();
+  os << "(";
+  if (auto *memoir = into<MemOIRInst>(value))
+    os << *memoir;
+  else
+    os << pretty(value);
   os << ")";
   for (auto offset : obj.offsets()) {
     if (offset == unsigned(-1)) {
