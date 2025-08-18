@@ -6,6 +6,11 @@
 
 namespace llvm::memoir {
 
+void infer_types(llvm::Module &module) {
+  TypeInference sherlock(module);
+  sherlock.run();
+}
+
 bool TypeInference::run() {
   if (this->infer(this->M)) {
     return this->annotate(this->M);

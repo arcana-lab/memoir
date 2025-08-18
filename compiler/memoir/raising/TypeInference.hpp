@@ -12,6 +12,11 @@ namespace llvm::memoir {
 using InferredType = Tuple<bool, Type *>;
 
 /**
+ * Run type inference on the given module.
+ */
+void infer_types(llvm::Module &module);
+
+/**
  * Type inference for a MEMOIR program.
  */
 class TypeInference {
