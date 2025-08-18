@@ -46,7 +46,7 @@ uint32_t forward_analysis(
   while (not worklist.empty()) {
     auto *val = worklist.pop();
 
-    auto *func = parent_function(*val);
+    auto *func = parent<llvm::Function>(*val);
     auto &local_encoded = encoded[func];
 
     for (auto &use : val->uses()) {

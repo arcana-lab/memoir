@@ -305,20 +305,18 @@ static void promote_locals(Mapping &mapping,
   }
 }
 
-static void promote(Candidate &candidate,
-                    ProxyInsertion::GetDominatorTree get_domtree) {
-  // Promote local variabels to registers.
-  promote_locals(candidate.encoder, get_domtree);
-  promote_locals(candidate.decoder, get_domtree);
+void ProxyInsertion::promote() {
 
   // Collect all of the globals that can be promoted.
   Vector<llvm::GlobalVariable *> globals_to_promote;
-  for (const auto &mapping : { candidate.encoder, candidate.decoder }) {
-    for (const auto &[base, global] : mapping.globals()) {
-      if (global and global_is_promotable(*global)) {
-        globals_to_promote.push_back(global);
-      }
-    }
+  for (const auto &[parent, info] : this->to_transform) {
+    auto *enc = info.enc_global;
+    if (enc and global_is_promotable(*enc))
+      globals_to_promote.push_back(info.enc_global);
+
+    auto *dec = info.dec_global;
+    if (dec and global_is_promotable(*dec))
+      globals_to_promote.push_back(info.dec_global);
   }
 
   // Promote the globals.
@@ -564,6 +562,8 @@ llvm::Value &ProxyInsertion::encode_use(Builder &builder,
                                         const TransformInfo &info,
                                         llvm::Use &use) {
 
+  println("ENCODE ", pretty_use(use));
+
   auto *user = cast<llvm::Instruction>(use.getUser());
   auto *used = use.get();
 
@@ -680,6 +680,8 @@ void ProxyInsertion::patch_uses() {
         Builder builder(insert_point);
 
         auto &encoded = this->encode_use(builder, info, *use);
+        for (auto &use : encoded.uses())
+          handled.insert(&use);
       }
   }
 }
@@ -911,25 +913,15 @@ bool ProxyInsertion::transform() {
   }
   println();
 
-  // Patch uses to decode.
-  println("=== PATCH USES TO DECODE ===");
-  this->decode_uses();
-  println();
-
   // Patch uses to encode/addkey.
   println("=== PATCH USES TO ENCODE/ADDKEY ===");
   this->patch_uses();
   println();
 
-#if 0 // FIXME
   // Promote the locals to registers.
-  println("=== PROMOTE LOCALS ===");
-  for (auto &candidate : candidates) {
-    println(" >> ", candidate);
-    promote(candidate, this->get_dominator_tree);
-  }
+  println("=== PROMOTE GLOBALS ===");
+  this->promote();
   println();
-#endif
 
   // Mutate the type of function parameters in the program.
   println("=== MUTATE PARAM TYPES ===");

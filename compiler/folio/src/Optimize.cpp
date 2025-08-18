@@ -33,10 +33,7 @@ static void gather_uses(llvm::ArrayRef<ObjectInfo *> objects,
   for (const auto &[func, values] : info.encoded) {
     for (auto *val : values) {
       print("  ENCODED ", pretty(*val));
-      if (auto *arg = dyn_cast<llvm::Argument>(val))
-        println(" IN ", arg->getParent()->getName());
-      else
-        println();
+      println(" IN ", func->getName());
     }
   }
   println();
@@ -87,6 +84,7 @@ void ProxyInsertion::optimize() {
   // Optimize the uses in each equivalence class.
   for (const auto &[base, objects] : this->equiv) {
     { // Debug print.
+      println("================================");
       println("OPTIMIZE CLASS IN ", base->function()->getName());
       for (auto *obj : objects)
         println("  ", *obj);
@@ -102,7 +100,24 @@ void ProxyInsertion::optimize() {
                                      info.to_decode,
                                      info.to_encode,
                                      info.to_addkey);
-    { println(); }
+
+    {
+      println(" >> USES TO DECODE << ");
+      for (const auto &[func, uses] : info.to_decode)
+        for (auto *use : uses)
+          println(pretty_use(*use));
+      println();
+      println(" >> USES TO ENCODE << ");
+      for (const auto &[func, uses] : info.to_encode)
+        for (auto *use : uses)
+          println(pretty_use(*use));
+      println();
+      println(" >> USES TO ADDKEY << ");
+      for (const auto &[func, uses] : info.to_addkey)
+        for (auto *use : uses)
+          println(pretty_use(*use));
+      println();
+    }
   }
 }
 

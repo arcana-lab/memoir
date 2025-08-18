@@ -223,7 +223,7 @@ void ObjectInfo::gather_uses_to_proxy(const Object &obj) {
   auto &value = obj.value();
   auto offsets = obj.offsets();
   auto &function =
-      MEMOIR_SANITIZE(parent_function(value),
+      MEMOIR_SANITIZE(obj.function(),
                       "Gathering uses of value with no parent function!");
 
   println("REDEF ", value, " IN ", function.getName());
@@ -306,7 +306,7 @@ void ObjectInfo::gather_uses_to_propagate(const Object &obj) {
   // Unpack the object, and fetch the local function.
   auto &value = obj.value();
   auto offsets = obj.offsets();
-  auto &function = *this->function();
+  auto &function = *obj.function();
 
   println("REDEF ", value, " IN ", function.getName());
 

@@ -132,6 +132,8 @@ protected:
 
   void allocate_mappings(BaseObjectInfo &base);
 
+  void promote();
+
   void mutate_types();
 
   GetDominatorTree get_dominator_tree;

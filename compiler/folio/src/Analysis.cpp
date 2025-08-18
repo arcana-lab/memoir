@@ -373,6 +373,8 @@ void ProxyInsertion::gather_abstract_objects() {
     this->gather_abstract_objects(obj);
   for (auto &obj : this->propagators)
     this->gather_abstract_objects(obj);
+  for (auto &arg : this->arguments)
+    this->gather_abstract_objects(arg);
 }
 
 void ProxyInsertion::share_proxies() {
@@ -505,6 +507,8 @@ void ProxyInsertion::share_proxies() {
 void ProxyInsertion::unify_bases() {
 
   println("=== UNIFY BASES ===");
+  this->unified.clear();
+  this->equiv.clear();
 
   WorkList<ArgObjectInfo *, /* VisitOnce? */ true> worklist;
 
@@ -560,12 +564,11 @@ void ProxyInsertion::unify_bases() {
         bool all_same = true;
         for (const auto &[call, inc] : arg->incoming()) {
           auto *other_inc = other->incoming(*call);
-          if (not this->unified.contains(other_inc))
-            continue;
 
-          auto *inc_base = this->unified.find(inc);
-          auto *other_inc_base = this->unified.find(other_inc);
-          if (inc_base != other_inc_base) {
+          auto inc_base = this->unified.try_find(inc);
+          auto other_inc_base = this->unified.try_find(other_inc);
+          if (not inc_base or not other_inc_base
+              or inc_base.value() != other_inc_base.value()) {
             all_same = false;
             break;
           }
@@ -614,9 +617,10 @@ void ProxyInsertion::unify_bases() {
           worklist.push(out);
     }
 
+    // Debug print.
     debugln(" >> AFTER FIXED POINT << ");
-    for (const auto &[base, _] : this->unified)
-      debugln("    ", *base);
+    for (const auto &[obj, parent] : this->unified)
+      debugln("    ", *obj, " -> ", *parent);
     debugln();
   }
 
@@ -637,7 +641,7 @@ void ProxyInsertion::unify_bases() {
     for (const auto &[base, objects] : this->equiv) {
       println(" ┌╼ ", *base);
       for (const auto &obj : objects)
-        println(" ├─→ ", *obj);
+        println(" ├──╼ ", *obj);
       println(" └╼ ");
     }
   }

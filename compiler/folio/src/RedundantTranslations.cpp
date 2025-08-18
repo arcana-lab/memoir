@@ -20,8 +20,7 @@ void eliminate_redundant_translations(
   if (disable_translation_elimination)
     return;
 
-  // TODO: Perform a data flow analysis ahead of time to determine which
-  // values will be decoded at the use site, and with which base.
+  println(" >> ELIMINATE REDUNDANT TRANSLATIONS << ");
 
   // Trim uses that dont need to be decoded because they are only used to
   // compare against other values that need to be decoded.
@@ -49,16 +48,19 @@ void eliminate_redundant_translations(
   // Trim uses that dont need to be encoded because they use an already
   // encoded value.
   Set<llvm::Use *> trim_to_encode = {};
-  for (auto uses : { to_encode, to_addkey }) {
+  for (const auto &uses : { to_encode, to_addkey }) {
     for (const auto &[func, local_uses] : uses) {
       if (not encoded.contains(func))
         continue;
       const auto &local_encoded = encoded.at(func);
       for (auto *use : local_uses) {
+        println("TRIM? ", pretty_use(*use));
         if (local_encoded.contains(use->get())) {
-          println("TRIM ", pretty_use(*use));
+          println("  YES");
           trim_to_encode.insert(use);
           trim_to_decode.insert(use);
+        } else {
+          println("  NO");
         }
       }
     }
