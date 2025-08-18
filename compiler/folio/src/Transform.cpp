@@ -112,6 +112,8 @@ static void store_mapping(Builder &builder,
                           Type &mapping_type,
                           llvm::Value *ptr,
                           llvm::Value *val) {
+  llvm::Twine name(ptr->getName());
+  builder.CreateAssertTypeInst(val, mapping_type, name.concat(".type"));
   builder.CreateStore(val, ptr);
 }
 
@@ -779,6 +781,16 @@ static llvm::Instruction &find_construction_point(
       "Failed to find a construction point for the candidate!");
 }
 
+ObjectInfo *ProxyInsertion::find_recursive_base(BaseObjectInfo &base) {
+  // Is there an argument base in the same function as this one?
+  for (const auto &[other, _] : this->equiv)
+    if (auto *arg = dyn_cast<ArgObjectInfo>(other))
+      if (arg->function() == base.function())
+        return arg;
+
+  return NULL;
+}
+
 void ProxyInsertion::allocate_mappings(BaseObjectInfo &base) {
 
   const auto &equiv = this->equiv.at(&base);
@@ -812,27 +824,22 @@ void ProxyInsertion::allocate_mappings(BaseObjectInfo &base) {
   bool build_encoder = info.build_encoder;
   bool build_decoder = info.build_decoder;
 
-#if 0
   // If the construction function is self recursive, we will conditionally
   // re-use the input mappings.
-  auto *recursive_base = find_recursive_base(info);
+  auto *recursive_base = this->find_recursive_base(base);
 
   // If we are in a recursive function, condition allocation on a heuristic.
   if (recursive_base) {
 
+    const auto &rec_info = this->to_transform.at(recursive_base);
+
     // Load the mappings from the stack.
     llvm::Value *old_encoder = NULL, *old_decoder = NULL;
-    if (build_encoder) {
-      auto &local = info.encoder.local(recursive_base);
-      old_encoder =
-          builder.CreateLoad(local.getAllocatedType(), &local, "enc.old.");
-    }
+    if (build_encoder)
+      old_encoder = this->load_encoder(builder, rec_info);
 
-    if (build_decoder) {
-      auto &local = info.decoder.local(recursive_base);
-      old_decoder =
-          builder.CreateLoad(local.getAllocatedType(), &local, "dec.old.");
-    }
+    if (build_decoder)
+      old_decoder = this->load_decoder(builder, rec_info);
 
     // Check if the old mappings are nonnull.
     llvm::Value *nonnull = NULL;
@@ -872,12 +879,15 @@ void ProxyInsertion::allocate_mappings(BaseObjectInfo &base) {
 
     // In the then block, store the old mappings to the locals.
     builder.SetInsertPoint(then_term);
-    store_allocation(builder, old_encoder, old_decoder, info.enc_global, info.dec_global);
+    store_allocation(builder,
+                     old_encoder,
+                     old_decoder,
+                     info.enc_global,
+                     info.dec_global);
 
     // Set the builder to the else block so we can allocate the encoder/decoder.
     builder.SetInsertPoint(else_term);
   }
-#endif
 
   // Allocate the encoder.
   llvm::Instruction *encoder = nullptr;

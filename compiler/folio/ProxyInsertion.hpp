@@ -130,6 +130,8 @@ protected:
 
   void patch_uses();
 
+  ObjectInfo *find_recursive_base(BaseObjectInfo &base);
+
   void allocate_mappings(BaseObjectInfo &base);
 
   void promote();
