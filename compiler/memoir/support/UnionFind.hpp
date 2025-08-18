@@ -34,12 +34,11 @@ public:
     return;
   }
 
-  T find(T t) {
-    // If t has no parent, insert it.
+  Option<T> try_find(T t) {
+    // If t has no parent, return nullopt.
     auto found = this->_parent.find(t);
     if (found == this->_parent.end()) {
-      this->insert(t);
-      return t;
+      return {};
     }
 
     // If t is its own parent, return it.
@@ -55,6 +54,17 @@ public:
 
     // Return the result of find.
     return new_t;
+  }
+
+  T find(T t) {
+
+    // Try to find the parent. If we succeed, return it.
+    if (auto found = this->try_find(t))
+      return found.value();
+
+    // If we couldn't find the parent, insert the item.
+    this->insert(t);
+    return t;
   }
 
   T merge(T t, T u) {
