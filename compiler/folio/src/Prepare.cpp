@@ -1,3 +1,5 @@
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/CallGraph.hpp"
 #include "memoir/support/SortedVector.hpp"
@@ -333,20 +335,137 @@ static void print_mapping(const Mapping &mapping) {
   }
 }
 
+static llvm::Function *create_addkey_function(llvm::Module &module,
+                                              Type &key_type,
+                                              bool build_encoder,
+                                              Type *encoder_type,
+                                              bool build_decoder,
+                                              Type *decoder_type) {
+  static int id;
+
+  auto &context = module.getContext();
+  auto &data_layout = module.getDataLayout();
+
+  auto &size_type = Type::get_size_type(data_layout);
+
+  auto *llvm_size_type = size_type.get_llvm_type(context);
+  auto *llvm_ptr_type = llvm::PointerType::get(context, 0);
+  auto *llvm_key_type = key_type.get_llvm_type(context);
+
+  // Create the addkey functions for this proxy.
+  Vector<llvm::Type *> addkey_params = { llvm_key_type };
+  if (build_encoder)
+    addkey_params.push_back(llvm_ptr_type);
+  if (build_decoder)
+    addkey_params.push_back(llvm_ptr_type);
+
+  auto *addkey_type =
+      llvm::FunctionType::get(llvm_size_type, addkey_params, false);
+  auto &addkey_function = MEMOIR_SANITIZE(
+      llvm::Function::Create(addkey_type,
+                             llvm::GlobalValue::LinkageTypes::InternalLinkage,
+                             "proxy_addkey_" + std::to_string(++id),
+                             module),
+      "Failed to create LLVM function");
+
+  // Unpack the function arguments.
+  auto arg_idx = 0;
+  auto *key = addkey_function.getArg(arg_idx++);
+
+  llvm::Value *encoder_inout = NULL;
+  if (build_encoder)
+    encoder_inout = addkey_function.getArg(arg_idx++);
+
+  llvm::Value *decoder_inout = NULL;
+  if (build_decoder)
+    decoder_inout = addkey_function.getArg(arg_idx++);
+
+  auto *ret_bb = llvm::BasicBlock::Create(context, "", &addkey_function);
+
+  MemOIRBuilder builder(ret_bb);
+
+  llvm::Value *encoder = NULL, *decoder = NULL;
+  if (build_encoder) {
+    encoder = builder.CreateLoad(llvm_ptr_type, encoder_inout, "enc.");
+    builder.CreateAssertTypeInst(encoder, *encoder_type);
+  }
+  if (build_decoder) {
+    decoder = builder.CreateLoad(llvm_ptr_type, decoder_inout, "dec.");
+    builder.CreateAssertTypeInst(decoder, *decoder_type);
+  }
+
+  // Check if the encoder has the given key.
+  auto *has_key = &builder.CreateHasInst(encoder, key)->getCallInst();
+
+  // Construct the join block.
+  auto *phi = builder.CreatePHI(llvm_size_type, 2);
+  builder.CreateRet(phi);
+
+  // Split the block and insert an if-then-else conditioned on the has-key.
+  llvm::Instruction *then_terminator, *else_terminator;
+  llvm::SplitBlockAndInsertIfThenElse(has_key,
+                                      phi,
+                                      &then_terminator,
+                                      &else_terminator);
+
+  // if (has(encoder, key)) {
+  //   z2 = read(encoder, key)
+  // }
+  auto *then_bb = then_terminator->getParent();
+  builder.SetInsertPoint(then_terminator);
+  auto *read_index =
+      &builder.CreateReadInst(size_type, encoder, { key })->getCallInst();
+
+  // else {
+  //   z1 = size(encoder)
+  //   insert(size(encoder), encoder, key)
+  //   insert(key, decoder, end)
+  // }
+  auto *else_bb = else_terminator->getParent();
+  builder.SetInsertPoint(else_terminator);
+
+  llvm::Value *new_index = nullptr;
+  if (build_encoder) {
+    new_index = &builder.CreateSizeInst(encoder)->getCallInst();
+    auto *insert = builder.CreateInsertInst(encoder, { key });
+    auto *write = builder.CreateWriteInst(size_type,
+                                          new_index,
+                                          &insert->asValue(),
+                                          { key });
+    builder.CreateStore(&write->asValue(), encoder_inout);
+  }
+
+  if (build_decoder) {
+    if (not new_index) {
+      new_index = &builder.CreateSizeInst(decoder)->getCallInst();
+    }
+    auto *end = &builder.CreateEndInst()->getCallInst();
+    auto *insert = builder.CreateInsertInst(decoder, { end });
+    auto *write = builder.CreateWriteInst(key_type,
+                                          key,
+                                          &insert->asValue(),
+                                          { new_index });
+    builder.CreateStore(&write->asValue(), decoder_inout);
+  }
+
+  // Update the PHIs
+  MEMOIR_ASSERT(read_index, "Read index is NULL");
+  phi->addIncoming(read_index, then_bb);
+  MEMOIR_ASSERT(new_index, "New index is NULL");
+  phi->addIncoming(new_index, else_bb);
+
+  println(addkey_function);
+
+  return &addkey_function;
+}
+
 void ProxyInsertion::prepare() {
 
   // Monomorphize the program, for candidate patterns.
   // monomorphize(this->candidates);
 
-  // We need to create a global for each base object in the program, but the
-  // same object may be shared between multiple candidates. So, we gather them
-  // all here and record the candidates that we'll have to update later.
-  Map<ObjectInfo *, SmallVector<Candidate *>> obj_candidates;
-  for (auto &candidate : this->candidates)
-    for (auto *info : candidate)
-      obj_candidates[info].push_back(&candidate);
-
   // Create a global for each of the bases, and update the mapping.
+  int id = 0; // give each one a unique id.
   for (const auto &[base, children] : this->equiv) {
     // Create globals for this base.
     auto &function =
@@ -355,18 +474,17 @@ void ProxyInsertion::prepare() {
         MEMOIR_SANITIZE(function.getParent(), "Function has no parent module");
 
     // Create the globals.
-    auto &enc = create_global_ptr(module, "enc." + function.getName());
-    auto &dec = create_global_ptr(module, "dec." + function.getName());
+    auto &enc = create_global_ptr(module, "enc." + std::to_string(id));
+    auto &dec = create_global_ptr(module, "dec." + std::to_string(id));
+    ++id;
 
     // Record the global.
-    for (auto *obj : children) {
-      this->globals[obj].encoder = &enc;
-      this->globals[obj].decoder = &dec;
-    }
+    this->to_transform[base].enc_global = &enc;
+    this->to_transform[base].dec_global = &dec;
   }
 
   // Link the caller-callee for each base.
-  for (const auto &[base, globals] : this->globals) {
+  for (const auto &[base, info] : this->to_transform) {
     // Non-argument bases will be handled later.
     auto *arg = dyn_cast<ArgObjectInfo>(base);
     if (not arg)
@@ -379,12 +497,13 @@ void ProxyInsertion::prepare() {
 
     for (const auto &[call, incoming] : arg->incoming()) {
       // Get the globals for the caller base.
-      const auto &inc_globals = this->globals.at(incoming);
+      auto *incoming_parent = this->unified.find(incoming);
+      const auto &inc_globals = this->to_transform.at(incoming_parent);
       store_mappings_for_base(call,
-                              globals.encoder,
-                              inc_globals.encoder,
-                              globals.decoder,
-                              inc_globals.decoder);
+                              info.enc_global,
+                              inc_globals.enc_global,
+                              info.dec_global,
+                              inc_globals.dec_global);
     }
   }
 
@@ -392,6 +511,96 @@ void ProxyInsertion::prepare() {
   // For each base global, create a local stack variable to hold it.
   create_base_locals(this->candidates, this->equiv, obj_candidates);
 #endif
+
+  // Record the encoder/decoder type in each transform info.
+  for (auto &[base, info] : this->to_transform)
+    for (auto &candidate : this->candidates) {
+      auto *key_type = &candidate.key_type();
+      auto *enc_type = &candidate.encoder_type();
+      auto *dec_type = &candidate.decoder_type();
+
+      for (auto *obj : candidate) {
+        if (base == obj) {
+          // Key type
+          MEMOIR_ASSERT(not info.key_type or info.key_type == key_type,
+                        "Mismatched key types");
+          info.key_type = key_type;
+
+          // Encoder type
+          MEMOIR_ASSERT(not info.encoder_type or info.encoder_type == enc_type,
+                        "Mismatched encoder types");
+          info.encoder_type = enc_type;
+
+          // Decoder type
+          MEMOIR_ASSERT(not info.decoder_type or info.decoder_type == dec_type,
+                        "Mismatched decoder types");
+          info.decoder_type = dec_type;
+        }
+      }
+    }
+
+  // TODO: Determine if we need to build encoders/decoders.
+  // Locally determine if each equiv class needs one.
+  for (auto &[base, info] : this->to_transform) {
+    info.build_encoder =
+        not info.to_encode.empty() or not info.to_addkey.empty();
+    info.build_decoder = not info.to_decode.empty();
+  }
+
+  // Propagate build information to arguments. Finally, back propagate from
+  // arguments to base classes.
+  Map<ObjectInfo *, SmallVector<ObjectInfo *>> outgoing;
+  for (auto &[base, info] : this->to_transform) {
+    for (auto *obj : this->equiv.at(base)) {
+      if (auto *arg = dyn_cast<ArgObjectInfo>(obj)) {
+        for (const auto &[call, incoming] : arg->incoming()) {
+          auto *inc_base = this->unified.find(incoming);
+
+          const auto &inc_info = this->to_transform.at(inc_base);
+          info.build_encoder |= inc_info.build_encoder;
+          info.build_decoder |= inc_info.build_decoder;
+
+          outgoing[inc_base].push_back(base);
+        }
+      }
+    }
+  }
+
+  // Back propagate from arguments to callers.
+  for (const auto &[src, outs] : outgoing) {
+    const auto &src_info = this->to_transform.at(src);
+    for (auto *dst : outs) {
+      auto &dst_info = this->to_transform.at(dst);
+      dst_info.build_encoder |= src_info.build_encoder;
+      dst_info.build_decoder |= src_info.build_decoder;
+    }
+  }
+
+  for (auto &[base, info] : this->to_transform) {
+    println("BASE ", *base);
+    print("  ENCODER ");
+    if (info.build_encoder)
+      println(*info.encoder_type);
+    else
+      println("NONE");
+    print("  DECODER ");
+    if (info.build_decoder)
+      println(*info.decoder_type);
+    else
+      println("NONE");
+    println();
+  }
+
+  // Create the addkey function.
+  for (auto &[base, info] : this->to_transform) {
+    info.addkey_callee =
+        llvm::FunctionCallee(create_addkey_function(this->module,
+                                                    *info.key_type,
+                                                    info.build_encoder,
+                                                    info.encoder_type,
+                                                    info.build_decoder,
+                                                    info.decoder_type));
+  }
 
   // Debug print.
   println("=== PREPARED GLOBALS ===");

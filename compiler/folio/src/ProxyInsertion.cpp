@@ -55,10 +55,10 @@ Option<std::string> ProxyInsertion::get_enumerated_impl(Type &type,
   return {};
 }
 
-ProxyInsertion::ProxyInsertion(llvm::Module &M,
+ProxyInsertion::ProxyInsertion(llvm::Module &module,
                                GetDominatorTree get_dominator_tree,
                                GetBoundsChecks get_bounds_checks)
-  : M(M),
+  : module(module),
     get_dominator_tree(get_dominator_tree),
     get_bounds_checks(get_bounds_checks) {
 
@@ -110,12 +110,12 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M,
   // Transform the program.
   this->transform();
 
-  for (auto &F : M) {
-    if (not F.empty()) {
-      print("VERIFYING ", F.getName());
-      if (llvm::verifyFunction(F, &llvm::errs())) {
-        println(F);
-        MEMOIR_UNREACHABLE("Failed to verify ", F.getName());
+  for (auto &function : this->module) {
+    if (not function.empty()) {
+      print("VERIFYING ", function.getName());
+      if (llvm::verifyFunction(function, &llvm::errs())) {
+        println(function);
+        MEMOIR_UNREACHABLE("Failed to verify ", function.getName());
       } else {
         print("\r                                                \r");
       }
@@ -124,14 +124,14 @@ ProxyInsertion::ProxyInsertion(llvm::Module &M,
 
   MemOIRInst::invalidate();
 
-  reify_tempargs(M);
+  reify_tempargs(this->module);
 
-  for (auto &F : M) {
-    if (not F.empty()) {
-      print("VERIFYING ", F.getName());
-      if (llvm::verifyFunction(F, &llvm::errs())) {
-        println(F);
-        MEMOIR_UNREACHABLE("Failed to verify ", F.getName());
+  for (auto &function : this->module) {
+    if (not function.empty()) {
+      print("VERIFYING ", function.getName());
+      if (llvm::verifyFunction(function, &llvm::errs())) {
+        println(function);
+        MEMOIR_UNREACHABLE("Failed to verify ", function.getName());
       } else {
         print("\r                                                \r");
       }

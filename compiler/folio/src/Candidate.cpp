@@ -48,7 +48,7 @@ bool Candidate::build_decoder() const {
 
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
                               const Candidate &candidate) {
-  os << "CANDIDATE: ";
+  os << "CANDIDATE " << std::to_string(candidate.id);
   for (const auto *info : candidate) {
     os << "\n  " << *info;
   }

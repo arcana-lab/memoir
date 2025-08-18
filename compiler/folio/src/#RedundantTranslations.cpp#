@@ -17,7 +17,7 @@ void eliminate_redundant_translations(
     Map<llvm::Function *, Set<llvm::Use *>> &to_encode,
     Map<llvm::Function *, Set<llvm::Use *>> &to_addkey) {
 
-  if (disable_translation_elimination)
+   if (disable_translation_elimination)
     return;
 
   // TODO: Perform a data flow analysis ahead of time to determine which

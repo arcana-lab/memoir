@@ -19,6 +19,7 @@ namespace folio {
 
 using llvm::memoir::AllocInst;
 using llvm::memoir::Type;
+using Builder = typename llvm::memoir::MemOIRBuilder;
 
 struct ProxyInsertion {
 public:
@@ -29,8 +30,17 @@ public:
       std::function<llvm::memoir::BoundsCheckResult &(llvm::Function &)>;
   using Enumerated = Map<NestedObject, SmallSet<Candidate *, 1>>;
 
+  struct TransformInfo {
+    Map<llvm::Function *, Set<llvm::Value *>> encoded;
+    Map<llvm::Function *, Set<llvm::Use *>> to_decode, to_encode, to_addkey;
+    Type *key_type = NULL, *encoder_type = NULL, *decoder_type = NULL;
+    bool build_encoder, build_decoder;
+    llvm::FunctionCallee addkey_callee;
+    llvm::GlobalVariable *enc_global, *dec_global;
+  };
+
   // Constructors.
-  ProxyInsertion(llvm::Module &M,
+  ProxyInsertion(llvm::Module &module,
                  GetDominatorTree get_dominator_tree,
                  GetBoundsChecks get_bounds_checks);
 
@@ -71,18 +81,58 @@ protected:
   ObjectInfo *find_base_object(llvm::Value &V,
                                llvm::memoir::AccessInst &access);
 
-  llvm::Module &M;
+  llvm::Module &module;
   Vector<BaseObjectInfo> objects, propagators;
   Vector<ArgObjectInfo> arguments;
   Vector<Candidate> candidates;
   Enumerated enumerated;
+
+  // Group objects by abstract/base candidate
   UnionFind<ObjectInfo *> unified;
   Map<ObjectInfo *, SmallVector<ObjectInfo *>> equiv;
 
-  struct Globals {
-    llvm::GlobalVariable *encoder, *decoder;
-  };
-  Map<ObjectInfo *, Globals> globals;
+  // Transformation.
+  Map<ObjectInfo *, TransformInfo> to_transform;
+
+  llvm::Value *load_decoder(Builder &builder, const TransformInfo &info);
+  llvm::Value *load_encoder(Builder &builder, const TransformInfo &info);
+
+  void store_decoder(Builder &builder,
+                     const TransformInfo &info,
+                     llvm::Value *dec);
+  void store_encoder(Builder &builder,
+                     const TransformInfo &info,
+                     llvm::Value *enc);
+
+  /** Check if the enumeration has the given value */
+  llvm::Instruction &has_value(Builder &builder,
+                               const TransformInfo &info,
+                               llvm::Value &value);
+  /** Decode the given value */
+  llvm::Value &decode_value(Builder &builder,
+                            const TransformInfo &info,
+                            llvm::Value &value);
+  /** Encode the given value */
+  llvm::Value &encode_value(Builder &builder,
+                            const TransformInfo &info,
+                            llvm::Value &value);
+
+  llvm::Value &encode_use(Builder &builder,
+                          const TransformInfo &info,
+                          llvm::Use &use);
+
+  /** Add the given value to the enumeration */
+  llvm::Value &add_value(Builder &builder,
+                         const TransformInfo &info,
+                         llvm::Value &value);
+
+  void decode_uses();
+
+  void patch_uses();
+
+  void allocate_mappings(BaseObjectInfo &base);
+
+  void mutate_types();
 
   GetDominatorTree get_dominator_tree;
   GetBoundsChecks get_bounds_checks;

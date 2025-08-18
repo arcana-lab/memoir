@@ -154,18 +154,12 @@ void ObjectInfo::gather_redefinitions(const Object &obj) {
             // argument.
             if (distance < obj.offsets().size()) {
 
-              // Construct the nested offsets.
-              Vector<unsigned> nested_offsets(obj.offsets().begin(),
-                                              obj.offsets().end());
-
-              // Append the new offsets from the base.
-              auto new_offset = obj.offsets().take_front(distance + 1);
-              nested_offsets.insert(nested_offsets.end(),
-                                    new_offset.begin(),
-                                    new_offset.end());
+              // Drop the offsets that indices we've indexed with, and one more
+              // because we are folding over those.
+              auto elem_offsets = obj.offsets().drop_front(distance + 1);
 
               // Recurse.
-              gather_redefinitions(Object(*elem_arg, nested_offsets));
+              gather_redefinitions(Object(*elem_arg, elem_offsets));
             }
           }
 

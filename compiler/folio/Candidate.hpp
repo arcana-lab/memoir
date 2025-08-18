@@ -43,16 +43,14 @@ public:
   Map<ObjectInfo *, Map<llvm::Function *, Set<llvm::Value *>>> encoded;
 
 public:
-  void gather_uses(const Map<ObjectInfo *, SmallVector<ObjectInfo *>> &equiv);
+  // Unique identifier.
+  int id;
 
   // Cost model.
   int benefit;
 
   // Transform.
 protected:
-  llvm::Function *addkey_function = NULL;
-  llvm::FunctionCallee addkey_callee();
-
   void update(llvm::Function &old_func,
               llvm::Function &new_Func,
               llvm::ValueToValueMapTy &vmap,
@@ -64,27 +62,8 @@ public:
   /** Global information for this candidate's decoder. */
   Mapping decoder;
 
-  llvm::Instruction &construction_point(llvm::DominatorTree &domtree) const;
   bool build_decoder() const;
   bool build_encoder() const;
-
-  /** Check if the enumeration has the given value */
-  llvm::Instruction &has_value(llvm::memoir::MemOIRBuilder &builder,
-                               llvm::Value &value,
-                               llvm::Value *enc_ptr);
-  /** Decode the given value */
-  llvm::Value &decode_value(llvm::memoir::MemOIRBuilder &builder,
-                            llvm::Value &value,
-                            llvm::Value *dec_ptr);
-  /** Encode the given value */
-  llvm::Value &encode_value(llvm::memoir::MemOIRBuilder &builder,
-                            llvm::Value &value,
-                            llvm::Value *enc_ptr);
-  /** Add the given value to the enumeration */
-  llvm::Value &add_value(llvm::memoir::MemOIRBuilder &builder,
-                         llvm::Value &value,
-                         llvm::Value *enc_ptr,
-                         llvm::Value *dec_ptr);
 
   // Print.
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,

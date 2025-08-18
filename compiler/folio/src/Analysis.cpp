@@ -299,7 +299,7 @@ static llvm::Function &get_alloc_function(llvm::Module &module) {
 }
 
 void ProxyInsertion::gather_assoc_objects() {
-  for (auto &use : get_alloc_function(this->M).uses())
+  for (auto &use : get_alloc_function(this->module).uses())
     if (auto *alloc = into<AllocInst>(use.getUser()))
       this->gather_assoc_objects(*alloc);
 
@@ -315,7 +315,7 @@ void ProxyInsertion::gather_propagators() {
       types.insert(&assoc_type->getKeyType());
 
   // Gather all objects in the program with elements of a relevant type.
-  for (auto &use : get_alloc_function(this->M).uses())
+  for (auto &use : get_alloc_function(this->module).uses())
     if (auto *alloc = into<AllocInst>(use.getUser()))
       this->gather_propagators(types, *alloc);
 
@@ -484,9 +484,15 @@ void ProxyInsertion::share_proxies() {
       used.insert(candidate.begin(), candidate.end());
   }
 
+  // Give each candidate a unique ID.
+  int id = 0;
+  for (auto &candidate : this->candidates)
+    candidate.id = ++id;
+
   println("=== CANDIDATES ===");
   for (auto &candidate : this->candidates) {
-    println("CANDIDATE:");
+    println("CANDIDATE ", candidate.id);
+    println("  IN ", candidate.function().getName());
     println("  BENEFIT=", candidate.benefit);
     for (const auto *info : candidate) {
       println("  ", *info);
@@ -631,8 +637,8 @@ void ProxyInsertion::unify_bases() {
     for (const auto &[base, objects] : this->equiv) {
       println(" ┌╼ ", *base);
       for (const auto &obj : objects)
-        println(" ├→ ", *obj);
-      println(" ╹");
+        println(" ├─→ ", *obj);
+      println(" └╼ ");
     }
   }
 }
