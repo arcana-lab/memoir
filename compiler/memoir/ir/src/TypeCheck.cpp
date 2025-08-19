@@ -65,8 +65,13 @@ Type *TypeChecker::visitArgument(llvm::Argument &A) {
     // complexity until it is needed.
   }
 
-  // Otherwise, we don't know the type of this argument!
-  return nullptr;
+  // Otherwise, we don't know the type of this argument.
+  // Create a type variable for it in case other local information can give us
+  // the information we need.
+  auto *type_var = &this->new_type_variable();
+  this->value_bindings[&A] = type_var;
+
+  return type_var;
 }
 
 // LLVM Instruction.
