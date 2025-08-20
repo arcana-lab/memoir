@@ -1,4 +1,5 @@
 #include "memoir/ir/Instructions.hpp"
+#include "llvm/IR/DebugInfoMetadata.h"
 
 #define RESULTANT(CLASS, NAME)                                                 \
   llvm::Value &CLASS::get##NAME() const {                                      \
@@ -36,5 +37,12 @@
       arg.get()->printAsOperand(llvm_ss);                                      \
     }                                                                          \
     llvm_ss << ")";                                                            \
+    if (const auto &loc = this->getCallInst().getDebugLoc()) {                 \
+      auto *scope = cast<llvm::DIScope>(loc.getScope());                       \
+      llvm_ss << scope->getFilename();                                         \
+      llvm_ss << ":" << std::to_string(loc.getLine());                         \
+      if (loc.getCol() != 0)                                                   \
+        llvm_ss << ":" << std::to_string(loc.getCol());                        \
+    }                                                                          \
     return llvm_str;                                                           \
   }

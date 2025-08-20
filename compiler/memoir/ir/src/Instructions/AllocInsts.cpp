@@ -84,6 +84,15 @@ std::string AllocInst::toString() const {
 
   str += ")";
 
+  if (const auto &loc = call.getDebugLoc()) {
+    str += " @";
+    auto *scope = cast<llvm::DIScope>(loc.getScope());
+    str += scope->getFilename();
+    str += ":" + std::to_string(loc.getLine());
+    if (loc.getCol() != 0)
+      str += ":" + std::to_string(loc.getCol());
+  }
+
   return str;
 }
 
