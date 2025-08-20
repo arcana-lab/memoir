@@ -105,13 +105,13 @@ void ObjectInfo::gather_redefinitions(const Object &obj) {
     local_redefs.insert(obj);
   }
 
-  println("GATHER ", obj);
+  debugln("GATHER ", obj);
 
   // Iterate over all uses of this object to find redefinitions.
   for (auto &use : obj.value().uses()) {
     auto *user = use.getUser();
 
-    println("  USER ", *user);
+    debugln("  USER ", *user);
 
     Object user_obj(*user, obj.offsets());
 
@@ -164,7 +164,7 @@ void ObjectInfo::gather_redefinitions(const Object &obj) {
           }
 
         } else if (auto *closed_arg = fold->getClosedArgument(use)) {
-          println("CLOSED ", *closed_arg);
+          debugln("CLOSED ", *closed_arg);
           // Gather uses of the closed argument.
           gather_redefinitions(Object(*closed_arg, obj.offsets()));
         }
@@ -226,14 +226,14 @@ void ObjectInfo::gather_uses_to_proxy(const Object &obj) {
       MEMOIR_SANITIZE(obj.function(),
                       "Gathering uses of value with no parent function!");
 
-  println("REDEF ", value, " IN ", function.getName());
+  debugln("REDEF ", value, " IN ", function.getName());
 
   // From a given collection, V, gather all uses that need to be either
   // encoded or decoded.
   for (auto &use : value.uses()) {
     auto *user = use.getUser();
 
-    println("  USER ", *user);
+    debugln("  USER ", *user);
 
     // We only need to handle acceses.
     if (auto *access = into<AccessInst>(user)) {
@@ -244,7 +244,7 @@ void ObjectInfo::gather_uses_to_proxy(const Object &obj) {
         // Check that the access matches the offsets.
         auto maybe_distance = access->match_offsets(offsets);
         if (not maybe_distance) {
-          println("    NO MATCH");
+          debugln("    NO MATCH");
           continue; // Do nothing.
         }
         auto distance = maybe_distance.value();
@@ -254,13 +254,13 @@ void ObjectInfo::gather_uses_to_proxy(const Object &obj) {
         if (auto *index_use = get_index_use(*access, offsets)) {
           if (isa<InsertInst>(access)) {
             if (is_last_index(index_use, access->index_operands_end())) {
-              println("    ADDING KEY ", *index_use->get());
+              debugln("    ADDING KEY ", *index_use->get());
               this->addkey(function, *index_use);
               continue;
             }
           }
 
-          println("    ENCODING KEY ", *index_use->get());
+          debugln("    ENCODING KEY ", *index_use->get());
           this->encode(function, *index_use);
           continue;
         }
@@ -271,7 +271,7 @@ void ObjectInfo::gather_uses_to_proxy(const Object &obj) {
           // argument to the set of uses to decode.
           if (distance == offsets.size()) {
             auto &index_arg = fold->getIndexArgument();
-            println("    DECODING KEY ",
+            debugln("    DECODING KEY ",
                     index_arg,
                     " IN ",
                     fold->getBody().getName());
@@ -288,7 +288,7 @@ void ObjectInfo::gather_uses_to_proxy(const Object &obj) {
           if (auto *index_use = get_use_at_offset(input_kw->index_ops_begin(),
                                                   input_kw->index_ops_end(),
                                                   offsets)) {
-            println("    ENCODING KEY ", *index_use->get());
+            debugln("    ENCODING KEY ", *index_use->get());
             this->encode(function, *index_use);
             continue;
           }
@@ -296,7 +296,7 @@ void ObjectInfo::gather_uses_to_proxy(const Object &obj) {
       }
     }
 
-    println("    NON-ACCESS");
+    debugln("    NON-ACCESS");
   }
 
   return;
@@ -308,7 +308,7 @@ void ObjectInfo::gather_uses_to_propagate(const Object &obj) {
   auto offsets = obj.offsets();
   auto &function = *obj.function();
 
-  println("REDEF ", value, " IN ", function.getName());
+  debugln("REDEF ", value, " IN ", function.getName());
 
   // From a given collection, V, gather all uses that need to be either
   // encoded or decoded.
@@ -318,13 +318,13 @@ void ObjectInfo::gather_uses_to_propagate(const Object &obj) {
       continue;
     }
 
-    println("  USER ", *user);
+    debugln("  USER ", *user);
 
     if (auto *access = into<AccessInst>(user)) {
 
       // Ensure that the use is the object being accessed.
       if (&use != &access->getObjectAsUse()) {
-        println("    Not object use");
+        debugln("    Not object use");
         continue;
       }
 
@@ -333,7 +333,7 @@ void ObjectInfo::gather_uses_to_propagate(const Object &obj) {
 
       // If the indices don't match, skip.
       if (not maybe_distance) {
-        println("    Offsets don't match");
+        debugln("    Offsets don't match");
         continue;
       }
 
