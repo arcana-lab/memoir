@@ -718,14 +718,22 @@ Type &AssocArrayType::getElementType() const {
 }
 
 std::string AssocArrayType::toString(std::string indent) const {
-  std::string str = "Assoc";
+  std::string str = "";
+
+  bool is_set = isa<VoidType>(&this->getValueType());
+
+  if (is_set)
+    str += "Set";
+  else
+    str += "Map";
 
   if (auto selection = this->get_selection()) {
     str += "{" + selection.value() + "}";
   }
-
-  str += "<" + this->key_type.toString(indent) + ", "
-         + this->value_type.toString(indent) + ">";
+  str += "<" + this->key_type.toString(indent);
+  if (not is_set)
+    str += ", " + this->value_type.toString(indent);
+  str += ">";
 
   return str;
 }
