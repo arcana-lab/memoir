@@ -4,9 +4,15 @@
 
 namespace folio {
 
+struct Heuristic {
+  int benefit, cost;
+
+  Heuristic() : benefit(0), cost(0) {}
+};
+
 /**
  * Compute the benefit of the given candidate.
  */
-int benefit(llvm::ArrayRef<const ObjectInfo *> candidate);
+Heuristic benefit(llvm::ArrayRef<const ObjectInfo *> candidate);
 
 } // namespace folio

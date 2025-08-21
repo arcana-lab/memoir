@@ -399,7 +399,7 @@ void ProxyInsertion::share_proxies() {
     this->flesh_out(candidate);
 
     // Compute the benefit of the candidate as is.
-    candidate.benefit = benefit(candidate);
+    candidate.benefit = benefit(candidate).benefit;
 
     // Find all other allocations in the same function as this one.
     if (not disable_proxy_sharing) {
@@ -408,59 +408,59 @@ void ProxyInsertion::share_proxies() {
       Map<ObjectInfo *, int> shareable = {};
 
       for (auto &other : objects) {
-        if (used.contains(&other) or &other == &info) {
+        if (used.contains(&other) or &other == &info)
           continue;
-        }
 
         if (object_can_share(key_type, func, other)) {
           Candidate other_alone(key_type, { &other });
           this->flesh_out(other_alone);
-          shareable[&other] = benefit(other_alone);
+          shareable[&other] = benefit(other_alone).benefit;
         }
       }
 
       // Find all propagators in the same function as this one.
       for (auto &other : propagators) {
-        if (used.contains(&other) or &other == &info) {
+        if (used.contains(&other) or &other == &info)
           continue;
-        }
 
         if (propagator_can_share(key_type, func, other)) {
           Candidate other_alone(key_type, { &other });
           this->flesh_out(other_alone);
-          shareable[&other] = benefit(other_alone);
+          shareable[&other] = benefit(other_alone).benefit;
         }
       }
 
-      infoln("SHAREABLE");
-      for (const auto &[other, _] : shareable) {
-        infoln("  ", *other);
-      }
-      infoln();
+      println("SHAREABLE");
+      for (const auto &[other, _] : shareable)
+        println("  ", *other);
+      println();
 
       // Iterate until we can't find a new object to add to the candidate.
       bool fresh;
       do {
         fresh = false;
 
-        infoln("CURRENT ", candidate);
-        infoln("  BENEFIT ", candidate.benefit);
+        println("CURRENT ", candidate);
+        println("  BENEFIT ", candidate.benefit);
 
         for (auto jt = shareable.begin(); jt != shareable.end();) {
           const auto &[other, single_benefit] = *jt;
 
-          infoln("  WHAT IF? ", *other);
+          println("  WHAT IF? ", *other);
 
           // Compute the benefit of adding this candidate.
           Candidate checkpoint = candidate;
           candidate.push_back(other);
           this->flesh_out(candidate);
-          auto new_benefit = benefit(candidate);
-          infoln("    NEW BENEFIT ", new_benefit);
-          infoln("    SUM BENEFIT ", candidate.benefit + single_benefit);
-          infoln();
+          auto new_heuristic = benefit(candidate);
+          auto new_benefit = new_heuristic.benefit;
+          println("    NEW BENEFIT ", new_heuristic.benefit);
+          println("    SUM BENEFIT ", candidate.benefit + single_benefit);
+          println("     ADDED COST ", new_heuristic.cost);
+          println();
 
-          if (new_benefit > (candidate.benefit + single_benefit)) {
+          if (new_benefit > (candidate.benefit + single_benefit)
+              or new_heuristic.cost == 0) {
             fresh = true;
             candidate.benefit = new_benefit;
 
