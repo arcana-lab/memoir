@@ -389,11 +389,11 @@ void ProxyInsertion::share_proxies() {
 
     auto *func = info.function();
 
-    auto &type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&info.type()),
-                                 "Non-assoc type, unhandled.");
-    auto &key_type = type.getKeyType();
+    auto *key_type = &info.type();
+    if (auto *assoc_type = dyn_cast<AssocType>(key_type))
+      key_type = &assoc_type->getKeyType();
 
-    this->candidates.emplace_back(key_type);
+    this->candidates.emplace_back(*key_type);
     auto &candidate = this->candidates.back();
     candidate.push_back(&info);
     this->flesh_out(candidate);
@@ -411,8 +411,8 @@ void ProxyInsertion::share_proxies() {
         if (used.contains(&other) or &other == &info)
           continue;
 
-        if (object_can_share(key_type, func, other)) {
-          Candidate other_alone(key_type, { &other });
+        if (object_can_share(*key_type, func, other)) {
+          Candidate other_alone(*key_type, { &other });
           this->flesh_out(other_alone);
           shareable[&other] = benefit(other_alone).benefit;
         }
@@ -423,8 +423,8 @@ void ProxyInsertion::share_proxies() {
         if (used.contains(&other) or &other == &info)
           continue;
 
-        if (propagator_can_share(key_type, func, other)) {
-          Candidate other_alone(key_type, { &other });
+        if (propagator_can_share(*key_type, func, other)) {
+          Candidate other_alone(*key_type, { &other });
           this->flesh_out(other_alone);
           shareable[&other] = benefit(other_alone).benefit;
         }
@@ -495,6 +495,7 @@ void ProxyInsertion::share_proxies() {
   for (auto &candidate : this->candidates) {
     println("CANDIDATE ", candidate.id);
     println("  IN ", candidate.function().getName());
+    println("  TYPE ", candidate.key_type());
     println("  BENEFIT=", candidate.benefit);
     for (const auto *info : candidate) {
       println("  ", *info);
