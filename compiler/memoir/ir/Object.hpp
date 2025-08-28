@@ -23,6 +23,9 @@ struct Object {
   /** Utility to get the type of an object nested within an SSA value. */
   static Type &type(llvm::Value &value, OffsetsRef offsets);
 
+  /** Utility to get the type of a nested object from a type. */
+  static Type &type(Type &type, OffsetsRef offsets);
+
   /** Type of the object */
   Type &type() const;
 

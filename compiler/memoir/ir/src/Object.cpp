@@ -16,19 +16,24 @@ OffsetsRef Object::offsets() const {
   return this->_offsets;
 }
 
-Type &Object::type(llvm::Value &value, OffsetsRef offsets) {
-  auto *type = type_of(value);
+Type &Object::type(Type &type, OffsetsRef offsets) {
+  auto *nested_type = &type;
 
   for (auto offset : offsets) {
-    if (auto *tuple = dyn_cast<TupleType>(type))
-      type = &tuple->getFieldType(offset);
-    else if (auto *collection = dyn_cast<CollectionType>(type))
-      type = &collection->getElementType();
+    if (auto *tuple = dyn_cast<TupleType>(nested_type))
+      nested_type = &tuple->getFieldType(offset);
+    else if (auto *collection = dyn_cast<CollectionType>(nested_type))
+      nested_type = &collection->getElementType();
     else
       MEMOIR_UNREACHABLE("Malformed object offset, or incorrect type");
   }
 
-  return *type;
+  return *nested_type;
+}
+
+Type &Object::type(llvm::Value &value, OffsetsRef offsets) {
+  auto *type = type_of(value);
+  return Object::type(*type, offsets);
 }
 
 Type &Object::type() const {
