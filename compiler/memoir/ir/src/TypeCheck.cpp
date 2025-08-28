@@ -519,6 +519,8 @@ Option<Type *> TypeChecker::unify(Type *t, Type *u) {
       this->type_bindings[tvar] = u;
       return u;
     }
+  } else {
+    return u;
   }
 
   if (u != nullptr) {
@@ -526,6 +528,8 @@ Option<Type *> TypeChecker::unify(Type *t, Type *u) {
       this->type_bindings[uvar] = t;
       return t;
     }
+  } else {
+    return t;
   }
 
   if (t) {
