@@ -2,6 +2,7 @@
 #include "llvm/Transforms/Utils/Cloning.h"
 
 #include "memoir/ir/Builder.hpp"
+#include "memoir/ir/Object.hpp"
 #include "memoir/transforms/utilities/MutateType.hpp"
 #include "memoir/utility/FunctionNames.hpp"
 
@@ -277,255 +278,6 @@ static Differences type_differences(Type &base, Type &other) {
   return differences;
 }
 
-static void gather_base_redefinitions(Set<llvm::Value *> &redefs,
-                                      llvm::Value &V) {
-
-  if (redefs.count(&V) > 0) {
-    return;
-  }
-
-  redefs.insert(&V);
-
-  for (auto &use : V.uses()) {
-    auto *user = dyn_cast<llvm::Instruction>(use.getUser());
-    if (not user) {
-      continue;
-    }
-
-    if (auto *memoir = into<MemOIRInst>(user)) {
-      if (auto *update = dyn_cast<UpdateInst>(memoir)) {
-        if (&use == &update->getObjectAsUse()) {
-          gather_base_redefinitions(redefs, update->getResult());
-        }
-
-      } else if (auto *fold = dyn_cast<FoldInst>(memoir)) {
-        if (&use == &fold->getInitialAsUse()) {
-          gather_base_redefinitions(redefs, fold->getAccumulatorArgument());
-          gather_base_redefinitions(redefs, fold->getResult());
-
-        } else if (auto *closed = fold->getClosedArgument(use)) {
-          gather_base_redefinitions(redefs, *closed);
-        }
-
-      } else if (auto *ret_phi = dyn_cast<RetPHIInst>(memoir)) {
-        gather_base_redefinitions(redefs, ret_phi->getResult());
-      }
-
-    } else if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
-      gather_base_redefinitions(redefs, *phi);
-    } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
-      auto *callee = call->getCalledFunction();
-      MEMOIR_ASSERT(callee,
-                    "Object passed into indirect call! ",
-                    value_name(V),
-                    " in ",
-                    *call);
-
-      auto operand_no = use.getOperandNo();
-      MEMOIR_ASSERT(operand_no < callee->arg_size(),
-                    "Object passed to argument out of range! ",
-                    value_name(V),
-                    " in ",
-                    *call);
-
-      auto &arg = MEMOIR_SANITIZE(callee->getArg(operand_no),
-                                  "Argument ",
-                                  operand_no,
-                                  " in ",
-                                  callee->getName(),
-                                  " is NULL!");
-
-      gather_base_redefinitions(redefs, arg);
-    }
-  }
-}
-
-struct NestedInfo {
-  NestedInfo(llvm::Value &value, llvm::ArrayRef<unsigned> offsets)
-    : _value(&value),
-      _offsets(offsets) {}
-
-  NestedInfo(llvm::Value &value) : NestedInfo(value, {}) {}
-
-  llvm::Value &value() const {
-    return *this->_value;
-  }
-
-  void value(llvm::Value &V) {
-    this->_value = &V;
-  }
-
-  llvm::BasicBlock *parent() const {
-    if (auto *inst = dyn_cast<llvm::Instruction>(&this->value())) {
-      return inst->getParent();
-    }
-    return NULL;
-  }
-
-  llvm::Function *parent_function() const {
-    if (auto *inst = dyn_cast<llvm::Instruction>(&this->value())) {
-      return inst->getFunction();
-    } else if (auto *arg = dyn_cast<llvm::Argument>(&this->value())) {
-      return arg->getParent();
-    }
-    return NULL;
-  }
-
-  llvm::ArrayRef<unsigned> offsets() const {
-    return this->_offsets;
-  }
-
-  Type &nested_type(Type &base_type) const {
-    auto *type = &base_type;
-    for (const auto offset : this->offsets()) {
-      if (auto *collection_type = dyn_cast<CollectionType>(type)) {
-        type = &collection_type->getElementType();
-      } else if (auto *tuple_type = dyn_cast<TupleType>(type)) {
-        type = &tuple_type->getFieldType(offset);
-      }
-    }
-
-    return MEMOIR_SANITIZE(type, "Nested type is NULL!");
-  }
-
-  friend bool operator<(const NestedInfo &lhs, const NestedInfo &rhs) {
-    if (lhs._value < rhs._value) {
-      return true;
-    }
-
-    if (lhs.offsets().size() < rhs.offsets().size()) {
-      return true;
-    }
-
-    auto lit = lhs.offsets().begin();
-    auto rit = rhs.offsets().begin();
-    auto lie = lhs.offsets().end();
-    for (; lit != lie; ++lit, ++rit) {
-      if (*lit < *rit) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const NestedInfo &info) {
-    os << "(" << info.value() << ")";
-    for (auto offset : info.offsets()) {
-      if (offset == unsigned(-1)) {
-        os << "[*]";
-      } else {
-        os << "." << std::to_string(offset);
-      }
-    }
-
-    return os;
-  }
-
-protected:
-  llvm::Value *_value;
-  Vector<unsigned> _offsets;
-};
-
-static void gather_nested_redefinitions(OrderedSet<NestedInfo> &redefs,
-                                        Set<llvm::Value *> &visited,
-                                        llvm::Value &V,
-                                        llvm::ArrayRef<unsigned> offsets) {
-
-  if (visited.count(&V) > 0) {
-    return;
-  } else {
-    visited.insert(&V);
-  }
-
-  if (not offsets.empty()) {
-    redefs.emplace(V, offsets);
-  }
-
-  for (auto &use : V.uses()) {
-    auto *user = dyn_cast<llvm::Instruction>(use.getUser());
-
-    if (auto *memoir = into<MemOIRInst>(user)) {
-      if (auto *fold = dyn_cast<FoldInst>(memoir)) {
-        if (&fold->getObjectAsUse() == &use) {
-
-          // Fetch the element argument of the fold.
-          // If it doesn't exist, then we have nothing to propagate.
-          auto *arg = fold->getElementArgument();
-          if (not arg) {
-            continue;
-          }
-
-          // Get the type of the value so we can gather the correct offsets.
-          auto *type = type_of(V);
-
-          // Construct the nested offsets.
-          Vector<unsigned> nested_offsets(offsets.begin(), offsets.end());
-          for (auto *index : fold->indices()) {
-            if (auto *collection_type = dyn_cast<CollectionType>(type)) {
-
-              nested_offsets.push_back(ELEMS);
-
-              type = &collection_type->getElementType();
-
-            } else if (auto *tuple_type = dyn_cast<TupleType>(type)) {
-              // Unpack the field index.
-              auto &field_constant =
-                  MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
-                                  "Field index is non-constant!");
-              auto field = field_constant.getZExtValue();
-
-              nested_offsets.push_back(field);
-
-              type = &tuple_type->getFieldType(field);
-            }
-          }
-
-          nested_offsets.push_back(ELEMS);
-
-          auto &collection_type =
-              MEMOIR_SANITIZE(dyn_cast<CollectionType>(type),
-                              "Fold over non-collection type!");
-
-          auto &elem_type = collection_type.getElementType();
-
-          if (not Type::is_primitive_type(elem_type)) {
-            gather_nested_redefinitions(redefs, visited, *arg, nested_offsets);
-          }
-        } else if (auto *closed_arg = fold->getClosedArgument(use)) {
-          gather_nested_redefinitions(redefs, visited, *closed_arg, offsets);
-        }
-      }
-    } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
-      auto *callee = call->getCalledFunction();
-      MEMOIR_ASSERT(callee,
-                    "Object passed into indirect call! ",
-                    value_name(V),
-                    " in ",
-                    *call);
-
-      auto operand_no = use.getOperandNo();
-      MEMOIR_ASSERT(operand_no < callee->arg_size(),
-                    "Object passed to argument out of range! ",
-                    value_name(V),
-                    " in ",
-                    *call);
-
-      auto &arg = MEMOIR_SANITIZE(callee->getArg(operand_no),
-                                  "Argument ",
-                                  operand_no,
-                                  " in ",
-                                  callee->getName(),
-                                  " is NULL!");
-
-      gather_nested_redefinitions(redefs, visited, arg, offsets);
-    }
-  }
-
-  return;
-}
-
 static void gather_offsets(Vector<unsigned> &offsets, AccessInst &access) {
 
   auto *type = &access.getObjectType();
@@ -545,37 +297,125 @@ static void gather_offsets(Vector<unsigned> &offsets, AccessInst &access) {
   return;
 }
 
-static OrderedSet<NestedInfo> gather_redefinitions(llvm::Value &V) {
+static void gather_redefinitions(OrderedSet<Object> &redefs, Object obj) {
 
+  // If we've already visited this object, return.
+  if (redefs.contains(obj))
+    return;
+  else
+    redefs.insert(obj);
+
+  debugln("REDEF ", obj);
+
+  // Iterate over all uses of this object to find redefinitions.
+  for (auto &use : obj.value().uses()) {
+    auto *user = use.getUser();
+
+    debugln(" USER ", *user);
+
+    Object user_obj(*user, obj.offsets());
+
+    // Recurse on redefinitions.
+    if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
+      gather_redefinitions(redefs, user_obj);
+
+    } else if (auto *memoir_inst = into<MemOIRInst>(user)) {
+      if (isa<RetPHIInst, UsePHIInst>(memoir_inst)) {
+        gather_redefinitions(redefs, user_obj);
+
+      } else if (auto *update = dyn_cast<UpdateInst>(memoir_inst)) {
+        if (&use == &update->getObjectAsUse())
+          gather_redefinitions(redefs, user_obj);
+
+      } else if (auto *fold = into<FoldInst>(user)) {
+        // Gather variable if folded on, or recurse on closed argument.
+
+        if (&use == &fold->getInitialAsUse()) {
+          // Gather uses of the accumulator argument.
+          auto &accum = fold->getAccumulatorArgument();
+          gather_redefinitions(redefs, Object(accum, obj.offsets()));
+
+          // Gather uses of the resultant.
+          gather_redefinitions(redefs, user_obj);
+
+        } else if (&use == &fold->getObjectAsUse()) {
+
+          // If the element argument is an object, gather uses of it.
+          if (auto *elem_arg = fold->getElementArgument()) {
+
+            // Append the access indices.
+            Offsets elem_offsets(obj.offsets());
+            auto *type = type_of(obj.value());
+            for (auto *index : fold->indices()) {
+              if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+                type = &collection_type->getElementType();
+                elem_offsets.push_back(Offset(-1));
+
+              } else if (auto *tuple_type = dyn_cast<TupleType>(type)) {
+                auto *index_const = dyn_cast<llvm::ConstantInt>(index);
+                MEMOIR_ASSERT(index_const, "Tuple access with unknown field");
+                debugln(*index_const);
+                Offset field = index_const->getZExtValue();
+                debugln(field);
+                type = &tuple_type->getFieldType(field);
+                elem_offsets.push_back(field);
+              }
+            }
+            elem_offsets.push_back(Offset(-1));
+
+            // Recurse.
+            gather_redefinitions(redefs, Object(*elem_arg, elem_offsets));
+          }
+
+        } else if (auto *closed_arg = fold->getClosedArgument(use)) {
+          // Gather uses of the closed argument.
+          gather_redefinitions(redefs, Object(*closed_arg, obj.offsets()));
+        }
+      }
+    } else if (auto *call = dyn_cast<llvm::CallBase>(user)) {
+      auto *callee = call->getCalledFunction();
+      MEMOIR_ASSERT(callee,
+                    "Object passed into indirect call! ",
+                    value_name(obj.value()),
+                    " in ",
+                    *call);
+
+      auto operand_no = use.getOperandNo();
+      MEMOIR_ASSERT(operand_no < callee->arg_size(),
+                    "Object passed to argument out of range! ",
+                    value_name(obj.value()),
+                    " in ",
+                    *call);
+
+      auto &arg = MEMOIR_SANITIZE(callee->getArg(operand_no),
+                                  "Argument ",
+                                  operand_no,
+                                  " in ",
+                                  callee->getName(),
+                                  " is NULL!");
+
+      gather_redefinitions(redefs, Object(arg, obj.offsets()));
+    }
+  }
+}
+
+static OrderedSet<Object> gather_redefinitions(llvm::Value &value) {
   // Initialize the redefinitions.
-  OrderedSet<NestedInfo> redefs = {};
+  OrderedSet<Object> redefs = {};
 
-  // Gather base redefinitions.
-  Set<llvm::Value *> base_redefs = {};
-  gather_base_redefinitions(base_redefs, V);
-
-  // Gather nested redefinitions.
-  Set<llvm::Value *> visited = {};
-  for (auto *base : base_redefs) {
-    gather_nested_redefinitions(redefs, visited, *base, {});
-  }
-
-  // Insert the base redefinitions.
-  for (auto *base : base_redefs) {
-    redefs.emplace(*base, llvm::ArrayRef<unsigned>());
-  }
+  gather_redefinitions(redefs, Object(value));
 
   return redefs;
 }
 
-static OrderedSet<NestedInfo> gather_redefinitions(MemOIRInst &I) {
+static OrderedSet<Object> gather_redefinitions(MemOIRInst &I) {
   return gather_redefinitions(I.getCallInst());
 }
 
-static void update_phis(llvm::Value &V) {
-  auto *type = V.getType();
+static void update_phis(llvm::Value &value) {
+  auto *type = value.getType();
 
-  for (auto &use : V.uses()) {
+  for (auto &use : value.uses()) {
     if (auto *phi = dyn_cast<llvm::PHINode>(use.getUser())) {
       if (phi->getType() != type) {
         phi->mutateType(type);
@@ -587,8 +427,8 @@ static void update_phis(llvm::Value &V) {
   }
 }
 
-static void update_assertions(llvm::Value &V, Type &type) {
-  for (auto &use : V.uses()) {
+static void update_assertions(llvm::Value &value, Type &type) {
+  for (auto &use : value.uses()) {
     if (auto *assertion = into<AssertTypeInst>(use.getUser())) {
       MemOIRBuilder builder(*assertion);
 
@@ -601,9 +441,12 @@ static void update_assertions(llvm::Value &V, Type &type) {
   return;
 }
 
-static void update_accesses(llvm::Value &V, Type &type) {
-  for (auto &use : V.uses()) {
+static void update_accesses(llvm::Value &value, Type &type) {
+  for (auto &use : value.uses()) {
     if (auto *access = into<AccessInst>(use.getUser())) {
+
+      if (&use != &access->getObjectAsUse())
+        continue;
 
       // Handle read/write accesses together.
       auto *read = dyn_cast<ReadInst>(access);
@@ -627,6 +470,9 @@ static void update_accesses(llvm::Value &V, Type &type) {
           elem_type = &tuple_type->getFieldType(field);
         }
       }
+
+      debugln(" MUTATE ", *access);
+      debugln(" NEW TY ", *elem_type);
 
       // Fetch the converted type instruction.
       auto &orig_func = access->getCalledFunction();
@@ -652,7 +498,7 @@ static void update_accesses(llvm::Value &V, Type &type) {
   return;
 }
 
-static void update_has(const NestedInfo &info,
+static void update_has(const Object &info,
                        llvm::ArrayRef<unsigned> diff_offsets) {
   auto &value = info.value();
 
@@ -718,7 +564,7 @@ static void update_has(const NestedInfo &info,
 }
 
 static void find_arguments(Map<llvm::Argument *, Type *> &args_to_mutate,
-                           const NestedInfo &info,
+                           const Object &info,
                            Differences &diffs,
                            Type &type) {
 
@@ -737,7 +583,8 @@ static void find_arguments(Map<llvm::Argument *, Type *> &args_to_mutate,
           auto &key_arg = fold->getIndexArgument();
 
           Type *converted_key_type = nullptr;
-          auto &converted_type = key_diff->convert_type(info.nested_type(type));
+          auto &converted_type =
+              key_diff->convert_type(Object::type(type, info.offsets()));
           if (auto *assoc_type = dyn_cast<AssocType>(&converted_type)) {
             converted_key_type = &assoc_type->getKeyType();
           } else if (auto *seq_type = dyn_cast<SequenceType>(&converted_type)) {
@@ -745,7 +592,7 @@ static void find_arguments(Map<llvm::Argument *, Type *> &args_to_mutate,
                                            "FoldInst has no parent module!");
             converted_key_type = &Type::get_size_type(module.getDataLayout());
           } else {
-            println("UNHANDLED PARENT TYPE ", converted_type);
+            debugln("UNHANDLED PARENT TYPE ", converted_type);
           }
 
           args_to_mutate[&key_arg] = converted_key_type;
@@ -754,8 +601,8 @@ static void find_arguments(Map<llvm::Argument *, Type *> &args_to_mutate,
         // Check for value type differences.
         if (auto *elem_arg = fold->getElementArgument()) {
 
-          NestedInfo elem_info(info.value(), offsets);
-          auto &elem_type = elem_info.nested_type(type);
+          Object elem_info(info.value(), offsets);
+          auto &elem_type = Object::type(type, elem_info.offsets());
 
           offsets.push_back(ELEMS);
 
@@ -773,7 +620,7 @@ static void find_arguments(Map<llvm::Argument *, Type *> &args_to_mutate,
   return;
 }
 
-static void update_arguments(OrderedSet<NestedInfo> &redefs,
+static void update_arguments(OrderedSet<Object> &redefs,
                              Differences &diffs,
                              Type &type,
                              OnFuncClone on_func_clone) {
@@ -810,7 +657,7 @@ static void update_arguments(OrderedSet<NestedInfo> &redefs,
       if (arg_no < params.size()) {
         auto *arg_type = to_mutate[arg];
         if (not arg_type) {
-          println(*arg,
+          debugln(*arg,
                   " in ",
                   func->getName(),
                   " is missing type information!");
@@ -934,7 +781,7 @@ void mutate_type(AllocInst &alloc, Type &type, OnFuncClone on_func_clone) {
   // Update any nested type assertions.
   debugln("Updating assertions...");
   for (auto &info : redefs) {
-    update_assertions(info.value(), info.nested_type(type));
+    update_assertions(info.value(), Object::type(type, info.offsets()));
   }
   debugln("Done updating assertions.");
 
@@ -942,7 +789,7 @@ void mutate_type(AllocInst &alloc, Type &type, OnFuncClone on_func_clone) {
   debugln("Updating accesses...");
   if (type_differs) {
     for (auto &info : redefs) {
-      update_accesses(info.value(), info.nested_type(type));
+      update_accesses(info.value(), Object::type(type, info.offsets()));
     }
     debugln("Done updating accesses.");
   } else {
