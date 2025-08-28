@@ -1,4 +1,4 @@
-project(memoir-cpp C CXX ASM)
+project(memoir-cpp C CXX)
 
 set(HEADER_FILES
   # Objects

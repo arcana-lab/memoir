@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-project(MEMOIR C CXX ASM)
+project(MEMOIR C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 
@@ -76,5 +76,5 @@ add_subdirectory(tests)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/.enable.in ${CMAKE_CURRENT_SOURCE_DIR}/enable @ONLY)
 
 # Documentation
-option(BUILD_DOC "Build documentation" ON)
+option(BUILD_DOC "Build documentation" OFF)
 add_subdirectory(docs)
