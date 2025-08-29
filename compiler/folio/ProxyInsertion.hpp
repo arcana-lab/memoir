@@ -88,7 +88,18 @@ protected:
   Enumerated enumerated;
 
   // Group objects by abstract/base candidate
-  UnionFind<ObjectInfo *> unified;
+  struct PrioritizeBase {
+    bool operator()(ObjectInfo *lhs,
+                    ObjectInfo *rhs,
+                    size_t lsize,
+                    size_t rsize) {
+      if (isa<ArgObjectInfo>(lhs))
+        return true;
+      else
+        return lsize < rsize;
+    }
+  };
+  UnionFind<ObjectInfo *, PrioritizeBase> unified;
   Map<ObjectInfo *, SmallVector<ObjectInfo *>> equiv;
 
   // Transformation.
