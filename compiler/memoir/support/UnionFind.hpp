@@ -11,6 +11,14 @@
 namespace llvm::memoir {
 
 template <typename T>
+struct LargerParent {
+  using Size = size_t;
+  bool operator()(T lhs, T rhs, Size lsize, Size rsize) {
+    return lsize < rsize;
+  }
+};
+
+template <typename T, typename Cmp = LargerParent<T>>
 struct UnionFind {
 protected:
   using ParentMap = Map<T, T>;
@@ -73,9 +81,8 @@ public:
     u = this->find(u);
 
     // If u.size > t.size, swap them
-    if (this->size(u) > this->size(t)) {
+    if (Cmp{}(t, u, this->size(t), this->size(u)))
       std::swap(t, u);
-    }
 
     // Merge u into t
     this->parent(u) = t;
