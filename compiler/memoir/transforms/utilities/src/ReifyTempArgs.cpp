@@ -19,7 +19,7 @@
 namespace llvm::memoir {
 
 static llvm::Function *find_tempargs_to_reify(
-    llvm::Module &M,
+    llvm::Module &module,
     Set<llvm::Function *> &handled,
     Vector<llvm::LoadInst *> &temp_loads) {
 
@@ -27,35 +27,31 @@ static llvm::Function *find_tempargs_to_reify(
   temp_loads.clear();
 
   // Collect all of the loads and stores marked as temporary arguments.
-  for (auto &F : M) {
-    if (F.empty() or not F.hasName()) {
+  for (auto &function : module) {
+    if (function.empty() or not function.hasName())
       continue;
-    }
 
-    if (handled.contains(&F)) {
+    if (handled.contains(&function))
       continue;
-    } else {
-      handled.insert(&F);
-    }
+    else
+      handled.insert(&function);
 
-    for (auto &I : llvm::instructions(F)) {
+    for (auto &inst : llvm::instructions(function)) {
       // Filter out irrelevant instruction types.
-      auto *load = dyn_cast<llvm::LoadInst>(&I);
-      if (not load) {
+      auto *load = dyn_cast<llvm::LoadInst>(&inst);
+      if (not load)
         continue;
-      }
 
       // Check for temporary argument metadata.
-      if (not Metadata::get<TempArgumentMetadata>(I)) {
+      if (not Metadata::get<TempArgumentMetadata>(inst))
         continue;
-      }
 
       // Save the temporary arg load.
       temp_loads.push_back(load);
     }
 
     if (not temp_loads.empty()) {
-      return &F;
+      return &function;
     }
   }
 
@@ -90,12 +86,12 @@ struct Patch {
 
 using Patches = OrderedMap<llvm::GlobalVariable *, Patch>;
 
-static llvm::Function &clone_function(llvm::Function &F,
+static llvm::Function &clone_function(llvm::Function &function,
                                       Patches &to_patch,
                                       Set<llvm::Value *> &to_cleanup) {
 
-  auto &M =
-      MEMOIR_SANITIZE(F.getParent(), "Function does not belong to a module!");
+  auto &module = MEMOIR_SANITIZE(function.getParent(),
+                                 "Function does not belong to a module!");
 
   // Collect patch information for this function.
   Vector<llvm::LoadInst *> temp_loads = {};
@@ -106,7 +102,7 @@ static llvm::Function &clone_function(llvm::Function &F,
   }
 
   // Fetch the old function type.
-  auto *old_func_type = F.getFunctionType();
+  auto *old_func_type = function.getFunctionType();
 
   // Construct the new function type.
   auto *return_type = old_func_type->getReturnType();
@@ -122,25 +118,27 @@ static llvm::Function &clone_function(llvm::Function &F,
                                                 /* variadic? */ false);
 
   // Create the new function.
-  auto &new_func = MEMOIR_SANITIZE(
-      llvm::Function::Create(new_func_type, F.getLinkage(), F.getName(), M),
-      "Failed to create function clone.");
+  auto &new_func = MEMOIR_SANITIZE(llvm::Function::Create(new_func_type,
+                                                          function.getLinkage(),
+                                                          function.getName(),
+                                                          module),
+                                   "Failed to create function clone.");
 
   // Clone the function into a new function.
   llvm::ValueToValueMapTy vmap;
   unsigned arg_no = 0;
-  for (auto &old_arg : F.args()) {
+  for (auto &old_arg : function.args()) {
     auto *new_arg = new_func.getArg(arg_no++);
     vmap.insert({ &old_arg, new_arg });
   }
   llvm::SmallVector<llvm::ReturnInst *, 8> returns;
   llvm::CloneFunctionInto(&new_func,
-                          &F,
+                          &function,
                           vmap,
                           llvm::CloneFunctionChangeType::LocalChangesOnly,
                           returns);
 
-  new_func.takeName(&F);
+  new_func.takeName(&function);
 
   // Remap the patches.
   for (auto &[_global, patch] : to_patch) {
@@ -200,7 +198,7 @@ static llvm::Function &clone_function(llvm::Function &F,
     to_cleanup.insert(new_load);
   }
 
-  to_cleanup.insert(&F);
+  to_cleanup.insert(&function);
 
   return new_func;
 }
@@ -232,7 +230,8 @@ static void cleanup(Set<llvm::Value *> &to_cleanup) {
   for (auto *val : to_cleanup) {
     if (auto *func = dyn_cast<llvm::Function>(val)) {
       func->dropAllReferences();
-      func->deleteBody();
+      if (!func->empty())
+        func->deleteBody();
       func->eraseFromParent();
     }
   }
@@ -418,16 +417,15 @@ static void reify_function(llvm::Function &function,
   return;
 }
 
-bool reify_tempargs(llvm::Module &M) {
+bool reify_tempargs(llvm::Module &module) {
   bool changed = false;
 
   Set<llvm::Function *> handled = {};
   Vector<LoadInst *> temp_loads = {};
-  while (auto *func = find_tempargs_to_reify(M, handled, temp_loads)) {
+  while (auto *func = find_tempargs_to_reify(module, handled, temp_loads)) {
 
-    if (func->getName() == "main") {
+    if (func->getName() == "main")
       continue;
-    }
 
     reify_function(*func, temp_loads);
 
