@@ -669,13 +669,13 @@ void ProxyInsertion::patch_uses() {
 
         // Does a dominating addkey exist?
         bool already_added = false;
-        for (auto *added : values_added[base][value]) {
-          if (dominates(this->get_dominator_tree, *added, *use)) {
-            update_use(*use, *added);
-            already_added = true;
-            break;
-          }
-        }
+        if (not into<HasInst>(use->getUser()))
+          for (auto *added : values_added[base][value])
+            if (dominates(this->get_dominator_tree, *added, *use)) {
+              update_use(*use, *added);
+              already_added = true;
+              break;
+            }
         if (already_added)
           continue;
 
