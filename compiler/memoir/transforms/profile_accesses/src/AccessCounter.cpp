@@ -1,9 +1,9 @@
 #include "llvm/IR/GlobalVariable.h"
-#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
+#include "memoir/ir/Builder.hpp"
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/Casting.hpp"
@@ -114,9 +114,7 @@ static void create_report(llvm::Module &M,
 
   auto *block = llvm::BasicBlock::Create(context, "", func);
 
-  auto printf_callee = llvm::FunctionCallee(M.getFunction("printf"));
-
-  llvm::IRBuilder<> builder(block);
+  MemOIRBuilder builder(block);
 
   bool first = true;
   std::string header_str = "";
@@ -133,22 +131,15 @@ static void create_report(llvm::Module &M,
   }
 
   std::string format_str = header_str + "\n" + data_str + "\n";
-  auto *format_array = llvm::ConstantDataArray::getString(context, format_str);
-  auto *format_global =
-      new llvm::GlobalVariable(M,
-                               format_array->getType(),
-                               /* constant? */ true,
-                               llvm::GlobalValue::LinkageTypes::InternalLinkage,
-                               format_array);
 
-  Vector<llvm::Value *> args = { format_global };
+  Vector<llvm::Value *> args;
   for (auto *global : globals) {
     auto *load = builder.CreateLoad(counter_type, global);
 
     args.push_back(load);
   }
 
-  builder.CreateCall(printf_callee, args);
+  builder.CreateErrorf(format_str, args);
 
   builder.CreateRetVoid();
 
