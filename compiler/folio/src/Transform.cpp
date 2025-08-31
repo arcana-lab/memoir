@@ -780,7 +780,7 @@ ObjectInfo *ProxyInsertion::find_recursive_base(BaseObjectInfo &base) {
       continue;
 
     for (const auto &[call, incoming] : arg->incoming())
-      if (incoming == &base)
+      if (this->unified.find(incoming) == this->unified.find(&base))
         return arg;
   }
 
