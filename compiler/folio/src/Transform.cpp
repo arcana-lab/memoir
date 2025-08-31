@@ -26,6 +26,10 @@ static llvm::cl::opt<bool> disable_total_proxy(
     "disable-total-proxy",
     llvm::cl::desc("Disable total proxy optimization"),
     llvm::cl::init(true));
+static llvm::cl::opt<int> max_reuses(
+    "ade-max-reuses",
+    llvm::cl::desc("Maximum number of enumeration reuses"),
+    llvm::cl::init(-1));
 
 using GetGlobal = typename std::function<llvm::GlobalVariable *(ObjectInfo *)>;
 
@@ -721,25 +725,6 @@ static void validate_mapping(Mapping &mapping) {
   }
 }
 
-static bool is_self_recursive(llvm::Function &function) {
-  for (auto &use : function.uses()) {
-    auto *call = dyn_cast<llvm::CallBase>(use.getUser());
-    if (not call) {
-      continue;
-    }
-
-    if (call->isIndirectCall()) {
-      continue;
-    }
-
-    if (call->getCalledFunction() == &function) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 static void store_allocation(Builder &builder,
                              llvm::Value *encoder,
                              llvm::Value *decoder,
@@ -783,12 +768,90 @@ static llvm::Instruction &find_construction_point(
 
 ObjectInfo *ProxyInsertion::find_recursive_base(BaseObjectInfo &base) {
   // Is there an argument base in the same function as this one?
-  for (const auto &[other, _] : this->equiv)
-    if (auto *arg = dyn_cast<ArgObjectInfo>(other))
-      if (arg->function() == base.function())
+  // If so, find the one corresponding to this base.
+  auto *function = base.function();
+
+  for (const auto &[other, _] : this->equiv) {
+    if (other->function() != function)
+      continue;
+
+    auto *arg = dyn_cast<ArgObjectInfo>(other);
+    if (!arg)
+      continue;
+
+    for (const auto &[call, incoming] : arg->incoming())
+      if (incoming == &base)
         return arg;
+  }
 
   return NULL;
+}
+
+static llvm::Value *construct_reuse_heuristic(MemOIRBuilder &builder,
+                                              llvm::Function &function,
+                                              llvm::Value *nonnull) {
+
+  // If the max number of reuses is negative, then there is no max.
+  if (max_reuses < 0)
+    return nonnull;
+
+  // If the max number of reuses is zero, then never reuse.
+  if (max_reuses == 0)
+    return builder.getFalse();
+
+  // Add a global variable to track the current recursion depth.
+  auto *zero = builder.getInt32(0);
+  auto *counter_type = zero->getType();
+  auto *global =
+      new llvm::GlobalVariable(builder.getModule(),
+                               counter_type,
+                               /*constant?*/ false,
+                               llvm::GlobalValue::LinkageTypes::InternalLinkage,
+                               zero,
+                               "reuse");
+
+  { // Increment at the beginning of the function, and decrement at each return.
+    auto checkpoint = builder.saveIP();
+
+    auto &entry = function.getEntryBlock();
+    builder.SetInsertPoint(entry.getFirstInsertionPt());
+
+    // Increment the global.
+    auto *load = builder.CreateLoad(counter_type, global);
+    auto *plus_one = builder.CreateAdd(load, builder.getInt32(1), "reuse.add");
+    builder.CreateStore(plus_one, global);
+
+    for (auto &block : function) {
+      auto *ret = dyn_cast<llvm::ReturnInst>(block.getTerminator());
+      if (!ret)
+        continue;
+      builder.SetInsertPoint(ret);
+
+      // Decrement the global.
+      auto *load = builder.CreateLoad(counter_type, global);
+      auto *minus_one =
+          builder.CreateSub(load, builder.getInt32(1), "reuse.sub");
+      builder.CreateStore(minus_one, global);
+    }
+
+    builder.restoreIP(checkpoint);
+  }
+
+  // Load the global variable.
+  auto *load = builder.CreateLoad(counter_type, global);
+
+  // Check if the global is equal to the max number of reuses.
+  //   0 < count and count % max == 0
+  auto *gt_zero = builder.CreateICmpEQ(load, zero);
+  auto *max = builder.getInt32(max_reuses);
+  auto *rem = builder.CreateURem(load, max);
+  auto *rem_is_zero = builder.CreateICmpUGT(rem, zero, "reuse.cmp");
+  auto *cond = builder.CreateOr(gt_zero, rem_is_zero);
+
+  // Compute the heuristic as: and(is_max, nonnull)
+  auto *heuristic = builder.CreateAnd(cond, nonnull, "reuse.cond");
+
+  return heuristic;
 }
 
 void ProxyInsertion::allocate_mappings(BaseObjectInfo &base) {
@@ -831,6 +894,10 @@ void ProxyInsertion::allocate_mappings(BaseObjectInfo &base) {
   // If we are in a recursive function, condition allocation on a heuristic.
   if (recursive_base) {
 
+    println("RECURSIVE BASE FOUND");
+    println("  BASE ", base);
+    println("   ARG ", *recursive_base);
+
     const auto &rec_info = this->to_transform.at(recursive_base);
 
     // Load the mappings from the stack.
@@ -860,6 +927,10 @@ void ProxyInsertion::allocate_mappings(BaseObjectInfo &base) {
       }
     }
 
+    // If the user has specified a max number of reuses, do so with a global
+    // variable.
+    auto *heuristic = construct_reuse_heuristic(builder, function, nonnull);
+
     // Create an if-then-else region conditioned on the old mappings being
     // non-null.
     // AFTER:
@@ -867,7 +938,7 @@ void ProxyInsertion::allocate_mappings(BaseObjectInfo &base) {
     // then_block: br cont_block
     // else_block: br cont_block
     llvm::Instruction *then_term, *else_term;
-    llvm::SplitBlockAndInsertIfThenElse(nonnull,
+    llvm::SplitBlockAndInsertIfThenElse(heuristic,
                                         &construction_point,
                                         &then_term,
                                         &else_term);
