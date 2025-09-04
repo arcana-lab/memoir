@@ -82,9 +82,41 @@ void ProxyInsertion::gather_assoc_objects(AllocInst &alloc,
   return;
 }
 
+static bool has_no_share_directive(BaseObjectInfo &base) {
+  auto &alloc = base.allocation();
+
+  // Search for the no share directive on the allocation.
+  // TODO: handle multiple noshare keywords.
+  auto noshare_kw = alloc.get_keyword<ADENoShareKeyword>();
+  if (not noshare_kw)
+    return false;
+
+  // Check if the indices match.
+  auto kw_it = noshare_kw->indices_begin(), kw_ie = noshare_kw->indices_end();
+  for (auto offset : base.offsets()) {
+    if (kw_it == kw_ie)
+      return false;
+
+    auto *kw_const = dyn_cast<llvm::ConstantInt>(*kw_it++);
+    MEMOIR_ASSERT(kw_const, "No share keyword has non-constant index.");
+    Offset kw_offset = kw_const->getSExtValue();
+    if (offset != kw_offset)
+      return false;
+  }
+
+  // Must have exhausted the keyword indices.
+  if (kw_it != kw_ie)
+    return false;
+
+  return true;
+}
+
 static bool object_can_share(Type &type,
                              llvm::Function *func,
-                             ObjectInfo &other) {
+                             BaseObjectInfo &other) {
+  if (has_no_share_directive(other))
+    return false;
+
   // Check that the key types match.
   auto &other_type = MEMOIR_SANITIZE(dyn_cast<AssocType>(&other.type()),
                                      "Non-assoc type, unhandled.");
@@ -401,8 +433,13 @@ void ProxyInsertion::share_proxies() {
     // Compute the benefit of the candidate as is.
     candidate.benefit = benefit(candidate).benefit;
 
+    // Check if this object is marked as no share.
+    bool no_share = has_no_share_directive(info);
+    if (no_share)
+      println("NO SHARE! ", info);
+
     // Find all other allocations in the same function as this one.
-    if (not disable_proxy_sharing) {
+    if (not disable_proxy_sharing and not no_share) {
 
       // Collect the set of objects that can share, and their solo benefit.
       Map<ObjectInfo *, int> shareable = {};
