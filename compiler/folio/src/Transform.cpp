@@ -65,6 +65,18 @@ static bool dominates(ProxyInsertion::GetDominatorTree get_domtree,
   return domtree.dominates(inst, user);
 }
 
+static bool replace_with_dominator(ProxyInsertion::GetDominatorTree get_domtree,
+                                   llvm::ArrayRef<llvm::Instruction *> defs,
+                                   llvm::Use &use) {
+  for (auto *def : defs) {
+    if (dominates(get_domtree, *def, use)) {
+      use.set(def);
+      return true;
+    }
+  }
+  return false;
+}
+
 static Pair<llvm::Value *, llvm::Type *> get_ptr(Mapping &mapping,
                                                  llvm::Value &value,
                                                  ObjectInfo *base) {
@@ -524,31 +536,43 @@ bool is_total_proxy(ObjectInfo &obj, const Vector<CoalescedUses> &added) {
   return true;
 }
 
+static llvm::Instruction *already_handled() {}
+
 void ProxyInsertion::decode_uses() {
   Set<llvm::Use *> handled = {};
   for (const auto &[base, info] : this->to_transform) {
     println(" >> CANDIDATE : ", *info.key_type, " << ");
 
-    for (const auto &[func, uses] : info.to_decode)
+    for (const auto &[func, uses] : info.to_decode) {
+      Map<llvm::Value *, Vector<llvm::Instruction *>> decoded_values;
       for (auto *use : uses) {
-        if (handled.contains(use)) {
+        if (handled.contains(use))
           continue;
-        } else {
+        else
           handled.insert(use);
-        }
 
         auto *used = use->get();
         auto *user = dyn_cast<llvm::Instruction>(use->getUser());
+
+        // Does a dominating decode for this value exist?
+        if (replace_with_dominator(this->get_dominator_tree,
+                                   decoded_values[used],
+                                   *use))
+          continue;
 
         // Compute the insertion point.
         Builder builder(insertion_point(*use));
 
         auto &decoded = this->decode_value(builder, info, *used);
 
+        if (auto *inst = dyn_cast<llvm::Instruction>(&decoded))
+          decoded_values[used].push_back(inst);
+
         println("  DECODED ", decoded);
 
         use->set(&decoded);
       }
+    }
   }
 }
 
@@ -641,7 +665,7 @@ void ProxyInsertion::patch_uses() {
   for (const auto &[base, info] : to_transform) {
     println(" >> EQUIV CLASS << ");
 
-    Map<ObjectInfo *, Map<llvm::Value *, Set<llvm::Value *>>> values_added;
+    Map<llvm::Value *, Vector<llvm::Instruction *>> values_added;
     for (const auto &[func, uses] : info.to_addkey)
       for (auto *use : uses) {
         if (handled.contains(use))
@@ -649,18 +673,26 @@ void ProxyInsertion::patch_uses() {
         else
           handled.insert(use);
 
+        auto *used = use->get();
+
+        if (replace_with_dominator(this->get_dominator_tree,
+                                   values_added[used],
+                                   *use))
+          continue;
+
         auto *insert_point = insertion_point(*use);
         Builder builder(insert_point);
 
-        auto *value = use->get();
-        auto &added = add_value(builder, info, *value);
+        auto &added = add_value(builder, info, *used);
         update_use(*use, added);
 
         println("  ADDED ", added);
 
-        values_added[base][value].insert(&added);
+        if (auto *inst = dyn_cast<llvm::Instruction>(&added))
+          values_added[used].push_back(inst);
       }
 
+    Map<llvm::Value *, Vector<llvm::Instruction *>> values_encoded;
     for (const auto &[func, uses] : info.to_encode)
       for (auto *use : uses) {
         if (handled.contains(use))
@@ -668,24 +700,31 @@ void ProxyInsertion::patch_uses() {
         else
           handled.insert(use);
 
-        auto *value = use->get();
+        auto *used = use->get();
         auto *insert_point = insertion_point(*use);
 
-        // Does a dominating addkey exist?
-        bool already_added = false;
-        if (not into<HasInst>(use->getUser()))
-          for (auto *added : values_added[base][value])
-            if (dominates(this->get_dominator_tree, *added, *use)) {
-              update_use(*use, *added);
-              already_added = true;
-              break;
-            }
-        if (already_added)
-          continue;
+        if (not into<HasInst>(use->getUser())) {
+          // Does a dominating addkey exist?
+          if (values_added.contains(used))
+            if (replace_with_dominator(this->get_dominator_tree,
+                                       values_added.at(used),
+                                       *use))
+              continue;
+
+          // Does a dominating encode exist?
+          if (replace_with_dominator(this->get_dominator_tree,
+                                     values_encoded[used],
+                                     *use))
+            continue;
+        }
 
         Builder builder(insert_point);
 
         auto &encoded = this->encode_use(builder, info, *use);
+
+        if (auto *inst = dyn_cast<llvm::Instruction>(&encoded))
+          values_encoded[used].push_back(inst);
+
         for (auto &use : encoded.uses())
           handled.insert(&use);
       }
