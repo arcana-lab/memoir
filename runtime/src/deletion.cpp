@@ -1,17 +1,17 @@
 #include "internal.h"
 #include "memoir.h"
 
+#include "objects.h"
+
 namespace memoir {
 
 extern "C" {
 
 // Deletion
-void MEMOIR_FUNC(delete_struct)(const struct_ref strct) {
-  delete (detail::Struct *)strct;
-}
-
-void MEMOIR_FUNC(delete_collection)(const collection_ref cllct) {
-  delete (detail::Collection *)cllct;
+__RUNTIME_ATTR
+void MEMOIR_FUNC(delete)(const collection_ref cllct) {
+  MEMOIR_UNREACHABLE(
+      "The MEMOIR runtime library is deprecated. Please use the compiler.");
 }
 
 } // extern "C"

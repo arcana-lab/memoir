@@ -1,4 +1,6 @@
 #include "memoir/utility/FunctionNames.hpp"
+#include "memoir/ir/Types.hpp"
+#include "memoir/support/Assert.hpp"
 #include "memoir/support/Print.hpp"
 
 namespace llvm::memoir {
@@ -116,6 +118,38 @@ Function *FunctionNames::get_memoir_function(llvm::Module &M,
   }
 }
 
+llvm::Function &FunctionNames::convert_typed_function(llvm::Function &F,
+                                                      Type &type) {
+  auto &M = MEMOIR_SANITIZE(F.getParent(), "Function has no parent module!");
+
+  auto func_enum = FunctionNames::get_memoir_enum(F);
+  switch (func_enum) {
+#define HANDLE_WRITE_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
+#include "memoir/ir/Instructions.def"
+    return MEMOIR_SANITIZE(
+        M.getFunction(MEMOIR_PREFIX "write_" + type.get_code().value()),
+        "Failed to get function ",
+        "write_",
+        type.get_code().value());
+#define HANDLE_READ_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
+#include "memoir/ir/Instructions.def"
+    return MEMOIR_SANITIZE(
+        M.getFunction(MEMOIR_PREFIX "read_" + type.get_code().value()),
+        "Failed to get function ",
+        "read_",
+        type.get_code().value());
+#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS) case MemOIR_Func::ENUM:
+#include "memoir/ir/Instructions.def"
+    return MEMOIR_SANITIZE(
+        M.getFunction(MEMOIR_PREFIX "fold_" + type.get_code().value()),
+        "Failed to get function ",
+        "fold_",
+        type.get_code().value());
+  }
+
+  return F;
+}
+
 bool FunctionNames::is_allocation(MemOIR_Func function_enum) {
   switch (function_enum) {
     default:
@@ -205,9 +239,7 @@ bool FunctionNames::is_primitive_type(MemOIR_Func function_enum) {
 // Instructions.def
 bool FunctionNames::is_object_type(MemOIR_Func function_enum) {
   switch (function_enum) {
-    case MemOIR_Func::DEFINE_STRUCT_TYPE:
-    case MemOIR_Func::STRUCT_TYPE:
-    case MemOIR_Func::TENSOR_TYPE:
+    case MemOIR_Func::TUPLE_TYPE:
     case MemOIR_Func::ASSOC_ARRAY_TYPE:
     case MemOIR_Func::SEQUENCE_TYPE:
       return true;
@@ -243,12 +275,12 @@ bool FunctionNames::is_mutator(Function &F) {
          && !(F.hasFnAttribute(llvm::Attribute::AttrKind::ReadOnly));
 }
 
-// const map<MemOIR_Func, std::string> FunctionNames::memoir_to_function_names =
+// const Map<MemOIR_Func, std::string> FunctionNames::memoir_to_function_names =
 // { #define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) { MemOIR_Enum, #MemOIR_Str
 // }, #include "memoir/ir/Instructions.def" #undef HANDLE_INST
 // };
 
-// const map<std::string, MemOIR_Func> FunctionNames::function_names_to_memoir =
+// const Map<std::string, MemOIR_Func> FunctionNames::function_names_to_memoir =
 // { #define HANDLE_INST(MemOIR_Enum, MemOIR_Str, _) { #MemOIR_Str, MemOIR_Enum
 // }, #include "memoir/ir/Instructions.def" #undef HANDLE_INST
 // };

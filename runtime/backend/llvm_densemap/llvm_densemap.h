@@ -6,9 +6,9 @@
 
 #include <vector>
 
-#define cname extern "C"
-#define alwaysinline __attribute__((always_inline)) inline
-#define used __attribute__((used))
+#define CNAME extern "C"
+#define ALWAYS_INLINE __attribute__((always_inline)) inline
+#define USED __attribute__((USED))
 
 #define SMALL_SIZE 256
 
@@ -18,36 +18,36 @@ extern "C" {
   typedef llvm::DenseMap<C_KEY, C_VALUE> K##_##V##_llvm_densemap_t;            \
   typedef K##_##V##_llvm_densemap_t *K##_##V##_llvm_densemap_p;                \
                                                                                \
-  cname alwaysinline used                                                      \
+  CNAME ALWAYS_INLINE USED                                                     \
       K##_##V##_llvm_densemap_p K##_##V##_llvm_densemap__allocate() {          \
     K##_##V##_llvm_densemap_p map = new K##_##V##_llvm_densemap_t();           \
     return map;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void K##_##V##_llvm_densemap__free(                  \
+  CNAME ALWAYS_INLINE USED void K##_##V##_llvm_densemap__free(                 \
       K##_##V##_llvm_densemap_p map) {                                         \
     delete map;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used bool K##_##V##_llvm_densemap__has(                   \
+  CNAME ALWAYS_INLINE USED bool K##_##V##_llvm_densemap__has(                  \
       K##_##V##_llvm_densemap_p map,                                           \
       C_KEY key) {                                                             \
     return map->count(key) > 0;                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used C_VALUE *K##_##V##_llvm_densemap__get(               \
+  CNAME ALWAYS_INLINE USED C_VALUE *K##_##V##_llvm_densemap__get(              \
       K##_##V##_llvm_densemap_p map,                                           \
       C_KEY key) {                                                             \
     return (C_VALUE *)(&((*map)[key]));                                        \
   }                                                                            \
                                                                                \
-  cname alwaysinline used C_VALUE K##_##V##_llvm_densemap__read(               \
+  CNAME ALWAYS_INLINE USED C_VALUE K##_##V##_llvm_densemap__read(              \
       K##_##V##_llvm_densemap_p map,                                           \
       C_KEY key) {                                                             \
     return (*map)[key];                                                        \
   }                                                                            \
                                                                                \
-  cname alwaysinline used                                                      \
+  CNAME ALWAYS_INLINE USED                                                     \
       K##_##V##_llvm_densemap_p K##_##V##_llvm_densemap__write(                \
           K##_##V##_llvm_densemap_p map,                                       \
           C_KEY key,                                                           \
@@ -56,7 +56,7 @@ extern "C" {
     return map;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used                                                      \
+  CNAME ALWAYS_INLINE USED                                                     \
       K##_##V##_llvm_densemap_p K##_##V##_llvm_densemap__remove(               \
           K##_##V##_llvm_densemap_p map,                                       \
           C_KEY key) {                                                         \
@@ -64,7 +64,7 @@ extern "C" {
     return map;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used size_t K##_##V##_llvm_densemap__size(                \
+  CNAME ALWAYS_INLINE USED size_t K##_##V##_llvm_densemap__size(               \
       K##_##V##_llvm_densemap_p map) {                                         \
     return map->size();                                                        \
   }

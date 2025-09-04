@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-project(MEMOIR C CXX ASM)
+project(MEMOIR C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS OFF)
 
@@ -44,6 +44,13 @@ if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_EQUAL LLVM_VERSION)
     " If it is not installed, do so at: https://releases.llvm.org/${LLVM_VERSION}/")
 endif()
 
+# Set up Boost.
+find_package(Boost)
+if (NOT Boost_FOUND)
+  message(WARNING
+    "Failed to find Boost, try setting the BOOST_ROOT variable to help CMake.")
+endif()
+
 # Set up the build and install paths.
 set(CMAKE_STAGING_PREFIX ${CMAKE_BINARY_DIR})
 set(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/lib)
@@ -69,5 +76,5 @@ add_subdirectory(tests)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/.enable.in ${CMAKE_CURRENT_SOURCE_DIR}/enable @ONLY)
 
 # Documentation
-option(BUILD_DOC "Build documentation" ON)
+option(BUILD_DOC "Build documentation" OFF)
 add_subdirectory(docs)

@@ -18,8 +18,12 @@ class collection {
 public:
   always_inline collection(memoir::Collection *storage) : _storage(storage) {}
 
+  always_inline void clear() {
+    MUT_FUNC(clear)(this->_storage);
+  }
+
 protected:
- collection_ref _storage;
+  collection_ref _storage;
 };
 
 } // namespace memoir

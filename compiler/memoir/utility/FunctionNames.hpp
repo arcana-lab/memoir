@@ -10,7 +10,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 /*
  * This file provides general utilities for determining if a function is a
@@ -29,6 +29,8 @@ namespace llvm::memoir {
  */
 #define MEMOIR_FUNC(name) memoir__##name
 #define MUT_FUNC(name) mut__##name
+#define MEMOIR_PREFIX "memoir__"
+#define MUT_PREFIX "mut__"
 
 /*
  * Enum of MemOIR functions
@@ -47,6 +49,8 @@ enum MemOIR_Func {
 
 std::ostream &operator<<(std::ostream &os, MemOIR_Func Enum);
 llvm::raw_ostream &operator<<(llvm::raw_ostream &os, MemOIR_Func Enum);
+
+struct Type;
 
 class FunctionNames {
 public:
@@ -67,6 +71,8 @@ public:
 
   static llvm::Function *get_memoir_function(llvm::Module &M,
                                              MemOIR_Func function_enum);
+
+  static llvm::Function &convert_typed_function(llvm::Function &F, Type &type);
 
   static bool is_type(MemOIR_Func function_enum);
 
