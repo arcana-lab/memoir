@@ -4,9 +4,9 @@
 #include <cstdint>
 #include <cstdio>
 
-#define cname extern "C"
-#define alwaysinline __attribute__((always_inline)) inline
-#define used __attribute__((used))
+#define CNAME extern "C"
+#define ALWAYS_INLINE __attribute__((always_inline)) inline
+#define USED __attribute__((USED))
 
 #define SMALL_SIZE 8
 
@@ -18,13 +18,13 @@ extern "C" {
   } K##_##V##_llvm_smallptrset_t;                                              \
   typedef K##_##V##_llvm_smallptrset_t *K##_##V##_llvm_smallptrset_p;          \
                                                                                \
-  cname alwaysinline used                                                      \
+  CNAME ALWAYS_INLINE USED                                                     \
       K##_##V##_llvm_smallptrset_p K##_##V##_llvm_smallptrset__allocate() {    \
     K##_##V##_llvm_smallptrset_p set = new K##_##V##_llvm_smallptrset_t();     \
     return set;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used                                                      \
+  CNAME ALWAYS_INLINE USED                                                     \
       K##_##V##_llvm_smallptrset_p K##_##V##_llvm_smallptrset__initialize(     \
           K##_##V##_llvm_smallptrset_p rgn) {                                  \
     K##_##V##_llvm_smallptrset_p set =                                         \
@@ -32,19 +32,19 @@ extern "C" {
     return set;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used void K##_##V##_llvm_smallptrset__free(               \
+  CNAME ALWAYS_INLINE USED void K##_##V##_llvm_smallptrset__free(              \
       K##_##V##_llvm_smallptrset_p set) {                                      \
     delete set;                                                                \
     return;                                                                    \
   }                                                                            \
                                                                                \
-  cname alwaysinline used C_VALUE K##_##V##_llvm_smallptrset__has(             \
+  CNAME ALWAYS_INLINE USED C_VALUE K##_##V##_llvm_smallptrset__has(            \
       K##_##V##_llvm_smallptrset_p set,                                        \
       C_KEY key) {                                                             \
     return set->_set.count(key) > 0;                                           \
   }                                                                            \
                                                                                \
-  cname alwaysinline used                                                      \
+  CNAME ALWAYS_INLINE USED                                                     \
       K##_##V##_llvm_smallptrset_p K##_##V##_llvm_smallptrset__write(          \
           K##_##V##_llvm_smallptrset_p set,                                    \
           C_KEY key,                                                           \
@@ -53,7 +53,7 @@ extern "C" {
     return set;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used                                                      \
+  CNAME ALWAYS_INLINE USED                                                     \
       K##_##V##_llvm_smallptrset_p K##_##V##_llvm_smallptrset__remove(         \
           K##_##V##_llvm_smallptrset_p set,                                    \
           C_KEY key) {                                                         \
@@ -61,7 +61,7 @@ extern "C" {
     return set;                                                                \
   }                                                                            \
                                                                                \
-  cname alwaysinline used size_t K##_##V##_llvm_smallptrset__size(             \
+  CNAME ALWAYS_INLINE USED size_t K##_##V##_llvm_smallptrset__size(            \
       K##_##V##_llvm_smallptrset_p set) {                                      \
     return set->_set.size();                                                   \
   }

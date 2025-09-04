@@ -1,7 +1,7 @@
 set(runtime_name "memoir.impl")
 
 set(CMAKE_C_FLAGS   "-O1 -Xclang -disable-llvm-passes -fdeclspec -fPIC")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++17 -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++20 -g")
 
 add_compile_definitions(_GLIBCXX_USE_CX11_ABI=0)
 

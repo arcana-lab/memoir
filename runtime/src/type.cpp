@@ -1,73 +1,43 @@
 #include "internal.h"
 #include "memoir.h"
+#include "types.h"
 
 namespace memoir {
 
 extern "C" {
 
 // User-defined types.
+#if 0
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(define_struct_type)(const char *name,
-                                         int num_fields,
-                                         ...) {
-  std::vector<Type *> fields;
-
-  va_list args;
-
-  va_start(args, num_fields);
-
-  for (int i = 0; i < num_fields; i++) {
-    auto arg = va_arg(args, Type *);
-    fields.push_back(arg);
-  }
-
-  va_end(args);
-
-  auto type = StructType::define(name, fields);
-
-  return type;
+type_ref MEMOIR_FUNC(define_type)(const char *name, const type_ref type) {
+  return nullptr;
 }
 
+type_ref MEMOIR_FUNC(lookup_type)(const char *name) {
+  return nullptr;
+}
+#endif
+
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(struct_type)(const char *name) {
-  return StructType::get(name);
+type_ref MEMOIR_FUNC(tuple_type)(const type_ref first, ...) {
+  return nullptr;
 }
 
 // Collection types.
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(static_tensor_type)(type_ref type,
-                                         uint64_t num_dimensions,
-                                         ...) {
-  std::vector<uint64_t> length_of_dimensions;
-
-  va_list args;
-
-  va_start(args, num_dimensions);
-
-  for (int i = 0; i < num_dimensions; i++) {
-    auto arg = va_arg(args, uint64_t);
-    length_of_dimensions.push_back(arg);
-  }
-
-  va_end(args);
-
-  return TensorType::get(type, num_dimensions, length_of_dimensions);
+type_ref MEMOIR_FUNC(array_type)(type_ref type, size_t length) {
+  return SequenceType::get(type);
 }
 
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(tensor_type)(const type_ref element_type,
-                                  uint64_t num_dimensions) {
-  return TensorType::get(element_type, num_dimensions);
-}
-
-__RUNTIME_ATTR
-type_ref MEMOIR_FUNC(assoc_array_type)(const type_ref key_type,
-                                       const type_ref value_type) {
+type_ref MEMOIR_FUNC(assoc_type)(const type_ref key_type,
+                                 const type_ref value_type,
+                                 ...) {
   return AssocArrayType::get(key_type, value_type);
 }
 
 __RUNTIME_ATTR
-type_ref MEMOIR_FUNC(sequence_type)(const type_ref element_type) {
+type_ref MEMOIR_FUNC(sequence_type)(const type_ref element_type, ...) {
   return SequenceType::get(element_type);
 }
 

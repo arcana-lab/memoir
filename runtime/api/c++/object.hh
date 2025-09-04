@@ -21,6 +21,9 @@ class Seq;
 template <typename K, typename T>
 class Assoc;
 
+template <typename T>
+class Set;
+
 /*
  * Helper types and functions.
  */
@@ -53,35 +56,34 @@ inline constexpr bool is_instance_of_v<Template<Args...>, Template> =
 
 // Pretty wrapper for collection references.
 template <typename T>
-using Ref = collection_ref;
+using Ref = const collection_ref;
 
 // Object interface.
 class object {
 public:
-  always_inline object(memoir::Struct *storage) : _storage(storage) {}
+  always_inline object(memoir::Collection *storage) : _storage(storage) {}
 
   template <typename F, std::size_t field_index>
   struct field {
-    always_inline field(memoir::Struct *const storage) : _storage(storage) {}
+    always_inline field(memoir::Collection *const storage)
+      : _storage(storage) {}
 
     always_inline operator F() const {
       if constexpr (std::is_pointer_v<F>) {
         using inner_type = typename std::remove_pointer_t<F>;
         if constexpr (std::is_base_of_v<typename memoir::object, inner_type>) {
-          return F(memoir::MEMOIR_FUNC(struct_read_struct_ref)(this->_storage,
-                                                               field_index));
+          return F(memoir::MEMOIR_FUNC(read_ref)(this->_storage, field_index));
         } else {
-          return memoir::MEMOIR_FUNC(struct_read_ptr)(this->_storage,
-                                                      field_index);
+          return memoir::MEMOIR_FUNC(read_ptr)(this->_storage, field_index);
         }
       } else if constexpr (std::is_base_of_v<typename memoir::object, F>) {
-        return F(memoir::MEMOIR_FUNC(struct_get_struct)(this->_storage,
-                                                        field_index));
+        // return F(memoir::MEMOIR_FUNC(get_struct)(this->_storage,
+        // field_index));
       }
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
   else if constexpr (std::is_same_v<F, C_TYPE>) {                              \
-    return memoir::MEMOIR_FUNC(struct_read_##TYPE_NAME)(this->_storage,        \
-                                                        field_index);          \
+    /*return memoir::MEMOIR_FUNC(read_##TYPE_NAME)(this->_storage,             \
+     * field_index);*/                                                         \
   }
 #define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
   HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)
@@ -94,12 +96,11 @@ public:
       if constexpr (std::is_pointer_v<F>) {
         using inner_type = typename std::remove_pointer_t<F>;
         if constexpr (std::is_base_of_v<typename memoir::object, inner_type>) {
-          memoir::MEMOIR_FUNC(struct_write_struct_ref)(f->_storage,
-                                                       this->_storage,
-                                                       field_index);
+          memoir::MEMOIR_FUNC(
+              write_ref)(f->_storage, this->_storage, field_index);
           return f;
         } else {
-          memoir::MEMOIR_FUNC(struct_read_ptr)(f, this->_storage, field_index);
+          memoir::MEMOIR_FUNC(read_ptr)(f, this->_storage, field_index);
           return f;
         }
       } else if constexpr (std::is_base_of_v<typename memoir::object, F>) {
@@ -108,8 +109,7 @@ public:
       }
 #define HANDLE_PRIMITIVE_TYPE(TYPE_NAME, C_TYPE, _)                            \
   else if constexpr (std::is_same_v<F, C_TYPE>) {                              \
-    memoir::MEMOIR_FUNC(                                                       \
-        struct_write_##TYPE_NAME)(f, this->_storage, field_index);             \
+    memoir::MEMOIR_FUNC(write_##TYPE_NAME)(f, this->_storage, field_index);    \
     return f;                                                                  \
   }
 #define HANDLE_INTEGER_TYPE(TYPE_NAME, C_TYPE, BW, IS_SIGNED)                  \
@@ -123,23 +123,20 @@ public:
       if constexpr (std::is_pointer_v<F>) {
         using inner_type = typename std::remove_pointer_t<F>;
         if constexpr (std::is_base_of_v<typename memoir::object, inner_type>) {
-          return F(memoir::MEMOIR_FUNC(struct_read_struct_ref)(this->_storage,
-                                                               field_index));
+          return F(memoir::MEMOIR_FUNC(read_ref)(this->_storage, field_index));
         } else {
-          return memoir::MEMOIR_FUNC(struct_read_ptr)(this->_storage,
-                                                      field_index);
+          return memoir::MEMOIR_FUNC(read_ptr)(this->_storage, field_index);
         }
       } else if constexpr (std::is_base_of_v<typename memoir::object, F>) {
-        return F(memoir::MEMOIR_FUNC(struct_get_struct)(this->_storage,
-                                                        field_index));
+        // TODO: return an Element
       }
     }
 
-    memoir::Struct *const _storage;
+    memoir::Collection *const _storage;
   };
 
 protected:
-  memoir::Struct *const _storage;
+  memoir::Collection *const _storage;
 };
 
 // Create define_struct_type.
@@ -147,14 +144,6 @@ protected:
 // const type_ref memoir_type;
 template <typename T>
 const type_ref memoir_type = nullptr;
-
-template <typename T>
-const type_ref memoir_type<Seq<T>> =
-    memoir::MEMOIR_FUNC(sequence_type)(memoir_type<T>);
-
-template <typename K, typename V>
-const type_ref memoir_type<Assoc<K, V>> =
-    MEMOIR_FUNC(assoc_array_type)(memoir_type<K>, memoir_type<V>);
 
 template <typename T>
 const type_ref memoir_type<T *> = MEMOIR_FUNC(ptr_type)();
@@ -181,6 +170,35 @@ template <>
 const type_ref memoir_type<double> = MEMOIR_FUNC(f64_type)();
 template <>
 const type_ref memoir_type<bool> = MEMOIR_FUNC(boolean_type)();
+template <>
+const type_ref memoir_type<void> = MEMOIR_FUNC(void_type)();
+
+template <typename T>
+const type_ref memoir_type<Seq<T>> =
+    memoir::MEMOIR_FUNC(sequence_type)(memoir_type<T>);
+
+template <typename K, typename V>
+const type_ref memoir_type<Assoc<K, V>> =
+    MEMOIR_FUNC(assoc_type)(memoir_type<K>, memoir_type<V>);
+
+template <typename T>
+const type_ref memoir_type<Set<T>> =
+    memoir::MEMOIR_FUNC(assoc_type)(memoir_type<T>, memoir_type<void>);
+
+template <typename T>
+class NestedType {
+  typedef std::false_type type;
+};
+
+template <typename T>
+class NestedType<Seq<T>> {
+  typedef T type;
+};
+
+template <typename K, typename T>
+class NestedType<Assoc<K, T>> {
+  typedef T type;
+};
 
 } // namespace memoir
 
@@ -246,10 +264,10 @@ const type_ref memoir_type<bool> = MEMOIR_FUNC(boolean_type)();
 #define TO_MEMOIR_STRUCT(NAME, FIELDS...)                                      \
   class NAME : public memoir::object {                                         \
   public:                                                                      \
-    always_inline NAME(memoir::Struct *obj)                                    \
+    always_inline NAME(memoir::Collection *obj)                                \
       : object(obj),                                                           \
         MEMOIR_apply_delim(TO_INIT_PREPEND, COMMA_DELIM, FIELDS) {}            \
-    always_inline NAME() : NAME(MEMOIR_FUNC(allocate_struct)(NAME::_type)) {}  \
+    always_inline NAME() : NAME(MEMOIR_FUNC(allocate)(NAME::_type)) {}         \
     always_inline NAME(MEMOIR_apply_delim(TO_ARGS_PREPEND,                     \
                                           COMMA_DELIM,                         \
                                           FIELDS))                             \

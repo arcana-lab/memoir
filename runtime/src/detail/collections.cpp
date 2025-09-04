@@ -19,200 +19,6 @@ bool Collection::is_collection() const {
 }
 
 /*
- * Tensor Objects
- */
-Tensor::Tensor(Type *type) : Collection(type) {
-  MEMOIR_ASSERT((this->type->getCode() == TypeCode::TensorTy),
-                "Trying to create a tensor of non-tensor type");
-
-  auto tensor_type = (TensorType *)(this->type);
-  auto element_type = tensor_type->element_type;
-  auto num_dimensions = tensor_type->num_dimensions;
-  this->length_of_dimensions = tensor_type->length_of_dimensions;
-
-  MEMOIR_ASSERT((num_dimensions > 0),
-                "Trying to create a tensor with 0 dimensions");
-
-  // FIXME
-  // Initialize the tensor
-  // for (auto dimension_length : this->length_of_dimensions) {
-  //   for (auto i = 0; i < dimension_length; i++) {
-  //     auto field = Element::create(element_type);
-  //     this->tensor.push_back(field);
-  //   }
-  // }
-}
-
-Tensor::Tensor(Type *type, std::vector<uint64_t> &length_of_dimensions)
-  : Collection(type),
-    length_of_dimensions(length_of_dimensions) {
-
-  MEMOIR_ASSERT((this->type->getCode() == TypeCode::TensorTy),
-                "Trying to create a tensor of non-tensor type");
-
-  auto tensor_type = (TensorType *)(this->type);
-  auto element_type = tensor_type->element_type;
-  auto num_dimensions = tensor_type->num_dimensions;
-
-  MEMOIR_ASSERT((num_dimensions > 0),
-                "Trying to create a tensor with 0 dimensions");
-
-  // Initialize the tensor
-  auto flattened_length = 0;
-  auto last_dimension_length = 1;
-  for (auto i = 0; i < length_of_dimensions.size(); i++) {
-    auto dimension_length = length_of_dimensions[i];
-
-    flattened_length *= last_dimension_length;
-    flattened_length += dimension_length;
-    last_dimension_length = dimension_length;
-  }
-
-  // FIXME
-  auto init_vector = init_elements(element_type, flattened_length);
-  this->tensor.resize(init_vector.size());
-  std::move(init_vector.begin(), init_vector.end(), this->tensor.begin());
-}
-
-void Tensor::free() {
-  auto *element_type = this->get_element_type();
-  if (is_object_type(element_type)) {
-    for (auto it = this->tensor.begin(); it != this->tensor.end(); ++it) {
-      ((Object *)(*it))->free();
-    }
-  }
-}
-
-uint64_t Tensor::get_tensor_element(std::vector<uint64_t> &indices) const {
-  auto flattened_index = 0;
-  auto last_dimension_length = 1;
-  for (auto i = 0; i < this->length_of_dimensions.size(); i++) {
-    auto dimension_length = this->length_of_dimensions[i];
-    auto index = indices[i];
-    MEMOIR_ASSERT((index < dimension_length),
-                  "Index out of range for tensor access");
-
-    flattened_index *= last_dimension_length;
-    flattened_index += index;
-    last_dimension_length = dimension_length;
-  }
-
-  return this->tensor[flattened_index];
-}
-
-uint64_t Tensor::get_element(va_list args) {
-  auto num_dimensions = this->length_of_dimensions.size();
-
-  std::vector<uint64_t> indices = {};
-  for (auto i = 0; i < num_dimensions; i++) {
-    auto index = va_arg(args, uint64_t);
-    indices.push_back(index);
-  }
-
-  return this->get_tensor_element(indices);
-}
-
-void Tensor::set_tensor_element(uint64_t value,
-                                std::vector<uint64_t> &indices) {
-  auto flattened_index = 0;
-  auto last_dimension_length = 1;
-  for (auto i = 0; i < this->length_of_dimensions.size(); i++) {
-    auto dimension_length = this->length_of_dimensions[i];
-    auto index = indices[i];
-    MEMOIR_ASSERT((index < dimension_length),
-                  "Index out of range for tensor access");
-
-    flattened_index *= last_dimension_length;
-    flattened_index += index;
-    last_dimension_length = dimension_length;
-  }
-
-  this->tensor[flattened_index] = value;
-}
-
-void Tensor::set_element(uint64_t value, va_list args) {
-  auto num_dimensions = this->length_of_dimensions.size();
-
-  std::vector<uint64_t> indices = {};
-  for (auto i = 0; i < num_dimensions; i++) {
-    auto index = va_arg(args, uint64_t);
-    indices.push_back(index);
-  }
-
-  this->set_tensor_element(value, indices);
-}
-
-bool Tensor::has_tensor_element(std::vector<uint64_t> &indices) const {
-  auto flattened_index = 0;
-  auto last_dimension_length = 1;
-  for (auto i = 0; i < this->length_of_dimensions.size(); i++) {
-    auto dimension_length = this->length_of_dimensions[i];
-    auto index = indices[i];
-    MEMOIR_ASSERT((index < dimension_length),
-                  "Index out of range for tensor access");
-
-    flattened_index *= last_dimension_length;
-    flattened_index += index;
-    last_dimension_length = dimension_length;
-  }
-
-  // TODO.
-  return true;
-}
-
-bool Tensor::has_element(va_list args) {
-  auto num_dimensions = this->length_of_dimensions.size();
-
-  std::vector<uint64_t> indices = {};
-  for (auto i = 0; i < num_dimensions; i++) {
-    auto index = va_arg(args, uint64_t);
-    indices.push_back(index);
-  }
-
-  return this->has_tensor_element(indices);
-}
-
-void Tensor::remove_element(va_list args) {
-  auto num_dimensions = this->length_of_dimensions.size();
-
-  std::vector<uint64_t> indices = {};
-  for (auto i = 0; i < num_dimensions; i++) {
-    auto index = va_arg(args, uint64_t);
-    indices.push_back(index);
-  }
-
-  return;
-}
-
-Collection *Tensor::get_slice(va_list args) {
-  MEMOIR_UNREACHABLE("Attempt to get slice of tensor, UNSUPPORTED");
-
-  return nullptr;
-}
-
-Collection *Tensor::join(va_list args, uint8_t num_args) {
-  MEMOIR_UNREACHABLE(
-      "Attempt to perfrom join operation on tensor, UNSUPPORTED");
-
-  return nullptr;
-}
-
-Type *Tensor::get_element_type() const {
-  auto tensor_type = static_cast<TensorType *>(this->get_type());
-
-  return tensor_type->element_type;
-}
-
-uint64_t Tensor::size() const {
-  // TODO
-  return 0;
-}
-
-bool Tensor::equals(const Object *other) const {
-  return (this == other);
-}
-
-/*
  * Associative Array implementation
  */
 AssocArray::AssocArray(Type *type) : Collection(type) {
@@ -241,11 +47,6 @@ uint64_t AssocArray::get_element(va_list args) {
     case TypeCode::StructTy: {
       key = (key_t)va_arg(args, Object *);
       // TODO: need special handling to check for field equality
-      break;
-    }
-    case TypeCode::TensorTy: {
-      key = (key_t)va_arg(args, Object *);
-      // TODO: need special handling to check for element equality
       break;
     }
     case TypeCode::AssocArrayTy: {
@@ -318,10 +119,6 @@ void AssocArray::set_element(uint64_t value, va_list args) {
       key = (key_t)va_arg(args, Object *);
       break;
     }
-    case TypeCode::TensorTy: {
-      key = (key_t)va_arg(args, Object *);
-      break;
-    }
     case TypeCode::AssocArrayTy: {
       key = (key_t)va_arg(args, Object *);
       break;
@@ -381,10 +178,6 @@ bool AssocArray::has_element(va_list args) {
   auto key_type = this->get_key_type();
   switch (key_type->getCode()) {
     case TypeCode::StructTy: {
-      key = (key_t)va_arg(args, Object *);
-      break;
-    }
-    case TypeCode::TensorTy: {
       key = (key_t)va_arg(args, Object *);
       break;
     }
@@ -451,10 +244,6 @@ void AssocArray::remove_element(va_list args) {
   auto key_type = this->get_key_type();
   switch (key_type->getCode()) {
     case TypeCode::StructTy: {
-      key = (key_t)va_arg(args, Object *);
-      break;
-    }
-    case TypeCode::TensorTy: {
       key = (key_t)va_arg(args, Object *);
       break;
     }
