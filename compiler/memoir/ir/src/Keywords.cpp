@@ -233,3 +233,29 @@ llvm::Value &SelectionKeyword::getSelectionOperand() const {
 llvm::Use &SelectionKeyword::getSelectionOperandAsUse() const {
   return *std::next(&this->getAsUse());
 }
+
+// ADENoShareKeyword implementation
+llvm::iterator_range<Keyword::iterator> ADENoShareKeyword::indices() {
+  return llvm::make_range(this->indices_begin(), this->indices_end());
+}
+
+Keyword::iterator ADENoShareKeyword::indices_begin() {
+  return iterator(std::next(&this->getAsUse()));
+}
+
+Keyword::iterator ADENoShareKeyword::indices_end() {
+  return iterator(this->end());
+}
+
+llvm::iterator_range<Keyword::operand_iterator> ADENoShareKeyword::
+    index_operands() {
+  return llvm::make_range(this->index_ops_begin(), this->index_ops_end());
+}
+
+Keyword::operand_iterator ADENoShareKeyword::index_ops_begin() {
+  return operand_iterator(std::next(&this->getAsUse()));
+}
+
+Keyword::operand_iterator ADENoShareKeyword::index_ops_end() {
+  return operand_iterator(this->op_end());
+}

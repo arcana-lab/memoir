@@ -8,7 +8,8 @@ KEYWORD_(range, RangeKeyword)
 KEYWORD_(input, InputKeyword)
 KEYWORD_(value, ValueKeyword)
 KEYWORD_(selection, SelectionKeyword)
-KEYWORD_(reverse, ReverseKeyword) 
+KEYWORD_(reverse, ReverseKeyword)
+KEYWORD_(ade_no_share, ADENoShareKeyword)
 
 #undef KEYWORD
 #undef KEYWORD_

@@ -212,6 +212,26 @@ protected:
   friend struct Keyword;
 };
 
+struct ADENoShareKeyword : public Keyword {
+public:
+  llvm::iterator_range<Keyword::iterator> indices();
+  Keyword::iterator indices_begin();
+  Keyword::iterator indices_end();
+
+  llvm::iterator_range<Keyword::operand_iterator> index_operands();
+  Keyword::operand_iterator index_ops_begin();
+  Keyword::operand_iterator index_ops_end();
+
+  CLASSOF_IMPL()
+
+  ADENoShareKeyword(llvm::Use &use) : Keyword(use) {}
+
+protected:
+  static const char *NAME;
+
+  friend struct Keyword;
+};
+
 } // namespace llvm::memoir
 
 #endif // MEMOIR_KEYWORDS_H
