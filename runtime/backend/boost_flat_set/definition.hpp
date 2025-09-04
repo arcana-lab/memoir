@@ -67,6 +67,8 @@ struct FlatSet : boost::container::flat_set<Key> {
     Base::iterator _it;
     Base::iterator _ie;
 
+    iterator(Base &base) : _it(base.begin()), _ie(base.end()) {}
+
     bool next() {
       if (this->_it == this->_ie) {
         return false;
