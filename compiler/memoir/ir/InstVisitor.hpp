@@ -73,52 +73,29 @@ public:
   RetTy visitAccessInst(AccessInst &I) {
     DELEGATE_INST(MemOIRInst);
   };
-#define HANDLE_ACCESS_INST(ENUM, FUNC, CLASS) /* No handling. */
+#define HANDLE_ACCESS_INST(ENUM, FUNC, CLASS)                                  \
+  RetTy visit##CLASS(CLASS &I) {                                               \
+    DELEGATE_INST(AccessInst);                                                 \
+  };
 
-  // Read instruction hierarchy.
   RetTy visitReadInst(ReadInst &I) {
     DELEGATE_INST(AccessInst);
   };
-  RetTy visitStructReadInst(StructReadInst &I) {
-    DELEGATE_INST(ReadInst);
-  };
-  RetTy visitIndexReadInst(IndexReadInst &I) {
-    DELEGATE_INST(ReadInst);
-  };
-  RetTy visitAssocReadInst(AssocReadInst &I) {
-    DELEGATE_INST(ReadInst);
-  };
+#define HANDLE_READ_INST(ENUM, FUNC, CLASS) /* Do nothing. */
 
-  // Write instruction hierarchy.
+  // UpdateInst hierarchy
+  RetTy visitUpdateInst(UpdateInst &I) {
+    DELEGATE_INST(AccessInst);
+  }
+#define HANDLE_UPDATE_INST(ENUM, FUNC, CLASS)                                  \
+  RetTy visit##CLASS(CLASS &I) {                                               \
+    DELEGATE_INST(UpdateInst);                                                 \
+  }
+
   RetTy visitWriteInst(WriteInst &I) {
-    DELEGATE_INST(AccessInst);
+    DELEGATE_INST(UpdateInst);
   };
-  RetTy visitStructWriteInst(StructWriteInst &I) {
-    DELEGATE_INST(WriteInst);
-  };
-  RetTy visitIndexWriteInst(IndexWriteInst &I) {
-    DELEGATE_INST(WriteInst);
-  };
-  RetTy visitAssocWriteInst(AssocWriteInst &I) {
-    DELEGATE_INST(WriteInst);
-  };
-
-  // Get instruction hierarchy.
-  RetTy visitGetInst(GetInst &I) {
-    DELEGATE_INST(AccessInst);
-  };
-  RetTy visitStructGetInst(StructGetInst &I) {
-    DELEGATE_INST(GetInst);
-  };
-  RetTy visitIndexGetInst(IndexGetInst &I) {
-    DELEGATE_INST(GetInst);
-  };
-  RetTy visitAssocGetInst(AssocGetInst &I) {
-    DELEGATE_INST(GetInst);
-  };
-  RetTy visitAssocHasInst(AssocHasInst &I) {
-    DELEGATE_INST(AccessInst);
-  };
+#define HANDLE_WRITE_INST(ENUM, FUNC, CLASS) /* Do nothing */
 
   // Type instruction hierarchy.
   RetTy visitTypeInst(TypeInst &I) {
@@ -129,65 +106,16 @@ public:
     DELEGATE_INST(TypeInst);                                                   \
   };
 
-  // Alloc instruction hierarchy.
-  RetTy visitAllocInst(AllocInst &I) {
-    DELEGATE_INST(MemOIRInst);
-  };
-#define HANDLE_ALLOC_INST(ENUM, FUNC, CLASS)                                   \
-  RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE_INST(AllocInst);                                                  \
-  };
-
-  // Insert instruction hierarchy.
-  RetTy visitInsertInst(InsertInst &I) {
-    DELEGATE_INST(MemOIRInst);
-  };
-#define HANDLE_INSERT_INST(ENUM, FUNC, CLASS)                                  \
-  RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE_INST(InsertInst);                                                 \
-  };
-  RetTy visitSeqInsertValueInst(SeqInsertValueInst &I) {
-    DELEGATE_INST(InsertInst);
-  };
-#define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS) /* No handling. */
-
-  // Remove instruction hierarchy.
-  RetTy visitRemoveInst(RemoveInst &I) {
-    DELEGATE_INST(MemOIRInst);
-  };
-#define HANDLE_REMOVE_INST(ENUM, FUNC, CLASS)                                  \
-  RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE_INST(RemoveInst);                                                 \
-  };
-
-  // Copy instruction hierarchy.
-  RetTy visitCopyInst(CopyInst &I) {
-    DELEGATE_INST(MemOIRInst);
-  };
-#define HANDLE_COPY_INST(ENUM, FUNC, CLASS)                                    \
-  RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE_INST(CopyInst);                                                   \
-  };
-
-  // Swap instruction hierarchy.
-  RetTy visitSwapInst(SwapInst &I) {
-    DELEGATE_INST(MemOIRInst);
-  };
-#define HANDLE_SWAP_INST(ENUM, FUNC, CLASS)                                    \
-  RetTy visit##CLASS(CLASS &I) {                                               \
-    DELEGATE_INST(SwapInst);                                                   \
-  };
-
   // Fold instruction hierarchy.
   RetTy visitFoldInst(FoldInst &I) {
-    DELEGATE_INST(MemOIRInst);
+    DELEGATE_INST(AccessInst);
   };
-#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS, REVERSE) /* No handling */
+#define HANDLE_FOLD_INST(ENUM, FUNC, CLASS) /* No handling */
 #include "memoir/ir/Instructions.def"
 
   // Mut instruction hierarchy.
   RetTy visitMutInst(MutInst &I) {
-    DELEGATE_INST(MemOIRInst);
+    DELEGATE_INST(AccessInst);
   };
 #define HANDLE_INST(ENUM, FUNC, CLASS)                                         \
   RetTy visit##CLASS(CLASS &I) {                                               \
@@ -198,22 +126,7 @@ public:
   RetTy visitMutWriteInst(MutWriteInst &I) {
     DELEGATE_INST(MutInst);
   };
-  RetTy visitMutStructWriteInst(MutStructWriteInst &I) {
-    DELEGATE_INST(MutWriteInst);
-  };
-  RetTy visitMutIndexWriteInst(MutIndexWriteInst &I) {
-    DELEGATE_INST(MutWriteInst);
-  };
-  RetTy visitMutAssocWriteInst(MutAssocWriteInst &I) {
-    DELEGATE_INST(MutWriteInst);
-  };
 #define HANDLE_WRITE_INST(ENUM, FUNC, CLASS) /* No handling. */
-
-  // MutSeqInsertInst hierarchy.
-  RetTy visitMutSeqInsertValueInst(MutSeqInsertValueInst &I) {
-    DELEGATE_INST(MutInst);
-  };
-#define HANDLE_SEQ_INSERT_INST(ENUM, FUNC, CLASS) /* No handling. */
 
 #include "memoir/ir/MutOperations.def"
 

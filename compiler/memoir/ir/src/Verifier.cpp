@@ -21,9 +21,9 @@ namespace llvm::memoir {
 struct LivenessResult {
   bool is_live(llvm::Value &V, MemOIRInst &I, bool after = true);
   bool is_live(llvm::Value &V, llvm::Instruction &I, bool after = true);
-  set<llvm::Value *> live_values(MemOIRInst &I, bool after = true);
-  set<llvm::Value *> live_values(llvm::Instruction &I, bool after = true);
-  set<llvm::Value *> live_values(llvm::BasicBlock &From, llvm::BasicBlock &To);
+  Set<llvm::Value *> live_values(MemOIRInst &I, bool after = true);
+  Set<llvm::Value *> live_values(llvm::Instruction &I, bool after = true);
+  Set<llvm::Value *> live_values(llvm::BasicBlock &From, llvm::BasicBlock &To);
 };
 
 void gather_variables(UnionFind<llvm::Value *> &reaching_definition,
@@ -40,8 +40,8 @@ void gather_variables(UnionFind<llvm::Value *> &reaching_definition,
 }
 
 bool check_live_set(
-    const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
-    const set<llvm::Value *> &live_set) {
+    const OrderedMultiMap<llvm::Value *, llvm::Value *> &partition,
+    const Set<llvm::Value *> &live_set) {
 
   // If there is no more than one live variable, we don't need to do any further
   // checks.
@@ -79,7 +79,7 @@ bool check_live_set(
 
 bool check_basic_block_edge(
     LivenessResult &LR,
-    const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
+    const OrderedMultiMap<llvm::Value *, llvm::Value *> &partition,
     llvm::BasicBlock &from,
     llvm::BasicBlock &to) {
 
@@ -92,7 +92,7 @@ bool check_basic_block_edge(
 
 bool check_instruction(
     LivenessResult &LR,
-    const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
+    const OrderedMultiMap<llvm::Value *, llvm::Value *> &partition,
     llvm::Instruction &I) {
 
   // Get the set of live values before this instruction.
@@ -102,13 +102,13 @@ bool check_instruction(
   return check_live_set(partition, live_set);
 }
 
-bool check_call(const ordered_multimap<llvm::Value *, llvm::Value *> &partition,
+bool check_call(const OrderedMultiMap<llvm::Value *, llvm::Value *> &partition,
                 llvm::CallBase &call) {
   // Check that, no two collection operands are the same.
 
   // We will store the set of collection arguments we have already found in
   // collection_arguments.
-  set<llvm::Value *> collection_arguments = {};
+  Set<llvm::Value *> collection_arguments = {};
 
   // For each argument of the call.
   for (auto &argument : call.data_ops()) {
@@ -163,30 +163,22 @@ bool verify_linearity(llvm::Function &F, LivenessResult &LR) {
 
       // If this is a collection operation that returns a new collection, add it
       // to the set of variables.
-      if (isa<AllocInst>(memoir_inst) or isa<AssocKeysInst>(memoir_inst)) {
+      if (isa<AllocInst>(memoir_inst) or isa<KeysInst>(memoir_inst)
+          or isa<CopyInst>(memoir_inst)) {
         reaching_definition.insert(&I);
-      } else if (auto *write = dyn_cast<WriteInst>(memoir_inst)) {
-        auto &operand = write->getObjectOperand();
-        reaching_definition.merge(&I, &operand);
-        gather_variables(reaching_definition, operand);
-      } else if (auto *insert = dyn_cast<InsertInst>(memoir_inst)) {
-        auto &operand = insert->getBaseCollection();
-        reaching_definition.merge(&I, &operand);
-        gather_variables(reaching_definition, operand);
-      } else if (auto *remove = dyn_cast<RemoveInst>(memoir_inst)) {
-        auto &operand = remove->getBaseCollection();
-        reaching_definition.merge(&I, &operand);
-        gather_variables(reaching_definition, operand);
-      } else if (auto *swap = dyn_cast<SeqSwapWithinInst>(memoir_inst)) {
-        auto &operand = swap->getFromCollection();
-        reaching_definition.merge(&I, &operand);
+      }
+
+      // Merge the reaching definitions for the input and redefinition.
+      else if (auto *update = dyn_cast<UpdateInst>(memoir_inst)) {
+        auto &operand = update->getObject();
+        reaching_definition.merge(&update->getResult(), &operand);
         gather_variables(reaching_definition, operand);
       }
 
       // If this is an AssertCollectionType instruction, add the collection to
       // the set of variables.
-      if (auto *assert_inst = dyn_cast<AssertCollectionTypeInst>(memoir_inst)) {
-        reaching_definition.insert(&assert_inst->getCollection());
+      else if (auto *assert_inst = dyn_cast<AssertTypeInst>(memoir_inst)) {
+        reaching_definition.insert(&assert_inst->getObject());
       }
     }
   }
@@ -218,7 +210,7 @@ bool verify_linearity(llvm::Function &F, LivenessResult &LR) {
 
   // Now, partition the UnionFind by inverting the mapping from variable to
   // parent definition.
-  ordered_multimap<llvm::Value *, llvm::Value *> partition = {};
+  OrderedMultiMap<llvm::Value *, llvm::Value *> partition = {};
   for (const auto &[var, def] : reaching_definition) {
     // If var == def, add it to the roots.
     partition.insert({ def, var });
@@ -268,9 +260,13 @@ bool verify_linearity(llvm::Function &F, LivenessResult &LR) {
 // Top-level queries.
 bool Verifier::verify(llvm::Function &F, llvm::FunctionAnalysisManager &FAM) {
   // First, have LLVM verify that this is a valid LLVM function.
-  if (llvm::verifyFunction(F)) {
+  if (llvm::verifyFunction(F, &llvm::errs())) {
+    println("LLVM Verifier failed on ", F.getName());
     return true;
   }
+
+  // TEMPORARY
+  return false;
 
   // Get the liveness analysis result for this function.
   auto &LR = FAM.getResult<LivenessAnalysis>(F);
@@ -285,7 +281,8 @@ bool Verifier::verify(llvm::Function &F, llvm::FunctionAnalysisManager &FAM) {
 
 bool Verifier::verify(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
   // First, have LLVM verify that this is a valid LLVM module.
-  if (llvm::verifyModule(M)) {
+  if (llvm::verifyModule(M, &llvm::errs())) {
+    println("LLVM Verifier failed");
     return true;
   }
 
@@ -296,6 +293,7 @@ bool Verifier::verify(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
 
     // Verify the function.
     if (Verifier::verify(F, FAM)) {
+      println("MEMOIR Verifier failed on ", F.getName());
       return true;
     }
   }

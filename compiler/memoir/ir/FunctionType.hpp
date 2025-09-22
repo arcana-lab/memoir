@@ -8,7 +8,7 @@
 
 #include "memoir/ir/Types.hpp"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 namespace llvm::memoir {
 
@@ -18,7 +18,7 @@ struct FunctionType {
 public:
   static FunctionType &get(llvm::FunctionType &FT,
                            Type *return_type,
-                           ordered_map<unsigned, Type *> param_types);
+                           OrderedMap<unsigned, Type *> param_types);
 
   llvm::FunctionType &getLLVMFunctionType() const;
   std::variant<Type *, llvm::Type *> getReturnType() const;
@@ -31,11 +31,11 @@ protected:
   // Borrowed state
   llvm::FunctionType &FT;
   Type *return_type; // if NULL, then it is an LLVM type.
-  ordered_map<unsigned, Type *> param_types;
+  OrderedMap<unsigned, Type *> param_types;
 
   FunctionType(llvm::FunctionType &FT,
                Type *return_type,
-               ordered_map<unsigned, Type *> param_types)
+               OrderedMap<unsigned, Type *> param_types)
     : FT(FT),
       return_type(return_type),
       param_types(param_types) {}
