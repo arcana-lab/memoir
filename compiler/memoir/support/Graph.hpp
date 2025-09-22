@@ -14,7 +14,7 @@ class DirectedGraph : public graph_lite::Graph<NodeType,
                                                EdgeDirection::DIRECTED,
                                                MultiEdge::DISALLOWED,
                                                SelfLoop::ALLOWED,
-                                               Map::MAP,
+                                               graph_lite::Map::MAP,
                                                Container::UNORDERED_SET,
                                                Logging::DISALLOWED> {
 public:
@@ -51,7 +51,7 @@ public:
 
   // Given a start node, produce a vector that is the depth first
   // traversal starting from that node.
-  vector<NodeType> depth_first_order(NodeType start) {
+  Vector<NodeType> depth_first_order(NodeType start) {
     // procedure DFS_iterative(G, v) is
     // let S be a stack
     // S.push(v)
@@ -62,9 +62,9 @@ public:
     //         for all edges from v to w in G.adjacentEdges(v) do
     //             S.push(w)
 
-    vector<NodeType> out;
-    set<NodeType> discovered;
-    stack<NodeType> s;
+    Vector<NodeType> out;
+    Set<NodeType> discovered;
+    Stack<NodeType> s;
     s.push(start);
     while (not s.empty()) {
       auto v = s.top();
@@ -85,10 +85,10 @@ public:
     return out;
   }
 
-  vector<NodeType> breadth_first_order(NodeType start) {
-    vector<NodeType> out;
-    set<NodeType> explored;
-    queue<NodeType> Q;
+  Vector<NodeType> breadth_first_order(NodeType start) {
+    Vector<NodeType> out;
+    Set<NodeType> explored;
+    Queue<NodeType> Q;
     Q.push(start);
     explored.insert(start);
 
@@ -109,9 +109,9 @@ public:
   }
 
   bool topological_order_helper(NodeType node,
-                                vector<NodeType> &order,
-                                set<NodeType> &permanent_mark,
-                                set<NodeType> &temporary_mark) {
+                                Vector<NodeType> &order,
+                                Set<NodeType> &permanent_mark,
+                                Set<NodeType> &temporary_mark) {
     if (permanent_mark.count(node) != 0) {
       return true;
     }
@@ -147,12 +147,12 @@ public:
   }
 
   // Implementation of DFS topological sorting.
-  opt<vector<NodeType>> topological_order() {
-    vector<NodeType> order = {};
+  Option<Vector<NodeType>> topological_order() {
+    Vector<NodeType> order = {};
     order.reserve(this->size());
 
-    set<NodeType> permanent_mark = {};
-    set<NodeType> temporary_mark = {};
+    Set<NodeType> permanent_mark = {};
+    Set<NodeType> temporary_mark = {};
 
     // While there exists a node without a permanent mark:
     for (auto node_it = this->begin(); node_it != this->end(); ++node_it) {
@@ -175,15 +175,15 @@ public:
   }
 
   // Connected components.
-  struct ConnectedComponent : public set<NodeType> {};
-  struct Components : public map<NodeType, ConnectedComponent> {};
+  struct ConnectedComponent : public Set<NodeType> {};
+  struct Components : public Map<NodeType, ConnectedComponent> {};
 
   void tarjan_scc_helper(NodeType n,
                          Components &components,
                          uint32_t &index,
-                         map<NodeType, uint32_t> &indices,
-                         map<NodeType, uint32_t> &lowlink,
-                         vector<NodeType> &stack) {
+                         Map<NodeType, uint32_t> &indices,
+                         Map<NodeType, uint32_t> &lowlink,
+                         Vector<NodeType> &stack) {
     indices[n] = index;
     lowlink[n] = index;
     ++index;
@@ -225,9 +225,9 @@ public:
 
     // Initialize bookkeeping.
     uint32_t index = 0;
-    map<NodeType, uint32_t> indices = {};
-    map<NodeType, uint32_t> lowlink = {};
-    vector<NodeType> stack = {};
+    Map<NodeType, uint32_t> indices = {};
+    Map<NodeType, uint32_t> lowlink = {};
+    Vector<NodeType> stack = {};
 
     // For each node, if its index is undefined, analyze it.
     for (auto node_it = this->begin(); node_it != this->end(); ++node_it) {
@@ -245,16 +245,16 @@ public:
   struct FilteredView {
   public:
     FilteredView(DirectedGraph<NodeType, EdgeType, NodePropType> &graph,
-                 const set<NodeType> &filter)
+                 const Set<NodeType> &filter)
       : _graph(graph),
         _filter(filter) {}
 
     template <typename T>
     struct filtered_iter_wrapper {
       T _begin, _end;
-      const set<NodeType> &_filter;
+      const Set<NodeType> &_filter;
 
-      filtered_iter_wrapper(T begin, T end, const set<NodeType> &filter)
+      filtered_iter_wrapper(T begin, T end, const Set<NodeType> &filter)
         : _begin(begin),
           _end(end),
           _filter(filter) {}
@@ -312,7 +312,7 @@ public:
 
   protected:
     DirectedGraph<NodeType, EdgeType, NodePropType> &_graph;
-    set<NodeType> _filter;
+    Set<NodeType> _filter;
   };
 
   // Condensation graph (SCCDAG).
