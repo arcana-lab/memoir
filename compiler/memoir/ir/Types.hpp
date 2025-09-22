@@ -11,14 +11,13 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "memoir/ir/Instructions.hpp"
 #include "memoir/support/Assert.hpp"
+#include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
-
 #include "memoir/utility/FunctionNames.hpp"
 
-#include "memoir/ir/Instructions.hpp"
-
-namespace llvm::memoir {
+namespace memoir {
 
 enum class TypeKind {
   INTEGER,
@@ -449,6 +448,6 @@ struct MemOIRInst;
  */
 Type *type_of(MemOIRInst &I);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

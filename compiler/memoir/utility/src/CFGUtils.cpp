@@ -1,7 +1,7 @@
 #include "memoir/utility/CFGUtils.hpp"
 #include "memoir/support/Assert.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 namespace detail {
 
@@ -34,4 +34,4 @@ List<llvm::BasicBlock *> dfs_preorder_traversal(llvm::DominatorTree &DT) {
   return traversal;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

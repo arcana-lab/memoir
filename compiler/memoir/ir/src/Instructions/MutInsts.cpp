@@ -6,7 +6,7 @@
 
 #include "memoir/utility/InstructionUtils.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // MutWriteInst implementation
 OPERAND(MutWriteInst, ValueWritten, 0)
@@ -25,4 +25,4 @@ TO_STRING(MutRemoveInst, "mut.remove")
 OPERAND(MutClearInst, Object, 0)
 TO_STRING(MutClearInst, "mut.clear")
 
-} // namespace llvm::memoir
+} // namespace memoir

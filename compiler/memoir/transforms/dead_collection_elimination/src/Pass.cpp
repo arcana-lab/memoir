@@ -19,7 +19,7 @@
 // Dead Code Elimination
 #include "DeadCollectionElimination.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /*
  * This pass eliminates dead collections.
@@ -39,4 +39,4 @@ llvm::PreservedAnalyses DeadCollectionEliminationPass::run(
   return llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

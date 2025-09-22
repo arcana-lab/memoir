@@ -28,7 +28,7 @@
  * Created: April 4, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 enum ExpressionKind {
   EK_Base,
@@ -369,15 +369,15 @@ public:
   SelectExpression(ValueExpression *condition,
                    ValueExpression *true_value,
                    ValueExpression *false_value)
-    : BasicExpression(EK_Select, Instruction::Select) {
+    : BasicExpression(EK_Select, llvm::Instruction::Select) {
     this->arguments.push_back(condition);
     this->arguments.push_back(true_value);
     this->arguments.push_back(false_value);
   }
   SelectExpression(llvm::PHINode &phi)
-    : BasicExpression(EK_Select, Instruction::Select),
+    : BasicExpression(EK_Select, llvm::Instruction::Select),
       phi(&phi) {}
-  SelectExpression() : BasicExpression(EK_Select, Instruction::Select) {}
+  SelectExpression() : BasicExpression(EK_Select, llvm::Instruction::Select) {}
 
   ValueExpression *getCondition() const;
   ValueExpression *getTrueValue() const;
@@ -490,6 +490,6 @@ LLVMTy *as(ValueExpression &E) {
   return dyn_cast_or_null<LLVMTy>(E.getValue());
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

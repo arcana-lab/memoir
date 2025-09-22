@@ -20,7 +20,7 @@
 
 #include "memoir/analysis/ValueExpression.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 struct ValueExpression;
 
@@ -39,8 +39,8 @@ protected:
 };
 
 class ValueNumbering
-  : public llvm::memoir::InstVisitor<ValueNumbering, ValueExpression *> {
-  friend class llvm::memoir::InstVisitor<ValueNumbering, ValueExpression *>;
+  : public memoir::InstVisitor<ValueNumbering, ValueExpression *> {
+  friend class memoir::InstVisitor<ValueNumbering, ValueExpression *>;
   friend class llvm::InstVisitor<ValueNumbering, ValueExpression *>;
 
 public:
@@ -85,6 +85,6 @@ protected:
   ValueExpression *visitLLVMCallInst(llvm::CallInst &I);
   ValueExpression *visitSizeInst(SizeInst &I);
 };
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

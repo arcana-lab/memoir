@@ -17,7 +17,7 @@
 #include "memoir/support/UnionFind.hpp"
 #include "memoir/utility/Metadata.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 /*
  * This pass erases all existing LiveOutMetadata and re-inserts it.
@@ -26,7 +26,7 @@ using namespace llvm::memoir;
  * Created: September 24, 2024
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 namespace detail {
 
@@ -245,4 +245,4 @@ llvm::PreservedAnalyses LiveOutInsertionPass::run(
   return llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

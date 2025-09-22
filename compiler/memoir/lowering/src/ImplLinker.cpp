@@ -4,7 +4,7 @@
 
 #include "memoir/utility/Metadata.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 std::string default_seq_impl;
 static llvm::cl::opt<std::string, true> DefaultSeqImpl(
@@ -553,4 +553,4 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
   }
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

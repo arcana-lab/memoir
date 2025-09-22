@@ -37,7 +37,7 @@
  * Created: August 25, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 class FieldElision {
   using ValueSetTy = Set<llvm::Value *>;
@@ -785,6 +785,6 @@ protected:
     return transformed;
   }
 };
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

@@ -17,7 +17,7 @@
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Graph.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 struct LiveRangeAnalysisResult {
 public:
@@ -141,6 +141,6 @@ public:
   void add_seq_to_graph(llvm::Value &V);
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_ANALYSIS_LIVERANGEANALYSIS_H

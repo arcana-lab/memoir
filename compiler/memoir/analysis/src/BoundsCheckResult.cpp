@@ -1,6 +1,6 @@
 #include "memoir/analysis/BoundsCheckAnalysis.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Accessors
 llvm::Value &BoundsCheck::key() const {
@@ -235,4 +235,4 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
   return os;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

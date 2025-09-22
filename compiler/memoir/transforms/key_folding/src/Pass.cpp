@@ -15,7 +15,7 @@
 // Key Folding
 #include "KeyFolding.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /*
  * This pass folds the key-space of an assoc onto a sequence's index space when
@@ -36,4 +36,4 @@ llvm::PreservedAnalyses KeyFoldingPass::run(llvm::Module &M,
                         : llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

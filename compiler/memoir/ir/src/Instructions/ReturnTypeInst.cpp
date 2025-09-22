@@ -4,7 +4,7 @@
 
 #include "memoir/utility/InstructionUtils.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // ReturnTypeInst implementation
 Type &ReturnTypeInst::getType() const {
@@ -16,4 +16,4 @@ Type &ReturnTypeInst::getType() const {
 OPERAND(ReturnTypeInst, TypeOperand, 0)
 TO_STRING(ReturnTypeInst, "rettype")
 
-} // namespace llvm::memoir
+} // namespace memoir

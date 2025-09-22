@@ -6,7 +6,7 @@
 #include "memoir/transforms/utilities/MutateType.hpp"
 #include "memoir/utility/FunctionNames.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // We will use two special offset values to represent either the keys or
 // elements at a given offset.
@@ -877,4 +877,4 @@ void default_on_func_clone(llvm::Function &old_function,
   return;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

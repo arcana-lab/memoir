@@ -6,7 +6,7 @@
 
 #include "memoir/ir/TypeCheck.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Helper functions.
 Type *type_of(llvm::Value &V) {
@@ -877,4 +877,4 @@ Type &Type::from_code(std::string code) {
   MEMOIR_UNREACHABLE("Unknown type code");
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

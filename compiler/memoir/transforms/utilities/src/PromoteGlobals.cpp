@@ -15,7 +15,7 @@
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 bool global_is_promotable(llvm::GlobalVariable &global) {
 
@@ -286,7 +286,7 @@ bool promote_global(llvm::GlobalVariable &global) {
   }
 
   // Construct the callgraph for the module.
-  llvm::memoir::CallGraph callgraph(module);
+  memoir::CallGraph callgraph(module);
 
   // Determine the store-load function paths.
   List<FunctionPath> paths;
@@ -528,4 +528,4 @@ bool promote_globals(llvm::ArrayRef<llvm::GlobalVariable *> globals) {
   return modified;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

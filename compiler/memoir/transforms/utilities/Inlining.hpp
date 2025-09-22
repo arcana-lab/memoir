@@ -3,7 +3,7 @@
 
 #include "llvm/Transforms/Utils/Cloning.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * A wrapper for LLVM's InlineFunction call.
@@ -16,6 +16,6 @@ llvm::InlineResult InlineFunction(llvm::CallBase &CB,
                                   bool InsertLifetime = true,
                                   llvm::Function *ForwardArgsTo = nullptr);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_TRANSFORMS_UTILITIES_INLINER_H

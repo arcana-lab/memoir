@@ -30,7 +30,7 @@
  * Created: August 28, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 class KeyFolding {
 
@@ -635,8 +635,8 @@ protected:
     // Return, true if the program was transformed, false otherwise.
     return transformed;
   }
-}; // namespace llvm::memoir
+}; // namespace memoir
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

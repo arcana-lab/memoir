@@ -3,7 +3,7 @@
 
 #include "memoir/support/SortedVector.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 template <typename T, typename Cmp = std::less<T>>
 struct SortedVector : public Vector<T> {
@@ -108,6 +108,6 @@ struct SortedVector : public Vector<T> {
   }
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_SUPPORT_SORTEDVECTOR_H

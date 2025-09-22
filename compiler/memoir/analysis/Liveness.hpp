@@ -14,7 +14,7 @@
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 struct LivenessResult {
 public:
@@ -100,6 +100,6 @@ protected:
   arcana::noelle::DataFlowEngine &DFE;
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_ANALYSIS_LIVENESS_H

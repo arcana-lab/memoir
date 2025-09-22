@@ -4,7 +4,7 @@
 
 #include "memoir/utility/InstructionUtils.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // AccessInst implementation
 Type &AccessInst::getObjectType() const {
@@ -252,4 +252,4 @@ TO_STRING(RemoveInst, "remove")
 OPERAND(ClearInst, Object, 0)
 TO_STRING(ClearInst, "clear")
 
-} // namespace llvm::memoir
+} // namespace memoir

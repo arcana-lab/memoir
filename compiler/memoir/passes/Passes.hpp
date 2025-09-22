@@ -15,7 +15,7 @@
 // MEMOIR
 #include "memoir/support/PassUtils.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 void raise_memoir(llvm::ModulePassManager &MPM);
 
@@ -42,6 +42,6 @@ void lower_memoir(llvm::ModulePassManager &MPM);
 #undef PASS
 #undef ANALYSIS
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_PASSES_PASSES_H

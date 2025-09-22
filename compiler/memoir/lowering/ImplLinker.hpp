@@ -17,7 +17,7 @@
  * Created: September 27, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Default implementations
 extern std::string default_seq_impl;
@@ -96,6 +96,6 @@ protected:
 
 }; // class ImplLinker
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_IMPLLINKER_H

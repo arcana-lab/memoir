@@ -7,7 +7,7 @@
 
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * An adaptor for the LLVM CallGraph, with additional information about MEMOIR
@@ -50,6 +50,6 @@ Set<llvm::CallBase *> possible_callers(llvm::Function &function);
  */
 llvm::CallBase *single_caller(llvm::Function &function);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_IR_CALLGRAPH_H

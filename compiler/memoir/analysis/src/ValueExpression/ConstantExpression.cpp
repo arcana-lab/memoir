@@ -4,7 +4,7 @@
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 llvm::Constant &ConstantExpression::getConstant() const {
   return C;
@@ -24,4 +24,4 @@ llvm::Value *ConstantExpression::materialize(llvm::Instruction &IP,
   return &C;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

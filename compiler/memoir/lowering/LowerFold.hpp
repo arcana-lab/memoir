@@ -4,7 +4,7 @@
 // MEMOIR
 #include "memoir/ir/Instructions.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 bool lower_fold(
     FoldInst &I,
@@ -20,6 +20,6 @@ bool lower_fold(
     std::function<void(llvm::Instruction &)> cleanup =
         [](llvm::Instruction &I) { I.eraseFromParent(); });
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_LOWERING_LOWERFOLD_H

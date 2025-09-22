@@ -12,7 +12,7 @@
  * Created: May 25, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 bool BasicExpression::isAvailable(llvm::Instruction &IP,
                                   const llvm::DominatorTree *DT,
@@ -384,4 +384,4 @@ llvm::Value *CallExpression::materialize(llvm::Instruction &IP,
   return nullptr;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

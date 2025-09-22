@@ -15,7 +15,7 @@
 
 #include "memoir/utility/FunctionNames.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 class MemOIRBuilder : public llvm::IRBuilder<> {
 public:
@@ -48,7 +48,7 @@ public:
   /*
    * Type Instructions
    */
-  TypeInst *CreateTypeInst(Type &type, const Twine &name = "") {
+  TypeInst *CreateTypeInst(Type &type, const llvm::Twine &name = "") {
     if (isa<FloatType>(&type)) {
       return this->CreateFloatTypeInst(name);
     } else if (isa<DoubleType>(&type)) {
@@ -117,7 +117,7 @@ public:
     MEMOIR_UNREACHABLE("Attempt to create instruction for unknown type");
   }
 
-  TypeInst *CreateSizeTypeInst(const Twine &name = "") {
+  TypeInst *CreateSizeTypeInst(const llvm::Twine &name = "") {
     auto &data_layout = this->M->getDataLayout();
     auto &size_type = Type::get_size_type(data_layout);
     return this->CreateTypeInst(size_type, name);
@@ -127,7 +127,7 @@ public:
    * Primitive Type Instructions
    */
 #define HANDLE_PRIMITIVE_TYPE_INST(ENUM, FUNC, CLASS)                          \
-  CLASS *Create##CLASS(const Twine &name = "") {                               \
+  CLASS *Create##CLASS(const llvm::Twine &name = "") {                         \
     return this->create<CLASS>(MemOIR_Func::ENUM, {}, name);                   \
   }
 #include "memoir/ir/Instructions.def"
@@ -136,7 +136,7 @@ public:
   // Named Type Instructions
   DefineTypeInst *CreateDefineTypeInst(const char *type_name,
                                        Type &type,
-                                       const Twine &name = "") {
+                                       const llvm::Twine &name = "") {
     // Create the LLVM type name and number of fields constant.
     auto llvm_type_name = this->CreateGlobalString(type_name, "type.name.");
 
@@ -150,7 +150,7 @@ public:
   }
 
   LookupTypeInst *CreateLookupTypeInst(const char *type_name,
-                                       const Twine &name = "") {
+                                       const llvm::Twine &name = "") {
     // Create the LLVM type name and number of fields constant.
     auto llvm_type_name = this->CreateGlobalString(type_name, "type.name.");
     // Create the call.
@@ -162,7 +162,7 @@ public:
 
   // Derived Type Instructions
   TupleTypeInst *CreateTupleTypeInst(llvm::ArrayRef<Type *> fields,
-                                     const Twine &name = "") {
+                                     const llvm::Twine &name = "") {
 
     Vector<llvm::Value *> llvm_fields = {};
     llvm_fields.reserve(fields.size());
@@ -175,13 +175,13 @@ public:
   }
 
   TupleTypeInst *CreateTupleTypeInst(llvm::ArrayRef<llvm::Value *> fields,
-                                     const Twine &name = "") {
+                                     const llvm::Twine &name = "") {
 
     return this->create<TupleTypeInst>(MemOIR_Func::TUPLE_TYPE, fields, name);
   }
 
   ReferenceTypeInst *CreateReferenceTypeInst(llvm::Value *referenced_type,
-                                             const Twine &name = "") {
+                                             const llvm::Twine &name = "") {
     return this->create<ReferenceTypeInst>(MemOIR_Func::REFERENCE_TYPE,
                                            { referenced_type },
                                            name);
@@ -189,7 +189,7 @@ public:
 
   SequenceTypeInst *CreateSequenceTypeInst(llvm::Value *element_type,
                                            Option<std::string> selection = {},
-                                           const Twine &name = "") {
+                                           const llvm::Twine &name = "") {
 
     Vector<llvm::Value *> args = { element_type };
 
@@ -209,7 +209,7 @@ public:
       llvm::Value *key_type,
       llvm::Value *value_type,
       Option<std::string> selection = {},
-      const Twine &name = "") {
+      const llvm::Twine &name = "") {
 
     Vector<llvm::Value *> args = { key_type, value_type };
 
@@ -230,7 +230,7 @@ public:
   // Allocation Instructions
   AllocInst *CreateAllocInst(llvm::Value *type,
                              llvm::ArrayRef<llvm::Value *> extra_args = {},
-                             const Twine &name = "") {
+                             const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { type };
     args.insert(args.end(), extra_args.begin(), extra_args.end());
 
@@ -239,7 +239,7 @@ public:
 
   AllocInst *CreateAllocInst(Type &type,
                              llvm::ArrayRef<llvm::Value *> extra_args = {},
-                             const Twine &name = "") {
+                             const llvm::Twine &name = "") {
     auto &type_as_value = this->CreateTypeInst(type)->getCallInst();
     return this->CreateAllocInst(&type_as_value, extra_args, name);
   }
@@ -247,13 +247,13 @@ public:
   // Sequence allocation
   AllocInst *CreateSequenceAllocInst(Type &type,
                                      uint64_t size,
-                                     const Twine &name = "") {
+                                     const llvm::Twine &name = "") {
     return this->CreateSequenceAllocInst(type, this->getInt64(size), name);
   }
 
   AllocInst *CreateSequenceAllocInst(Type &type,
                                      llvm::Value *size,
-                                     const Twine &name = "") {
+                                     const llvm::Twine &name = "") {
     return this->CreateSequenceAllocInst(
         &this->CreateTypeInst(type)->getCallInst(),
         size,
@@ -262,21 +262,21 @@ public:
 
   AllocInst *CreateSequenceAllocInst(llvm::Value *type,
                                      uint64_t size,
-                                     const Twine &name = "") {
+                                     const llvm::Twine &name = "") {
     auto *seq_type = &this->CreateSequenceTypeInst(type)->getCallInst();
     return this->CreateSequenceAllocInst(seq_type, this->getInt64(size), name);
   }
 
   AllocInst *CreateSequenceAllocInst(llvm::Value *type,
                                      llvm::Value *size,
-                                     const Twine &name = "") {
+                                     const llvm::Twine &name = "") {
     return this->CreateAllocInst(type, { size }, name);
   }
 
   // Assoc allocation
   AllocInst *CreateAssocArrayAllocInst(Type &key_type,
                                        Type &value_type,
-                                       const Twine &name = "") {
+                                       const llvm::Twine &name = "") {
     return this->CreateAssocArrayAllocInst(
         &this->CreateTypeInst(key_type)->getCallInst(),
         &this->CreateTypeInst(value_type)->getCallInst(),
@@ -285,7 +285,7 @@ public:
 
   AllocInst *CreateAssocArrayAllocInst(Type &key_type,
                                        llvm::Value *value_type,
-                                       const Twine &name = "") {
+                                       const llvm::Twine &name = "") {
     return this->CreateAssocArrayAllocInst(
         &this->CreateTypeInst(key_type)->getCallInst(),
         value_type,
@@ -294,7 +294,7 @@ public:
 
   AllocInst *CreateAssocArrayAllocInst(llvm::Value *key_type,
                                        llvm::Value *value_type,
-                                       const Twine &name = "") {
+                                       const llvm::Twine &name = "") {
     auto &type_as_value =
         this->CreateAssocArrayTypeInst(key_type, value_type)->getCallInst();
     return this->CreateAllocInst(&type_as_value, {}, name);
@@ -306,7 +306,7 @@ public:
   ReadInst *CreateReadInst(Type &element_type,
                            llvm::Value *llvm_object,
                            llvm::ArrayRef<llvm::Value *> indices = {},
-                           const Twine &name = "") {
+                           const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { llvm_object };
     args.insert(args.end(), indices.begin(), indices.end());
 
@@ -316,7 +316,7 @@ public:
   //// Get Instructions
   GetInst *CreateGetInst(llvm::Value *llvm_object,
                          llvm::ArrayRef<llvm::Value *> indices = {},
-                         const Twine &name = "") {
+                         const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { llvm_object };
     args.insert(args.end(), indices.begin(), indices.end());
 
@@ -328,7 +328,7 @@ public:
                              llvm::Value *llvm_value_to_write,
                              llvm::Value *llvm_object,
                              llvm::ArrayRef<llvm::Value *> indices = {},
-                             const Twine &name = "") {
+                             const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { llvm_value_to_write, llvm_object };
     args.insert(args.end(), indices.begin(), indices.end());
 
@@ -343,7 +343,7 @@ public:
 
   InsertInst *CreateInsertInst(llvm::Value *object,
                                llvm::ArrayRef<llvm::Value *> indices,
-                               const Twine &name = "") {
+                               const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
@@ -352,7 +352,7 @@ public:
 
   RemoveInst *CreateRemoveInst(llvm::Value *object,
                                llvm::ArrayRef<llvm::Value *> indices,
-                               const Twine &name = "") {
+                               const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
@@ -361,7 +361,7 @@ public:
 
   KeysInst *CreateKeysInst(llvm::Value *object,
                            llvm::ArrayRef<llvm::Value *> indices = {},
-                           const Twine &name = "") {
+                           const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
@@ -370,7 +370,7 @@ public:
 
   HasInst *CreateHasInst(llvm::Value *object,
                          llvm::ArrayRef<llvm::Value *> indices,
-                         const Twine &name = "") {
+                         const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
@@ -382,7 +382,7 @@ public:
                                    llvm::Value *llvm_value_to_write,
                                    llvm::Value *llvm_object,
                                    llvm::ArrayRef<llvm::Value *> indices = {},
-                                   const Twine &name = "") {
+                                   const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { llvm_value_to_write, llvm_object };
     args.insert(args.end(), indices.begin(), indices.end());
 
@@ -393,7 +393,7 @@ public:
 
   MutInsertInst *CreateMutInsertInst(llvm::Value *object,
                                      llvm::ArrayRef<llvm::Value *> indices,
-                                     const Twine &name = "") {
+                                     const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
@@ -402,7 +402,7 @@ public:
 
   MutRemoveInst *CreateMutRemoveInst(llvm::Value *object,
                                      llvm::ArrayRef<llvm::Value *> indices,
-                                     const Twine &name = "") {
+                                     const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { object };
     args.insert(args.end(), indices.begin(), indices.end());
 
@@ -412,7 +412,7 @@ public:
   // Sequence operations.
   CopyInst *CreateCopyInst(llvm::Value *object,
                            llvm::ArrayRef<llvm::Value *> extra_args = {},
-                           const Twine &name = "") {
+                           const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { object };
     args.insert(args.end(), extra_args.begin(), extra_args.end());
 
@@ -422,7 +422,7 @@ public:
   CopyInst *CreateSeqCopyInst(llvm::Value *object,
                               llvm::Value *left,
                               llvm::Value *right,
-                              const Twine &name = "") {
+                              const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { &Keyword::get_llvm<RangeKeyword>(
                                        this->getContext()),
                                    left,
@@ -435,7 +435,7 @@ public:
   CopyInst *CreateSeqCopyInst(llvm::Value *object,
                               llvm::Value *left,
                               int64_t right,
-                              const Twine &name = "") {
+                              const llvm::Twine &name = "") {
     // Create the right constant.
     auto right_constant = this->getInt64(right);
 
@@ -446,7 +446,7 @@ public:
   CopyInst *CreateSeqCopyInst(llvm::Value *object,
                               int64_t left,
                               llvm::Value *right,
-                              const Twine &name = "") {
+                              const llvm::Twine &name = "") {
     // Create the left constant.
     auto left_constant = this->getInt64(left);
 
@@ -457,7 +457,7 @@ public:
   CopyInst *CreateSeqCopyInst(llvm::Value *object,
                               int64_t left,
                               int64_t right,
-                              const Twine &name = "") {
+                              const llvm::Twine &name = "") {
     // Create the left constant.
     auto left_constant = this->getInt64(left);
 
@@ -472,14 +472,14 @@ public:
   //// Size operations.
   SizeInst *CreateSizeInst(llvm::Value *object,
                            llvm::ArrayRef<llvm::Value *> extra_args = {},
-                           const Twine &name = "") {
+                           const llvm::Twine &name = "") {
     Vector<llvm::Value *> args = { object };
     args.insert(args.end(), extra_args.begin(), extra_args.end());
 
     return this->create<SizeInst>(MemOIR_Func::SIZE, args, name);
   }
 
-  EndInst *CreateEndInst(const Twine &name = "") {
+  EndInst *CreateEndInst(const llvm::Twine &name = "") {
     return this->create<EndInst>(MemOIR_Func::END, {}, name);
   }
 
@@ -490,7 +490,7 @@ public:
                            llvm::Value *collection,
                            llvm::ArrayRef<llvm::Value *> indices = {},
                            llvm::ArrayRef<llvm::Value *> closed = {},
-                           const Twine &name = "") {
+                           const llvm::Twine &name = "") {
     // Fetch the function type.
     auto *func_type = body->getFunctionType();
 
@@ -510,7 +510,7 @@ public:
                            llvm::Value *collection,
                            llvm::ArrayRef<llvm::Value *> indices = {},
                            llvm::ArrayRef<llvm::Value *> closed = {},
-                           const Twine &name = "") {
+                           const llvm::Twine &name = "") {
     // Fetch the function type.
     auto *func_type = body->getFunctionType();
 
@@ -529,13 +529,14 @@ public:
   }
 
   //// SSA renaming operations.
-  UsePHIInst *CreateUsePHI(llvm::Value *collection, const Twine &name = "") {
+  UsePHIInst *CreateUsePHI(llvm::Value *collection,
+                           const llvm::Twine &name = "") {
     return this->create<UsePHIInst>(MemOIR_Func::USE_PHI, { collection }, name);
   }
 
   RetPHIInst *CreateRetPHI(llvm::Value *collection,
                            llvm::Value *callee,
-                           const Twine &name = "") {
+                           const llvm::Twine &name = "") {
     return this->create<RetPHIInst>(MemOIR_Func::RET_PHI,
                                     { collection, callee },
                                     name);
@@ -543,7 +544,7 @@ public:
 
   ClearInst *CreateClearInst(llvm::Value *collection,
                              llvm::ArrayRef<llvm::Value *> extra_args = {},
-                             const Twine &name = "") {
+                             const llvm::Twine &name = "") {
     Vector<llvm::Value *> arguments = { collection };
     arguments.insert(arguments.end(), extra_args.begin(), extra_args.end());
     return this->create<ClearInst>(MemOIR_Func::CLEAR, { collection }, name);
@@ -552,7 +553,7 @@ public:
   // Type annotations.
   AssertTypeInst *CreateAssertTypeInst(llvm::Value *object,
                                        Type &type,
-                                       const Twine &name = "") {
+                                       const llvm::Twine &name = "") {
     // Create the type instruction.
     auto &type_inst = MEMOIR_SANITIZE(CreateTypeInst(type, name),
                                       "Could not construct type instruction!");
@@ -563,14 +564,15 @@ public:
   }
 
   ReturnTypeInst *CreateReturnTypeInst(llvm::Value *type_as_value,
-                                       const Twine &name = "") {
+                                       const llvm::Twine &name = "") {
     // Create the type annotation.
     return this->create<ReturnTypeInst>(MemOIR_Func::SET_RETURN_TYPE,
                                         { type_as_value },
                                         name);
   }
 
-  ReturnTypeInst *CreateReturnTypeInst(Type &type, const Twine &name = "") {
+  ReturnTypeInst *CreateReturnTypeInst(Type &type,
+                                       const llvm::Twine &name = "") {
     // Create the type instruction.
     auto *type_inst = CreateTypeInst(type, name);
 
@@ -655,7 +657,7 @@ protected:
             std::enable_if_t<std::is_base_of_v<MemOIRInst, T>, bool> = true>
   T *create(MemOIR_Func memoir_enum,
             std::initializer_list<llvm::Value *> arguments = {},
-            const Twine &name = "") {
+            const llvm::Twine &name = "") {
     return this->create<T>(memoir_enum,
                            llvm::ArrayRef<llvm::Value *>(arguments),
                            name);
@@ -665,7 +667,7 @@ protected:
             std::enable_if_t<std::is_base_of_v<MemOIRInst, T>, bool> = true>
   T *create(MemOIR_Func memoir_enum,
             llvm::ArrayRef<llvm::Value *> arguments = {},
-            const Twine &name = "") {
+            const llvm::Twine &name = "") {
     // Use the general-purpose helper to construct the call.
     auto *llvm_call = this->createMemOIRCall(memoir_enum, arguments, name);
 
@@ -679,13 +681,13 @@ protected:
 
   llvm::CallInst *createMemOIRCall(MemOIR_Func memoir_enum,
                                    llvm::ArrayRef<llvm::Value *> arguments = {},
-                                   const Twine &name = "") {
+                                   const llvm::Twine &name = "") {
     // Fetch the LLVM Function.
     auto *llvm_func =
         FunctionNames::get_memoir_function(*(this->M), memoir_enum);
 
     // Create the function callee.
-    auto callee = FunctionCallee(llvm_func);
+    auto callee = llvm::FunctionCallee(llvm_func);
 
     // Get the function type so that we know if it's okay to name the resultant.
     auto *llvm_func_type = callee.getFunctionType();
@@ -818,8 +820,8 @@ protected:
   ENUM_FOR_TYPE(FOLD, Fold)
 #undef ENUM_FOR_TYPE
 
-}; // namespace llvm::memoir
+}; // namespace memoir
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

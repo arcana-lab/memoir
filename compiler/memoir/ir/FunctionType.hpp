@@ -10,7 +10,7 @@
 
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 struct Type;
 
@@ -42,6 +42,6 @@ protected:
   ~FunctionType() {}
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_IR_FUNCTIONTYPE_H

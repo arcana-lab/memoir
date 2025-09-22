@@ -3,7 +3,7 @@
 
 #include "memoir/support/Print.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 Map<llvm::Instruction *, MemOIRInst *> *MemOIRInst::llvm_to_memoir = nullptr;
 
@@ -148,4 +148,4 @@ bool MemOIRInst::has_keywords() const {
   }
 #include "memoir/ir/Keywords.def"
 
-} // namespace llvm::memoir
+} // namespace memoir

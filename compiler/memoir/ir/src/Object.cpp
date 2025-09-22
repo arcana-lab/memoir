@@ -2,7 +2,7 @@
 #include "memoir/ir/ControlFlow.hpp"
 #include "memoir/ir/TypeCheck.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 llvm::Value &Object::value() const {
   return *this->_value;
@@ -114,9 +114,9 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Object &obj) {
   return os;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 std::size_t std::hash<Object>::operator()(const Object &obj) const noexcept {
   std::size_t h1 = std::hash<llvm::Value *>{}(&obj.value());

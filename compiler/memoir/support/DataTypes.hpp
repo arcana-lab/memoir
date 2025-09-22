@@ -34,7 +34,7 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /*
  * We use references in all places where possible.
@@ -195,6 +195,6 @@ using Queue = std::queue<T>;
 template <typename T>
 using SmallVector = llvm::SmallVector<T>;
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

@@ -16,11 +16,12 @@
 
 #include "Normalization.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
-static cl::opt<bool> OnlyRuntime("only-runtime",
-                                 cl::init(false),
-                                 cl::desc("Only target the runtime."));
+static llvm::cl::opt<bool> OnlyRuntime(
+    "only-runtime",
+    llvm::cl::init(false),
+    llvm::cl::desc("Only target the runtime."));
 
 llvm::PreservedAnalyses NormalizationPass::run(
     llvm::Module &M,
@@ -43,4 +44,4 @@ llvm::PreservedAnalyses NormalizationPass::run(
   return llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

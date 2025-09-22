@@ -4,7 +4,7 @@
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * Coerces the operands of the user.
@@ -12,6 +12,6 @@ namespace llvm::memoir {
  */
 bool coerce(llvm::User &user);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

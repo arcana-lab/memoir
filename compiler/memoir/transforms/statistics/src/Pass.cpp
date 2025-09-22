@@ -36,7 +36,7 @@ using namespace llvm;
  * Created: August 14, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 struct MemOIRStats {
   using CountTy = uint32_t;
@@ -64,8 +64,8 @@ struct MemOIRStats {
   }
 };
 
-class StatsVisitor : public llvm::memoir::InstVisitor<StatsVisitor> {
-  friend class llvm::memoir::InstVisitor<StatsVisitor>;
+class StatsVisitor : public memoir::InstVisitor<StatsVisitor> {
+  friend class memoir::InstVisitor<StatsVisitor>;
   friend class llvm::InstVisitor<StatsVisitor>;
 
   MemOIRStats &stats;
@@ -144,4 +144,4 @@ llvm::PreservedAnalyses StatisticsPass::run(llvm::Module &M,
   return llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

@@ -16,7 +16,7 @@
 
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 enum class MetadataKind {
   MD_STRUCT_FIELDS,
@@ -108,6 +108,6 @@ public:
   TempArgumentMetadata(llvm::MDTuple &md) : Metadata(md) {}
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

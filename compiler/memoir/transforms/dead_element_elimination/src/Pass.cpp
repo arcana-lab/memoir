@@ -15,7 +15,7 @@
 
 #include "DeadElementElimination.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /*
  * This pass eliminates updates to dead elements of collections.
@@ -37,4 +37,4 @@ llvm::PreservedAnalyses DeadElementEliminationPass::run(
   return llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir
