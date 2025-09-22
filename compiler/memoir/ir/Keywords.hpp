@@ -10,7 +10,7 @@
 
 #include "memoir/support/Assert.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 struct Keyword {
 public:
@@ -232,6 +232,6 @@ protected:
   friend struct Keyword;
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_KEYWORDS_H

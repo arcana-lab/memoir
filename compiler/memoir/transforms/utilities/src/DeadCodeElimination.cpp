@@ -6,7 +6,7 @@
 #include "memoir/transforms/utilities/DeadCodeElimination.hpp"
 #include "memoir/utility/Metadata.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 static bool is_trivially_dead(llvm::Instruction &inst,
                               const llvm::TargetLibraryInfo *TLI = NULL) {
@@ -75,4 +75,4 @@ llvm::PreservedAnalyses DeadCodeEliminationPass::run(
                   : llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

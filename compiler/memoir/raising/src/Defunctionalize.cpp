@@ -10,7 +10,7 @@
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 static bool address_taken(llvm::Value &val) {
 
@@ -201,4 +201,4 @@ llvm::PreservedAnalyses DefunctionalizePass::run(
                   : llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

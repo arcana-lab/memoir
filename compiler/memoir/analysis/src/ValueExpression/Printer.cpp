@@ -1,6 +1,6 @@
 #include "memoir/analysis/ValueExpression.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 std::ostream &operator<<(std::ostream &os, const ValueExpression &Expr) {
   os << Expr.toString("");
@@ -67,4 +67,4 @@ std::string EndExpression::toString(std::string indent) const {
   return "end";
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

@@ -9,7 +9,7 @@
 #include "memoir/support/Print.hpp"
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 /*
  * This pass erases all existing LiveOutMetadata and re-inserts it.
@@ -18,7 +18,7 @@ using namespace llvm::memoir;
  * Created: September 24, 2024
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 llvm::PreservedAnalyses TempArgReificationPass::run(
     llvm::Module &M,
@@ -34,4 +34,4 @@ llvm::PreservedAnalyses TempArgReificationPass::run(
                   : llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

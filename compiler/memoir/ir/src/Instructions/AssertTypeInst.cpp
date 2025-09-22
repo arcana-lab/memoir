@@ -2,7 +2,7 @@
 #include "memoir/ir/TypeCheck.hpp"
 #include "memoir/utility/InstructionUtils.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // AssertTypeInst implementation
 Type &AssertTypeInst::getType() const {
@@ -18,4 +18,4 @@ std::string AssertTypeInst::toString() const {
          + this->getType().toString();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

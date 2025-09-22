@@ -4,7 +4,7 @@
 
 #include "memoir/analysis/Liveness.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Result queries.
 bool LivenessResult::is_live(llvm::Value &V, MemOIRInst &I, bool after) {
@@ -187,4 +187,4 @@ LivenessResult LivenessAnalysis::run(llvm::Function &F,
 
 llvm::AnalysisKey LivenessAnalysis::Key;
 
-} // namespace llvm::memoir
+} // namespace memoir

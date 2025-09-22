@@ -7,7 +7,7 @@
 #include <iostream>
 #include <string>
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Helper macro
 #define CHECK_OTHER(OTHER, CLASS)                                              \
@@ -71,4 +71,4 @@ bool EndExpression::equals(const ValueExpression &E) const {
   return false;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

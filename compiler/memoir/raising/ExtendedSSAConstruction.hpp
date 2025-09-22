@@ -4,7 +4,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * Transform the input program to be in extended SSA form.
@@ -15,6 +15,6 @@ namespace llvm::memoir {
  */
 bool construct_extended_ssa(llvm::Function &F, llvm::DominatorTree &DT);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

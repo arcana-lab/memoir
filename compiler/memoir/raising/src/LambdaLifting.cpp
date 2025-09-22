@@ -5,7 +5,7 @@
 #include "memoir/raising/LambdaLifting.hpp"
 #include "memoir/support/Casting.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 static llvm::Use &get_called_use(llvm::CallBase &call) {
   auto *fold = into<FoldInst>(call);
@@ -286,4 +286,4 @@ llvm::PreservedAnalyses LambdaLiftingPass::run(
                   : llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

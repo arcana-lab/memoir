@@ -16,7 +16,7 @@
 
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 static llvm::Function *find_tempargs_to_reify(
     llvm::Module &module,
@@ -421,7 +421,7 @@ bool reify_tempargs(llvm::Module &module) {
   bool changed = false;
 
   Set<llvm::Function *> handled = {};
-  Vector<LoadInst *> temp_loads = {};
+  Vector<llvm::LoadInst *> temp_loads = {};
   while (auto *func = find_tempargs_to_reify(module, handled, temp_loads)) {
 
     if (func->getName() == "main")
@@ -435,4 +435,4 @@ bool reify_tempargs(llvm::Module &module) {
   return changed;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

@@ -6,7 +6,7 @@
 #include "llvm/Linker/Linker.h"
 #include "llvm/Transforms/IPO/Internalize.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 namespace detail {
 
@@ -73,4 +73,4 @@ llvm::PreservedAnalyses LinkDeclarationsPass::run(
   return llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

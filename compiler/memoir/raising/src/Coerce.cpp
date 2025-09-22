@@ -5,7 +5,7 @@
 #include "memoir/passes/Passes.hpp"
 #include "memoir/support/Print.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 static bool coerce(llvm::Use &use,
                    Type *dst_memoir_type,
@@ -171,4 +171,4 @@ llvm::PreservedAnalyses CoercePass::run(llvm::Function &F,
                   : llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

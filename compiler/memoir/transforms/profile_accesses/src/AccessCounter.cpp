@@ -11,7 +11,7 @@
 
 #include "memoir/transforms/profile_accesses/AccessCounter.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 using Count = uint64_t;
 

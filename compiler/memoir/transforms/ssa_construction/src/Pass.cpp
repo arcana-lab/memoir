@@ -32,7 +32,7 @@
 
 #include "SSAConstructionVisitor.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 /*
  * This pass converts operations on mutable collections to operations on
@@ -42,7 +42,7 @@ using namespace llvm::memoir;
  * Created: July 26, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 llvm::cl::opt<bool> construct_use_phis(
     "memoir-enable-use-phis",
@@ -339,4 +339,4 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
   return llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

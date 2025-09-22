@@ -4,7 +4,7 @@
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 bool UnknownExpression::isAvailable(llvm::Instruction &IP,
                                     const llvm::DominatorTree *DT,
@@ -20,4 +20,4 @@ llvm::Value *UnknownExpression::materialize(llvm::Instruction &IP,
   return nullptr;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

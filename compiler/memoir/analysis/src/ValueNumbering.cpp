@@ -2,7 +2,7 @@
 
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // ValueTable implementation.
 ValueExpression *ValueTable::lookup(llvm::Value &V) {
@@ -355,4 +355,4 @@ ValueExpression *ValueNumbering::visitSizeInst(SizeInst &I) {
   return size_expr;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

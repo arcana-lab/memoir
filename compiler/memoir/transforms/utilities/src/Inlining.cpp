@@ -11,7 +11,7 @@
 
 #include "memoir/utility/Metadata.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * Helper function to collect the set of basic blocks between the start and end
@@ -216,4 +216,4 @@ llvm::InlineResult InlineFunction(llvm::CallBase &CB,
   return result;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

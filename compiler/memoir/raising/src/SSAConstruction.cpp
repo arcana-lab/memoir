@@ -8,7 +8,7 @@
 
 #include "memoir/raising/SSAConstruction.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 #define TYPE_ERROR(I)                                                          \
   {                                                                            \
@@ -658,4 +658,4 @@ void SSAConstructionVisitor::cleanup() {
   }
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

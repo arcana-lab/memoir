@@ -3,7 +3,7 @@
 
 #include "memoir/ir/Types.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 #define CHECK_AND_DELEGATE_TYPE(CLASS_TO_VISIT)                                \
   else if (isa<CLASS_TO_VISIT>(T)) {                                           \
@@ -91,6 +91,6 @@ public:
   void operator=(const TypeVisitor &) = delete;
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

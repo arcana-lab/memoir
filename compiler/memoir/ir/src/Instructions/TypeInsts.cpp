@@ -13,7 +13,7 @@
  * Created: December 13, 2022
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 /*
  * Common function implementations
@@ -286,4 +286,4 @@ OPERAND(SequenceTypeInst, ElementOperand, 0)
 
 TO_STRING(SequenceTypeInst, "seq")
 
-} // namespace llvm::memoir
+} // namespace memoir

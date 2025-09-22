@@ -3,7 +3,7 @@
 
 #include "llvm/IR/Module.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * Perform lambda lifting on the given module, where each call is converted to
@@ -13,6 +13,6 @@ namespace llvm::memoir {
  */
 bool lambda_lift(llvm::Module &M);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // FOLIO_LAMBDALIFTING_H

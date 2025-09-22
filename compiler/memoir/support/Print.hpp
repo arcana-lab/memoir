@@ -16,7 +16,7 @@
  * Author(s): Tommy McMichen
  * Created: December 19, 2022
  */
-namespace llvm::memoir {
+namespace memoir {
 
 enum Verbosity { noverbosity, quick, detailed };
 extern Verbosity VerboseLevel;
@@ -191,5 +191,5 @@ inline std::string pretty(const llvm::Value &val) {
   }
 }
 
-} // namespace llvm::memoir
+} // namespace memoir
 #endif

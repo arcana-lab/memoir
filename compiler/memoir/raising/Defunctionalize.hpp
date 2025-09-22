@@ -1,7 +1,7 @@
 #ifndef MEMOIR_RAISING_DEFUNCTIONALIZE_H
 #define MEMOIR_RAISING_DEFUNCTIONALIZE_H
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * Defunctionalize the given call
@@ -25,6 +25,6 @@ bool defunctionalize(llvm::Function &F);
  */
 bool defunctionalize(llvm::Function &F);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_RAISING_DEFUNCTIONALIZE_H

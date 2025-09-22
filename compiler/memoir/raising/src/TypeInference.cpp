@@ -4,7 +4,7 @@
 
 #include "llvm/IR/CFG.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 void infer_types(llvm::Module &module) {
   TypeInference sherlock(module);
@@ -416,4 +416,4 @@ bool TypeInference::annotate(llvm::Module &M) {
   return transformed;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

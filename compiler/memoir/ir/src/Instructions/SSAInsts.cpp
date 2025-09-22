@@ -5,7 +5,7 @@
 
 #include "memoir/utility/Metadata.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // UsePHIInst implementation
 RESULTANT(UsePHIInst, Result)
@@ -24,4 +24,4 @@ llvm::Function *RetPHIInst::getCalledFunction() const {
 OPERAND(RetPHIInst, CalledOperand, 1)
 TO_STRING(RetPHIInst, "retphi")
 
-} // namespace llvm::memoir
+} // namespace memoir

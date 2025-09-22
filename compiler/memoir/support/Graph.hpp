@@ -3,7 +3,7 @@
 
 #include "memoir/support/graph_lite.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 using namespace graph_lite;
 
@@ -365,6 +365,6 @@ public:
   }
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_SUPPORT_GRAPH_H

@@ -4,7 +4,7 @@
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // LLVM-Style RTTI
 ExpressionKind ValueExpression::getKind() const {
@@ -89,16 +89,17 @@ llvm::Argument *ValueExpression::handleCallContext(
   param_types.push_back(Expr.getLLVMType());
 
   // Construct the new function type.
-  auto *new_func_type = FunctionType::get(return_type, param_types, is_var_arg);
+  auto *new_func_type =
+      llvm::FunctionType::get(return_type, param_types, is_var_arg);
 
   // Create an empty function to clone into.
-  auto *new_function = Function::Create(new_func_type,
-                                        called_function->getLinkage(),
-                                        called_function->getName(),
-                                        module);
+  auto *new_function = llvm::Function::Create(new_func_type,
+                                              called_function->getLinkage(),
+                                              called_function->getName(),
+                                              module);
 
   // Version the function.
-  auto *vmap = new ValueToValueMapTy();
+  auto *vmap = new llvm::ValueToValueMapTy();
   llvm::SmallVector<llvm::ReturnInst *, 8> returns;
   llvm::CloneFunctionInto(new_function,
                           called_function,
@@ -107,7 +108,7 @@ llvm::Argument *ValueExpression::handleCallContext(
                           returns);
 
   // Remap the function.
-  ValueMapper mapper(*vmap);
+  llvm::ValueMapper mapper(*vmap);
   for (auto &old_arg : called_function->args()) {
     auto *new_arg = new_function->arg_begin() + old_arg.getArgNo();
     for (auto &BB : *new_function) {
@@ -175,4 +176,4 @@ llvm::Argument *ValueExpression::handleCallContext(
   return &materialized_argument;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

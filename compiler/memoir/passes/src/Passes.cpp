@@ -26,7 +26,7 @@
 #include "memoir/analysis/Liveness.hpp"
 #include "memoir/analysis/RangeAnalysis.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 // Helper function to adapt function pass to a module pass.
 template <typename T>
@@ -54,7 +54,7 @@ static auto adapt_loop(T &&lp) {
     return true;                                                               \
   }
 
-namespace llvm::memoir {
+namespace memoir {
 
 void raise_memoir(llvm::ModulePassManager &MPM) {
 
@@ -125,7 +125,7 @@ void lower_memoir(llvm::ModulePassManager &MPM) {
   MPM.addPass(llvm::GlobalDCEPass());
 }
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 // Register the passes and pipelines with the new pass manager
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
@@ -240,8 +240,8 @@ llvmGetPassPluginInfo() {
   MAM.registerPass([&] { return CLASS(); });
 #include "memoir/passes/Passes.def"
                    // MAM.registerPass([&] { return
-                   // llvm::memoir::RangeAnalysis(); }); MAM.registerPass([&] {
-                   // return llvm::memoir::LiveRangeAnalysis(); });
+                   // memoir::RangeAnalysis(); }); MAM.registerPass([&] {
+                   // return memoir::LiveRangeAnalysis(); });
                  });
 
              // Register function analyses.

@@ -21,14 +21,14 @@
  * Author(s): Tommy McMichen
  */
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 namespace {
 
-class MyVisitor : public llvm::memoir::InstVisitor<MyVisitor, void> {
+class MyVisitor : public memoir::InstVisitor<MyVisitor, void> {
   // In order for the wrapper to work, we need to declare our parent classes as
   // friends.
-  friend class llvm::memoir::InstVisitor<MyVisitor, void>;
+  friend class memoir::InstVisitor<MyVisitor, void>;
   friend class llvm::InstVisitor<MyVisitor, void>;
 
 public:
@@ -42,13 +42,13 @@ public:
   }
 
   // Count all access instructions (read, write, get) together:
-  void visitAccessInst(llvm::memoir::AccessInst &I) {
+  void visitAccessInst(memoir::AccessInst &I) {
     this->instruction_counts["access"]++;
     return;
   }
 
   // Let's do the same for allocation instructions:
-  void visitAllocInst(llvm::memoir::AllocInst &I) {
+  void visitAllocInst(memoir::AllocInst &I) {
     this->instruction_counts["alloc"]++;
     return;
   }
@@ -57,7 +57,7 @@ public:
   // NOTE: since visitAllocInst and visitAccessInst are
   //       implemented, visitMemOIRInst will _never_ be
   //       passed an AllocInst nor an AccessInst.
-  void visitMemOIRInst(llvm::memoir::MemOIRInst &I) {
+  void visitMemOIRInst(memoir::MemOIRInst &I) {
     this->instruction_counts["other"]++;
     return;
   }
@@ -65,7 +65,7 @@ public:
 
 } // namespace
 
-namespace llvm::memoir {
+namespace memoir {
 
 llvm::PreservedAnalyses ExamplePass::run(llvm::Module &M,
                                          llvm::ModuleAnalysisManager &MAM) {
@@ -83,11 +83,11 @@ llvm::PreservedAnalyses ExamplePass::run(llvm::Module &M,
 
   // Print the results of our visitor:
   for (const auto &[type, count] : visitor.instruction_counts) {
-    llvm::memoir::println(type, " -> ", count, "\n");
+    memoir::println(type, " -> ", count, "\n");
   }
 
   // We did not modify the program, so all analyses are preserved
   return llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

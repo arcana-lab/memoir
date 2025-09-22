@@ -15,7 +15,7 @@
 
 // #include "memoir/analysis/Liveness.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Temporary Declaration for testing.
 struct LivenessResult {
@@ -301,4 +301,4 @@ bool Verifier::verify(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
   return false;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

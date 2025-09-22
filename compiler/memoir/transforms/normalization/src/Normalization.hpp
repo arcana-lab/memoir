@@ -17,7 +17,7 @@
  * Created: June 13, 2022
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 class Normalization {
 private:
@@ -42,6 +42,6 @@ public:
   void transformRuntime();
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

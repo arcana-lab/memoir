@@ -22,7 +22,7 @@
  * Created: October 23, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 struct CollectionType;
 
@@ -111,6 +111,6 @@ protected:
   friend struct MemOIRInst;
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

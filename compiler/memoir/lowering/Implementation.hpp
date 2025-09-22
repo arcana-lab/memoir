@@ -7,7 +7,7 @@
 
 #include "memoir/support/AssocList.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Forward definitions.
 struct Instantiation;
@@ -185,6 +185,6 @@ protected:
   static OrderedMultiMap<std::string, Instantiation *> *instantiations;
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

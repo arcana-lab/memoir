@@ -5,7 +5,7 @@
 
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 template <typename T,
           const bool VisitOnce = false,
@@ -110,6 +110,6 @@ public:
   }
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

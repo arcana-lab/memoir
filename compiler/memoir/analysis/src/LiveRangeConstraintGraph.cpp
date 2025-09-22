@@ -6,7 +6,7 @@
 #  include "memoir/support/Casting.hpp"
 #  include "memoir/support/Print.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Constraint functions.
 static ValueRange *propagate_range(ValueRange *range) {
@@ -236,6 +236,6 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
   return;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

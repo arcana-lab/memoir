@@ -2,7 +2,7 @@
 
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 List<llvm::BasicBlock *> dfs_preorder_traversal(llvm::DominatorTree &DT);
 

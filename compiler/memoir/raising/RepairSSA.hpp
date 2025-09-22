@@ -6,7 +6,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * Repair SSA form for the list of stack variables.
@@ -33,6 +33,6 @@ void repair_ssa(
  */
 void repair_ssa(llvm::Function &F, llvm::DominatorTree &DT);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_RAISING_REPAIRSSA_H

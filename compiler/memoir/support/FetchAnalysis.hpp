@@ -3,7 +3,7 @@
 
 #include "llvm/IR/PassManager.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 template <typename Analysis, typename IRUnit>
 concept Analyzable =
@@ -30,6 +30,6 @@ protected:
   Manager &am;
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_SUPPORT_FETCHANALYSIS_H

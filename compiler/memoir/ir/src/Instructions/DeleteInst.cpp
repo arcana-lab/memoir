@@ -2,10 +2,10 @@
 
 #include "memoir/utility/InstructionUtils.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // DeleteInst implementation
 OPERAND(DeleteInst, Object, 0)
 TO_STRING(DeleteInst, "delete")
 
-} // namespace llvm::memoir
+} // namespace memoir

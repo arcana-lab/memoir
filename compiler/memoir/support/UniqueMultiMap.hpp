@@ -3,7 +3,7 @@
 
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 template <typename Key,
           typename Val,
@@ -52,6 +52,6 @@ struct UniqueMultiMap : public OrderedMultiMap<Key, Val, KeyCmp> {
   }
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_SUPPORT_RANGEMAP_H

@@ -26,7 +26,7 @@
  * Created: April 3, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 class DeadCollectionElimination
   : InstVisitor<DeadCollectionElimination, Set<llvm::Value *>> {
@@ -208,6 +208,6 @@ protected:
   }
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

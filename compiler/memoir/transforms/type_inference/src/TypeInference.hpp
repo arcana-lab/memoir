@@ -6,7 +6,7 @@
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/Types.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Inferred type
 using inferred_type = tuple<bool, Type *>;
@@ -74,6 +74,6 @@ protected:
   map<llvm::Function *, memoir::Type *> return_types_to_annotate;
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

@@ -1,6 +1,6 @@
 #include "memoir/lowering/Implementation.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 namespace detail {
 
@@ -163,4 +163,4 @@ std::string Instantiation::get_typename() const {
 OrderedMultiMap<std::string, Instantiation *> *Instantiation::instantiations =
     nullptr;
 
-} // namespace llvm::memoir
+} // namespace memoir

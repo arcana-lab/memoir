@@ -4,7 +4,7 @@
 
 #include "llvm/IR/CFG.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 bool TypeInference::run() {
   if (this->infer(this->M)) {
@@ -383,4 +383,4 @@ bool TypeInference::annotate(llvm::Module &M) {
   return transformed;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

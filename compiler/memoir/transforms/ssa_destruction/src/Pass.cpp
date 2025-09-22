@@ -31,7 +31,7 @@
 
 #include "SSADestruction.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 /*
  * This pass destructs the SSA representation, lowering it down to Collections
@@ -41,7 +41,7 @@ using namespace llvm::memoir;
  * Created: August 7, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 static llvm::cl::opt<bool> DisableCollectionLowering(
     "disable-collection-lowering",
@@ -178,4 +178,4 @@ PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
   return llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

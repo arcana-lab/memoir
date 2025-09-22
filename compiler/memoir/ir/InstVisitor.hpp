@@ -11,7 +11,7 @@
 
 #include "memoir/utility/FunctionNames.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 #define DELEGATE_INST(CLASS_TO_VISIT)                                          \
   return static_cast<SubClass *>(this)->visit##CLASS_TO_VISIT(                 \
@@ -23,7 +23,7 @@ namespace llvm::memoir {
 
 #define DELEGATE_LLVM(CLASS_TO_VISIT)                                          \
   return static_cast<SubClass *>(this)->visit##CLASS_TO_VISIT(                 \
-      static_cast<CLASS_TO_VISIT &>(I.getCallInst()))
+      static_cast<llvm::CLASS_TO_VISIT &>(I.getCallInst()))
 
 template <typename SubClass, typename RetTy = void>
 class InstVisitor : public llvm::InstVisitor<SubClass, RetTy> {
@@ -133,6 +133,6 @@ public:
 protected:
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

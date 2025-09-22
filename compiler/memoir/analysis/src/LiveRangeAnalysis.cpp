@@ -6,7 +6,7 @@
 
 #include "memoir/analysis/LiveRangeAnalysis.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Result queries.
 ValueRange *LiveRangeAnalysisResult::lookup_live_range(
@@ -332,4 +332,4 @@ LiveRangeAnalysisResult LiveRangeAnalysis::run(
 
 llvm::AnalysisKey LiveRangeAnalysis::Key;
 
-} // namespace llvm::memoir
+} // namespace memoir

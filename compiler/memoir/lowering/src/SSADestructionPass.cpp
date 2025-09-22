@@ -33,7 +33,7 @@
 
 #include "memoir/lowering/SSADestruction.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 /*
  * This pass destructs the SSA representation, lowering it down to Collections
@@ -43,7 +43,7 @@ using namespace llvm::memoir;
  * Created: August 7, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 using DomTreeNode = llvm::DomTreeNodeBase<llvm::BasicBlock>;
 using DomTreeTraversalListTy = List<llvm::BasicBlock *>;
@@ -121,8 +121,9 @@ static void cleanup_casts(llvm::Module &module) {
   }
 }
 
-PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
-                                          llvm::ModuleAnalysisManager &MAM) {
+llvm::PreservedAnalyses SSADestructionPass::run(
+    llvm::Module &M,
+    llvm::ModuleAnalysisManager &MAM) {
 
   // Verify the module.
   if (Verifier::verify(M, MAM)) {
@@ -239,4 +240,4 @@ PreservedAnalyses SSADestructionPass::run(llvm::Module &M,
   return llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

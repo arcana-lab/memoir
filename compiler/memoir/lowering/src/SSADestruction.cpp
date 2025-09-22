@@ -16,23 +16,24 @@
 #include "memoir/lowering/SSADestruction.hpp"
 #include "memoir/lowering/TypeLayout.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 namespace detail {
 
-static FunctionCallee get_function_callee(llvm::Module &M, std::string name) {
+static llvm::FunctionCallee get_function_callee(llvm::Module &M,
+                                                std::string name) {
   auto *function = M.getFunction(name);
   if (not function) {
     MEMOIR_UNREACHABLE("Couldn't find ", name);
   }
 
-  return FunctionCallee(function);
+  return llvm::FunctionCallee(function);
 }
 
-static FunctionCallee prepare_call(MemOIRBuilder &builder,
-                                   const std::string &prefix,
-                                   const std::string &operation,
-                                   Vector<llvm::Value *> &arguments) {
+static llvm::FunctionCallee prepare_call(MemOIRBuilder &builder,
+                                         const std::string &prefix,
+                                         const std::string &operation,
+                                         Vector<llvm::Value *> &arguments) {
 
   auto function_name = prefix + "__" + operation;
 
@@ -80,11 +81,11 @@ static FunctionCallee prepare_call(MemOIRBuilder &builder,
  * @param arguments, the list of arguments to prepare for the call
  * @returns the function callee for the given function name.
  */
-static FunctionCallee prepare_call(MemOIRBuilder &builder,
-                                   const Implementation &implementation,
-                                   CollectionType &type,
-                                   const std::string &operation,
-                                   Vector<llvm::Value *> &arguments) {
+static llvm::FunctionCallee prepare_call(MemOIRBuilder &builder,
+                                         const Implementation &implementation,
+                                         CollectionType &type,
+                                         const std::string &operation,
+                                         Vector<llvm::Value *> &arguments) {
 
   auto &instantiation = implementation.instantiate(type);
 
@@ -260,7 +261,8 @@ llvm::Value &construct_collection_allocation(
       Vector<llvm::Value *> loop_indices = {};
       for (auto it = size_it; it != dim_size_it; ++it) {
         auto *init_size = *size_it;
-        auto *zero_constant = Constant::getNullValue(init_size->getType());
+        auto *zero_constant =
+            llvm::Constant::getNullValue(init_size->getType());
         auto *size_is_nonzero = builder.CreateICmpNE(init_size, zero_constant);
 
         auto *then_body =
@@ -1404,4 +1406,4 @@ void SSADestructionVisitor::clear_stage() {
   this->_staged.clear();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

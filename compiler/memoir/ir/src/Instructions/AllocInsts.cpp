@@ -5,7 +5,7 @@
 #include "memoir/support/Assert.hpp"
 #include "memoir/utility/InstructionUtils.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // AllocInst implementation
 RESULTANT(AllocInst, Allocation)
@@ -96,4 +96,4 @@ std::string AllocInst::toString() const {
   return str;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

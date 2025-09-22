@@ -32,7 +32,7 @@
 
 #include "memoir/raising/SSAConstruction.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 /*
  * This pass converts operations on mutable collections to operations on
@@ -42,29 +42,11 @@ using namespace llvm::memoir;
  * Created: July 26, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 llvm::cl::opt<bool> construct_use_phis(
     "memoir-enable-use-phis",
     llvm::cl::desc("Enable construction of Use PHIs."));
-
-static unsigned count_real_uses(llvm::Function &F) {
-  unsigned count = 0;
-  for (auto &use : F.uses()) {
-    auto *user = use.getUser();
-    auto *call = dyn_cast<llvm::CallBase>(user);
-    if (not call) {
-      continue;
-    }
-    auto *memoir = into<MemOIRInst>(call);
-    auto *fold = dyn_cast<FoldInst>(memoir);
-    if (memoir and not fold) {
-      continue;
-    }
-    ++count;
-  }
-  return count;
-}
 
 llvm::PreservedAnalyses SSAConstructionPass::run(
     llvm::Module &M,
@@ -202,7 +184,7 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
             }
 
             // Insert a PHI node at the beginning of this basic block.
-            IRBuilder<> phi_builder(frontier_bb->getFirstNonPHI());
+            llvm::IRBuilder<> phi_builder(frontier_bb->getFirstNonPHI());
             auto num_incoming_edges = llvm::pred_size(frontier_bb);
             auto *phi = phi_builder.CreatePHI(type, num_incoming_edges);
             MEMOIR_NULL_CHECK(phi, "Couldn't create PHI at dominance frontier");
@@ -349,4 +331,4 @@ llvm::PreservedAnalyses SSAConstructionPass::run(
   return llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

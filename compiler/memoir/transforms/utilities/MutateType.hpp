@@ -8,7 +8,7 @@
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 using OnFuncClone = std::function<void(llvm::Function & /* old function */,
                                        llvm::Function & /* new function */,
@@ -42,6 +42,6 @@ Type &mutate_selection(Type &type,
                        llvm::ArrayRef<unsigned> offsets,
                        Option<std::string> selection);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_TRANSFORMS_UTILS_MUTATETYPES_H

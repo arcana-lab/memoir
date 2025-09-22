@@ -1,6 +1,6 @@
 #include "Normalization.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 Normalization::Normalization(llvm::Module &M) : M(M) {
   // Do initialization.
@@ -18,4 +18,4 @@ void Normalization::transform() {
   return;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

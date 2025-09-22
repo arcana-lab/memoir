@@ -8,7 +8,7 @@
 
 #include "LowerFold.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 llvm::PreservedAnalyses LowerFoldPass::run(llvm::Module &M,
                                            llvm::ModuleAnalysisManager &MAM) {
@@ -18,4 +18,4 @@ llvm::PreservedAnalyses LowerFoldPass::run(llvm::Module &M,
   return llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

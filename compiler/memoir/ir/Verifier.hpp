@@ -1,7 +1,7 @@
 #ifndef MEMOIR_IR_VERIFIER_H
 #define MEMOIR_IR_VERIFIER_H
 
-namespace llvm::memoir {
+namespace memoir {
 
 class Verifier {
 public:
@@ -24,6 +24,6 @@ public:
 protected:
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_IR_VERIFIER_H

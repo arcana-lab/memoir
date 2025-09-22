@@ -13,7 +13,7 @@
 
 #include "memoir/lowering/LowerFold.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 struct HeaderInfo {
   HeaderInfo(llvm::BasicBlock &preheader,
@@ -97,7 +97,7 @@ static HeaderInfo lower_fold_header(FoldInst &I,
   auto *iter_alloca = builder.CreateAlloca(&iter_type);
 
   // Insert the call to begin.
-  auto begin_callee = FunctionCallee(&begin_func);
+  auto begin_callee = llvm::FunctionCallee(&begin_func);
   auto *iterator = builder.CreateCall(
       begin_callee,
       llvm::ArrayRef<llvm::Value *>({ iter_alloca, &collection }));
@@ -112,7 +112,7 @@ static HeaderInfo lower_fold_header(FoldInst &I,
       "Unable to create PHI node for accumulator!");
 
   // Insert the call to next.
-  auto next_callee = FunctionCallee(&next_func);
+  auto next_callee = llvm::FunctionCallee(&next_func);
   auto *has_next =
       builder.CreateCall(next_callee,
                          llvm::ArrayRef<llvm::Value *>({ iter_alloca }));
@@ -304,7 +304,7 @@ bool lower_fold(FoldInst &I,
 
   // Now, try to inline the fold function.
   llvm::InlineFunctionInfo IFI;
-  auto inline_result = llvm::memoir::InlineFunction(call, IFI);
+  auto inline_result = memoir::InlineFunction(call, IFI);
 
   // If inlining failed, send a warning and continue.
   if (not inline_result.isSuccess()) {
@@ -315,4 +315,4 @@ bool lower_fold(FoldInst &I,
   return true;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

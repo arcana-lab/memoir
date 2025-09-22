@@ -24,7 +24,7 @@
  * Created: July 4, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 struct ValueRange;
 
@@ -143,6 +143,6 @@ protected:
   friend class RangeAnalysisDriver;
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif
