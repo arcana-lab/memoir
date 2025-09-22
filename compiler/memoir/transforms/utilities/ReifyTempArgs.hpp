@@ -4,7 +4,7 @@
 // LLVM
 #include "llvm/IR/Module.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * Convert tempargs in the given LLVM module into formal arguments to the
@@ -14,6 +14,6 @@ namespace llvm::memoir {
  */
 bool reify_tempargs(llvm::Module &M);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_TRANSFORMS_UTILITIES_REIFYTEMPARGS_H

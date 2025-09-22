@@ -12,7 +12,7 @@
 // Type Inference
 #include "TypeInference.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /*
  * This pass performs type inference on MEMOIR variables, adding explicit type
@@ -34,4 +34,4 @@ llvm::PreservedAnalyses TypeInferencePass::run(
                   : llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

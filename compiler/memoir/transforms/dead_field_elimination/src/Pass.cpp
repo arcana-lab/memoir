@@ -25,7 +25,7 @@
  * Created: August 25, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 llvm::PreservedAnalyses DeadFieldEliminationPass::run(
     llvm::Module &M,
@@ -39,4 +39,4 @@ llvm::PreservedAnalyses DeadFieldEliminationPass::run(
                          : llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

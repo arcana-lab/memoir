@@ -2,7 +2,7 @@
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/support/Casting.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 bool is_externally_visible(llvm::Function &function) {
   return not(function.hasInternalLinkage() or function.hasPrivateLinkage());
@@ -186,4 +186,4 @@ CallGraph::CallGraph(llvm::Module &module) : llvm::CallGraph(module) {
   }
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

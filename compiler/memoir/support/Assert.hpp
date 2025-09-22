@@ -10,15 +10,14 @@
 
 #define _MEMOIR_ASSERT(pretty_func, pretty_line, c, msg...)                    \
   if (!(c)) {                                                                  \
-    llvm::memoir::println("\n");                                               \
-    llvm::memoir::println("\x1b[31m====================================");     \
-    llvm::memoir::println("\x1b[1;31mMemOIR Assert Failed!\x1b[0m");           \
-    llvm::memoir::println("  \x1b[1;33m", msg, "\x1b[0m");                     \
-    llvm::memoir::println("  in \x1b[1;35m", pretty_func, "\x1b[0m");          \
-    llvm::memoir::println("  at \x1b[1;35m", pretty_line, "\x1b[0m");          \
-    llvm::memoir::println(                                                     \
-        "\x1b[31m====================================\x1b[0m");                \
-    llvm::memoir::println();                                                   \
+    memoir::println("\n");                                                     \
+    memoir::println("\x1b[31m====================================");           \
+    memoir::println("\x1b[1;31mMemOIR Assert Failed!\x1b[0m");                 \
+    memoir::println("  \x1b[1;33m", msg, "\x1b[0m");                           \
+    memoir::println("  in \x1b[1;35m", pretty_func, "\x1b[0m");                \
+    memoir::println("  at \x1b[1;35m", pretty_line, "\x1b[0m");                \
+    memoir::println("\x1b[31m====================================\x1b[0m");    \
+    memoir::println();                                                         \
     assert(c);                                                                 \
   }
 
@@ -30,9 +29,9 @@
 #define MEMOIR_NULL_CHECK(v, msg...) MEMOIR_ASSERT((v != nullptr), msg)
 
 #define MEMOIR_SANITIZE(v, msg...)                                             \
-  llvm::memoir::sanitize(__PRETTY_FUNCTION__, __LINE__, v, msg)
+  memoir::sanitize(__PRETTY_FUNCTION__, __LINE__, v, msg)
 
-namespace llvm::memoir {
+namespace memoir {
 
 template <typename T, typename... Ms>
 inline typename std::enable_if_t<
@@ -43,6 +42,6 @@ sanitize(const char *pretty_func, int pretty_line, T t, Ms const &...messages) {
   return *t;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

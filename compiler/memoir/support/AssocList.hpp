@@ -3,7 +3,7 @@
 
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * An association list that maintain insertion order.
@@ -31,6 +31,6 @@ struct AssocList : public List<Pair<K, V>> {
   }
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_SUPPORT_ASSOCLIST_H

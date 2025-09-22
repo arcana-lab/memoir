@@ -14,7 +14,7 @@
 #define SET_IMPL "stl_unordered_set"
 #define SEQ_IMPL "stl_vector"
 
-namespace llvm::memoir {
+namespace memoir {
 
 SSADestructionVisitor::SSADestructionVisitor(llvm::Module &M,
                                              SSADestructionStats *stats,
@@ -96,7 +96,7 @@ void SSADestructionVisitor::visitSequenceAllocInst(SequenceAllocInst &I) {
     // Do nothing.
   }
   return;
-} // namespace llvm::memoir
+} // namespace memoir
 
 void SSADestructionVisitor::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
   if (this->enable_collection_lowering) {
@@ -1164,7 +1164,7 @@ void SSADestructionVisitor::visitStructWriteInst(StructWriteInst &I) {
   }
 
   return;
-} // namespace llvm::memoir
+} // namespace memoir
 
 void SSADestructionVisitor::visitStructGetInst(StructGetInst &I) {
   if (this->enable_collection_lowering) {
@@ -2066,4 +2066,4 @@ void SSADestructionVisitor::markForCleanup(llvm::Instruction &I) {
   this->instructions_to_delete.insert(&I);
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

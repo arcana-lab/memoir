@@ -14,7 +14,7 @@
 
 #include "llvm/ADT/MapVector.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 using ReachingDefMapTy = Map<llvm::Value *, llvm::Value *>;
 
@@ -23,8 +23,8 @@ struct SSAConstructionStats {
 };
 
 class SSAConstructionVisitor
-  : public llvm::memoir::InstVisitor<SSAConstructionVisitor, void> {
-  friend class llvm::memoir::InstVisitor<SSAConstructionVisitor, void>;
+  : public memoir::InstVisitor<SSAConstructionVisitor, void> {
+  friend class memoir::InstVisitor<SSAConstructionVisitor, void>;
   friend class llvm::InstVisitor<SSAConstructionVisitor, void>;
 
 public:
@@ -100,6 +100,6 @@ protected:
 
 bool use_is_mutating(llvm::Use &use, bool construct_use_phis = false);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_TRANSFORMS_SSACONSTRUCTIONVISITOR_H

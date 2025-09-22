@@ -4,7 +4,7 @@
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 bool SizeExpression::isAvailable(llvm::Instruction &IP,
                                  const llvm::DominatorTree *DT,
@@ -56,4 +56,4 @@ llvm::Value *SizeExpression::materialize(llvm::Instruction &IP,
   return &(materialized_size->getCallInst());
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

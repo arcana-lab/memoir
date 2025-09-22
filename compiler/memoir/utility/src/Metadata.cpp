@@ -1,6 +1,6 @@
 #include "memoir/utility/Metadata.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 std::string Metadata::to_string(llvm::Metadata &metadata) {
   if (auto *md_constant = dyn_cast<llvm::ConstantAsMetadata>(&metadata)) {
@@ -154,4 +154,4 @@ llvm::MDTuple &Metadata::getMetadata() const {
   return *this->md;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

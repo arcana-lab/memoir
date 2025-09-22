@@ -1,7 +1,7 @@
 #include "memoir/ir/ControlFlow.hpp"
 #include "memoir/support/Casting.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 template <>
 llvm::BasicBlock *parent<llvm::BasicBlock>(llvm::Value &value) {
@@ -28,4 +28,4 @@ llvm::Module *parent<llvm::Module>(llvm::Value &value) {
   return NULL;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

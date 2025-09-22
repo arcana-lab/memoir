@@ -22,7 +22,7 @@
  * Created: July 5, 2022
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 /*
  * Macro to apply the memoir prefix to the function name
@@ -101,6 +101,6 @@ public:
   static bool is_mutator(llvm::Function &F);
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

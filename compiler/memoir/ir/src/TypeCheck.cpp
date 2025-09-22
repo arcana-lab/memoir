@@ -4,7 +4,7 @@
 
 #include "memoir/support/Print.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Top-level query.
 Type *TypeChecker::type_of(MemOIRInst &I) {
@@ -558,4 +558,4 @@ TypeChecker::~TypeChecker() {
   }
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

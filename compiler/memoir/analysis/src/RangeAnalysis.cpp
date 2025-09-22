@@ -8,7 +8,7 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // Result.
 ValueRange &RangeAnalysisResult::get_value_range(llvm::Use &use) {
@@ -271,7 +271,7 @@ bool RangeAnalysisDriver::analyze(llvm::Module &M,
   }
 
   return true;
-} // namespace llvm::memoir
+} // namespace memoir
 
 ValueRange &RangeAnalysisDriver::create_value_range(ValueExpression &lower,
                                                     ValueExpression &upper) {
@@ -326,4 +326,4 @@ RangeAnalysisResult RangeAnalysis::run(llvm::Module &M,
 
 llvm::AnalysisKey RangeAnalysis::Key;
 
-} // namespace llvm::memoir
+} // namespace memoir

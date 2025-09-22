@@ -5,7 +5,7 @@
 
 #include "memoir/support/Casting.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 unsigned LiveOutMetadata::getArgNo() const {
   // Fetch the metadata.
@@ -46,4 +46,4 @@ void LiveOutMetadata::setArgNo(unsigned arg_number) {
 
 OPERAND(LiveOutMetadata, ArgNo, 0)
 
-} // namespace llvm::memoir
+} // namespace memoir

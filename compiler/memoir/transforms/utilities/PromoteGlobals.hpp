@@ -4,7 +4,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/GlobalVariable.h"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * A quick check to see if the given global can be promoted, there are more
@@ -23,6 +23,6 @@ bool promote_global(llvm::GlobalVariable &global);
  */
 bool promote_globals(llvm::ArrayRef<llvm::GlobalVariable *> globals);
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_TRANSFORMS_UTILITIES_PROMOTEGLOBALS_H

@@ -32,7 +32,7 @@
 #include "memoir/lowering/ImplLinker.hpp"
 #include "memoir/lowering/TypeLayout.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 /*
  * This pass collects all collection implementations that will be needed for SSA
@@ -46,7 +46,7 @@ using namespace llvm::memoir;
 #define SET_IMPL "stl_unordered_set"
 #define SEQ_IMPL "stl_vector"
 
-namespace llvm::memoir {
+namespace memoir {
 
 llvm::cl::opt<std::string> impl_file_output(
     "impl-out-file",
@@ -124,4 +124,4 @@ llvm::PreservedAnalyses ImplLinkerPass::run(llvm::Module &M,
   return llvm::PreservedAnalyses::none();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

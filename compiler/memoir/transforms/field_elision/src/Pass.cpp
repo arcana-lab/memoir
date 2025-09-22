@@ -26,7 +26,7 @@
 // Field Elision
 #include "FieldElision.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 /*
  * This pass performs the field elision optimization.
@@ -35,7 +35,7 @@ using namespace llvm::memoir;
  * Created: August 25, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 static llvm::cl::List<std::string> FieldsToElide(
     "elide",
@@ -122,4 +122,4 @@ llvm::PreservedAnalyses FieldElisionPass::run(
                         : llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

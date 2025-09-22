@@ -3,7 +3,7 @@
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/Print.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 std::ostream &operator<<(std::ostream &os, MemOIR_Func Enum) {
   switch (Enum) {
@@ -102,8 +102,8 @@ MemOIR_Func FunctionNames::get_memoir_enum(llvm::CallInst &call_inst) {
   return get_memoir_enum(*callee);
 }
 
-Function *FunctionNames::get_memoir_function(llvm::Module &M,
-                                             MemOIR_Func function_enum) {
+llvm::Function *FunctionNames::get_memoir_function(llvm::Module &M,
+                                                   MemOIR_Func function_enum) {
   switch (function_enum) {
     default:
       return nullptr;
@@ -270,7 +270,7 @@ bool FunctionNames::is_mutator(llvm::Module &M, MemOIR_Func function_enum) {
   return is_mutator(*memoir_function);
 }
 
-bool FunctionNames::is_mutator(Function &F) {
+bool FunctionNames::is_mutator(llvm::Function &F) {
   return !(F.hasFnAttribute(llvm::Attribute::AttrKind::ReadNone))
          && !(F.hasFnAttribute(llvm::Attribute::AttrKind::ReadOnly));
 }
@@ -285,4 +285,4 @@ bool FunctionNames::is_mutator(Function &F) {
 // }, #include "memoir/ir/Instructions.def" #undef HANDLE_INST
 // };
 
-}; // namespace llvm::memoir
+}; // namespace memoir

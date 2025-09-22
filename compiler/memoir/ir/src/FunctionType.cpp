@@ -1,6 +1,6 @@
 #include "memoir/ir/FunctionType.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 llvm::FunctionType &FunctionType::getLLVMFunctionType() const {
   return this->FT;
@@ -36,4 +36,4 @@ std::variant<Type *, llvm::Type *> FunctionType::getParamType(
   return this->getLLVMFunctionType().getParamType(param_index);
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

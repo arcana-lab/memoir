@@ -36,7 +36,7 @@
  * Created: January 4, 2024
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 class DeadElementElimination {
 public:
@@ -253,6 +253,6 @@ protected:
   LiveRangeAnalysisResult &LRAR;
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_TRANSFORMS_DEADELEMENTELIMINATION_H

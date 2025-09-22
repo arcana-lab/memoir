@@ -15,7 +15,7 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/transforms/utilities/MutateType.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /*
  * This pass generates multiple bitcode files for all selection permutations.
@@ -322,4 +322,4 @@ llvm::PreservedAnalyses SweepSelectionsPass::run(
                   : llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

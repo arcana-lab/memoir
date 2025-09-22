@@ -6,7 +6,7 @@
 
 #include "memoir/utility/Metadata.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 llvm::Value *SSAConstructionVisitor::update_reaching_definition(
     llvm::Value *variable,
@@ -838,4 +838,4 @@ void SSAConstructionVisitor::cleanup() {
   }
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

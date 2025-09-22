@@ -24,7 +24,7 @@
  * Created: July 9, 2024
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 class LowerFold {
 
@@ -379,7 +379,7 @@ public:
 
     // Now, try to inline the fold function.
     llvm::InlineFunctionInfo IFI;
-    auto inline_result = llvm::memoir::InlineFunction(call, IFI);
+    auto inline_result = memoir::InlineFunction(call, IFI);
 
     // If inlining failed, send a warning and continue.
     if (not inline_result.isSuccess()) {
@@ -441,6 +441,6 @@ private:
   set<llvm::Instruction *> to_cleanup;
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_TRANSFORMS_LOWERFOLD_H

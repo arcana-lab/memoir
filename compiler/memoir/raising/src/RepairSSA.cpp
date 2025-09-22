@@ -7,7 +7,7 @@
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 void repair_ssa(llvm::ArrayRef<llvm::AllocaInst *> vars,
                 llvm::DominatorTree &domtree) {
@@ -107,4 +107,4 @@ void repair_ssa(llvm::Function &func, llvm::DominatorTree &domtree) {
   return;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

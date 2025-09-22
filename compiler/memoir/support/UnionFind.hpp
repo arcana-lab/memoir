@@ -8,7 +8,7 @@
 
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 template <typename T>
 struct LargerParent {
@@ -140,6 +140,6 @@ public:
   }
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_SUPPORT_UNIONFIND_H

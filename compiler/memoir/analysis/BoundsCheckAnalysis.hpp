@@ -8,7 +8,7 @@
 #include "memoir/passes/Passes.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 struct BoundsCheck {
 public:
@@ -137,6 +137,6 @@ public:
                                        const BoundsCheckResult &);
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

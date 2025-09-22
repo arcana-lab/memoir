@@ -4,7 +4,7 @@
 
 #include "memoir/utility/InstructionUtils.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 // FoldInst implementation.
 
@@ -237,4 +237,4 @@ llvm::Use *FoldInst::getOperandForArgument(llvm::Argument &A) const {
 
 TO_STRING(FoldInst, "fold")
 
-} // namespace llvm::memoir
+} // namespace memoir

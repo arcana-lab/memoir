@@ -4,7 +4,7 @@
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 bool ArgumentExpression::isAvailable(llvm::Instruction &IP,
                                      const llvm::DominatorTree *DT,
@@ -87,4 +87,4 @@ llvm::Value *ArgumentExpression::materialize(llvm::Instruction &IP,
   return nullptr;
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

@@ -17,7 +17,7 @@
  * Created: September 25, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 #define CHECK_MEMOIZED(T)                                                      \
   auto found_type = this->memoir_to_type_layout.find(&T);                      \
@@ -403,8 +403,8 @@ protected:
   // Borrowed state.
   llvm::LLVMContext &C;
 
-}; // namespace llvm::memoir
+}; // namespace memoir
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_TYPECONVERTER_H

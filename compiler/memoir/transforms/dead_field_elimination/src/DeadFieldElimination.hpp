@@ -25,7 +25,7 @@
  * Created: August 25, 2023
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 class DeadFieldElimination
   : InstVisitor<DeadFieldElimination, Set<llvm::Value *>> {
@@ -328,6 +328,6 @@ protected:
   }
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif

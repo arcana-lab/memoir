@@ -2,7 +2,7 @@
 #include "memoir/support/Assert.hpp"
 #include "memoir/utility/FunctionNames.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 const char *Keyword::PREFIX = "memoir.";
 #define KEYWORD(STR, CLASS) const char *CLASS::NAME = #STR;
@@ -38,7 +38,7 @@ bool Keyword::is_keyword(llvm::Value &V) {
   return false;
 }
 
-namespace llvm::memoir::detail {
+namespace memoir::detail {
 
 llvm::Use *find_end_of_keyword(llvm::Use &U) {
   // Find either the next keyword or the end of the operand list.
@@ -54,7 +54,7 @@ llvm::Use *find_end_of_keyword(llvm::Use &U) {
   return curr;
 }
 
-} // namespace llvm::memoir::detail
+} // namespace memoir::detail
 
 llvm::Use &Keyword::getAsUse() const {
   return *this->use;

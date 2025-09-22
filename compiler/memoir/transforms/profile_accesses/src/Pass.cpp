@@ -8,7 +8,7 @@
 #include "memoir/passes/Passes.hpp"
 #include "memoir/transforms/profile_accesses/AccessCounter.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /*
  * This pass injects profiling for sparse versus dense accesses.
@@ -37,4 +37,4 @@ llvm::PreservedAnalyses ProfileAccessesPass::run(
                   : llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir

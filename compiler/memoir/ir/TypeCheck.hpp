@@ -27,7 +27,7 @@
  * Created: July 5, 2022
  */
 
-namespace llvm::memoir {
+namespace memoir {
 
 /*
  * Type Analysis
@@ -37,8 +37,8 @@ namespace llvm::memoir {
  * This type analysis provides basic information about MemOIR
  *   types defined in the program.
  */
-class TypeChecker : public llvm::memoir::InstVisitor<TypeChecker, Type *> {
-  friend class llvm::memoir::InstVisitor<TypeChecker, Type *>;
+class TypeChecker : public memoir::InstVisitor<TypeChecker, Type *> {
+  friend class memoir::InstVisitor<TypeChecker, Type *>;
   friend class llvm::InstVisitor<TypeChecker, Type *>;
 
 public:
@@ -132,6 +132,6 @@ protected:
   void operator=(const TypeChecker &) = delete;
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 #endif // MEMOIR_ANALYSIS_TYPES_H

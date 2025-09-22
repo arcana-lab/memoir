@@ -4,7 +4,7 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/WorkList.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 /**
  * Find the PHI node that uses the value, if one exists.
@@ -242,4 +242,4 @@ BoundsCheckResult BoundsCheckAnalysis::run(llvm::Function &F,
 
 llvm::AnalysisKey BoundsCheckAnalysis::Key;
 
-} // namespace llvm::memoir
+} // namespace memoir

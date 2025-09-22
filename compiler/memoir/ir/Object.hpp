@@ -7,7 +7,7 @@
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 using Offset = unsigned;
 using Offsets = SmallVector<Offset>;
@@ -56,11 +56,11 @@ protected:
   void value(llvm::Value &new_value);
 };
 
-} // namespace llvm::memoir
+} // namespace memoir
 
 template <>
-struct std::hash<llvm::memoir::Object> {
-  std::size_t operator()(const llvm::memoir::Object &obj) const noexcept;
+struct std::hash<memoir::Object> {
+  std::size_t operator()(const memoir::Object &obj) const noexcept;
 };
 
 #endif // MEMOIR_IR_OBJECT_H

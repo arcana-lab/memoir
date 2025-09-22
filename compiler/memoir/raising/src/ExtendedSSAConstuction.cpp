@@ -11,7 +11,7 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-namespace llvm::memoir {
+namespace memoir {
 
 bool construct_extended_ssa(llvm::Function &F, llvm::DominatorTree &DT) {
 
@@ -213,4 +213,4 @@ llvm::PreservedAnalyses ExtendedSSAConstructionPass::run(
                   : llvm::PreservedAnalyses::all();
 }
 
-} // namespace llvm::memoir
+} // namespace memoir
