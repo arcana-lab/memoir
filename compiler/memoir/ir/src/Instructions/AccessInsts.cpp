@@ -7,186 +7,249 @@
 namespace llvm::memoir {
 
 // AccessInst implementation
-CollectionType &AccessInst::getCollectionType() const {
-  auto type = type_of(this->getObjectOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine type of collection being read");
+Type &AccessInst::getObjectType() const {
+  auto *type = type_of(this->getObject());
 
-  auto collection_type = dyn_cast<CollectionType>(type);
-  MEMOIR_NULL_CHECK(
-      collection_type,
-      "Type being accessed by read inst is not a collection type!");
+  if (not type) {
+    if (const auto &debug_loc = this->getCallInst().getDebugLoc()) {
+      print("DEBUG INFO: ");
+      debug_loc.print(llvm::errs());
+    }
 
-  return *collection_type;
+    MEMOIR_UNREACHABLE("Could not determine type of object being accessed!\n  ",
+                       *this,
+                       "\n  in ",
+                       this->getFunction()->getName());
+  }
+
+  return *type;
+}
+
+Type &AccessInst::getElementType() const {
+  // Determine the element type from the operation.
+  switch (this->getKind()) {
+    case MemOIR_Func::READ_UINT64:
+    case MemOIR_Func::WRITE_UINT64:
+    case MemOIR_Func::MUT_WRITE_UINT64:
+      return Type::get_u64_type();
+    case MemOIR_Func::READ_UINT32:
+    case MemOIR_Func::WRITE_UINT32:
+    case MemOIR_Func::MUT_WRITE_UINT32:
+      return Type::get_u32_type();
+    case MemOIR_Func::READ_UINT16:
+    case MemOIR_Func::WRITE_UINT16:
+    case MemOIR_Func::MUT_WRITE_UINT16:
+      return Type::get_u16_type();
+    case MemOIR_Func::READ_UINT8:
+    case MemOIR_Func::WRITE_UINT8:
+    case MemOIR_Func::MUT_WRITE_UINT8:
+      return Type::get_u8_type();
+    case MemOIR_Func::READ_INT64:
+    case MemOIR_Func::WRITE_INT64:
+    case MemOIR_Func::MUT_WRITE_INT64:
+      return Type::get_i64_type();
+    case MemOIR_Func::READ_INT32:
+    case MemOIR_Func::WRITE_INT32:
+    case MemOIR_Func::MUT_WRITE_INT32:
+      return Type::get_i32_type();
+    case MemOIR_Func::READ_INT16:
+    case MemOIR_Func::WRITE_INT16:
+    case MemOIR_Func::MUT_WRITE_INT16:
+      return Type::get_i16_type();
+    case MemOIR_Func::READ_INT8:
+    case MemOIR_Func::WRITE_INT8:
+    case MemOIR_Func::MUT_WRITE_INT8:
+      return Type::get_i8_type();
+    case MemOIR_Func::READ_INT2:
+    case MemOIR_Func::WRITE_INT2:
+    case MemOIR_Func::MUT_WRITE_INT2:
+      return Type::get_i2_type();
+    case MemOIR_Func::READ_BOOL:
+    case MemOIR_Func::WRITE_BOOL:
+    case MemOIR_Func::MUT_WRITE_BOOL:
+      return Type::get_bool_type();
+    case MemOIR_Func::READ_DOUBLE:
+    case MemOIR_Func::WRITE_DOUBLE:
+    case MemOIR_Func::MUT_WRITE_DOUBLE:
+      return Type::get_f64_type();
+    case MemOIR_Func::READ_FLOAT:
+    case MemOIR_Func::WRITE_FLOAT:
+    case MemOIR_Func::MUT_WRITE_FLOAT:
+      return Type::get_f32_type();
+    case MemOIR_Func::READ_PTR:
+    case MemOIR_Func::WRITE_PTR:
+    case MemOIR_Func::MUT_WRITE_PTR:
+      return Type::get_ptr_type();
+    default: { // Otherwise, analyze the function to determine the type.
+      // Get the collection type.
+      auto *type = &this->getObjectType();
+
+      for (auto *index : this->indices()) {
+        if (auto *struct_type = dyn_cast<TupleType>(type)) {
+          auto &index_constant =
+              MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
+                              "Struct field index is not constant.\n  ",
+                              *index,
+                              " in ",
+                              *this);
+          auto index_value = index_constant.getZExtValue();
+          type = &struct_type->getFieldType(index_value);
+
+        } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+          type = &collection_type->getElementType();
+        }
+      }
+
+      return MEMOIR_SANITIZE(type,
+                             "Couldn't determine type of accessed element.");
+    }
+  }
+}
+
+llvm::iterator_range<AccessInst::index_iterator> AccessInst::indices() {
+  return llvm::make_range(this->indices_begin(), this->indices_end());
+}
+
+AccessInst::index_iterator AccessInst::indices_begin() {
+  return index_iterator(this->index_operands_begin());
+}
+
+AccessInst::index_iterator AccessInst::indices_end() {
+  return index_iterator(this->index_operands_end());
+}
+
+llvm::iterator_range<AccessInst::const_index_iterator> AccessInst::indices()
+    const {
+  return llvm::make_range(this->indices_begin(), this->indices_end());
+}
+
+AccessInst::const_index_iterator AccessInst::indices_begin() const {
+  return const_index_iterator(this->index_operands_begin());
+}
+
+AccessInst::const_index_iterator AccessInst::indices_end() const {
+  return const_index_iterator(this->index_operands_end());
+}
+
+llvm::iterator_range<AccessInst::index_op_iterator> AccessInst::
+    index_operands() {
+  return llvm::make_range(this->index_operands_begin(),
+                          this->index_operands_end());
+}
+
+AccessInst::index_op_iterator AccessInst::index_operands_begin() {
+  return index_op_iterator(std::next(&this->getObjectAsUse()));
+}
+
+AccessInst::index_op_iterator AccessInst::index_operands_end() {
+  return index_op_iterator(this->kw_begin().asUse());
+}
+
+llvm::iterator_range<AccessInst::const_index_op_iterator> AccessInst::
+    index_operands() const {
+  return llvm::make_range(this->index_operands_begin(),
+                          this->index_operands_end());
+}
+
+AccessInst::const_index_op_iterator AccessInst::index_operands_begin() const {
+  return const_index_op_iterator(std::next(&this->getObjectAsUse()));
+}
+
+AccessInst::const_index_op_iterator AccessInst::index_operands_end() const {
+  return const_index_op_iterator(this->kw_begin().asUse());
+}
+
+Option<size_t> AccessInst::match_offsets(
+    llvm::ArrayRef<unsigned> offsets) const {
+  auto index_it = this->index_operands_begin();
+  auto index_ie = this->index_operands_end();
+
+  auto *type = &this->getObjectType();
+
+  auto offset_it = offsets.begin();
+  for (; offset_it != offsets.end(); ++offset_it) {
+
+    auto offset = *offset_it;
+
+    // Check if we have reached the end of the index operands.
+    if (index_it == index_ie) {
+      break;
+    }
+    if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+      // Get the inner type.
+      type = &collection_type->getElementType();
+
+    } else if (auto *struct_type = dyn_cast<TupleType>(type)) {
+
+      auto &index_use = *index_it;
+      auto &index_const =
+          MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index_use.get()),
+                          "Field index is not statically known!");
+
+      // If the offset doesn't match the field index, there is no index use.
+      if (offset != index_const.getZExtValue()) {
+        return {};
+      }
+
+      // Get the inner type.
+      type = &struct_type->getFieldType(offset);
+    }
+
+    ++index_it;
+  }
+
+  // Return the number of offsets we matched.
+  return std::distance(offsets.begin(), offset_it);
 }
 
 // ReadInst implementation
 RESULTANT(ReadInst, ValueRead)
-OPERAND(ReadInst, ObjectOperand, 0)
-
-// StructReadInst implementation
-CollectionType &StructReadInst::getCollectionType() const {
-  auto type = type_of(this->getObjectOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
-
-  auto struct_type = dyn_cast<StructType>(type);
-  MEMOIR_NULL_CHECK(struct_type,
-                    "Could not determine the struct type being accessed");
-
-  auto &field_array_type =
-      FieldArrayType::get(*struct_type, this->getFieldIndex());
-
-  return field_array_type;
-}
-
-unsigned StructReadInst::getFieldIndex() const {
-  auto &field_index_as_value = this->getFieldIndexOperand();
-  auto field_index_as_constant =
-      dyn_cast<llvm::ConstantInt>(&field_index_as_value);
-  MEMOIR_NULL_CHECK(field_index_as_constant,
-                    "Attempt to access a struct with non-constant field index");
-
-  auto field_index = field_index_as_constant->getZExtValue();
-
-  MEMOIR_ASSERT(
-      (field_index < 256),
-      "Attempt to access a tensor with more than 255 fields"
-      "This is unsupported due to the maximum number of arguments allowed in LLVM CallInsts");
-
-  return (unsigned)field_index;
-}
-
-OPERAND(StructReadInst, FieldIndexOperand, 1)
-TO_STRING(StructReadInst)
-
-// IndexReadInst implementation
-unsigned IndexReadInst::getNumberOfDimensions() const {
-  return (this->getCallInst().arg_size() - 1);
-}
-VAR_OPERAND(IndexReadInst, IndexOfDimension, 1)
-
-TO_STRING(IndexReadInst)
-
-// AssocReadInst implementation
-OPERAND(AssocReadInst, KeyOperand, 1)
-
-TO_STRING(AssocReadInst)
-
-// WriteInst implementation
-OPERAND(WriteInst, ValueWritten, 0)
-
-OPERAND(WriteInst, ObjectOperand, 1)
-
-// StructWriteInst implementation
-CollectionType &StructWriteInst::getCollectionType() const {
-  auto type = type_of(this->getObjectOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
-
-  auto struct_type = dyn_cast<StructType>(type);
-  MEMOIR_NULL_CHECK(struct_type,
-                    "Could not determine the struct type being accessed");
-
-  auto &field_array_type =
-      FieldArrayType::get(*struct_type, this->getFieldIndex());
-
-  return field_array_type;
-}
-
-unsigned StructWriteInst::getFieldIndex() const {
-  auto &field_index_as_value = this->getFieldIndexOperand();
-  auto field_index_as_constant =
-      dyn_cast<llvm::ConstantInt>(&field_index_as_value);
-  MEMOIR_NULL_CHECK(field_index_as_constant,
-                    "Attempt to access a struct with non-constant field index");
-
-  auto field_index = field_index_as_constant->getZExtValue();
-
-  MEMOIR_ASSERT(
-      (field_index < 256),
-      "Attempt to access a tensor with more than 255 fields"
-      "This is unsupported due to the maximum number of arguments allowed in LLVM CallInsts");
-
-  return (unsigned)field_index;
-}
-
-OPERAND(StructWriteInst, FieldIndexOperand, 2)
-
-TO_STRING(StructWriteInst)
-
-// IndexWriteInst implementation
-RESULTANT(IndexWriteInst, Collection)
-
-unsigned IndexWriteInst::getNumberOfDimensions() const {
-  return (this->getCallInst().arg_size() - 2);
-}
-
-VAR_OPERAND(IndexWriteInst, IndexOfDimension, 2)
-
-TO_STRING(IndexWriteInst)
-
-// AssocWriteInst implementation
-RESULTANT(AssocWriteInst, Collection)
-
-OPERAND(AssocWriteInst, KeyOperand, 2)
-
-TO_STRING(AssocWriteInst)
+OPERAND(ReadInst, Object, 0)
+TO_STRING(ReadInst, "read")
 
 // GetInst implementation
 RESULTANT(GetInst, NestedObject)
+OPERAND(GetInst, Object, 0)
+TO_STRING(GetInst, "get")
 
-OPERAND(GetInst, ObjectOperand, 0)
+// CopyInst implementation
+RESULTANT(CopyInst, Result)
+OPERAND(CopyInst, Object, 0)
+TO_STRING(CopyInst, "copy")
 
-// StructGetInst implementation
-CollectionType &StructGetInst::getCollectionType() const {
-  auto type = type_of(this->getObjectOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine the type being accessed");
+// SizeInst implementation
+RESULTANT(SizeInst, Size)
+OPERAND(SizeInst, Object, 0)
+TO_STRING(SizeInst, "size")
 
-  auto struct_type = dyn_cast<StructType>(type);
-  MEMOIR_NULL_CHECK(struct_type,
-                    "Could not determine the struct type being accessed");
+// HasInst implementation
+RESULTANT(HasInst, Result)
+OPERAND(HasInst, Object, 0)
+TO_STRING(HasInst, "has")
 
-  auto &field_array_type =
-      FieldArrayType::get(*struct_type, this->getFieldIndex());
+// AssocKeysInst implementation.
+RESULTANT(KeysInst, Result)
+OPERAND(KeysInst, Object, 0)
+TO_STRING(KeysInst, "keys")
 
-  return field_array_type;
-}
+// UpdateInst implementation
+RESULTANT(UpdateInst, Result)
 
-unsigned StructGetInst::getFieldIndex() const {
-  auto &field_index_as_value = this->getFieldIndexOperand();
-  auto field_index_as_constant =
-      dyn_cast<llvm::ConstantInt>(&field_index_as_value);
-  MEMOIR_NULL_CHECK(field_index_as_constant,
-                    "Attempt to access a struct with non-constant field index");
+// WriteInst implementation
+OPERAND(WriteInst, ValueWritten, 0)
+OPERAND(WriteInst, Object, 1)
+TO_STRING(WriteInst, "write")
 
-  auto field_index = field_index_as_constant->getZExtValue();
+// InsertInst implementation
+OPERAND(InsertInst, Object, 0)
+TO_STRING(InsertInst, "insert")
 
-  MEMOIR_ASSERT(
-      (field_index < 256),
-      "Attempt to access a tensor with more than 255 fields"
-      "This is unsupported due to the maximum number of arguments allowed in LLVM CallInsts");
+// RemoveInst implementation
+OPERAND(RemoveInst, Object, 0)
+TO_STRING(RemoveInst, "remove")
 
-  return (unsigned)field_index;
-}
-
-OPERAND(StructGetInst, FieldIndexOperand, 1)
-
-TO_STRING(StructGetInst)
-
-// IndexGetInst implementation
-unsigned IndexGetInst::getNumberOfDimensions() const {
-  return (this->getCallInst().arg_size() - 1);
-}
-
-VAR_OPERAND(IndexGetInst, IndexOfDimension, 1)
-
-TO_STRING(IndexGetInst)
-
-// AssocGetInst implementation
-OPERAND(AssocGetInst, KeyOperand, 1)
-TO_STRING(AssocGetInst)
-
-// AssocHasInst implementation
-OPERAND(AssocHasInst, ObjectOperand, 0)
-OPERAND(AssocHasInst, KeyOperand, 1)
-TO_STRING(AssocHasInst)
+// ClearInst implementation
+OPERAND(ClearInst, Object, 0)
+TO_STRING(ClearInst, "clear")
 
 } // namespace llvm::memoir

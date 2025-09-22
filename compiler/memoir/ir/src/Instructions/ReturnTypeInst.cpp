@@ -14,6 +14,6 @@ Type &ReturnTypeInst::getType() const {
 }
 
 OPERAND(ReturnTypeInst, TypeOperand, 0)
-TO_STRING(ReturnTypeInst)
+TO_STRING(ReturnTypeInst, "rettype")
 
 } // namespace llvm::memoir
