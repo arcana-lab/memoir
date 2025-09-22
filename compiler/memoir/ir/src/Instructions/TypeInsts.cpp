@@ -29,89 +29,89 @@ namespace llvm::memoir {
  * UInt64TypeInst implementation
  */
 GET_TYPE_IMPL(UInt64TypeInst)
-TO_STRING(UInt64TypeInst)
+TO_STRING(UInt64TypeInst, "u64")
 
 /*
  * UInt32TypeInst implementation
  */
 GET_TYPE_IMPL(UInt32TypeInst)
-TO_STRING(UInt32TypeInst)
+TO_STRING(UInt32TypeInst, "u32")
 
 /*
  * UInt16TypeInst implementation
  */
 GET_TYPE_IMPL(UInt16TypeInst)
-TO_STRING(UInt16TypeInst)
+TO_STRING(UInt16TypeInst, "u16")
 
 /*
  * UInt8TypeInst implementation
  */
 GET_TYPE_IMPL(UInt8TypeInst)
-TO_STRING(UInt8TypeInst)
+TO_STRING(UInt8TypeInst, "u8")
 
 // UInt8TypeInst implementation
 GET_TYPE_IMPL(UInt2TypeInst)
-TO_STRING(UInt2TypeInst)
+TO_STRING(UInt2TypeInst, "u2")
 
 /*
  * Int64TypeInst implementation
  */
 GET_TYPE_IMPL(Int64TypeInst)
-TO_STRING(Int64TypeInst)
+TO_STRING(Int64TypeInst, "i64")
 
 /*
  * Int32TypeInst implementation
  */
 GET_TYPE_IMPL(Int32TypeInst)
-TO_STRING(Int32TypeInst)
+TO_STRING(Int32TypeInst, "i32")
 
 /*
  * Int16TypeInst implementation
  */
 GET_TYPE_IMPL(Int16TypeInst)
-TO_STRING(Int16TypeInst)
+TO_STRING(Int16TypeInst, "i16")
 
 /*
  * Int8TypeInst implementation
  */
 GET_TYPE_IMPL(Int8TypeInst)
-TO_STRING(Int8TypeInst)
+TO_STRING(Int8TypeInst, "i8")
 
 /*
  * Int2TypeInst implementation
  */
 GET_TYPE_IMPL(Int2TypeInst)
-TO_STRING(Int2TypeInst)
+TO_STRING(Int2TypeInst, "i2")
 
 /*
  * BoolTypeInst implementation
  */
 GET_TYPE_IMPL(BoolTypeInst)
-TO_STRING(BoolTypeInst)
+TO_STRING(BoolTypeInst, "bool")
 
 /*
  * FloatType implementation
  */
 GET_TYPE_IMPL(FloatTypeInst)
-TO_STRING(FloatTypeInst)
+TO_STRING(FloatTypeInst, "f32")
 
 /*
  * DoubleType implementation
  */
 GET_TYPE_IMPL(DoubleTypeInst)
-TO_STRING(DoubleTypeInst)
+TO_STRING(DoubleTypeInst, "f64")
 
 /*
  * PointerType implementation
  */
 GET_TYPE_IMPL(PointerTypeInst)
-TO_STRING(PointerTypeInst)
+TO_STRING(PointerTypeInst, "ptr")
 
 /*
  * PointerType implementation
  */
 GET_TYPE_IMPL(VoidTypeInst)
-TO_STRING(VoidTypeInst)
+TO_STRING(VoidTypeInst, "void")
 
 /*
  * ReferenceType implementation
@@ -128,14 +128,13 @@ Type &ReferenceTypeInst::getReferencedType() const {
 
 OPERAND(ReferenceTypeInst, ReferencedTypeOperand, 0)
 
-TO_STRING(ReferenceTypeInst)
+TO_STRING(ReferenceTypeInst, "ref")
 
+#if 0
 /*
- * DefineStructType implementation
+ * DefineType implementation
  */
-GET_TYPE_IMPL(DefineStructTypeInst)
-
-std::string DefineStructTypeInst::getName() const {
+std::string DefineTypeInst::getName() const {
   auto &name_value = this->getNameOperand();
 
   GlobalVariable *name_global = nullptr;
@@ -149,52 +148,34 @@ std::string DefineStructTypeInst::getName() const {
     name_global = dyn_cast<GlobalVariable>(&name_value);
   }
 
-  MEMOIR_NULL_CHECK(name_global, "DefineStructTypeInst has NULL name");
+  MEMOIR_NULL_CHECK(name_global, "DefineTypeInst has NULL name");
 
   auto name_init = name_global->getInitializer();
   auto name_constant = dyn_cast<ConstantDataArray>(name_init);
   MEMOIR_NULL_CHECK(name_constant,
-                    "DefineStructTypeInst name is not a constant data array");
+                    "DefineTypeInst name is not a constant data array");
 
   return name_constant->getAsCString().str();
 }
 
-OPERAND(DefineStructTypeInst, NameOperand, 0)
+OPERAND(DefineTypeInst, NameOperand, 0)
 
-unsigned DefineStructTypeInst::getNumberOfFields() const {
-  auto &num_fields_value = this->getNumberOfFieldsOperand();
-
-  auto num_fields_const = dyn_cast<llvm::ConstantInt>(&num_fields_value);
-  MEMOIR_NULL_CHECK(num_fields_const,
-                    "DefineStructTypeInst with a non-static number of fields");
-
-  auto num_fields = num_fields_const->getZExtValue();
-  MEMOIR_ASSERT(
-      (num_fields <= std::numeric_limits<unsigned>::max()),
-      "DefineStructTypeInst has more field than the max value of unsigned type");
-
-  return num_fields;
-}
-
-OPERAND(DefineStructTypeInst, NumberOfFieldsOperand, 1)
-
-Type &DefineStructTypeInst::getFieldType(unsigned field_index) const {
-  auto type = type_of(this->getFieldTypeOperand(field_index));
-  MEMOIR_NULL_CHECK(type,
-                    "Could not determine field type of DefineStructTypeInst");
+Type &DefineTypeInst::getType() const {
+  auto type = type_of(this->getTypeOperand());
+  MEMOIR_NULL_CHECK(type, "Could not determine the type being defined");
   return *type;
 }
 
-VAR_OPERAND(DefineStructTypeInst, FieldTypeOperand, 2)
+OPERAND(DefineTypeInst, TypeOperand, 1)
 
-TO_STRING(DefineStructTypeInst)
+TO_STRING(DefineTypeInst, "deftype")
 
 /*
- * StructType implementation
+ * LookupType implementation
  */
-GET_TYPE_IMPL(StructTypeInst)
+GET_TYPE_IMPL(LookupTypeInst)
 
-std::string StructTypeInst::getName() const {
+std::string LookupTypeInst::getName() const {
   auto &name_value = this->getNameOperand();
 
   GlobalVariable *name_global;
@@ -206,104 +187,65 @@ std::string StructTypeInst::getName() const {
     name_global = dyn_cast<GlobalVariable>(&name_value);
   }
 
-  MEMOIR_NULL_CHECK(name_global, "DefineStructTypeInst has NULL name");
+  MEMOIR_NULL_CHECK(name_global, "LookupTypeInst has NULL name");
 
   auto name_init = name_global->getInitializer();
   auto name_constant = dyn_cast<ConstantDataArray>(name_init);
   MEMOIR_NULL_CHECK(name_constant,
-                    "DefineStructTypeInst name is not a constant data array");
+                    "DefineTypeInst name is not a constant data array");
 
   return name_constant->getAsCString().str();
 }
 
-OPERAND(StructTypeInst, NameOperand, 0)
+OPERAND(LookupTypeInst, NameOperand, 0)
 
-TO_STRING(StructTypeInst)
+TO_STRING(LookupTypeInst, "lookuptype")
+
+#endif
 
 /*
- * StaticTensorType implementation
+ * TupleType implementation
  */
-GET_TYPE_IMPL(StaticTensorTypeInst)
+GET_TYPE_IMPL(TupleTypeInst)
 
-Type &StaticTensorTypeInst::getElementType() const {
+unsigned TupleTypeInst::getNumberOfFields() const {
+  return std::distance(this->getCallInst().arg_begin(),
+                       this->kw_begin().asUse());
+}
+
+Type &TupleTypeInst::getFieldType(unsigned field_index) const {
+  auto type = type_of(this->getFieldTypeOperand(field_index));
+  MEMOIR_NULL_CHECK(type, "Could not determine field type of DefineTypeInst");
+  return *type;
+}
+
+VAR_OPERAND(TupleTypeInst, FieldTypeOperand, 0)
+
+TO_STRING(TupleTypeInst, "tuple")
+
+/*
+ * ArrayType implementation
+ */
+GET_TYPE_IMPL(ArrayTypeInst)
+
+Type &ArrayTypeInst::getElementType() const {
   auto type = type_of(this->getElementTypeOperand());
-  MEMOIR_NULL_CHECK(type,
-                    "Could not determine element type of StaticTensorTypeInst");
+  MEMOIR_NULL_CHECK(type, "Could not determine element type of ArrayTypeInst");
   return *type;
 }
 
-OPERAND(StaticTensorTypeInst, ElementTypeOperand, 0)
+OPERAND(ArrayTypeInst, ElementTypeOperand, 0)
 
-unsigned StaticTensorTypeInst::getNumberOfDimensions() const {
-  auto &dims_value = this->getNumberOfDimensionsOperand();
-
-  auto dims_const = dyn_cast<llvm::ConstantInt>(&dims_value);
-  MEMOIR_NULL_CHECK(
-      dims_const,
-      "Number of dimensions passed to StaticTensorType is non-static");
-
-  auto num_dims = dims_const->getZExtValue();
-  MEMOIR_ASSERT(
-      (num_dims <= std::numeric_limits<unsigned>::max()),
-      "Number of dimensions is larger than maximum value of unsigned");
-
-  return num_dims;
+size_t ArrayTypeInst::getLength() const {
+  auto &value = this->getLengthOperand();
+  auto &constant = MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(&value),
+                                   "ArrayType length is not statically known!");
+  return constant.getZExtValue();
 }
 
-OPERAND(StaticTensorTypeInst, NumberOfDimensionsOperand, 1)
+OPERAND(ArrayTypeInst, LengthOperand, 1)
 
-size_t StaticTensorTypeInst::getLengthOfDimension(
-    unsigned dimension_index) const {
-  auto &length_value = this->getLengthOfDimensionOperand(dimension_index);
-
-  auto length_const = dyn_cast<llvm::ConstantInt>(&length_value);
-  MEMOIR_NULL_CHECK(
-      length_const,
-      "Attempt to create a static tensor type of non-static length");
-
-  auto length = length_const->getZExtValue();
-  MEMOIR_ASSERT(
-      (length < std::numeric_limits<size_t>::max()),
-      "Attempt to create static tensor type larger than maximum value of size_t");
-
-  return length;
-}
-
-VAR_OPERAND(StaticTensorTypeInst, LengthOfDimensionOperand, 2)
-
-TO_STRING(StaticTensorTypeInst)
-
-/*
- * TensorType implementation
- */
-GET_TYPE_IMPL(TensorTypeInst)
-
-Type &TensorTypeInst::getElementType() const {
-  auto type = type_of(this->getElementOperand());
-  MEMOIR_NULL_CHECK(type, "Could not determine the element type of TensorType");
-  return *type;
-}
-
-OPERAND(TensorTypeInst, ElementOperand, 0)
-
-unsigned TensorTypeInst::getNumberOfDimensions() const {
-  auto &dims_value = this->getNumberOfDimensionsOperand();
-
-  auto dims_const = dyn_cast<llvm::ConstantInt>(&dims_value);
-  MEMOIR_NULL_CHECK(dims_const,
-                    "Number of dimensions passed to TensorType is non-static");
-
-  auto num_dims = dims_const->getZExtValue();
-  MEMOIR_ASSERT(
-      (num_dims <= std::numeric_limits<unsigned>::max()),
-      "Number of dimensions passed to TensorType is larger than maximum value of unsigned");
-
-  return num_dims;
-}
-
-OPERAND(TensorTypeInst, NumberOfDimensionsOperand, 1)
-
-TO_STRING(TensorTypeInst);
+TO_STRING(ArrayTypeInst, "array")
 
 /*
  * AssocArrayType implementation
@@ -327,7 +269,7 @@ Type &AssocArrayTypeInst::getValueType() const {
 
 OPERAND(AssocArrayTypeInst, ValueOperand, 1)
 
-TO_STRING(AssocArrayTypeInst)
+TO_STRING(AssocArrayTypeInst, "assoc")
 
 /*
  * SequenceType implementation
@@ -342,6 +284,6 @@ Type &SequenceTypeInst::getElementType() const {
 
 OPERAND(SequenceTypeInst, ElementOperand, 0)
 
-TO_STRING(SequenceTypeInst)
+TO_STRING(SequenceTypeInst, "seq")
 
 } // namespace llvm::memoir

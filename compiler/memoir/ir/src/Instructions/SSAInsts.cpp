@@ -8,33 +8,20 @@
 namespace llvm::memoir {
 
 // UsePHIInst implementation
-RESULTANT(UsePHIInst, ResultCollection)
-OPERAND(UsePHIInst, UsedCollection, 0)
+RESULTANT(UsePHIInst, Result)
+OPERAND(UsePHIInst, Used, 0)
 
-TO_STRING(UsePHIInst)
-
-// DefPHIInst implementation
-RESULTANT(DefPHIInst, ResultCollection)
-OPERAND(DefPHIInst, DefinedCollection, 0)
-
-TO_STRING(DefPHIInst)
-
-// ArgPHIInst implementation
-RESULTANT(ArgPHIInst, ResultCollection)
-OPERAND(ArgPHIInst, InputCollection, 0)
-// TODO: implement metadata for storing the incoming collections.
-TO_STRING(ArgPHIInst)
+TO_STRING(UsePHIInst, "usephi")
 
 // RetPHIInst implementation
-RESULTANT(RetPHIInst, ResultCollection)
-OPERAND(RetPHIInst, InputCollection, 0)
+RESULTANT(RetPHIInst, Result)
+OPERAND(RetPHIInst, Input, 0)
 
 llvm::Function *RetPHIInst::getCalledFunction() const {
   return dyn_cast<llvm::Function>(&this->getCalledOperand());
 }
 
 OPERAND(RetPHIInst, CalledOperand, 1)
-// TODO: implement metadata for storing the incoming collections.
-TO_STRING(RetPHIInst)
+TO_STRING(RetPHIInst, "retphi")
 
 } // namespace llvm::memoir

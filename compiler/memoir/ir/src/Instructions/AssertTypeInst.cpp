@@ -1,31 +1,21 @@
 #include "memoir/ir/Instructions.hpp"
-
 #include "memoir/ir/TypeCheck.hpp"
-
 #include "memoir/utility/InstructionUtils.hpp"
 
 namespace llvm::memoir {
 
-// AssertStructTypeInst implementation
-Type &AssertStructTypeInst::getType() const {
+// AssertTypeInst implementation
+Type &AssertTypeInst::getType() const {
   return MEMOIR_SANITIZE(type_of(this->getTypeOperand()),
-                         "Failed to get type used by AssertStructType!");
+                         "Failed to get type used by AssertTupleType!");
 }
 
-OPERAND(AssertStructTypeInst, TypeOperand, 0)
-OPERAND(AssertStructTypeInst, Object, 1)
-OPERAND(AssertStructTypeInst, Struct, 1)
-TO_STRING(AssertStructTypeInst)
+OPERAND(AssertTypeInst, TypeOperand, 0)
+OPERAND(AssertTypeInst, Object, 1)
 
-// AssertCollectionTypeInst implementation
-Type &AssertCollectionTypeInst::getType() const {
-  return MEMOIR_SANITIZE(type_of(this->getTypeOperand()),
-                         "Failed to get type used by AssertCollectionType");
+std::string AssertTypeInst::toString() const {
+  return "assert " + value_name(this->getObject()) + " isa "
+         + this->getType().toString();
 }
-
-OPERAND(AssertCollectionTypeInst, TypeOperand, 0)
-OPERAND(AssertCollectionTypeInst, Object, 1)
-OPERAND(AssertCollectionTypeInst, Collection, 1)
-TO_STRING(AssertCollectionTypeInst)
 
 } // namespace llvm::memoir
