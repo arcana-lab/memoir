@@ -1,5 +1,7 @@
-#include "memoir/ir/Types.hpp"
+#include <algorithm>
+
 #include "memoir/ir/Instructions.hpp"
+#include "memoir/ir/Types.hpp"
 #include "memoir/support/Assert.hpp"
 
 #include "memoir/ir/TypeCheck.hpp"
@@ -60,6 +62,17 @@ IntegerType &Type::get_bool_type() {
   return IntegerType::get<1, false>();
 }
 
+IntegerType &Type::get_size_type(const llvm::DataLayout &DL) {
+  auto bitwidth = 8 * DL.getPointerSize(0);
+  switch (bitwidth) {
+    case 64:
+      return IntegerType::get<64, false>();
+    case 32:
+      return IntegerType::get<32, false>();
+  }
+  MEMOIR_UNREACHABLE("Unhandled size type bitwidth ", bitwidth);
+}
+
 template <unsigned BW, bool S>
 IntegerType &IntegerType::get() {
   static IntegerType the_type(BW, S);
@@ -108,7 +121,7 @@ ReferenceType &Type::get_ref_type(Type &referenced_type) {
 
 ReferenceType &ReferenceType::get(Type &referenced_type) {
   if (ReferenceType::reference_types == nullptr) {
-    ReferenceType::reference_types = new map<Type *, ReferenceType *>();
+    ReferenceType::reference_types = new Map<Type *, ReferenceType *>();
   }
 
   auto found_type = ReferenceType::reference_types->find(&referenced_type);
@@ -122,207 +135,152 @@ ReferenceType &ReferenceType::get(Type &referenced_type) {
   return *new_type;
 }
 
-map<Type *, ReferenceType *> *ReferenceType::reference_types = nullptr;
+Map<Type *, ReferenceType *> *ReferenceType::reference_types = nullptr;
 
-StructType &Type::define_struct_type(DefineStructTypeInst &definition,
-                                     std::string name,
-                                     vector<Type *> field_types) {
-  return StructType::define(definition, name, field_types);
-}
-
-StructType &Type::get_struct_type(std::string name) {
-  return StructType::get(name);
-}
-
-StructType &StructType::define(DefineStructTypeInst &definition,
-                               std::string name,
-                               vector<Type *> field_types) {
-  if (StructType::defined_types == nullptr) {
-    StructType::defined_types = new map<std::string, StructType *>();
+#if 0
+Type &Type::define(DefineTypeInst &definition, std::string name, Type &type) {
+  if (ReferenceType::reference_types == nullptr) {
+    ReferenceType::reference_types = new Map<Type *, ReferenceType *>();
   }
-  auto found_type = StructType::defined_types->find(name);
-  if (found_type != StructType::defined_types->end()) {
+
+  auto found_type = ReferenceType::reference_types->find(&referenced_type);
+  if (found_type != ReferenceType::reference_types->end()) {
     return *(found_type->second);
   }
 
-  auto new_type = new StructType(definition, name, field_types);
-  (*StructType::defined_types)[name] = new_type;
+  auto new_type = new ReferenceType(referenced_type);
+  (*ReferenceType::reference_types)[&referenced_type] = new_type;
 
   return *new_type;
 }
 
-map<std::string, StructType *> *StructType::defined_types = nullptr;
-
-StructType &StructType::get(std::string name) {
-  auto found_type = StructType::defined_types->find(name);
-  if (found_type != StructType::defined_types->end()) {
+Type &Type::lookup(std::string name) {
+  auto found_type = TupleType::defined_types->find(name);
+  if (found_type != TupleType::defined_types->end()) {
     return *(found_type->second);
   }
 
-  MEMOIR_UNREACHABLE("Could not find a StructType of the given name");
+  warnln("No struct definition with name ", name);
+  MEMOIR_UNREACHABLE("Could not find a TupleType of the given name");
 }
 
-FieldArrayType &Type::get_field_array_type(StructType &struct_type,
-                                           unsigned field_index) {
-  return FieldArrayType::get(struct_type, field_index);
+Map<std::string, Type *> *Type::defined_types = nullptr;
+#endif
+
+// TupleType getter.
+TupleType &Type::get_tuple_type(llvm::ArrayRef<Type *> fields) {
+  return TupleType::get(fields);
 }
 
-FieldArrayType &FieldArrayType::get(StructType &struct_type,
-                                    unsigned field_index) {
-  if (FieldArrayType::struct_to_field_array == nullptr) {
-    FieldArrayType::struct_to_field_array =
-        new map<StructType *, map<unsigned, FieldArrayType *>>();
+TupleType &TupleType::get(llvm::ArrayRef<Type *> fields) {
+
+  if (TupleType::tuple_types == nullptr) {
+    TupleType::tuple_types = new OrderedMultiMap<unsigned, TupleType *>();
   }
-  auto found_struct = FieldArrayType::struct_to_field_array->find(&struct_type);
-  if (found_struct != FieldArrayType::struct_to_field_array->end()) {
-    auto &index_to_field_array = found_struct->second;
-    auto found_index = index_to_field_array.find(field_index);
-    if (found_index != index_to_field_array.end()) {
-      return *(found_index->second);
+  auto &tuple_types = *TupleType::tuple_types;
+
+  auto range = tuple_types.equal_range(fields.size());
+  for (auto it = range.first; it != range.second; ++it) {
+    auto *type = it->second;
+    if (std::equal(type->field_types.begin(),
+                   type->field_types.end(),
+                   fields.begin(),
+                   fields.end())) {
+      return *type;
     }
   }
 
-  auto type = new FieldArrayType(struct_type, field_index);
-  (*FieldArrayType::struct_to_field_array)[&struct_type][field_index] = type;
+  auto *new_type = new TupleType(fields);
+  tuple_types.insert({ fields.size(), new_type });
 
-  return *type;
+  return *new_type;
 }
 
-map<StructType *, map<unsigned, FieldArrayType *>>
-    *FieldArrayType::struct_to_field_array = nullptr;
+OrderedMultiMap<unsigned, TupleType *> *TupleType::tuple_types = nullptr;
 
-// StaticTensorType getter.
-StaticTensorType &Type::get_static_tensor_type(Type &element_type,
-                                               vector<size_t> dimension_sizes) {
-  return StaticTensorType::get(element_type, dimension_sizes);
+// ArrayType getter.
+ArrayType &Type::get_array_type(Type &element_type, size_t length) {
+  return ArrayType::get(element_type, length);
 }
 
-StaticTensorType &StaticTensorType::get(Type &element_type,
-                                        vector<size_t> dimension_sizes) {
-  if (StaticTensorType::static_tensor_types == nullptr) {
-    StaticTensorType::static_tensor_types =
-        new ordered_multimap<Type *, StaticTensorType *>();
+ArrayType &ArrayType::get(Type &element_type, size_t length) {
+  if (ArrayType::array_types == nullptr) {
+    ArrayType::array_types = new OrderedMultiMap<Type *, ArrayType *>();
   }
 
-  auto existing_types =
-      StaticTensorType::static_tensor_types->equal_range(&element_type);
+  auto existing_types = ArrayType::array_types->equal_range(&element_type);
   for (auto it = existing_types.first; it != existing_types.second; ++it) {
     auto *existing_type = it->second;
-    auto num_dimensions = existing_type->getNumberOfDimensions();
-    if (num_dimensions != dimension_sizes.size()) {
-      continue;
-    }
 
-    for (unsigned dim_index = 0; dim_index < num_dimensions; ++dim_index) {
-      if (existing_type->getLengthOfDimension(dim_index)
-          != dimension_sizes[dim_index]) {
-        continue;
-      }
+    if (existing_type->getLength() == length) {
+      return *existing_type;
     }
-
-    return *(existing_type);
   }
 
-  auto *type = new StaticTensorType(element_type,
-                                    dimension_sizes.size(),
-                                    dimension_sizes);
-  *StaticTensorType::static_tensor_types->insert({ &element_type, type });
+  auto *type = new ArrayType(element_type, length);
+  ArrayType::array_types->insert({ &element_type, type });
 
   return *type;
 }
 
-ordered_multimap<Type *, StaticTensorType *>
-    *StaticTensorType::static_tensor_types = nullptr;
-
-// TensorType getter.
-TensorType &Type::get_tensor_type(Type &element_type, unsigned num_dimensions) {
-  return TensorType::get(element_type, num_dimensions);
-}
-
-TensorType &TensorType::get(Type &element_type, unsigned num_dimensions) {
-  if (TensorType::tensor_types == nullptr) {
-    TensorType::tensor_types = new map<Type *, map<unsigned, TensorType *>>();
-  }
-  auto found_element = TensorType::tensor_types->find(&element_type);
-  if (found_element != TensorType::tensor_types->end()) {
-    auto &dimensions_to_type_map = found_element->second;
-    auto found_dimension = dimensions_to_type_map.find(num_dimensions);
-    if (found_dimension != dimensions_to_type_map.end()) {
-      return *(found_dimension->second);
-    }
-  }
-
-  auto type = new TensorType(element_type, num_dimensions);
-  (*TensorType::tensor_types)[&element_type][num_dimensions] = type;
-
-  return *type;
-}
-
-map<Type *, map<unsigned, TensorType *>> *TensorType::tensor_types = nullptr;
+OrderedMultiMap<Type *, ArrayType *> *ArrayType::array_types = nullptr;
 
 /*
  * AssocArrayType getter
  */
-AssocArrayType &Type::get_assoc_array_type(Type &key_type, Type &value_type) {
-  return AssocArrayType::get(key_type, value_type);
-}
-
-AssocArrayType &AssocArrayType::get(Type &key_type, Type &value_type) {
+AssocArrayType &AssocArrayType::get(Type &key_type,
+                                    Type &value_type,
+                                    std::optional<std::string> selection) {
   if (AssocArrayType::assoc_array_types == nullptr) {
-    AssocArrayType::assoc_array_types =
-        new map<Type *, map<Type *, AssocArrayType *>>();
+    AssocArrayType::assoc_array_types = new AssocArrayType::Types();
+  }
+  auto &types = *AssocArrayType::assoc_array_types;
+
+  auto &type = types[&key_type][&value_type][selection];
+
+  if (type != nullptr) {
+    return *type;
   }
 
-  auto found_key = AssocArrayType::assoc_array_types->find(&key_type);
-  if (found_key != AssocArrayType::assoc_array_types->end()) {
-    auto &key_to_value_map = found_key->second;
-    auto found_value = key_to_value_map.find(&value_type);
-    if (found_value != key_to_value_map.end()) {
-      return *(found_value->second);
-    }
-  }
-
-  auto type = new AssocArrayType(key_type, value_type);
-  (*AssocArrayType::assoc_array_types)[&key_type][&value_type] = type;
+  type = new AssocArrayType(key_type, value_type, selection);
 
   return *type;
 }
 
-map<Type *, map<Type *, AssocArrayType *>> *AssocArrayType::assoc_array_types =
-    nullptr;
+AssocArrayType::Types *AssocArrayType::assoc_array_types = nullptr;
 
 /*
  * SequenceType getter
  */
-SequenceType &Type::get_sequence_type(Type &element_type) {
-  return SequenceType::get(element_type);
-}
-
-SequenceType &SequenceType::get(Type &element_type) {
+SequenceType &SequenceType::get(Type &element_type,
+                                std::optional<std::string> selection) {
   if (SequenceType::sequence_types == nullptr) {
-    SequenceType::sequence_types = new map<Type *, SequenceType *>();
+    SequenceType::sequence_types = new SequenceType::Types();
   }
-  auto found_element = SequenceType::sequence_types->find(&element_type);
-  if (found_element != SequenceType::sequence_types->end()) {
-    return *(found_element->second);
+  auto &types = *SequenceType::sequence_types;
+
+  auto &type = types[&element_type][selection];
+
+  if (type != nullptr) {
+    return *type;
   }
 
-  auto type = new SequenceType(element_type);
-  (*SequenceType::sequence_types)[&element_type] = type;
+  type = new SequenceType(element_type, selection);
+
   return *type;
 }
 
-map<Type *, SequenceType *> *SequenceType::sequence_types = nullptr;
+SequenceType::Types *SequenceType::sequence_types = nullptr;
 
 /*
  * Static checker methods
  */
 bool Type::is_primitive_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::INTEGER:
-    case TypeCode::FLOAT:
-    case TypeCode::DOUBLE:
-    case TypeCode::POINTER:
+  switch (type.getKind()) {
+    case TypeKind::INTEGER:
+    case TypeKind::FLOAT:
+    case TypeKind::DOUBLE:
+    case TypeKind::POINTER:
       return true;
     default:
       return false;
@@ -330,8 +288,8 @@ bool Type::is_primitive_type(Type &type) {
 }
 
 bool Type::is_reference_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::REFERENCE:
+  switch (type.getKind()) {
+    case TypeKind::REFERENCE:
       return true;
     default:
       return false;
@@ -339,8 +297,8 @@ bool Type::is_reference_type(Type &type) {
 }
 
 bool Type::is_struct_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::STRUCT:
+  switch (type.getKind()) {
+    case TypeKind::TUPLE:
       return true;
     default:
       return false;
@@ -348,15 +306,36 @@ bool Type::is_struct_type(Type &type) {
 }
 
 bool Type::is_collection_type(Type &type) {
-  switch (type.getCode()) {
-    case TypeCode::STATIC_TENSOR:
-    case TypeCode::TENSOR:
-    case TypeCode::ASSOC_ARRAY:
-    case TypeCode::SEQUENCE:
+  switch (type.getKind()) {
+    case TypeKind::ARRAY:
+    case TypeKind::ASSOC_ARRAY:
+    case TypeKind::SEQUENCE:
       return true;
     default:
       return false;
   }
+}
+
+bool Type::is_unsized(Type &type) {
+  switch (type.getKind()) {
+    case TypeKind::ASSOC_ARRAY:
+    case TypeKind::SEQUENCE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool Type::value_is_object(llvm::Value &value) {
+  if (not isa<llvm::PointerType>(value.getType())) {
+    return false;
+  }
+
+  if (not isa<llvm::Instruction>(&value) and not isa<llvm::Argument>(&value)) {
+    return false;
+  }
+
+  return isa_and_nonnull<ObjectType>(type_of(value));
 }
 
 bool Type::value_is_collection_type(llvm::Value &value) {
@@ -380,13 +359,13 @@ bool Type::value_is_struct_type(llvm::Value &value) {
     return false;
   }
 
-  return isa_and_nonnull<StructType>(type_of(value));
+  return isa_and_nonnull<TupleType>(type_of(value));
 }
 
 /*
  * Abstract Type implementation
  */
-Type::Type(TypeCode code) : code(code) {
+Type::Type(TypeKind code) : code(code) {
   // Do nothing.
 }
 
@@ -400,19 +379,31 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Type &T) {
   return os;
 }
 
-opt<std::string> Type::get_code() const {
+Option<std::string> Type::get_code() const {
   return {};
 }
 
-TypeCode Type::getCode() const {
+TypeKind Type::getKind() const {
   return this->code;
+}
+
+llvm::Type *Type::get_llvm_type(llvm::LLVMContext &C) const {
+  return nullptr;
+}
+
+bool Type::operator==(const Type &other) const {
+  return this == &other;
+}
+
+bool Type::operator<=(const Type &other) const {
+  return this == &other;
 }
 
 /*
  * IntegerType implementation
  */
 IntegerType::IntegerType(unsigned bitwidth, bool is_signed)
-  : Type(TypeCode::INTEGER),
+  : Type(TypeKind::INTEGER),
     bitwidth(bitwidth),
     is_signed(is_signed) {
   // Do nothing.
@@ -428,7 +419,7 @@ bool IntegerType::isSigned() const {
 
 std::string IntegerType::toString(std::string indent) const {
   std::string str;
-  str = "(type: ";
+
   if (this->getBitWidth() == 1) {
     str += "bool";
   } else {
@@ -439,12 +430,11 @@ std::string IntegerType::toString(std::string indent) const {
     }
     str += std::to_string(this->getBitWidth());
   }
-  str += ")";
 
   return str;
 }
 
-opt<std::string> IntegerType::get_code() const {
+Option<std::string> IntegerType::get_code() const {
   std::string str;
   if (this->getBitWidth() == 1) {
     return "boolean";
@@ -454,87 +444,107 @@ opt<std::string> IntegerType::get_code() const {
   return str;
 }
 
+llvm::Type *IntegerType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::Type::getIntNTy(C, this->getBitWidth());
+}
+
 /*
  * FloatType implementation
  */
-FloatType::FloatType() : Type(TypeCode::FLOAT) {
+FloatType::FloatType() : Type(TypeKind::FLOAT) {
   // Do nothing.
 }
 
 std::string FloatType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: f32)";
+  str = "f32";
 
   return str;
 }
 
-opt<std::string> FloatType::get_code() const {
+Option<std::string> FloatType::get_code() const {
   return "f32";
+}
+
+llvm::Type *FloatType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::Type::getFloatTy(C);
 }
 
 /*
  * DoubleType implementation
  */
-DoubleType::DoubleType() : Type(TypeCode::DOUBLE) {
+DoubleType::DoubleType() : Type(TypeKind::DOUBLE) {
   // Do nothing.
 }
 
 std::string DoubleType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: f64)";
+  str = "f64";
 
   return str;
 }
 
-opt<std::string> DoubleType::get_code() const {
+Option<std::string> DoubleType::get_code() const {
   return "f64";
+}
+
+llvm::Type *DoubleType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::Type::getDoubleTy(C);
 }
 
 /*
  * PointerType implementation
  */
-PointerType::PointerType() : Type(TypeCode::POINTER) {
+PointerType::PointerType() : Type(TypeKind::POINTER) {
   // Do nothing.
 }
 
 std::string PointerType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: ptr)";
+  str = "ptr";
 
   return str;
 }
 
-opt<std::string> PointerType::get_code() const {
+Option<std::string> PointerType::get_code() const {
   return "ptr";
+}
+
+llvm::Type *PointerType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::PointerType::get(C, 0);
 }
 
 /*
  * VoidType implementation
  */
-VoidType::VoidType() : Type(TypeCode::VOID) {
+VoidType::VoidType() : Type(TypeKind::VOID) {
   // Do nothing.
 }
 
 std::string VoidType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: void)";
+  str = "void";
 
   return str;
 }
 
-opt<std::string> VoidType::get_code() const {
+Option<std::string> VoidType::get_code() const {
   return "void";
+}
+
+llvm::Type *VoidType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::Type::getVoidTy(C);
 }
 
 /*
  * ReferenceType implementation
  */
 ReferenceType::ReferenceType(Type &referenced_type)
-  : Type(TypeCode::REFERENCE),
+  : Type(TypeKind::REFERENCE),
     referenced_type(referenced_type) {
   // Do nothing.
 }
@@ -546,13 +556,12 @@ Type &ReferenceType::getReferencedType() const {
 std::string ReferenceType::toString(std::string indent) const {
   std::string str;
 
-  str =
-      "(type: ref " + this->getReferencedType().toString("            ") + ")";
+  str = "&" + this->getReferencedType().toString();
 
   return str;
 }
 
-opt<std::string> ReferenceType::get_code() const {
+Option<std::string> ReferenceType::get_code() const {
   auto ref_code = this->getReferencedType().get_code();
   if (!ref_code) {
     return {};
@@ -560,177 +569,125 @@ opt<std::string> ReferenceType::get_code() const {
   return *ref_code + "_ref";
 }
 
+llvm::Type *ReferenceType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::PointerType::get(C, 0);
+}
+
 /*
- * StructType implementation
+ * ObjectType implementation
  */
-StructType::StructType(DefineStructTypeInst &definition,
-                       std::string name,
-                       vector<Type *> field_types)
-  : Type(TypeCode::STRUCT),
-    definition(definition),
-    name(name),
-    field_types(field_types) {
+ObjectType::ObjectType(TypeKind kind) : Type(kind) {}
+
+/*
+ * TupleType implementation
+ */
+TupleType::TupleType(llvm::ArrayRef<Type *> fields)
+  : ObjectType(TypeKind::TUPLE),
+    field_types(fields) {
   // Do nothing.
 }
 
-DefineStructTypeInst &StructType::getDefinition() const {
-  return this->definition;
-}
-
-std::string StructType::getName() const {
-  return this->name;
-}
-
-unsigned StructType::getNumFields() const {
+unsigned TupleType::getNumFields() const {
   return this->field_types.size();
 }
 
-Type &StructType::getFieldType(unsigned field_index) const {
-  MEMOIR_ASSERT(
-      (field_index < this->getNumFields()),
-      "Attempt to get length of out-of-range field index for struct type");
+Type &TupleType::getFieldType(unsigned field_index) const {
+  MEMOIR_ASSERT((field_index < this->getNumFields()),
+                "Out of range: field ",
+                field_index,
+                " >= ",
+                this->getNumFields(),
+                " in tuple type ",
+                *this);
 
   return *(this->field_types[field_index]);
 }
 
-std::string StructType::toString(std::string indent) const {
+llvm::ArrayRef<Type *> TupleType::fields() const {
+  return this->field_types;
+}
+
+std::string TupleType::toString(std::string indent) const {
   std::string str = "";
 
-  str += "(type: struct\n";
-  for (auto field_type : this->field_types) {
-    auto field_str = field_type->toString(indent + "  ");
-    str += indent + "  " + field_str + "\n";
+  str += "(";
+  bool first = true;
+  for (auto *field_type : this->fields()) {
+    if (not first) {
+      str += " ";
+    } else {
+      first = false;
+    }
+    str += field_type->toString();
   }
-  str += indent + ")";
+  str += ")";
 
   return str;
 }
 
-opt<std::string> StructType::get_code() const {
-  return this->getName();
+Option<std::string> TupleType::get_code() const {
+  std::string str = "T" + std::to_string(this->getNumFields());
+
+  for (auto *field_type : this->fields()) {
+    str += "_";
+    if (auto field_code = field_type->get_code()) {
+      str += field_code.value();
+    } else {
+      MEMOIR_UNREACHABLE("Unknown field code for type ", *field_type);
+    }
+  }
+
+  return str;
+}
+
+llvm::Type *TupleType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::PointerType::get(C, 0);
 }
 
 /*
  * Abstract CollectionType implementation
  */
-CollectionType::CollectionType(TypeCode code) : Type(code) {
+CollectionType::CollectionType(TypeKind code) : ObjectType(code) {
   // Do nothing.
 }
 
-opt<std::string> CollectionType::get_code() const {
+Option<std::string> CollectionType::get_code() const {
   return "collection";
 }
 
-/*
- * FieldArrayType implementation
- */
-FieldArrayType::FieldArrayType(StructType &struct_type, unsigned field_index)
-  : CollectionType(TypeCode::FIELD_ARRAY),
-    struct_type(struct_type),
-    field_index(field_index) {
-  // Do nothing.
+Option<std::string> CollectionType::get_selection() const {
+  return {};
 }
 
-Type &FieldArrayType::getElementType() const {
-  return this->getStructType().getFieldType(this->getFieldIndex());
+CollectionType &CollectionType::set_selection(Option<std::string> selection) {
+  return *this;
 }
 
-StructType &FieldArrayType::getStructType() const {
-  return this->struct_type;
-}
-
-unsigned FieldArrayType::getFieldIndex() const {
-  return this->field_index;
-}
-
-std::string FieldArrayType::toString(std::string indent) const {
-  std::string str = "";
-
-  str += "(type: field array\n";
-  str += indent + "  struct type: \n";
-  str += indent + "    " + this->getStructType().toString(indent + "    ");
-  str += "\n";
-  str += indent + "  field index: \n";
-  str += indent + "    " + std::to_string(this->getFieldIndex());
-  str += "\n";
-  str += indent + ")\n";
-
-  return str;
+llvm::Type *CollectionType::get_llvm_type(llvm::LLVMContext &C) const {
+  return llvm::PointerType::get(C, 0);
 }
 
 /*
- * StaticTensorType implementation
+ * ArrayType implementation
  */
-StaticTensorType::StaticTensorType(Type &element_type,
-                                   unsigned number_of_dimensions,
-                                   vector<size_t> length_of_dimensions)
-  : CollectionType(TypeCode::STATIC_TENSOR),
+ArrayType::ArrayType(Type &element_type, size_t length)
+  : CollectionType(TypeKind::ARRAY),
     element_type(element_type),
-    number_of_dimensions(number_of_dimensions),
-    length_of_dimensions(length_of_dimensions) {
-  // Do nothing.
-}
+    length(length) {}
 
-Type &StaticTensorType::getElementType() const {
+Type &ArrayType::getElementType() const {
   return this->element_type;
 }
 
-unsigned StaticTensorType::getNumberOfDimensions() const {
-  return this->number_of_dimensions;
+size_t ArrayType::getLength() const {
+  return this->length;
 }
 
-size_t StaticTensorType::getLengthOfDimension(unsigned dimension_index) const {
-  MEMOIR_ASSERT(
-      (dimension_index < this->getNumberOfDimensions()),
-      "Attempt to get length of out-of-range dimension index for static tensor type");
-
-  return this->length_of_dimensions.at(dimension_index);
-}
-
-std::string StaticTensorType::toString(std::string indent) const {
+std::string ArrayType::toString(std::string indent) const {
   std::string str;
 
-  str = "(type: static tensor\n";
-  str += indent + "  element type: \n";
-  str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
-  str += indent + "  # of dimensions: "
-         + std::to_string(this->getNumberOfDimensions()) + "\n";
-  for (size_t dim = 0; dim < this->length_of_dimensions.size(); dim++) {
-    str += indent + "  dimension " + std::to_string(dim) + ": "
-           + std::to_string(this->length_of_dimensions.at(dim)) + "\n";
-  }
-  str += indent + ")";
-
-  return str;
-}
-
-/*
- * TensorType implementation
- */
-TensorType::TensorType(Type &element_type, unsigned number_of_dimensions)
-  : CollectionType(TypeCode::TENSOR),
-    element_type(element_type),
-    number_of_dimensions(number_of_dimensions) {
-  // Do nothing.
-}
-
-Type &TensorType::getElementType() const {
-  return this->element_type;
-}
-
-unsigned TensorType::getNumberOfDimensions() const {
-  return this->number_of_dimensions;
-}
-
-std::string TensorType::toString(std::string indent) const {
-  std::string str;
-
-  str = "(type: tensor\n";
-  str += indent + "  element type: \n";
-  str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
-  str += indent + "  # of dimensions: "
-         + std::to_string(this->getNumberOfDimensions()) + "\n";
-  str += indent + ")";
+  str = "[" + this->element_type.toString(indent) + ";"
+        + std::to_string(this->length) + "]";
 
   return str;
 }
@@ -738,10 +695,13 @@ std::string TensorType::toString(std::string indent) const {
 /*
  * AssocArrayType implementation
  */
-AssocArrayType::AssocArrayType(Type &key_type, Type &value_type)
-  : CollectionType(TypeCode::ASSOC_ARRAY),
+AssocArrayType::AssocArrayType(Type &key_type,
+                               Type &value_type,
+                               Option<std::string> selection)
+  : CollectionType(TypeKind::ASSOC_ARRAY),
     key_type(key_type),
-    value_type(value_type) {
+    value_type(value_type),
+    selection(selection) {
   // Do nothing.
 }
 
@@ -758,24 +718,63 @@ Type &AssocArrayType::getElementType() const {
 }
 
 std::string AssocArrayType::toString(std::string indent) const {
-  std::string str;
+  std::string str = "";
 
-  str = "(type: associative array\n";
-  str += indent + "  key type: \n";
-  str += indent + "    " + this->key_type.toString(indent + "    ") + "\n";
-  str += indent + "  value type: \n";
-  str += indent + "    " + this->value_type.toString(indent + "    ") + "\n";
-  str += indent + ")";
+  bool is_set = isa<VoidType>(&this->getValueType());
+
+  if (is_set)
+    str += "Set";
+  else
+    str += "Map";
+
+  if (auto selection = this->get_selection()) {
+    str += "{" + selection.value() + "}";
+  }
+  str += "<" + this->key_type.toString(indent);
+  if (not is_set)
+    str += ", " + this->value_type.toString(indent);
+  str += ">";
 
   return str;
+}
+
+Option<std::string> AssocArrayType::get_code() const {
+  return this->get_selection().value_or("Assoc") + "_"
+         + this->getKeyType().get_code().value() + "_"
+         + this->getValueType().get_code().value();
+}
+
+Option<std::string> AssocArrayType::get_selection() const {
+  return this->selection;
+}
+
+CollectionType &AssocArrayType::set_selection(Option<std::string> selection) {
+  return AssocArrayType::get(this->getKeyType(),
+                             this->getValueType(),
+                             selection);
+}
+
+bool AssocArrayType::operator<=(const Type &other) const {
+  if (this == &other) {
+    return true;
+  }
+
+  const auto *other_assoc = dyn_cast<AssocArrayType>(&other);
+  if (not other_assoc) {
+    return false;
+  }
+
+  return this->getKeyType() <= other_assoc->getKeyType()
+         and this->getValueType() <= other_assoc->getValueType();
 }
 
 /*
  * SequenceType implementation
  */
-SequenceType::SequenceType(Type &element_type)
-  : CollectionType(TypeCode::SEQUENCE),
-    element_type(element_type) {
+SequenceType::SequenceType(Type &element_type, Option<std::string> selection)
+  : CollectionType(TypeKind::SEQUENCE),
+    element_type(element_type),
+    selection(selection) {
   // Do nothing.
 }
 
@@ -784,14 +783,98 @@ Type &SequenceType::getElementType() const {
 }
 
 std::string SequenceType::toString(std::string indent) const {
-  std::string str;
+  std::string str = "Seq";
 
-  str = "(type: sequence\n";
-  str += indent + "  element type: \n";
-  str += indent + "    " + this->element_type.toString(indent + "    ") + "\n";
-  str += indent + ")";
+  if (auto selection = this->get_selection()) {
+    str += "{" + selection.value() + "}";
+  }
+
+  str += "<" + this->element_type.toString() + ">";
 
   return str;
+}
+
+Option<std::string> SequenceType::get_code() const {
+  return this->get_selection().value_or("Seq") + "_"
+         + this->getElementType().get_code().value();
+}
+
+Option<std::string> SequenceType::get_selection() const {
+  return this->selection;
+}
+
+CollectionType &SequenceType::set_selection(Option<std::string> selection) {
+  return SequenceType::get(this->getElementType(), selection);
+}
+
+bool SequenceType::operator<=(const Type &other) const {
+  if (this == &other) {
+    return true;
+  }
+
+  const auto *other_seq = dyn_cast<SequenceType>(&other);
+  if (not other_seq) {
+    return false;
+  }
+
+  return this->getElementType() <= other_seq->getElementType();
+}
+
+// Decoding.
+Type &Type::from_code(std::string code) {
+  if (code[0] == 'u') {
+    auto bitwidth = std::atoi(&code.c_str()[1]);
+    switch (bitwidth) {
+      case 64:
+        return Type::get_u64_type();
+      case 32:
+        return Type::get_u32_type();
+      case 16:
+        return Type::get_u16_type();
+      case 8:
+        return Type::get_u8_type();
+      case 2:
+        return Type::get_u2_type();
+    }
+  } else if (code[0] == 'i') {
+    auto bitwidth = std::atoi(&code.c_str()[1]);
+    switch (bitwidth) {
+      case 64:
+        return Type::get_i64_type();
+      case 32:
+        return Type::get_i32_type();
+      case 16:
+        return Type::get_i16_type();
+      case 8:
+        return Type::get_i8_type();
+    }
+  }
+
+  if (code == "f64") {
+    return DoubleType::get();
+  } else if (code == "f32") {
+    return FloatType::get();
+  } else if (code == "ptr") {
+    return PointerType::get();
+  } else if (code == "boolean") {
+    return Type::get_bool_type();
+  } else if (code == "void") {
+    return Type::get_void_type();
+  }
+
+  // Handle reference types.
+  std::string suffix = "_ref";
+  if (code.length() > suffix.length()
+      and std::equal(suffix.rbegin(), suffix.rend(), code.rbegin())) {
+    std::string referenced_code(code, 0, code.length() - suffix.length());
+    return ReferenceType::get(Type::from_code(referenced_code));
+  }
+
+  // TODO: Handle tuple types.
+
+  // TODO: Handle collection types.
+
+  MEMOIR_UNREACHABLE("Unknown type code");
 }
 
 } // namespace llvm::memoir
