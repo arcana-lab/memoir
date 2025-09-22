@@ -4,12 +4,32 @@
 #include <cstdint>
 #include <iterator>
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "llvm/Support/raw_ostream.h"
+
+#include "memoir/support/DataTypes.hpp"
 
 namespace llvm::memoir {
 
 template <typename T>
+struct LargerParent {
+  using Size = size_t;
+  bool operator()(T lhs, T rhs, Size lsize, Size rsize) {
+    return lsize < rsize;
+  }
+};
+
+template <typename T, typename Cmp = LargerParent<T>>
 struct UnionFind {
+protected:
+  using ParentMap = Map<T, T>;
+  using Iter = typename ParentMap::iterator;
+  using ConstIter = typename ParentMap::const_iterator;
+  using Size = size_t;
+  using SizeMap = Map<T, Size>;
+
+  ParentMap _parent;
+  SizeMap _size;
+
 public:
   void insert(T t) {
     auto found = this->_parent.find(t);
@@ -22,12 +42,11 @@ public:
     return;
   }
 
-  T find(T t) {
-    // If t has no parent, insert it.
+  Option<T> try_find(T t) {
+    // If t has no parent, return nullopt.
     auto found = this->_parent.find(t);
     if (found == this->_parent.end()) {
-      this->insert(t);
-      return t;
+      return {};
     }
 
     // If t is its own parent, return it.
@@ -45,34 +64,59 @@ public:
     return new_t;
   }
 
+  T find(T t) {
+
+    // Try to find the parent. If we succeed, return it.
+    if (auto found = this->try_find(t))
+      return found.value();
+
+    // If we couldn't find the parent, insert the item.
+    this->insert(t);
+    return t;
+  }
+
   T merge(T t, T u) {
     // Find t and u
     t = this->find(t);
     u = this->find(u);
 
     // If u.size > t.size, swap them
-    if (this->_size[u] > this->_size[t]) {
+    if (Cmp{}(t, u, this->size(t), this->size(u)))
       std::swap(t, u);
-    }
 
     // Merge u into t
-    this->_parent[u] = t;
-    this->_size[t] += this->_size[u];
+    this->parent(u) = t;
+    this->size(t) += this->size(u);
 
     // Return
     return t;
   }
 
-  typename map<T, T>::iterator begin() {
+  Iter begin() {
     this->reify();
     return this->_parent.begin();
   }
-  typename map<T, T>::iterator end() {
+  Iter end() {
     return this->_parent.end();
   }
 
-  size_t size() const {
+  ConstIter begin() const {
+    return this->_parent.begin();
+  }
+  ConstIter end() const {
+    return this->_parent.end();
+  }
+
+  Size size() const {
     return this->_parent.size();
+  }
+
+  Size &size(const T &t) {
+    return this->_size.at(t);
+  }
+
+  T &parent(const T &t) {
+    return this->_parent.at(t);
   }
 
   /**
@@ -86,9 +130,14 @@ public:
     return;
   }
 
-protected:
-  map<T, T> _parent;
-  map<T, size_t> _size;
+  void clear() {
+    this->_parent.clear();
+    this->_size.clear();
+  }
+
+  bool contains(const T &t) const {
+    return this->_parent.contains(t);
+  }
 };
 
 } // namespace llvm::memoir
