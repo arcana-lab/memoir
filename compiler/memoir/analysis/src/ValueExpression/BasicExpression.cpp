@@ -1,7 +1,7 @@
 #include "memoir/analysis/ValueExpression.hpp"
 
 #include "memoir/support/Assert.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
 /*
@@ -75,7 +75,7 @@ llvm::Value *BasicExpression::materialize(llvm::Instruction &IP,
   MemOIRBuilder local_builder(&IP);
 
   // Materialize the operands.
-  vector<llvm::Value *> materialized_operands = {};
+  Vector<llvm::Value *> materialized_operands = {};
   for (auto *operand_expr : this->arguments) {
     debugln("Materializing operand");
     debugln("  ", *operand_expr);
@@ -194,8 +194,8 @@ llvm::Value *ICmpExpression::materialize(llvm::Instruction &IP,
 // PHIExpression
 llvm::BasicBlock &PHIExpression::getIncomingBlock(unsigned index) const {
   if (this->phi != nullptr) {
-    return sanitize(this->phi->getIncomingBlock(index),
-                    "Couldn't get the incoming basic block");
+    return MEMOIR_SANITIZE(this->phi->getIncomingBlock(index),
+                           "Couldn't get the incoming basic block");
   }
 
   // Otherwise, get it from the vector.
@@ -274,8 +274,8 @@ llvm::Value *SelectExpression::materialize(llvm::Instruction &IP,
     if (this->isAvailable(*call_context, DT)) {
       // Materialize the value.
       auto &materialized_value =
-          sanitize(this->materialize(*call_context, builder, DT),
-                   "Could not materialize value at the call site");
+          MEMOIR_SANITIZE(this->materialize(*call_context, builder, DT),
+                          "Could not materialize value at the call site");
 
       debugln("materialized ", materialized_value);
 

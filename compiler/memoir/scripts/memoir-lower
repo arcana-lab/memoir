@@ -1,0 +1,51 @@
+#!/bin/bash -e
+
+function usage {
+    echo "This script will run MemOIR optimizations.";
+    echo "  USAGE: `basename $0` <INPUT FILE> -o <OUTPUT FILE> [<OPTIONS, ...>]"
+}
+
+function flags {
+    echo "  FLAGS:" 
+    echo "    -o,--output <FILENAME>" 
+    echo "      Specifies the output file" 
+}
+
+if [[ $# -lt 1 ]]; then
+    usage
+    exit 1
+fi
+
+PASSES=()
+ARGS=()
+while [[ $# -gt 0 ]] ;
+do
+    case $1 in
+        -h|--help)
+            usage
+            echo ""
+            flags
+            exit 1
+            ;;
+        --disable-folio)
+            DISABLE_FOLIO="y"
+            shift
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Run Folio.
+# TODO: make this load folio and add the pass.
+if [ -z ${DISABLE_FOLIO} ]
+then
+    memoir-load -load-pass-plugin=$(memoir-config --libdir)/folio.so -passes=folio-selection,lower-memoir ${ARGS[@]}
+else
+    memoir-load -passes=lower-memoir ${ARGS[@]}
+fi
+
+# Lower MEMOIR to LLVM.
+

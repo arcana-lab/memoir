@@ -55,7 +55,7 @@ RangeAnalysisDriver::RangeAnalysisDriver(llvm::Module &M,
 
 void RangeAnalysisDriver::propagate_range_to_uses(
     ValueRange &range,
-    const set<llvm::Use *> &uses) {
+    const Set<llvm::Use *> &uses) {
   for (auto *use : uses) {
     this->result.use_to_range[use] = &range;
   }
@@ -109,16 +109,42 @@ ValueRange &RangeAnalysisDriver::induction_variable_to_range(
 }
 
 static void add_index_use(
-    map<llvm::Value *, set<llvm::Use *>> &index_value_to_uses,
+    Map<llvm::Value *, Set<llvm::Use *>> &index_value_to_uses,
     llvm::Use &index_use) {
   index_value_to_uses[index_use.get()].insert(&index_use);
+}
+
+static void add_index_uses(
+    Map<llvm::Value *, Set<llvm::Use *>> &index_value_to_uses,
+    Type *type,
+    llvm::iterator_range<llvm::Use *> range) {
+
+  for (auto &index : range) {
+    if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+      if (auto *seq_type = dyn_cast<SequenceType>(collection_type)) {
+        add_index_use(index_value_to_uses, index);
+      }
+
+      type = &collection_type->getElementType();
+
+    } else if (auto *struct_type = dyn_cast<TupleType>(type)) {
+      auto &index_const =
+          MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index.get()),
+                          "Access with non-static field index");
+      auto field_index = index_const.getZExtValue();
+
+      type = &struct_type->getFieldType(field_index);
+    }
+  }
+
+  return;
 }
 
 bool RangeAnalysisDriver::analyze(llvm::Module &M,
                                   arcana::noelle::Noelle &noelle) {
 
   // Collect all index values used by memoir instructions.
-  map<llvm::Value *, set<llvm::Use *>> index_value_to_uses = {};
+  Map<llvm::Value *, Set<llvm::Use *>> index_value_to_uses = {};
   for (auto &F : M) {
     if (F.empty()) {
       continue;
@@ -131,47 +157,21 @@ bool RangeAnalysisDriver::analyze(llvm::Module &M,
           continue;
         }
 
-        if (auto *read_inst = dyn_cast<IndexReadInst>(memoir_inst)) {
-          for (unsigned dim_idx = 0;
-               dim_idx < read_inst->getNumberOfDimensions();
-               ++dim_idx) {
-            auto &index_use = read_inst->getIndexOfDimensionAsUse(dim_idx);
-            add_index_use(index_value_to_uses, index_use);
-          }
-        } else if (auto *write_inst = dyn_cast<IndexWriteInst>(memoir_inst)) {
-          for (unsigned dim_idx = 0;
-               dim_idx < write_inst->getNumberOfDimensions();
-               ++dim_idx) {
-            auto &index_use = write_inst->getIndexOfDimensionAsUse(dim_idx);
-            add_index_use(index_value_to_uses, index_use);
-          }
-        } else if (auto *get_inst = dyn_cast<IndexGetInst>(memoir_inst)) {
-          for (unsigned dim_idx = 0;
-               dim_idx < get_inst->getNumberOfDimensions();
-               ++dim_idx) {
-            auto &index_use = get_inst->getIndexOfDimensionAsUse(dim_idx);
-            add_index_use(index_value_to_uses, index_use);
-          }
-        } else if (auto *insert_inst = dyn_cast<SeqInsertInst>(memoir_inst)) {
-          add_index_use(index_value_to_uses,
-                        insert_inst->getInsertionPointAsUse());
+        if (auto *access = dyn_cast<AccessInst>(memoir_inst)) {
+          auto *type = &access->getObjectType();
+          add_index_uses(index_value_to_uses, type, access->index_operands());
 
-        } else if (auto *insert_seq_inst =
-                       dyn_cast<SeqInsertSeqInst>(memoir_inst)) {
-          auto &index_value_use = insert_seq_inst->getInsertionPointAsUse();
-          add_index_use(index_value_to_uses, index_value_use);
-        } else if (auto *remove_inst = dyn_cast<SeqRemoveInst>(memoir_inst)) {
-          add_index_use(index_value_to_uses, remove_inst->getBeginIndexAsUse());
-          add_index_use(index_value_to_uses, remove_inst->getEndIndexAsUse());
-          // } else if (auto *swap_inst = dyn_cast<SwapInst>(memoir_inst)) {
-          //   index_value_to_uses[&I].insert({
-          //   &swap_inst->getBeginIndexAsUse(),
-          //                                    &swap_inst->getEndIndexAsUse(),
-          //                                    &swap_inst->getToBeginIndexAsUse()
-          //                                    });
-        } else if (auto *copy_inst = dyn_cast<SeqCopyInst>(memoir_inst)) {
-          add_index_use(index_value_to_uses, copy_inst->getBeginIndexAsUse());
-          add_index_use(index_value_to_uses, copy_inst->getEndIndexAsUse());
+          for (auto keyword : access->keywords()) {
+            if (auto range_kw = try_cast<RangeKeyword>(keyword)) {
+              add_index_use(index_value_to_uses, range_kw->getBeginAsUse());
+              add_index_use(index_value_to_uses, range_kw->getEndAsUse());
+            } else if (auto input_kw = try_cast<InputKeyword>(keyword)) {
+              auto *type = type_of(input_kw->getInput());
+              add_index_uses(index_value_to_uses,
+                             type,
+                             input_kw->index_operands());
+            }
+          }
         }
       }
     }
@@ -210,7 +210,7 @@ bool RangeAnalysisDriver::analyze(llvm::Module &M,
       else if (auto *index_inst = dyn_cast<llvm::Instruction>(index_value)) {
         // Create a mapping from loop structures to induction variables that the
         // index instruction is involved in.
-        map<arcana::noelle::LoopStructure *, ValueRange *> loop_to_range = {};
+        Map<arcana::noelle::LoopStructure *, ValueRange *> loop_to_range = {};
         for (auto *loop : loops) {
           // Get the loop structure.
           auto &loop_structure =
@@ -271,7 +271,7 @@ bool RangeAnalysisDriver::analyze(llvm::Module &M,
   }
 
   return true;
-}
+} // namespace llvm::memoir
 
 ValueRange &RangeAnalysisDriver::create_value_range(ValueExpression &lower,
                                                     ValueExpression &upper) {

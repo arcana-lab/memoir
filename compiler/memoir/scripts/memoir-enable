@@ -1,0 +1,13 @@
+#!/bin/bash
+
+SOURCE=${BASH_SOURCE[0]}
+while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )
+  SOURCE=$(readlink "${SOURCE}")
+  # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+  [[ ${SOURCE} != /* ]] && SOURCE=$DIR/$SOURCE 
+done
+MEMOIR_HOME=$(realpath $( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..)
+
+export PATH=${MEMOIR_HOME}/bin:${PATH}
+export LD_LIBRARY_PATH=${MEMOIR_HOME}/lib:${LD_LIBRARY_PATH}

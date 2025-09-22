@@ -84,4 +84,3 @@ include_directories(
 
 # Build the compiler.
 add_subdirectory(memoir)
-add_subdirectory(folio)

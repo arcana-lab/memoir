@@ -1,0 +1,20 @@
+#!/bin/bash -e
+
+function usage {
+    echo "This script will normalize an LLVM program to be a MEMOIR program.";
+    echo "  USAGE: `basename $0` <INPUT FILE> -o <OUTPUT FILE> [<OPTIONS, ...>]"
+}
+
+function flags {
+    echo "  FLAGS:"
+    echo "    -h,--help              Display this help message."
+    echo "    -o,--output <filename> Specifies the output file."
+    echo "    --stats                Print statistics about the MEMOIR program."
+}
+
+if [[ $# -lt 1 ]]; then
+    usage
+    exit 1
+fi
+
+memoir-load -passes='raise-memoir' $@

@@ -1,5 +1,6 @@
 /* METADATA(ENUM, STR) */
 
 METADATA(MD_LIVE_OUT, "memoir.live-out", LiveOutMetadata)
+METADATA(MD_TEMP_ARGUMENT, "memoir.temp-argument", TempArgumentMetadata)
 
 #undef METADATA

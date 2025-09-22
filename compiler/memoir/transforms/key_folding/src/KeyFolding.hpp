@@ -16,7 +16,7 @@
 #include "memoir/ir/Instructions.hpp"
 
 #include "memoir/support/Assert.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"
@@ -50,9 +50,9 @@ protected:
 
   // Analysis Types.
   struct KeyFoldingInfo {
-    map<AssocArrayAllocInst *, CollectionAllocInst *> key_folds;
-    map<AssocArrayAllocInst *, map<AccessInst *, llvm::Use *>> assoc_accesses;
-    map<llvm::Use *, llvm::Value *> key_to_index;
+    Map<AssocArrayAllocInst *, CollectionAllocInst *> key_folds;
+    Map<AssocArrayAllocInst *, Map<AccessInst *, llvm::Use *>> assoc_accesses;
+    Map<llvm::Use *, llvm::Value *> key_to_index;
   };
 
   // Analysis Helpers.
@@ -83,8 +83,8 @@ protected:
     return false;
   }
 
-  static inline set<llvm::Value *> gather_returned_values(llvm::Function &F) {
-    set<llvm::Value *> returned_values = {};
+  static inline Set<llvm::Value *> gather_returned_values(llvm::Function &F) {
+    Set<llvm::Value *> returned_values = {};
 
     for (auto &BB : F) {
       auto *terminator = BB.getTerminator();
@@ -97,10 +97,10 @@ protected:
     return returned_values;
   }
 
-  static inline set<llvm::Value *> gather_possible_arguments(
+  static inline Set<llvm::Value *> gather_possible_arguments(
       llvm::Module &M,
       llvm::Argument &A) {
-    set<llvm::Value *> possible_arguments = {};
+    Set<llvm::Value *> possible_arguments = {};
 
     for (auto &F : M) {
       for (auto &BB : F) {
@@ -141,8 +141,8 @@ protected:
     auto &key_to_index = info.key_to_index;
 
     // Find all associative and sequential collection allocations.
-    map<AssocArrayAllocInst *, AssocArrayType *> assoc_allocations = {};
-    map<SequenceAllocInst *, SequenceType *> seq_allocations = {};
+    Map<AssocArrayAllocInst *, AssocArrayType *> assoc_allocations = {};
+    Map<SequenceAllocInst *, SequenceType *> seq_allocations = {};
 
     // For each function:
     for (auto &F : M) {
@@ -201,7 +201,7 @@ protected:
         continue;
       }
       auto &referenced_type = key_ref_type->getReferencedType();
-      auto *referenced_struct_type = dyn_cast<StructType>(&referenced_type);
+      auto *referenced_struct_type = dyn_cast<TupleType>(&referenced_type);
       if (referenced_struct_type == nullptr) {
         debugln("  key is not a struct reference");
         continue;
@@ -214,8 +214,8 @@ protected:
       // key value for each.
       auto &assoc_alloc_accesses = assoc_accesses[assoc_alloc];
 
-      set<llvm::Value *> visited = {};
-      vector<llvm::Value *> worklist = {};
+      Set<llvm::Value *> visited = {};
+      Vector<llvm::Value *> worklist = {};
       worklist.push_back(&llvm_assoc_alloc);
       while (!worklist.empty()) {
         // Pop an item of the worklist.
@@ -306,7 +306,7 @@ protected:
       // Next, we will check each of the keys used to access this collection to
       // see if it is _always_ derived from the same collection.
       bool unknown_behavior = false;
-      set<llvm::Value *> collections_accessed = {};
+      Set<llvm::Value *> collections_accessed = {};
       for (auto const &[assoc_access, assoc_key] : assoc_alloc_accesses) {
         // Check if the key is an instruction.
         auto *key_as_inst = dyn_cast<llvm::Instruction>(assoc_key->get());
@@ -322,7 +322,7 @@ protected:
           if (auto *key_as_index_get = dyn_cast<IndexGetInst>(key_as_memoir)) {
             // Fetch information from the IndexGetInst.
             auto &sequence_accessed = key_as_index_get->getObjectOperand();
-            auto &index_accessed = key_as_index_get->getIndexOfDimension(0);
+            auto &index_accessed = key_as_index_get->getIndex();
 
             // Record the sequence variable that was accessed along with the
             // key-to-index mapping.
@@ -366,7 +366,7 @@ protected:
       }
 
       // Check that all collections accessed _must_ be the same allocation.
-      set<CollectionAllocInst *> collections_referenced = {};
+      Set<CollectionAllocInst *> collections_referenced = {};
       visited.clear();
       worklist.clear();
       worklist.insert(worklist.end(),
@@ -395,7 +395,7 @@ protected:
                            dyn_cast<AssocArrayAllocInst>(memoir_inst)) {
               collections_referenced.insert(assoc_alloc);
             } else if (auto *use_phi = dyn_cast<UsePHIInst>(memoir_inst)) {
-              worklist.push_back(&use_phi->getUsedCollection());
+              worklist.push_back(&use_phi->getUsed());
             } else if (auto *def_phi = dyn_cast<DefPHIInst>(memoir_inst)) {
               worklist.push_back(&def_phi->getDefinedCollection());
             } else if (auto *seq_write_inst =
@@ -514,7 +514,7 @@ protected:
     bool transformed = false;
 
     // Stash for any instructions that will be removed by the transformation.
-    set<llvm::Instruction *> instructions_to_delete = {};
+    Set<llvm::Instruction *> instructions_to_delete = {};
 
     // For key-fold pair.
     for (auto const &[assoc_alloc, collection_alloc] : key_folds) {

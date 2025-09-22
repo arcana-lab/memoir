@@ -9,7 +9,7 @@
 
 #include "memoir/passes/Passes.hpp"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
@@ -51,7 +51,7 @@ public:
    *
    * @returns a reference to the set of live values
    */
-  set<llvm::Value *> live_values(MemOIRInst &I, bool after = true);
+  Set<llvm::Value *> live_values(MemOIRInst &I, bool after = true);
 
   /**
    * Get the set of live values at a given LLVM instruction.
@@ -62,7 +62,7 @@ public:
    *
    * @returns a reference to the set of live values
    */
-  set<llvm::Value *> live_values(llvm::Instruction &I, bool after = true);
+  Set<llvm::Value *> live_values(llvm::Instruction &I, bool after = true);
 
   /**
    * Get the set of live values along a control edge between two basic blocks.
@@ -72,7 +72,7 @@ public:
    *
    * @returns the set of live values
    */
-  set<llvm::Value *> live_values(llvm::BasicBlock &From, llvm::BasicBlock &To);
+  Set<llvm::Value *> live_values(llvm::BasicBlock &From, llvm::BasicBlock &To);
 
   /**
    * Get the underlying NOELLE data flow result.

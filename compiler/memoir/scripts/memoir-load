@@ -1,0 +1,38 @@
+#!/bin/bash -e
+SOURCE=${BASH_SOURCE[0]}
+while [ -L "${SOURCE}" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR=$( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )
+  SOURCE=$(readlink "${SOURCE}")
+  # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+  [[ ${SOURCE} != /* ]] && SOURCE=$DIR/$SOURCE 
+done
+MEMOIR_HOME=$(realpath $( cd -P "$( dirname "${SOURCE}" )" >/dev/null 2>&1 && pwd )/..)
+
+function usage {
+    echo "Invoke opt with memoir compiler libraries loaded."
+    echo "  USAGE: `basename 0` [--gdb] <OPT_ARGS>"
+}
+
+PREFIX=""
+ARGS=()
+while [[ $# -gt 0 ]] ;
+do
+    case $1 in
+        --gdb)
+            PREFIX="gdb --args"
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 1
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+LIB_DIR=${MEMOIR_HOME}/lib
+
+${PREFIX} opt -load-pass-plugin=${MEMOIR_HOME}/lib/Noelle.so -load-pass-plugin=${MEMOIR_HOME}/lib/memoir.so ${ARGS[@]}

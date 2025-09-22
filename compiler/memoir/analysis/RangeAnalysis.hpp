@@ -15,7 +15,7 @@
 
 #include "memoir/analysis/ValueExpression.hpp"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 /*
  * This file contains a Symbolic, Intraprocedural Range Analysis.
@@ -46,10 +46,10 @@ public:
 
 protected:
   // Owned state.
-  set<ValueRange *> ranges;
+  Set<ValueRange *> ranges;
 
   // Borrowed state.
-  map<llvm::Use *, ValueRange *> use_to_range;
+  Map<llvm::Use *, ValueRange *> use_to_range;
 };
 
 /**
@@ -73,7 +73,7 @@ public:
   ValueRange &get_value_range(llvm::Use &use);
 
 protected:
-  void propagate_range_to_uses(ValueRange &range, const set<llvm::Use *> &uses);
+  void propagate_range_to_uses(ValueRange &range, const Set<llvm::Use *> &uses);
 
   ValueRange &induction_variable_to_range(
       arcana::noelle::LoopGoverningInductionVariable &LGIV);

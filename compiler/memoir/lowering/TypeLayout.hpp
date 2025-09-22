@@ -3,7 +3,7 @@
 #pragma once
 
 #include "memoir/support/Assert.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
 #include "memoir/ir/TypeVisitor.hpp"
@@ -39,20 +39,20 @@ public:
       llvm_type(llvm_type) {}
   TypeLayout(IntegerType &memoir_integer_type,
              llvm::IntegerType &llvm_integer_type,
-             map<unsigned, pair<unsigned, unsigned>> bit_field_ranges)
+             Map<unsigned, Pair<unsigned, unsigned>> bit_field_ranges)
     : memoir_type(memoir_integer_type),
       llvm_type(llvm_integer_type),
       bit_field_ranges(bit_field_ranges) {}
-  TypeLayout(StructType &memoir_struct_type,
+  TypeLayout(TupleType &memoir_struct_type,
              llvm::StructType &llvm_struct_type,
-             vector<unsigned> field_offsets)
+             Vector<unsigned> field_offsets)
     : memoir_type(memoir_struct_type),
       llvm_type(llvm_struct_type),
       field_offsets(field_offsets) {}
-  TypeLayout(StructType &memoir_struct_type,
+  TypeLayout(TupleType &memoir_struct_type,
              llvm::StructType &llvm_struct_type,
-             vector<unsigned> field_offsets,
-             map<unsigned, pair<unsigned, unsigned>> bit_field_ranges)
+             Vector<unsigned> field_offsets,
+             Map<unsigned, Pair<unsigned, unsigned>> bit_field_ranges)
     : memoir_type(memoir_struct_type),
       llvm_type(llvm_struct_type),
       field_offsets(field_offsets),
@@ -80,7 +80,7 @@ public:
     return (this->bit_field_ranges.count(field_index) > 0);
   }
 
-  opt<pair<unsigned, unsigned>> get_bit_field_range(unsigned field_index) {
+  Option<Pair<unsigned, unsigned>> get_bit_field_range(unsigned field_index) {
     auto found_bit_field = this->bit_field_ranges.find(field_index);
 
     // If we found the field index, return its bit field range.
@@ -95,8 +95,8 @@ public:
 protected:
   Type &memoir_type;
   llvm::Type &llvm_type;
-  vector<unsigned> field_offsets;
-  map<unsigned, pair<unsigned, unsigned>> bit_field_ranges;
+  Vector<unsigned> field_offsets;
+  Map<unsigned, Pair<unsigned, unsigned>> bit_field_ranges;
 }; // struct TypeLayout
 
 class TypeConverter : public TypeVisitor<TypeConverter, TypeLayout &> {
@@ -238,23 +238,19 @@ protected:
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
 
-  TypeLayout &visitStaticTensorType(StaticTensorType &T) {
+  TypeLayout &visitArrayType(ArrayType &T) {
     CHECK_MEMOIZED(T);
 
     // Get the type layout of the element.
     auto &element_type = this->visit(T.getElementType());
 
-    // Get the dimension information.
-    auto num_dimensions = T.getNumberOfDimensions();
-    MEMOIR_ASSERT(
-        (num_dimensions == 1),
-        "Support for multidimensional static tensor types is unsupported");
-    auto num_elements = T.getLengthOfDimension(0);
+    // Get the length.
+    auto length = T.getLength();
 
     // Create the vector type.
     auto &llvm_type = MEMOIR_SANITIZE(
-        llvm::ArrayType::get(&element_type.get_llvm_type(), num_elements),
-        "Could not construct the llvm VectorType for StaticTensorType.");
+        llvm::ArrayType::get(&element_type.get_llvm_type(), length),
+        "Could not construct the llvm VectorType for ArrayType.");
 
     // Create the type layout.
     auto *type_layout = new TypeLayout(T, llvm_type);
@@ -262,30 +258,22 @@ protected:
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
 
-  TypeLayout &visitTensorType(TensorType &T) {
-    MEMOIR_UNREACHABLE("TensorType lowering is unimplemented.");
-  }
-
-  TypeLayout &visitFieldArrayType(FieldArrayType &T) {
-    MEMOIR_UNREACHABLE("FieldArrayType lowering is unimplemented.");
-  }
-
-  TypeLayout &visitStructType(StructType &T) {
+  TypeLayout &visitTupleType(TupleType &T) {
     CHECK_MEMOIZED(T);
 
     // Check if we already created the named type.
-    auto type_name = T.getName();
+    auto type_name = *T.get_code();
     auto llvm_struct_type_name = "memoir." + type_name;
 
     // Collection information about the struct type.
     auto num_fields = T.getNumFields();
 
-    // Construct the llvm StructType for the given type.
-    vector<unsigned> field_offsets;
+    // Construct the llvm TupleType for the given type.
+    Vector<unsigned> field_offsets;
     field_offsets.resize(num_fields);
-    vector<llvm::Type *> llvm_field_types;
+    Vector<llvm::Type *> llvm_field_types;
     llvm_field_types.reserve(num_fields);
-    map<unsigned, pair<unsigned, unsigned>> bit_field_ranges = {};
+    Map<unsigned, Pair<unsigned, unsigned>> bit_field_ranges = {};
 
     // Get the type layout of each field.
     unsigned current_field_width = 0;
@@ -387,7 +375,7 @@ protected:
         llvm::StructType::create(llvm::ArrayRef(llvm_field_types),
                                  llvm_struct_type_name,
                                  /* is packed? */ true),
-        "Could not create the LLVM StructType!");
+        "Could not create the LLVM TupleType!");
 
     // Create the type layout.
     auto *type_layout =
@@ -396,22 +384,21 @@ protected:
     MEMOIZE_AND_RETURN(T, *type_layout);
   }
 
-  TypeLayout &visitAssocArrayType(AssocArrayType &T) {
-    MEMOIR_UNREACHABLE("AssocArrayType is unimplemented!");
-    // CHECK_MEMOIZED(T);
+  TypeLayout &visitCollectionType(CollectionType &T) {
+    CHECK_MEMOIZED(T);
 
-    // MEMOIZE_AND_RETURN(T, llvm_type);
-  }
+    auto &ptr_type =
+        MEMOIR_SANITIZE(llvm::PointerType::get(this->C, /* AddressSpace = */ 0),
+                        "Failed to get LLVM pointer type!");
 
-  TypeLayout &visitSequenceType(SequenceType &T) {
-    MEMOIR_UNREACHABLE("SequenceType is unimplemented!");
-    // CHECK_MEMOIZED(T);
+    auto &type_layout = MEMOIR_SANITIZE(new TypeLayout(T, ptr_type),
+                                        "Failed to construct TypeLayout!");
 
-    // MEMOIZE_AND_RETURN(T, llvm_type);
+    MEMOIZE_AND_RETURN(T, type_layout);
   }
 
   // Owned state.
-  map<Type *, TypeLayout *> memoir_to_type_layout;
+  Map<Type *, TypeLayout *> memoir_to_type_layout;
 
   // Borrowed state.
   llvm::LLVMContext &C;
