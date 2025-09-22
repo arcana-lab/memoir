@@ -20,6 +20,7 @@
 #include <queue>
 #include <stack>
 #include <tuple>
+#include <variant>
 #include <vector>
 
 #include <functional>
@@ -30,6 +31,7 @@
 // LLVM Data types
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/MapVector.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace llvm::memoir {
@@ -38,7 +40,7 @@ namespace llvm::memoir {
  * We use references in all places where possible.
  */
 template <typename T>
-using opt = std::optional<T>;
+using Option = std::optional<T>;
 
 template <typename T>
 using ref = std::reference_wrapper<T>;
@@ -54,6 +56,9 @@ using shared = std::shared_ptr<T>;
 
 template <typename T>
 using weak = std::weak_ptr<T>;
+
+template <typename... Ts>
+using Union = std::variant<Ts...>;
 
 /*
  * Some utility types that let us unwrap the inner type from a
@@ -72,6 +77,24 @@ struct unwrap_ref<std::reference_wrapper<T>> {
 template <typename T>
 using unwrap_ref_type = typename unwrap_ref<T>::type;
 
+// Pair.
+template <typename T1, typename T2>
+using Pair = std::pair<T1, T2>;
+
+template <typename T1, typename T2>
+inline Pair<T1, T2> make_pair(T1 first, T2 second) {
+  return std::make_pair(first, second);
+}
+
+// Tuple
+template <typename... Ts>
+using Tuple = std::tuple<Ts...>;
+
+template <typename... Ts>
+inline Tuple<Ts...> make_tuple(Ts... args) {
+  return std::make_tuple<Ts...>(std::forward<Ts...>(args)...);
+}
+
 /*
  * Define the internal types used for debug vs release versions
  *
@@ -80,44 +103,48 @@ using unwrap_ref_type = typename unwrap_ref<T>::type;
  *   they are faster.
  */
 
+template <typename T, typename U>
 #if DEBUG
-template <typename T, typename U>
-using map = std::map<T, U, std::less<unwrap_ref_type<T>>>;
+using Map = std::map<T, U, std::less<unwrap_ref_type<T>>>;
 #else
-template <typename T, typename U>
-using map = std::unordered_map<T, U, std::hash<unwrap_ref_type<T>>>;
+using Map = std::unordered_map<T, U, std::hash<unwrap_ref_type<T>>>;
 #endif
 
-template <typename T, typename U>
-using ordered_map = std::map<T, U, std::less<unwrap_ref_type<T>>>;
+template <typename T, typename U, typename Cmp = std::less<T>>
+using OrderedMap = std::map<T, U, Cmp>;
 
+template <typename T>
 #if DEBUG
-template <typename T>
-using set = std::set<T, std::less<unwrap_ref_type<T>>>;
+using Set = std::set<T, std::less<T>>;
 #else
-template <typename T>
-using set = std::unordered_set<T, std::hash<unwrap_ref_type<T>>>;
+using Set = std::unordered_set<T, std::hash<unwrap_ref_type<T>>>;
 #endif
 
-template <typename T>
-using ordered_set = std::set<T, std::less<unwrap_ref_type<T>>>;
+template <typename T, typename Cmp = std::less<T>>
+using OrderedSet = std::set<T, Cmp>;
+
+template <typename T, unsigned N = 8, typename Cmp = std::less<T>>
+using SmallSet = llvm::SmallSet<T, N, Cmp>;
 
 #if DEBUG
 template <typename T, typename U>
-using multimap = std::multimap<T, U>;
+using MultiMap = std::multimap<T, U>;
 #else
 template <typename T, typename U>
-using multimap = std::unordered_multimap<T, U>;
+using MultiMap = std::unordered_multimap<T, U>;
 #endif
 
-template <typename T, typename U>
-using ordered_multimap = std::multimap<T, U>;
+template <typename T, typename U, typename Cmp = std::less<T>>
+using OrderedMultiMap = std::multimap<T, U, Cmp>;
 
-template <typename T, typename U>
+template <typename T, typename U, unsigned N = 8>
+using SmallMap = llvm::SmallMapVector<T, U, N>;
+
+template <typename T, typename TT, typename U, typename UU>
 inline typename std::multimap<T, U>::iterator insert_unique(
     std::multimap<T, U> &mmap,
-    const T &key,
-    const U &value) {
+    const TT &key,
+    const UU &value) {
   auto range = mmap.equal_range(key);
   for (auto it = range.first; it != range.second; ++it) {
     if (it->second == value) {
@@ -127,11 +154,11 @@ inline typename std::multimap<T, U>::iterator insert_unique(
   return mmap.insert(std::make_pair(key, value));
 }
 
-template <typename T, typename U>
+template <typename T, typename TT, typename U, typename UU>
 inline typename std::unordered_multimap<T, U>::iterator insert_unique(
     std::unordered_multimap<T, U> &mmap,
-    const T &key,
-    const U &value) {
+    const TT &key,
+    const UU &value) {
   auto range = mmap.equal_range(key);
   for (auto it = range.first; it != range.second; ++it) {
     if (it->second == value) {
@@ -143,44 +170,30 @@ inline typename std::unordered_multimap<T, U>::iterator insert_unique(
 
 #if DEBUG
 template <typename T>
-using multiset = std::multiset<T, std::less<unwrap_ref_type<T>>>;
+using MultiSet = std::multiset<T, std::less<unwrap_ref_type<T>>>;
 #else
 template <typename T>
-using multiset = std::unordered_multiset<T, std::hash<unwrap_ref_type<T>>>;
+using MultiSet = std::unordered_multiset<T, std::hash<unwrap_ref_type<T>>>;
 #endif
 
 template <typename T>
-using ordered_multiset = std::multiset<T, std::less<unwrap_ref_type<T>>>;
+using OrderedMultiSet = std::multiset<T, std::less<unwrap_ref_type<T>>>;
+
+// Sequences.
+template <typename T>
+using Vector = std::vector<T>;
 
 template <typename T>
-using vector = std::vector<T>;
+using List = std::list<T>;
 
 template <typename T>
-using list = std::list<T>;
+using Stack = std::stack<T>;
 
 template <typename T>
-using stack = std::stack<T>;
+using Queue = std::queue<T>;
 
 template <typename T>
-using queue = std::queue<T>;
-
-// Pair.
-template <typename T1, typename T2>
-using pair = std::pair<T1, T2>;
-
-template <typename T1, typename T2>
-inline pair<T1, T2> make_pair(T1 first, T2 second) {
-  return std::make_pair(first, second);
-}
-
-// Tuple
-template <typename... Ts>
-using tuple = std::tuple<Ts...>;
-
-template <typename... Ts>
-inline tuple<Ts...> make_tuple(Ts... args) {
-  return std::make_tuple<Ts...>(std::forward<Ts...>(args)...);
-}
+using SmallVector = llvm::SmallVector<T>;
 
 } // namespace llvm::memoir
 
