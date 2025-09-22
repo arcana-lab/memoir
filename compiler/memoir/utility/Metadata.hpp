@@ -2,6 +2,7 @@
 #define COMMON_METADATA_H
 #pragma once
 
+#include <iterator>
 #include <optional>
 #include <string>
 
@@ -11,11 +12,14 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/ir/Instructions.hpp"
+
+#include "memoir/support/DataTypes.hpp"
 
 namespace llvm::memoir {
 
 enum class MetadataKind {
+  MD_STRUCT_FIELDS,
 #define METADATA(ENUM, STR, CLASS) ENUM,
 #include "memoir/utility/Metadata.def"
   MD_NONE,
@@ -42,6 +46,26 @@ public:
 
   template <typename T>
   static bool remove(llvm::Instruction &I);
+
+  template <typename T>
+  static std::optional<T> get(MemOIRInst &I);
+
+  template <typename T>
+  static T get_or_add(MemOIRInst &I);
+
+  template <typename T>
+  static bool remove(MemOIRInst &I);
+
+  /**
+   * @return the metadata kind as a string.
+   */
+  template <typename T>
+  static std::string get_kind();
+
+  /**
+   * @returns the string held by the metadata
+   */
+  static std::string to_string(llvm::Metadata &metadata);
 
   // Constructor.
   Metadata(llvm::MDTuple &md) : md(&md) {}
@@ -76,6 +100,12 @@ public:
    * @param argument_number the argument number
    */
   void setArgNo(unsigned argument_number);
+};
+
+struct TempArgumentMetadata : public Metadata {
+public:
+  // Constructor.
+  TempArgumentMetadata(llvm::MDTuple &md) : Metadata(md) {}
 };
 
 } // namespace llvm::memoir

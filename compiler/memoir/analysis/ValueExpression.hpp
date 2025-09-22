@@ -14,7 +14,7 @@
 #include "memoir/ir/Builder.hpp"
 
 #include "memoir/support/Casting.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 
 /*
  * This file contains the Expression class for use in ValueNumbering as an
@@ -116,7 +116,7 @@ public:
   ExpressionKind EK;
   unsigned opcode;
   llvm::Value *value;
-  vector<ValueExpression *> arguments;
+  Vector<ValueExpression *> arguments;
   bool commutative;
   bool is_memoir;
 
@@ -235,7 +235,7 @@ public:
     : ValueExpression(EK, nullptr, opcode),
       I(nullptr) {}
   BasicExpression(unsigned opcode) : BasicExpression(EK_Basic, opcode) {}
-  BasicExpression(unsigned opcode, vector<ValueExpression *> operands)
+  BasicExpression(unsigned opcode, Vector<ValueExpression *> operands)
     : BasicExpression(EK_Basic, opcode) {
     this->arguments.reserve(operands.size());
     for (auto *operand : operands) {
@@ -244,7 +244,7 @@ public:
   }
   BasicExpression(unsigned opcode,
                   std::initializer_list<ValueExpression *> operands)
-    : BasicExpression(opcode, vector<ValueExpression *>(operands)) {}
+    : BasicExpression(opcode, Vector<ValueExpression *>(operands)) {}
 
   BasicExpression(ExpressionKind EK, llvm::Instruction &I)
     : ValueExpression(EK, &I, I.getOpcode()),
@@ -330,8 +330,8 @@ public:
 struct PHIExpression : public BasicExpression {
 public:
   PHIExpression(llvm::PHINode &phi) : BasicExpression(EK_PHI, phi), phi(&phi) {}
-  PHIExpression(vector<ValueExpression *> incoming_expressions,
-                vector<llvm::BasicBlock *> incoming_blocks)
+  PHIExpression(Vector<ValueExpression *> incoming_expressions,
+                Vector<llvm::BasicBlock *> incoming_blocks)
     : BasicExpression(EK_PHI),
       incoming_blocks(incoming_blocks) {
     // Add the incoming expressions to the expressio argument list.
@@ -359,7 +359,7 @@ public:
   llvm::PHINode *phi;
 
   // Unrealized
-  vector<llvm::BasicBlock *> incoming_blocks;
+  Vector<llvm::BasicBlock *> incoming_blocks;
 };
 
 struct SelectExpression : public BasicExpression {

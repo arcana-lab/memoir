@@ -25,3 +25,11 @@
   const llvm::MDOperand &CLASS::get##NAME##MDOperand() const {                 \
     return this->getMetadata().getOperand(OP_NUM);                             \
   }
+
+#define VAR_OPERAND(CLASS, NAME, OP_NUM)                                       \
+  llvm::Metadata &CLASS::get##NAME##MD(unsigned i) const {                     \
+    return *(this->get##NAME##MDOperand(i).get());                             \
+  }                                                                            \
+  const llvm::MDOperand &CLASS::get##NAME##MDOperand(unsigned i) const {       \
+    return this->getMetadata().getOperand(OP_NUM + i);                         \
+  }

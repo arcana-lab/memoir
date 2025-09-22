@@ -21,7 +21,7 @@
 #include "memoir/ir/Instructions.hpp"
 
 #include "memoir/support/Assert.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"
@@ -77,17 +77,7 @@ public:
     // Do nothing.
   }
 
-  void visitSequenceAllocInst(SequenceAllocInst &I) {
-    stats.inc_mut();
-    stats.inc_ssa();
-  }
-
-  void visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
-    stats.inc_mut();
-    stats.inc_ssa();
-  }
-
-  void visitTensorAllocInst(TensorAllocInst &I) {
+  void visitAllocInst(AllocInst &I) {
     stats.inc_mut();
     stats.inc_ssa();
   }
@@ -96,23 +86,11 @@ public:
     stats.inc_trivial_ssa();
   }
 
-  void visitDefPHIInst(DefPHIInst &I) {
-    stats.inc_trivial_ssa();
-  }
-
-  void visitArgPHIInst(ArgPHIInst &I) {
-    stats.inc_trivial_ssa();
-  }
-
   void visitRetPHIInst(RetPHIInst &I) {
     stats.inc_trivial_ssa();
   }
 
-  void visitIndexWriteInst(IndexWriteInst &I) {
-    stats.inc_trivial_ssa();
-  }
-
-  void visitAssocWriteInst(AssocWriteInst &I) {
+  void visitWriteInst(WriteInst &I) {
     stats.inc_trivial_ssa();
   }
 
@@ -128,20 +106,7 @@ public:
     stats.inc_mut();
   }
 
-  void visitSeqSwapInst(SeqSwapInst &I) {
-    stats.inc_ssa(2);
-  }
-
-  void visitSeqSwapWithin(SeqSwapWithinInst &I) {
-    stats.inc_ssa();
-  }
-
-  void visitAssocKeysInst(AssocKeysInst &I) {
-    stats.inc_mut();
-    stats.inc_ssa();
-  }
-
-  void visitMutSeqSplitInst(MutSeqSplitInst &I) {
+  void visitKeysInst(KeysInst &I) {
     stats.inc_mut();
     stats.inc_ssa();
   }

@@ -12,7 +12,7 @@
 #include "memoir/ir/Instructions.hpp"
 
 #include "memoir/support/Assert.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
 #include "memoir/utility/FunctionNames.hpp"
@@ -28,15 +28,15 @@
 namespace llvm::memoir {
 
 class DeadFieldElimination
-  : InstVisitor<DeadFieldElimination, set<llvm::Value *>> {
-  friend class InstVisitor<DeadFieldElimination, set<llvm::Value *>>;
-  friend class llvm::InstVisitor<DeadFieldElimination, set<llvm::Value *>>;
+  : InstVisitor<DeadFieldElimination, Set<llvm::Value *>> {
+  friend class InstVisitor<DeadFieldElimination, Set<llvm::Value *>>;
+  friend class llvm::InstVisitor<DeadFieldElimination, Set<llvm::Value *>>;
 
-  using FieldToAccessMapTy = map<unsigned, set<AccessInst *>>;
-  using LiveFieldMapTy = map<StructType *, FieldToAccessMapTy>;
-  using StructTypeSetTy = set<StructType *>;
-  using StructSetTy = set<llvm::Value *>;
-  using StructToTypeMapTy = map<StructType *, StructSetTy>;
+  using FieldToAccessMapTy = Map<unsigned, Set<AccessInst *>>;
+  using LiveFieldMapTy = Map<TupleType *, FieldToAccessMapTy>;
+  using TupleTypeSetTy = Set<TupleType *>;
+  using StructSetTy = Set<llvm::Value *>;
+  using StructToTypeMapTy = Map<TupleType *, StructSetTy>;
 
 public:
   bool transformed;
@@ -82,10 +82,10 @@ protected:
 
   static inline void analyze_value(llvm::Value &V,
                                    StructToTypeMapTy &structs_of_type,
-                                   StructTypeSetTy &escaped_types) {
+                                   TupleTypeSetTy &escaped_types) {
     // Get the type of this struct.
     auto *type = type_of(V);
-    auto *struct_type = dyn_cast_or_null<StructType>(type);
+    auto *struct_type = dyn_cast_or_null<TupleType>(type);
 
     if (struct_type == nullptr) {
       return;
@@ -112,7 +112,7 @@ protected:
 
     // Find all structs.
     StructToTypeMapTy structs_of_type = {};
-    StructTypeSetTy escaped_types = {};
+    TupleTypeSetTy escaped_types = {};
 
     // For each function:
     for (auto &F : M) {
@@ -202,7 +202,7 @@ protected:
   bool transform(LiveFieldMapTy &&live_fields) {
     bool transformed = false;
 
-    set<llvm::Instruction *> instructions_to_delete = {};
+    Set<llvm::Instruction *> instructions_to_delete = {};
 
     // For each struct type:
     for (auto const &[struct_type, field_index_to_accesses] : live_fields) {
@@ -210,12 +210,12 @@ protected:
 
       // Get the type definition as an instruction.
       auto &type_definition = struct_type->getDefinition();
-      set<unsigned> fields_to_remove = {};
+      Set<unsigned> fields_to_remove = {};
 
       // For each field in the struct definition:
       unsigned num_fields = struct_type->getNumFields();
       debugln(" # fields = ", num_fields);
-      vector<llvm::Value *> fields_after_removal; // this is in reverse order.
+      Vector<llvm::Value *> fields_after_removal; // this is in reverse order.
       fields_after_removal.reserve(num_fields + 2);
       for (int16_t field_idx = num_fields - 1; field_idx >= 0; field_idx--) {
 
@@ -306,7 +306,7 @@ protected:
         auto *new_type_definition = CallInst::Create(
             function_type,
             function,
-            vector<llvm::Value *>(fields_after_removal.rbegin(),
+            Vector<llvm::Value *>(fields_after_removal.rbegin(),
                                   fields_after_removal.rend()),
             /*NameStr=*/"dfe.",
             /*InsertBefore=*/&type_definition_as_call);

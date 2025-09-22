@@ -1,7 +1,7 @@
 #include "memoir/analysis/ValueExpression.hpp"
 
 #include "memoir/support/Assert.hpp"
-#include "memoir/support/InternalDatatypes.hpp"
+#include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
 
 namespace llvm::memoir {
@@ -76,8 +76,9 @@ llvm::Argument *ValueExpression::handleCallContext(
   auto *module = called_function->getParent();
 
   // Get information from the old function type.
-  auto &old_func_type = sanitize(called_function->getFunctionType(),
-                                 "Couldn't determine the old function type");
+  auto &old_func_type =
+      MEMOIR_SANITIZE(called_function->getFunctionType(),
+                      "Couldn't determine the old function type");
   auto *return_type = old_func_type.getReturnType();
   auto param_types = old_func_type.params().vec();
   auto is_var_arg = old_func_type.isVarArg();
@@ -131,7 +132,7 @@ llvm::Argument *ValueExpression::handleCallContext(
   // argument.
 
   // Grab the fixed argument list from the old call.
-  vector<llvm::Value *> new_arguments = {};
+  Vector<llvm::Value *> new_arguments = {};
   auto num_fixed_args = old_func_type.getNumParams();
   for (unsigned arg_idx = 0; arg_idx < num_fixed_args; arg_idx++) {
     auto *fixed_arg = call_context.getArgOperand(arg_idx);
@@ -166,8 +167,9 @@ llvm::Argument *ValueExpression::handleCallContext(
 
   // Get the new argument.
   auto *first_argument = new_function->arg_begin();
-  auto &materialized_argument = sanitize(first_argument + num_fixed_args,
-                                         "Could not get the new argument");
+  auto &materialized_argument =
+      MEMOIR_SANITIZE(first_argument + num_fixed_args,
+                      "Could not get the new argument");
 
   // Return the new argument.
   return &materialized_argument;

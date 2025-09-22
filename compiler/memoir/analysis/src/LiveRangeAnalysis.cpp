@@ -39,7 +39,7 @@ ValueRange *LiveRangeAnalysisResult::get_live_range(llvm::Value &V,
   return this->lookup_live_range(V, &C);
 }
 
-const map<llvm::Value *, map<llvm::CallBase *, ValueRange *>> &
+const Map<llvm::Value *, Map<llvm::CallBase *, ValueRange *>> &
 LiveRangeAnalysisResult::live_ranges() const {
   return this->_live_ranges;
 }
@@ -58,12 +58,12 @@ LiveRangeConstraintGraph LiveRangeAnalysisDriver::construct() {
 
     // For each sequence variable in the program, add it to the constraints
     // graph.
-    set<llvm::Instruction *> visited = {};
-    set<llvm::Instruction *> users_to_visit = {};
+    Set<llvm::Instruction *> visited = {};
+    Set<llvm::Instruction *> users_to_visit = {};
     for (auto &BB : F) {
       for (auto &I : BB) {
         if (isa_and_nonnull<SequenceType>(type_of(I))
-            || isa_and_nonnull<IndexReadInst>(into<MemOIRInst>(I))) {
+            || isa_and_nonnull<ReadInst>(into<MemOIRInst>(I))) {
 
           visited.insert(&I);
 

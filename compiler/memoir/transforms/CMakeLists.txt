@@ -17,23 +17,16 @@ endfunction()
 # Core.
 add_subdirectory(utilities)
 add_subdirectory(normalization)
-add_subdirectory(ssa_construction)
-add_subdirectory(ssa_destruction)
 
 # Utility passes.
 add_subdirectory(statistics)
+add_subdirectory(profile_accesses)
+add_subdirectory(temp_arg_reification)
+add_subdirectory(sweep_selections)
 
 # Transformation passes.
-add_subdirectory(dead_collection_elimination)
-add_subdirectory(dead_field_elimination)
-add_subdirectory(field_elision)
-add_subdirectory(key_folding)
-add_subdirectory(type_inference)
-add_subdirectory(dead_element_elimination)
-
-# Lowering passes.
-add_subdirectory(impl_linker)
-add_subdirectory(lower_fold)
-
-# Analysis passes.
-add_subdirectory(example)
+# add_subdirectory(dead_collection_elimination)
+# add_subdirectory(dead_field_elimination)
+# add_subdirectory(field_elision)
+# add_subdirectory(key_folding)
+# add_subdirectory(dead_element_elimination)

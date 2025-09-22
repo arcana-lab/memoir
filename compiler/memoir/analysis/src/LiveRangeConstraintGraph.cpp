@@ -1,8 +1,10 @@
-#include "memoir/analysis/LiveRangeAnalysis.hpp"
+#if 0
 
-#include "memoir/support/Assert.hpp"
-#include "memoir/support/Casting.hpp"
-#include "memoir/support/Print.hpp"
+#  include "memoir/analysis/LiveRangeAnalysis.hpp"
+
+#  include "memoir/support/Assert.hpp"
+#  include "memoir/support/Casting.hpp"
+#  include "memoir/support/Print.hpp"
 
 namespace llvm::memoir {
 
@@ -81,14 +83,9 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
     // For indexed operations, construct their indices as nodes in the graph and
     // the proper constraints edge.
     if (auto *read_inst = dyn_cast<IndexReadInst>(memoir_inst)) {
-      if (read_inst->getNumberOfDimensions() > 1) {
-        warnln(
-            "Live range analysis of multi-dimensional collections is unsupported!");
-        return;
-      }
 
       // Get the index use.
-      auto &index_use = read_inst->getIndexOfDimensionAsUse(0);
+      auto &index_use = read_inst->getIndexAsUse();
 
       // Fetch the index range.
       auto &index_range = RA.get_value_range(index_use);
@@ -103,7 +100,7 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
 
     } else if (auto *use_phi = dyn_cast<UsePHIInst>(memoir_inst)) {
       // Add an edge from this value to its sequence operand.
-      this->add_use_to_graph(use_phi->getUsedCollectionAsUse(),
+      this->add_use_to_graph(use_phi->getUsedAsUse(),
                              propagate_range);
 
     } else if (auto *write_inst = dyn_cast<IndexWriteInst>(memoir_inst)) {
@@ -112,14 +109,9 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
                              propagate_range);
 
     } else if (auto *get_inst = dyn_cast<IndexGetInst>(memoir_inst)) {
-      if (get_inst->getNumberOfDimensions() > 1) {
-        warnln(
-            "Live range analysis of multi-dimensional collections is unsupported!");
-        return;
-      }
 
       // Get the index use.
-      auto &index_use = get_inst->getIndexOfDimensionAsUse(0);
+      auto &index_use = get_inst->getIndexAsUse();
 
       // Fetch the index range.
       auto &index_range = RA.get_value_range(index_use);
@@ -222,6 +214,13 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
 
             return new ValueRange(*lower_inc, *upper_inc);
           });
+    } else if (auto *clear_inst = dyn_cast<ClearInst>(memoir_inst)) {
+      // Add edge for collection used.
+      this->add_use_to_graph(
+          clear_inst->getObjectAsUse(),
+          [](ValueRange *in) -> ValueRange * {
+            MEMOIR_UNREACHABLE("Clear constraint unimplemented!");
+          });
     }
   }
   // Handle LLVM instructions.
@@ -238,3 +237,5 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
 }
 
 } // namespace llvm::memoir
+
+#endif
