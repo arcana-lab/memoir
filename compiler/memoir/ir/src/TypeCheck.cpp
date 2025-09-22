@@ -12,10 +12,15 @@ Type *TypeChecker::type_of(MemOIRInst &I) {
 }
 
 Type *TypeChecker::type_of(llvm::Value &V) {
-  TypeChecker TA;
+  TypeChecker checker;
+
+  // Only type check LLVM pointers.
+  if (not isa<llvm::PointerType>(V.getType())) {
+    return nullptr;
+  }
 
   // Get the type of this value.
-  auto *type = TA.analyze(V);
+  auto *type = checker.analyze(V);
 
   // If the resulting type is NULL, return it.
   if (type == nullptr) {
@@ -60,8 +65,13 @@ Type *TypeChecker::visitArgument(llvm::Argument &A) {
     // complexity until it is needed.
   }
 
-  // Otherwise, we don't know the type of this argument!
-  return nullptr;
+  // Otherwise, we don't know the type of this argument.
+  // Create a type variable for it in case other local information can give us
+  // the information we need.
+  auto *type_var = &this->new_type_variable();
+  this->value_bindings[&A] = type_var;
+
+  return type_var;
 }
 
 // LLVM Instruction.
@@ -168,88 +178,78 @@ Type *TypeChecker::visitReferenceTypeInst(ReferenceTypeInst &I) {
   return &type;
 }
 
-Type *TypeChecker::visitDefineStructTypeInst(DefineStructTypeInst &I) {
+Type *TypeChecker::visitTupleTypeInst(TupleTypeInst &I) {
   // Get the types of each field.
-  vector<Type *> field_types;
-  for (unsigned field_idx = 0; field_idx < I.getNumberOfFields(); field_idx++) {
+  Vector<Type *> field_types;
+  for (unsigned field_idx = 0; field_idx < I.getNumberOfFields(); ++field_idx) {
     auto &field_type_value = I.getFieldTypeOperand(field_idx);
     auto *field_type = this->analyze(field_type_value);
     field_types.push_back(field_type);
   }
 
-  // Build the StructType
-  auto &type = StructType::define(I, I.getName(), field_types);
+  // Build the TupleType
+  auto &type = TupleType::get(field_types);
 
   return &type;
 }
 
-Type *TypeChecker::visitStructTypeInst(StructTypeInst &I) {
-  // Get all users of the given name.
-  auto &name_value = MEMOIR_SANITIZE(
-      I.getNameOperand().stripPointerCasts(),
-      "Could not get the name operand stripped of pointer casts");
+// Type *TypeChecker::visitDefineTypeInst(DefineTypeInst &I) {
+//   // Get the type being defined.
+//   auto &type = this->analyze(this->getTypeOperand());
 
-  set<DefineStructTypeInst *> call_inst_users = {};
-  for (auto *user : name_value.users()) {
+//   // Define the TupleType
+//   TupleType::define(I, I.getName(), type);
 
-    if (auto *type_def = into<DefineStructTypeInst>(user)) {
-      call_inst_users.insert(type_def);
-    } else if (auto *user_as_gep = dyn_cast<llvm::GetElementPtrInst>(user)) {
-      for (auto *gep_user : user_as_gep->users()) {
-        if (auto *type_def = into<DefineStructTypeInst>(gep_user)) {
-          call_inst_users.insert(type_def);
-        }
-      }
-    } else if (auto *user_as_gep = dyn_cast<llvm::ConstantExpr>(user)) {
-      for (auto *gep_user : user_as_gep->users()) {
-        if (auto *type_def = into<DefineStructTypeInst>(gep_user)) {
-          call_inst_users.insert(type_def);
-        }
-      }
-    }
-  }
+//   return &type;
+// }
 
-  // For each user, find the call to define the struct type.
-  for (auto *call : call_inst_users) {
-    auto *defined_type = this->visitDefineStructTypeInst(*call);
-    MEMOIR_NULL_CHECK(defined_type,
-                      "Could not determine the defined struct type");
-    return defined_type;
-  }
+// Type *TypeChecker::visitTupleTypeInst(TupleTypeInst &I) {
+//   // Get all users of the given name.
+//   auto &name_value = MEMOIR_SANITIZE(
+//       I.getNameOperand().stripPointerCasts(),
+//       "Could not get the name operand stripped of pointer casts");
 
-  MEMOIR_UNREACHABLE(
-      "Could not find a definition for the given struct type name");
-}
+//   Set<DefineTupleTypeInst *> call_inst_users = {};
+//   for (auto *user : name_value.users()) {
 
-Type *TypeChecker::visitStaticTensorTypeInst(StaticTensorTypeInst &I) {
-  // Get the length of dimensions.
-  auto num_dimensions = I.getNumberOfDimensions();
+//     if (auto *type_def = into<DefineTupleTypeInst>(user)) {
+//       call_inst_users.insert(type_def);
+//     } else if (auto *user_as_gep = dyn_cast<llvm::GetElementPtrInst>(user)) {
+//       for (auto *gep_user : user_as_gep->users()) {
+//         if (auto *type_def = into<DefineTupleTypeInst>(gep_user)) {
+//           call_inst_users.insert(type_def);
+//         }
+//       }
+//     } else if (auto *user_as_gep = dyn_cast<llvm::ConstantExpr>(user)) {
+//       for (auto *gep_user : user_as_gep->users()) {
+//         if (auto *type_def = into<DefineTupleTypeInst>(gep_user)) {
+//           call_inst_users.insert(type_def);
+//         }
+//       }
+//     }
+//   }
 
-  vector<size_t> length_of_dimensions;
-  length_of_dimensions.resize(num_dimensions);
+//   // For each user, find the call to define the struct type.
+//   for (auto *call : call_inst_users) {
+//     auto *defined_type = this->visitDefineTupleTypeInst(*call);
+//     MEMOIR_NULL_CHECK(defined_type,
+//                       "Could not determine the defined struct type");
+//     return defined_type;
+//   }
 
-  for (unsigned dim_idx = 0; dim_idx < num_dimensions; dim_idx++) {
-    length_of_dimensions[dim_idx] = I.getLengthOfDimension(dim_idx);
-  }
+//   MEMOIR_UNREACHABLE(
+//       "Could not find a definition for the given struct type name");
+// }
 
+Type *TypeChecker::visitArrayTypeInst(ArrayTypeInst &I) {
   // Get the element type.
-  auto &elem_type =
-      MEMOIR_SANITIZE(this->analyze(I.getElementTypeOperand()),
-                      "Could not determine element of StaticTensorType");
+  auto &elem_type = MEMOIR_SANITIZE(this->analyze(I.getElementTypeOperand()),
+                                    "Could not determine element of ArrayType");
+
+  auto length = I.getLength();
 
   // Build the new type.
-  auto &type = Type::get_static_tensor_type(elem_type, length_of_dimensions);
-
-  return &type;
-}
-
-Type *TypeChecker::visitTensorTypeInst(TensorTypeInst &I) {
-  auto &elem_type =
-      MEMOIR_SANITIZE(this->analyze(I.getElementOperand()),
-                      "Could not determine element of TensorType");
-
-  // Build the TensorType.
-  auto &type = Type::get_tensor_type(elem_type, I.getNumberOfDimensions());
+  auto &type = Type::get_array_type(elem_type, length);
 
   return &type;
 }
@@ -260,82 +260,40 @@ Type *TypeChecker::visitAssocArrayTypeInst(AssocArrayTypeInst &I) {
   auto &value_type = MEMOIR_SANITIZE(this->analyze(I.getValueOperand()),
                                      "Could not determine value of AssocType");
 
-  // Build the AssocArrayType.
-  auto &type = AssocArrayType::get(key_type, value_type);
+  if (auto selection_kw = I.get_keyword<SelectionKeyword>()) {
+    return &AssocArrayType::get(key_type,
+                                value_type,
+                                selection_kw->getSelection());
+  }
 
-  return &type;
+  return &AssocArrayType::get(key_type, value_type);
 }
 
 Type *TypeChecker::visitSequenceTypeInst(SequenceTypeInst &I) {
   auto &elem_type =
       MEMOIR_SANITIZE(this->analyze(I.getElementOperand()),
-                      "Could not determine element of SequenceType");
+                      "Could not determine element of SequenceType ",
+                      I.getElementOperand());
 
-  auto &type = SequenceType::get(elem_type);
+  if (auto selection_kw = I.get_keyword<SelectionKeyword>()) {
+    return &SequenceType::get(elem_type, selection_kw->getSelection());
+  }
 
-  return &type;
+  return &SequenceType::get(elem_type);
 }
 
 // Allocation instructions.
-Type *TypeChecker::visitStructAllocInst(StructAllocInst &I) {
-  // Get the struct type.
+Type *TypeChecker::visitAllocInst(AllocInst &I) {
   return this->analyze(I.getTypeOperand());
 }
 
-Type *TypeChecker::visitTensorAllocInst(TensorAllocInst &I) {
-
-  // Determine the element type.
-  auto &element_type =
-      MEMOIR_SANITIZE(this->analyze(I.getElementOperand()),
-                      "Could not find element type of TensorAlloc!");
-
-  // Build the TensorType.
-  auto &type = TensorType::get(element_type, I.getNumberOfDimensions());
-
-  return &type;
+// Access instructions.
+Type *TypeChecker::visitAccessInst(AccessInst &I) {
+  return &I.getElementType();
 }
 
-Type *TypeChecker::visitAssocArrayAllocInst(AssocArrayAllocInst &I) {
-  // Get the element types.
-  auto &key_type = MEMOIR_SANITIZE(this->analyze(I.getKeyOperand()),
-                                   "Could not find key type of AssocAlloc!");
-  auto &value_type =
-      MEMOIR_SANITIZE(this->analyze(I.getValueOperand()),
-                      "Could not find value type of AssocAlloc!");
-
-  // Create the sequence type.
-  auto &assoc_type = AssocArrayType::get(key_type, value_type);
-
-  return &assoc_type;
-}
-
-Type *TypeChecker::visitSequenceAllocInst(SequenceAllocInst &I) {
-  // Get the element type.
-  auto &elem_type =
-      MEMOIR_SANITIZE(this->analyze(I.getElementOperand()),
-                      "Could not determine SequenceAlloc element type!");
-
-  // Create the sequence type.
-  auto &seq_type = SequenceType::get(elem_type);
-
-  return &seq_type;
-}
-
-// Reference Read Instructions.
 Type *TypeChecker::visitReadInst(ReadInst &I) {
-
-  // Get the collection type being accessed.
-  auto *object_type = this->analyze(I.getObjectOperand());
-
-  // If we couldn't find the object type, return NULL.
-  if (object_type == nullptr) {
-    return nullptr;
-  }
-
-  auto &collection_type = *dyn_cast<CollectionType>(object_type);
-
-  // Return the element type, if it is a reference type.
-  auto &element_type = collection_type.getElementType();
+  auto &element_type = I.getElementType();
 
   // If the element type is a ReferenceType, unpack and return it.
   if (auto *ref_type = dyn_cast<ReferenceType>(&element_type)) {
@@ -346,150 +304,29 @@ Type *TypeChecker::visitReadInst(ReadInst &I) {
   return nullptr;
 }
 
-Type *TypeChecker::visitStructReadInst(StructReadInst &I) {
-  // Get the struct type.
-  auto *object_type = this->analyze(I.getObjectOperand());
-
-  if (object_type == nullptr) {
-    return nullptr;
-  }
-
-  auto &struct_type =
-      MEMOIR_SANITIZE(dyn_cast<StructType>(object_type),
-                      "StructReadInst is accessing a non-collection type!");
-
-  // Fetch the field information for the access.
-  auto field_index = I.getFieldIndex();
-
-  // Fetch the field type.
-  auto &field_type = struct_type.getFieldType(field_index);
-
-  // If the element type is a ReferenceType or a StructType, return it.
-  if (isa<StructType>(&field_type)) {
-    return &field_type;
-  } else if (auto *ref_type = dyn_cast<ReferenceType>(&field_type)) {
-    auto &referenced_type = ref_type->getReferencedType();
-    return &referenced_type;
-  }
-
-  // Otherwise, it is an LLVM type, return NULL.
-  return nullptr;
-}
-
-// Nested Access Instructions.
-Type *TypeChecker::visitGetInst(GetInst &I) {
-
-  // Get the type of collection being accessed.
-  auto *object_type = this->analyze(I.getObjectOperand());
-
-  if (object_type == nullptr) {
-    return nullptr;
-  }
-
-  auto &collection_type = *(dyn_cast<CollectionType>(object_type));
-
-  // Return the element type.
-  auto &element_type = collection_type.getElementType();
-  return &element_type;
-}
-
-Type *TypeChecker::visitStructGetInst(StructGetInst &I) {
-  // Get the struct type.
-  auto *object_type = this->analyze(I.getObjectOperand());
-
-  if (object_type == nullptr) {
-    return nullptr;
-  }
-
-  auto &struct_type =
-      MEMOIR_SANITIZE(dyn_cast<StructType>(object_type),
-                      "StructGetInst is accessing a non-collection type!");
-
-  // Fetch the field information for the access.
-  auto field_index = I.getFieldIndex();
-
-  // Fetch the field type.
-  auto &field_type = struct_type.getFieldType(field_index);
-
-  // If the element type is a ReferenceType or a StructType, return it.
-  if (isa<StructType>(&field_type)) {
-    return &field_type;
-  } else if (auto *ref_type = dyn_cast<ReferenceType>(&field_type)) {
-    auto &referenced_type = ref_type->getReferencedType();
-    return &referenced_type;
-  }
-
-  // Otherwise, it is an LLVM type, return NULL.
-  return nullptr;
-}
-
-// Write access instructions.
-Type *TypeChecker::visitWriteInst(WriteInst &I) {
-  return this->analyze(I.getObjectOperand());
-}
-
-// SSA Instructions
-Type *TypeChecker::visitUsePHIInst(UsePHIInst &I) {
-  return this->analyze(I.getUsedCollection());
-}
-
-Type *TypeChecker::visitDefPHIInst(DefPHIInst &I) {
-  return this->analyze(I.getDefinedCollection());
-}
-
-Type *TypeChecker::visitArgPHIInst(ArgPHIInst &I) {
-  return this->analyze(I.getInputCollection());
-}
-
-Type *TypeChecker::visitRetPHIInst(RetPHIInst &I) {
-  return this->analyze(I.getInputCollection());
-}
-
-// SSA collection operations.
-Type *TypeChecker::visitCopyInst(CopyInst &I) {
-  return this->analyze(I.getCopiedCollection());
-}
-
-Type *TypeChecker::visitInsertInst(InsertInst &I) {
-  return this->analyze(I.getBaseCollection());
-}
-
-Type *TypeChecker::visitRemoveInst(RemoveInst &I) {
-  return this->analyze(I.getBaseCollection());
-}
-
-Type *TypeChecker::visitSwapInst(SwapInst &I) {
-  return this->analyze(I.getFromCollection());
-}
-
-Type *TypeChecker::visitFoldInst(FoldInst &I) {
-  return this->analyze(I.getInitial());
-}
-
-// SSA assoc operations.
-Type *TypeChecker::visitAssocInsertInst(AssocInsertInst &I) {
-  return this->analyze(I.getBaseCollection());
-}
-
-Type *TypeChecker::visitAssocRemoveInst(AssocRemoveInst &I) {
-  return this->analyze(I.getBaseCollection());
-}
-
-Type *TypeChecker::visitAssocHasInst(AssocHasInst &I) {
+Type *TypeChecker::visitHasInst(HasInst &I) {
   // We _could_ use this opportunity to unify with an abstract assoc, but we
   // won't unless deemed necessary.
   return nullptr;
 }
 
-Type *TypeChecker::visitAssocKeysInst(AssocKeysInst &I) {
+// Update instructions.
+Type *TypeChecker::visitUpdateInst(UpdateInst &I) {
+  return this->analyze(I.getObject());
+}
 
-  // Get the incoming associative array type.
-  auto *input_type = this->analyze(I.getCollection());
+// SSA collection operations.
+Type *TypeChecker::visitFoldInst(FoldInst &I) {
+  return this->analyze(I.getInitial());
+}
+
+Type *TypeChecker::visitKeysInst(KeysInst &I) {
+  // Get the type of the inner referenced collection.
+  auto &inner_type = I.getElementType();
 
   // Cast it to an assoc type, if it is not one, error!
-  auto &assoc_type =
-      MEMOIR_SANITIZE(dyn_cast_or_null<AssocArrayType>(input_type),
-                      "AssocKeys used on non-assoc operand.");
+  auto &assoc_type = MEMOIR_SANITIZE(dyn_cast<AssocArrayType>(&inner_type),
+                                     "Keys used on non-assoc operand.");
 
   // Fetch the key type.
   auto &key_type = assoc_type.getKeyType();
@@ -498,6 +335,15 @@ Type *TypeChecker::visitAssocKeysInst(AssocKeysInst &I) {
   auto &seq_type = SequenceType::get(key_type);
 
   return &seq_type;
+}
+
+// SSA Instructions
+Type *TypeChecker::visitUsePHIInst(UsePHIInst &I) {
+  return this->analyze(I.getUsed());
+}
+
+Type *TypeChecker::visitRetPHIInst(RetPHIInst &I) {
+  return this->analyze(I.getInput());
 }
 
 // LLVM Instructions.
@@ -516,21 +362,27 @@ Type *TypeChecker::visitExtractValueInst(llvm::ExtractValueInst &I) {
 Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
   // If we have load instruction, trace back to its global variable and find the
   // original store to it.
-  auto *load_ptr = I.getPointerOperand();
-  auto *global = dyn_cast<llvm::GlobalVariable>(load_ptr->stripPointerCasts());
-
-  // If the load is not from a GlobalVariable, return NULL.
-  if (!global) {
-    return nullptr;
+  auto *ptr = I.getPointerOperand();
+  // See if the loaded value is used in any type assertions.
+  for (auto &use : I.uses()) {
+    if (auto *user_as_inst = dyn_cast<llvm::Instruction>(use.getUser())) {
+      if (auto *assert_type = into<AssertTypeInst>(user_as_inst)) {
+        if (&I == &assert_type->getObject()) {
+          return &assert_type->getType();
+        }
+      }
+    }
   }
 
-  // Find the original store for this global variable.
-  for (auto *user : global->users()) {
+  // Find any stores for this variable and unify based on them.
+  for (auto *user : ptr->users()) {
     if (auto *store_inst = dyn_cast<llvm::StoreInst>(user)) {
       auto *store_value = store_inst->getValueOperand();
 
       auto *stored_type = this->analyze(*store_value);
 
+      // TODO: we should unify here instead of taking the first result, but this
+      // will do fine for now.
       if (stored_type != nullptr) {
         return stored_type;
       }
@@ -542,7 +394,6 @@ Type *TypeChecker::visitLoadInst(llvm::LoadInst &I) {
 }
 
 Type *TypeChecker::visitPHINode(llvm::PHINode &I) {
-
   // Check that we have not already visited this PHI.
   auto found = value_bindings.find(&I);
   if (found != value_bindings.end()) {
@@ -551,8 +402,8 @@ Type *TypeChecker::visitPHINode(llvm::PHINode &I) {
   }
 
   // Create a type variable for the PHI node.
-  auto &phi_type = this->new_type_variable();
-  this->value_bindings[&I] = &phi_type;
+  auto *type_var = &this->new_type_variable();
+  this->value_bindings[&I] = type_var;
 
   // For each incoming value, visit it, and unify it with the PHI type.
   for (auto &incoming : I.incoming_values()) {
@@ -561,11 +412,12 @@ Type *TypeChecker::visitPHINode(llvm::PHINode &I) {
     auto *incoming_type = this->analyze(incoming_value);
 
     // Unify the PHI with the incoming type.
-    this->unify(&phi_type, incoming_type);
+    auto unified_type = this->unify(type_var, incoming_type);
+    MEMOIR_ASSERT(unified_type, "Failed to unify type of ", I);
   }
 
   // Find the resulting type of the PHI and return it.
-  return this->find(&phi_type);
+  return this->find(type_var);
 }
 
 Type *TypeChecker::visitLLVMCallInst(llvm::CallInst &I) {
@@ -605,11 +457,11 @@ Type *TypeChecker::visitLLVMCallInst(llvm::CallInst &I) {
 
 // Union-find
 TypeVariable &TypeChecker::new_type_variable() {
-  auto *typevar = new TypeVariable(this->current_id++);
+  auto &typevar = TypeVariable::get();
 
-  this->type_bindings[typevar] = typevar;
+  this->type_bindings[&typevar] = &typevar;
 
-  return *typevar;
+  return typevar;
 }
 
 Type *TypeChecker::find(Type *t) {
@@ -646,7 +498,7 @@ Type *TypeChecker::find(Type *t) {
   return new_parent;
 }
 
-Type *TypeChecker::unify(Type *t, Type *u) {
+Option<Type *> TypeChecker::unify(Type *t, Type *u) {
   // Find each type's equivalence class.
   t = this->find(t);
   u = this->find(u);
@@ -667,6 +519,8 @@ Type *TypeChecker::unify(Type *t, Type *u) {
       this->type_bindings[tvar] = u;
       return u;
     }
+  } else {
+    return u;
   }
 
   if (u != nullptr) {
@@ -674,11 +528,24 @@ Type *TypeChecker::unify(Type *t, Type *u) {
       this->type_bindings[uvar] = t;
       return t;
     }
+  } else {
+    return t;
   }
 
-  // If neither t nor u is a type variable, and they are not equal, we have a
-  // type error!
-  MEMOIR_UNREACHABLE("Unable to merge types!");
+  if (t) {
+    println("t = ", *t);
+  } else {
+    println("t = NULL");
+  }
+  if (u) {
+    println("u = ", *u);
+  } else {
+    println("u = NULL");
+  }
+
+  // If neither t nor u is a type variable, and they are not equal, we
+  // have a type error!
+  return {};
 }
 
 // Constructor
