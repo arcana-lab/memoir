@@ -52,8 +52,8 @@ protected:
 
 template <typename T>
 using ContextMapBase =
-    llvm::memoir::OrderedMultiMap<llvm::Function *,
-                                  llvm::memoir::Pair<llvm::CallBase *, T>>;
+    memoir::OrderedMultiMap<llvm::Function *,
+                            memoir::Pair<llvm::CallBase *, T>>;
 
 template <typename T>
 struct ContextMap : public ContextMapBase<T> {
@@ -75,7 +75,7 @@ struct ContextMap : public ContextMapBase<T> {
     // Otherwise, insert.
     it = this->Base::insert(
         it,
-        llvm::memoir::make_pair(func, llvm::memoir::make_pair(call, T())));
+        memoir::make_pair(func, memoir::make_pair(call, T())));
     auto &[_func, pair] = *it;
     return pair.second;
   }

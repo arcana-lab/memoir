@@ -8,7 +8,7 @@
 #include "folio/ProxyInsertion.hpp"
 #include "folio/Utilities.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 namespace folio {
 

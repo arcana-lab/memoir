@@ -9,7 +9,7 @@
 #include "folio/Benefit.hpp"
 #include "folio/Utilities.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 namespace folio {
 

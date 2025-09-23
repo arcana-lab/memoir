@@ -9,7 +9,7 @@
 namespace folio {
 
 using Offset = unsigned;
-using Offsets = typename llvm::memoir::SmallVector<Offset>;
+using Offsets = typename memoir::SmallVector<Offset>;
 
 struct NestedObject {
   // Accessors.

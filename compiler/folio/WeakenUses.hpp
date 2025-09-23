@@ -10,12 +10,11 @@
 
 namespace folio {
 
-void weaken_uses(
-    llvm::memoir::Set<llvm::Use *> &to_addkey,
-    llvm::memoir::Set<llvm::Use *> &to_weaken,
-    Candidate &candidate,
-    std::function<llvm::memoir::BoundsCheckResult &(llvm::Function &)>
-        get_bound_checks);
+void weaken_uses(memoir::Set<llvm::Use *> &to_addkey,
+                 memoir::Set<llvm::Use *> &to_weaken,
+                 Candidate &candidate,
+                 std::function<memoir::BoundsCheckResult &(llvm::Function &)>
+                     get_bound_checks);
 
 }
 

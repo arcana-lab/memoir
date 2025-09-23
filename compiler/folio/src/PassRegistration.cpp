@@ -29,9 +29,9 @@ static auto adapt(T &&fp) {
 
 void folio_selection(llvm::ModulePassManager &MPM) {
   MPM.addPass(folio::FolioPass());
-  MPM.addPass(llvm::memoir::TempArgReificationPass());
+  MPM.addPass(memoir::TempArgReificationPass());
   MPM.addPass(adapt(llvm::PromotePass()));
-  MPM.addPass(adapt(llvm::memoir::DeadCodeEliminationPass()));
+  MPM.addPass(adapt(memoir::DeadCodeEliminationPass()));
   MPM.addPass(llvm::GlobalDCEPass());
 
   return;
@@ -55,9 +55,9 @@ llvmGetPassPluginInfo() {
                    }
 
                    if (name == "folio") {
-                     llvm::memoir::raise_memoir(MPM);
+                     memoir::raise_memoir(MPM);
                      folio_selection(MPM);
-                     llvm::memoir::lower_memoir(MPM);
+                     memoir::lower_memoir(MPM);
                      return true;
                    }
 

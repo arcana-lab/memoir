@@ -17,9 +17,9 @@
 
 namespace folio {
 
-using llvm::memoir::AllocInst;
-using llvm::memoir::Type;
-using Builder = typename llvm::memoir::MemOIRBuilder;
+using memoir::AllocInst;
+using memoir::Type;
+using Builder = typename memoir::MemOIRBuilder;
 
 struct ProxyInsertion {
 public:
@@ -27,7 +27,7 @@ public:
   using GetDominatorTree =
       std::function<llvm::DominatorTree &(llvm::Function &)>;
   using GetBoundsChecks =
-      std::function<llvm::memoir::BoundsCheckResult &(llvm::Function &)>;
+      std::function<memoir::BoundsCheckResult &(llvm::Function &)>;
   using Enumerated = Map<NestedObject, SmallSet<Candidate *, 1>>;
 
   struct TransformInfo {
@@ -78,8 +78,7 @@ protected:
 
   void unify_bases();
 
-  ObjectInfo *find_base_object(llvm::Value &V,
-                               llvm::memoir::AccessInst &access);
+  ObjectInfo *find_base_object(llvm::Value &V, memoir::AccessInst &access);
 
   llvm::Module &module;
   Vector<BaseObjectInfo> objects, propagators;

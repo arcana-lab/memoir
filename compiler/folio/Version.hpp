@@ -3,14 +3,13 @@
 
 namespace folio {
 
-struct Version : public llvm::memoir::Vector<Candidate *> {
-  using Base = llvm::memoir::Vector<Candidate *>;
+struct Version : public memoir::Vector<Candidate *> {
+  using Base = memoir::Vector<Candidate *>;
 
   llvm::Function *func;
   llvm::CallBase *call;
-  llvm::memoir::Map<llvm::CallBase *, llvm::memoir::Vector<Candidate *>>
-      callers;
-  llvm::memoir::Vector<llvm::GlobalVariable *> encoder_args, decoder_args;
+  memoir::Map<llvm::CallBase *, memoir::Vector<Candidate *>> callers;
+  memoir::Vector<llvm::GlobalVariable *> encoder_args, decoder_args;
 
   Version(llvm::Function *func, llvm::CallBase *call, size_t num_args)
     : Base(num_args, NULL),
@@ -21,7 +20,7 @@ struct Version : public llvm::memoir::Vector<Candidate *> {
       decoder_args(num_args, NULL) {}
 
   void add_caller(llvm::CallBase *call,
-                  const llvm::memoir::Vector<Candidate *> &alias) {
+                  const memoir::Vector<Candidate *> &alias) {
     if (call) {
       this->callers[call] = alias;
     }

@@ -15,23 +15,23 @@
 namespace folio {
 
 // Using memoir types.
-using llvm::memoir::List;
-using llvm::memoir::Map;
-using llvm::memoir::Option;
-using llvm::memoir::OrderedSet;
-using llvm::memoir::Pair;
-using llvm::memoir::Set;
-using llvm::memoir::SmallSet;
-using llvm::memoir::SmallVector;
-using llvm::memoir::UnionFind;
-using llvm::memoir::Vector;
+using memoir::List;
+using memoir::Map;
+using memoir::Option;
+using memoir::OrderedSet;
+using memoir::Pair;
+using memoir::Set;
+using memoir::SmallSet;
+using memoir::SmallVector;
+using memoir::UnionFind;
+using memoir::Vector;
 
 // Helper types.
 template <typename T>
-using LocalMap = llvm::memoir::SmallMap<llvm::Value *, T, /* SmallSize = */ 2>;
+using LocalMap = memoir::SmallMap<llvm::Value *, T, /* SmallSize = */ 2>;
 
 template <typename T>
-using BaseMap = LocalMap<llvm::memoir::Set<T>>;
+using BaseMap = LocalMap<memoir::Set<T>>;
 
 // Helper functions.
 llvm::Function *parent_function(llvm::Value &V);
@@ -45,11 +45,10 @@ void erase_uses(Map<Key, Uses> &uses, const Set<llvm::Use *> &to_erase) {
 }
 
 uint32_t forward_analysis(
-    llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>>
-        &encoded);
+    memoir::Map<llvm::Function *, memoir::Set<llvm::Value *>> &encoded);
 
 bool is_last_index(llvm::Use *use,
-                   llvm::memoir::AccessInst::index_op_iterator index_end);
+                   memoir::AccessInst::index_op_iterator index_end);
 
 llvm::GlobalVariable &create_global_ptr(llvm::Module &module,
                                         const llvm::Twine &name = "",

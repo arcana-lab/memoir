@@ -6,7 +6,7 @@
 #include "folio/Candidate.hpp"
 #include "folio/Utilities.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 namespace folio {
 
@@ -28,13 +28,13 @@ Type &Candidate::key_type() const {
   return *this->_key_type;
 }
 
-llvm::memoir::Type &Candidate::encoder_type() const {
+memoir::Type &Candidate::encoder_type() const {
   auto &data_layout = this->module().getDataLayout();
   auto &size_type = Type::get_size_type(data_layout);
   return AssocType::get(this->key_type(), size_type);
 }
 
-llvm::memoir::Type &Candidate::decoder_type() const {
+memoir::Type &Candidate::decoder_type() const {
   return SequenceType::get(this->key_type());
 }
 

@@ -7,7 +7,7 @@
 
 #include "folio/Utilities.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 namespace folio {
 
@@ -34,8 +34,7 @@ void erase_uses(Set<llvm::Use *> &uses, const Set<llvm::Use *> &to_erase) {
 }
 
 uint32_t forward_analysis(
-    llvm::memoir::Map<llvm::Function *, llvm::memoir::Set<llvm::Value *>>
-        &encoded) {
+    memoir::Map<llvm::Function *, memoir::Set<llvm::Value *>> &encoded) {
 
   WorkList<llvm::Value *> worklist;
   for (auto &[func, values] : encoded)

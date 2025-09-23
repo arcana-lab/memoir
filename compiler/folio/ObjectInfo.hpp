@@ -15,10 +15,10 @@
 
 namespace folio {
 
-using llvm::memoir::Object;
-using llvm::memoir::Offset;
-using llvm::memoir::Offsets;
-using llvm::memoir::OffsetsRef;
+using memoir::Object;
+using memoir::Offset;
+using memoir::Offsets;
+using memoir::OffsetsRef;
 
 enum ObjectInfoKind { OIK_Base, OIK_Arg };
 
@@ -115,9 +115,9 @@ public:
 
 struct BaseObjectInfo : public ObjectInfo {
   /** Get the the base value of the object as an allocation. */
-  llvm::memoir::AllocInst &allocation() const;
+  memoir::AllocInst &allocation() const;
 
-  BaseObjectInfo(llvm::memoir::AllocInst &alloc, OffsetsRef offsets = {})
+  BaseObjectInfo(memoir::AllocInst &alloc, OffsetsRef offsets = {})
     : ObjectInfo(ObjectInfoKind::OIK_Base, alloc.asValue(), offsets) {}
 
   static bool classof(const ObjectInfo *obj) {

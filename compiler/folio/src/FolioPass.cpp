@@ -13,7 +13,7 @@
 #include "folio/ProxyInsertion.hpp"
 #include "folio/SelectionMonomorphization.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 namespace folio {
 
@@ -25,8 +25,9 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
   FetchAnalysis<llvm::DominatorTreeAnalysis, llvm::Function> get_dominator_tree{
     FAM
   };
-  FetchAnalysis<llvm::memoir::BoundsCheckAnalysis, llvm::Function>
-      get_bounds_checks{ FAM };
+  FetchAnalysis<memoir::BoundsCheckAnalysis, llvm::Function> get_bounds_checks{
+    FAM
+  };
 
   // Transform the program to Extended SSA form.
   {
@@ -44,7 +45,7 @@ llvm::PreservedAnalyses FolioPass::run(llvm::Module &M,
   }
 
   // Cleanup tempargs and stack variables.
-  { llvm::memoir::reify_tempargs(M); }
+  { memoir::reify_tempargs(M); }
 
   return llvm::PreservedAnalyses::none();
 }

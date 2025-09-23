@@ -8,7 +8,7 @@
 #include "folio/Utilities.hpp"
 #include "folio/WeakenUses.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 namespace folio {
 

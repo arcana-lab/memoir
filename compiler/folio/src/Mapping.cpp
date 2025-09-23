@@ -1,6 +1,6 @@
 #include "folio/Mapping.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 namespace folio {
 

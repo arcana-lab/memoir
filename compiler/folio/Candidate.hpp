@@ -17,13 +17,12 @@ namespace folio {
 
 struct Candidate : public Vector<ObjectInfo *> {
 protected:
-  llvm::memoir::Type *_key_type;
+  memoir::Type *_key_type;
 
 public:
   using Base = Vector<ObjectInfo *>;
 
-  Candidate(llvm::memoir::Type &key_type,
-            llvm::ArrayRef<ObjectInfo *> objects = {})
+  Candidate(memoir::Type &key_type, llvm::ArrayRef<ObjectInfo *> objects = {})
     : Base(objects.begin(), objects.end()),
       _key_type(&key_type) {}
 
@@ -31,9 +30,9 @@ public:
   llvm::Module &module() const;
   llvm::Function &function() const;
 
-  llvm::memoir::Type &key_type() const;
-  llvm::memoir::Type &encoder_type() const;
-  llvm::memoir::Type &decoder_type() const;
+  memoir::Type &key_type() const;
+  memoir::Type &encoder_type() const;
+  memoir::Type &decoder_type() const;
 
   // The uses prepared for transformation.
   Map<ObjectInfo *, Map<llvm::Function *, Set<llvm::Use *>>> to_decode,

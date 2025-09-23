@@ -2,7 +2,7 @@
 
 #include "folio/RedundantTranslations.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 namespace folio {
 

@@ -14,7 +14,7 @@
 // Folio
 #include "folio/SelectionMonomorphization.hpp"
 
-using namespace llvm::memoir;
+using namespace memoir;
 
 namespace folio {
 
