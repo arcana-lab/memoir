@@ -182,6 +182,17 @@ llvmGetPassPluginInfo() {
                      return true;
                    }
 
+                   if (name == "memoir-ade") {
+                     MPM.addPass(memoir::DataEnumerationPass());
+                     MPM.addPass(memoir::TempArgReificationPass());
+                     MPM.addPass(adapt_function(llvm::PromotePass()));
+                     MPM.addPass(
+                         adapt_function(memoir::DeadCodeEliminationPass()));
+                     MPM.addPass(llvm::GlobalDCEPass());
+
+                     return true;
+                   }
+
 #define MODULE_PASS(CLASS, NAME)                                               \
   if (name == NAME) {                                                          \
     MPM.addPass(CLASS());                                                      \

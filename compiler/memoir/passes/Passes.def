@@ -30,6 +30,7 @@ MODULE_PASS_(DeadFieldEliminationPass, "memoir-dfe")
 MODULE_PASS_(FieldElisionPass, "memoir-fe")
 MODULE_PASS_(KeyFoldingPass, "memoir-kf")
 MODULE_PASS_(DeadElementEliminationPass, "memoir-dee")
+MODULE_PASS_(DataEnumerationPass, "memoir-ade")
 
 MODULE_PASS_(ExamplePass, "memoir-example")
 
