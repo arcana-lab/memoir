@@ -467,10 +467,12 @@ void ProxyInsertion::share_proxies() {
         }
       }
 
-      debugln("SHAREABLE");
-      for (const auto &[other, _] : shareable)
-        debugln("  ", *other);
-      debugln();
+      {
+        debugln("SHAREABLE");
+        for (const auto &[other, _] : shareable)
+          debugln("  ", *other);
+        debugln();
+      }
 
       // Iterate until we can't find a new object to add to the candidate.
       bool fresh;
@@ -491,10 +493,13 @@ void ProxyInsertion::share_proxies() {
           this->flesh_out(candidate);
           auto new_heuristic = benefit(candidate);
           auto new_benefit = new_heuristic.benefit;
-          debugln("    NEW BENEFIT ", new_heuristic.benefit);
-          debugln("    SUM BENEFIT ", candidate.benefit + single_benefit);
-          debugln("     ADDED COST ", new_heuristic.cost);
-          debugln();
+
+          {
+            debugln("    NEW BENEFIT ", new_heuristic.benefit);
+            debugln("    SUM BENEFIT ", candidate.benefit + single_benefit);
+            debugln("     ADDED COST ", new_heuristic.cost);
+            debugln();
+          }
 
           if (new_benefit > (candidate.benefit + single_benefit)
               or new_heuristic.cost == 0) {
@@ -528,18 +533,20 @@ void ProxyInsertion::share_proxies() {
   for (auto &candidate : this->candidates)
     candidate.id = ++id;
 
-  debugln("=== CANDIDATES ===");
-  for (auto &candidate : this->candidates) {
-    debugln("CANDIDATE ", candidate.id);
-    debugln("  IN ", candidate.function().getName());
-    debugln("  TYPE ", candidate.key_type());
-    debugln("  BENEFIT=", candidate.benefit);
-    for (const auto *info : candidate) {
-      debugln("  ", *info);
+  {
+    debugln("=== CANDIDATES ===");
+    for (auto &candidate : this->candidates) {
+      debugln("CANDIDATE ", candidate.id);
+      debugln("  IN ", candidate.function().getName());
+      debugln("  TYPE ", candidate.key_type());
+      debugln("  BENEFIT=", candidate.benefit);
+      for (const auto *info : candidate) {
+        debugln("  ", *info);
+      }
+      debugln();
     }
     debugln();
   }
-  debugln();
 }
 
 void ProxyInsertion::unify_bases() {
@@ -569,11 +576,12 @@ void ProxyInsertion::unify_bases() {
       }
     }
 
-    // Debug print.
-    debugln(" >> INITIALIZED BASE OBJECTS << ");
-    for (const auto &[obj, _] : this->unified)
-      debugln("    ", *obj);
-    debugln();
+    { // Debug print.
+      debugln(" >> INITIALIZED BASE OBJECTS << ");
+      for (const auto &[obj, _] : this->unified)
+        debugln("    ", *obj);
+      debugln();
+    }
   }
 
   { // Unify arguments across candidate.
@@ -718,6 +726,18 @@ void ProxyInsertion::analyze() {
 
   // Use a heuristic to share proxies between collections.
   this->share_proxies();
+
+  // Emit remarks for each candidate.
+  for (auto &candidate : this->candidates) {
+    for (const auto *info : candidate) {
+      auto *base = dyn_cast<BaseObjectInfo>(info);
+      if (not base)
+        continue;
+      this->remark(&base->allocation().getCallInst(),
+                   "ADEEnumerated",
+                   "enumerated");
+    }
+  }
 
   // Unify bases.
   this->unify_bases();
