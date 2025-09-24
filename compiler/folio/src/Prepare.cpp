@@ -255,11 +255,6 @@ static void store_mappings_for_base(llvm::Instruction *insertion_point,
   }
 }
 
-static void create_base_globals(
-    Vector<Candidate> &candidates,
-    const Map<ObjectInfo *, SmallVector<ObjectInfo *>> &equiv,
-    const Map<ObjectInfo *, SmallVector<Candidate *>> &obj_candidates) {}
-
 #if 0  
 static void create_base_locals(
     const Map<ObjectInfo *, SmallVector<ObjectInfo *>> &equiv,
@@ -606,9 +601,9 @@ void ProxyInsertion::prepare() {
     debugln("=== PREPARED GLOBALS ===");
     for (auto &candidate : this->candidates) {
       debugln(" >> ENCODER << ");
-      debug_mapping(candidate.encoder);
+      print_mapping(candidate.encoder);
       debugln(" >> DECODER << ");
-      debug_mapping(candidate.decoder);
+      print_mapping(candidate.decoder);
       debugln();
     }
     debugln();

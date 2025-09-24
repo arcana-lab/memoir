@@ -77,24 +77,6 @@ static bool replace_with_dominator(ProxyInsertion::GetDominatorTree get_domtree,
   return false;
 }
 
-static Pair<llvm::Value *, llvm::Type *> get_ptr(Mapping &mapping,
-                                                 llvm::Value &value,
-                                                 ObjectInfo *base) {
-#if 0
-  if (parent<llvm::Function>(value) == base->function()) {
-    auto &local = mapping.local(*base);
-    return make_pair(&local, local.getAllocatedType());
-  }
-#endif
-
-  debugln("GET PTR");
-  debugln("  VALUE ", value);
-  debugln("   BASE ", *base);
-
-  auto &global = mapping.global(*base);
-  return make_pair(&global, global.getValueType());
-}
-
 static llvm::Type *pointee_type(llvm::Value *ptr) {
   if (auto *global = dyn_cast<llvm::GlobalVariable>(ptr)) {
     return global->getValueType();
@@ -298,29 +280,6 @@ static void update_candidates(std::forward_iterator auto candidates_begin,
                               llvm::ValueToValueMapTy &vmap) {
   for (auto it = candidates_begin; it != candidates_end; ++it)
     it->update(old_func, new_func, vmap, /* delete old? */ true);
-}
-
-static void promote_locals(Mapping &mapping,
-                           ProxyInsertion::GetDominatorTree get_domtree) {
-
-  // FIXME: Something is going wrong when calculating the dominance frontier.
-  return;
-
-  // Collect the stack variables to promote.
-  Map<llvm::Function *, Vector<llvm::AllocaInst *>> locals = {};
-  for (const auto &[base, var] : mapping.locals()) {
-    auto *func = var->getFunction();
-    MEMOIR_ASSERT(func, "Stack variable has no parent function!");
-    if (var) {
-      locals[func].push_back(var);
-    }
-  }
-
-  for (const auto &[func, vars] : locals) {
-    // Fetch the dominator tree.
-    auto &domtree = get_domtree(*func);
-    repair_ssa(vars, domtree);
-  }
 }
 
 void ProxyInsertion::promote() {
@@ -536,8 +495,6 @@ bool is_total_proxy(ObjectInfo &obj, const Vector<CoalescedUses> &added) {
   return true;
 }
 
-static llvm::Instruction *already_handled() {}
-
 void ProxyInsertion::decode_uses() {
   Set<llvm::Use *> handled = {};
   for (const auto &[base, info] : this->to_transform) {
@@ -740,28 +697,6 @@ static bool check_initialized(llvm::Value &ptr) {
     }
   }
   return false;
-}
-
-static void validate_mapping(Mapping &mapping) {
-  for (const auto &[base, global] : mapping.globals()) {
-    debugln(*global);
-    if (!check_initialized(*global))
-      debugln(*base->function());
-    MEMOIR_ASSERT(check_initialized(*global),
-                  "Global for ", // FIXME!!!
-                  *base,
-                  "not initialized!");
-  }
-
-  for (const auto &[base, local] : mapping.locals()) {
-    debugln(*local);
-    if (!check_initialized(*local))
-      debugln(*base->function());
-    MEMOIR_ASSERT(check_initialized(*local),
-                  "Local for ",
-                  *base,
-                  "not initialized!");
-  }
 }
 
 static void store_allocation(Builder &builder,
