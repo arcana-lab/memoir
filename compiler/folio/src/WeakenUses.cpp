@@ -194,7 +194,7 @@ void weaken_uses(Set<llvm::Use *> &to_addkey,
       auto *used = use->get();
       if (keys.find(used) != keys.end()) {
         to_weaken.insert(use);
-        println(Style::BOLD, "WEAKEN ", pretty_use(*use), Style::RESET);
+        debugln(Style::BOLD, "WEAKEN ", pretty_use(*use), Style::RESET);
       }
     }
   }

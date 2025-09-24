@@ -157,7 +157,7 @@ static void collect_types_to_mutate(llvm::Module &module,
     // If the object is a total proxy, update it to be a sequence.
     if (is_total_proxy(*info, candidate.to_addkey)
         and not disable_total_proxy) {
-      println(Style::BOLD, Colors::GREEN, "FOUND TOTAL PROXY", Style::RESET);
+      infoln(Style::BOLD, Colors::GREEN, "FOUND TOTAL PROXY", Style::RESET);
       type = &convert_to_sequence_type(*type, info->offsets());
 
     } else
@@ -184,14 +184,14 @@ static void mutate_found_types(ParamTypes &params_to_mutate,
                                      func_type->param_end());
 
     // Update the parameter types that are encoded.
-    println("MUTATE PARAMS OF ", func->getName());
+    debugln("MUTATE PARAMS OF ", func->getName());
     for (; it != params_to_mutate.upper_bound(func); ++it) {
       auto [arg, type] = it->second;
       auto arg_idx = arg->getArgNo();
 
       param_types[arg_idx] = type;
 
-      println("  ARG ", *arg, " TO ", *type);
+      debugln("  ARG ", *arg, " TO ", *type);
     }
 
     // Create the new function type.
@@ -267,7 +267,7 @@ static void mutate_found_types(ParamTypes &params_to_mutate,
 // Entrypoint.
 void ProxyInsertion::mutate_types() {
   // Find parameter and allocation types that need to be mutated.
-  println("=== FIND NEW PARAM TYPES ===");
+  debugln("=== FIND NEW PARAM TYPES ===");
   ParamTypes params_to_mutate = {};
   AssocList<AllocInst *, Type *> allocs_to_mutate;
   for (const auto &[parent, objects] : this->equiv) {
@@ -277,7 +277,7 @@ void ProxyInsertion::mutate_types() {
                             params_to_mutate,
                             allocs_to_mutate);
   }
-  println();
+  debugln();
 
   // Mutate the types that we found.
   mutate_found_types(params_to_mutate, allocs_to_mutate);

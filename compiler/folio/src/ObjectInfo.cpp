@@ -369,28 +369,28 @@ void ObjectInfo::gather_uses_to_propagate(const Object &obj) {
 }
 
 void ObjectInfo::analyze() {
-  println();
-  println("ANALYZING ", *this);
+  debugln();
+  debugln("ANALYZING ", *this);
 
   auto &base = this->value();
 
-  println("=== GATHER REDEFINITIONS ===");
+  debugln("=== GATHER REDEFINITIONS ===");
   this->gather_redefinitions();
-  println();
+  debugln();
 
-  println("=== REDEFINITIONS ===");
+  debugln("=== REDEFINITIONS ===");
   for (const auto &[func, info] : this->info())
     for (const auto &redef : info.redefinitions)
-      println(redef);
-  println();
+      debugln(redef);
+  debugln();
 
   bool is_propagator = this->is_propagator();
 
-  println("PROPAGATOR? ", is_propagator ? "YES" : "NO");
+  debugln("PROPAGATOR? ", is_propagator ? "YES" : "NO");
 
   auto offsets = this->offsets();
 
-  println("=== GATHER USES ===");
+  debugln("=== GATHER USES ===");
   for (const auto &[func, info] : this->info())
     for (const auto &redef : info.redefinitions) {
       if (is_propagator)
@@ -398,7 +398,7 @@ void ObjectInfo::analyze() {
       else
         gather_uses_to_proxy(redef);
     }
-  println();
+  debugln();
 }
 
 // BaseObjectInfo

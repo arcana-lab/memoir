@@ -148,7 +148,7 @@ uint32_t forward_analysis(
         auto arg_no = use.getOperandNo();
         auto *arg = callee->getArg(arg_no);
 
-        println("ARG ENCODED? ", *arg, " IN ", callee->getName());
+        debugln("ARG ENCODED? ", *arg, " IN ", callee->getName());
 
         // Merge all caller information.
         bool all_encoded = true;
@@ -170,14 +170,14 @@ uint32_t forward_analysis(
             // Check if the arg operand is encoded.
             auto &caller_encoded = encoded[&caller_func];
             if (not caller_encoded.count(caller->getArgOperand(arg_no))) {
-              println("  NO, caller not encoded in ", caller_func.getName());
+              debugln("  NO, caller not encoded in ", caller_func.getName());
               all_encoded = false;
               break;
             }
           } else {
             // If we see a non-direct call use of the callee, then we must be
             // conservative and not propagate information.
-            println("  NO, found indirect call");
+            debugln("  NO, found indirect call");
             all_encoded = false;
             break;
           }
@@ -185,7 +185,7 @@ uint32_t forward_analysis(
 
         // If all incoming callers pass an encoded value, then propagate.
         if (all_encoded) {
-          println("YES!");
+          debugln("YES!");
 
           local_encoded.insert(arg);
           worklist.push(arg);
@@ -243,12 +243,12 @@ llvm::Instruction *insertion_point(llvm::Use &use) {
 
 void print_uses(const Vector<llvm::Use *> &uses) {
   for (auto *use : uses)
-    println("    ", pretty_use(*use));
+    debugln("    ", pretty_use(*use));
 }
 
 void print_uses(const Set<llvm::Use *> &uses) {
   for (auto *use : uses)
-    println("    ", pretty_use(*use));
+    debugln("    ", pretty_use(*use));
 }
 
 } // namespace folio

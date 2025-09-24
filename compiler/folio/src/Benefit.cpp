@@ -133,14 +133,14 @@ Heuristic benefit(llvm::ArrayRef<const ObjectInfo *> candidate) {
   }
 
 #if 0
-  println("== USES ==");
-  println("TO DECODE");
+  debugln("== USES ==");
+  debugln("TO DECODE");
   print_uses(to_decode);
-  println("TO ENCODE");
+  debugln("TO ENCODE");
   print_uses(to_encode);
-  println("TO ADDKEY");
+  debugln("TO ADDKEY");
   print_uses(to_addkey);
-  println();
+  debugln();
 #endif
 
   // Perform a "what if?" analysis.

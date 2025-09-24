@@ -20,7 +20,7 @@ void eliminate_redundant_translations(
   if (disable_translation_elimination)
     return;
 
-  println(" >> ELIMINATE REDUNDANT TRANSLATIONS << ");
+  debugln(" >> ELIMINATE REDUNDANT TRANSLATIONS << ");
 
   // Trim uses that dont need to be decoded because they are only used to
   // compare against other values that need to be decoded.
@@ -36,7 +36,7 @@ void eliminate_redundant_translations(
           auto &rhs = cmp->getOperandUse(1);
           if (local_encoded.contains(lhs.get())
               and local_encoded.contains(rhs.get())) {
-            println("TRIM ", pretty_use(*use));
+            debugln("TRIM ", pretty_use(*use));
             trim_to_decode.insert(&lhs);
             trim_to_decode.insert(&rhs);
           }
@@ -54,13 +54,13 @@ void eliminate_redundant_translations(
         continue;
       const auto &local_encoded = encoded.at(func);
       for (auto *use : local_uses) {
-        println("TRIM? ", pretty_use(*use));
+        debugln("TRIM? ", pretty_use(*use));
         if (local_encoded.contains(use->get())) {
-          println("  YES");
+          debugln("  YES");
           trim_to_encode.insert(use);
           trim_to_decode.insert(use);
         } else {
-          println("  NO");
+          debugln("  NO");
         }
       }
     }

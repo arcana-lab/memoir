@@ -29,17 +29,17 @@ static void gather_uses(llvm::ArrayRef<ObjectInfo *> objects,
   forward_analysis(info.encoded);
 
   // Debug print.
-  println("=== ENCODED VALUES ===");
+  debugln("=== ENCODED VALUES ===");
   for (const auto &[func, values] : info.encoded) {
     for (auto *val : values) {
-      print("  ENCODED ", pretty(*val));
-      println(" IN ", func->getName());
+      debug("  ENCODED ", pretty(*val));
+      debugln(" IN ", func->getName());
     }
   }
-  println();
+  debugln();
 
   // Collect the set of uses to decode.
-  println("=== COLLECT USES TO DECODE ===");
+  debugln("=== COLLECT USES TO DECODE ===");
   for (const auto &[func, values] : info.encoded) {
     for (auto *val : values) {
       for (auto &use : val->uses()) {
@@ -84,11 +84,11 @@ void ProxyInsertion::optimize() {
   // Optimize the uses in each equivalence class.
   for (const auto &[base, objects] : this->equiv) {
     { // Debug print.
-      println("================================");
-      println("OPTIMIZE CLASS IN ", base->function()->getName());
+      debugln("================================");
+      debugln("OPTIMIZE CLASS IN ", base->function()->getName());
       for (auto *obj : objects)
-        println("  ", *obj);
-      println();
+        debugln("  ", *obj);
+      debugln();
     }
 
     // Gather info from each object together.
@@ -102,21 +102,22 @@ void ProxyInsertion::optimize() {
                                      info.to_addkey);
 
     {
-      println(" >> USES TO DECODE << ");
+      // TODO: Add remarks for counts.
+      debugln(" >> USES TO DECODE << ");
       for (const auto &[func, uses] : info.to_decode)
         for (auto *use : uses)
-          println(pretty_use(*use));
-      println();
-      println(" >> USES TO ENCODE << ");
+          debugln(pretty_use(*use));
+      debugln();
+      debugln(" >> USES TO ENCODE << ");
       for (const auto &[func, uses] : info.to_encode)
         for (auto *use : uses)
-          println(pretty_use(*use));
-      println();
-      println(" >> USES TO ADDKEY << ");
+          debugln(pretty_use(*use));
+      debugln();
+      debugln(" >> USES TO ADDKEY << ");
       for (const auto &[func, uses] : info.to_addkey)
         for (auto *use : uses)
-          println(pretty_use(*use));
-      println();
+          debugln(pretty_use(*use));
+      debugln();
     }
   }
 }

@@ -128,9 +128,9 @@ static void monomorphize(Vector<Candidate> &candidates) {
   for (const auto &[arg, calls] : abstract_args) {
 
     // Debug print.
-    println("ARG ", *arg, " IN ", arg->getParent()->getName());
+    debugln("ARG ", *arg, " IN ", arg->getParent()->getName());
     for (auto *call : calls) {
-      println("  CALL ", *call);
+      debugln("  CALL ", *call);
     }
 
     // Track the callee.
@@ -216,16 +216,16 @@ static void monomorphize(Vector<Candidate> &candidates) {
   }
 
   for (const auto &[func, func_versions] : versions) {
-    println("VERSIONS OF ", func->getName());
+    debugln("VERSIONS OF ", func->getName());
     for (const auto &version : func_versions) {
       if (version.empty()) {
-        println(" NO ORIGINAL NEEDED");
+        debugln(" NO ORIGINAL NEEDED");
         continue;
       }
 
-      println(" VERSION");
+      debugln(" VERSION");
       for (auto *call : version) {
-        println("  ", *call);
+        debugln("  ", *call);
       }
     }
   }
@@ -330,8 +330,8 @@ static void create_base_locals(
 
 static void print_mapping(const Mapping &mapping) {
   for (const auto &[obj, global] : mapping.globals()) {
-    println("  ", *obj);
-    println("  GLOBAL ", *global);
+    debugln("  ", *obj);
+    debugln("  GLOBAL ", *global);
   }
 }
 
@@ -454,7 +454,7 @@ static llvm::Function *create_addkey_function(llvm::Module &module,
   MEMOIR_ASSERT(new_index, "New index is NULL");
   phi->addIncoming(new_index, else_bb);
 
-  println(addkey_function);
+  debugln(addkey_function);
 
   return &addkey_function;
 }
@@ -577,18 +577,18 @@ void ProxyInsertion::prepare() {
   }
 
   for (auto &[base, info] : this->to_transform) {
-    println("BASE ", *base);
-    print("  ENCODER ");
+    debugln("BASE ", *base);
+    debug("  ENCODER ");
     if (info.build_encoder)
-      println(*info.encoder_type);
+      debugln(*info.encoder_type);
     else
-      println("NONE");
-    print("  DECODER ");
+      debugln("NONE");
+    debug("  DECODER ");
     if (info.build_decoder)
-      println(*info.decoder_type);
+      debugln(*info.decoder_type);
     else
-      println("NONE");
-    println();
+      debugln("NONE");
+    debugln();
   }
 
   // Create the addkey function.
@@ -602,16 +602,17 @@ void ProxyInsertion::prepare() {
                                                     info.decoder_type));
   }
 
-  // Debug print.
-  println("=== PREPARED GLOBALS ===");
-  for (auto &candidate : this->candidates) {
-    println(" >> ENCODER << ");
-    print_mapping(candidate.encoder);
-    println(" >> DECODER << ");
-    print_mapping(candidate.decoder);
-    println();
+  { // Debug print.
+    debugln("=== PREPARED GLOBALS ===");
+    for (auto &candidate : this->candidates) {
+      debugln(" >> ENCODER << ");
+      debug_mapping(candidate.encoder);
+      debugln(" >> DECODER << ");
+      debug_mapping(candidate.decoder);
+      debugln();
+    }
+    debugln();
   }
-  println();
 }
 
 } // namespace folio

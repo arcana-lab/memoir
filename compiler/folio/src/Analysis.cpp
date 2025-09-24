@@ -316,12 +316,12 @@ static void gather_enumerated(Vector<Candidate> &candidates,
   }
 
   // DEBUG PRINT
-  println("ENUMERATED =================================");
+  debugln("ENUMERATED =================================");
   for (const auto &[obj, enums] : enumerated) {
-    println(" OBJ ", obj);
-    println("   # ", enums.size());
+    debugln(" OBJ ", obj);
+    debugln("   # ", enums.size());
   }
-  println("============================================");
+  debugln("============================================");
 }
 #endif
 static llvm::Function &get_alloc_function(llvm::Module &module) {
@@ -436,7 +436,7 @@ void ProxyInsertion::share_proxies() {
     // Check if this object is marked as no share.
     bool no_share = has_no_share_directive(info);
     if (no_share)
-      println("NO SHARE! ", info);
+      debugln("NO SHARE! ", info);
 
     // Find all other allocations in the same function as this one.
     if (not disable_proxy_sharing and not no_share) {
@@ -467,23 +467,23 @@ void ProxyInsertion::share_proxies() {
         }
       }
 
-      println("SHAREABLE");
+      debugln("SHAREABLE");
       for (const auto &[other, _] : shareable)
-        println("  ", *other);
-      println();
+        debugln("  ", *other);
+      debugln();
 
       // Iterate until we can't find a new object to add to the candidate.
       bool fresh;
       do {
         fresh = false;
 
-        println("CURRENT ", candidate);
-        println("  BENEFIT ", candidate.benefit);
+        debugln("CURRENT ", candidate);
+        debugln("  BENEFIT ", candidate.benefit);
 
         for (auto jt = shareable.begin(); jt != shareable.end();) {
           const auto &[other, single_benefit] = *jt;
 
-          println("  WHAT IF? ", *other);
+          debugln("  WHAT IF? ", *other);
 
           // Compute the benefit of adding this candidate.
           Candidate checkpoint = candidate;
@@ -491,10 +491,10 @@ void ProxyInsertion::share_proxies() {
           this->flesh_out(candidate);
           auto new_heuristic = benefit(candidate);
           auto new_benefit = new_heuristic.benefit;
-          println("    NEW BENEFIT ", new_heuristic.benefit);
-          println("    SUM BENEFIT ", candidate.benefit + single_benefit);
-          println("     ADDED COST ", new_heuristic.cost);
-          println();
+          debugln("    NEW BENEFIT ", new_heuristic.benefit);
+          debugln("    SUM BENEFIT ", candidate.benefit + single_benefit);
+          debugln("     ADDED COST ", new_heuristic.cost);
+          debugln();
 
           if (new_benefit > (candidate.benefit + single_benefit)
               or new_heuristic.cost == 0) {
@@ -528,23 +528,23 @@ void ProxyInsertion::share_proxies() {
   for (auto &candidate : this->candidates)
     candidate.id = ++id;
 
-  println("=== CANDIDATES ===");
+  debugln("=== CANDIDATES ===");
   for (auto &candidate : this->candidates) {
-    println("CANDIDATE ", candidate.id);
-    println("  IN ", candidate.function().getName());
-    println("  TYPE ", candidate.key_type());
-    println("  BENEFIT=", candidate.benefit);
+    debugln("CANDIDATE ", candidate.id);
+    debugln("  IN ", candidate.function().getName());
+    debugln("  TYPE ", candidate.key_type());
+    debugln("  BENEFIT=", candidate.benefit);
     for (const auto *info : candidate) {
-      println("  ", *info);
+      debugln("  ", *info);
     }
-    println();
+    debugln();
   }
-  println();
+  debugln();
 }
 
 void ProxyInsertion::unify_bases() {
 
-  println("=== UNIFY BASES ===");
+  debugln("=== UNIFY BASES ===");
   this->unified.clear();
   this->equiv.clear();
 
@@ -675,12 +675,12 @@ void ProxyInsertion::unify_bases() {
     for (const auto &[obj, parent] : this->unified)
       this->equiv[parent].push_back(obj);
 
-    println("=== EQUIVALENCE CLASSES ===");
+    debugln("=== EQUIVALENCE CLASSES ===");
     for (const auto &[base, objects] : this->equiv) {
-      println(" ┌╼ ", *base);
+      debugln(" ┌╼ ", *base);
       for (const auto &obj : objects)
-        println(" ├──╼ ", *obj);
-      println(" └╼ ");
+        debugln(" ├──╼ ", *obj);
+      debugln(" └╼ ");
     }
   }
 }
@@ -689,12 +689,13 @@ void ProxyInsertion::analyze() {
   // Gather all assoc object allocations in the program.
   this->gather_assoc_objects();
 
-  println();
-  println("FOUND OBJECTS ", this->objects.size());
-  for (auto &info : this->objects) {
-    println("  ", info);
+  {
+    debugln();
+    debugln("FOUND OBJECTS ", this->objects.size());
+    for (auto &info : this->objects)
+      debugln("  ", info);
+    debugln();
   }
-  println();
 
   // With the set of values that need to be encoded/decoded, we will find
   // collections that can be used to propagate proxied values.
@@ -703,12 +704,13 @@ void ProxyInsertion::analyze() {
     // Gather all objects in the program that have elements of a relevant type.
     this->gather_propagators();
 
-    println();
-    println("FOUND PROPAGATORS ", this->propagators.size());
-    for (auto &info : this->propagators) {
-      println("  ", info);
+    {
+      debugln();
+      debugln("FOUND PROPAGATORS ", this->propagators.size());
+      for (auto &info : this->propagators)
+        debugln("  ", info);
+      debugln();
     }
-    println();
   }
 
   // Gather any abstract objects.

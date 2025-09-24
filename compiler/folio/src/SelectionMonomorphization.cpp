@@ -661,19 +661,19 @@ SelectionMonomorphization::SelectionMonomorphization(llvm::Module &M) : M(M) {
     // If the instruction has a polymorphic selection, error!
     if (selections.count(value) > 1) {
 
-      println("SELECTIONS:");
+      debugln("SELECTIONS:");
       for (auto it = selections.lower_bound(value);
            it != selections.upper_bound(value);
            ++it) {
-        print(" SEL: ");
+        debug(" SEL: ");
         for (auto sel : selections.from_id(it->second)) {
           if (sel.has_value()) {
-            print(sel, ", ");
+            debug(sel, ", ");
           } else {
-            print("NONE, ");
+            debug("NONE, ");
           }
         }
-        println();
+        debugln();
       }
 
       MEMOIR_UNREACHABLE(

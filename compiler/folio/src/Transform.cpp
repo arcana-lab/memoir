@@ -87,9 +87,9 @@ static Pair<llvm::Value *, llvm::Type *> get_ptr(Mapping &mapping,
   }
 #endif
 
-  println("GET PTR");
-  println("  VALUE ", value);
-  println("   BASE ", *base);
+  debugln("GET PTR");
+  debugln("  VALUE ", value);
+  debugln("   BASE ", *base);
 
   auto &global = mapping.global(*base);
   return make_pair(&global, global.getValueType());
@@ -422,14 +422,14 @@ bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {
 
 bool is_total_proxy(ObjectInfo &obj, const Vector<CoalescedUses> &added) {
 
-  println();
-  println("TOTAL PROXY? ", obj);
+  debugln();
+  debugln("TOTAL PROXY? ", obj);
 
   // Check that the object is not a propagator.
   // NOTE: this is conservative, but the check for a propagator to be a total
   // proxt is difficult.
   if (obj.is_propagator()) {
-    println("NO, propagator");
+    debugln("NO, propagator");
     return false;
   }
 
@@ -437,7 +437,7 @@ bool is_total_proxy(ObjectInfo &obj, const Vector<CoalescedUses> &added) {
   // allocation.
   for (auto offset : obj.offsets()) {
     if (offset == unsigned(-1)) {
-      println("NO, not singular");
+      debugln("NO, not singular");
       return false;
     }
   }
@@ -448,7 +448,7 @@ bool is_total_proxy(ObjectInfo &obj, const Vector<CoalescedUses> &added) {
     for (const auto &redef : info.redefinitions) {
       auto *value = &redef.value();
       if (into<RemoveInst>(value) or into<ClearInst>(value)) {
-        println("NO, keys are removed");
+        debugln("NO, keys are removed");
         return false;
       }
     }
@@ -486,14 +486,14 @@ bool is_total_proxy(ObjectInfo &obj, const Vector<CoalescedUses> &added) {
         }
 
         if (distance.value() < obj.offsets().size()) {
-          println("NO, wrong offset in ", *access);
+          debugln("NO, wrong offset in ", *access);
           return false;
         }
 
         // Ensure that this access is control equivalent to the encoded value.
         if (auto *insert = dyn_cast<InsertInst>(access)) {
           if (not value_will_be_inserted(value, *insert)) {
-            println("NO, not control equivalent");
+            debugln("NO, not control equivalent");
             return false;
           }
         }
@@ -512,8 +512,8 @@ bool is_total_proxy(ObjectInfo &obj, const Vector<CoalescedUses> &added) {
     // If we failed to find a use, then the check fails.
 #if 0
     if (not found_use) {
-      println("NO, failed to find use of addkey for: ");
-      println("  ", value);
+      debugln("NO, failed to find use of addkey for: ");
+      debugln("  ", value);
     }
 #endif
   }
@@ -527,12 +527,12 @@ bool is_total_proxy(ObjectInfo &obj, const Vector<CoalescedUses> &added) {
                         return needed and values_added.count(val);
                       });
   if (not added_all_needed) {
-    println("NO, did not add all needed values.");
+    debugln("NO, did not add all needed values.");
     return false;
   }
 
   // If we got this far, then we're good to go!
-  println("YES!");
+  debugln("YES!");
   return true;
 }
 
@@ -541,7 +541,7 @@ static llvm::Instruction *already_handled() {}
 void ProxyInsertion::decode_uses() {
   Set<llvm::Use *> handled = {};
   for (const auto &[base, info] : this->to_transform) {
-    println(" >> CANDIDATE : ", *info.key_type, " << ");
+    debugln(" >> CANDIDATE : ", *info.key_type, " << ");
 
     for (const auto &[func, uses] : info.to_decode) {
       Map<llvm::Value *, Vector<llvm::Instruction *>> decoded_values;
@@ -568,7 +568,7 @@ void ProxyInsertion::decode_uses() {
         if (auto *inst = dyn_cast<llvm::Instruction>(&decoded))
           decoded_values[used].push_back(inst);
 
-        println("  DECODED ", decoded);
+        debugln("  DECODED ", decoded);
 
         use->set(&decoded);
       }
@@ -592,7 +592,7 @@ llvm::Value &ProxyInsertion::encode_use(Builder &builder,
                                         const TransformInfo &info,
                                         llvm::Use &use) {
 
-  println("ENCODE ", pretty_use(use));
+  debugln("ENCODE ", pretty_use(use));
 
   auto *user = cast<llvm::Instruction>(use.getUser());
   auto *used = use.get();
@@ -658,12 +658,12 @@ llvm::Value &ProxyInsertion::encode_use(Builder &builder,
 void ProxyInsertion::patch_uses() {
 
   Set<llvm::Use *> handled = {};
-  println("=== PATCH USES === ");
+  debugln("=== PATCH USES === ");
 
   this->decode_uses();
 
   for (const auto &[base, info] : to_transform) {
-    println(" >> EQUIV CLASS << ");
+    debugln(" >> EQUIV CLASS << ");
 
     Map<llvm::Value *, Vector<llvm::Instruction *>> values_added;
     for (const auto &[func, uses] : info.to_addkey)
@@ -686,7 +686,7 @@ void ProxyInsertion::patch_uses() {
         auto &added = add_value(builder, info, *used);
         update_use(*use, added);
 
-        println("  ADDED ", added);
+        debugln("  ADDED ", added);
 
         if (auto *inst = dyn_cast<llvm::Instruction>(&added))
           values_added[used].push_back(inst);
@@ -744,9 +744,9 @@ static bool check_initialized(llvm::Value &ptr) {
 
 static void validate_mapping(Mapping &mapping) {
   for (const auto &[base, global] : mapping.globals()) {
-    println(*global);
+    debugln(*global);
     if (!check_initialized(*global))
-      println(*base->function());
+      debugln(*base->function());
     MEMOIR_ASSERT(check_initialized(*global),
                   "Global for ", // FIXME!!!
                   *base,
@@ -754,9 +754,9 @@ static void validate_mapping(Mapping &mapping) {
   }
 
   for (const auto &[base, local] : mapping.locals()) {
-    println(*local);
+    debugln(*local);
     if (!check_initialized(*local))
-      println(*base->function());
+      debugln(*base->function());
     MEMOIR_ASSERT(check_initialized(*local),
                   "Local for ",
                   *base,
@@ -904,9 +904,9 @@ void ProxyInsertion::allocate_mappings(BaseObjectInfo &base) {
   auto &domtree = get_dominator_tree(function);
   auto &construction_point = find_construction_point(domtree, equiv);
 
-  println("        BASE ", base);
-  println("          IN ", construction_point.getFunction()->getName());
-  println("CONSTRUCT AT ", construction_point);
+  debugln("        BASE ", base);
+  debugln("          IN ", construction_point.getFunction()->getName());
+  debugln("CONSTRUCT AT ", construction_point);
 
   // Fetch LLVM context.
   auto &context = construction_point.getContext();
@@ -933,9 +933,9 @@ void ProxyInsertion::allocate_mappings(BaseObjectInfo &base) {
   // If we are in a recursive function, condition allocation on a heuristic.
   if (recursive_base) {
 
-    println("RECURSIVE BASE FOUND");
-    println("  BASE ", base);
-    println("   ARG ", *recursive_base);
+    debugln("RECURSIVE BASE FOUND");
+    debugln("  BASE ", base);
+    debugln("   ARG ", *recursive_base);
 
     const auto &rec_info = this->to_transform.at(recursive_base);
 
@@ -1026,27 +1026,27 @@ bool ProxyInsertion::transform() {
   bool modified = true;
 
   // Transform the program for each candidate.
-  println("=== ALLOCATE MAPPINGS ===");
+  debugln("=== ALLOCATE MAPPINGS ===");
   for (auto &[parent, info] : this->to_transform) {
     if (auto *base = dyn_cast<BaseObjectInfo>(parent))
       allocate_mappings(*base);
   }
-  println();
+  debugln();
 
   // Patch uses to encode/addkey.
-  println("=== PATCH USES TO ENCODE/ADDKEY ===");
+  debugln("=== PATCH USES TO ENCODE/ADDKEY ===");
   this->patch_uses();
-  println();
+  debugln();
 
   // Promote the locals to registers.
-  println("=== PROMOTE GLOBALS ===");
+  debugln("=== PROMOTE GLOBALS ===");
   this->promote();
-  println();
+  debugln();
 
   // Mutate the type of function parameters in the program.
-  println("=== MUTATE PARAM TYPES ===");
+  debugln("=== MUTATE PARAM TYPES ===");
   this->mutate_types();
-  println();
+  debugln();
 
   return modified;
 }
