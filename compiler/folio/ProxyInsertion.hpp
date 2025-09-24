@@ -150,6 +150,13 @@ protected:
 
   GetDominatorTree get_dominator_tree;
   GetBoundsChecks get_bounds_checks;
+
+  void remark(const llvm::Instruction *inst,
+              llvm::StringRef remark_name,
+              llvm::StringRef message);
+  void remark(const llvm::Function *func,
+              llvm::StringRef remark_name,
+              llvm::StringRef message);
 };
 
 } // namespace folio
