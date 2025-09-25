@@ -7,7 +7,7 @@
 // MemOIR
 #include "memoir/passes/Passes.hpp"
 #include "memoir/support/Print.hpp"
-#include "memoir/transforms/utilities/ReifyTempArgs.hpp"
+#include "memoir/transform/utilities/ReifyTempArgs.hpp"
 
 using namespace memoir;
 

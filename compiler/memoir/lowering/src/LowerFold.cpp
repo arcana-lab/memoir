@@ -9,7 +9,7 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
 
-#include "memoir/transforms/utilities/Inlining.hpp"
+#include "memoir/transform/utilities/Inlining.hpp"
 
 #include "memoir/lowering/LowerFold.hpp"
 

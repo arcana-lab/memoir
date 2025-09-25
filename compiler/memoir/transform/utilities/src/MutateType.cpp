@@ -3,7 +3,7 @@
 
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/Object.hpp"
-#include "memoir/transforms/utilities/MutateType.hpp"
+#include "memoir/transform/utilities/MutateType.hpp"
 #include "memoir/utility/FunctionNames.hpp"
 
 namespace memoir {
