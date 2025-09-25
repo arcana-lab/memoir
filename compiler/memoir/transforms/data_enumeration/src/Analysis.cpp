@@ -46,8 +46,9 @@ void ProxyInsertion::flesh_out(Candidate &candidate) {
         candidate.push_back(out);
   }
 }
+
 void ProxyInsertion::gather_assoc_objects(AllocInst &alloc) {
-  this->gather_assoc_objects(alloc, alloc.getType());
+  this->gather_assoc_objects(alloc, alloc.getType(), {});
 }
 
 void ProxyInsertion::gather_assoc_objects(AllocInst &alloc,
@@ -68,9 +69,8 @@ void ProxyInsertion::gather_assoc_objects(AllocInst &alloc,
     auto &elem_type = collection_type->getElementType();
 
     // If this is an assoc, add the object information.
-    if (isa<AssocType>(collection_type)) {
+    if (isa<AssocType>(collection_type))
       this->objects.emplace_back(alloc, offsets);
-    }
 
     // Recurse on the element.
     auto new_offsets = offsets;
