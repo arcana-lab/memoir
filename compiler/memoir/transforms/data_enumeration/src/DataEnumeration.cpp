@@ -17,18 +17,18 @@ namespace memoir {
 
 // ================
 
-static llvm::cl::opt<std::string> proxy_set_impl(
-    "proxy-set-impl",
+static llvm::cl::opt<std::string> ade_set_impl(
+    "ade-set-impl",
     llvm::cl::desc("Set the implementation for proxied sets"),
     llvm::cl::init("bitset"));
 
-static llvm::cl::opt<std::string> proxy_nested_set_impl(
-    "proxy-nested-set-impl",
+static llvm::cl::opt<std::string> ade_nested_set_impl(
+    "ade-nested-set-impl",
     llvm::cl::desc("Set the implementation for proxied sets that are nested"),
-    llvm::cl::init(proxy_set_impl));
+    llvm::cl::init(ade_set_impl));
 
-static llvm::cl::opt<std::string> proxy_map_impl(
-    "proxy-map-impl",
+static llvm::cl::opt<std::string> ade_map_impl(
+    "ade-map-impl",
     llvm::cl::desc("Set the implementation for proxied map"),
     llvm::cl::init("bitmap"));
 
@@ -43,9 +43,9 @@ Option<std::string> DataEnumeration::get_enumerated_impl(Type &type,
 
     if (auto *assoc_type = dyn_cast<AssocType>(collection_type)) {
       if (isa<VoidType>(&assoc_type->getValueType())) {
-        return is_nested ? proxy_nested_set_impl : proxy_set_impl;
+        return is_nested ? ade_nested_set_impl : ade_set_impl;
       } else {
-        return proxy_map_impl;
+        return ade_map_impl;
       }
     }
 
@@ -64,15 +64,15 @@ DataEnumeration::DataEnumeration(llvm::Module &module,
 
   // Register the bit{map,set} implementations.
   Implementation::define({
-      Implementation(proxy_set_impl,
+      Implementation(ade_set_impl,
                      AssocType::get(TypeVariable::get(), VoidType::get()),
                      /* selectable? */ false),
 
-      Implementation(proxy_nested_set_impl,
+      Implementation(ade_nested_set_impl,
                      AssocType::get(TypeVariable::get(), VoidType::get()),
                      /* selectable? */ false),
 
-      Implementation(proxy_map_impl,
+      Implementation(ade_map_impl,
                      AssocType::get(TypeVariable::get(), TypeVariable::get()),
                      /* selectable? */ false),
 

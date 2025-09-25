@@ -12,14 +12,14 @@ using namespace memoir;
 
 namespace memoir {
 
-static llvm::cl::opt<bool> disable_proxy_propagation(
-    "disable-proxy-propagation",
-    llvm::cl::desc("Disable proxy propagation"),
+static llvm::cl::opt<bool> disable_ade_propagation(
+    "disable-ade-propagation",
+    llvm::cl::desc("Disable ade propagation"),
     llvm::cl::init(false));
 
-static llvm::cl::opt<bool> disable_proxy_sharing(
-    "disable-proxy-sharing",
-    llvm::cl::desc("Disable proxy sharing optimization"),
+static llvm::cl::opt<bool> disable_ade_sharing(
+    "disable-ade-sharing",
+    llvm::cl::desc("Disable ade sharing optimization"),
     llvm::cl::init(false));
 
 void DataEnumeration::flesh_out(Candidate &candidate) {
@@ -439,7 +439,7 @@ void DataEnumeration::share_proxies() {
       debugln("NO SHARE! ", info);
 
     // Find all other allocations in the same function as this one.
-    if (not disable_proxy_sharing and not no_share) {
+    if (not disable_ade_sharing and not no_share) {
 
       // Collect the set of objects that can share, and their solo benefit.
       Map<ObjectInfo *, int> shareable = {};
@@ -707,7 +707,7 @@ void DataEnumeration::analyze() {
 
   // With the set of values that need to be encoded/decoded, we will find
   // collections that can be used to propagate proxied values.
-  if (not disable_proxy_propagation) {
+  if (not disable_ade_propagation) {
 
     // Gather all objects in the program that have elements of a relevant type.
     this->gather_propagators();

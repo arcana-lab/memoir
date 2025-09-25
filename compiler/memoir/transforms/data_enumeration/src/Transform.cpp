@@ -22,10 +22,6 @@ using namespace memoir;
 namespace memoir {
 
 // Command line options.
-static llvm::cl::opt<bool> disable_total_proxy(
-    "disable-total-proxy",
-    llvm::cl::desc("Disable total proxy optimization"),
-    llvm::cl::init(true));
 static llvm::cl::opt<int> max_reuses(
     "ade-max-reuses",
     llvm::cl::desc("Maximum number of enumeration reuses"),
@@ -378,122 +374,6 @@ bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {
 
   // Otherwise, we can't guarantee the value will be present.
   return false;
-}
-
-bool is_total_proxy(ObjectInfo &obj, const Vector<CoalescedUses> &added) {
-
-  debugln();
-  debugln("TOTAL PROXY? ", obj);
-
-  // Check that the object is not a propagator.
-  // NOTE: this is conservative, but the check for a propagator to be a total
-  // proxt is difficult.
-  if (obj.is_propagator()) {
-    debugln("NO, propagator");
-    return false;
-  }
-
-  // Check that there is guaranteed to be one of these objects for each
-  // allocation.
-  for (auto offset : obj.offsets()) {
-    if (offset == unsigned(-1)) {
-      debugln("NO, not singular");
-      return false;
-    }
-  }
-
-  // Check that this value is never cleared or removed from.
-  bool monotonic = true;
-  for (const auto &[func, info] : obj.info())
-    for (const auto &redef : info.redefinitions) {
-      auto *value = &redef.value();
-      if (into<RemoveInst>(value) or into<ClearInst>(value)) {
-        debugln("NO, keys are removed");
-        return false;
-      }
-    }
-
-  // Check that for each addkey use, this object is inserted into.
-  // Also, ensure that the encoded value is in a control flow equivalent block
-  // to the uses.
-  Set<llvm::Value *> values_added = {};
-  Set<llvm::Value *> values_needed = {};
-  for (auto &uses : added) {
-    auto &value = uses.value();
-    auto &encoded =
-        MEMOIR_SANITIZE(dyn_cast<llvm::Instruction>(&value),
-                        "Encoded value ",
-                        value,
-                        " is not an instruction! Something went wrong.");
-
-    values_needed.insert(&value);
-
-    bool found_use = false;
-    for (auto *use : uses) {
-      auto *user = use->getUser();
-
-      if (auto *access = into<AccessInst>(user)) {
-
-        // Skip irrelevant accesses.
-        if (not obj.is_redefinition(access->getObject())) {
-          continue;
-        }
-
-        // Check that this access is at the correct offset.
-        auto distance = access->match_offsets(obj.offsets());
-        if (not distance) {
-          continue;
-        }
-
-        if (distance.value() < obj.offsets().size()) {
-          debugln("NO, wrong offset in ", *access);
-          return false;
-        }
-
-        // Ensure that this access is control equivalent to the encoded value.
-        if (auto *insert = dyn_cast<InsertInst>(access)) {
-          if (not value_will_be_inserted(value, *insert)) {
-            debugln("NO, not control equivalent");
-            return false;
-          }
-        }
-
-        // Otherwise, we found a valid use.
-        found_use = true;
-
-        values_added.insert(&value);
-
-      } else {
-        // Skip non-accesses.
-        continue;
-      }
-    }
-
-    // If we failed to find a use, then the check fails.
-#if 0
-    if (not found_use) {
-      debugln("NO, failed to find use of addkey for: ");
-      debugln("  ", value);
-    }
-#endif
-  }
-
-  // Check if we have added all needed values.
-  auto added_all_needed =
-      std::accumulate(values_needed.begin(),
-                      values_needed.end(),
-                      true,
-                      [&](bool needed, llvm::Value *val) {
-                        return needed and values_added.count(val);
-                      });
-  if (not added_all_needed) {
-    debugln("NO, did not add all needed values.");
-    return false;
-  }
-
-  // If we got this far, then we're good to go!
-  debugln("YES!");
-  return true;
 }
 
 void DataEnumeration::decode_uses() {
@@ -850,7 +730,7 @@ void DataEnumeration::allocate_mappings(BaseObjectInfo &base) {
                                  "Construction point has no module.");
   auto &data_layout = module.getDataLayout();
 
-  // Allocate the proxy.
+  // Allocate the enumeration.
   Builder builder(&construction_point);
 
   // Fetch type information.
