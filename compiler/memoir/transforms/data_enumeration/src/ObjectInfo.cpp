@@ -218,7 +218,7 @@ static llvm::Use *get_index_use(AccessInst &access,
                            offsets);
 }
 
-void ObjectInfo::gather_uses_to_proxy(const Object &obj) {
+void ObjectInfo::gather_uses_to_enumerate(const Object &obj) {
 
   auto &value = obj.value();
   auto offsets = obj.offsets();
@@ -396,7 +396,7 @@ void ObjectInfo::analyze() {
       if (is_propagator)
         gather_uses_to_propagate(redef);
       else
-        gather_uses_to_proxy(redef);
+        gather_uses_to_enumerate(redef);
     }
   debugln();
 }

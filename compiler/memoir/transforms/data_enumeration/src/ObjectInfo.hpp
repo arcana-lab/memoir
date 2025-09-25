@@ -74,7 +74,7 @@ protected:
   void gather_redefinitions(const Object &obj);
   void gather_redefinitions();
 
-  void gather_uses_to_proxy(const Object &obj);
+  void gather_uses_to_enumerate(const Object &obj);
   void gather_uses_to_propagate(const Object &obj);
 
 public:
