@@ -125,15 +125,17 @@ void lower_memoir(llvm::ModulePassManager &MPM) {
   MPM.addPass(llvm::GlobalDCEPass());
 }
 
-static void folio_pipeline(llvm::ModulePassManager &MPM) {
-  raise_memoir(MPM);
-
+static void ade_pipeline(llvm::ModulePassManager &MPM) {
   MPM.addPass(memoir::DataEnumerationPass());
   MPM.addPass(memoir::TempArgReificationPass());
   MPM.addPass(adapt_function(llvm::PromotePass()));
   MPM.addPass(adapt_function(memoir::DeadCodeEliminationPass()));
   MPM.addPass(llvm::GlobalDCEPass());
+}
 
+static void folio_pipeline(llvm::ModulePassManager &MPM) {
+  raise_memoir(MPM);
+  ade_pipeline(MPM);
   lower_memoir(MPM);
 }
 
@@ -196,6 +198,11 @@ llvmGetPassPluginInfo() {
 
                    if (name == "folio") {
                      folio_pipeline(MPM);
+                     return true;
+                   }
+
+                   if (name == "memoir-ade") {
+                     ade_pipeline(MPM);
                      return true;
                    }
 
