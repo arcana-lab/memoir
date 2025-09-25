@@ -17,9 +17,7 @@
 
 namespace memoir {
 
-using AllocInst;
-using Type;
-using Builder = typename MemOIRBuilder;
+using Builder = MemOIRBuilder;
 
 struct ProxyInsertion {
 public:
@@ -59,7 +57,7 @@ public:
 protected:
   void gather_assoc_objects();
   void gather_assoc_objects(AllocInst &alloc);
-  void gather_assoc_objects(AllocInst &alloc, Type &type, Offsets offsets = {});
+  void gather_assoc_objects(AllocInst &alloc, Type &type, Offsets offsets);
 
   void gather_propagators();
   void gather_propagators(const Set<Type *> &types, AllocInst &alloc);
