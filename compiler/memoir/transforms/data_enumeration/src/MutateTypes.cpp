@@ -153,15 +153,6 @@ static void collect_types_to_mutate(llvm::Module &module,
     }
     auto &type = allocs_to_mutate[alloc];
 
-#if 0
-    // If the object is a total proxy, update it to be a sequence.
-    if (is_total_proxy(*info, candidate.to_addkey)
-        and not disable_total_proxy) {
-      infoln(Style::BOLD, Colors::GREEN, "FOUND TOTAL PROXY", Style::RESET);
-      type = &convert_to_sequence_type(*type, info->offsets());
-
-    } else
-#endif
     // Convert the type at the given offset to the size type.
     type = &convert_element_type(*type, obj->offsets(), size_type);
   }
