@@ -92,8 +92,8 @@ struct ContextMap : public ContextMapBase<T> {
 } // namespace memoir
 
 template <>
-struct std::hash<folio::Context> {
-  std::size_t operator()(const folio::Context &C) const noexcept {
+struct std::hash<memoir::Context> {
+  std::size_t operator()(const memoir::Context &C) const noexcept {
     std::size_t h1 = std::hash<llvm::Function *>{}(&C.function());
     std::size_t h2 = std::hash<llvm::CallBase *>{}(C.caller());
     return h1 ^ (h2 << 1); // or use boost::hash_combine
