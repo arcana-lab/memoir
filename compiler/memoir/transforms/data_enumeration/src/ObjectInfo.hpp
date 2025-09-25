@@ -15,11 +15,6 @@
 
 namespace memoir {
 
-using Object;
-using Offset;
-using Offsets;
-using OffsetsRef;
-
 enum ObjectInfoKind { OIK_Base, OIK_Arg };
 
 struct LocalInfo {
