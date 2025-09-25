@@ -6,7 +6,6 @@
 #include "DataEnumeration.hpp"
 #include "RedundantTranslations.hpp"
 #include "Utilities.hpp"
-#include "WeakenUses.hpp"
 
 using namespace memoir;
 

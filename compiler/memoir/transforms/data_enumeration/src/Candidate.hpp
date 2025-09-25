@@ -8,7 +8,6 @@
 #include "memoir/ir/Types.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-#include "CoalesceUses.hpp"
 #include "Mapping.hpp"
 #include "ObjectInfo.hpp"
 #include "Utilities.hpp"

@@ -7,7 +7,6 @@
 #include "memoir/lowering/Implementation.hpp"
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
 
-#include "CoalesceUses.hpp"
 #include "DataEnumeration.hpp"
 #include "Utilities.hpp"
 
