@@ -9,7 +9,7 @@
 namespace memoir {
 
 using Offset = unsigned;
-using Offsets = typename SmallVector<Offset>;
+using Offsets = SmallVector<Offset>;
 
 struct NestedObject {
   // Accessors.
@@ -40,8 +40,8 @@ protected:
 } // namespace memoir
 
 template <>
-struct std::hash<folio::NestedObject> {
-  std::size_t operator()(const folio::NestedObject &obj) const noexcept {
+struct std::hash<memoir::NestedObject> {
+  std::size_t operator()(const memoir::NestedObject &obj) const noexcept {
     std::size_t h1 = std::hash<llvm::Value *>{}(&obj.value());
     std::size_t i = 0;
     for (auto offset : obj.offsets()) {
