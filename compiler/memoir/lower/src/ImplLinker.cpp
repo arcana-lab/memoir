@@ -1,6 +1,6 @@
 #include <sstream>
 
-#include "memoir/lowering/ImplLinker.hpp"
+#include "memoir/lower/ImplLinker.hpp"
 
 #include "memoir/utility/Metadata.hpp"
 

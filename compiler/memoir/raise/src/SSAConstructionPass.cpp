@@ -30,7 +30,7 @@
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
 
-#include "memoir/raising/SSAConstruction.hpp"
+#include "memoir/raise/SSAConstruction.hpp"
 
 using namespace memoir;
 

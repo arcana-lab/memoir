@@ -10,11 +10,11 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/Print.hpp"
 
-#include "memoir/lowering/ImplLinker.hpp"
-#include "memoir/lowering/Implementation.hpp"
-#include "memoir/lowering/LowerFold.hpp"
-#include "memoir/lowering/SSADestruction.hpp"
-#include "memoir/lowering/TypeLayout.hpp"
+#include "memoir/lower/ImplLinker.hpp"
+#include "memoir/lower/Implementation.hpp"
+#include "memoir/lower/LowerFold.hpp"
+#include "memoir/lower/SSADestruction.hpp"
+#include "memoir/lower/TypeLayout.hpp"
 
 namespace memoir {
 

@@ -2,7 +2,7 @@
 
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/TypeCheck.hpp"
-#include "memoir/raising/LambdaLifting.hpp"
+#include "memoir/raise/LambdaLifting.hpp"
 #include "memoir/support/Casting.hpp"
 
 namespace memoir {

@@ -31,7 +31,7 @@
 
 #include "memoir/utility/FunctionNames.hpp"
 
-#include "memoir/lowering/SSADestruction.hpp"
+#include "memoir/lower/SSADestruction.hpp"
 
 using namespace memoir;
 

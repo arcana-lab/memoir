@@ -6,7 +6,7 @@
 
 #include "memoir/utility/Metadata.hpp"
 
-#include "memoir/raising/SSAConstruction.hpp"
+#include "memoir/raise/SSAConstruction.hpp"
 
 namespace memoir {
 

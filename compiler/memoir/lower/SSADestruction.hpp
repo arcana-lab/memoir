@@ -9,7 +9,7 @@
 #include "memoir/ir/InstVisitor.hpp"
 #include "memoir/ir/Instructions.hpp"
 
-#include "memoir/lowering/TypeLayout.hpp"
+#include "memoir/lower/TypeLayout.hpp"
 
 #include "llvm/ADT/MapVector.h"
 
