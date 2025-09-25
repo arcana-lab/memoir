@@ -8,8 +8,8 @@
 #  include "memoir/support/SortedVector.hpp"
 #  include "memoir/support/WorkList.hpp"
 
-#  include "folio/ProxyInsertion.hpp"
-#  include "folio/Utilities.hpp"
+#  include "memoir/transforms/data_enumeration/ProxyInsertion.hpp"
+#  include "memoir/transforms/data_enumeration/Utilities.hpp"
 
 using namespace memoir;
 

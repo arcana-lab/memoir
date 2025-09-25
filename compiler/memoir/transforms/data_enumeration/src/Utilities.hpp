@@ -14,18 +14,6 @@
 
 namespace memoir {
 
-// Using memoir types.
-using List;
-using Map;
-using Option;
-using OrderedSet;
-using Pair;
-using Set;
-using SmallSet;
-using SmallVector;
-using UnionFind;
-using Vector;
-
 // Helper types.
 template <typename T>
 using LocalMap = SmallMap<llvm::Value *, T, /* SmallSize = */ 2>;

@@ -25,6 +25,7 @@ add_subdirectory(temp_arg_reification)
 add_subdirectory(sweep_selections)
 
 # Transformation passes.
+add_subdirectory(data_enumeration)
 # add_subdirectory(dead_collection_elimination)
 # add_subdirectory(dead_field_elimination)
 # add_subdirectory(field_elision)
