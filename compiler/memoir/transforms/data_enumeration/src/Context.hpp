@@ -1,5 +1,5 @@
-#ifndef FOLIO_TRANSFORMS_CONTEXT_H
-#define FOLIO_TRANSFORMS_CONTEXT_H
+#ifndef MEMOIR_TRANSFORMS_DATAENUMERATION_CONTEXT_H
+#define MEMOIR_TRANSFORMS_DATAENUMERATION_CONTEXT_H
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
@@ -100,4 +100,4 @@ struct std::hash<memoir::Context> {
   }
 };
 
-#endif // FOLIO_TRANSFORMS_CONTEXT_H
+#endif // MEMOIR_TRANSFORMS_DATAENUMERATION_CONTEXT_H

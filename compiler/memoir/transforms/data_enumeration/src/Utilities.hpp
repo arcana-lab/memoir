@@ -1,5 +1,5 @@
-#ifndef FOLIO_TRANSFORMS_UTILITIES_h
-#define FOLIO_TRANSFORMS_UTILITIES_h
+#ifndef MEMOIR_TRANSFORMS_DATAENUMERATION_UTILITIES_h
+#define MEMOIR_TRANSFORMS_DATAENUMERATION_UTILITIES_h
 
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/Function.h"
@@ -56,4 +56,4 @@ void print_uses(const Map<Key, Uses> &uses) {
 
 } // namespace memoir
 
-#endif // FOLIO_TRANSFORMS_UTILITIES_h
+#endif // MEMOIR_TRANSFORMS_DATAENUMERATION_UTILITIES_h
