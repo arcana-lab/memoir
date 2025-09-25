@@ -14,7 +14,7 @@
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/utility/Metadata.hpp"
 
-#include "memoir/transforms/utilities/ReifyTempArgs.hpp"
+#include "memoir/transform/utilities/ReifyTempArgs.hpp"
 
 namespace memoir {
 

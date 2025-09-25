@@ -5,7 +5,7 @@
 #include "llvm/Support/CommandLine.h"
 
 #include "memoir/lowering/Implementation.hpp"
-#include "memoir/transforms/utilities/ReifyTempArgs.hpp"
+#include "memoir/transform/utilities/ReifyTempArgs.hpp"
 
 #include "DataEnumeration.hpp"
 #include "Utilities.hpp"

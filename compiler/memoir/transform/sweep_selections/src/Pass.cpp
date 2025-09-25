@@ -14,7 +14,7 @@
 #include "memoir/lowering/Implementation.hpp"
 #include "memoir/passes/Passes.hpp"
 #include "memoir/support/Casting.hpp"
-#include "memoir/transforms/utilities/MutateType.hpp"
+#include "memoir/transform/utilities/MutateType.hpp"
 
 namespace memoir {
 

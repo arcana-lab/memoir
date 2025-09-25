@@ -2,7 +2,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 // MEMOIR
-#include "memoir/transforms/utilities/Inlining.hpp"
+#include "memoir/transform/utilities/Inlining.hpp"
 
 #include "memoir/ir/Instructions.hpp"
 

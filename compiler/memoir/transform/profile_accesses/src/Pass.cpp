@@ -6,7 +6,7 @@
 
 // MEMOIR
 #include "memoir/passes/Passes.hpp"
-#include "memoir/transforms/profile_accesses/AccessCounter.hpp"
+#include "memoir/transform/profile_accesses/AccessCounter.hpp"
 
 namespace memoir {
 

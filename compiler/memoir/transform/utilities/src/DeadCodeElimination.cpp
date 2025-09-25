@@ -3,7 +3,7 @@
 
 #include "memoir/passes/Passes.hpp"
 #include "memoir/support/WorkList.hpp"
-#include "memoir/transforms/utilities/DeadCodeElimination.hpp"
+#include "memoir/transform/utilities/DeadCodeElimination.hpp"
 #include "memoir/utility/Metadata.hpp"
 
 namespace memoir {

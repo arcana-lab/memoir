@@ -11,7 +11,7 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
-#include "memoir/transforms/utilities/PromoteGlobals.hpp"
+#include "memoir/transform/utilities/PromoteGlobals.hpp"
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
 

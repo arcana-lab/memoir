@@ -11,7 +11,7 @@
 #include "memoir/support/AssocList.hpp"
 #include "memoir/support/SortedVector.hpp"
 #include "memoir/support/WorkList.hpp"
-#include "memoir/transforms/utilities/PromoteGlobals.hpp"
+#include "memoir/transform/utilities/PromoteGlobals.hpp"
 #include "memoir/utility/Metadata.hpp"
 
 #include "DataEnumeration.hpp"

@@ -34,6 +34,6 @@ add_subdirectory(analysis)
 add_subdirectory(lowering)
 add_subdirectory(raising)
 add_subdirectory(passes)
-add_subdirectory(transforms)
+add_subdirectory(transform)
 
 install(TARGETS memoir LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

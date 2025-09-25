@@ -1,7 +1,7 @@
 #include "memoir/support/AssocList.hpp"
 #include "memoir/support/DataTypes.hpp"
 #include "memoir/support/Print.hpp"
-#include "memoir/transforms/utilities/MutateType.hpp"
+#include "memoir/transform/utilities/MutateType.hpp"
 
 #include "DataEnumeration.hpp"
 #include "Utilities.hpp"
