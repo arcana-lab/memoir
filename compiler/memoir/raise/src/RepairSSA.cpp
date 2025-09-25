@@ -3,7 +3,7 @@
 #include "llvm/Transforms/Utils/PromoteMemToReg.h"
 
 #include "memoir/ir/Types.hpp"
-#include "memoir/raising/RepairSSA.hpp"
+#include "memoir/raise/RepairSSA.hpp"
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/DataTypes.hpp"
 

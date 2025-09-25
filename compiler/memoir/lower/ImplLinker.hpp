@@ -5,8 +5,8 @@
 
 #include "memoir/support/DataTypes.hpp"
 
-#include "memoir/lowering/Implementation.hpp"
-#include "memoir/lowering/TypeLayout.hpp"
+#include "memoir/lower/Implementation.hpp"
+#include "memoir/lower/TypeLayout.hpp"
 
 /*
  * This file provides a utility which instantiates the necessary collection

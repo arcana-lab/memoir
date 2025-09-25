@@ -1,4 +1,4 @@
-#include "memoir/lowering/Implementation.hpp"
+#include "memoir/lower/Implementation.hpp"
 
 namespace memoir {
 

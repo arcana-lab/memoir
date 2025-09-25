@@ -4,7 +4,7 @@
 #include "llvm/IR/Verifier.h"
 #include "llvm/Support/CommandLine.h"
 
-#include "memoir/lowering/Implementation.hpp"
+#include "memoir/lower/Implementation.hpp"
 #include "memoir/transform/utilities/ReifyTempArgs.hpp"
 
 #include "DataEnumeration.hpp"

@@ -9,7 +9,7 @@
 // MEMOIR
 #include "memoir/passes/Passes.hpp"
 
-#include "memoir/raising/TypeInference.hpp"
+#include "memoir/raise/TypeInference.hpp"
 
 namespace memoir {
 

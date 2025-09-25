@@ -40,8 +40,8 @@
 #include "memoir/utility/FunctionNames.hpp"
 #include "memoir/utility/Metadata.hpp"
 
-#include "memoir/lowering/ImplLinker.hpp"
-#include "memoir/lowering/TypeLayout.hpp"
+#include "memoir/lower/ImplLinker.hpp"
+#include "memoir/lower/TypeLayout.hpp"
 
 using namespace memoir;
 

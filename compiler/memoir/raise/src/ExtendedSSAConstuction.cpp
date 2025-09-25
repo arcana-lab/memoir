@@ -6,8 +6,8 @@
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/passes/Passes.hpp"
-#include "memoir/raising/ExtendedSSAConstruction.hpp"
-#include "memoir/raising/RepairSSA.hpp"
+#include "memoir/raise/ExtendedSSAConstruction.hpp"
+#include "memoir/raise/RepairSSA.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 

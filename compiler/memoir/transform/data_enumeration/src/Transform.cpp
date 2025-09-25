@@ -7,7 +7,7 @@
 
 #include "memoir/ir/Builder.hpp"
 #include "memoir/ir/Instructions.hpp"
-#include "memoir/raising/RepairSSA.hpp"
+#include "memoir/raise/RepairSSA.hpp"
 #include "memoir/support/AssocList.hpp"
 #include "memoir/support/SortedVector.hpp"
 #include "memoir/support/WorkList.hpp"

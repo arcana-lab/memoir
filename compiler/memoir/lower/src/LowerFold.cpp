@@ -11,7 +11,7 @@
 
 #include "memoir/transform/utilities/Inlining.hpp"
 
-#include "memoir/lowering/LowerFold.hpp"
+#include "memoir/lower/LowerFold.hpp"
 
 namespace memoir {
 

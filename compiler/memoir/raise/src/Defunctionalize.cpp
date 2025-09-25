@@ -6,7 +6,7 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #include "memoir/passes/Passes.hpp"
-#include "memoir/raising/Defunctionalize.hpp"
+#include "memoir/raise/Defunctionalize.hpp"
 #include "memoir/support/Assert.hpp"
 #include "memoir/support/DataTypes.hpp"
 

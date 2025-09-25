@@ -11,7 +11,7 @@
 #include "memoir/ir/Instructions.hpp"
 #include "memoir/ir/Object.hpp"
 #include "memoir/ir/Types.hpp"
-#include "memoir/lowering/Implementation.hpp"
+#include "memoir/lower/Implementation.hpp"
 #include "memoir/passes/Passes.hpp"
 #include "memoir/support/Casting.hpp"
 #include "memoir/transform/utilities/MutateType.hpp"
