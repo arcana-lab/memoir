@@ -10,11 +10,6 @@ using namespace memoir;
 
 namespace memoir {
 
-static llvm::cl::opt<bool> disable_use_weakening(
-    "disable-use-weakening",
-    llvm::cl::desc("Disable weakening uses"),
-    llvm::cl::init(true));
-
 llvm::Module &Candidate::module() const {
   return this->front()->module();
 }
