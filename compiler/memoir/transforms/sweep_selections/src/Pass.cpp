@@ -9,6 +9,7 @@
 
 // MEMOIR
 #include "memoir/ir/Instructions.hpp"
+#include "memoir/ir/Object.hpp"
 #include "memoir/ir/Types.hpp"
 #include "memoir/lowering/Implementation.hpp"
 #include "memoir/passes/Passes.hpp"
@@ -28,82 +29,12 @@ static llvm::cl::opt<std::string> sweep_file_path(
     "memoir-sweep-path",
     llvm::cl::desc("Path where sweep bitcodes and logs should be placed"));
 
-struct ObjectInfo {
-protected:
-  AllocInst *_alloc;
-  Vector<unsigned> _offsets;
-
-public:
-  ObjectInfo(AllocInst &alloc, llvm::ArrayRef<unsigned> offsets)
-    : _alloc(&alloc),
-      _offsets(offsets) {}
-
-  AllocInst &alloc() const {
-    return *this->_alloc;
-  }
-
-  llvm::ArrayRef<unsigned> offsets() const {
-    return this->_offsets;
-  }
-
-  Type &type() const {
-    auto *type = &this->alloc().getType();
-
-    for (auto offset : this->offsets()) {
-      if (auto *tuple_type = dyn_cast<TupleType>(type)) {
-        type = &tuple_type->getFieldType(offset);
-      } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
-        type = &collection_type->getElementType();
-      } else {
-        MEMOIR_UNREACHABLE("Offset into a non-object type.");
-      }
-    }
-
-    return *type;
-  }
-
-  friend bool operator<(const ObjectInfo &lhs, const ObjectInfo &rhs) {
-    if (&lhs.alloc() == &rhs.alloc()) {
-      auto l_size = lhs.offsets().size(), r_size = rhs.offsets().size();
-      if (l_size == r_size) {
-        for (size_t i = 0; i < l_size; ++i) {
-          auto l_off = lhs.offsets()[i];
-          auto r_off = rhs.offsets()[i];
-          if (l_off < r_off) {
-            return true;
-          } else if (l_off > r_off) {
-            return false;
-          }
-        }
-        return false;
-      } else {
-        return l_size < r_size;
-      }
-    }
-    return &lhs.alloc() < &rhs.alloc();
-  }
-
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os,
-                                       const ObjectInfo &info) {
-    os << "(" << info.alloc() << ")";
-    for (auto offset : info.offsets()) {
-      if (offset == unsigned(-1)) {
-        os << "[*]";
-      } else {
-        os << "." << std::to_string(offset);
-      }
-    }
-
-    return os;
-  }
-};
-
 /**
  * Gathers selectable objects in the allocation and populates the map with all
  * candidate selections.
  */
 static void gather_candidates(
-    OrderedMap<ObjectInfo, Vector<const Implementation *>> &candidates,
+    OrderedMap<Object, Vector<const Implementation *>> &candidates,
     AllocInst &alloc,
     llvm::ArrayRef<unsigned> offsets,
     Type &type) {
@@ -113,7 +44,7 @@ static void gather_candidates(
   if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
 
     // Populate the list with all possible candidates.
-    ObjectInfo info(alloc, offsets);
+    Object info(alloc.asValue(), offsets);
     Implementation::candidates(*collection_type, candidates[info]);
 
     // Recurse.
@@ -143,18 +74,19 @@ static void gather_candidates(
 }
 
 static void gather_candidates(
-    OrderedMap<ObjectInfo, Vector<const Implementation *>> &candidates,
+    OrderedMap<Object, Vector<const Implementation *>> &candidates,
     AllocInst &alloc) {
   gather_candidates(candidates, alloc, {}, alloc.getType());
 }
 
 static void apply_selections(
-    OrderedMap<const ObjectInfo *, const Implementation *> &selections) {
+    OrderedMap<const Object *, const Implementation *> &selections) {
 
   // Flatten all type mutations for each allocation.
   Map<AllocInst *, Type *> mutated_type = {};
   for (const auto &[info, impl] : selections) {
-    auto &alloc = info->alloc();
+    auto &alloc = MEMOIR_SANITIZE(into<AllocInst>(info->value()),
+                                  "Object value is not an allocation");
 
     // If we haven't handled this alloc yet, get its type.
     if (not mutated_type.count(&alloc)) {
@@ -268,7 +200,7 @@ llvm::PreservedAnalyses SweepSelectionsPass::run(
       });
 
   // Collect all of the possible candidates for each allocation.
-  OrderedMap<ObjectInfo, Vector<const Implementation *>> candidates = {};
+  OrderedMap<Object, Vector<const Implementation *>> candidates = {};
   for (auto &F : M) {
     if (F.empty()) {
       continue;
@@ -299,7 +231,7 @@ llvm::PreservedAnalyses SweepSelectionsPass::run(
   }
 
   Vector<size_t> selection_indices(candidates.size(), 0);
-  OrderedMap<const ObjectInfo *, const Implementation *> implementations = {};
+  OrderedMap<const Object *, const Implementation *> implementations = {};
   do {
     // Gather the selections.
     size_t i = 0;
