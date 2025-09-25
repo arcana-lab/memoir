@@ -14,7 +14,7 @@
 #include "memoir/transforms/utilities/PromoteGlobals.hpp"
 #include "memoir/utility/Metadata.hpp"
 
-#include "ProxyInsertion.hpp"
+#include "DataEnumeration.hpp"
 #include "Utilities.hpp"
 
 using namespace memoir;
@@ -33,7 +33,7 @@ static llvm::cl::opt<int> max_reuses(
 
 using GetGlobal = typename std::function<llvm::GlobalVariable *(ObjectInfo *)>;
 
-static bool dominates(ProxyInsertion::GetDominatorTree get_domtree,
+static bool dominates(DataEnumeration::GetDominatorTree get_domtree,
                       llvm::Value &def,
                       llvm::Use &use) {
   llvm::Function *def_func;
@@ -65,9 +65,10 @@ static bool dominates(ProxyInsertion::GetDominatorTree get_domtree,
   return domtree.dominates(inst, user);
 }
 
-static bool replace_with_dominator(ProxyInsertion::GetDominatorTree get_domtree,
-                                   llvm::ArrayRef<llvm::Instruction *> defs,
-                                   llvm::Use &use) {
+static bool replace_with_dominator(
+    DataEnumeration::GetDominatorTree get_domtree,
+    llvm::ArrayRef<llvm::Instruction *> defs,
+    llvm::Use &use) {
   for (auto *def : defs) {
     if (dominates(get_domtree, *def, use)) {
       use.set(def);
@@ -96,13 +97,13 @@ static llvm::Value *load_mapping(Builder &builder,
   return val;
 }
 
-llvm::Value *ProxyInsertion::load_encoder(Builder &builder,
-                                          const TransformInfo &info) {
+llvm::Value *DataEnumeration::load_encoder(Builder &builder,
+                                           const TransformInfo &info) {
   return load_mapping(builder, *info.encoder_type, info.enc_global);
 }
 
-llvm::Value *ProxyInsertion::load_decoder(Builder &builder,
-                                          const TransformInfo &info) {
+llvm::Value *DataEnumeration::load_decoder(Builder &builder,
+                                           const TransformInfo &info) {
   return load_mapping(builder, *info.decoder_type, info.dec_global);
 }
 
@@ -115,15 +116,15 @@ static void store_mapping(Builder &builder,
   builder.CreateStore(val, ptr);
 }
 
-void ProxyInsertion::store_encoder(Builder &builder,
-                                   const TransformInfo &info,
-                                   llvm::Value *enc) {
+void DataEnumeration::store_encoder(Builder &builder,
+                                    const TransformInfo &info,
+                                    llvm::Value *enc) {
   return store_mapping(builder, *info.encoder_type, info.enc_global, enc);
 }
 
-void ProxyInsertion::store_decoder(Builder &builder,
-                                   const TransformInfo &info,
-                                   llvm::Value *dec) {
+void DataEnumeration::store_decoder(Builder &builder,
+                                    const TransformInfo &info,
+                                    llvm::Value *dec) {
   return store_mapping(builder, *info.decoder_type, info.dec_global, dec);
 }
 
@@ -131,9 +132,9 @@ void ProxyInsertion::store_decoder(Builder &builder,
 #  define PRINT_VALUES 0
 #endif
 
-llvm::Instruction &ProxyInsertion::has_value(Builder &builder,
-                                             const TransformInfo &info,
-                                             llvm::Value &value) {
+llvm::Instruction &DataEnumeration::has_value(Builder &builder,
+                                              const TransformInfo &info,
+                                              llvm::Value &value) {
 #if PRINT_VALUES
   builder.CreateErrorf("HAS %u\n", { &value });
 #endif
@@ -141,9 +142,9 @@ llvm::Instruction &ProxyInsertion::has_value(Builder &builder,
   return builder.CreateHasInst(enc, { &value })->getCallInst();
 };
 
-llvm::Value &ProxyInsertion::decode_value(Builder &builder,
-                                          const TransformInfo &info,
-                                          llvm::Value &value) {
+llvm::Value &DataEnumeration::decode_value(Builder &builder,
+                                           const TransformInfo &info,
+                                           llvm::Value &value) {
 #if PRINT_VALUES
   builder.CreateErrorf("DEC %lu ", { &value });
 #endif
@@ -159,9 +160,9 @@ llvm::Value &ProxyInsertion::decode_value(Builder &builder,
   return decoded;
 };
 
-llvm::Value &ProxyInsertion::encode_value(Builder &builder,
-                                          const TransformInfo &info,
-                                          llvm::Value &value) {
+llvm::Value &DataEnumeration::encode_value(Builder &builder,
+                                           const TransformInfo &info,
+                                           llvm::Value &value) {
 #if PRINT_VALUES
   builder.CreateErrorf("ENC %u ", { &value });
 #endif
@@ -197,9 +198,9 @@ static llvm::Value *coerce(Builder &builder,
       "NYI, but you should add type coercion instead of extending");
 }
 
-llvm::Value &ProxyInsertion::add_value(Builder &builder,
-                                       const TransformInfo &info,
-                                       llvm::Value &value) {
+llvm::Value &DataEnumeration::add_value(Builder &builder,
+                                        const TransformInfo &info,
+                                        llvm::Value &value) {
 #if PRINT_VALUES
   builder.CreateErrorf("ADD %u ", { &value });
 #endif
@@ -282,7 +283,7 @@ static void update_candidates(std::forward_iterator auto candidates_begin,
     it->update(old_func, new_func, vmap, /* delete old? */ true);
 }
 
-void ProxyInsertion::promote() {
+void DataEnumeration::promote() {
 
   // Collect all of the globals that can be promoted.
   Vector<llvm::GlobalVariable *> globals_to_promote;
@@ -495,7 +496,7 @@ bool is_total_proxy(ObjectInfo &obj, const Vector<CoalescedUses> &added) {
   return true;
 }
 
-void ProxyInsertion::decode_uses() {
+void DataEnumeration::decode_uses() {
   Set<llvm::Use *> handled = {};
   for (const auto &[base, info] : this->to_transform) {
     debugln(" >> CANDIDATE : ", *info.key_type, " << ");
@@ -545,9 +546,9 @@ static void update_use(llvm::Use &use, llvm::Value &value) {
   }
 }
 
-llvm::Value &ProxyInsertion::encode_use(Builder &builder,
-                                        const TransformInfo &info,
-                                        llvm::Use &use) {
+llvm::Value &DataEnumeration::encode_use(Builder &builder,
+                                         const TransformInfo &info,
+                                         llvm::Use &use) {
 
   debugln("ENCODE ", pretty_use(use));
 
@@ -612,7 +613,7 @@ llvm::Value &ProxyInsertion::encode_use(Builder &builder,
   return encoded;
 }
 
-void ProxyInsertion::patch_uses() {
+void DataEnumeration::patch_uses() {
 
   Set<llvm::Use *> handled = {};
   debugln("=== PATCH USES === ");
@@ -740,7 +741,7 @@ static llvm::Instruction &find_construction_point(
       "Failed to find a construction point for the candidate!");
 }
 
-ObjectInfo *ProxyInsertion::find_recursive_base(BaseObjectInfo &base) {
+ObjectInfo *DataEnumeration::find_recursive_base(BaseObjectInfo &base) {
   // Is there an argument base in the same function as this one?
   // If so, find the one corresponding to this base.
   auto *function = base.function();
@@ -828,7 +829,7 @@ static llvm::Value *construct_reuse_heuristic(MemOIRBuilder &builder,
   return heuristic;
 }
 
-void ProxyInsertion::allocate_mappings(BaseObjectInfo &base) {
+void DataEnumeration::allocate_mappings(BaseObjectInfo &base) {
 
   const auto &equiv = this->equiv.at(&base);
   const auto &info = this->to_transform.at(&base);
@@ -956,7 +957,7 @@ void ProxyInsertion::allocate_mappings(BaseObjectInfo &base) {
   store_allocation(builder, encoder, decoder, info.enc_global, info.dec_global);
 }
 
-bool ProxyInsertion::transform() {
+bool DataEnumeration::transform() {
 
   bool modified = true;
 

@@ -8,7 +8,7 @@
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
 
 #include "CoalesceUses.hpp"
-#include "ProxyInsertion.hpp"
+#include "DataEnumeration.hpp"
 #include "Utilities.hpp"
 
 using namespace memoir;
@@ -32,8 +32,8 @@ static llvm::cl::opt<std::string> proxy_map_impl(
     llvm::cl::desc("Set the implementation for proxied map"),
     llvm::cl::init("bitmap"));
 
-Option<std::string> ProxyInsertion::get_enumerated_impl(Type &type,
-                                                        bool is_nested) {
+Option<std::string> DataEnumeration::get_enumerated_impl(Type &type,
+                                                         bool is_nested) {
   if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
     auto selection = collection_type->get_selection();
 
@@ -55,9 +55,9 @@ Option<std::string> ProxyInsertion::get_enumerated_impl(Type &type,
   return {};
 }
 
-ProxyInsertion::ProxyInsertion(llvm::Module &module,
-                               GetDominatorTree get_dominator_tree,
-                               GetBoundsChecks get_bounds_checks)
+DataEnumeration::DataEnumeration(llvm::Module &module,
+                                 GetDominatorTree get_dominator_tree,
+                                 GetBoundsChecks get_bounds_checks)
   : module(module),
     get_dominator_tree(get_dominator_tree),
     get_bounds_checks(get_bounds_checks) {

@@ -3,7 +3,7 @@
 #include "memoir/support/Print.hpp"
 #include "memoir/transforms/utilities/MutateType.hpp"
 
-#include "ProxyInsertion.hpp"
+#include "DataEnumeration.hpp"
 #include "Utilities.hpp"
 
 using namespace memoir;
@@ -98,7 +98,7 @@ static Type &convert_element_type(Type &base,
     if (offsets.empty()) {
 
       auto selection =
-          ProxyInsertion::get_enumerated_impl(*assoc_type, is_nested);
+          DataEnumeration::get_enumerated_impl(*assoc_type, is_nested);
 
       return AssocType::get(new_type, assoc_type->getValueType(), selection);
     }
@@ -119,7 +119,7 @@ static Type &convert_element_type(Type &base,
 
 static void collect_types_to_mutate(llvm::Module &module,
                                     llvm::ArrayRef<ObjectInfo *> objects,
-                                    const ProxyInsertion::TransformInfo &info,
+                                    const DataEnumeration::TransformInfo &info,
                                     ParamTypes &params_to_mutate,
                                     AllocTypes &allocs_to_mutate) {
 
@@ -265,7 +265,7 @@ static void mutate_found_types(ParamTypes &params_to_mutate,
 }
 
 // Entrypoint.
-void ProxyInsertion::mutate_types() {
+void DataEnumeration::mutate_types() {
   // Find parameter and allocation types that need to be mutated.
   debugln("=== FIND NEW PARAM TYPES ===");
   ParamTypes params_to_mutate = {};

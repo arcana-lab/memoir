@@ -4,8 +4,8 @@
 #include "memoir/ir/CallGraph.hpp"
 #include "memoir/support/SortedVector.hpp"
 
+#include "DataEnumeration.hpp"
 #include "Mapping.hpp"
-#include "ProxyInsertion.hpp"
 #include "Utilities.hpp"
 #include "Version.hpp"
 
@@ -454,7 +454,7 @@ static llvm::Function *create_addkey_function(llvm::Module &module,
   return &addkey_function;
 }
 
-void ProxyInsertion::prepare() {
+void DataEnumeration::prepare() {
 
   // Monomorphize the program, for candidate patterns.
   // monomorphize(this->candidates);

@@ -10,7 +10,7 @@
 #include "memoir/transforms/utilities/ReifyTempArgs.hpp"
 #include "memoir/utility/Metadata.hpp"
 
-#include "ProxyInsertion.hpp"
+#include "DataEnumeration.hpp"
 #include "SelectionMonomorphization.hpp"
 
 namespace memoir {
@@ -33,7 +33,7 @@ llvm::PreservedAnalyses DataEnumerationPass::run(
   }
 
   { // Insert proxies and encode uses.
-    ProxyInsertion proxies(M, get_dominator_tree, get_bounds_checks);
+    DataEnumeration proxies(M, get_dominator_tree, get_bounds_checks);
     MemOIRInst::invalidate();
   }
 

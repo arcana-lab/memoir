@@ -19,7 +19,7 @@ namespace memoir {
 
 using Builder = MemOIRBuilder;
 
-struct ProxyInsertion {
+struct DataEnumeration {
 public:
   // Helper types.
   using GetDominatorTree =
@@ -37,9 +37,9 @@ public:
   };
 
   // Constructors.
-  ProxyInsertion(llvm::Module &module,
-                 GetDominatorTree get_dominator_tree,
-                 GetBoundsChecks get_bounds_checks);
+  DataEnumeration(llvm::Module &module,
+                  GetDominatorTree get_dominator_tree,
+                  GetBoundsChecks get_bounds_checks);
 
   // Driver functions.
   void analyze();

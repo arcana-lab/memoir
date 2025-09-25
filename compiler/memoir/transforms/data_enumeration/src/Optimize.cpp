@@ -3,7 +3,7 @@
 #include "memoir/support/WorkList.hpp"
 
 #include "Candidate.hpp"
-#include "ProxyInsertion.hpp"
+#include "DataEnumeration.hpp"
 #include "RedundantTranslations.hpp"
 #include "Utilities.hpp"
 #include "WeakenUses.hpp"
@@ -13,7 +13,7 @@ using namespace memoir;
 namespace memoir {
 
 static void gather_uses(llvm::ArrayRef<ObjectInfo *> objects,
-                        ProxyInsertion::TransformInfo &info) {
+                        DataEnumeration::TransformInfo &info) {
 
   // Gather uses and encoded values within each equivalence class.
   for (auto *obj : objects)
@@ -79,7 +79,7 @@ static void gather_uses(llvm::ArrayRef<ObjectInfo *> objects,
   }
 }
 
-void ProxyInsertion::optimize() {
+void DataEnumeration::optimize() {
 
   // Optimize the uses in each equivalence class.
   for (const auto &[base, objects] : this->equiv) {

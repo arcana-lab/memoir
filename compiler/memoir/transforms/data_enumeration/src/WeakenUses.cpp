@@ -8,7 +8,7 @@
 #  include "memoir/support/SortedVector.hpp"
 #  include "memoir/support/WorkList.hpp"
 
-#  include "memoir/transforms/data_enumeration/ProxyInsertion.hpp"
+#  include "memoir/transforms/data_enumeration/DataEnumeration.hpp"
 #  include "memoir/transforms/data_enumeration/Utilities.hpp"
 
 using namespace memoir;
@@ -75,7 +75,7 @@ static void propagate_data_flow(
 void weaken_uses(Set<llvm::Use *> &to_addkey,
                  Set<llvm::Use *> &to_weaken,
                  Candidate &candidate,
-                 ProxyInsertion::GetBoundsChecks get_bound_checks) {
+                 DataEnumeration::GetBoundsChecks get_bound_checks) {
 
   // Collect all of the functions where addkey uses occur.
   Map<llvm::Function *, Set<llvm::Use *>> local_uses = {};

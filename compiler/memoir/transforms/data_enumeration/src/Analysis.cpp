@@ -5,7 +5,7 @@
 #include "memoir/support/WorkList.hpp"
 
 #include "Benefit.hpp"
-#include "ProxyInsertion.hpp"
+#include "DataEnumeration.hpp"
 #include "Utilities.hpp"
 
 using namespace memoir;
@@ -22,7 +22,7 @@ static llvm::cl::opt<bool> disable_proxy_sharing(
     llvm::cl::desc("Disable proxy sharing optimization"),
     llvm::cl::init(false));
 
-void ProxyInsertion::flesh_out(Candidate &candidate) {
+void DataEnumeration::flesh_out(Candidate &candidate) {
   // Discover all relevant abstract objects for this candidate, and insert them.
 
   // Gather the set of outgoing objects.
@@ -47,13 +47,13 @@ void ProxyInsertion::flesh_out(Candidate &candidate) {
   }
 }
 
-void ProxyInsertion::gather_assoc_objects(AllocInst &alloc) {
+void DataEnumeration::gather_assoc_objects(AllocInst &alloc) {
   this->gather_assoc_objects(alloc, alloc.getType(), {});
 }
 
-void ProxyInsertion::gather_assoc_objects(AllocInst &alloc,
-                                          Type &type,
-                                          Offsets offsets) {
+void DataEnumeration::gather_assoc_objects(AllocInst &alloc,
+                                           Type &type,
+                                           Offsets offsets) {
   if (auto *tuple_type = dyn_cast<TupleType>(&type)) {
     for (unsigned field = 0; field < tuple_type->getNumFields(); ++field) {
 
@@ -146,15 +146,15 @@ static bool propagator_can_share(Type &type,
   return true;
 }
 
-void ProxyInsertion::gather_propagators(const Set<Type *> &types,
-                                        AllocInst &alloc) {
+void DataEnumeration::gather_propagators(const Set<Type *> &types,
+                                         AllocInst &alloc) {
   this->gather_propagators(types, alloc, alloc.getType());
 }
 
-void ProxyInsertion::gather_propagators(const Set<Type *> &types,
-                                        AllocInst &alloc,
-                                        Type &type,
-                                        OffsetsRef offsets) {
+void DataEnumeration::gather_propagators(const Set<Type *> &types,
+                                         AllocInst &alloc,
+                                         Type &type,
+                                         OffsetsRef offsets) {
 
   if (auto *collection_type = dyn_cast<CollectionType>(&type)) {
 
@@ -185,7 +185,7 @@ void ProxyInsertion::gather_propagators(const Set<Type *> &types,
 }
 
 #if 0
-static void add_enumerated(ProxyInsertion::Enumerated &enumerated,
+static void add_enumerated(DataEnumeration::Enumerated &enumerated,
                            WorkList<NestedObject> &worklist,
                            llvm::Value &value,
                            llvm::ArrayRef<Offset> offsets,
@@ -205,7 +205,7 @@ static void add_enumerated(ProxyInsertion::Enumerated &enumerated,
 }
 
 static void gather_enumerated(Vector<Candidate> &candidates,
-                              ProxyInsertion::Enumerated &enumerated) {
+                              DataEnumeration::Enumerated &enumerated) {
   // For each candidate, map the allocations to their candidate.
   for (auto &candidate : candidates) {
     for (auto *info : candidate) {
@@ -330,7 +330,7 @@ static llvm::Function &get_alloc_function(llvm::Module &module) {
       "Failed to find MEMOIR alloc function!");
 }
 
-void ProxyInsertion::gather_assoc_objects() {
+void DataEnumeration::gather_assoc_objects() {
   for (auto &use : get_alloc_function(this->module).uses())
     if (auto *alloc = into<AllocInst>(use.getUser()))
       this->gather_assoc_objects(*alloc);
@@ -339,7 +339,7 @@ void ProxyInsertion::gather_assoc_objects() {
     info.analyze();
 }
 
-void ProxyInsertion::gather_propagators() {
+void DataEnumeration::gather_propagators() {
   // Collect the key types of our assoc objects.
   Set<Type *> types = {};
   for (auto &info : this->objects)
@@ -356,7 +356,7 @@ void ProxyInsertion::gather_propagators() {
     info.analyze();
 }
 
-void ProxyInsertion::gather_abstract_objects(ObjectInfo &obj) {
+void DataEnumeration::gather_abstract_objects(ObjectInfo &obj) {
   for (const auto &[func, local] : obj.info()) {
     for (const auto &redef : local.redefinitions) {
       for (auto &use : redef.value().uses()) {
@@ -398,7 +398,7 @@ void ProxyInsertion::gather_abstract_objects(ObjectInfo &obj) {
   }
 }
 
-void ProxyInsertion::gather_abstract_objects() {
+void DataEnumeration::gather_abstract_objects() {
   // Find any call users of the base object, and construct object infos for the
   // argument.
   for (auto &obj : this->objects)
@@ -409,7 +409,7 @@ void ProxyInsertion::gather_abstract_objects() {
     this->gather_abstract_objects(arg);
 }
 
-void ProxyInsertion::share_proxies() {
+void DataEnumeration::share_proxies() {
 
   Set<const ObjectInfo *> used = {};
   for (auto it = this->objects.begin(); it != this->objects.end(); ++it) {
@@ -549,7 +549,7 @@ void ProxyInsertion::share_proxies() {
   }
 }
 
-void ProxyInsertion::unify_bases() {
+void DataEnumeration::unify_bases() {
 
   debugln("=== UNIFY BASES ===");
   this->unified.clear();
@@ -693,7 +693,7 @@ void ProxyInsertion::unify_bases() {
   }
 }
 
-void ProxyInsertion::analyze() {
+void DataEnumeration::analyze() {
   // Gather all assoc object allocations in the program.
   this->gather_assoc_objects();
 
