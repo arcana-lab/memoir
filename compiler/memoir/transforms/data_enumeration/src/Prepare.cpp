@@ -347,7 +347,7 @@ static llvm::Function *create_addkey_function(llvm::Module &module,
   auto *llvm_ptr_type = llvm::PointerType::get(context, 0);
   auto *llvm_key_type = key_type.get_llvm_type(context);
 
-  // Create the addkey functions for this proxy.
+  // Create the addkey functions for this enumeration.
   Vector<llvm::Type *> addkey_params = { llvm_key_type };
   if (build_encoder)
     addkey_params.push_back(llvm_ptr_type);
@@ -359,7 +359,7 @@ static llvm::Function *create_addkey_function(llvm::Module &module,
   auto &addkey_function = MEMOIR_SANITIZE(
       llvm::Function::Create(addkey_type,
                              llvm::GlobalValue::LinkageTypes::InternalLinkage,
-                             "proxy_addkey_" + std::to_string(++id),
+                             "enum_addkey_" + std::to_string(++id),
                              module),
       "Failed to create LLVM function");
 
