@@ -24,8 +24,10 @@ function(add_memoir_sources)
   target_sources(memoir PUBLIC ${SRC_FILES})
 endfunction()
 
+# Utility scripts
 add_subdirectory(scripts)
 
+# Compiler
 add_subdirectory(llvm)
 add_subdirectory(ir)
 add_subdirectory(support)
@@ -37,3 +39,11 @@ add_subdirectory(passes)
 add_subdirectory(transform)
 
 install(TARGETS memoir LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+# Runtime
+add_subdirectory(op)
+add_subdirectory(impl)
+
+# Language APIs
+add_subdirectory(c)
+add_subdirectory(c++)

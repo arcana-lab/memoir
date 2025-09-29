@@ -15,7 +15,7 @@ HANDLE_TYPE(boolean, bool)
 HANDLE_TYPE(f64, double)
 HANDLE_TYPE(f32, float)
 HANDLE_TYPE(ptr, char *)
-HANDLE_TYPE(ref, Collection *)
+HANDLE_TYPE(ref, collection_ref)
 
 #ifndef HANDLE_INTEGER_TYPE
 #  define HANDLE_INTEGER_TYPE(TYPE_NAME,                                       \

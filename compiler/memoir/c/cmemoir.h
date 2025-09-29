@@ -1,8 +1,7 @@
-#ifndef MEMOIR_CMEMOIR_H
-#define MEMOIR_CMEMOIR_H
-#pragma once
+#ifndef MEMOIR_C_CMEMOIR_H
+#define MEMOIR_C_CMEMOIR_H
 
-#include "memoir.h"
+#include "memoir/op/memoir.h"
 
 #include "stddef.h"
 #include "stdint.h"
@@ -236,4 +235,4 @@ namespace memoir {
 } // namespace memoir
 #endif
 
-#endif
+#endif // MEMOIR_C_CMEMOIR_H
