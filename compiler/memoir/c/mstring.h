@@ -1,5 +1,5 @@
-#ifndef MEMOIR_API_MSTRING_H
-#define MEMOIR_API_MSTRING_H
+#ifndef MEMOIR_C_MSTRING_H
+#define MEMOIR_C_MSTRING_H
 #pragma once
 
 #include "cmemoir.h"
@@ -60,4 +60,4 @@ extern size_t memoir_strpbrk(Collection *str,
                              const char *accept,
                              size_t start = 0);
 
-#endif
+#endif // MEMOIR_C_MSTRING_H

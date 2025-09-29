@@ -3,10 +3,6 @@ BUILD_DIR=.build.dir
 HOOKS_DIR=.githooks
 MEMOIR_INSTALL_DIR ?= $(shell realpath install)
 
-NORM_RUNTIME=$(MEMOIR_INSTALL_DIR)/bin/memoir-norm-runtime
-RUNTIME_BC=$(MEMOIR_INSTALL_DIR)/lib/memoir.impl.bc
-DECL_BC=$(MEMOIR_INSTALL_DIR)/lib/memoir.decl.bc
-
 all: hooks postinstall
 
 build:
@@ -19,7 +15,6 @@ install: build
 	make -C $(BUILD_DIR) install -j32 --no-print-directory
 
 postinstall: install
-	$(NORM_RUNTIME) $(RUNTIME_BC) $(DECL_BC)
 	@cp $(BUILD_DIR)/compile_commands.json .
 
 benchmark: all
