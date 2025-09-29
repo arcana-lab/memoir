@@ -68,7 +68,25 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
 #endif()
 
-add_subdirectory(compiler)
+# Install memoir headers.
+install(
+  DIRECTORY memoir
+  TYPE INCLUDE
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN "*.hpp"
+  PATTERN "*.hh"
+  PATTERN "*.def"
+  PATTERN "*/src/*" EXCLUDE
+  PATTERN "*/src" EXCLUDE
+)
+
+# Build memoir.
+include_directories(memoir)
+add_subdirectory(memoir)
+
+
+# Run tests, if enabled.
 add_subdirectory(tests)
 
 # Enable file.
