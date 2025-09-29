@@ -1,5 +1,0 @@
-/* HANDLE_PROPERTY(ID, ENUM, CLASS) */
-
-
-
-#undef HANDLE_PROPERTY
