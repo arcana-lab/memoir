@@ -178,7 +178,7 @@ __RUNTIME_ATTR
 bool MEMOIR_FUNC(assert_type)(const type_ref type,
                               const collection_ref object) MEMOIR_BODY;
 __RUNTIME_ATTR
-void MEMOIR_FUNC(return_type)(const type_ref type) MEMOIR_BODY;
+void MEMOIR_FUNC(set_return_type)(const type_ref type) MEMOIR_BODY;
 
 // MEMOIR Keyword arguments.
 #define MEMOIR_KEYWORD(NAME) "memoir." #NAME
