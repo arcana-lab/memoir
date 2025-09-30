@@ -51,15 +51,23 @@ function(create_llvm_pass_plugin)
 
   # Add sources from each directory.
   set(SRC_FILES "")
+  set(DEF_FILES "")
   foreach(SRC_DIR ${SRC_DIRECTORIES})
     # Add the local source files to the target.
     file(
-      GLOB_RECURSE LOCAL_FILES
+      GLOB_RECURSE LOCAL_SRC_FILES
       "${SRC_DIR}/*.c"
       "${SRC_DIR}/*.cpp"
       "${SRC_DIR}/*.cc"
     )
-    list(APPEND SRC_FILES ${LOCAL_FILES})
+    list(APPEND SRC_FILES ${LOCAL_SRC_FILES})
+
+    # Add the local def files to the target.
+    file(
+      GLOB_RECURSE LOCAL_DEF_FILES
+      "${SRC_DIR}/*.def"
+    )
+    list(APPEND DEF_FILES ${LOCAL_DEF_FILES})
   endforeach()
 
   # Create the target.
@@ -67,6 +75,13 @@ function(create_llvm_pass_plugin)
     ${SRC_TARGET}
     MODULE
     ${SRC_FILES}
+  )
+
+  # Add dependency on .def files.
+  target_sources(
+    ${SRC_TARGET}
+    PRIVATE
+    ${DEF_FILES}
   )
 endfunction()
 
