@@ -5,8 +5,8 @@
 #include "llvm/IR/Module.h"
 
 // MEMOIR
+#include "AccessCounter.hpp"
 #include "memoir/passes/Passes.hpp"
-#include "memoir/transform/profile_accesses/AccessCounter.hpp"
 
 namespace memoir {
 
