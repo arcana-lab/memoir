@@ -76,7 +76,7 @@ static void add_data_flow_facts(BoundsCheckResult &result,
 
     // TODO: we could perform something akin to LLVM's null-pointer analysis,
     // where accessing a key would mean that it is valid.
-    // This would mean that all nested indices introduce facts, and all
+    // This would mean that all nested indices introduce facts.
   }
 
   return;
