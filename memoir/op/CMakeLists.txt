@@ -18,6 +18,15 @@ set_target_properties(
   PROPERTIES
   LINKER_LANGUAGE C
 )
+
+add_custom_target(
+  memoir-defs
+  DEPENDS
+  memoir.def
+)
+
+add_dependencies(memoir-static memoir-defs)
+
 # Build the API runtime bitcode.
 llvmir_attach_bc_target(
   TARGET memoir-bitcodes
