@@ -9,7 +9,7 @@
 #include "memoir/support/Casting.hpp"
 #include "memoir/support/DataTypes.hpp"
 
-#include "memoir/transform/profile_accesses/AccessCounter.hpp"
+#include "AccessCounter.hpp"
 
 using namespace memoir;
 
