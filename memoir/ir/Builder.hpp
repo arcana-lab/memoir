@@ -685,6 +685,7 @@ protected:
     // Fetch the LLVM Function.
     auto *llvm_func =
         FunctionNames::get_memoir_function(*(this->M), memoir_enum);
+    MEMOIR_ASSERT(llvm_func, "Failed to find LLVM function ", memoir_enum);
 
     // Create the function callee.
     auto callee = llvm::FunctionCallee(llvm_func);
