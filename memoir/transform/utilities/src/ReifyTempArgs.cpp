@@ -219,8 +219,6 @@ static void patch_retphis(llvm::CallBase &call,
 }
 
 static void cleanup(Set<llvm::Value *> &to_cleanup) {
-
-  Set<llvm::Instruction *> to_delete = {};
   for (auto *val : to_cleanup) {
     if (auto *inst = dyn_cast<llvm::Instruction>(val)) {
       inst->eraseFromParent();
@@ -230,9 +228,6 @@ static void cleanup(Set<llvm::Value *> &to_cleanup) {
   for (auto *val : to_cleanup) {
     if (auto *func = dyn_cast<llvm::Function>(val)) {
       func->dropAllReferences();
-      if (!func->empty())
-        func->deleteBody();
-      func->eraseFromParent();
     }
   }
 }
