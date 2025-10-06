@@ -2,9 +2,9 @@
 //  CODE_0, the element type code
 //  TYPE_0, the element C type
 
-#include "backend/utilities.h"
+#include "memoir/impl/utilities.h"
 
-#include "backend/stl_vector/definition.hpp"
+#include "memoir/impl/stl_vector/definition.hpp"
 
 #define IMPL stl_vector
 #define PREFIX CAT(CODE_0, CAT(_, IMPL))

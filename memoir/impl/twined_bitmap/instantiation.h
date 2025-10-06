@@ -2,9 +2,9 @@
 //  CODE_0, the element type code
 //  TYPE_0, the element C type
 
-#include <backend/utilities.h>
+#include <memoir/impl/utilities.h>
 
-#include <backend/twined_bitmap/definition.hpp>
+#include <memoir/impl/twined_bitmap/definition.hpp>
 
 #define KEY_CODE CODE_0
 #define KEY_TYPE TYPE_0

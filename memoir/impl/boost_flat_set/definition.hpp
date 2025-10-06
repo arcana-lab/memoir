@@ -8,7 +8,7 @@
 
 #include <boost/container/flat_set.hpp>
 
-#include <backend/stl_vector/definition.hpp>
+#include <memoir/impl/stl_vector/definition.hpp>
 
 template <typename Key>
 struct FlatSet : boost::container::flat_set<Key> {

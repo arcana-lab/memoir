@@ -8,7 +8,7 @@
 
 #include <boost/dynamic_bitset.hpp>
 
-#include <backend/stl_vector/definition.hpp>
+#include <memoir/impl/stl_vector/definition.hpp>
 
 #ifndef BITSET_TRACK_SIZE
 #  define BITSET_TRACK_SIZE 0

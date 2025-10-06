@@ -1,6 +1,6 @@
-#include <backend/utilities.h>
+#include <memoir/impl/utilities.h>
 
-#include <backend/boost_flat_map/definition.hpp>
+#include <memoir/impl/boost_flat_map/definition.hpp>
 
 #define KEY_CODE CODE_0
 #define KEY_TYPE TYPE_0
