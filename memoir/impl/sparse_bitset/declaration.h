@@ -2,9 +2,9 @@
 //  CODE_0, the element type code
 //  TYPE_0, the element C type
 
-#include <backend/utilities.h>
+#include <memoir/impl/utilities.h>
 
-#include <backend/sparse_bitset/definition.hpp>
+#include <memoir/impl/sparse_bitset/definition.hpp>
 
 #define KEY_CODE CODE_0
 #define KEY_TYPE TYPE_0

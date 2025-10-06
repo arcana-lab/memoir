@@ -8,7 +8,7 @@
 
 #include <boost/container/flat_map.hpp>
 
-#include <backend/stl_vector/definition.hpp>
+#include <memoir/impl/stl_vector/definition.hpp>
 
 template <typename Key, typename Val>
 struct FlatMultiMap : boost::container::flat_multimap<Key, Val> {

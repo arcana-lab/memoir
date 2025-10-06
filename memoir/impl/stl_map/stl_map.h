@@ -4,7 +4,7 @@
 
 #include <map>
 
-#include <backend/stl_vector.h>
+#include <memoir/impl/stl_vector.h>
 
 #define CNAME extern "C"
 #define ALWAYS_INLINE __attribute__((always_inline)) inline

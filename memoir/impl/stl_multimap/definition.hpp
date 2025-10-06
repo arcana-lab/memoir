@@ -8,7 +8,7 @@
 
 #include <map>
 
-#include <backend/stl_vector/definition.hpp>
+#include <memoir/impl/stl_vector/definition.hpp>
 
 template <typename Key, typename Val>
 struct MultiMap : std::multimap<Key, Val> {
