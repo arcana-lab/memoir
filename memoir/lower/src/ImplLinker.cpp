@@ -497,6 +497,15 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
              type_name,
              "(); }");
 
+    // Emit the delete function for this struct.
+    fprintln(os,
+             "CNAME ALWAYS_INLINE USED ",
+             "void ",
+             type_name,
+             "__delete(",
+             type_name,
+             "* x) { delete x; }");
+
     // Create functions for each operation.
     for (auto field = 0; field < tuple_type->getNumFields(); ++field) {
       auto &field_type = tuple_type->getFieldType(field);

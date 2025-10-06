@@ -365,10 +365,12 @@ void SSADestructionVisitor::visitAllocInst(AllocInst &I) {
 
 void SSADestructionVisitor::visitDeleteInst(DeleteInst &I) {
 
-  if (auto *collection_type =
-          dyn_cast_or_null<CollectionType>(type_of(I.getObject()))) {
+  auto *type = type_of(I.getObject());
+  MEMOIR_ASSERT(type, "Failed to get type of struct");
 
-    MemOIRBuilder builder(I);
+  MemOIRBuilder builder(I);
+
+  if (auto *collection_type = dyn_cast<CollectionType>(type)) {
 
     Vector<llvm::Value *> arguments = { &I.getObject() };
 
@@ -385,6 +387,23 @@ void SSADestructionVisitor::visitDeleteInst(DeleteInst &I) {
     MEMOIR_NULL_CHECK(llvm_call, "Could not create the call for vector read");
 
     this->markForCleanup(I);
+  } else if (auto *tuple_type = dyn_cast<TupleType>(type)) {
+
+    auto prefix = type->get_code().value();
+
+    auto operation = "delete";
+
+    Vector<llvm::Value *> arguments = { &I.getObject() };
+
+    auto callee = detail::prepare_call(builder, prefix, operation, arguments);
+
+    auto &call = MEMOIR_SANITIZE(builder.CreateCall(callee, arguments),
+                                 "Couldn't create call for tuple deletion!");
+
+    this->markForCleanup(I);
+
+  } else {
+    MEMOIR_UNREACHABLE("Unhandled type deletion.");
   }
 
   // TODO: handle freeing nested collections.
