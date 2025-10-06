@@ -210,7 +210,11 @@ void ImplLinker::implement(Type &type) {
         auto &inst = impl.instantiate(*field_collection_type);
 
         fields.push_back(&inst);
+
         continue;
+
+      } else if (auto *field_tuple_type = dyn_cast<TupleType>(&field_type)) {
+        this->implement(*field_tuple_type);
       }
 
       fields.push_back(nullptr);
@@ -398,7 +402,7 @@ static void define_tuple(llvm::raw_ostream &os,
 static void emit_collection(llvm::raw_ostream &os,
                             const Instantiation &inst,
                             Set<const Instantiation *> &collections_declared,
-                            Set<const StructInstantiation *> &tuples_declared) {
+                            Set<TupleType *> &tuples_declared) {
 
   // If the collection has already been declared, skip.
   if (collections_declared.count(&inst)) {
@@ -417,13 +421,16 @@ static void emit_collection(llvm::raw_ostream &os,
 static void emit_tuple(llvm::raw_ostream &os,
                        const StructInstantiation &inst,
                        Set<const Instantiation *> &collections_declared,
-                       Set<const StructInstantiation *> &tuples_declared) {
+                       const OrderedSet<StructInstantiation> &to_emit,
+                       Set<TupleType *> &tuples_declared) {
 
-  if (tuples_declared.count(&inst)) {
+  auto &type = inst.type();
+
+  if (tuples_declared.count(&type)) {
     return;
   }
 
-  // Instantiate fields.
+  // Instantiate nested collections.
   for (auto *field_inst : inst.fields()) {
     // Skip non-collection fields.
     if (not field_inst) {
@@ -438,9 +445,38 @@ static void emit_tuple(llvm::raw_ostream &os,
     emit_collection(os, *field_inst, collections_declared, tuples_declared);
   }
 
+  // Instantiate nested tuples.
+  for (unsigned field_idx = 0; field_idx < type.getNumFields(); ++field_idx) {
+    auto &field_type = type.getFieldType(field_idx);
+    auto *field_tuple_type = dyn_cast<TupleType>(&field_type);
+    if (not field_tuple_type)
+      continue;
+
+    // Find the corresponding instantiation, and emit it now.
+    for (const auto &field_inst : to_emit) {
+      if (&field_inst.type() == field_tuple_type)
+        emit_tuple(os,
+                   field_inst,
+                   collections_declared,
+                   to_emit,
+                   tuples_declared);
+    }
+  }
+
   // Define the tuple.
   define_tuple(os, inst);
-  tuples_declared.insert(&inst);
+  tuples_declared.insert(&type);
+}
+
+static void emit_tuples(llvm::raw_ostream &os,
+                        const OrderedSet<StructInstantiation> &to_emit,
+                        Set<const Instantiation *> &collections_declared,
+                        Set<TupleType *> &tuples_declared) {
+
+  // Define the tuples.
+  for (const auto &inst : to_emit) {
+    emit_tuple(os, inst, collections_declared, to_emit, tuples_declared);
+  }
 }
 
 void ImplLinker::emit(llvm::raw_ostream &os) {
@@ -451,15 +487,13 @@ void ImplLinker::emit(llvm::raw_ostream &os) {
 
   // Track the instantiations that have been used already.
   Set<const Instantiation *> collections_declared = {};
-  Set<const StructInstantiation *> tuples_declared = {};
+  Set<TupleType *> tuples_declared = {};
 
   // Create forward declarations of all struct types.
   fprintln(os);
   fprintln(os);
   fprintln(os, "// Forward declarations for struct types");
-  for (const auto &tuple : this->structs_to_emit) {
-    emit_tuple(os, tuple, collections_declared, tuples_declared);
-  }
+  emit_tuples(os, this->structs_to_emit, collections_declared, tuples_declared);
 
   // Create forward declarations of all collection implementations.
   fprintln(os);
