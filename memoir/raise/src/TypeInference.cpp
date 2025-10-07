@@ -306,8 +306,8 @@ bool TypeInference::infer_return_type(llvm::Function &F) {
     auto *accumulator_type = type_of(fold->getInitial());
 
     // If the accumulator type is a collection or struct type, return it.
-    if (isa<CollectionType>(accumulator_type)
-        || isa<TupleType>(accumulator_type)) {
+    if (isa_and_nonnull<CollectionType>(accumulator_type)
+        || isa_and_nonnull<TupleType>(accumulator_type)) {
       this->type(F, accumulator_type);
       return true;
     }
