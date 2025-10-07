@@ -98,6 +98,10 @@ CNAME ALWAYS_INLINE USED size_t OP(size)(PTR vec) {
   return vec->size();
 }
 
+CNAME ALWAYS_INLINE USED bool OP(has)(PTR vec, size_t index) {
+  return index < vec->size();
+}
+
 CNAME ALWAYS_INLINE USED PTR OP(clear)(PTR vec) {
   vec->clear();
   return vec;
