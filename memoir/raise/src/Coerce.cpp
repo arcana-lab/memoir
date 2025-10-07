@@ -16,6 +16,10 @@ static bool coerce(llvm::Use &use,
   auto *used = use.get();
   auto *src_type = used->getType();
 
+  // Ensure the types aren't already the same.
+  if (src_type == dst_type)
+    return false;
+
   // Find the construction point for this use.
   auto *insertion_point = dyn_cast<llvm::Instruction>(user);
   if (auto *phi = dyn_cast<llvm::PHINode>(user)) {
@@ -51,6 +55,14 @@ static bool coerce(llvm::Use &use,
     } else {
       coerced = builder.CreateZExtOrTrunc(used, dst_int_type, "coerce.");
     }
+
+    use.set(coerced);
+    return true;
+  }
+
+  // Handle floating point casts.
+  if (src_type->isFloatingPointTy() and dst_type->isFloatingPointTy()) {
+    auto *coerced = builder.CreateFPCast(used, dst_type, "coerce.");
 
     use.set(coerced);
     return true;
