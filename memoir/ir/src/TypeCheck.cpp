@@ -310,8 +310,36 @@ Type *TypeChecker::visitHasInst(HasInst &I) {
   return nullptr;
 }
 
+Type *TypeChecker::nested_type(AccessInst &access) {
+  // Get the base type of the accessed object.
+  auto *type = this->analyze(access.getObject());
+
+  // Find the nested type based on the access indices.
+  for (auto *index : access.indices()) {
+    if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+      // Get the nested element type.
+      type = &collection_type->getElementType();
+
+    } else if (auto *tuple_type = dyn_cast<TupleType>(type)) {
+      // Get the index constant.
+      auto *index_constant = dyn_cast<llvm::ConstantInt>(index);
+      MEMOIR_ASSERT(index_constant, "Tuple access with non-constant index.");
+      auto field = index_constant->getZExtValue();
+
+      // Get the nested field type.
+      auto &field_type = tuple_type->getFieldType(field);
+      type = &field_type;
+
+    } else {
+      MEMOIR_UNREACHABLE("Indexing into non-object type: ", *type);
+    }
+  }
+
+  return type;
+}
+
 Type *TypeChecker::visitCopyInst(CopyInst &I) {
-  return this->analyze(I.getObject());
+  return this->nested_type(I);
 }
 
 // Update instructions.
