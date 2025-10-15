@@ -1009,7 +1009,8 @@ void SSADestructionVisitor::visitRemoveInst(RemoveInst &I) {
 
 void SSADestructionVisitor::visitCopyInst(CopyInst &I) {
   // Get the nested object as a value.
-  auto info = detail::get_nested_object(I, this->TC);
+  auto info =
+      detail::get_nested_object(I, this->TC, /* fully qualified? */ true);
 
   // Construct the read.
   MemOIRBuilder builder(I);
