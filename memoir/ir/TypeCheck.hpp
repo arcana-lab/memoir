@@ -74,6 +74,9 @@ protected:
   Type *analyze(MemOIRInst &I);
   Type *analyze(llvm::Value &V);
 
+  // Helper functions.
+  Type *nested_type(AccessInst &access);
+
   // Visitor functions
   //// Base case
   Type *visitInstruction(llvm::Instruction &I);
