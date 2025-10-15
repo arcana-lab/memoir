@@ -310,6 +310,10 @@ Type *TypeChecker::visitHasInst(HasInst &I) {
   return nullptr;
 }
 
+Type *TypeChecker::visitCopyInst(CopyInst &I) {
+  return this->analyze(I.getObject());
+}
+
 // Update instructions.
 Type *TypeChecker::visitUpdateInst(UpdateInst &I) {
   return this->analyze(I.getObject());

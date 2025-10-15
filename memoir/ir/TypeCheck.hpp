@@ -113,6 +113,7 @@ protected:
   Type *visitReadInst(ReadInst &I);
   Type *visitGetInst(GetInst &I);
   Type *visitHasInst(HasInst &I);
+  Type *visitCopyInst(CopyInst &I);
   Type *visitKeysInst(KeysInst &I);
   Type *visitFoldInst(FoldInst &I);
   //// Update instructions
