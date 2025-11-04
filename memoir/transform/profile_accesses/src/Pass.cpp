@@ -5,8 +5,10 @@
 #include "llvm/IR/Module.h"
 
 // MEMOIR
-#include "AccessCounter.hpp"
 #include "memoir/passes/Passes.hpp"
+#include "memoir/support/Print.hpp"
+
+#include "AccessCounter.hpp"
 
 namespace memoir {
 
