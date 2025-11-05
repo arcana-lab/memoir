@@ -31,6 +31,7 @@ Type &AccessInst::getInnerObjectType() const {
 
   for (auto *index : this->indices()) {
     // Get the nested type at this index..
+    Type *nested_type = NULL;
     if (auto *tuple_type = dyn_cast<TupleType>(type)) {
       auto &index_constant =
           MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
@@ -45,16 +46,17 @@ Type &AccessInst::getInnerObjectType() const {
       auto *nested_type = &collection_type->getElementType();
     }
 
+    MEMOIR_ASSERT(nested_type, "Couldn't determine type of nested object");
+
     // If the nested type is not an object, return the outer object type.
-    if (not isa<ObjectType>(nested_type))
-      return type;
+    if (not isa_and_nonnull<ObjectType>(nested_type))
+      break;
 
     // Otherwise, continue with the nested type.
     type = nested_type;
   }
 
   return MEMOIR_SANITIZE(type, "Couldn't determine type of accessed element.");
-}
 }
 
 Type &AccessInst::getElementType() const {
