@@ -543,6 +543,7 @@ protected:
 struct AccessInst : public MemOIRInst {
 public:
   Type &getObjectType() const;
+  Type &getInnerObjectType() const;
   Type &getElementType() const;
 
   virtual llvm::Value &getObject() const = 0;

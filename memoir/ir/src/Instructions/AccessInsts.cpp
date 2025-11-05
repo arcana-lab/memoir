@@ -25,6 +25,38 @@ Type &AccessInst::getObjectType() const {
   return *type;
 }
 
+Type &AccessInst::getInnerObjectType() const {
+  // Get the collection type.
+  auto *type = &this->getObjectType();
+
+  for (auto *index : this->indices()) {
+    // Get the nested type at this index..
+    if (auto *tuple_type = dyn_cast<TupleType>(type)) {
+      auto &index_constant =
+          MEMOIR_SANITIZE(dyn_cast<llvm::ConstantInt>(index),
+                          "Struct field index is not constant.\n  ",
+                          *index,
+                          " in ",
+                          *this);
+      auto index_value = index_constant.getZExtValue();
+      auto *nested_type = &tuple_type->getFieldType(index_value);
+
+    } else if (auto *collection_type = dyn_cast<CollectionType>(type)) {
+      auto *nested_type = &collection_type->getElementType();
+    }
+
+    // If the nested type is not an object, return the outer object type.
+    if (not isa<ObjectType>(nested_type))
+      return type;
+
+    // Otherwise, continue with the nested type.
+    type = nested_type;
+  }
+
+  return MEMOIR_SANITIZE(type, "Couldn't determine type of accessed element.");
+}
+}
+
 Type &AccessInst::getElementType() const {
   // Determine the element type from the operation.
   switch (this->getKind()) {
