@@ -65,6 +65,9 @@ static bool replace_with_dominator(
     DataEnumeration::GetDominatorTree get_domtree,
     llvm::ArrayRef<llvm::Instruction *> defs,
     llvm::Use &use) {
+  // TEMPORARY: disable this optimization
+  return false;
+
   for (auto *def : defs) {
     if (dominates(get_domtree, *def, use)) {
       use.set(def);
@@ -295,85 +298,6 @@ void DataEnumeration::promote() {
 
   // Promote the globals.
   promote_globals(globals_to_promote);
-}
-
-bool value_will_be_inserted(llvm::Value &value, InsertInst &insert) {
-
-  auto *inst = dyn_cast<llvm::Instruction>(&value);
-  llvm::BasicBlock *value_bb = nullptr;
-  if (inst) {
-    value_bb = inst->getParent();
-  } else if (auto *arg = dyn_cast<llvm::Argument>(&value)) {
-    auto *func = arg->getParent();
-    value_bb = &func->getEntryBlock();
-  } else {
-    MEMOIR_UNREACHABLE("Unhandled value: ", value);
-  }
-
-  auto *user_bb = insert.getParent();
-
-  // If the value and user are in the same basic block, then it will
-  // definitely be used.
-  if (value_bb == user_bb) {
-    return true;
-  }
-
-  // If the use postdominates the value definition.
-  auto *func = user_bb->getParent();
-
-  // Check if the every path from the value must include the insert
-  // instruction, a has instruction equivalent to the inserted key, or is
-  // unreachable.
-  bool will_be_inserted = true;
-  WorkList<llvm::BasicBlock *, /* VisitOnce? */ true> worklist = { value_bb };
-  while (not worklist.empty()) {
-    auto *bb = worklist.pop();
-
-    // If we hit the insert, then this path hits the insert.
-    if (bb == user_bb) {
-      continue;
-    }
-
-    auto *terminator = bb->getTerminator();
-    if (isa<llvm::UnreachableInst>(terminator)) {
-      // If this path is unreachable, then yippee!
-      continue;
-    } else if (isa<llvm::ReturnInst>(terminator)) {
-      // If we found a return, then we didn't insert along this path!
-      will_be_inserted = false;
-      break;
-    } else if (auto *branch = dyn_cast<llvm::BranchInst>(terminator)) {
-      // Check if this branch checks if we have already inserted this value.
-      if (branch->isConditional()) {
-        if (auto *cond = branch->getCondition()) {
-          if (auto *has = into<HasInst>(cond)) {
-            // Check if the offsets match.
-            if (&insert.getObject() == &has->getObject()
-                and std::equal(insert.indices_begin(),
-                               insert.indices_end(),
-                               has->indices_begin(),
-                               has->indices_end())) {
-              // Enqueue the false branch.
-              worklist.push(branch->getSuccessor(1));
-              continue;
-            }
-          }
-        }
-      }
-
-      // Enqueue all successors.
-      for (auto *succ : branch->successors()) {
-        worklist.push(succ);
-      }
-    }
-  }
-
-  if (will_be_inserted) {
-    return true;
-  }
-
-  // Otherwise, we can't guarantee the value will be present.
-  return false;
 }
 
 void DataEnumeration::decode_uses() {
@@ -863,6 +787,19 @@ bool DataEnumeration::transform() {
   debugln("=== MUTATE PARAM TYPES ===");
   this->mutate_types();
   debugln();
+
+  // Verify...
+  for (auto &function : this->module) {
+    if (not function.empty()) {
+      print("VERIFYING ", function.getName());
+      if (llvm::verifyFunction(function, &llvm::errs())) {
+        println(function);
+        MEMOIR_UNREACHABLE("Failed to verify ", function.getName());
+      } else {
+        print("\r                                                \r");
+      }
+    }
+  }
 
   return modified;
 }
