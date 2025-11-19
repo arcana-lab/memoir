@@ -27,7 +27,7 @@ do
             flags
             exit 1
             ;;
-        --disable-folio)
+        --disable-folio|--disable-ade)
             DISABLE_FOLIO="y"
             shift
             ;;
