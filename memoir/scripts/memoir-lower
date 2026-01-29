@@ -27,8 +27,8 @@ do
             flags
             exit 1
             ;;
-        --disable-folio|--disable-ade)
-            DISABLE_FOLIO="y"
+        --enable-folio|--enable-ade)
+            ENABLE_FOLIO="y"
             shift
             ;;
         *)
@@ -40,11 +40,11 @@ done
 
 # Run Folio.
 # TODO: make this load folio and add the pass.
-if [ -z ${DISABLE_FOLIO} ]
+if [ -z ${ENABLE_FOLIO} ]
 then
-    memoir-load -load-pass-plugin=$(memoir-config --libdir)/folio.so -passes=folio-selection,lower-memoir ${ARGS[@]}
-else
     memoir-load -passes=lower-memoir ${ARGS[@]}
+else
+    memoir-load -passes=memoir-ade,lower-memoir ${ARGS[@]}
 fi
 
 # Lower MEMOIR to LLVM.
