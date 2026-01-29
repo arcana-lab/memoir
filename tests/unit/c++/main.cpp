@@ -1,4 +1,4 @@
-#include <cmemoir/test.hpp>
+#include <test.hpp>
 
 #include <memoir++/assoc.hh>
 #include <memoir++/sequence.hh>

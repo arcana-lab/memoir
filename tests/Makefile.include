@@ -27,8 +27,8 @@ OPT=memoir-opt
 LOWER=memoir-lower
 
 LIBS=-lm -lstdc++ $(EXTRA_LIBS)
-CFLAGS=-I$(INCLUDE_DIR) -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(EXTRA_CFLAGS) $(LIBS) -Wno-unused-command-line-argument
-CXXFLAGS=-I$(INCLUDE_DIR) -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(EXTRA_CXXFLAGS) $(LIBS) -Wno-unused-command-line-argument
+CFLAGS=-I$(INCLUDE_DIR) -I../../include -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(EXTRA_CFLAGS) $(LIBS) -Wno-unused-command-line-argument
+CXXFLAGS=-I$(INCLUDE_DIR) -I../../include -std=c++17 -O3 -fno-vectorize -fno-slp-vectorize -Xclang -disable-llvm-passes -fdeclspec $(EXTRA_CXXFLAGS) $(LIBS) -Wno-unused-command-line-argument
 
 IR_FILE_INPUT=$(BUILD_DIR)/input.bc
 IR_FILE_SSA=$(BUILD_DIR)/ssa.bc

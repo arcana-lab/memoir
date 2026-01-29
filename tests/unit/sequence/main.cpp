@@ -1,8 +1,8 @@
 #include <iostream>
 
-#include "cmemoir/cmemoir.h"
+#include "memoir/c/cmemoir.h"
 
-#include "cmemoir/test.hpp"
+#include "test.hpp"
 
 using namespace memoir;
 

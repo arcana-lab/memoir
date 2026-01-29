@@ -1,7 +1,7 @@
 #include <cstdio>
 
-#include "cmemoir/cmemoir.h"
-#include "cmemoir/test.hpp"
+#include "memoir/c/cmemoir.h"
+#include "test.hpp"
 
 using namespace memoir;
 
