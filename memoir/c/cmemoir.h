@@ -189,7 +189,7 @@ namespace memoir {
 #define memoir_assert_collection_type(type, object)                            \
   memoir_assert_type(type, object)
 
-#define memoir_return_type(type) MEMOIR_FUNC(return_type)(type)
+#define memoir_return_type(type) MEMOIR_FUNC(set_return_type)(type)
 #define memoir_return(type, object)                                            \
   memoir_return_type(type);                                                    \
   return object
