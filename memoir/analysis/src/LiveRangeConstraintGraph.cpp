@@ -1,10 +1,7 @@
-#if 0
-
-#  include "memoir/analysis/LiveRangeAnalysis.hpp"
-
-#  include "memoir/support/Assert.hpp"
-#  include "memoir/support/Casting.hpp"
-#  include "memoir/support/Print.hpp"
+#include "memoir/analysis/LiveRangeAnalysis.hpp"
+#include "memoir/support/Assert.hpp"
+#include "memoir/support/Casting.hpp"
+#include "memoir/support/Print.hpp"
 
 namespace memoir {
 
@@ -78,130 +75,103 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
                                                  llvm::Instruction &I) {
 
   // Handle MEMOIR instructions.
-  if (auto *memoir_inst = into<MemOIRInst>(I)) {
+  if (auto *memoir = into<MemOIRInst>(I)) {
 
     // For indexed operations, construct their indices as nodes in the graph and
     // the proper constraints edge.
-    if (auto *read_inst = dyn_cast<IndexReadInst>(memoir_inst)) {
+    if (auto *read = dyn_cast<ReadInst>(memoir)) {
 
-      // Get the index use.
-      auto &index_use = read_inst->getIndexAsUse();
+      auto *type = &read->getObjectType();
 
-      // Fetch the index range.
-      auto &index_range = RA.get_value_range(index_use);
+      for (auto &index_use : read->index_operands()) {
 
-      // Add the index to the graph.
-      this->add_index_to_graph(
-          MEMOIR_SANITIZE(index_use.get(), "Index being used is NULL!"),
-          index_range);
+        // Only track usage of sequence indices.
+        if (isa<SequenceType>(type)) {
+          // Fetch the index range.
+          auto &index_range = RA.get_value_range(index_use);
 
-      // Add edge for index use.
-      this->add_index_use_to_graph(index_use, read_inst->getObjectOperand());
+          // Add the index to the graph.
+          this->add_index_to_graph(
+              MEMOIR_SANITIZE(index_use.get(), "Index being used is NULL!"),
+              index_range);
 
-    } else if (auto *use_phi = dyn_cast<UsePHIInst>(memoir_inst)) {
+          // Add edge for index use.
+          this->add_index_use_to_graph(index_use, read->getObject());
+        }
+
+        // TODO: Update the constraint graph to handle nested facts.
+        break;
+      }
+
+    } else if (auto *use_phi = dyn_cast<UsePHIInst>(memoir)) {
+
       // Add an edge from this value to its sequence operand.
-      this->add_use_to_graph(use_phi->getUsedAsUse(),
-                             propagate_range);
+      this->add_use_to_graph(use_phi->getUsedAsUse(), propagate_range);
 
-    } else if (auto *write_inst = dyn_cast<IndexWriteInst>(memoir_inst)) {
+    } else if (auto *write = dyn_cast<WriteInst>(memoir)) {
+
+      if (not isa<SequenceType>(&write->getInnerObjectType()))
+        return;
+
       // Add an edge from this value to its sequence operand.
-      this->add_use_to_graph(write_inst->getObjectOperandAsUse(),
-                             propagate_range);
+      this->add_use_to_graph(write->getObjectAsUse(), propagate_range);
 
-    } else if (auto *get_inst = dyn_cast<IndexGetInst>(memoir_inst)) {
+    } else if (auto *insert = dyn_cast<InsertInst>(memoir)) {
 
-      // Get the index use.
-      auto &index_use = get_inst->getIndexAsUse();
+      if (not isa<SequenceType>(&insert->getInnerObjectType()))
+        return;
 
-      // Fetch the index range.
-      auto &index_range = RA.get_value_range(index_use);
+      if (auto input_kw = insert->get_keyword<InputKeyword>()) {
+        // Add edge for input collection.
+        this->add_use_to_graph(
+            input_kw->getInputAsUse(),
+            [](ValueRange *in) -> ValueRange * {
+              MEMOIR_UNREACHABLE("Insert constraint unimplemented!");
+            });
+      }
 
-      // Add the index to the graph.
-      this->add_index_to_graph(
-          MEMOIR_SANITIZE(index_use.get(), "Index being used is NULL!"),
-          index_range);
-
-      // Add edge for index use.
-      this->add_index_use_to_graph(index_use, get_inst->getObjectOperand());
-
-    } else if (auto *insert_inst = dyn_cast<SeqInsertInst>(memoir_inst)) {
-      // Add edge for collection used.
+      // Add edge for collection.
       this->add_use_to_graph(
-          insert_inst->getBaseCollectionAsUse(),
+          insert->getObjectAsUse(),
           [](ValueRange *in) -> ValueRange * {
             MEMOIR_UNREACHABLE("Insert constraint unimplemented!");
           });
 
-    } else if (auto *insert_value_inst =
-                   dyn_cast<SeqInsertValueInst>(memoir_inst)) {
-      // Add edge for collection used.
-      this->add_use_to_graph(
-          insert_inst->getBaseCollectionAsUse(),
-          [](ValueRange *in) -> ValueRange * {
-            MEMOIR_UNREACHABLE("Insert constraint unimplemented!");
-          });
+    } else if (auto *remove = dyn_cast<RemoveInst>(memoir)) {
 
-    } else if (auto *insert_seq_inst =
-                   dyn_cast<SeqInsertSeqInst>(memoir_inst)) {
-      // Add edge for collections used.
-      this->add_use_to_graph(
-          insert_seq_inst->getBaseCollectionAsUse(),
-          [](ValueRange *in) -> ValueRange * {
-            MEMOIR_UNREACHABLE("Insert constraint unimplemented!");
-          });
-      this->add_use_to_graph(
-          insert_seq_inst->getInsertedCollectionAsUse(),
-          [](ValueRange *in) -> ValueRange * {
-            MEMOIR_UNREACHABLE("Insert constraint unimplemented!");
-          });
+      if (not isa<SequenceType>(&insert->getInnerObjectType()))
+        return;
 
-    } else if (auto *remove_inst = dyn_cast<SeqRemoveInst>(memoir_inst)) {
-      // Add edge for collection used.
       this->add_use_to_graph(
-          remove_inst->getBaseCollectionAsUse(),
+          remove->getObjectAsUse(),
           [](ValueRange *in) -> ValueRange * {
             MEMOIR_UNREACHABLE("Remove constraint unimplemented!");
           });
 
-    } else if (auto *swap_inst = dyn_cast<SeqSwapInst>(memoir_inst)) {
-      // Add edge for _from_ collection.
-      this->add_use_to_graph(
-          swap_inst->getFromCollectionAsUse(),
-          [](ValueRange *in) -> ValueRange * {
-            MEMOIR_UNREACHABLE("Swap constraint unimplemented!");
-          });
+    } else if (auto *copy = dyn_cast<CopyInst>(memoir)) {
 
-      // Add edge for _to_ collection.
-      this->add_use_to_graph(
-          swap_inst->getToCollectionAsUse(),
-          [](ValueRange *in) -> ValueRange * {
-            MEMOIR_UNREACHABLE("Swap constraint unimplemented!");
-          });
+      if (not isa<SequenceType>(&copy->getInnerObjectType()))
+        return;
 
-    } else if (auto *swap_within_inst =
-                   dyn_cast<SeqSwapWithinInst>(memoir_inst)) {
-      // Add edge for collection.
-      this->add_use_to_graph(
-          swap_within_inst->getFromCollectionAsUse(),
-          [](ValueRange *in) -> ValueRange * {
-            MEMOIR_UNREACHABLE("Swap constraint unimplemented!");
-          });
+      // If this is a whole-collection copy, just propagate.
+      auto range_kw = copy->get_keyword<RangeKeyword>();
+      if (not range_kw) {
+        this->add_use_to_graph(copy->getObjectAsUse(), propagate_range);
+        return;
+      }
 
-    } else if (auto *copy_inst = dyn_cast<SeqCopyInst>(memoir_inst)) {
       // Get the start index for the copy.
-      auto &start_index = copy_inst->getBeginIndexAsUse();
+      auto &start_index = range_kw->getBeginAsUse();
 
       // Get the value range of the start index.
       auto &start_range = RA.get_value_range(start_index);
 
-      // Add edge for copied collection.
       this->add_use_to_graph(
-          copy_inst->getCopiedCollectionAsUse(),
+          copy->getObjectAsUse(),
           [&start_range](ValueRange *in) -> ValueRange * {
             // If the input is NULL, return NULL.
-            if (in == nullptr) {
+            if (in == nullptr)
               return nullptr;
-            }
 
             // Compute the addition of the start index and
             // the incoming range.
@@ -214,10 +184,10 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
 
             return new ValueRange(*lower_inc, *upper_inc);
           });
-    } else if (auto *clear_inst = dyn_cast<ClearInst>(memoir_inst)) {
-      // Add edge for collection used.
+
+    } else if (auto *clear = dyn_cast<ClearInst>(memoir)) {
       this->add_use_to_graph(
-          clear_inst->getObjectAsUse(),
+          clear->getObjectAsUse(),
           [](ValueRange *in) -> ValueRange * {
             MEMOIR_UNREACHABLE("Clear constraint unimplemented!");
           });
@@ -237,5 +207,3 @@ void LiveRangeConstraintGraph::add_uses_to_graph(RangeAnalysisResult &RA,
 }
 
 } // namespace memoir
-
-#endif

@@ -10,6 +10,10 @@
 
 namespace memoir {
 
+static llvm::cl::opt<bool> dump_range_analysis(
+    "memoir-dump-range",
+    llvm::cl::desc("Dump result of range analysis"));
+
 // Result.
 ValueRange &RangeAnalysisResult::get_value_range(llvm::Use &use) {
   auto found_range = this->use_to_range.find(&use);
@@ -23,15 +27,15 @@ ValueRange &RangeAnalysisResult::get_value_range(llvm::Use &use) {
 }
 
 void RangeAnalysisResult::dump() {
-  debugln("RangeAnalysis results:");
+  println("RangeAnalysis results:");
 
   for (auto const *range : this->ranges) {
-    debugln("  Range: ", *range);
+    println("  Range: ", *range);
   }
 
   for (auto const &[use, range] : this->use_to_range) {
-    debugln("  For use of ", *use->get(), " at ", *use->getUser());
-    debugln("    Range = ", *range);
+    println("  For use of ", *use->get(), " at ", *use->getUser());
+    println("    Range = ", *range);
   }
 }
 
@@ -319,6 +323,9 @@ RangeAnalysisResult RangeAnalysis::run(llvm::Module &M,
 
   // Construct the RangeAnalysisDriver.
   RangeAnalysisDriver RA(M, NOELLE, result);
+
+  if (dump_range_analysis)
+    result.dump();
 
   // Return the result.
   return result;

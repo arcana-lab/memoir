@@ -35,7 +35,6 @@ static llvm::GlobalVariable *create_counter(llvm::Module &M,
                                llvm::GlobalValue::LinkageTypes::InternalLinkage,
                                zero_init,
                                "memoir_counter__" + name.str());
-
   MEMOIR_ASSERT(global, "Failed to create global!");
 
   return global;

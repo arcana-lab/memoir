@@ -1,6 +1,5 @@
-#ifndef MEMOIR_RANGEANALYSIS_H
-#define MEMOIR_RANGEANALYSIS_H
-#pragma once
+#ifndef MEMOIR_ANALYSIS_RANGEANALYSIS_H
+#define MEMOIR_ANALYSIS_RANGEANALYSIS_H
 
 // LLVM
 #include "llvm/IR/Function.h"
@@ -145,4 +144,4 @@ protected:
 
 } // namespace memoir
 
-#endif
+#endif // MEMOIR_ANALYSIS_RANGEANALYSIS_H
